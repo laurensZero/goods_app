@@ -139,7 +139,7 @@
               <button
                 type="button"
                 class="dialog-btn dialog-btn--secondary"
-                :disabled="!webUpdateStore.supported || webUpdateStore.isChecking"
+                :disabled="!webUpdateCheckEnabled || webUpdateStore.isChecking"
                 @click="handleManualCheckWebUpdate"
               >
                 {{ webUpdateStore.isChecking ? t('about.checking') : t('about.checkResourceUpdate') }}
@@ -272,6 +272,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import packageJson from '../../package.json'
 import capacitorConfig from '../../capacitor.config.json'
+import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
 
 const { t } = useI18n()
 
@@ -291,9 +292,12 @@ const { toastMsg, showToast } = useToast()
 const appIconSrc = `${import.meta.env.BASE_URL}favicon.svg`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
 const appId = capacitorConfig.appId || 'unknown'
-const appVersion = ref(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
-const androidVersionName = ref(import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0')
-const webBundleVersionLabel = computed(() => webUpdateStore.currentVersion || `v${appVersion.value}`)
+const appVersion = ref(resolveMockAppVersion() || import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
+const androidVersionName = ref(resolveMockAppVersion() || import.meta.env.VITE_ANDROID_VERSION_NAME || import.meta.env.VITE_APP_VERSION || '1.0')
+const webBundleVersionLabel = computed(() => {
+  if (isDevVersionMockEnabled()) return resolveMockBundleVersion() || `v${appVersion.value}`
+  return webUpdateStore.currentVersion || `v${appVersion.value}`
+})
 
 const statsCards = computed(() => [
   {
@@ -344,7 +348,7 @@ const updateCheckedAtLabel = computed(() => (
 ))
 
 const webUpdateStatusText = computed(() => {
-  if (!webUpdateStore.supported) return t('about.webOnlyNativeSupported')
+  if (!webUpdateCheckEnabled.value) return t('about.webOnlyNativeSupported')
   if (webUpdateStore.isChecking) return t('about.checkingResourceDefault')
   if (webUpdateStore.lastStatus === 'pending' && webUpdateStore.pendingVersion) {
     return t('about.resourceReady', { version: webUpdateStore.pendingVersion })
@@ -366,6 +370,8 @@ const webUpdateStatusText = computed(() => {
 const webUpdateCheckedAtLabel = computed(() => (
   webUpdateStore.lastCheckedAt ? formatSyncTime(webUpdateStore.lastCheckedAt) : t('about.notCheckedYet')
 ))
+
+const webUpdateCheckEnabled = computed(() => webUpdateStore.supported || isDevVersionMockEnabled())
 
 const webUpdateReleaseNotesPreview = computed(() => {
   return String(webUpdateStore.releaseNotesPreview || '').trim()
@@ -424,7 +430,7 @@ async function handleStartUpdate() {
 }
 
 async function handleManualCheckWebUpdate() {
-  if (!webUpdateStore.supported || webUpdateStore.isChecking) return
+  if (!webUpdateCheckEnabled.value || webUpdateStore.isChecking) return
 
   try {
     const result = await webUpdateStore.checkForUpdates()

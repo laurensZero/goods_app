@@ -7,6 +7,13 @@ import packageJson from '../../package.json'
 import { compareVersions, normalizeVersionTag } from '@/utils/github/release'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { readPersisted } from '@/utils/platform/storage'
+import {
+  isDevVersionMockEnabled,
+  MOCK_APP_VERSION_KEY,
+  MOCK_BUNDLE_VERSION_KEY,
+  resolveMockAppVersion,
+  resolveMockBundleVersion
+} from '@/utils/dev/mockVersion'
 import router from '@/router'
 
 const ANNOUNCEMENT_RECORD_STORAGE_KEY = 'goods_announcement_record'
@@ -392,10 +399,22 @@ export const useAnnouncementStore = defineStore('announcement', () => {
       } else {
         appVersion.value = FALLBACK_VERSION
         bundleVersion.value = FALLBACK_VERSION
+        if (isDevVersionMockEnabled()) {
+          appVersion.value = resolveMockAppVersion() || FALLBACK_VERSION
+          bundleVersion.value = resolveMockBundleVersion() || FALLBACK_VERSION
+          console.info(
+            `[announcement] dev 版本模拟 app=${appVersion.value} bundle=${bundleVersion.value}；`
+            + `可用 localStorage 设置 ${MOCK_APP_VERSION_KEY} / ${MOCK_BUNDLE_VERSION_KEY} 覆盖，置空恢复默认最新`
+          )
+        }
       }
     } catch {
       appVersion.value = FALLBACK_VERSION
       bundleVersion.value = Capacitor.isNativePlatform() ? '' : FALLBACK_VERSION
+      if (isDevVersionMockEnabled()) {
+        appVersion.value = resolveMockAppVersion() || FALLBACK_VERSION
+        bundleVersion.value = resolveMockBundleVersion() || FALLBACK_VERSION
+      }
     } finally {
       initialized.value = true
     }

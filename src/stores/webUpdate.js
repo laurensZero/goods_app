@@ -11,6 +11,7 @@ import { normalizeUpdateLevel } from '@/utils/updateHelpers'
 import { SUPABASE_URL } from '@/config/supabase'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
+import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
 
 const log = createLogger('web-update')
 
@@ -181,7 +182,14 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
     supported.value = Capacitor.isNativePlatform()
     if (!supported.value) {
-      lastStatus.value = 'disabled'
+      if (isDevVersionMockEnabled()) {
+        // PC dev 模拟：仅开放检测，不做实际下载/应用；版本号用 mock 模拟
+        currentVersion.value = resolveMockBundleVersion() || ''
+        nativeVersion.value = resolveMockAppVersion() || ''
+        lastStatus.value = 'ready'
+      } else {
+        lastStatus.value = 'disabled'
+      }
       initialized.value = true
       return
     }
@@ -215,7 +223,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
     activeCheckPromise = (async () => {
       await init()
-      if (!supported.value) {
+      if (!supported.value && !isDevVersionMockEnabled()) {
         return { status: 'disabled' }
       }
 

@@ -22,6 +22,7 @@ import { SUPABASE_URL } from '@/config/supabase'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
+import { isDevVersionMockEnabled, resolveMockAppVersion } from '@/utils/dev/mockVersion'
 
 const log = createLogger('app-update')
 
@@ -31,6 +32,17 @@ const SYNC_TOKEN_STORAGE_KEY = 'sync_github_token'
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
 const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
+// dev 浏览器强制弹出 mock 下载对话框的开关：默认关闭（保持与手机端一致的真实版本比较）；
+// 需要测试下载流程时设置 localStorage.setItem('goods_dev_mock_update_dialog', '1')
+const FORCE_MOCK_DIALOG_KEY = 'goods_dev_mock_update_dialog'
+
+function shouldForceMockDialog() {
+  try {
+    return String(localStorage.getItem(FORCE_MOCK_DIALOG_KEY) || '').trim() === '1'
+  } catch {
+    return false
+  }
+}
 
 let activeCheckPromise = null
 
@@ -65,6 +77,11 @@ function resolveUpdateTargetPlatform() {
 }
 
 function resolveUpdateLevelFromRelease(release) {
+  const structured = String(release?.update_level || '').trim().toLowerCase()
+  if (structured === 'force' || structured === 'prompt' || structured === 'silent') {
+    return structured
+  }
+
   const body = String(release?.body || '').trim()
   if (!body) return 'prompt'
 
@@ -83,10 +100,59 @@ function resolveUpdateLevelFromRelease(release) {
 
 // 从 release body 解析 apk_sha256 元数据（由 build-apk.yml 工作流写入 release notes）
 function resolveApkSha256FromRelease(release) {
+  const structured = String(release?.apk_sha256 || '').trim().toLowerCase()
+  if (/^[a-f0-9]{64}$/.test(structured)) return structured
   return parseApkSha256FromText(release?.body)
 }
 
+// 从 Supabase ota_releases 读取最新 APK 发布记录（与资源包同一后端，Android 检测更新统一走这里）
+async function fetchLatestApkFromSupabase() {
+  const client = getSupabaseClient()
+  const { data, error } = await client
+    .from('ota_releases')
+    .select('*')
+    .eq('type', 'apk')
+    .order('published_at', { ascending: false })
+    .limit(1)
+
+  if (error) throw error
+
+  const record = data?.[0]
+  const version = normalizeVersionTag(record?.version)
+  const storagePath = String(record?.storage_path || '').trim()
+  if (!version || !storagePath) return null
+
+  const downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${storagePath}`
+  const fileName = storagePath.split('/').pop() || ''
+
+  return {
+    tag_name: version,
+    body: String(record?.notes || '').trim(),
+    update_level: normalizeUpdateLevel(record?.update_level),
+    apk_sha256: String(record?.sha256 || '').toLowerCase(),
+    html_url: downloadUrl,
+    source: 'supabase',
+    assets: fileName
+      ? [{
+          name: fileName,
+          browser_download_url: downloadUrl,
+          size: Number(record?.file_size || 0)
+        }]
+      : []
+  }
+}
+
 async function fetchLatestRelease() {
+  // Android（含 PC dev 模拟）统一走 Supabase 检测 APK 更新；无记录时回退 GitHub
+  if (resolveUpdateTargetPlatform() === 'android') {
+    try {
+      const apkRelease = await fetchLatestApkFromSupabase()
+      if (apkRelease) return apkRelease
+    } catch (error) {
+      log.warn('check:supabase-apk-unavailable-fallback-github', { error: error?.message })
+    }
+  }
+
   const token = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
   try {
     return await getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, token)
@@ -168,10 +234,14 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         currentVersion.value = normalizeVersionTag(info?.version || FALLBACK_VERSION) || FALLBACK_VERSION
         currentBuild.value = String(info?.build || '')
       } else {
-        currentVersion.value = FALLBACK_VERSION
+        currentVersion.value = isDevVersionMockEnabled()
+          ? (resolveMockAppVersion() || FALLBACK_VERSION)
+          : FALLBACK_VERSION
       }
     } catch {
-      currentVersion.value = FALLBACK_VERSION
+      currentVersion.value = isDevVersionMockEnabled()
+        ? (resolveMockAppVersion() || FALLBACK_VERSION)
+        : FALLBACK_VERSION
     } finally {
       initialized.value = true
     }
@@ -432,7 +502,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
           supabaseApkSha256.value = ''
         }
 
-        if (usingMockDownload.value && source === 'manual' && !hasUpdate.value) {
+        if (usingMockDownload.value && source === 'manual' && !hasUpdate.value && shouldForceMockDialog()) {
           forceMockDialog.value = true
         }
 
