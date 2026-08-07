@@ -197,7 +197,8 @@ const {
   selectedIds,
   toggleSelect
 } = useGoodsSelection(filteredGoodsList, {
-  historyKey: 'eventGoodsPickerSelectionMode'
+  historyKey: 'eventGoodsPickerSelectionMode',
+  preserveSelectedIds: true
 })
 
 function readStoredSortMode() {
