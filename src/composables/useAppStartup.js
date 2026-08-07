@@ -1,5 +1,4 @@
 import { onMounted, watch } from 'vue'
-import { Capacitor } from '@capacitor/core'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
@@ -8,7 +7,6 @@ import { useEventsStore } from '@/stores/events'
 import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
-import { isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
 
 export function useAppStartup() {
   const eventsStore = useEventsStore()
@@ -29,17 +27,15 @@ export function useAppStartup() {
     void eventsStore.init()
     void rechargeStore.init()
 
-    // PC dev 模拟时同步手机端行为：启动即自动检测更新（app 与 OTA 均走 Supabase）
-    const autoCheckEnabled = Capacitor.isNativePlatform() || isDevVersionMockEnabled()
-    if (autoCheckEnabled) {
-      void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
-        // silent fail on startup update check
-      })
+    // 启动即自动检测更新：原生 / 生产 PWA / PC dev 模拟统一走同一行为
+    // （appUpdate 与 webUpdate 均走 Supabase；webUpdate 在生产 PWA 会自行判定 disabled）
+    void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
+      // silent fail on startup update check
+    })
 
-      void webUpdateStore.checkForUpdates().catch(() => {
-        // silent fail on startup web bundle update check
-      })
-    }
+    void webUpdateStore.checkForUpdates().catch(() => {
+      // silent fail on startup web bundle update check
+    })
 
     // Supabase Auth 初始化（必须在 sync 之前，确保登录状态可用）
     try {
