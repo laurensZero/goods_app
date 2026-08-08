@@ -691,7 +691,9 @@ export async function softDeleteItems(ids) {
 export async function getEvents() {
   await initDB()
   try {
-    const rows = await db.query('SELECT * FROM events ORDER BY startDate DESC')
+    const rows = await db.query(
+      'SELECT * FROM events ORDER BY startDate DESC, updatedAt DESC, createdAt DESC, name ASC, id ASC'
+    )
     return rows.map(r => {
       let parsedCoverImageData = null
       try {
