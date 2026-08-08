@@ -696,8 +696,8 @@ export function useImageCutout() {
     }
   }
 
-  // 云端抠图：本地预处理（缩放+padding 保证尺寸一致），上传 FAPIhub 取 mask，
-  // 本地 refine 后返回与 createCutoutMask 同构的结果
+  // 云端抠图：本地预处理（缩放+padding），上传 FAPIhub，返回的即抠好的透明图。
+  // 不再做本地 refine/重建（云端返回图 RGB 已正确，本地重建反而重且易错）。
   async function createCloudCutoutMask(inputBlob, options = {}) {
     const reportProgress = typeof options.onProgress === 'function'
       ? options.onProgress
@@ -716,17 +716,13 @@ export function useImageCutout() {
     }
 
     emitProgress(12, '云端引擎准备中...')
-    // 与本地一致用 1800：保留最终输出画质（mask 方案下最终分辨率跟随输入尺寸）
-    const cloudOptions = { ...options, maxProcessSize: 1800 }
-    const preparedInput = await prepareCutoutInput(inputBlob, cloudOptions)
-    const maskBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
-    emitProgress(86, '修复主体颜色中...')
-    const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
-    emitProgress(94, '边缘优化中...')
+    const preparedInput = await prepareCutoutInput(inputBlob, { ...options, maxProcessSize: 1800 })
+    const cutoutBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
+    emitProgress(92, '处理完成')
 
     return {
       preparedBlob: preparedInput.blob,
-      maskBlob: refinedMask,
+      maskBlob: cutoutBlob,
       meta: preparedInput.meta,
       width: preparedInput.referenceCanvas.width,
       height: preparedInput.referenceCanvas.height,
@@ -756,36 +752,10 @@ export function useImageCutout() {
     return finalizeCutoutResult(cutoutBlob, meta)
   }
 
-  // 纯 canvas 应用 mask：不依赖本地 imgly 模型，云端模式用。
-  // mask 中不透明像素保留原图颜色，透明像素置空。
+  // 云端返回的已抠好的透明图：只需裁掉 padding 并缩回原始尺寸，一次 drawImage 即可。
+  // maskBlob 实为完整抠图结果（带透明通道），preparedBlob 仅用于尺寸兼容。
   async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
-    const [preparedCanvas, maskCanvas] = await Promise.all([
-      blobToCanvas(preparedBlob),
-      blobToCanvas(maskBlob)
-    ])
-    const width = preparedCanvas.width
-    const height = preparedCanvas.height
-
-    const outputCanvas = createCanvas(width, height)
-    const ctx = outputCanvas.getContext('2d', { willReadFrequently: true })
-    ctx.drawImage(preparedCanvas, 0, 0)
-    const output = ctx.getImageData(0, 0, width, height)
-
-    const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true })
-    const maskImage = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height)
-    const maskData = maskImage.data
-    const outputData = output.data
-
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const index = (y * width + x) * 4
-        outputData[index + 3] = maskData[index + 3]
-      }
-    }
-
-    ctx.putImageData(output, 0, 0)
-    const cutoutBlob = await canvasToBlob(outputCanvas, 'image/png', 1)
-    return finalizeCutoutResult(cutoutBlob, meta)
+    return finalizeCutoutResult(maskBlob, meta)
   }
 
   async function removeBackgroundWithTimeout(inputBlob, options = {}) {
