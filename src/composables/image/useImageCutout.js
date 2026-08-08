@@ -298,6 +298,24 @@ async function inspectImageBlob(blob) {
   }
 }
 
+async function repairReplacementPngBlob(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  const hasReplacementPngHeader = bytes.length >= 11
+    && bytes[0] === 0xef && bytes[1] === 0xbf && bytes[2] === 0xbd
+    && bytes[3] === 0x50 && bytes[4] === 0x4e && bytes[5] === 0x47
+    && bytes[6] === 0x0d && bytes[7] === 0x0a && bytes[8] === 0x1a && bytes[9] === 0x0a
+  if (!hasReplacementPngHeader) return blob
+
+  const repaired = new Uint8Array(bytes.length - 2)
+  repaired[0] = 0x89
+  repaired.set(bytes.subarray(3), 1)
+  log.warn('image-decode:repair-replacement-png-header', {
+    originalBytes: bytes.length,
+    repairedBytes: repaired.length
+  })
+  return new Blob([repaired], { type: 'image/png' })
+}
+
 async function loadImageElement(blob) {
   if (!(blob instanceof Blob) || blob.size <= 0) {
     log.error('image-decode:empty-blob', {
@@ -699,7 +717,8 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
     emitProgress(80, '云端处理完成')
     // Edge Function 以 application/octet-stream 返回，防止 Android 链路按
     // UTF-8 文本转换；这里仅重设 Blob MIME，不改变任何图片字节。
-    return new Blob([data], { type: 'image/png' })
+    const repairedData = await repairReplacementPngBlob(data)
+    return new Blob([repairedData], { type: 'image/png' })
   } finally {
     if (progressTimer) clearInterval(progressTimer)
   }
