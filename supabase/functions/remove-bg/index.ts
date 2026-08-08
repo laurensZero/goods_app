@@ -49,6 +49,25 @@ function binaryResponse(bytes: Uint8Array): Response {
   })
 }
 
+// 某些上游/代理链路会把 PNG 签名首字节 0x89 按 UTF-8 解码成
+// U+FFFD（EF BF BD）。只修复这个明确的签名损坏，不对其他图片字节做猜测。
+function repairReplacementPngHeader(bytes: Uint8Array): Uint8Array {
+  const hasReplacementPngHeader = bytes.length >= 11
+    && bytes[0] === 0xef && bytes[1] === 0xbf && bytes[2] === 0xbd
+    && bytes[3] === 0x50 && bytes[4] === 0x4e && bytes[5] === 0x47
+    && bytes[6] === 0x0d && bytes[7] === 0x0a && bytes[8] === 0x1a && bytes[9] === 0x0a
+  if (!hasReplacementPngHeader) return bytes
+
+  const repaired = new Uint8Array(bytes.length - 2)
+  repaired[0] = 0x89
+  repaired.set(bytes.subarray(3), 1)
+  console.warn("remove-bg:repaired-utf8-png-header", {
+    originalBytes: bytes.length,
+    repairedBytes: repaired.length,
+  })
+  return repaired
+}
+
 // 解析 JWT 并校验白名单；返回 { allowed, user } 或 { allowed:false, reason }
 async function authorizeUser(token: string): Promise<
   | { allowed: true; user: { id: string } }
@@ -186,7 +205,7 @@ serve(async (req) => {
       return json({ error: message, status: 422 }, 422)
     }
 
-    const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
+    const bytes = repairReplacementPngHeader(new Uint8Array(await upstreamRes.arrayBuffer()))
     return binaryResponse(bytes)
   } catch (e) {
     console.error("remove-bg:upstream-fetch-error", e)
