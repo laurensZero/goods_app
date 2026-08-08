@@ -529,6 +529,7 @@ onMounted(() => {
 }
 
 .monitor-item__copy {
+  position: relative;
   flex: 1;
   min-width: 0;
 }
@@ -537,6 +538,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  min-height: 34px;
+  padding-right: 68px;
   gap: 8px;
 }
 
@@ -551,11 +554,16 @@ onMounted(() => {
 }
 
 .monitor-status {
+  position: absolute;
+  top: 50%;
+  right: 0;
   flex-shrink: 0;
   padding: 3px 8px;
   border-radius: 8px;
   font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
+  transform: translateY(-50%);
 }
 
 .monitor-status--stock {
