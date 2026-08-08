@@ -36,7 +36,24 @@ const MANUAL_SCROLL_RESTORE_ROUTES = new Set([
   'events',
   'detail',
   'character-leaderboard',
-  'manage'
+  'manage',
+  // 这些设置页面使用自己的 .page-body 滚动容器，不能让路由默认行为
+  // 同时改动 window 滚动位置，否则切换子页面时会出现轻微下移。
+  'manage-settings',
+  'manage-notifications',
+  'mihoyo-stock-monitor',
+  'manage-categories',
+  'manage-ips',
+  'manage-characters',
+  'manage-theme',
+  'manage-sync',
+  'manage-shares',
+  'manage-feedback',
+  'manage-about',
+  'manage-language',
+  'manage-surveys',
+  'trash',
+  'storage-locations'
 ])
 
 const router = createRouter({

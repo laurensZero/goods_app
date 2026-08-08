@@ -64,7 +64,13 @@
     "mihoyoShopYs": "原神",
     "mihoyoShopXqtd": "崩壊：スターレイル",
     "mihoyoShopBh3": "崩壊3rd",
-    "mihoyoShopZzz": "ゼンレスゾーンゼロ"
+    "mihoyoShopZzz": "ゼンレスゾーンゼロ",
+    "shipReminder": "発送遅延リマインダー",
+    "shipReminderDesc": "未発送の商品が設定日数を過ぎても発送されない場合、QQ で通知します",
+    "shipReminderDay": "{days} 日",
+    "shipReminderNeedPick": "日数を1つ以上選択してください",
+    "mihoyoStockMonitor": "米遊舗在庫モニター",
+    "mihoyoStockMonitorDesc": "米遊舗の在庫を監視し、在庫ありになったら QQ で通知します"
   },
   "notify.saleTimeReached": "発売時刻になりました",
   "notify.saleCountdown": "発売まで"

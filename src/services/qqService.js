@@ -116,6 +116,35 @@ export async function setMihoyoShops(shops) {
 }
 
 /**
+ * 更新「未发货超时提醒」的天数配置（空数组 = 关闭该提醒）
+ * 服务端 goods 触发器据此为待发货商品入队未发货提醒任务。
+ * @param {number[]} days - 超时天数数组，如 [30, 60, 90]
+ */
+export async function setShipReminderOffsets(days) {
+  const db = getSupabaseClient()
+  const normalized = Array.isArray(days)
+    ? days.map((d) => Number(d)).filter((d) => Number.isInteger(d) && d >= 1)
+    : []
+  const { error } = await db
+    .from(BINDINGS_TABLE)
+    .update({ ship_reminder_offsets_days: [...new Set(normalized)].sort((a, b) => a - b) })
+    .eq('user_id', (await db.auth.getUser()).data.user?.id ?? '')
+
+  if (error) throw new Error(error.message)
+}
+
+/**
+ * 触发服务端补扫：把当前用户所有「待发货」商品的未发货提醒任务重建一次。
+ * 在用户调整未发货天数后调用，让超期存量和新增天数立即生效。
+ * 由 request_ship_reminder_backfill() SECURITY DEFINER 函数执行（见 supabase-migration-ship-reminder.sql）。
+ */
+export async function requestShipReminderBackfill() {
+  const db = getSupabaseClient()
+  const { error } = await db.rpc('request_ship_reminder_backfill')
+  if (error) throw new Error(error.message)
+}
+
+/**
  * 解绑：状态置 unbound，服务端不再推送
  */
 export async function unbindQQ() {

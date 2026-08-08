@@ -82,6 +82,7 @@
   "common.enabled": "有効",
   "common.eyeDropper": "画像から色を選択",
   "common.events_count": "件",
+  "common.failed": "操作に失敗しました",
   "common.fetchShareContent": "共有コンテンツを取得中...",
   "common.fetching": "取得中...",
   "common.foundSharedGoods": "共有グッズが見つかりました",

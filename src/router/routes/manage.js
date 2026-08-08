@@ -66,6 +66,12 @@ export default [
     meta: { titleKey: 'nav.notificationSettings' }
   },
   {
+    path: '/manage/mihoyo-stock-monitor',
+    name: 'mihoyo-stock-monitor',
+    component: () => import('@/views/MihoyoStockMonitorView.vue'),
+    meta: { titleKey: 'nav.mihoyoStockMonitor' }
+  },
+  {
     path: '/manage/surveys',
     name: 'manage-surveys',
     component: () => import('@/views/SurveyListView.vue'),
