@@ -269,15 +269,62 @@ function blobToDataUrl(blob) {
 }
 
 async function loadImageElement(blob) {
-  // Android WebView 对 URL.createObjectURL(blob) 解码 PNG 有已知 bug（偶发失败）。
-  // 改用 FileReader 转 base64 data URL 喂给 <img>，data URL 在 WebView 中兼容性最好。
-  const dataUrl = await blobToDataUrl(blob)
-  return new Promise((resolve, reject) => {
+  if (!(blob instanceof Blob) || blob.size <= 0) {
+    log.error('image-decode:empty-blob', {
+      isBlob: blob instanceof Blob,
+      size: Number(blob?.size) || 0,
+      type: String(blob?.type || '')
+    })
+    throw new Error('图片数据为空')
+  }
+
+  const blobInfo = {
+    size: blob.size,
+    type: blob.type || '(empty)',
+    native: Capacitor.isNativePlatform()
+  }
+
+  // Android WebView 对大尺寸 PNG 转 Data URL 后会额外复制一份 Base64，
+  // 很容易在解码阶段触发内存不足。优先使用 Blob URL，失败后再回退到
+  // Data URL；这样既覆盖旧 WebView 的 Blob URL 兼容问题，也避免正常情况
+  // 下不必要的 Base64 内存膨胀。
+  const load = (src) => new Promise((resolve, reject) => {
     const img = new Image()
     img.onload = () => resolve(img)
     img.onerror = () => reject(new Error('图片解码失败'))
-    img.src = dataUrl
+    img.src = src
   })
+
+  let objectUrl = ''
+  try {
+    objectUrl = URL.createObjectURL(blob)
+    const image = await load(objectUrl)
+    log.info('image-decode:blob-url-success', {
+      ...blobInfo,
+      width: image.naturalWidth || image.width || 0,
+      height: image.naturalHeight || image.height || 0
+    })
+    return image
+  } catch (error) {
+    // 某些 Android WebView 对带透明通道的 Blob URL 解码失败，继续尝试
+    // Data URL。不要直接丢失原始错误，两个方案都失败时统一抛出明确错误。
+    try {
+      log.warn('image-decode:blob-url-failed', blobInfo, error)
+      const dataUrl = await blobToDataUrl(blob)
+      const image = await load(dataUrl)
+      log.info('image-decode:data-url-success', {
+        ...blobInfo,
+        width: image.naturalWidth || image.width || 0,
+        height: image.naturalHeight || image.height || 0
+      })
+      return image
+    } catch (fallbackError) {
+      log.error('image-decode:data-url-failed', blobInfo, fallbackError)
+      throw error instanceof Error ? error : new Error('图片解码失败')
+    }
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
+  }
 }
 
 async function blobToCanvas(blob) {
