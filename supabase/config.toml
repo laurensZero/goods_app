@@ -20,6 +20,12 @@ schedule = "*/1 * * * *"
 [functions.scan-mihoyo]
 verify_jwt = false
 
+# 米游铺商品有货监控：调度粒度 1 分钟（对外请求量由 next_check_at 自适应控制，
+# 缺货商品间隔 1→15 分钟爬坡，有货商品 60 分钟低频复查），有货时经 QQ 推送提醒
+[functions.scan-mihoyo-stock]
+verify_jwt = false
+schedule = "*/1 * * * *"
+
 # 米游铺自助下单白名单校验：必须携带登录 JWT（verify_jwt=true）
 [functions.check-checkout-permission]
 verify_jwt = true

@@ -64,7 +64,13 @@
     "mihoyoShopYs": "Genshin Impact",
     "mihoyoShopXqtd": "Honkai: Star Rail",
     "mihoyoShopBh3": "Honkai Impact 3",
-    "mihoyoShopZzz": "Zenless Zone Zero"
+    "mihoyoShopZzz": "Zenless Zone Zero",
+    "shipReminder": "Shipment Timeout Reminder",
+    "shipReminderDesc": "Get a QQ reminder when an item pending shipment hasn't shipped after the selected days",
+    "shipReminderDay": "{days} days",
+    "shipReminderNeedPick": "Pick at least one day option",
+    "mihoyoStockMonitor": "Mihoyo Shop Stock Monitor",
+    "mihoyoStockMonitorDesc": "Track mihoyo shop stock and get a QQ reminder when items are back in stock"
   },
   "notify.saleTimeReached": "Sale time reached",
   "notify.saleCountdown": "Until sale"

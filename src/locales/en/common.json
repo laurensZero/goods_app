@@ -82,6 +82,7 @@
   "common.enabled": "Enabled",
   "common.eyeDropper": "Pick from image",
   "common.events_count": "events",
+  "common.failed": "Operation failed",
   "common.fetchShareContent": "Fetching share content...",
   "common.fetching": "Fetching...",
   "common.foundSharedGoods": "Shared goods found",

@@ -313,6 +313,60 @@
                 {{ t('notifySettings.mihoyoShopsNeedPick') }}
               </p>
             </div>
+
+            <div v-if="qqStore.isBound" class="settings-item settings-item--column">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--ship">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="1" y="3" width="15" height="13" rx="1" />
+                    <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                    <circle cx="5.5" cy="18.5" r="2.5" />
+                    <circle cx="18.5" cy="18.5" r="2.5" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.shipReminder') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.shipReminderDesc') }}</span>
+                </div>
+              </div>
+              <div class="mihoyo-shop-picker">
+                <button
+                  v-for="day in shipReminderDayOptions"
+                  :key="day"
+                  type="button"
+                  class="mihoyo-shop-chip"
+                  :class="{ 'mihoyo-shop-chip--active': isShipReminderDaySelected(day) }"
+                  @click="toggleShipReminderDay(day)"
+                >
+                  {{ t('notifySettings.shipReminderDay', { days: day }) }}
+                </button>
+              </div>
+              <p
+                v-if="qqStore.shipReminderOffsets.length === 0"
+                class="mihoyo-shop-hint"
+              >
+                {{ t('notifySettings.shipReminderNeedPick') }}
+              </p>
+            </div>
+
+            <div class="settings-item settings-item--link" @click="openStockMonitor">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--mihoyo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 3h18v18H3z" />
+                    <path d="M3 9h18" />
+                    <path d="M9 21V9" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.mihoyoStockMonitor') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.mihoyoStockMonitorDesc') }}</span>
+                </div>
+              </div>
+              <svg class="settings-item__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
           </div>
         </div>
       </section>
@@ -523,10 +577,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, inject } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useToast } from '@/composables/useToast'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { useQQBindingStore } from '@/stores/qqBinding'
@@ -534,10 +590,16 @@ import { useQQBindingStore } from '@/stores/qqBinding'
 defineOptions({ name: 'NotifySettingsView' })
 
 const { t } = useI18n()
+const router = useRouter()
 const { toastMsg, showToast } = useToast()
 
 const notifySettingsStore = useNotifySettingsStore()
 const qqStore = useQQBindingStore()
+
+const pageBodyRef = ref(null)
+
+// 平板设置分屏时由 ManageView provide，用于在右面板内直接打开子页面
+const openManageSubPage = inject('openManageSubPage', null)
 
 // 检测是否是移动端
 const isMobileDevice = ref(false)
@@ -633,6 +695,31 @@ async function toggleShop(code) {
   } catch (err) {
     showToast(err.message || t('common.failed'))
   }
+}
+
+// 未发货超时提醒的天数档位（与 scan/ship 提醒服务端校验一致：1~3650 天）
+const shipReminderDayOptions = [15, 30, 45, 60, 90]
+
+function isShipReminderDaySelected(day) {
+  return qqStore.shipReminderOffsets.includes(day)
+}
+
+// 切换某个未发货超时天数档位（同步到服务端 user_qq_bindings.ship_reminder_offsets_days）
+async function toggleShipReminderDay(day) {
+  try {
+    await qqStore.toggleShipReminderOffset(day)
+  } catch (err) {
+    showToast(err.message || t('common.failed'))
+  }
+}
+
+// 打开「米游铺有货监控」列表（平板嵌入设置分屏时在右面板内打开，否则走独立页面）
+function openStockMonitor() {
+  if (typeof openManageSubPage === 'function') {
+    openManageSubPage('mihoyoStockMonitor')
+    return
+  }
+  runWithRouteTransition(() => router.push('/manage/mihoyo-stock-monitor'), { direction: 'forward' })
 }
 
 // 更新位置
@@ -917,6 +1004,11 @@ function resetSettings() {
   color: #54b8fd;
 }
 
+.settings-item__icon--ship {
+  background: rgba(255, 149, 0, 0.12);
+  color: #ff9500;
+}
+
 .settings-item__title {
   display: block;
   color: var(--app-text);
@@ -1065,6 +1157,22 @@ function resetSettings() {
   margin: 10px 0 0;
   color: #ff9500;
   font-size: 12px;
+}
+
+.settings-item--link {
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.settings-item--link:active {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.settings-item__chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--app-text-tertiary);
 }
 
 /* Number Picker */

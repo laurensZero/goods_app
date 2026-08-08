@@ -64,7 +64,13 @@
     "mihoyoShopYs": "原神",
     "mihoyoShopXqtd": "崩壞：星穹鐵道",
     "mihoyoShopBh3": "崩壞3",
-    "mihoyoShopZzz": "絕區零"
+    "mihoyoShopZzz": "絕區零",
+    "shipReminder": "未發貨逾時提醒",
+    "shipReminderDesc": "待發貨商品超過設定天數仍未出貨時，透過 QQ 提醒你及時跟進",
+    "shipReminderDay": "{days} 天",
+    "shipReminderNeedPick": "請至少選擇一個天數檔位",
+    "mihoyoStockMonitor": "米遊鋪有貨監控",
+    "mihoyoStockMonitorDesc": "監控米遊鋪商品庫存，有貨時透過 QQ 提醒你"
   },
   "notify.saleTimeReached": "已到開售時間",
   "notify.saleCountdown": "距離開售"

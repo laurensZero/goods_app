@@ -33,10 +33,21 @@
           </div>
         </aside>
 
-        <section v-if="activeManageEntry" class="settings-detail">
+        <section v-if="activeManageEntry" ref="settingsDetailRef" class="settings-detail">
           <div class="settings-detail__header settings-detail__header--compact">
+            <button
+              v-if="manageSubPageKey"
+              class="settings-detail__back"
+              type="button"
+              :aria-label="t('common.back')"
+              @click="closeManageSubPage"
+            >
+              <svg viewBox="0 0 24 24" fill="none">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
             <div>
-              <h2 class="settings-detail__title settings-detail__title--compact">{{ activeManageEntry.title }}</h2>
+              <h2 class="settings-detail__title settings-detail__title--compact">{{ activeDetailTitle }}</h2>
             </div>
           </div>
 
@@ -89,13 +100,14 @@
 
           <div
             v-else-if="activeManageComponent"
+            :key="activeManageContentKey"
             :class="[
               'settings-embedded',
               {
-                'settings-embedded--about': activeManageEntry.key === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageEntry.key),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys'].includes(activeManageEntry.key),
-                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageEntry.key)
+                'settings-embedded--about': activeManageContentKey === 'about',
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys', 'mihoyoStockMonitor'].includes(activeManageContentKey),
+                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey)
               }
             ]"
           >
@@ -205,9 +217,9 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import { useToast } from '@/composables/useToast'
 
@@ -233,10 +245,12 @@ const LanguageView = defineAsyncComponent(() => import('@/views/LanguageView.vue
 const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySettingsView.vue'))
 const FeedbackView = defineAsyncComponent(() => import('@/views/FeedbackView.vue'))
 const SurveyListView = defineAsyncComponent(() => import('@/views/SurveyListView.vue'))
+const MihoyoStockMonitorView = defineAsyncComponent(() => import('@/views/MihoyoStockMonitorView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
 const router = useRouter()
+const route = useRoute()
 const { toastMsg, showToast } = useToast()
 
 function goManageChild(path) {
@@ -264,6 +278,36 @@ const isDesktopSettingsViewport = computed(() => windowWidth.value >= 1200)
 const exportPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const selectedManageKey = ref('categories')
 
+// 子页面（如「米游铺有货监控」是「通知设置」的子页面，嵌入右面板但不占侧栏）
+const manageSubPageKey = ref('')
+const settingsDetailRef = ref(null)
+
+// 支持通过 ?section=<entry.key> 定位到指定设置项、?sub=<componentKey> 直接打开右面板子页面
+function resolveSectionFromQuery() {
+  const section = String(route.query.section || '')
+  return manageEntries.value.some((e) => e.key === section) ? section : ''
+}
+const initialSection = resolveSectionFromQuery()
+if (initialSection) selectedManageKey.value = initialSection
+const initialSub = String(route.query.sub || '')
+if (initialSub && manageComponentMap[initialSub]) {
+  manageSubPageKey.value = initialSub
+  if (!initialSection) selectedManageKey.value = 'notifications'
+}
+watch(() => route.query.section, (section) => {
+  const key = String(section || '')
+  if (key && manageEntries.value.some((e) => e.key === key)) selectedManageKey.value = key
+})
+watch(() => route.query.sub, (sub) => {
+  const key = String(sub || '')
+  if (key && manageComponentMap[key]) {
+    manageSubPageKey.value = key
+    if (!String(route.query.section || '')) selectedManageKey.value = 'notifications'
+  } else {
+    manageSubPageKey.value = ''
+  }
+})
+
 // ---- component routing ----
 const activeManageEntry = computed(() =>
   manageEntries.value.find((e) => e.key === selectedManageKey.value) || manageEntries.value[0] || null
@@ -273,12 +317,59 @@ const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView, feedback: FeedbackView, surveys: SurveyListView
+  notifications: NotifySettingsView, feedback: FeedbackView, surveys: SurveyListView,
+  mihoyoStockMonitor: MihoyoStockMonitorView
 }
 
-const activeManageComponent = computed(() => manageComponentMap[activeManageEntry.value?.key] || null)
+const manageSubPageTitles = {
+  mihoyoStockMonitor: () => t('mihoyoStock.title')
+}
 
-function selectManageEntry(key) { selectedManageKey.value = key }
+const activeManageContentKey = computed(() => manageSubPageKey.value || activeManageEntry.value?.key || '')
+const activeManageComponent = computed(() => {
+  if (manageSubPageKey.value && manageComponentMap[manageSubPageKey.value]) return manageComponentMap[manageSubPageKey.value]
+  return manageComponentMap[activeManageEntry.value?.key] || null
+})
+const activeDetailTitle = computed(() => {
+  const subTitle = manageSubPageKey.value ? manageSubPageTitles[manageSubPageKey.value] : null
+  return (subTitle && subTitle()) || activeManageEntry.value?.title || ''
+})
+
+function selectManageEntry(key) {
+  selectedManageKey.value = key
+  manageSubPageKey.value = ''
+}
+
+function openManageSubPage(key) {
+  if (!manageComponentMap[key]) return
+  manageSubPageKey.value = key
+  resetSettingsDetailScroll()
+}
+
+function closeManageSubPage() {
+  manageSubPageKey.value = ''
+  resetSettingsDetailScroll()
+  if (route.query.sub) {
+    const query = { ...route.query }
+    delete query.sub
+    router.replace({ path: route.path, query })
+  }
+}
+
+function resetSettingsDetailScroll() {
+  nextTick(() => {
+    const detail = settingsDetailRef.value
+    if (!detail) return
+    detail.scrollTop = 0
+    requestAnimationFrame(() => {
+      if (settingsDetailRef.value) {
+        settingsDetailRef.value.scrollTop = 0
+      }
+    })
+  })
+}
+
+provide('openManageSubPage', openManageSubPage)
 
 function runManageEntryPrimary(entry) {
   if (!entry) return
@@ -516,6 +607,7 @@ onBeforeRouteLeave(() => {
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
 .notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
+.mihoyo-icon { background: rgba(90, 200, 250, 0.12); color: #38bdf8; }
 .feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .survey-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 
@@ -640,6 +732,38 @@ onBeforeRouteLeave(() => {
 .settings-detail__title--compact {
   font-size: 24px;
   text-align: center;
+}
+
+.settings-detail__back {
+  position: absolute;
+  left: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.settings-detail__back:active {
+  transform: translateY(-50%) scale(0.94);
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+}
+
+.settings-detail__back svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .settings-action-panel {

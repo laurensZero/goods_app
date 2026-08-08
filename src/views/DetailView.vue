@@ -291,6 +291,13 @@
           </svg>
           <span>{{ t('detail.mihoyoshop', '米游铺') }}</span>
         </button>
+        <button v-if="item?.goodsId" class="more-popover__item" type="button" :disabled="stockMonitorAdding" @click="showMoreSheet = false; handleAddToStockMonitor()">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span>{{ stockMonitorAdding ? t('common.loading') : t('mihoyoStock.addToMonitor') }}</span>
+        </button>
         <button class="more-popover__item" type="button" @click="showMoreSheet = false; showAddToGroupSheet = true">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <rect x="3" y="3" width="7" height="7" rx="1.5" />
@@ -364,9 +371,11 @@ import SellGoodsSheet from '@/components/goods/SellGoodsSheet.vue'
 import StatusTimeline from '@/components/goods/StatusTimeline.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
-import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
+import { addToCart, fetchGoodsDetailForCart, getMihoyoShopCodeByIp } from '@/utils/mihoyo/index'
 import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { useAuthStore } from '@/stores/auth'
+import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -379,6 +388,7 @@ const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
 const exchangeRate = useExchangeRateStore()
+const stockMonitorStore = useMihoyoStockMonitorStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const coverMediaVisible = ref(false)
@@ -535,6 +545,7 @@ const cartSkus = ref([])
 const selectedSkuId = ref(null)
 const cartLoading = ref(false)
 const cartShopCode = ref('')
+const stockMonitorAdding = ref(false)
 const { toastMsg, showToast } = useToast()
 
 const colorMap = {
@@ -869,6 +880,33 @@ function openMihoyoGoods() {
   const goodsId = item.value?.goodsId
   if (!goodsId) return
   window.open(`https://www.mihoyogift.com/goods/${goodsId}`, '_blank')
+}
+
+// 加入米游铺有货监控（服务端轮询，有货时推 QQ）
+async function handleAddToStockMonitor() {
+  const g = item.value
+  const goodsId = g?.goodsId
+  if (!goodsId) return
+  const authStore = useAuthStore()
+  if (!authStore.isLoggedIn) {
+    showToast(t('mihoyoStock.needLogin'))
+    return
+  }
+  stockMonitorAdding.value = true
+  try {
+    const row = await stockMonitorStore.add({
+      goodsId,
+      shopCode: getMihoyoShopCodeByIp(g.ip),
+      name: g.name || '',
+      priceCents: Math.round(Number(g.price) * 100) || 0,
+      coverUrl: activeImage.value?.uri || '',
+    })
+    showToast(row.in_stock ? t('mihoyoStock.addSuccessNow') : t('mihoyoStock.addSuccess'))
+  } catch (e) {
+    showToast(e.message || t('common.failed'))
+  } finally {
+    stockMonitorAdding.value = false
+  }
 }
 
 async function handleAddToCart() {

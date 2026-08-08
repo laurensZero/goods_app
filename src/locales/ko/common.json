@@ -82,6 +82,7 @@
   "common.enabled": "활성화됨",
   "common.eyeDropper": "이미지에서 색상 선택",
   "common.events_count": "건",
+  "common.failed": "작업에 실패했습니다",
   "common.fetchShareContent": "공유 콘텐츠를 가져오는 중...",
   "common.fetching": "가져오는 중...",
   "common.foundSharedGoods": "공유된 굿즈를 찾았습니다",

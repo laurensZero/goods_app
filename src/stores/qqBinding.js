@@ -16,6 +16,8 @@ import {
   setQQEnabled,
   setMihoyoEnabled,
   setMihoyoShops,
+  setShipReminderOffsets,
+  requestShipReminderBackfill,
   unbindQQ,
 } from '@/services/qqService'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
@@ -39,6 +41,12 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   // 用户自选的米游铺监听店铺（空数组 = 全不选）
   const mihoyoShops = computed(() =>
     Array.isArray(binding.value?.mihoyo_shops) ? binding.value.mihoyo_shops : []
+  )
+  // 未发货超时提醒天数（空数组 = 关闭；服务端按这些天数给待发货商品入队提醒）
+  const shipReminderOffsets = computed(() =>
+    Array.isArray(binding.value?.ship_reminder_offsets_days)
+      ? binding.value.ship_reminder_offsets_days.map(Number).filter((d) => Number.isInteger(d))
+      : []
   )
   const bindCode = computed(() => binding.value?.bind_code || '')
   const qqNickname = computed(() => binding.value?.qq_nickname || '')
@@ -136,6 +144,28 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   }
 
   /**
+   * 切换「未发货超时提醒」的一个天数档位，并同步到服务端。
+   * 乐观更新：本地立即生效，网络失败回滚；成功后请求服务端补扫存量待发货商品。
+   * @param {number} day - 天数档位，如 30
+   */
+  async function toggleShipReminderOffset(day) {
+    const current = shipReminderOffsets.value
+    const next = current.includes(day)
+      ? current.filter((d) => d !== day)
+      : [...current, day]
+    const prev = [...current]
+    if (binding.value) binding.value.ship_reminder_offsets_days = next
+    try {
+      await setShipReminderOffsets(next)
+      // 让超期存量 / 新增档位立即生效：服务端重建该用户全部待发货商品的任务
+      await requestShipReminderBackfill()
+    } catch (e) {
+      if (binding.value) binding.value.ship_reminder_offsets_days = prev
+      throw e
+    }
+  }
+
+  /**
    * 解绑。
    */
   async function doUnbind() {
@@ -175,6 +205,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     isEnabled,
     isMihoyoEnabled,
     mihoyoShops,
+    shipReminderOffsets,
     bindCode,
     qqNickname,
     checkoutNotify,
@@ -184,6 +215,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     toggleEnabled,
     toggleMihoyoEnabled,
     toggleMihoyoShops,
+    toggleShipReminderOffset,
     toggleCheckoutNotify,
     doUnbind,
     reset,
