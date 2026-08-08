@@ -76,7 +76,10 @@
                   class="editor-export-preview__image"
                   :class="{ 'editor-export-preview__image--picking': colorPickMode }"
                   :style="whiteBgPreviewImageStyle"
-                  @click="onPreviewPick"
+                  @pointerdown="onPickPointerDown"
+                  @pointermove="onPickPointerMove"
+                  @pointerup="onPickPointerUp"
+                  @pointercancel="onPickPointerCancel"
                 />
               </div>
 
@@ -259,10 +262,10 @@
                         <button
                           type="button"
                           class="editor-btn editor-bg-color__pick"
-                          :class="{ 'editor-btn--active': colorPickMode }"
-                          @click="toggleColorPickMode"
+                          :disabled="pickingColor"
+                          @click="pickDominantColor"
                         >
-                          {{ colorPickMode ? t('imageEditor.cancelPick') : t('imageEditor.pickFromImage') }}
+                          {{ pickingColor ? t('imageEditor.pickingColor') : t('imageEditor.pickFromImage') }}
                         </button>
                       </div>
                     </div>
@@ -305,6 +308,21 @@
         </div>
       </div>
     </Transition>
+
+    <div
+      v-if="colorPickMode && pickMagnifierVisible"
+      ref="pickMagnifierRef"
+      class="editor-pick-magnifier"
+      :style="pickMagnifierStyle"
+      role="dialog"
+      aria-label="picker"
+    >
+      <canvas ref="pickCanvasRef" class="editor-pick-magnifier__canvas" :width="PICK_SIZE" :height="PICK_SIZE" />
+      <div class="editor-pick-magnifier__footer">
+        <span class="editor-pick-magnifier__chip" :style="{ background: pickLiveColor }" aria-hidden="true" />
+        <span class="editor-pick-magnifier__hex">{{ pickLiveColor }}</span>
+      </div>
+    </div>
   </Teleport>
 </template>
 
@@ -345,6 +363,7 @@ const whiteBgScalePercent = ref(88)
 const bgColor = ref('#ffffff')
 const bgColorPickerOpen = ref(false)
 const colorPickMode = ref(false)
+const pickingColor = ref(false)
 const brightness = ref(0)
 const contrast = ref(0)
 const errorText = ref('')
@@ -686,6 +705,7 @@ function openFromFile(file) {
   bgColor.value = '#ffffff'
   bgColorPickerOpen.value = false
   colorPickMode.value = false
+  pickingColor.value = false
   brightness.value = 0
   contrast.value = 0
   cutoutLoading.value = false
@@ -851,57 +871,214 @@ function rgbToHex(r, g, b) {
     .join('')}`
 }
 
+async function pickDominantColor() {
+  const url = previewUrl.value
+  if (!url || pickingColor.value) return
+  pickingColor.value = true
+
+  try {
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    await new Promise((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error(t('imageEditor.pickFailed')))
+      img.src = url
+    })
+
+    const sampleSize = 64
+    const canvas = document.createElement('canvas')
+    canvas.width = sampleSize
+    canvas.height = sampleSize
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    ctx.drawImage(img, 0, 0, sampleSize, sampleSize)
+    const { data } = ctx.getImageData(0, 0, sampleSize, sampleSize)
+
+    const buckets = new Map()
+    for (let index = 0; index < data.length; index += 4) {
+      if (data[index + 3] < 128) continue
+      const r = data[index]
+      const g = data[index + 1]
+      const b = data[index + 2]
+      const key = ((r >> 5) << 10) | ((g >> 5) << 5) | (b >> 5)
+      let entry = buckets.get(key)
+      if (!entry) {
+        entry = { r: 0, g: 0, b: 0, count: 0 }
+        buckets.set(key, entry)
+      }
+      entry.r += r
+      entry.g += g
+      entry.b += b
+      entry.count += 1
+    }
+
+    let best = null
+    for (const entry of buckets.values()) {
+      if (!best || entry.count > best.count) {
+        best = entry
+      }
+    }
+
+    if (!best) return
+    bgColor.value = rgbToHex(best.r / best.count, best.g / best.count, best.b / best.count)
+  } catch (error) {
+    errorText.value = error?.message || t('imageEditor.pickFailed')
+  } finally {
+    pickingColor.value = false
+  }
+}
+
 function enterColorPickMode() {
   if (!previewUrl.value) return
-  bgColorPickerOpen.value = false
   colorPickMode.value = true
+  pickPointerActive = false
+  pickMagnifierVisible.value = false
+  void ensurePickSourceImage()
 }
 
 function exitColorPickMode() {
   colorPickMode.value = false
 }
 
-function toggleColorPickMode() {
-  if (colorPickMode.value) {
-    exitColorPickMode()
-  } else {
-    enterColorPickMode()
+const PICK_SIZE = 144
+const PICK_ZOOM = 8
+const pickCanvasRef = ref(null)
+const pickMagnifierVisible = ref(false)
+const pickMagnifierStyle = ref({})
+const pickLiveColor = ref('#ffffff')
+let pickPointerActive = false
+let pickSourceImage = null
+let pickSourceUrl = ''
+let lastPickPixel = null
+
+function ensurePickSourceImage() {
+  const url = previewUrl.value
+  if (!url) return Promise.resolve()
+  if (pickSourceImage && pickSourceUrl === url && pickSourceImage.complete && pickSourceImage.naturalWidth > 0) {
+    return Promise.resolve()
   }
+  const img = new Image()
+  pickSourceImage = img
+  pickSourceUrl = url
+  return new Promise((resolve) => {
+    img.onload = () => resolve()
+    img.onerror = () => resolve()
+    img.src = url
+  })
 }
 
-async function onPreviewPick(event) {
-  if (!colorPickMode.value) return
+function eventToPickPixel(event) {
   const img = exportPreviewImageRef.value
-  if (!img || !previewUrl.value) return
+  if (!img || !previewUrl.value) return null
 
   const rect = img.getBoundingClientRect()
-  if (rect.width <= 0 || rect.height <= 0) return
+  if (rect.width <= 0 || rect.height <= 0) return null
 
   const naturalWidth = Number(img.naturalWidth) || 0
   const naturalHeight = Number(img.naturalHeight) || 0
-  if (!naturalWidth || !naturalHeight) return
+  if (!naturalWidth || !naturalHeight) return null
 
-  const x = Math.max(0, Math.min(naturalWidth - 1, Math.round(((event.clientX - rect.left) / rect.width) * naturalWidth)))
-  const y = Math.max(0, Math.min(naturalHeight - 1, Math.round(((event.clientY - rect.top) / rect.height) * naturalHeight)))
-
-  try {
-    const canvas = document.createElement('canvas')
-    canvas.width = 1
-    canvas.height = 1
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    ctx.drawImage(img, -x, -y)
-    const { data } = ctx.getImageData(0, 0, 1, 1)
-
-    if (data[3] < 128) return
-
-    bgColor.value = rgbToHex(data[0], data[1], data[2])
-    exitColorPickMode()
-  } catch (error) {
-    errorText.value = error?.message || t('imageEditor.pickFailed')
-    exitColorPickMode()
+  return {
+    x: Math.max(0, Math.min(naturalWidth - 1, Math.round(((event.clientX - rect.left) / rect.width) * naturalWidth))),
+    y: Math.max(0, Math.min(naturalHeight - 1, Math.round(((event.clientY - rect.top) / rect.height) * naturalHeight)))
   }
 }
 
+function sampleImagePixelAt(img, x, y) {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1
+  canvas.height = 1
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  ctx.drawImage(img, -x, -y)
+  return ctx.getImageData(0, 0, 1, 1).data
+}
+
+function updatePickMagnifierPosition(event) {
+  const width = window.innerWidth
+  const height = window.innerHeight
+  let left = event.clientX + 20
+  let top = event.clientY - PICK_SIZE - 32
+  if (top < 8) {
+    top = event.clientY + 24
+  }
+  left = Math.min(width - PICK_SIZE - 8, Math.max(8, left))
+  top = Math.min(height - PICK_SIZE - 8, Math.max(8, top))
+  pickMagnifierStyle.value = { left: `${left}px`, top: `${top}px` }
+}
+
+function renderPickMagnifier(pixel) {
+  const canvas = pickCanvasRef.value
+  const img = pickSourceImage
+  if (!canvas || !img || !img.complete || !img.naturalWidth) return
+
+  const ctx = canvas.getContext('2d')
+  ctx.save()
+  ctx.clearRect(0, 0, PICK_SIZE, PICK_SIZE)
+  ctx.translate(PICK_SIZE / 2, PICK_SIZE / 2)
+  ctx.scale(PICK_ZOOM, PICK_ZOOM)
+  ctx.drawImage(img, -pixel.x, -pixel.y)
+  ctx.restore()
+
+  const center = PICK_SIZE / 2
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.moveTo(center, 0)
+  ctx.lineTo(center, PICK_SIZE)
+  ctx.moveTo(0, center)
+  ctx.lineTo(PICK_SIZE, center)
+  ctx.stroke()
+
+  const data = sampleImagePixelAt(img, pixel.x, pixel.y)
+  if (data && data[3] >= 128) {
+    pickLiveColor.value = rgbToHex(data[0], data[1], data[2])
+  }
+}
+
+function onPickPointerDown(event) {
+  if (!colorPickMode.value) return
+  event.preventDefault()
+  pickPointerActive = true
+  pickMagnifierVisible.value = true
+  event.currentTarget.setPointerCapture?.(event.pointerId)
+  const pixel = eventToPickPixel(event)
+  lastPickPixel = pixel
+  updatePickMagnifierPosition(event)
+  void ensurePickSourceImage().then(() => {
+    if (pickPointerActive && lastPickPixel) {
+      renderPickMagnifier(lastPickPixel)
+    }
+  })
+  if (pixel) renderPickMagnifier(pixel)
+}
+
+function onPickPointerMove(event) {
+  if (!colorPickMode.value || !pickPointerActive) return
+  event.preventDefault()
+  updatePickMagnifierPosition(event)
+  const pixel = eventToPickPixel(event)
+  lastPickPixel = pixel
+  if (pixel) renderPickMagnifier(pixel)
+}
+
+function onPickPointerUp(event) {
+  if (!colorPickMode.value || !pickPointerActive) return
+  pickPointerActive = false
+  pickMagnifierVisible.value = false
+  const img = pickSourceImage
+  const pixel = eventToPickPixel(event)
+  if (img && img.complete && img.naturalWidth && pixel) {
+    const data = sampleImagePixelAt(img, pixel.x, pixel.y)
+    if (data && data[3] >= 128) {
+      bgColor.value = rgbToHex(data[0], data[1], data[2])
+    }
+  }
+  exitColorPickMode()
+}
+
+function onPickPointerCancel() {
+  pickPointerActive = false
+  pickMagnifierVisible.value = false
+}
 
 
 async function handleSave() {
@@ -1278,6 +1455,7 @@ onBeforeUnmount(() => {
 
 .editor-export-preview__image--picking {
   cursor: crosshair;
+  touch-action: none;
 }
 
 .editor-pick-hint {
@@ -1324,6 +1502,52 @@ onBeforeUnmount(() => {
 
 .editor-pick-hint__cancel:active {
   background: color-mix(in srgb, var(--app-primary, #4f6ef7) 22%, transparent);
+}
+
+.editor-pick-magnifier {
+  position: fixed;
+  z-index: 2200;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 10px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-surface, #ffffff) 96%, transparent);
+  border: 1px solid var(--app-border, rgba(20, 20, 22, 0.12));
+  box-shadow: 0 12px 36px rgba(20, 20, 22, 0.24);
+  pointer-events: none;
+}
+
+.editor-pick-magnifier__canvas {
+  display: block;
+  width: 144px;
+  height: 144px;
+  border-radius: 12px;
+  background: repeating-conic-gradient(rgba(0, 0, 0, 0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+}
+
+.editor-pick-magnifier__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.editor-pick-magnifier__chip {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1px rgba(20, 20, 22, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.editor-pick-magnifier__hex {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--app-text, #1f2937);
 }
 
 .editor-mask-preview {
@@ -1420,12 +1644,6 @@ onBeforeUnmount(() => {
 .editor-btn--ghost {
   background: transparent;
   color: var(--app-text-secondary);
-}
-
-.editor-btn--active {
-  background: color-mix(in srgb, var(--app-text) 12%, transparent);
-  color: var(--app-text);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--app-text) 28%, transparent);
 }
 
 .editor-btn:active {
