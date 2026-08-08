@@ -4,7 +4,7 @@
       <span class="hsl-picker__swatch" :style="{ background: modelValue }" aria-hidden="true" />
       <strong class="hsl-picker__hex">{{ modelValue }}</strong>
       <button
-        v-if="supportsEyeDropper"
+        v-if="supportsEyeDropper || pickFallbackEnabled"
         type="button"
         class="hsl-picker__dropper"
         :aria-label="t('common.eyeDropper')"
@@ -89,10 +89,14 @@ const props = defineProps({
   field: {
     type: String,
     default: ''
+  },
+  pickFallbackEnabled: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:modelValue', 'fallback-pick'])
 const { t } = useI18n()
 
 const state = reactive({ h: 0, s: 0, l: 100 })
@@ -172,22 +176,27 @@ function onHexInput(event) {
 }
 
 async function pickFromScreen() {
-  if (!supportsEyeDropper) return
+  if (supportsEyeDropper) {
+    try {
+      const eyeDropper = new window.EyeDropper()
+      const result = await eyeDropper.open()
 
-  try {
-    const eyeDropper = new window.EyeDropper()
-    const result = await eyeDropper.open()
-
-    if (result?.sRGBHex) {
-      const value = result.sRGBHex.toLowerCase()
-      const hsl = hexToHsl(value)
-      state.h = hsl.h
-      state.s = hsl.s
-      state.l = hsl.l
-      emit('update:modelValue', value)
+      if (result?.sRGBHex) {
+        const value = result.sRGBHex.toLowerCase()
+        const hsl = hexToHsl(value)
+        state.h = hsl.h
+        state.s = hsl.s
+        state.l = hsl.l
+        emit('update:modelValue', value)
+      }
+    } catch (error) {
+      // User cancelled the eyedropper selection.
     }
-  } catch (error) {
-    // User cancelled the eyedropper selection.
+    return
+  }
+
+  if (props.pickFallbackEnabled) {
+    emit('fallback-pick')
   }
 }
 </script>
