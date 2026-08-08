@@ -35,15 +35,17 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-// 统一返回 application/octet-stream：supabase-js 的 functions.invoke 只对
-// application/octet-stream 与 application/pdf 自动解析为 Blob（否则走 text()，
-// 会把二进制 PNG 变成乱码字符串）。客户端再根据图片字节自身解码，无需 MIME 精确。
-function binaryResponse(bytes: Uint8Array): Response {
+// 返回 image/png（或上游实际的图片 Content-Type）。
+// 注意：supabase-js 的 functions.invoke 只对 octet-stream/pdf 自动解析为 Blob，
+// image/png 会被它当作 text 读成乱码 —— 因此客户端必须用原生 fetch（不用 invoke）
+// 来取这个响应，fetch 返回的 Blob 会携带正确的 image/png Content-Type，
+// Android WebView 的 <img>/createImageBitmap 才能按 MIME 正常解码。
+function binaryResponse(bytes: Uint8Array, contentType = "image/png"): Response {
   return new Response(bytes, {
     status: 200,
     headers: {
       ...corsHeaders,
-      "Content-Type": "application/octet-stream",
+      "Content-Type": contentType,
       "Cache-Control": "no-store",
     },
   })
@@ -187,7 +189,9 @@ serve(async (req) => {
     }
 
     const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
-    return binaryResponse(bytes)
+    // 透传上游实际图片类型；拿不到时默认 image/png（FAPIhub 默认返回 PNG）
+    const finalType = upstreamType.startsWith("image/") ? upstreamType : "image/png"
+    return binaryResponse(bytes, finalType)
   } catch (e) {
     console.error("remove-bg:upstream-fetch-error", e)
     return json({ error: "upstream_network_error" }, 502)

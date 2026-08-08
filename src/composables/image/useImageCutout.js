@@ -581,39 +581,36 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
       emitProgress(fakePercent, '云端处理中，请稍候...')
     }, 800)
 
-    const { data, error } = await supabase.functions.invoke('remove-bg', {
+    // 不用 supabase.functions.invoke：supabase-js 2.105.4 只把 octet-stream/pdf
+    // 解析成 Blob，image/png 会被当 text 读成乱码。改用原生 fetch 直接请求
+    // Edge Function，返回的 Blob 携带正确 Content-Type，Android WebView 才能解码。
+    const url = new URL(`functions/v1/remove-bg`, supabase.supabaseUrl).toString()
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-      body: formData,
-      timeout: 90000
+      headers: {
+        apikey: supabase.supabaseKey,
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: formData
     })
 
-    // 注意：安装的 supabase-js 不支持 parse:false（该选项被静默忽略）。
-    // Edge Function 返回 application/octet-stream，invoke 会自动解析成 Blob。
-    if (error) {
-      // 非 2xx（如 403 白名单失效）会被 invoke 包装成 FunctionsHttpError
-      if (error?.context?.status === 403) {
+    if (!response.ok) {
+      // 非 2xx（如 403 白名单失效）——把云端具体原因透传给用户
+      if (response.status === 403) {
         cachedCloudAllowed = false
       }
-      // 尝试解析 Edge Function 返回的错误体（云端失败时把具体原因透传）
-      if (error?.context && typeof error.context.text === 'function') {
-        try {
-          const body = await error.context.text()
-          const parsed = JSON.parse(body)
-          if (parsed?.error && typeof parsed.error === 'string') {
-            throw new Error(parsed.error)
-          }
-        } catch (parseError) {
-          if (parseError instanceof SyntaxError) {
-            // 非 JSON 错误体，走默认包装
-          } else {
-            throw parseError
-          }
-        }
+      let message = ''
+      try {
+        const body = await response.json()
+        if (body?.error && typeof body.error === 'string') message = body.error
+      } catch {
+        // 非 JSON 错误体，忽略
       }
-      throw error
+      throw new Error(message || `云端抠图失败（${response.status}）`)
     }
-    if (!(data instanceof Blob)) {
+
+    const data = await response.blob()
+    if (!(data instanceof Blob) || data.size === 0) {
       throw new Error('云端抠图失败，请稍后重试')
     }
 
@@ -789,8 +786,8 @@ export function useImageCutout() {
   // 云端返回的已抠好的透明图：只需裁掉 padding 并缩回原始尺寸，一次 drawImage 即可。
   // maskBlob 实为完整抠图结果（带透明通道），preparedBlob 仅用于尺寸兼容。
   async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
-    // Edge Function 返回的 Blob 是 application/octet-stream；blobToCanvas 内部用
-    // <img> 元素按字节解码（对 MIME 不敏感），无需重新包装成 image/png。
+    // Edge Function 经原生 fetch 返回的 Blob 携带 image/png Content-Type，
+    // blobToCanvas 用 <img> 按字节解码，Android WebView 可正常处理。
     return finalizeCutoutResult(maskBlob, meta)
   }
 
