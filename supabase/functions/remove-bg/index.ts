@@ -35,17 +35,15 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-// 返回 image/png（或上游实际的图片 Content-Type）。
-// 注意：supabase-js 的 functions.invoke 只对 octet-stream/pdf 自动解析为 Blob，
-// image/png 会被它当作 text 读成乱码 —— 因此客户端必须用原生 fetch（不用 invoke）
-// 来取这个响应，fetch 返回的 Blob 会携带正确的 image/png Content-Type，
-// Android WebView 的 <img>/createImageBitmap 才能按 MIME 正常解码。
-function binaryResponse(bytes: Uint8Array, contentType = "image/png"): Response {
+// 统一使用二进制 MIME 返回，避免 Supabase/Android WebView 链路将 PNG
+// 当作 UTF-8 文本处理。否则 PNG 签名中的 0x89 会被替换成 EF BF BD，
+// 最终得到损坏的 PNG（客户端会看到 efbfbd504e47...）。
+function binaryResponse(bytes: Uint8Array): Response {
   return new Response(bytes, {
     status: 200,
     headers: {
       ...corsHeaders,
-      "Content-Type": contentType,
+      "Content-Type": "application/octet-stream",
       "Cache-Control": "no-store",
     },
   })
@@ -189,9 +187,7 @@ serve(async (req) => {
     }
 
     const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
-    // 透传上游实际图片类型；拿不到时默认 image/png（FAPIhub 默认返回 PNG）
-    const finalType = upstreamType.startsWith("image/") ? upstreamType : "image/png"
-    return binaryResponse(bytes, finalType)
+    return binaryResponse(bytes)
   } catch (e) {
     console.error("remove-bg:upstream-fetch-error", e)
     return json({ error: "upstream_network_error" }, 502)
