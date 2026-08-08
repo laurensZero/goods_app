@@ -176,6 +176,7 @@ import { useToast } from '@/composables/useToast'
 import { getFeedback, addFollowup } from '@/services/feedbackService'
 import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -183,6 +184,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue'])
+
+useDialogBackButton(close, () => props.modelValue)
 
 const { t } = useI18n()
 const { showToast } = useToast()
