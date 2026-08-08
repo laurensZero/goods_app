@@ -3658,14 +3658,12 @@
 
     async function fetchLatestApkVersion() {
       try {
-        const res = await fetch(`https://api.github.com/repos/${repoOwner}/${repoName}/releases/latest`)
-        if (!res.ok) {
-          apkLatestVersion.textContent = '(无法获取)'
-          return
-        }
-        const release = await res.json()
-        const tag = release?.tag_name || ''
-        apkLatestVersion.textContent = tag ? `最新: ${tag}` : '(无 Release)'
+        const rows = await supabaseRequest(
+          '/rest/v1/ota_releases?select=version&type=eq.apk&order=published_at.desc&limit=1'
+        )
+        const record = Array.isArray(rows) ? rows[0] : null
+        const version = String(record?.version || '').trim().replace(/^[vV]/, '')
+        apkLatestVersion.textContent = version ? `最新: ${version}` : '(无 Release)'
       } catch {
         apkLatestVersion.textContent = '(获取失败)'
       }
