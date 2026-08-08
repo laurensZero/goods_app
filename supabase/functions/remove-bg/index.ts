@@ -170,6 +170,22 @@ serve(async (req) => {
       )
     }
 
+    // FAPIhub 对无法解码的源图可能返回 200 + JSON 错误体，
+    // 必须按 Content-Type 区分，否则会把 JSON 当图片回传
+    const upstreamType = (upstreamRes.headers.get("content-type") || "").toLowerCase()
+    if (!upstreamType.startsWith("image/")) {
+      let message = "upstream_non_image_response"
+      try {
+        const errBody = await upstreamRes.clone().json()
+        if (errBody?.error && typeof errBody.error === "string") message = errBody.error
+      } catch {
+        const text = await upstreamRes.clone().text()
+        if (text && text.length < 500) message = text
+      }
+      console.error("remove-bg:upstream-non-image", upstreamType, message)
+      return json({ error: message, status: 422 }, 422)
+    }
+
     const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
     return binaryResponse(bytes)
   } catch (e) {
