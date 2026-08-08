@@ -697,7 +697,9 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
     }
 
     emitProgress(80, '云端处理完成')
-    return data
+    // Edge Function 以 application/octet-stream 返回，防止 Android 链路按
+    // UTF-8 文本转换；这里仅重设 Blob MIME，不改变任何图片字节。
+    return new Blob([data], { type: 'image/png' })
   } finally {
     if (progressTimer) clearInterval(progressTimer)
   }
