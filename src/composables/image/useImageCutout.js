@@ -259,14 +259,32 @@ function normalizeCutoutError(error, fallbackMessage) {
   return new Error(fallbackMessage || '抠图失败')
 }
 
+function loadImageElement(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const img = new Image()
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      resolve(img)
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('图片解码失败'))
+    }
+    img.src = url
+  })
+}
+
 async function blobToCanvas(blob) {
-  const bitmap = await createImageBitmap(blob)
+  // Android WebView 的 createImageBitmap 对 Blob 的 MIME 嗅探很严格，
+  // 云端返回的 octet-stream Blob 即使重包成 image/png 也可能解码失败。
+  // <img> 元素按字节嗅探图片格式，对 MIME 完全不敏感，兼容性最好。
+  const img = await loadImageElement(blob)
   const canvas = document.createElement('canvas')
-  canvas.width = bitmap.width
-  canvas.height = bitmap.height
+  canvas.width = img.naturalWidth || img.width
+  canvas.height = img.naturalHeight || img.height
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  ctx.drawImage(bitmap, 0, 0)
-  bitmap.close?.()
+  ctx.drawImage(img, 0, 0)
   return canvas
 }
 
@@ -771,11 +789,9 @@ export function useImageCutout() {
   // 云端返回的已抠好的透明图：只需裁掉 padding 并缩回原始尺寸，一次 drawImage 即可。
   // maskBlob 实为完整抠图结果（带透明通道），preparedBlob 仅用于尺寸兼容。
   async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
-    // Edge Function 返回的 Blob 是 application/octet-stream，部分 Android WebView
-    // 的 createImageBitmap 按 MIME 嗅探会失败（报 "The source image could not be decoded"）。
-    // 显式重建为 image/png Blob，确保解码成功。
-    const pngBlob = new Blob([maskBlob], { type: 'image/png' })
-    return finalizeCutoutResult(pngBlob, meta)
+    // Edge Function 返回的 Blob 是 application/octet-stream；blobToCanvas 内部用
+    // <img> 元素按字节解码（对 MIME 不敏感），无需重新包装成 image/png。
+    return finalizeCutoutResult(maskBlob, meta)
   }
 
   async function removeBackgroundWithTimeout(inputBlob, options = {}) {
