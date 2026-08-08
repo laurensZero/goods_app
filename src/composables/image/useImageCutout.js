@@ -577,6 +577,22 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
       if (error?.context?.status === 403) {
         cachedCloudAllowed = false
       }
+      // 尝试解析 Edge Function 返回的错误体（云端失败时把具体原因透传）
+      if (error?.context && typeof error.context.text === 'function') {
+        try {
+          const body = await error.context.text()
+          const parsed = JSON.parse(body)
+          if (parsed?.error && typeof parsed.error === 'string') {
+            throw new Error(parsed.error)
+          }
+        } catch (parseError) {
+          if (parseError instanceof SyntaxError) {
+            // 非 JSON 错误体，走默认包装
+          } else {
+            throw parseError
+          }
+        }
+      }
       throw error
     }
     if (!(data instanceof Blob)) {
@@ -755,7 +771,11 @@ export function useImageCutout() {
   // 云端返回的已抠好的透明图：只需裁掉 padding 并缩回原始尺寸，一次 drawImage 即可。
   // maskBlob 实为完整抠图结果（带透明通道），preparedBlob 仅用于尺寸兼容。
   async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
-    return finalizeCutoutResult(maskBlob, meta)
+    // Edge Function 返回的 Blob 是 application/octet-stream，部分 Android WebView
+    // 的 createImageBitmap 按 MIME 嗅探会失败（报 "The source image could not be decoded"）。
+    // 显式重建为 image/png Blob，确保解码成功。
+    const pngBlob = new Blob([maskBlob], { type: 'image/png' })
+    return finalizeCutoutResult(pngBlob, meta)
   }
 
   async function removeBackgroundWithTimeout(inputBlob, options = {}) {
