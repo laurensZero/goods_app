@@ -259,14 +259,150 @@ function normalizeCutoutError(error, fallbackMessage) {
   return new Error(fallbackMessage || '抠图失败')
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function inspectImageBlob(blob) {
+  try {
+    const bytes = new Uint8Array(await blob.slice(0, 33).arrayBuffer())
+    const isPng = bytes.length >= 24
+      && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    if (isPng && bytes.length >= 26) {
+      const readU32 = (offset) => (
+        bytes[offset] * 0x1000000
+        + bytes[offset + 1] * 0x10000
+        + bytes[offset + 2] * 0x100
+        + bytes[offset + 3]
+      )
+      return {
+        signature: 'png',
+        width: readU32(16),
+        height: readU32(20),
+        bitDepth: bytes[24],
+        colorType: bytes[25],
+        interlace: bytes.length > 28 ? bytes[28] : null
+      }
+    }
+    return {
+      signature: Array.from(bytes.slice(0, 12)).map((value) => value.toString(16).padStart(2, '0')).join('')
+    }
+  } catch (error) {
+    return { inspectError: error?.message || String(error) }
+  }
+}
+
+async function repairReplacementPngBlob(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer())
+  const hasReplacementPngHeader = bytes.length >= 10
+    && bytes[0] === 0xef && bytes[1] === 0xbf && bytes[2] === 0xbd
+    && bytes[3] === 0x50 && bytes[4] === 0x4e && bytes[5] === 0x47
+    && ((bytes[6] === 0x0d && bytes[7] === 0x0a && bytes[8] === 0x1a && bytes[9] === 0x0a)
+      || (bytes[6] === 0x0a && bytes[7] === 0x1a && bytes[8] === 0x0a))
+  if (!hasReplacementPngHeader) return blob
+
+  const missingCarriageReturn = bytes[6] === 0x0a
+  const repaired = new Uint8Array(bytes.length - (missingCarriageReturn ? 1 : 2))
+  repaired[0] = 0x89
+  repaired.set(bytes.subarray(3, 6), 1)
+  if (missingCarriageReturn) {
+    repaired[4] = 0x0d
+    repaired.set(bytes.subarray(6), 5)
+  } else {
+    repaired.set(bytes.subarray(6), 4)
+  }
+  log.warn('image-decode:repair-replacement-png-header', {
+    originalBytes: bytes.length,
+    repairedBytes: repaired.length
+  })
+  return new Blob([repaired], { type: 'image/png' })
+}
+
+function base64ToBlob(base64, type = 'image/png') {
+  const binary = atob(String(base64 || ''))
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index)
+  }
+  return new Blob([bytes], { type })
+}
+
+async function loadImageElement(blob) {
+  if (!(blob instanceof Blob) || blob.size <= 0) {
+    log.error('image-decode:empty-blob', {
+      isBlob: blob instanceof Blob,
+      size: Number(blob?.size) || 0,
+      type: String(blob?.type || '')
+    })
+    throw new Error('图片数据为空')
+  }
+
+  const decodeBlob = await repairReplacementPngBlob(blob)
+  const blobInfo = {
+    size: decodeBlob.size,
+    type: decodeBlob.type || '(empty)',
+    native: Capacitor.isNativePlatform()
+  }
+  const imageHeader = await inspectImageBlob(decodeBlob)
+
+  // Android WebView 对大尺寸 PNG 转 Data URL 后会额外复制一份 Base64，
+  // 很容易在解码阶段触发内存不足。优先使用 Blob URL，失败后再回退到
+  // Data URL；这样既覆盖旧 WebView 的 Blob URL 兼容问题，也避免正常情况
+  // 下不必要的 Base64 内存膨胀。
+  const load = (src) => new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('图片解码失败'))
+    img.src = src
+  })
+
+  let objectUrl = ''
+  try {
+    objectUrl = URL.createObjectURL(decodeBlob)
+    const image = await load(objectUrl)
+    log.info('image-decode:blob-url-success', {
+      ...blobInfo,
+      header: imageHeader,
+      width: image.naturalWidth || image.width || 0,
+      height: image.naturalHeight || image.height || 0
+    })
+    return image
+  } catch (error) {
+    // 某些 Android WebView 对带透明通道的 Blob URL 解码失败，继续尝试
+    // Data URL。不要直接丢失原始错误，两个方案都失败时统一抛出明确错误。
+    try {
+      log.warn('image-decode:blob-url-failed', { ...blobInfo, header: imageHeader }, error)
+      const dataUrl = await blobToDataUrl(decodeBlob)
+      const image = await load(dataUrl)
+      log.info('image-decode:data-url-success', {
+        ...blobInfo,
+        header: imageHeader,
+        width: image.naturalWidth || image.width || 0,
+        height: image.naturalHeight || image.height || 0
+      })
+      return image
+    } catch (fallbackError) {
+      log.error('image-decode:data-url-failed', { ...blobInfo, header: imageHeader }, fallbackError)
+      throw error instanceof Error ? error : new Error('图片解码失败')
+    }
+  } finally {
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
+  }
+}
+
 async function blobToCanvas(blob) {
-  const bitmap = await createImageBitmap(blob)
+  const img = await loadImageElement(blob)
   const canvas = document.createElement('canvas')
-  canvas.width = bitmap.width
-  canvas.height = bitmap.height
+  canvas.width = img.naturalWidth || img.width
+  canvas.height = img.naturalHeight || img.height
   const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  ctx.drawImage(bitmap, 0, 0)
-  bitmap.close?.()
+  ctx.drawImage(img, 0, 0)
   return canvas
 }
 
@@ -563,28 +699,48 @@ async function uploadCloudCutoutMask(inputBlob, options = {}) {
       emitProgress(fakePercent, '云端处理中，请稍候...')
     }, 800)
 
-    const { data, error } = await supabase.functions.invoke('remove-bg', {
+    // 不用 supabase.functions.invoke：supabase-js 2.105.4 只把 octet-stream/pdf
+    // 解析成 Blob，image/png 会被当 text 读成乱码。改用原生 fetch 直接请求
+    // Edge Function，返回的 Blob 携带正确 Content-Type，Android WebView 才能解码。
+    const url = new URL(`functions/v1/remove-bg`, supabase.supabaseUrl).toString()
+    const response = await fetch(url, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}` },
-      body: formData,
-      timeout: 90000
+      headers: {
+        apikey: supabase.supabaseKey,
+        Authorization: `Bearer ${session.access_token}`
+      },
+      body: formData
     })
 
-    // 注意：安装的 supabase-js 不支持 parse:false（该选项被静默忽略）。
-    // Edge Function 返回 application/octet-stream，invoke 会自动解析成 Blob。
-    if (error) {
-      // 非 2xx（如 403 白名单失效）会被 invoke 包装成 FunctionsHttpError
-      if (error?.context?.status === 403) {
+    if (!response.ok) {
+      // 非 2xx（如 403 白名单失效）——把云端具体原因透传给用户
+      if (response.status === 403) {
         cachedCloudAllowed = false
       }
-      throw error
+      let message = ''
+      try {
+        const body = await response.json()
+        if (body?.error && typeof body.error === 'string') message = body.error
+      } catch {
+        // 非 JSON 错误体，忽略
+      }
+      throw new Error(message || `云端抠图失败（${response.status}）`)
     }
-    if (!(data instanceof Blob)) {
+
+    const payload = await response.json()
+    if (payload?.encoding !== 'base64' || typeof payload.data !== 'string' || !payload.data) {
+      throw new Error('云端抠图返回格式错误')
+    }
+    const data = base64ToBlob(payload.data, payload.contentType || 'image/png')
+    if (data.size === 0) {
       throw new Error('云端抠图失败，请稍后重试')
     }
 
     emitProgress(80, '云端处理完成')
-    return data
+    // Edge Function 以 application/octet-stream 返回，防止 Android 链路按
+    // UTF-8 文本转换；这里仅重设 Blob MIME，不改变任何图片字节。
+    const repairedData = await repairReplacementPngBlob(data)
+    return new Blob([repairedData], { type: 'image/png' })
   } finally {
     if (progressTimer) clearInterval(progressTimer)
   }
@@ -696,8 +852,8 @@ export function useImageCutout() {
     }
   }
 
-  // 云端抠图：本地预处理（缩放+padding 保证尺寸一致），上传 FAPIhub 取 mask，
-  // 本地 refine 后返回与 createCutoutMask 同构的结果
+  // 云端抠图：本地预处理（缩放+padding），上传 FAPIhub，返回的即抠好的透明图。
+  // 不再做本地 refine/重建（云端返回图 RGB 已正确，本地重建反而重且易错）。
   async function createCloudCutoutMask(inputBlob, options = {}) {
     const reportProgress = typeof options.onProgress === 'function'
       ? options.onProgress
@@ -716,17 +872,13 @@ export function useImageCutout() {
     }
 
     emitProgress(12, '云端引擎准备中...')
-    // 与本地一致用 1800：保留最终输出画质（mask 方案下最终分辨率跟随输入尺寸）
-    const cloudOptions = { ...options, maxProcessSize: 1800 }
-    const preparedInput = await prepareCutoutInput(inputBlob, cloudOptions)
-    const maskBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
-    emitProgress(86, '修复主体颜色中...')
-    const refinedMask = await refineCutoutMask(maskBlob, preparedInput.referenceCanvas)
-    emitProgress(94, '边缘优化中...')
+    const preparedInput = await prepareCutoutInput(inputBlob, { ...options, maxProcessSize: 1800 })
+    const cutoutBlob = await uploadCloudCutoutMask(preparedInput.blob, options)
+    emitProgress(92, '处理完成')
 
     return {
       preparedBlob: preparedInput.blob,
-      maskBlob: refinedMask,
+      maskBlob: cutoutBlob,
       meta: preparedInput.meta,
       width: preparedInput.referenceCanvas.width,
       height: preparedInput.referenceCanvas.height,
@@ -756,36 +908,12 @@ export function useImageCutout() {
     return finalizeCutoutResult(cutoutBlob, meta)
   }
 
-  // 纯 canvas 应用 mask：不依赖本地 imgly 模型，云端模式用。
-  // mask 中不透明像素保留原图颜色，透明像素置空。
+  // 云端返回的已抠好的透明图：只需裁掉 padding 并缩回原始尺寸，一次 drawImage 即可。
+  // maskBlob 实为完整抠图结果（带透明通道），preparedBlob 仅用于尺寸兼容。
   async function applyCloudCutoutMask(preparedBlob, maskBlob, meta) {
-    const [preparedCanvas, maskCanvas] = await Promise.all([
-      blobToCanvas(preparedBlob),
-      blobToCanvas(maskBlob)
-    ])
-    const width = preparedCanvas.width
-    const height = preparedCanvas.height
-
-    const outputCanvas = createCanvas(width, height)
-    const ctx = outputCanvas.getContext('2d', { willReadFrequently: true })
-    ctx.drawImage(preparedCanvas, 0, 0)
-    const output = ctx.getImageData(0, 0, width, height)
-
-    const maskCtx = maskCanvas.getContext('2d', { willReadFrequently: true })
-    const maskImage = maskCtx.getImageData(0, 0, maskCanvas.width, maskCanvas.height)
-    const maskData = maskImage.data
-    const outputData = output.data
-
-    for (let y = 0; y < height; y += 1) {
-      for (let x = 0; x < width; x += 1) {
-        const index = (y * width + x) * 4
-        outputData[index + 3] = maskData[index + 3]
-      }
-    }
-
-    ctx.putImageData(output, 0, 0)
-    const cutoutBlob = await canvasToBlob(outputCanvas, 'image/png', 1)
-    return finalizeCutoutResult(cutoutBlob, meta)
+    // Edge Function 经原生 fetch 返回的 Blob 携带 image/png Content-Type，
+    // blobToCanvas 用 <img> 按字节解码，Android WebView 可正常处理。
+    return finalizeCutoutResult(maskBlob, meta)
   }
 
   async function removeBackgroundWithTimeout(inputBlob, options = {}) {

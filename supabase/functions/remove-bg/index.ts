@@ -35,18 +35,58 @@ function json(body: unknown, status = 200): Response {
   })
 }
 
-// 统一返回 application/octet-stream：supabase-js 的 functions.invoke 只对
-// application/octet-stream 与 application/pdf 自动解析为 Blob（否则走 text()，
-// 会把二进制 PNG 变成乱码字符串）。客户端再根据图片字节自身解码，无需 MIME 精确。
+// 统一使用二进制 MIME 返回，避免 Supabase/Android WebView 链路将 PNG
+// 当作 UTF-8 文本处理。否则 PNG 签名中的 0x89 会被替换成 EF BF BD，
+// 最终得到损坏的 PNG（客户端会看到 efbfbd504e47...）。
+function base64Encode(bytes: Uint8Array): string {
+  let binary = ""
+  const chunkSize = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize))
+  }
+  return btoa(binary)
+}
+
 function binaryResponse(bytes: Uint8Array): Response {
-  return new Response(bytes, {
+  return new Response(JSON.stringify({
+    encoding: "base64",
+    contentType: "image/png",
+    data: base64Encode(bytes),
+  }), {
     status: 200,
     headers: {
       ...corsHeaders,
-      "Content-Type": "application/octet-stream",
+      "Content-Type": "application/json",
       "Cache-Control": "no-store",
     },
   })
+}
+
+// 某些上游/代理链路会把 PNG 签名首字节 0x89 按 UTF-8 解码成
+// U+FFFD（EF BF BD）。只修复这个明确的签名损坏，不对其他图片字节做猜测。
+function repairReplacementPngHeader(bytes: Uint8Array): Uint8Array {
+  const hasReplacementPngHeader = bytes.length >= 10
+    && bytes[0] === 0xef && bytes[1] === 0xbf && bytes[2] === 0xbd
+    && bytes[3] === 0x50 && bytes[4] === 0x4e && bytes[5] === 0x47
+    && ((bytes[6] === 0x0d && bytes[7] === 0x0a && bytes[8] === 0x1a && bytes[9] === 0x0a)
+      || (bytes[6] === 0x0a && bytes[7] === 0x1a && bytes[8] === 0x0a))
+  if (!hasReplacementPngHeader) return bytes
+
+  const missingCarriageReturn = bytes[6] === 0x0a
+  const repaired = new Uint8Array(bytes.length - (missingCarriageReturn ? 1 : 2))
+  repaired[0] = 0x89
+  repaired.set(bytes.subarray(3, 6), 1)
+  if (missingCarriageReturn) {
+    repaired[4] = 0x0d
+    repaired.set(bytes.subarray(6), 5)
+  } else {
+    repaired.set(bytes.subarray(6), 4)
+  }
+  console.warn("remove-bg:repaired-utf8-png-header", {
+    originalBytes: bytes.length,
+    repairedBytes: repaired.length,
+  })
+  return repaired
 }
 
 // 解析 JWT 并校验白名单；返回 { allowed, user } 或 { allowed:false, reason }
@@ -170,7 +210,23 @@ serve(async (req) => {
       )
     }
 
-    const bytes = new Uint8Array(await upstreamRes.arrayBuffer())
+    // FAPIhub 对无法解码的源图可能返回 200 + JSON 错误体，
+    // 必须按 Content-Type 区分，否则会把 JSON 当图片回传
+    const upstreamType = (upstreamRes.headers.get("content-type") || "").toLowerCase()
+    if (!upstreamType.startsWith("image/")) {
+      let message = "upstream_non_image_response"
+      try {
+        const errBody = await upstreamRes.clone().json()
+        if (errBody?.error && typeof errBody.error === "string") message = errBody.error
+      } catch {
+        const text = await upstreamRes.clone().text()
+        if (text && text.length < 500) message = text
+      }
+      console.error("remove-bg:upstream-non-image", upstreamType, message)
+      return json({ error: message, status: 422 }, 422)
+    }
+
+    const bytes = repairReplacementPngHeader(new Uint8Array(await upstreamRes.arrayBuffer()))
     return binaryResponse(bytes)
   } catch (e) {
     console.error("remove-bg:upstream-fetch-error", e)
