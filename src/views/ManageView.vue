@@ -1,5 +1,5 @@
 <template>
-  <div class="page manage-page" :class="{ 'manage-page--restoring': !manageDisplayReady }">
+  <div class="page manage-page">
     <main ref="pageBodyRef" class="page-body">
       <NavBar :title="t('manage.title')" show-back />
 
@@ -33,7 +33,7 @@
           </div>
         </aside>
 
-        <section v-if="activeManageEntry" ref="settingsDetailRef" class="settings-detail">
+        <section v-if="activeManageEntry" class="settings-detail">
           <div class="settings-detail__header settings-detail__header--compact">
             <button
               v-if="manageSubPageKey"
@@ -217,14 +217,14 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, provide, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import { useToast } from '@/composables/useToast'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 
 const { t } = useI18n()
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
@@ -280,7 +280,6 @@ const selectedManageKey = ref('categories')
 
 // 子页面（如「米游铺有货监控」是「通知设置」的子页面，嵌入右面板但不占侧栏）
 const manageSubPageKey = ref('')
-const settingsDetailRef = ref(null)
 
 // 支持通过 ?section=<entry.key> 定位到指定设置项、?sub=<componentKey> 直接打开右面板子页面
 function resolveSectionFromQuery() {
@@ -343,30 +342,15 @@ function selectManageEntry(key) {
 function openManageSubPage(key) {
   if (!manageComponentMap[key]) return
   manageSubPageKey.value = key
-  resetSettingsDetailScroll()
 }
 
 function closeManageSubPage() {
   manageSubPageKey.value = ''
-  resetSettingsDetailScroll()
   if (route.query.sub) {
     const query = { ...route.query }
     delete query.sub
     router.replace({ path: route.path, query })
   }
-}
-
-function resetSettingsDetailScroll() {
-  nextTick(() => {
-    const detail = settingsDetailRef.value
-    if (!detail) return
-    detail.scrollTop = 0
-    requestAnimationFrame(() => {
-      if (settingsDetailRef.value) {
-        settingsDetailRef.value.scrollTop = 0
-      }
-    })
-  })
 }
 
 provide('openManageSubPage', openManageSubPage)
@@ -380,96 +364,70 @@ function runManageEntryPrimary(entry) {
 
 function handleResize() { windowWidth.value = window.innerWidth }
 
-// ---- scroll management ----
+// 只恢复从设置子页返回的情况；首次进入设置页不读取旧位置。
 const pageBodyRef = ref(null)
-const manageDisplayReady = ref(true)
 let pageScrollRaf = 0
 let isRouteLeaving = false
-
 const {
-  getScrollEl, getStoredScrollState, markScrollSource, readScrollTop,
-  hasPendingRestore, saveScrollPosition, restorePendingScrollPosition,
-  restoreActivatedScrollPosition, rememberCurrentScrollPosition,
-  clearDisplayedScrollPosition, resetStoredScrollOnReload, cancelPendingRestore
+  getScrollEl,
+  markScrollSource,
+  rememberCurrentScrollPosition,
+  saveScrollPosition,
+  restorePendingScrollPosition,
+  cancelPendingRestore
 } = createPageScrollRestore('manage')(pageBodyRef)
-
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
-
-function syncVisibleGoodsCount() {}
-function syncVisibleTimelineMonthCount() {}
-
-function shouldMaskManageDisplay() {
-  const storedTop = getStoredScrollState()?.top || 0
-  if (storedTop <= 0) return false
-  return Math.abs(readScrollTop() - storedTop) > 1
-}
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({
+  getScrollEl,
+  markScrollSource,
+  handlePageScroll
+})
 
 function handlePageScroll() {
-  if (isRouteLeaving) return
-  if (pageScrollRaf) return
+  if (isRouteLeaving || pageScrollRaf) return
   pageScrollRaf = requestAnimationFrame(() => {
     pageScrollRaf = 0
-    if (isRouteLeaving) return
-    rememberCurrentScrollPosition()
+    if (!isRouteLeaving) rememberCurrentScrollPosition()
   })
+}
+
+function isManageChildPath(path) {
+  const value = String(path || '')
+  return value.startsWith('/manage/') || value === '/storage-locations' || value === '/trash'
 }
 
 // ---- lifecycle ----
 onMounted(() => {
   handleResize()
   window.addEventListener('resize', handleResize, { passive: true })
-  if (resetStoredScrollOnReload()) clearDisplayedScrollPosition()
 })
 
-onMounted(async () => {
+onMounted(() => {
   isRouteLeaving = false
-  const shouldMask = shouldMaskManageDisplay()
-  manageDisplayReady.value = !shouldMask
-  await nextTick()
   bindPageScroll()
-  const pending = getStoredScrollState()
-  if (pending?.source) markScrollSource(pending.source)
-  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
-  await nextTick()
-  manageDisplayReady.value = true
-
+  const isReturningFromChild = Boolean(window.history.state?.forward)
+  if (isReturningFromChild) {
+    void nextTick(() => restorePendingScrollPosition(() => {}, () => {}))
+  } else {
+    sessionStorage.removeItem('manage-scroll-restore-pending')
+  }
   void cleanupUnreferencedLocalImages().then(({ removed, bytes }) => {
     if (removed > 0) showToast(t('toast.cleanedLocalImages', { count: removed, size: formatCompactSize(bytes) }), 3800)
   }).catch(() => {})
 })
 
-onActivated(async () => {
-  isRouteLeaving = false
-  const shouldMask = shouldMaskManageDisplay()
-  if (shouldMask) manageDisplayReady.value = false
-  const stored = getStoredScrollState()
-  if (stored?.source) markScrollSource(stored.source)
-  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
-  await nextTick()
-  manageDisplayReady.value = true
-  bindPageScroll()
-})
-
-onDeactivated(() => {
-  cancelPendingRestore()
-  if (hasPendingRestore()) manageDisplayReady.value = false
-  if (!hasPendingRestore() && !isRouteLeaving) rememberCurrentScrollPosition()
-  unbindPageScroll()
-})
-
 onBeforeUnmount(() => {
   cancelPendingRestore()
-  if (pageScrollRaf) { cancelAnimationFrame(pageScrollRaf); pageScrollRaf = 0 }
+  if (pageScrollRaf) cancelAnimationFrame(pageScrollRaf)
   unbindPageScroll()
-  if (!hasPendingRestore() && !isRouteLeaving) rememberCurrentScrollPosition()
   window.removeEventListener('resize', handleResize)
   cleanupExportTimers()
 })
 
-onBeforeRouteLeave(() => {
+onBeforeRouteLeave((to) => {
   isRouteLeaving = true
-  saveScrollPosition(false, 'manage:onBeforeRouteLeave')
-  if (pageScrollRaf) { cancelAnimationFrame(pageScrollRaf); pageScrollRaf = 0 }
+  const isSettingsChild = isManageChildPath(to.path)
+  saveScrollPosition(isSettingsChild, 'manage:onBeforeRouteLeave')
+  if (pageScrollRaf) cancelAnimationFrame(pageScrollRaf)
   unbindPageScroll()
   cleanupExportTimers()
 })
