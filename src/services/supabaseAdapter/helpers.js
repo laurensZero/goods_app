@@ -2,7 +2,7 @@
 // Shared constants and utility functions for Supabase adapter
 
 import { toSnakeCase } from '@/utils/sync/columnMapping'
-import { asyncBuildComparableRecordMap } from '@/utils/sync/shared'
+import { asyncBuildComparableRecordMap, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { withRetry } from '@/services/syncRetry'
 import i18n from '@/locales'
 
@@ -333,6 +333,48 @@ export async function computeDiffRows(localRows = [], remoteRows = []) {
     if (!id) return false
     return localMap.get(id) !== remoteMap.get(id)
   })
+}
+
+/**
+ * Compute which local rows to push when active/trash split buckets of the same
+ * table (goods.trashed / *.deleted) can each hold the same entity.
+ *
+ * Why not a plain per-bucket computeDiffRows: once an item is trashed on the
+ * cloud it only appears in the remote TRASH bucket, while a stale local copy may
+ * still sit in the local ACTIVE bucket (e.g. the tombstone fell outside the
+ * incremental pull window). A per-bucket diff sees that stale active copy as
+ * "local-only" and re-pushes it; the pure upsert RPC then writes trashed=0,
+ * silently destroying the newer cloud tombstone. The pull side avoids this via
+ * resolveGoodsTrashMaps; the push side must do the same.
+ *
+ * Resolution: merge local active+trash and remote active+trash into effective
+ * views keyed by id (LWW by updatedAt). A local row is pushed only when it is
+ * strictly newer than the remote effective version (or absent remotely), and is
+ * routed to the bucket matching the local effective state.
+ *
+ * @returns {Promise<{ active: object[], trash: object[] }>} rows to push per bucket
+ */
+export async function computeBucketDiff(localActive = [], localTrash = [], remoteActive = [], remoteTrash = []) {
+  const localResolved = resolveGoodsTrashMaps(localActive, localTrash)
+  const remoteResolved = resolveGoodsTrashMaps(remoteActive, remoteTrash)
+
+  const remoteMap = new Map()
+  for (const item of [...remoteResolved.goodsMap.values(), ...remoteResolved.trashMap.values()]) {
+    remoteMap.set(String(item?.id || '').trim(), item)
+  }
+
+  const activeOut = []
+  const trashOut = []
+  for (const item of [...localResolved.goodsMap.values(), ...localResolved.trashMap.values()]) {
+    const id = String(item?.id || '').trim()
+    if (!id) continue
+    const remoteItem = remoteMap.get(id)
+    // 本地不新于远端（含跨 bucket 的墓碑）→ 不推，避免旧活跃副本覆盖更新的云端墓碑
+    if (remoteItem && getItemTimestamp(item) <= getItemTimestamp(remoteItem)) continue
+    if (localResolved.trashMap.has(id)) trashOut.push(item)
+    else activeOut.push(item)
+  }
+  return { active: activeOut, trash: trashOut }
 }
 
 export function computeDeleteIds(localRows = [], remoteRows = []) {
