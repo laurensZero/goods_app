@@ -400,7 +400,19 @@ const groupedEventsByYear = computed(() => {
   const sorted = [...filteredEvents.value].sort((left, right) => {
     const tA = getEvtTime(left)
     const tB = getEvtTime(right)
-    return sortDirection.value === 'asc' ? tA - tB : tB - tA
+    if (tA !== tB) return sortDirection.value === 'asc' ? tA - tB : tB - tA
+    // 同一天内使用与 DB 查询一致的确定性排序，保证跨设备顺序一致
+    const dir = sortDirection.value === 'asc' ? 1 : -1
+    const uA = left.updatedAt || 0
+    const uB = right.updatedAt || 0
+    if (uA !== uB) return (uA - uB) * dir
+    const cA = left.createdAt || 0
+    const cB = right.createdAt || 0
+    if (cA !== cB) return (cA - cB) * dir
+    const nA = String(left.name || '')
+    const nB = String(right.name || '')
+    if (nA !== nB) return nA.localeCompare(nB)
+    return String(left.id || '').localeCompare(String(right.id || ''))
   })
 
   // Group by year-month in a single pass
