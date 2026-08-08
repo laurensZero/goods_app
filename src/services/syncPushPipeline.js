@@ -3,7 +3,7 @@
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
-import { computeDiffRows } from './supabaseAdapter/helpers'
+import { computeBucketDiff } from './supabaseAdapter/helpers'
 
 /**
  * Build sync payloads (image upload is deferred to doPush).
@@ -157,23 +157,30 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
 
   if (remoteData) {
     // Incremental: only send changed items (diffs for upsert, never delete cloud rows)
+    // active/trash 合并成同一视图按 LWW 求差：本地旧活跃副本不得覆盖远端更新的
+    // 墓碑（分桶单独 diff 会把跨桶状态误判为 local-only 重新推回）
     if (shouldWriteData) {
-      goods = await computeDiffRows(localGoods, remoteData.goods || [])
-      goodsTrash = await computeDiffRows(localTrash, remoteData.trash || [])
-      groups = await computeDiffRows(localGroups, remoteData.groups || [])
-      groupsTrash = await computeDiffRows(localGroupsTrash, remoteData.groupsTrash || [])
-      groupItems = await computeDiffRows(localGroupItems, remoteData.groupItems || [])
-      groupItemsTrash = await computeDiffRows(localGroupItemsTrash, remoteData.groupItemsTrash || [])
+      const g = await computeBucketDiff(localGoods, localTrash, remoteData.goods || [], remoteData.trash || [])
+      goods = g.active
+      goodsTrash = g.trash
+      const gr = await computeBucketDiff(localGroups, localGroupsTrash, remoteData.groups || [], remoteData.groupsTrash || [])
+      groups = gr.active
+      groupsTrash = gr.trash
+      const gi = await computeBucketDiff(localGroupItems, localGroupItemsTrash, remoteData.groupItems || [], remoteData.groupItemsTrash || [])
+      groupItems = gi.active
+      groupItemsTrash = gi.trash
       // Cloud tombstone model: never physically delete rows from cloud.
       // Trashed items stay as trashed=1 tombstones forever.
     }
     if (shouldWriteRecharge) {
-      recharge = await computeDiffRows(localRecharge, remoteData.recharge || [])
-      rechargeTrash = await computeDiffRows(localRechargeTrash, remoteData.rechargeTrash || [])
+      const r = await computeBucketDiff(localRecharge, localRechargeTrash, remoteData.recharge || [], remoteData.rechargeTrash || [])
+      recharge = r.active
+      rechargeTrash = r.trash
     }
     if (shouldWriteEvent) {
-      events = await computeDiffRows(localEvents, remoteData.events || [])
-      eventsTrash = await computeDiffRows(localEventsTrash, remoteData.eventsTrash || [])
+      const e = await computeBucketDiff(localEvents, localEventsTrash, remoteData.events || [], remoteData.eventsTrash || [])
+      events = e.active
+      eventsTrash = e.trash
     }
   }
 

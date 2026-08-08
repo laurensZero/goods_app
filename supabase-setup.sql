@@ -1006,7 +1006,9 @@ BEGIN
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
       unit_sale_info_list = EXCLUDED.unit_sale_info_list,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id;
+      user_id = EXCLUDED.user_id
+      -- LWW 守卫：远端行更新于入参时拒绝覆盖（防止旧活跃副本破坏更新的墓碑）
+      WHERE goods.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 3. Upsert goods_trash
@@ -1036,7 +1038,8 @@ BEGIN
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
       unit_sale_info_list = EXCLUDED.unit_sale_info_list,
       updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id;
+      user_id = EXCLUDED.user_id
+      WHERE goods.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 4. Upsert groups
@@ -1050,7 +1053,8 @@ BEGIN
       display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE goods_groups.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 4b. Upsert groups_trash
@@ -1064,7 +1068,8 @@ BEGIN
       display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE goods_groups.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 5. Upsert group_items
@@ -1076,7 +1081,8 @@ BEGIN
       sort_order = EXCLUDED.sort_order,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE goods_group_items.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 5b. Upsert group_items_trash
@@ -1088,7 +1094,8 @@ BEGIN
       sort_order = EXCLUDED.sort_order,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE goods_group_items.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 6. Upsert recharge
@@ -1099,7 +1106,8 @@ BEGIN
       game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
       charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
       deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id;
+      user_id = EXCLUDED.user_id
+      WHERE recharge_records.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 7. Upsert recharge_trash
@@ -1110,7 +1118,8 @@ BEGIN
       game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
       charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
       deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id;
+      user_id = EXCLUDED.user_id
+      WHERE recharge_records.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 8. Upsert events
@@ -1128,7 +1137,8 @@ BEGIN
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE events.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 8b. Upsert events_trash
@@ -1146,7 +1156,8 @@ BEGIN
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
       deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE events.updated_at <= EXCLUDED.updated_at;
   END IF;
 
   -- 9. Upsert presets
