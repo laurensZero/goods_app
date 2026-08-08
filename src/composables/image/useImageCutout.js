@@ -259,26 +259,28 @@ function normalizeCutoutError(error, fallbackMessage) {
   return new Error(fallbackMessage || '抠图失败')
 }
 
-function loadImageElement(blob) {
+function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob)
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = () => reject(new Error('图片读取失败'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function loadImageElement(blob) {
+  // Android WebView 对 URL.createObjectURL(blob) 解码 PNG 有已知 bug（偶发失败）。
+  // 改用 FileReader 转 base64 data URL 喂给 <img>，data URL 在 WebView 中兼容性最好。
+  const dataUrl = await blobToDataUrl(blob)
+  return new Promise((resolve, reject) => {
     const img = new Image()
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      resolve(img)
-    }
-    img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error('图片解码失败'))
-    }
-    img.src = url
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('图片解码失败'))
+    img.src = dataUrl
   })
 }
 
 async function blobToCanvas(blob) {
-  // Android WebView 的 createImageBitmap 对 Blob 的 MIME 嗅探很严格，
-  // 云端返回的 octet-stream Blob 即使重包成 image/png 也可能解码失败。
-  // <img> 元素按字节嗅探图片格式，对 MIME 完全不敏感，兼容性最好。
   const img = await loadImageElement(blob)
   const canvas = document.createElement('canvas')
   canvas.width = img.naturalWidth || img.width
