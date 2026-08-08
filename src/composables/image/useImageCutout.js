@@ -268,6 +268,36 @@ function blobToDataUrl(blob) {
   })
 }
 
+async function inspectImageBlob(blob) {
+  try {
+    const bytes = new Uint8Array(await blob.slice(0, 33).arrayBuffer())
+    const isPng = bytes.length >= 24
+      && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47
+      && bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+    if (isPng && bytes.length >= 26) {
+      const readU32 = (offset) => (
+        bytes[offset] * 0x1000000
+        + bytes[offset + 1] * 0x10000
+        + bytes[offset + 2] * 0x100
+        + bytes[offset + 3]
+      )
+      return {
+        signature: 'png',
+        width: readU32(16),
+        height: readU32(20),
+        bitDepth: bytes[24],
+        colorType: bytes[25],
+        interlace: bytes.length > 28 ? bytes[28] : null
+      }
+    }
+    return {
+      signature: Array.from(bytes.slice(0, 12)).map((value) => value.toString(16).padStart(2, '0')).join('')
+    }
+  } catch (error) {
+    return { inspectError: error?.message || String(error) }
+  }
+}
+
 async function loadImageElement(blob) {
   if (!(blob instanceof Blob) || blob.size <= 0) {
     log.error('image-decode:empty-blob', {
@@ -283,6 +313,7 @@ async function loadImageElement(blob) {
     type: blob.type || '(empty)',
     native: Capacitor.isNativePlatform()
   }
+  const imageHeader = await inspectImageBlob(blob)
 
   // Android WebView 对大尺寸 PNG 转 Data URL 后会额外复制一份 Base64，
   // 很容易在解码阶段触发内存不足。优先使用 Blob URL，失败后再回退到
@@ -301,6 +332,7 @@ async function loadImageElement(blob) {
     const image = await load(objectUrl)
     log.info('image-decode:blob-url-success', {
       ...blobInfo,
+      header: imageHeader,
       width: image.naturalWidth || image.width || 0,
       height: image.naturalHeight || image.height || 0
     })
@@ -309,17 +341,18 @@ async function loadImageElement(blob) {
     // 某些 Android WebView 对带透明通道的 Blob URL 解码失败，继续尝试
     // Data URL。不要直接丢失原始错误，两个方案都失败时统一抛出明确错误。
     try {
-      log.warn('image-decode:blob-url-failed', blobInfo, error)
+      log.warn('image-decode:blob-url-failed', { ...blobInfo, header: imageHeader }, error)
       const dataUrl = await blobToDataUrl(blob)
       const image = await load(dataUrl)
       log.info('image-decode:data-url-success', {
         ...blobInfo,
+        header: imageHeader,
         width: image.naturalWidth || image.width || 0,
         height: image.naturalHeight || image.height || 0
       })
       return image
     } catch (fallbackError) {
-      log.error('image-decode:data-url-failed', blobInfo, fallbackError)
+      log.error('image-decode:data-url-failed', { ...blobInfo, header: imageHeader }, fallbackError)
       throw error instanceof Error ? error : new Error('图片解码失败')
     }
   } finally {
