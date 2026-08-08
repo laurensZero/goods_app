@@ -70,13 +70,32 @@
                 :style="whiteBgEnabled ? { background: bgColor } : null"
               >
                 <img
+                  ref="exportPreviewImageRef"
                   :src="previewUrl"
                   :alt="t('common.aria.whiteBgPreview')"
                   class="editor-export-preview__image"
+                  :class="{ 'editor-export-preview__image--picking': colorPickMode }"
                   :style="whiteBgPreviewImageStyle"
+                  @click="onPreviewPick"
                 />
               </div>
 
+              <div v-if="colorPickMode" class="editor-pick-hint" role="status">
+                <svg class="editor-pick-hint__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path
+                    d="M19.53 4.47a2.5 2.5 0 0 0-3.54 0l-1.17 1.17-2.29-2.29a1.25 1.25 0 0 0-1.77 1.77l.59.59-7.06 7.06a.75.75 0 0 0-.22.53v3.18l-1.2 1.2a1.5 1.5 0 1 0 2.12 2.12l1.2-1.2h3.18a.75.75 0 0 0 .53-.22l7.06-7.06.59.59a1.25 1.25 0 0 0 1.77-1.77l-2.29-2.29 1.17-1.17a2.5 2.5 0 0 0 0-3.54ZM7.3 15.3l5.84-5.84 1.4 1.4-5.84 5.84H7.3v-1.4Z"
+                    fill="currentColor"
+                  />
+                </svg>
+                <span class="editor-pick-hint__text">{{ t('imageEditor.tapToPick') }}</span>
+                <button
+                  type="button"
+                  class="editor-pick-hint__cancel"
+                  @click="exitColorPickMode"
+                >
+                  {{ t('common.cancel') }}
+                </button>
+              </div>
             </section>
 
             <div class="editor-panels">
@@ -216,7 +235,11 @@
                       </button>
 
                       <div v-if="bgColorPickerOpen" class="editor-bg-color__picker">
-                        <HslColorPicker v-model="bgColor" />
+                        <HslColorPicker
+                          v-model="bgColor"
+                          pick-fallback-enabled
+                          @fallback-pick="enterColorPickMode"
+                        />
                       </div>
 
                       <div class="editor-bg-color__actions">
@@ -236,10 +259,10 @@
                         <button
                           type="button"
                           class="editor-btn editor-bg-color__pick"
-                          :disabled="pickingColor"
-                          @click="pickDominantColor"
+                          :class="{ 'editor-btn--active': colorPickMode }"
+                          @click="toggleColorPickMode"
                         >
-                          {{ pickingColor ? t('imageEditor.pickingColor') : t('imageEditor.pickFromImage') }}
+                          {{ colorPickMode ? t('imageEditor.cancelPick') : t('imageEditor.pickFromImage') }}
                         </button>
                       </div>
                     </div>
@@ -307,6 +330,7 @@ const emit = defineEmits(['update:show', 'save'])
 const { t } = useI18n()
 
 const imageRef = ref(null)
+const exportPreviewImageRef = ref(null)
 const previewRef = ref(null)
 const activeTab = ref('basic')
 const cutoutLoading = ref(false)
@@ -320,7 +344,7 @@ const whiteBgStyle = ref('standard')
 const whiteBgScalePercent = ref(88)
 const bgColor = ref('#ffffff')
 const bgColorPickerOpen = ref(false)
-const pickingColor = ref(false)
+const colorPickMode = ref(false)
 const brightness = ref(0)
 const contrast = ref(0)
 const errorText = ref('')
@@ -661,7 +685,7 @@ function openFromFile(file) {
   whiteBgScalePercent.value = 88
   bgColor.value = '#ffffff'
   bgColorPickerOpen.value = false
-  pickingColor.value = false
+  colorPickMode.value = false
   brightness.value = 0
   contrast.value = 0
   cutoutLoading.value = false
@@ -827,63 +851,56 @@ function rgbToHex(r, g, b) {
     .join('')}`
 }
 
-async function pickDominantColor() {
-  const url = previewUrl.value
-  if (!url || pickingColor.value) return
-  pickingColor.value = true
+function enterColorPickMode() {
+  if (!previewUrl.value) return
+  bgColorPickerOpen.value = false
+  colorPickMode.value = true
+}
 
-  try {
-    const img = new Image()
-    img.crossOrigin = 'anonymous'
-    await new Promise((resolve, reject) => {
-      img.onload = () => resolve()
-      img.onerror = () => reject(new Error(t('imageEditor.pickFailed')))
-      img.src = url
-    })
+function exitColorPickMode() {
+  colorPickMode.value = false
+}
 
-    const sampleSize = 64
-    const canvas = document.createElement('canvas')
-    canvas.width = sampleSize
-    canvas.height = sampleSize
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    ctx.drawImage(img, 0, 0, sampleSize, sampleSize)
-    const { data } = ctx.getImageData(0, 0, sampleSize, sampleSize)
-
-    const buckets = new Map()
-    for (let index = 0; index < data.length; index += 4) {
-      if (data[index + 3] < 128) continue
-      const r = data[index]
-      const g = data[index + 1]
-      const b = data[index + 2]
-      const key = ((r >> 5) << 10) | ((g >> 5) << 5) | (b >> 5)
-      let entry = buckets.get(key)
-      if (!entry) {
-        entry = { r: 0, g: 0, b: 0, count: 0 }
-        buckets.set(key, entry)
-      }
-      entry.r += r
-      entry.g += g
-      entry.b += b
-      entry.count += 1
-    }
-
-    let best = null
-    for (const entry of buckets.values()) {
-      if (!best || entry.count > best.count) {
-        best = entry
-      }
-    }
-
-    if (!best) return
-    bgColor.value = rgbToHex(best.r / best.count, best.g / best.count, best.b / best.count)
-  } catch (error) {
-    errorText.value = error?.message || t('imageEditor.pickFailed')
-  } finally {
-    pickingColor.value = false
+function toggleColorPickMode() {
+  if (colorPickMode.value) {
+    exitColorPickMode()
+  } else {
+    enterColorPickMode()
   }
 }
 
+async function onPreviewPick(event) {
+  if (!colorPickMode.value) return
+  const img = exportPreviewImageRef.value
+  if (!img || !previewUrl.value) return
 
+  const rect = img.getBoundingClientRect()
+  if (rect.width <= 0 || rect.height <= 0) return
+
+  const naturalWidth = Number(img.naturalWidth) || 0
+  const naturalHeight = Number(img.naturalHeight) || 0
+  if (!naturalWidth || !naturalHeight) return
+
+  const x = Math.max(0, Math.min(naturalWidth - 1, Math.round(((event.clientX - rect.left) / rect.width) * naturalWidth)))
+  const y = Math.max(0, Math.min(naturalHeight - 1, Math.round(((event.clientY - rect.top) / rect.height) * naturalHeight)))
+
+  try {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    ctx.drawImage(img, -x, -y)
+    const { data } = ctx.getImageData(0, 0, 1, 1)
+
+    if (data[3] < 128) return
+
+    bgColor.value = rgbToHex(data[0], data[1], data[2])
+    exitColorPickMode()
+  } catch (error) {
+    errorText.value = error?.message || t('imageEditor.pickFailed')
+    exitColorPickMode()
+  }
+}
 
 
 
@@ -951,6 +968,7 @@ watch(
       editorHistory.reset()
       editorStateSignature = ''
       previewUrl.value = ''
+      colorPickMode.value = false
       return
     }
     // 打开即预取云端权限，切换 tab 时直接命中缓存，模型选择器无需等待
@@ -1013,6 +1031,9 @@ watch(
     if (next === 'cutout') {
       void refreshCloudCutoutAvailability()
     }
+    if (colorPickMode.value && next !== 'export') {
+      colorPickMode.value = false
+    }
     if (prev === 'basic' && next !== 'basic') {
       tabTransitionQueue = tabTransitionQueue
         .then(() => commitCrop())
@@ -1043,6 +1064,7 @@ onBeforeUnmount(() => {
   editorHistory.reset()
   editorStateSignature = ''
   previewUrl.value = ''
+  colorPickMode.value = false
 })
 </script>
 
@@ -1254,6 +1276,56 @@ onBeforeUnmount(() => {
   transition: transform 160ms ease;
 }
 
+.editor-export-preview__image--picking {
+  cursor: crosshair;
+}
+
+.editor-pick-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface, #ffffff) 90%, transparent);
+  border: 1px solid var(--app-border, rgba(20, 20, 22, 0.12));
+  box-shadow: 0 4px 16px rgba(20, 20, 22, 0.14);
+  transform: translateX(-50%);
+}
+
+.editor-pick-hint__icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--app-text-secondary, #6b7280);
+}
+
+.editor-pick-hint__text {
+  color: var(--app-text, #1f2937);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.editor-pick-hint__cancel {
+  flex-shrink: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: var(--app-primary, #4f6ef7);
+  background: color-mix(in srgb, var(--app-primary, #4f6ef7) 12%, transparent);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background var(--motion-fast, 200ms) ease;
+}
+
+.editor-pick-hint__cancel:active {
+  background: color-mix(in srgb, var(--app-primary, #4f6ef7) 22%, transparent);
+}
+
 .editor-mask-preview {
   position: absolute;
   z-index: 5;
@@ -1348,6 +1420,12 @@ onBeforeUnmount(() => {
 .editor-btn--ghost {
   background: transparent;
   color: var(--app-text-secondary);
+}
+
+.editor-btn--active {
+  background: color-mix(in srgb, var(--app-text) 12%, transparent);
+  color: var(--app-text);
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--app-text) 28%, transparent);
 }
 
 .editor-btn:active {
