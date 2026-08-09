@@ -110,7 +110,25 @@
                     type="button"
                     @click="toggleChar(character.name)"
                   >
-                    <span>{{ character.name }}</span>
+                    <span class="multi-select__option-main">
+                      <svg
+                        v-if="presets.favoriteCharacterSet.has(character.name)"
+                        class="multi-select__fav"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                          fill="#f5a623"
+                          stroke="#f5a623"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                      <span>{{ character.name }}</span>
+                    </span>
                     <svg
                       v-if="form.characters.includes(character.name)"
                       class="multi-select__check"
@@ -365,11 +383,13 @@ const quickCharacterIpOptions = computed(() => {
   ]
 })
 
-const availableCharacters = computed(() =>
-  form.ip
+const availableCharacters = computed(() => {
+  const list = form.ip
     ? presets.characters.filter((character) => character.ip === form.ip)
-    : presets.characters
-)
+    : [...presets.characters]
+  const favoriteSet = presets.favoriteCharacterSet
+  return list.sort((a, b) => Number(favoriteSet.has(b.name)) - Number(favoriteSet.has(a.name)))
+})
 
 watch(
   () => props.show,
@@ -975,6 +995,19 @@ defineExpose({
   font-size: 15px;
   text-align: left;
   transition: background 0.16s ease, color 0.16s ease;
+}
+
+.multi-select__option-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.multi-select__fav {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 .multi-select__option:active {
