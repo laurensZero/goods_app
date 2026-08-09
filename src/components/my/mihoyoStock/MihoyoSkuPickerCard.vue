@@ -8,7 +8,7 @@
       <div class="sku-picker-copy">
         <p class="sku-picker-label">{{ t('mihoyoStock.selectSku') }}</p>
         <h3 class="sku-picker-title">{{ entry.name }}</h3>
-        <p v-if="entry.skuName" class="sku-picker-match">{{ entry.skuName }}</p>
+        <p v-if="selectedSkus.length > 0" class="sku-picker-match">{{ selectionSummary }}</p>
       </div>
       <span v-if="counter" class="sku-picker-counter">{{ counter }}</span>
       <button
@@ -33,10 +33,7 @@
     <template v-else>
       <!-- 收起状态：明确提示当前款式 + 修改（展开）入口 -->
       <div v-if="!entry.expanded" class="sku-collapsed">
-        <span class="sku-collapsed__text">
-          <template v-if="entry.skuKey === ''">{{ t('mihoyoStock.wholeGoods') }}</template>
-          <template v-else>{{ t('mihoyoStock.skuAutoSelectedName', { name: entry.skuName || entry.skuKey }) }}</template>
-        </span>
+        <span class="sku-collapsed__text">{{ selectionSummary }}</span>
         <button type="button" class="sku-collapsed__edit" @click="$emit('expand')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 20h9" />
@@ -48,7 +45,7 @@
 
       <div v-if="entry.expanded" class="sku-picker">
         <div class="sku-picker__toolbar">
-          <span class="sku-picker__hint">{{ t('mihoyoStock.selectSkuHint') }}</span>
+          <span class="sku-picker__hint">{{ t('mihoyoStock.skuMultiSelectHint') }}</span>
           <button type="button" class="sku-picker__collapse" @click="$emit('collapse')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 15 12 9 18 15" />
@@ -60,7 +57,7 @@
         <button
           type="button"
           class="sku-whole"
-          :class="{ 'sku-whole--selected': entry.skuKey === '' }"
+          :class="{ 'sku-whole--selected': selectedSkus.length === 0 }"
           @click="$emit('select-whole')"
         >
           {{ t('mihoyoStock.wholeGoods') }}
@@ -72,15 +69,30 @@
             :key="v.key"
             type="button"
             class="sku-chip"
-            :class="{ 'sku-chip--selected': entry.skuKey === v.key }"
+            :class="{ 'sku-chip--selected': isSkuSelected(v.key) }"
             @click="$emit('select-sku', v)"
           >
+            <svg v-if="isSkuSelected(v.key)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="sku-chip__check">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
             {{ v.text }}
           </button>
         </div>
       </div>
 
       <p v-if="entry.error" class="sku-picker-error">{{ entry.error }}</p>
+      <button
+        v-if="entry.variantLoadFailed"
+        type="button"
+        class="sku-picker-retry"
+        @click="$emit('retry')"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12a9 9 0 11-6.219-8.56" />
+          <polyline points="21 3 21 9 15 9" />
+        </svg>
+        <span>{{ t('mihoyoStock.retry') }}</span>
+      </button>
     </template>
   </article>
 </template>
@@ -98,16 +110,26 @@ const props = defineProps({
   counter: { type: String, default: '' },
 })
 
-defineEmits(['select-sku', 'select-whole', 'expand', 'collapse', 'remove'])
+defineEmits(['select-sku', 'select-whole', 'expand', 'collapse', 'remove', 'retry'])
 
 const { t } = useI18n()
 
-// 选中具体款式时展示该款式的专属封面（角色立牌等），未选/整件时回退商品封面
+// 多选款式：selectedSkus = [{ key, text, cover_url }]，空数组 = 整件商品
+const selectedSkus = computed(() => props.entry?.selectedSkus || [])
+const isSkuSelected = (key) => selectedSkus.value.some((s) => s.key === key)
+
+// 摘要文案：整件 / 单款式 / 多款式（已选 N 款）
+const selectionSummary = computed(() => {
+  const list = selectedSkus.value
+  if (list.length === 0) return t('mihoyoStock.wholeGoods')
+  if (list.length === 1) return t('mihoyoStock.skuAutoSelectedName', { name: list[0].text || list[0].key })
+  return t('mihoyoStock.skuSelectedCount', { count: list.length })
+})
+
+// 封面：仅选中单个款式时展示该款式的专属封面（角色立牌等），未选/多选时回退商品封面
 const displayCover = computed(() => {
-  if (props.entry?.skuKey) {
-    const match = (props.entry.variants || []).find((v) => v.key === props.entry.skuKey)
-    if (match?.cover_url) return match.cover_url
-  }
+  const list = selectedSkus.value
+  if (list.length === 1 && list[0].cover_url) return list[0].cover_url
   return props.entry?.coverUrl || ''
 })
 </script>
@@ -339,6 +361,9 @@ const displayCover = computed(() => {
 }
 
 .sku-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 12px;
   border: 1px solid var(--app-border);
   border-radius: 10px;
@@ -347,6 +372,12 @@ const displayCover = computed(() => {
   font-size: 13px;
   line-height: 1.3;
   cursor: pointer;
+}
+
+.sku-chip__check {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }
 
 .sku-chip--selected {
@@ -372,5 +403,26 @@ const displayCover = computed(() => {
   color: #ff3b30;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.sku-picker-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface-soft);
+  color: var(--app-chip-accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sku-picker-retry svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
 }
 </style>

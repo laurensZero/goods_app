@@ -222,6 +222,8 @@
   "mihoyoStock.selectSku": "監視する SKU を選択",
   "mihoyoStock.wholeGoods": "商品全体",
   "mihoyoStock.skuAutoSelectedName": "選択した款式：{name}",
+  "mihoyoStock.skuSelectedCount": "{count} 種を選択",
+  "mihoyoStock.skuMultiSelectHint": "款式を選択（複数選択可）",
   "mihoyoStock.modifySku": "変更",
   "mihoyoStock.confirmAdd": "監視に追加",
   "mihoyoStock.confirmAll": "すべて監視に追加",

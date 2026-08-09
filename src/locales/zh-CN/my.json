@@ -222,6 +222,8 @@
   "mihoyoStock.selectSku": "选择要监控的款式",
   "mihoyoStock.wholeGoods": "整件商品",
   "mihoyoStock.skuAutoSelectedName": "已选款式：{name}",
+  "mihoyoStock.skuSelectedCount": "已选 {count} 款",
+  "mihoyoStock.skuMultiSelectHint": "选择款式（可多选）",
   "mihoyoStock.modifySku": "修改",
   "mihoyoStock.confirmAdd": "加入监控",
   "mihoyoStock.confirmAll": "全部加入监控",
