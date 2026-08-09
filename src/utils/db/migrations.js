@@ -207,4 +207,14 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 11,
+    description: 'Add events.city column for address-geocoded city search',
+    up: async (db) => {
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('city')) {
+        await db.run("ALTER TABLE events ADD COLUMN city TEXT DEFAULT ''")
+      }
+    }
+  },
 ]

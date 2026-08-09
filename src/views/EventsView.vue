@@ -371,6 +371,7 @@ const filteredEvents = computed(() => {
     const parts = [
       event.name,
       event.location,
+      event.city,
       event.description,
       event.startDate,
       event.endDate,

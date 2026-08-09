@@ -44,3 +44,8 @@ verify_jwt = false
 [functions.refresh-exchange-rates]
 verify_jwt = false
 schedule = "30 15 * * *"
+
+# 地址 → 城市地理编码（高德 Web 服务）：必须携带登录 JWT（verify_jwt=true）
+# 需配置 Secret：AMAP_WEB_API_KEY
+[functions.geocode-address]
+verify_jwt = true

@@ -159,11 +159,28 @@
                             type="text"
                             :placeholder="t('events.addEdit.locationPlaceholder')"
                             @input="syncField('location', $event)"
-                            @blur="syncField('location', $event)"
+                            @blur="onLocationBlur"
                             @change="syncField('location', $event)"
                             @compositionend="syncField('location', $event)"
                             @paste="syncFieldLater('location', $event)"
                           />
+                          <span v-if="cityDetected" class="field-city-tag">
+                            <span v-if="cityDetecting" class="field-city-tag__spinner" aria-hidden="true" />
+                            <template v-if="!cityDetecting">
+                              {{ t('events.addEdit.cityDetected', { city: cityDetected }) }}
+                              <button
+                                type="button"
+                                class="field-city-tag__clear"
+                                :aria-label="t('events.addEdit.clearCity')"
+                                @click="clearCity"
+                              >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                  <path d="M6 6L18 18" />
+                                  <path d="M18 6L6 18" />
+                                </svg>
+                              </button>
+                            </template>
+                          </span>
                         </label>
                       </div>
                     </div>
@@ -397,6 +414,7 @@ import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
+import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import NavBar from '@/components/common/NavBar.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -439,6 +457,7 @@ const form = reactive({
   startDate: '',
   endDate: '',
   location: '',
+  city: '',
   description: '',
   coverImage: '',
   photos: [],
@@ -463,6 +482,8 @@ const nameInputRef = ref(null)
 const ticketPriceError = ref('')
 const ticketPriceInputRef = ref(null)
 const descInputRef = ref(null)
+const cityDetecting = ref(false)
+const cityDetected = ref('')
 const showDatePicker = ref(false)
 const datePickerValue = ref([])
 const datePickerTarget = ref('start')
@@ -556,6 +577,7 @@ function buildDraftPayload() {
       startDate: String(form.startDate || ''),
       endDate: String(form.endDate || ''),
       location: String(form.location || ''),
+      city: String(form.city || ''),
       description: String(form.description || ''),
       coverImage: String(form.coverImage || ''),
       photos: Array.isArray(form.photos) ? form.photos.map((item) => ({ ...item })) : [],
@@ -577,6 +599,7 @@ function applyFormSnapshot(snapshot) {
   form.startDate = String(snapshot.startDate || '')
   form.endDate = String(snapshot.endDate || '')
   form.location = String(snapshot.location || '')
+  form.city = String(snapshot.city || '')
   form.description = String(snapshot.description || '')
   form.coverImage = String(snapshot.coverImage || '')
   form.photos = Array.isArray(snapshot.photos) ? snapshot.photos.map((item) => ({ ...item })) : []
@@ -587,6 +610,7 @@ function applyFormSnapshot(snapshot) {
   form.otherExpenses = Array.isArray(snapshot.otherExpenses) ? snapshot.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = Array.isArray(snapshot.linkedGoodsIds) ? [...snapshot.linkedGoodsIds] : []
   form.tags = Array.isArray(snapshot.tags) ? [...snapshot.tags] : []
+  cityDetected.value = form.city
 }
 
 function saveDraftForPicker() {
@@ -672,6 +696,8 @@ async function loadEditData() {
   form.startDate = existing.startDate || ''
   form.endDate = existing.endDate || ''
   form.location = existing.location || ''
+  form.city = existing.city || ''
+  cityDetected.value = form.city
   form.description = existing.description || ''
   form.coverImage = existing.coverImage || ''
   form.photos = existing.photos ? [...existing.photos] : []
@@ -871,6 +897,40 @@ function syncField(key, event) {
 
 function syncFieldLater(key, event) {
   syncFieldValueNextFrame(form, key, event)
+}
+
+function onLocationBlur(event) {
+  syncField('location', event)
+  void detectCityFromLocation()
+}
+
+async function detectCityFromLocation() {
+  const address = String(form.location || '').trim()
+  if (!address) {
+    form.city = ''
+    cityDetected.value = ''
+    return
+  }
+  // 失焦本身是低频操作，每次失焦都重新识别（若结果相同会覆盖成一致值，无害）；
+  // 用 cityDetecting 防并发即可，避免「地址没变就跳过」导致用户以为没触发请求。
+  if (cityDetecting.value) return
+
+  cityDetecting.value = true
+  const result = await geocodeAddressToCity(address)
+  cityDetecting.value = false
+
+  if (result) {
+    const combined = combineCityDistrict(result.city, result.district)
+    form.city = combined
+    cityDetected.value = combined
+  }
+}
+
+// 用户手动叉掉识别结果：清空 city，之后保存不会再写入该字段
+function clearCity() {
+  if (cityDetecting.value) return
+  form.city = ''
+  cityDetected.value = ''
 }
 
 onBeforeMount(() => {
@@ -1287,6 +1347,63 @@ onBeforeUnmount(() => {
 .field-error {
   color: var(--app-text-tertiary);
   font-size: 12px;
+}
+
+.field-city-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.field-city-tag__spinner {
+  width: 10px;
+  height: 10px;
+  border: 2px solid color-mix(in srgb, var(--app-text-tertiary) 30%, transparent);
+  border-top-color: var(--app-text-secondary);
+  border-radius: 50%;
+  animation: field-city-tag-spin 0.8s linear infinite;
+}
+
+.field-city-tag__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--app-text-tertiary) 18%, transparent);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background 0.16s ease, color 0.16s ease;
+}
+
+.field-city-tag__clear svg {
+  width: 9px;
+  height: 9px;
+  stroke: currentColor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+
+.field-city-tag__clear:active {
+  background: color-mix(in srgb, var(--app-text-tertiary) 38%, transparent);
+  color: var(--app-text-primary);
+}
+
+@keyframes field-city-tag-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .required {
