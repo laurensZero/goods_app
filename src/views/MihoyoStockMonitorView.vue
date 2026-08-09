@@ -1,5 +1,5 @@
 <template>
-  <div class="page monitor-page">
+  <div class="page monitor-page" :class="{ 'monitor-page--tablet': isTabletViewport }">
     <NavBar :title="t('nav.mihoyoStockMonitor')" show-back />
 
     <main class="page-body">
@@ -34,7 +34,8 @@
           </div>
         </section>
 
-        <section class="add-card">
+        <!-- 添加/搜索区：可搜名称/角色，也可直接粘贴链接或商品 ID -->
+        <section class="add-card search-card">
           <div class="add-card__copy">
             <p class="add-card__label">{{ t('mihoyoStock.addLabel') }}</p>
             <p class="add-card__desc">{{ t('mihoyoStock.addDesc') }}</p>
@@ -45,23 +46,207 @@
               class="add-input"
               type="text"
               :placeholder="t('mihoyoStock.addPlaceholder')"
-              :disabled="adding || loading"
-              @keyup.enter="handleAdd"
+              :disabled="adding || searching || loading"
+              @keyup.enter="handleSubmit"
             />
             <button
               class="add-btn"
               type="button"
-              :disabled="adding || loading || !inputValue.trim()"
-              @click="handleAdd"
+              :disabled="adding || searching || loading || !inputValue.trim()"
+              @click="handleSubmit"
+            >
+              <svg v-if="adding || searching" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9" stroke-dasharray="60" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="7" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <span>{{ adding || searching ? t('mihoyoStock.searching') : t('mihoyoStock.search') }}</span>
+            </button>
+          </div>
+
+          <p v-if="searchError" class="search-error">{{ searchError }}</p>
+
+          <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
+            <template v-if="!multiSelectMode">
+              <span class="search-results-toolbar__hint">{{ t('mihoyoStock.resultCount', { count: visibleSearchResults.length }) }}</span>
+              <button type="button" class="search-multiselect-toggle" @click="enterMultiSelect">
+                {{ t('mihoyoStock.multiSelect') }}
+              </button>
+            </template>
+            <template v-else>
+              <span class="search-multiselect-count">{{ t('mihoyoStock.selectedCount', { count: selectedBatchIds.length }) }}</span>
+              <div class="search-multiselect-actions">
+                <button
+                  type="button"
+                  class="search-multiselect-btn"
+                  :disabled="selectedBatchIds.length === 0"
+                  @click="enqueueSelected"
+                >
+                  {{ t('mihoyoStock.batchAdd') }}
+                </button>
+                <button type="button" class="search-multiselect-btn search-multiselect-btn--ghost" @click="exitMultiSelect">
+                  {{ t('mihoyoStock.cancelMultiSelect') }}
+                </button>
+              </div>
+            </template>
+          </div>
+
+          <div
+            v-if="visibleSearchResults.length > 0"
+            class="search-results"
+            :class="{ 'search-results--tablet': isTabletViewport }"
+          >
+            <button
+              v-for="item in visibleSearchResults"
+              :key="String(item?.goods_id)"
+              type="button"
+              class="search-result-card"
+              :class="{ 'search-result-card--selected': multiSelectMode ? isItemSelected(item) : selectedSearchGoodsId === String(item?.goods_id) }"
+              @click="onSearchResultClick(item)"
+            >
+              <span class="search-result-thumb">
+                <img v-if="getSearchResultCover(item)" :src="getSearchResultCover(item)" :alt="item.name" loading="lazy" />
+                <span v-else>{{ (item.name || '?').charAt(0) }}</span>
+              </span>
+              <span class="search-result-name">{{ item.name }}</span>
+              <span
+                v-if="multiSelectMode"
+                class="search-result-check"
+                :class="{ 'search-result-check--on': isItemSelected(item) }"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </span>
+            </button>
+          </div>
+
+          <div v-if="showSearchToggle" class="search-results-toggle-wrap">
+            <button
+              type="button"
+              class="search-results-toggle"
+              :class="{ 'search-results-toggle--expanded': searchExpanded }"
+              @click="toggleSearchExpanded"
+            >
+              {{ searchExpanded ? t('mihoyoStock.collapseResults') : t('mihoyoStock.expandMore') }}
+            </button>
+          </div>
+
+          <div v-if="showSearchLoadMoreStatus" ref="searchLoadMoreRef" class="search-results-status">
+            <span v-if="searchLoadingMore">{{ t('mihoyoStock.loadingMore') }}</span>
+            <template v-else>
+              <span>{{ t('mihoyoStock.scrollForMore') }}</span>
+              <button type="button" class="search-results-load-more" @click="loadMoreSearchResults">
+                {{ t('mihoyoStock.loadMore') }}
+              </button>
+            </template>
+          </div>
+        </section>
+
+        <!-- SKU 选择确认区：手机端左右滑动卡片逐个选 SKU；平板端选择卡片 + 队列卡片并排 -->
+        <section
+          v-if="queue.length > 0"
+          class="confirm-card"
+          :class="{ 'confirm-card--queue': queue.length > 1 }"
+        >
+          <div class="confirm-card__inner">
+            <!-- 手机端：左右滑动切换待确认商品，每张卡片 = 一个商品（含 SKU 选择） -->
+            <div
+              v-if="!isTabletViewport"
+              ref="skuDeckRef"
+              class="sku-deck"
+              @scroll="onDeckScroll"
+            >
+              <div v-for="(entry, index) in queue" :key="entry.uid" class="sku-deck__slide">
+                <MihoyoSkuPickerCard
+                  :entry="entry"
+                  :show-remove="queue.length > 1"
+                  :counter="queue.length > 1 ? `${index + 1} / ${queue.length}` : ''"
+                  @select-sku="selectSku(entry, $event)"
+                  @select-whole="selectWholeGoods(entry)"
+                  @expand="expandSkuPicker(entry)"
+                  @remove="removeFromQueue(entry.uid)"
+                />
+              </div>
+            </div>
+
+            <!-- 平板端：当前商品 SKU 选择 -->
+            <div v-else class="confirm-card__body">
+              <MihoyoSkuPickerCard
+                :entry="activeEntry"
+                :is-tablet="true"
+                @select-sku="selectSku(activeEntry, $event)"
+                @select-whole="selectWholeGoods(activeEntry)"
+                @expand="expandSkuPicker(activeEntry)"
+              />
+            </div>
+
+            <!-- 平板端：队列卡片铺在 SKU 选择卡片旁 -->
+            <div v-if="isTabletViewport && queue.length > 1" class="queue-cards">
+              <button
+                v-for="entry in queue"
+                :key="entry.uid"
+                type="button"
+                class="queue-card"
+                :class="{ 'queue-card--active': entry.uid === activeUid }"
+                @click="activateQueueEntry(entry.uid, { scrollDeck: true })"
+              >
+                <span class="queue-card__thumb">
+                  <img v-if="entry.coverUrl" :src="entry.coverUrl" alt="" loading="lazy" />
+                  <span v-else>{{ (entry.name || '谷').charAt(0) }}</span>
+                </span>
+                <span class="queue-card__copy">
+                  <span class="queue-card__name">{{ entry.name }}</span>
+                  <span class="queue-card__sku" :class="{ 'queue-card__sku--pending': !entry.skuName && !entry.error }">
+                    {{ entry.error || entry.skuName || t('mihoyoStock.selectSkuHint') }}
+                  </span>
+                </span>
+                <span
+                  class="queue-card__remove"
+                  :aria-label="t('mihoyoStock.remove')"
+                  @click.stop="removeFromQueue(entry.uid)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 手机端：滑动指示点 -->
+          <div v-if="!isTabletViewport && queue.length > 1" class="sku-deck-dots">
+            <span
+              v-for="entry in queue"
+              :key="entry.uid"
+              class="sku-deck-dot"
+              :class="{ 'sku-deck-dot--on': entry.uid === activeUid }"
+            />
+          </div>
+
+          <!-- 底部操作：取消 / 全部加入监控 -->
+          <div class="confirm-actions">
+            <button
+              class="confirm-btn confirm-btn--ghost"
+              type="button"
+              :disabled="adding"
+              @click="cancelQueue"
+            >
+              {{ t('mihoyoStock.cancel') }}
+            </button>
+            <button
+              class="confirm-btn confirm-btn--primary"
+              type="button"
+              :disabled="adding"
+              @click="confirmQueue"
             >
               <svg v-if="adding" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="9" stroke-dasharray="60" />
               </svg>
-              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span>{{ t('mihoyoStock.add') }}</span>
+              <span>{{ queue.length > 1 ? t('mihoyoStock.confirmAll') : t('mihoyoStock.confirmAdd') }}</span>
             </button>
           </div>
         </section>
@@ -134,6 +319,13 @@
                   <span :class="['monitor-status', statusClass(item)]">{{ statusLabel(item) }}</span>
                 </div>
                 <div class="monitor-item__meta">
+                  <span v-if="item.sku_name" class="monitor-meta-pill monitor-meta-pill--sku">{{ item.sku_name }}</span>
+                  <span
+                    v-if="item.in_stock && item.stock_count > 0"
+                    class="monitor-meta-pill monitor-meta-pill--stock"
+                  >
+                    {{ t('mihoyoStock.stockCount', { count: item.stock_count }) }}
+                  </span>
                   <span class="monitor-meta-pill">{{ priceText(item) }}</span>
                   <span v-if="item.last_checked_at" class="monitor-item__checked">
                     {{ t('mihoyoStock.checkedAt', { time: formatCheckedAt(item.last_checked_at) }) }}
@@ -165,15 +357,20 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
-import { parseMihoyoUrl, getMihoyoShopCodeByIp } from '@/utils/mihoyo'
+import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'
+import { useTabletViewport } from '@/composables/useTabletViewport'
+import { normalizeCharacterName, displayVariantText } from '@/utils/variantText'
+import { pinyinIncludes } from '@/utils/pinyin'
+import { parseMihoyoUrl, fetchGoodsDetail, getMihoyoShopCodeByIp, isMihoyoGiftUrl } from '@/utils/mihoyo'
 
 defineOptions({ name: 'MihoyoStockMonitorView' })
 
@@ -183,12 +380,43 @@ const { toastMsg, showToast } = useToast()
 
 const authStore = useAuthStore()
 const monitorStore = useMihoyoStockMonitorStore()
+const { isTabletViewport, updateViewport } = useTabletViewport()
 
 const inputValue = ref('')
 const adding = ref(false)
 const loading = ref(false)
 const loadError = ref('')
 const removingId = ref('')
+
+// ── 米游铺商品搜索（复用导入页同款搜索引擎，含角色感知） ──
+const search = useMihoyoGoodsSearch({ scrollRootSelector: '.monitor-page .page-body' })
+const {
+  searchKeyword,
+  searchExpanded,
+  searching,
+  searchLoadingMore,
+  searchError,
+  variantSearchHint,
+  selectedSearchGoodsId,
+  searchLoadMoreRef,
+  visibleSearchResults,
+  showSearchToggle,
+  showSearchLoadMoreStatus,
+  getSearchResultCover,
+  handleGoodsSearch,
+  loadMoreSearchResults,
+  toggleSearchExpanded,
+} = search
+
+// ── 待确认添加队列（搜索/URL 解析后先选 SKU 再入库，支持多选逐个处理） ──
+// 每项：{ uid, goodsId, shopCode, name, priceCents, coverUrl, variants, skuKey, skuName, loading, variantsLoaded, error, expanded }
+const queue = ref([])
+const activeUid = ref('')              // 当前正在选 SKU 的队列项
+const multiSelectMode = ref(false)     // 搜索结果多选模式
+const selectedBatchIds = ref([])       // 多选模式勾选的 goods_id 集合
+const skuDeckRef = ref(null)           // 手机端左右滑动卡片容器
+
+const activeEntry = computed(() => queue.value.find((e) => e.uid === activeUid.value) || null)
 
 const inStockCount = computed(() => monitorStore.items.filter((i) => !!i.in_stock).length)
 
@@ -235,15 +463,130 @@ async function loadList() {
   }
 }
 
+// ── 待确认队列：单选/多选商品逐个选 SKU 后统一确认 ──
+let queueUid = 0
+function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, coverUrl = '' }) {
+  queueUid += 1
+  return {
+    uid: `queue-${queueUid}`,
+    goodsId: String(goodsId || '').trim(),
+    shopCode: String(shopCode || '').trim(),
+    name: String(name || '').trim() || t('mihoyoStock.unnamed'),
+    priceCents: Number(priceCents) || 0,
+    coverUrl: String(coverUrl || '').trim(),
+    variants: [],
+    skuKey: '',
+    skuName: '',
+    loading: false,
+    variantsLoaded: false,
+    error: '',
+    expanded: false,
+  }
+}
+
+// 将商品加入队列；activate 时置为当前处理项，load 时拉取 SKU 变体
+function enqueueGoods(payload, { activate = true, load = true } = {}) {
+  const entry = createQueueEntry(payload)
+  queue.value.push(entry)
+  if (activate) activeUid.value = entry.uid
+  if (load) loadEntryVariants(entry)
+  return entry
+}
+
+// 拉取 SKU 变体并自动选中，进入「选择款式 → 确认」流程（懒加载：切换队列项时才拉取）
+async function loadEntryVariants(entry) {
+  if (entry.loading) return
+  entry.loading = true
+  entry.error = ''
+  try {
+    const { skuVariants } = await fetchGoodsDetail(entry.goodsId).catch(() => ({ skuVariants: [] }))
+    entry.variants = (skuVariants || [])
+      .filter((v) => v && v.key)
+      .map((v) => ({
+        text: String(v.text || v.key),
+        key: String(v.key),
+        cover_url: String(v.cover_url || v.img_url || ''),
+      }))
+    autoSelectSku(entry)
+    // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
+    entry.expanded = !entry.skuKey
+  } catch (e) {
+    entry.error = e.message || t('common.failed')
+  } finally {
+    entry.loading = false
+    entry.variantsLoaded = true
+  }
+}
+
+// 自动选中 SKU：单选直接选中；搜索角色/关键词后，若唯一命中该角色款则自动选中（与导入页一致）
+function autoSelectSku(entry) {
+  const list = entry.variants
+  if (!list.length) return
+
+  if (list.length === 1) {
+    entry.skuKey = list[0].key
+    entry.skuName = list[0].text
+    return
+  }
+
+  const hint = normalizeSearchHintText(variantSearchHint.value).toLowerCase()
+  if (!hint) return
+
+  const matched = list.filter((v) => {
+    const text = String(v.text || '').trim().toLowerCase()
+    const display = displayVariantText(v.text).trim().toLowerCase()
+    const normalizedChar = normalizeCharacterName(v.text).trim().toLowerCase()
+    if (text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)) return true
+    return pinyinIncludes(v.text, hint) || pinyinIncludes(displayVariantText(v.text), hint)
+  })
+
+  if (matched.length === 1) {
+    entry.skuKey = matched[0].key
+    entry.skuName = matched[0].text
+  }
+}
+
+// 搜索选中：多选模式下勾选；单选直接加入队列进入 SKU 选择流程
+function onSearchResultClick(item) {
+  if (!item?.goods_id) return
+  if (multiSelectMode.value) {
+    toggleBatchSelect(item)
+    return
+  }
+  search.selectSearchResult(item)
+  const priceYuan = Number(item?.price)
+  enqueueGoods({
+    goodsId: item.goods_id,
+    shopCode: String(item?.shop_code || getMihoyoShopCodeByIp(item?.ip) || ''),
+    name: item?.name || '',
+    priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
+    coverUrl: getSearchResultCover(item) || item?.cover_url || '',
+  })
+}
+
+// 合并输入框提交：链接/商品 ID → 解析进入 SKU 选择；否则当作关键词搜索
+function handleSubmit() {
+  const raw = inputValue.value.trim()
+  if (!raw || adding.value || searching.value) return
+  if (isMihoyoGiftUrl(raw) || /^\d{6,}$/.test(raw)) {
+    handleAdd()
+  } else {
+    searchKeyword.value = raw
+    handleGoodsSearch()
+  }
+}
+
+// URL / 商品 ID 输入：解析后进入 SKU 选择流程
 async function handleAdd() {
   const raw = inputValue.value.trim()
   if (!raw || adding.value) return
   adding.value = true
+  search.resetSearchState()
   try {
     // 兼容直接粘贴 19 位 goods_id 与完整商品链接
     const url = /^\d{6,}$/.test(raw) ? `https://www.mihoyogift.com/goods/${raw}` : raw
     const parsed = await parseMihoyoUrl(url)
-    const row = await monitorStore.add({
+    enqueueGoods({
       goodsId: parsed.goodsId,
       shopCode: getMihoyoShopCodeByIp(parsed.ip),
       name: parsed.name,
@@ -251,9 +594,163 @@ async function handleAdd() {
       coverUrl: parsed.image,
     })
     inputValue.value = ''
-    showToast(row.in_stock ? t('mihoyoStock.addSuccessNow') : t('mihoyoStock.addSuccess'))
   } catch (e) {
     showToast(e.message || t('common.failed'))
+  } finally {
+    adding.value = false
+  }
+}
+
+function selectWholeGoods(entry) {
+  entry.skuKey = ''
+  entry.skuName = ''
+}
+
+function selectSku(entry, variant) {
+  entry.skuKey = variant.key
+  entry.skuName = variant.text
+  // 手动修改款式后保持选择器展开，便于继续调整（不自动折叠）
+}
+
+function expandSkuPicker(entry) {
+  entry.expanded = true
+}
+
+function activateQueueEntry(uid, { scrollDeck = false } = {}) {
+  const entry = queue.value.find((e) => e.uid === uid)
+  if (!entry) return
+  activeUid.value = uid
+  if (scrollDeck) scrollDeckToActive()
+  if (!entry.variants.length && !entry.loading) loadEntryVariants(entry)
+}
+
+// 手机端滑动卡片：根据滑动位置同步当前激活的商品（并懒加载其 SKU）
+function onDeckScroll() {
+  const el = skuDeckRef.value
+  if (!el) return
+  const idx = Math.round(el.scrollLeft / el.clientWidth)
+  const entry = queue.value[idx]
+  if (entry && entry.uid !== activeUid.value) activateQueueEntry(entry.uid)
+}
+
+// 让滑动卡片定位到当前激活项（等待 DOM 更新后再滚动，确保队列已重排）
+function scrollDeckToActive() {
+  if (isTabletViewport.value || queue.value.length < 2) return
+  const el = skuDeckRef.value
+  if (!el) return
+  const idx = queue.value.findIndex((e) => e.uid === activeUid.value)
+  if (idx < 0) return
+  nextTick(() => {
+    el.scrollTo({ left: idx * el.clientWidth, behavior: 'smooth' })
+  })
+}
+
+function removeFromQueue(uid) {
+  const idx = queue.value.findIndex((e) => e.uid === uid)
+  if (idx < 0) return
+  queue.value.splice(idx, 1)
+  if (activeUid.value === uid) {
+    const next = queue.value[Math.min(idx, queue.value.length - 1)]
+    if (next) {
+      activateQueueEntry(next.uid, { scrollDeck: true })
+    } else {
+      activeUid.value = ''
+    }
+  } else {
+    // 移除的是激活项之前的卡片，激活项下标已变化，滑动区需重新对齐
+    scrollDeckToActive()
+  }
+}
+
+function clearQueue() {
+  queue.value = []
+  activeUid.value = ''
+}
+
+function cancelQueue() {
+  clearQueue()
+  exitMultiSelect()
+}
+
+// ── 搜索结果多选模式 ──
+function enterMultiSelect() {
+  multiSelectMode.value = true
+  selectedBatchIds.value = []
+}
+
+function exitMultiSelect() {
+  multiSelectMode.value = false
+  selectedBatchIds.value = []
+}
+
+function isItemSelected(item) {
+  return selectedBatchIds.value.includes(String(item?.goods_id))
+}
+
+function toggleBatchSelect(item) {
+  if (!item?.goods_id) return
+  const id = String(item.goods_id)
+  const idx = selectedBatchIds.value.indexOf(id)
+  if (idx >= 0) selectedBatchIds.value.splice(idx, 1)
+  else selectedBatchIds.value.push(id)
+}
+
+// 将勾选的搜索结果加入队列，并行读取所有商品的 SKU 款式
+function enqueueSelected() {
+  const selected = visibleSearchResults.value.filter((item) => isItemSelected(item))
+  if (!selected.length) return
+  const entries = []
+  for (const item of selected) {
+    const priceYuan = Number(item?.price)
+    entries.push(enqueueGoods({
+      goodsId: item.goods_id,
+      shopCode: String(item?.shop_code || getMihoyoShopCodeByIp(item?.ip) || ''),
+      name: item?.name || '',
+      priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
+      coverUrl: getSearchResultCover(item) || item?.cover_url || '',
+    }, { activate: false, load: false }))
+  }
+  activeUid.value = entries[0].uid
+  void Promise.all(entries.map((entry) => loadEntryVariants(entry)))
+  exitMultiSelect()
+}
+
+async function confirmQueue() {
+  if (adding.value || !queue.value.length) return
+  adding.value = true
+  try {
+    let added = 0
+    let hasStock = false
+    for (const entry of queue.value) {
+      try {
+        const row = await monitorStore.add({
+          goodsId: entry.goodsId,
+          shopCode: entry.shopCode,
+          name: entry.name,
+          priceCents: entry.priceCents,
+          coverUrl: entry.coverUrl,
+          skuKey: entry.skuKey,
+          skuName: entry.skuName,
+        })
+        added += 1
+        if (row.in_stock) hasStock = true
+      } catch (e) {
+        entry.error = e.message || t('common.failed')
+      }
+    }
+    // 成功项出队；失败项保留并显示错误，可重试或取消
+    const failed = queue.value.filter((e) => e.error)
+    queue.value = failed
+    if (failed.length && !failed.some((e) => e.uid === activeUid.value)) {
+      activateQueueEntry(failed[0].uid, { scrollDeck: true })
+    } else if (!failed.length) {
+      activeUid.value = ''
+    }
+    if (added > 0) {
+      showToast(hasStock ? t('mihoyoStock.addSuccessNow') : t('mihoyoStock.addSuccess'))
+    } else if (failed.length) {
+      showToast(failed[0].error)
+    }
   } finally {
     adding.value = false
   }
@@ -272,6 +769,7 @@ async function handleRemove(item) {
 }
 
 onMounted(() => {
+  updateViewport()
   if (authStore.isLoggedIn && !monitorStore.isInitialized) {
     loadList()
   }
@@ -422,6 +920,20 @@ onMounted(() => {
   flex-shrink: 0;
 }
 
+/* 分屏设置页会给所有 .add-btn 注入紧凑按钮样式，这里恢复监控页搜索按钮的完整尺寸。 */
+.monitor-page.monitor-page--tablet .add-btn {
+  width: auto;
+  min-width: 88px;
+  height: 40px;
+  margin-top: 0;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: var(--app-text);
+  box-shadow: none;
+  white-space: nowrap;
+}
+
 .add-btn svg {
   width: 16px;
   height: 16px;
@@ -431,6 +943,427 @@ onMounted(() => {
 .add-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* 平板下输入框不无限拉伸，避免搜索按钮被挤成一小点 */
+.monitor-page--tablet .add-card__row {
+  width: 100%;
+  max-width: none;
+}
+
+/* 搜索结果 */
+.search-error {
+  margin-top: 8px;
+  color: #ff3b30;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.search-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* 平板双栏 */
+.search-results--tablet {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.search-result-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-result-card--selected {
+  border-color: var(--app-chip-accent-text);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 8%, var(--app-surface-soft));
+}
+
+.search-result-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 16px;
+}
+
+.search-result-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.search-result-name {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* 多选模式：结果卡片右上角勾选圈 */
+.search-result-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid var(--app-border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: transparent;
+}
+
+.search-result-check svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+}
+
+.search-result-check--on {
+  border-color: var(--app-chip-accent-text);
+  background: var(--app-chip-accent-text);
+  color: #fff;
+}
+
+/* 搜索结果工具栏：结果数 + 多选入口 / 多选计数 + 批量操作 */
+.search-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.search-results-toolbar__hint {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+}
+
+.search-multiselect-toggle {
+  padding: 6px 12px;
+  border: 1px solid var(--app-chip-accent-text);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-chip-accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.search-multiselect-count {
+  color: var(--app-chip-accent-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.search-multiselect-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.search-multiselect-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 10px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.search-multiselect-btn--ghost {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.search-multiselect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-results-toggle-wrap {
+  margin-top: 8px;
+  text-align: center;
+}
+
+.search-results-toggle {
+  border: none;
+  background: transparent;
+  color: var(--app-chip-accent-text);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 10px;
+}
+
+.search-results-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 10px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+}
+
+.search-results-load-more {
+  border: none;
+  background: transparent;
+  color: var(--app-chip-accent-text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* SKU 选择确认 */
+.confirm-card {
+  width: 100%;
+  max-width: none;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+}
+
+/* shared-ui.css 为通用弹窗也定义了 .confirm-card 宽度；监控页这里是普通内容卡片。 */
+.monitor-page .confirm-card {
+  width: 100%;
+  max-width: none;
+}
+
+.confirm-card__inner {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* 手机端：左右滑动卡片，一屏一卡 */
+.sku-deck {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sku-deck::-webkit-scrollbar {
+  display: none;
+}
+
+.sku-deck__slide {
+  flex: 0 0 100%;
+  min-width: 0;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* 滑动指示点 */
+.sku-deck-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.sku-deck-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--app-border);
+  transition: background 0.2s, width 0.2s;
+}
+
+.sku-deck-dot--on {
+  width: 18px;
+  border-radius: 4px;
+  background: var(--app-chip-accent-text);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.confirm-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 0;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.confirm-btn--ghost {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.confirm-btn--primary {
+  background: var(--app-text);
+  color: var(--app-surface);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 平板：多选队列在 SKU 选择卡片旁并排铺开 */
+.confirm-card__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* 平板：队列卡片竖排在 SKU 选择卡片右侧，并排铺开 */
+.monitor-page--tablet .confirm-card--queue .confirm-card__inner {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.monitor-page--tablet .queue-cards {
+  width: 240px;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.queue-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: 12px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.queue-card--active {
+  border-color: var(--app-chip-accent-text);
+  background: color-mix(in srgb, var(--app-chip-accent-text) 8%, var(--app-surface-soft));
+}
+
+.queue-card__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 14px;
+}
+
+.queue-card__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.queue-card__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.queue-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card__sku {
+  font-size: 11px;
+  color: var(--app-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card__sku--pending {
+  color: var(--app-text-tertiary);
+}
+
+.queue-card__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.queue-card__remove svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+}
+
+.queue-card__remove:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: #ff3b30;
 }
 
 /* List */
@@ -594,6 +1527,20 @@ onMounted(() => {
   background: var(--app-surface);
   color: var(--app-text-secondary);
   font-size: 11px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monitor-meta-pill--sku {
+  background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
+  color: var(--app-chip-accent-text);
+}
+
+.monitor-meta-pill--stock {
+  background: rgba(52, 199, 89, 0.14);
+  color: #34c759;
 }
 
 .monitor-item__checked {

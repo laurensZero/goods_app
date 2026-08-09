@@ -58,13 +58,18 @@ export const useMihoyoStockMonitorStore = defineStore('mihoyoStockMonitor', () =
 
     // 即时检测（失败静默忽略，服务端下一轮扫描兜底）
     if (!row.in_stock) {
-      const status = await checkGoodsAvailability(row.goods_id).catch(() => null)
+      const status = await checkGoodsAvailability(row.goods_id, row.sku_key).catch(() => null)
       if (status) {
         Object.assign(row, {
           in_stock: status.available,
           price_cents: Number(status.priceCents) || row.price_cents || 0,
+          stock_count: status.available ? Math.max(0, Number(status.stock) || 0) : 0,
           last_checked_at: new Date().toISOString(),
         })
+        // SKU 文案会随商品改款变化，即时用解析出的当前名覆盖
+        if (row.sku_key && status.skuName && status.skuName !== row.sku_name) {
+          row.sku_name = status.skuName
+        }
       }
     }
     return row
