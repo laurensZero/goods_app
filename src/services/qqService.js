@@ -5,7 +5,7 @@
 // 推送本身完全在服务端（scan-sale-reminders + notify-dispatch cron）完成，
 // app 不运行也能收到，这里只负责账号侧状态。
 //
-// 表结构见 supabase-migration-qq-notify.sql，RLS 只允许用户读写自己的行。
+// 表结构见 supabase-migration-qq-push.sql，RLS 只允许用户读写自己的行。
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 
@@ -136,7 +136,7 @@ export async function setShipReminderOffsets(days) {
 /**
  * 触发服务端补扫：把当前用户所有「待发货」商品的未发货提醒任务重建一次。
  * 在用户调整未发货天数后调用，让超期存量和新增天数立即生效。
- * 由 request_ship_reminder_backfill() SECURITY DEFINER 函数执行（见 supabase-migration-ship-reminder.sql）。
+ * 由 request_ship_reminder_backfill() SECURITY DEFINER 函数执行（见 supabase-migration-qq-push.sql）。
  */
 export async function requestShipReminderBackfill() {
   const db = getSupabaseClient()
@@ -160,7 +160,7 @@ export async function unbindQQ() {
 /**
  * 写入一条「定时抢购成功」通知到 notification_jobs。
  * 由 notify-dispatch cron 投递给绑定的 QQ，提醒用户及时付款。
- * RLS 仅允许插入自己 user_id 的行（见 supabase-migration-checkout-qq-notify.sql）。
+ * RLS 仅允许插入自己 user_id 的行（见 supabase-migration-qq-push.sql）。
  * 文案由调用方按当前语言构造（本服务层不关心 i18n）。
  * @param {Object} payload
  * @param {string} payload.title - 通知标题
