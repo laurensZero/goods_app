@@ -2,7 +2,7 @@
   <article class="sku-picker-card">
     <div class="sku-picker-card__head">
       <span class="sku-picker-thumb">
-        <img v-if="entry.coverUrl" :src="entry.coverUrl" class="sku-picker-thumb-img" alt="" loading="lazy" />
+        <img v-if="displayCover" :src="displayCover" class="sku-picker-thumb-img" alt="" loading="lazy" />
         <span v-else class="sku-picker-thumb-fallback">{{ (entry.name || '谷').charAt(0) }}</span>
       </span>
       <div class="sku-picker-copy">
@@ -31,9 +31,12 @@
     </div>
 
     <template v-else>
-      <!-- 自动选中后收起款式列表，明确提示选中的款式 + 修改入口（SKU 过多过长时可展开） -->
-      <div v-if="!entry.expanded && entry.skuKey !== '' && entry.skuName" class="sku-collapsed">
-        <span class="sku-collapsed__text">{{ t('mihoyoStock.skuAutoSelectedName', { name: entry.skuName }) }}</span>
+      <!-- 收起状态：明确提示当前款式 + 修改（展开）入口 -->
+      <div v-if="!entry.expanded" class="sku-collapsed">
+        <span class="sku-collapsed__text">
+          <template v-if="entry.skuKey === ''">{{ t('mihoyoStock.wholeGoods') }}</template>
+          <template v-else>{{ t('mihoyoStock.skuAutoSelectedName', { name: entry.skuName || entry.skuKey }) }}</template>
+        </span>
         <button type="button" class="sku-collapsed__edit" @click="$emit('expand')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 20h9" />
@@ -44,6 +47,16 @@
       </div>
 
       <div v-if="entry.expanded" class="sku-picker">
+        <div class="sku-picker__toolbar">
+          <span class="sku-picker__hint">{{ t('mihoyoStock.selectSkuHint') }}</span>
+          <button type="button" class="sku-picker__collapse" @click="$emit('collapse')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 15 12 9 18 15" />
+            </svg>
+            <span>{{ t('mihoyoStock.collapse') }}</span>
+          </button>
+        </div>
+
         <button
           type="button"
           class="sku-whole"
@@ -73,20 +86,30 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 defineOptions({ name: 'MihoyoSkuPickerCard' })
 
-defineProps({
+const props = defineProps({
   entry: { type: Object, required: true },
   isTablet: { type: Boolean, default: false },
   showRemove: { type: Boolean, default: false },
   counter: { type: String, default: '' },
 })
 
-defineEmits(['select-sku', 'select-whole', 'expand', 'remove'])
+defineEmits(['select-sku', 'select-whole', 'expand', 'collapse', 'remove'])
 
 const { t } = useI18n()
+
+// 选中具体款式时展示该款式的专属封面（角色立牌等），未选/整件时回退商品封面
+const displayCover = computed(() => {
+  if (props.entry?.skuKey) {
+    const match = (props.entry.variants || []).find((v) => v.key === props.entry.skuKey)
+    if (match?.cover_url) return match.cover_url
+  }
+  return props.entry?.coverUrl || ''
+})
 </script>
 
 <style scoped>
@@ -251,6 +274,41 @@ const { t } = useI18n()
 
 .sku-picker {
   margin-top: 14px;
+}
+
+.sku-picker__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sku-picker__hint {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sku-picker__collapse {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sku-picker__collapse svg {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
 }
 
 .sku-whole {

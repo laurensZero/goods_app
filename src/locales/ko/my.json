@@ -221,7 +221,7 @@
   "mihoyoStock.collapseResults": "접기",
   "mihoyoStock.selectSku": "모니터링할 SKU 선택",
   "mihoyoStock.wholeGoods": "전체 상품",
-  "mihoyoStock.skuAutoSelectedName": "자동 매칭된 款式: {name}",
+  "mihoyoStock.skuAutoSelectedName": "선택한 款式：{name}",
   "mihoyoStock.modifySku": "수정",
   "mihoyoStock.confirmAdd": "모니터링에 추가",
   "mihoyoStock.confirmAll": "모두 모니터링에 추가",
@@ -231,5 +231,7 @@
   "mihoyoStock.selectedCount": "{count}개 선택됨",
   "mihoyoStock.batchAdd": "대기열에 추가",
   "mihoyoStock.cancelMultiSelect": "취소",
-  "mihoyoStock.selectSkuHint": "款式 선택"
+  "mihoyoStock.selectSkuHint": "款式 선택",
+  "mihoyoStock.inQueue": "대기열에 추가됨",
+  "mihoyoStock.collapse": "접기"
 }

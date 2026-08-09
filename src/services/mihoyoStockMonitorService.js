@@ -80,6 +80,33 @@ export async function removeMonitoredGoods(id) {
   if (error) throw new Error(error.message)
 }
 
+/**
+ * 更新监控行的检测结果快照（仅本人行）。
+ * 添加后客户端会做一次即时检测，把结果回写服务端，
+ * 避免服务端定时扫描尚未跑完时刷新列表，导致商品一直显示“检测中”。
+ * @param {string} id
+ * @param {Object} patch - 仅可写入检测结果相关字段
+ */
+export async function updateMonitoredGoodsStatus(id, patch = {}) {
+  const db = getSupabaseClient()
+  const { data: { user } } = await db.auth.getUser()
+  if (!user) throw new Error('not_logged_in')
+
+  const { in_stock, stock_count, price_cents, sku_name, last_checked_at } = patch
+  const { error } = await db
+    .from(MONITOR_TABLE)
+    .update({
+      in_stock: Boolean(in_stock),
+      stock_count: Number(stock_count) || 0,
+      price_cents: Number(price_cents) || 0,
+      sku_name: String(sku_name || ''),
+      last_checked_at: last_checked_at || new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', user.id)
+  if (error) throw new Error(error.message)
+}
+
 // 找出「只有单个可选项」的维度组 key（如发货时间），这类 key 可能随批次文案变化：
 // 匹配时只要求非噪音（多选项）的 key 部分命中，避免噪音 key 变化导致误判缺货。
 function buildNoiseKeysFromDetail(detail) {

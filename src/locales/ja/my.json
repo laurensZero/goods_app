@@ -221,7 +221,7 @@
   "mihoyoStock.collapseResults": "折りたたむ",
   "mihoyoStock.selectSku": "監視する SKU を選択",
   "mihoyoStock.wholeGoods": "商品全体",
-  "mihoyoStock.skuAutoSelectedName": "自動マッチした款式：{name}",
+  "mihoyoStock.skuAutoSelectedName": "選択した款式：{name}",
   "mihoyoStock.modifySku": "変更",
   "mihoyoStock.confirmAdd": "監視に追加",
   "mihoyoStock.confirmAll": "すべて監視に追加",
@@ -231,5 +231,7 @@
   "mihoyoStock.selectedCount": "{count} 件選択中",
   "mihoyoStock.batchAdd": "キューに追加",
   "mihoyoStock.cancelMultiSelect": "キャンセル",
-  "mihoyoStock.selectSkuHint": "款式を選択"
+  "mihoyoStock.selectSkuHint": "款式を選択",
+  "mihoyoStock.inQueue": "キューに追加済み",
+  "mihoyoStock.collapse": "折りたたむ"
 }

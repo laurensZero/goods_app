@@ -420,9 +420,9 @@ export async function fetchGoodsDetail(goodsId) {
         }
       }
     }
-    return { mainImages, skuCovers, skuPrices, skuVariants, coverUrl: detail?.cover_url || '' }
+    return { mainImages, skuCovers, skuPrices, skuVariants, coverUrl: detail?.cover_url || '', ok: true }
   } catch {
-    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '' }
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '', ok: false }
   }
 }
 
