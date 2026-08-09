@@ -143,6 +143,7 @@
                   @select-whole="selectWholeGoods(entry)"
                   @expand="expandSkuPicker(entry)"
                   @collapse="collapseSkuPicker(entry)"
+                  @retry="retryLoadVariants(entry)"
                   @remove="removeFromQueue(entry.uid)"
                 />
               </div>
@@ -157,6 +158,7 @@
                 @select-whole="selectWholeGoods(activeEntry)"
                 @expand="expandSkuPicker(activeEntry)"
                 @collapse="collapseSkuPicker(activeEntry)"
+                @retry="retryLoadVariants(activeEntry)"
               />
             </div>
 
@@ -176,8 +178,8 @@
                 </span>
                 <span class="queue-card__copy">
                   <span class="queue-card__name">{{ entry.name }}</span>
-                  <span class="queue-card__sku" :class="{ 'queue-card__sku--pending': !entry.skuName && !entry.error }">
-                    {{ entry.error || entry.skuName || t('mihoyoStock.selectSkuHint') }}
+                  <span class="queue-card__sku" :class="{ 'queue-card__sku--pending': !entry.selectedSkus.length && !entry.error }">
+                    {{ entry.error || queueSkuSummary(entry) }}
                   </span>
                 </span>
                 <span
@@ -385,7 +387,7 @@ const {
 } = search
 
 // ── 待确认添加队列（搜索/URL 解析后先选 SKU 再入库，支持多选逐个处理） ──
-// 每项：{ uid, goodsId, shopCode, name, priceCents, coverUrl, variants, skuKey, skuName, loading, variantsLoaded, error, expanded }
+// 每项：{ uid, goodsId, shopCode, name, priceCents, coverUrl, variants, selectedSkus, loading, variantsLoaded, error, expanded }
 const queue = ref([])
 const activeUid = ref('')              // 当前正在选 SKU 的队列项
 const skuDeckRef = ref(null)           // 手机端左右滑动卡片容器
@@ -444,7 +446,7 @@ async function loadList() {
   }
 }
 
-// ── 待确认队列：单选/多选商品逐个选 SKU 后统一确认 ──
+// ── 待确认队列：单个/多个商品逐个选 SKU 后统一确认；同一商品可多选多个 SKU ──
 let queueUid = 0
 function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, coverUrl = '' }) {
   queueUid += 1
@@ -459,8 +461,7 @@ function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, c
     priceCents: Number(priceCents) || 0,
     coverUrl: String(coverUrl || '').trim(),
     variants: [],
-    skuKey: '',
-    skuName: '',
+    selectedSkus: [],
     loading: false,
     variantsLoaded: false,
     variantLoadFailed: false,
@@ -509,7 +510,7 @@ async function loadEntryVariants(entry) {
       }))
     autoSelectSku(entry)
     // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
-    entry.expanded = !entry.skuKey
+    entry.expanded = !entry.selectedSkus.length
   } catch (e) {
     entry.variantLoadFailed = true
     entry.expanded = true
@@ -530,13 +531,13 @@ function retryLoadVariants(entry) {
 }
 
 // 自动选中 SKU：单选直接选中；搜索角色/关键词后，若唯一命中该角色款则自动选中（与导入页一致）
+// 多选场景：自动选中只作为默认选择，用户可继续在卡片里勾选/取消其它 SKU
 function autoSelectSku(entry) {
   const list = entry.variants
   if (!list.length) return
 
   if (list.length === 1) {
-    entry.skuKey = list[0].key
-    entry.skuName = list[0].text
+    entry.selectedSkus = [{ key: list[0].key, text: list[0].text, cover_url: list[0].cover_url || '' }]
     return
   }
 
@@ -552,8 +553,7 @@ function autoSelectSku(entry) {
   })
 
   if (matched.length === 1) {
-    entry.skuKey = matched[0].key
-    entry.skuName = matched[0].text
+    entry.selectedSkus = [{ key: matched[0].key, text: matched[0].text, cover_url: matched[0].cover_url || '' }]
   }
 }
 
@@ -613,16 +613,17 @@ async function handleAdd() {
 }
 
 function selectWholeGoods(entry) {
-  entry.skuKey = ''
-  entry.skuName = ''
+  entry.selectedSkus = []
 }
 
+// 多选款式：点击 chip 切换选中/取消；手动操作后保持选择器展开便于继续调整
 function selectSku(entry, variant) {
-  entry.skuKey = variant.key
-  entry.skuName = variant.text
-  // SKU 切换时同步切换商品图
-  if (variant.cover_url) entry.coverUrl = variant.cover_url
-  // 手动修改款式后保持选择器展开，便于继续调整（不自动折叠）
+  const idx = entry.selectedSkus.findIndex((s) => s.key === variant.key)
+  if (idx >= 0) {
+    entry.selectedSkus.splice(idx, 1)
+  } else {
+    entry.selectedSkus.push({ key: variant.key, text: variant.text, cover_url: variant.cover_url || '' })
+  }
 }
 
 function expandSkuPicker(entry) {
@@ -631,6 +632,14 @@ function expandSkuPicker(entry) {
 
 function collapseSkuPicker(entry) {
   entry.expanded = false
+}
+
+// 平板端队列卡片摘要：整件 / 单款式名 / 已选 N 款
+function queueSkuSummary(entry) {
+  const list = entry.selectedSkus || []
+  if (list.length === 0) return t('mihoyoStock.selectSkuHint')
+  if (list.length === 1) return list[0].text || list[0].key
+  return t('mihoyoStock.skuSelectedCount', { count: list.length })
 }
 
 function activateQueueEntry(uid, { scrollDeck = false } = {}) {
@@ -700,18 +709,22 @@ async function confirmQueue() {
     let added = 0
     let hasStock = false
     for (const entry of queue.value) {
+      // 每个选中的 SKU 各生成一条监控；未选任何 SKU 则整件商品监控
+      const targets = entry.selectedSkus.length ? entry.selectedSkus : [null]
       try {
-        const row = await monitorStore.add({
-          goodsId: entry.goodsId,
-          shopCode: entry.shopCode,
-          name: entry.name,
-          priceCents: entry.priceCents,
-          coverUrl: entry.coverUrl,
-          skuKey: entry.skuKey,
-          skuName: entry.skuName,
-        })
-        added += 1
-        if (row.in_stock) hasStock = true
+        for (const sku of targets) {
+          const row = await monitorStore.add({
+            goodsId: entry.goodsId,
+            shopCode: entry.shopCode,
+            name: entry.name,
+            priceCents: entry.priceCents,
+            coverUrl: sku?.cover_url || entry.coverUrl,
+            skuKey: sku?.key || '',
+            skuName: sku?.text || '',
+          })
+          added += 1
+          if (row.in_stock) hasStock = true
+        }
       } catch (e) {
         entry.error = e.message || t('common.failed')
       }

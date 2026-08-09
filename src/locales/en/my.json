@@ -222,6 +222,8 @@
   "mihoyoStock.selectSku": "Choose a SKU to monitor",
   "mihoyoStock.wholeGoods": "Whole product",
   "mihoyoStock.skuAutoSelectedName": "Selected variant: {name}",
+  "mihoyoStock.skuSelectedCount": "{count} selected",
+  "mihoyoStock.skuMultiSelectHint": "Choose variants (multi-select)",
   "mihoyoStock.modifySku": "Edit",
   "mihoyoStock.confirmAdd": "Add to monitor",
   "mihoyoStock.confirmAll": "Add all to monitor",

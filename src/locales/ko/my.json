@@ -222,6 +222,8 @@
   "mihoyoStock.selectSku": "모니터링할 SKU 선택",
   "mihoyoStock.wholeGoods": "전체 상품",
   "mihoyoStock.skuAutoSelectedName": "선택한 款式：{name}",
+  "mihoyoStock.skuSelectedCount": "{count}개 선택",
+  "mihoyoStock.skuMultiSelectHint": "款式 선택（다중 선택 가능）",
   "mihoyoStock.modifySku": "수정",
   "mihoyoStock.confirmAdd": "모니터링에 추가",
   "mihoyoStock.confirmAll": "모두 모니터링에 추가",
