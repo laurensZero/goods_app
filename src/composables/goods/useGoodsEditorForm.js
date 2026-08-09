@@ -126,9 +126,13 @@ export function useGoodsEditorForm(options = {}) {
   const originalTimeline = ref(null)
   const { isTabletViewport, updateViewport } = useTabletViewport()
 
-  const availableCharacters = computed(() =>
-    form.ip ? presets.characters.filter((character) => character.ip === form.ip) : []
-  )
+  const availableCharacters = computed(() => {
+    if (!form.ip) return []
+    const favoriteSet = presets.favoriteCharacterSet
+    return presets.characters
+      .filter((character) => character.ip === form.ip)
+      .sort((a, b) => Number(favoriteSet.has(b.name)) - Number(favoriteSet.has(a.name)))
+  })
   const selectedCharacterOptions = computed(() => (
     form.characters.map((character) => ({
       label: character,
