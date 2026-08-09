@@ -304,10 +304,15 @@ BEGIN
     OR NEW.start_date IS DISTINCT FROM OLD.start_date
     OR NEW.end_date IS DISTINCT FROM OLD.end_date
     OR NEW.location IS DISTINCT FROM OLD.location
+    OR NEW.city IS DISTINCT FROM OLD.city
     OR NEW.description IS DISTINCT FROM OLD.description
     OR NEW.cover_image IS DISTINCT FROM OLD.cover_image
     OR NEW.cover_image_data IS DISTINCT FROM OLD.cover_image_data
     OR NEW.photos IS DISTINCT FROM OLD.photos
+    OR NEW.ticket_price IS DISTINCT FROM OLD.ticket_price
+    OR NEW.ticket_type IS DISTINCT FROM OLD.ticket_type
+    OR NEW.seat_info IS DISTINCT FROM OLD.seat_info
+    OR NEW.other_expenses IS DISTINCT FROM OLD.other_expenses
     OR NEW.tracks IS DISTINCT FROM OLD.tracks
     OR NEW.linked_goods_ids IS DISTINCT FROM OLD.linked_goods_ids
     OR NEW.tags IS DISTINCT FROM OLD.tags
@@ -1129,7 +1134,7 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      location = EXCLUDED.location, description = EXCLUDED.description,
+      location = EXCLUDED.location, city = EXCLUDED.city, description = EXCLUDED.description,
       cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
       photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
       ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
@@ -1148,7 +1153,7 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      location = EXCLUDED.location, description = EXCLUDED.description,
+      location = EXCLUDED.location, city = EXCLUDED.city, description = EXCLUDED.description,
       cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
       photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
       ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
