@@ -69,28 +69,7 @@
           <p v-if="searchError" class="search-error">{{ searchError }}</p>
 
           <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
-            <template v-if="!multiSelectMode">
-              <span class="search-results-toolbar__hint">{{ t('mihoyoStock.resultCount', { count: visibleSearchResults.length }) }}</span>
-              <button type="button" class="search-multiselect-toggle" @click="enterMultiSelect">
-                {{ t('mihoyoStock.multiSelect') }}
-              </button>
-            </template>
-            <template v-else>
-              <span class="search-multiselect-count">{{ t('mihoyoStock.selectedCount', { count: selectedBatchIds.length }) }}</span>
-              <div class="search-multiselect-actions">
-                <button
-                  type="button"
-                  class="search-multiselect-btn"
-                  :disabled="selectedBatchIds.length === 0"
-                  @click="enqueueSelected"
-                >
-                  {{ t('mihoyoStock.batchAdd') }}
-                </button>
-                <button type="button" class="search-multiselect-btn search-multiselect-btn--ghost" @click="exitMultiSelect">
-                  {{ t('mihoyoStock.cancelMultiSelect') }}
-                </button>
-              </div>
-            </template>
+            <span class="search-results-toolbar__hint">{{ t('mihoyoStock.resultCount', { count: visibleSearchResults.length }) }}</span>
           </div>
 
           <div
@@ -103,7 +82,6 @@
               :key="String(item?.goods_id)"
               type="button"
               class="search-result-card"
-              :class="{ 'search-result-card--selected': multiSelectMode ? isItemSelected(item) : selectedSearchGoodsId === String(item?.goods_id) }"
               @click="onSearchResultClick(item)"
             >
               <span class="search-result-thumb">
@@ -111,14 +89,11 @@
                 <span v-else>{{ (item.name || '?').charAt(0) }}</span>
               </span>
               <span class="search-result-name">{{ item.name }}</span>
-              <span
-                v-if="multiSelectMode"
-                class="search-result-check"
-                :class="{ 'search-result-check--on': isItemSelected(item) }"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <span v-if="isQueued(item)" class="search-result-queued">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
+                {{ t('mihoyoStock.inQueue') }}
               </span>
             </button>
           </div>
@@ -167,6 +142,7 @@
                   @select-sku="selectSku(entry, $event)"
                   @select-whole="selectWholeGoods(entry)"
                   @expand="expandSkuPicker(entry)"
+                  @collapse="collapseSkuPicker(entry)"
                   @remove="removeFromQueue(entry.uid)"
                 />
               </div>
@@ -180,6 +156,7 @@
                 @select-sku="selectSku(activeEntry, $event)"
                 @select-whole="selectWholeGoods(activeEntry)"
                 @expand="expandSkuPicker(activeEntry)"
+                @collapse="collapseSkuPicker(activeEntry)"
               />
             </div>
 
@@ -357,7 +334,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
@@ -397,7 +374,6 @@ const {
   searchLoadingMore,
   searchError,
   variantSearchHint,
-  selectedSearchGoodsId,
   searchLoadMoreRef,
   visibleSearchResults,
   showSearchToggle,
@@ -412,11 +388,16 @@ const {
 // 每项：{ uid, goodsId, shopCode, name, priceCents, coverUrl, variants, skuKey, skuName, loading, variantsLoaded, error, expanded }
 const queue = ref([])
 const activeUid = ref('')              // 当前正在选 SKU 的队列项
-const multiSelectMode = ref(false)     // 搜索结果多选模式
-const selectedBatchIds = ref([])       // 多选模式勾选的 goods_id 集合
 const skuDeckRef = ref(null)           // 手机端左右滑动卡片容器
 
 const activeEntry = computed(() => queue.value.find((e) => e.uid === activeUid.value) || null)
+
+// 已在待选队列中的商品 ID 集合（搜索列表标记 + 防重复加入）
+const queuedGoodsIds = computed(() => new Set(queue.value.map((e) => String(e.goodsId || '').trim()).filter(Boolean)))
+
+function isQueued(item) {
+  return queuedGoodsIds.value.has(String(item?.goods_id || '').trim())
+}
 
 const inStockCount = computed(() => monitorStore.items.filter((i) => !!i.in_stock).length)
 
@@ -467,7 +448,10 @@ async function loadList() {
 let queueUid = 0
 function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, coverUrl = '' }) {
   queueUid += 1
-  return {
+  // 必须用 reactive() 创建：plain object 被 push 进响应式 queue 后由 Vue 代理，
+  // 而 loadEntryVariants 等直接对 entry 字段赋值走的是原始对象，视图不会更新。
+  // 最后一个入队项再没有后续 push 触发重渲染，卡片会一直卡在「加载中」。
+  return reactive({
     uid: `queue-${queueUid}`,
     goodsId: String(goodsId || '').trim(),
     shopCode: String(shopCode || '').trim(),
@@ -479,9 +463,10 @@ function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, c
     skuName: '',
     loading: false,
     variantsLoaded: false,
+    variantLoadFailed: false,
     error: '',
     expanded: false,
-  }
+  })
 }
 
 // 将商品加入队列；activate 时置为当前处理项，load 时拉取 SKU 变体
@@ -489,18 +474,33 @@ function enqueueGoods(payload, { activate = true, load = true } = {}) {
   const entry = createQueueEntry(payload)
   queue.value.push(entry)
   if (activate) activeUid.value = entry.uid
+  if (activate) scrollDeckToActive()
   if (load) loadEntryVariants(entry)
   return entry
 }
 
 // 拉取 SKU 变体并自动选中，进入「选择款式 → 确认」流程（懒加载：切换队列项时才拉取）
+// 变体请求加上限时看门狗，接口偶发挂起/限流时卡片不能一直卡在「加载中」
+const VARIANT_LOAD_TIMEOUT_MS = 12000
 async function loadEntryVariants(entry) {
-  if (entry.loading) return
+  if (entry.loading || entry.variantsLoaded) return
   entry.loading = true
   entry.error = ''
+  entry.variantLoadFailed = false
   try {
-    const { skuVariants } = await fetchGoodsDetail(entry.goodsId).catch(() => ({ skuVariants: [] }))
-    entry.variants = (skuVariants || [])
+    const result = await Promise.race([
+      fetchGoodsDetail(entry.goodsId),
+      new Promise((resolve) => {
+        setTimeout(() => resolve({ skuVariants: [], ok: false, timedOut: true }), VARIANT_LOAD_TIMEOUT_MS)
+      }),
+    ])
+    if (!result.ok) {
+      entry.variantLoadFailed = true
+      entry.expanded = true
+      entry.error = t('mihoyoStock.variantLoadError')
+      return
+    }
+    entry.variants = (result.skuVariants || [])
       .filter((v) => v && v.key)
       .map((v) => ({
         text: String(v.text || v.key),
@@ -511,11 +511,22 @@ async function loadEntryVariants(entry) {
     // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
     entry.expanded = !entry.skuKey
   } catch (e) {
+    entry.variantLoadFailed = true
+    entry.expanded = true
     entry.error = e.message || t('common.failed')
   } finally {
     entry.loading = false
     entry.variantsLoaded = true
   }
+}
+
+// 变体加载超时/失败后手动重试
+function retryLoadVariants(entry) {
+  entry.variantsLoaded = false
+  entry.loading = false
+  entry.error = ''
+  entry.variantLoadFailed = false
+  loadEntryVariants(entry)
 }
 
 // 自动选中 SKU：单选直接选中；搜索角色/关键词后，若唯一命中该角色款则自动选中（与导入页一致）
@@ -546,11 +557,11 @@ function autoSelectSku(entry) {
   }
 }
 
-// 搜索选中：多选模式下勾选；单选直接加入队列进入 SKU 选择流程
+// 搜索点击：点一个商品就加入待选 SKU 队列，逐个确认后统一入库（已在队列的直接提示）
 function onSearchResultClick(item) {
   if (!item?.goods_id) return
-  if (multiSelectMode.value) {
-    toggleBatchSelect(item)
+  if (isQueued(item)) {
+    showToast(t('mihoyoStock.inQueue'))
     return
   }
   search.selectSearchResult(item)
@@ -609,11 +620,17 @@ function selectWholeGoods(entry) {
 function selectSku(entry, variant) {
   entry.skuKey = variant.key
   entry.skuName = variant.text
+  // SKU 切换时同步切换商品图
+  if (variant.cover_url) entry.coverUrl = variant.cover_url
   // 手动修改款式后保持选择器展开，便于继续调整（不自动折叠）
 }
 
 function expandSkuPicker(entry) {
   entry.expanded = true
+}
+
+function collapseSkuPicker(entry) {
+  entry.expanded = false
 }
 
 function activateQueueEntry(uid, { scrollDeck = false } = {}) {
@@ -624,13 +641,18 @@ function activateQueueEntry(uid, { scrollDeck = false } = {}) {
   if (!entry.variants.length && !entry.loading) loadEntryVariants(entry)
 }
 
-// 手机端滑动卡片：根据滑动位置同步当前激活的商品（并懒加载其 SKU）
+// 手机端滑动卡片：根据滑动位置同步当前激活的商品（并懒加载其 SKU）。
+// 滑动停止后再更新，避免程序化平滑滚动过程中 activeUid 反复横跳。
+let deckScrollTimer = null
 function onDeckScroll() {
   const el = skuDeckRef.value
   if (!el) return
-  const idx = Math.round(el.scrollLeft / el.clientWidth)
-  const entry = queue.value[idx]
-  if (entry && entry.uid !== activeUid.value) activateQueueEntry(entry.uid)
+  clearTimeout(deckScrollTimer)
+  deckScrollTimer = setTimeout(() => {
+    const idx = Math.round(el.scrollLeft / el.clientWidth)
+    const entry = queue.value[idx]
+    if (entry && entry.uid !== activeUid.value) activateQueueEntry(entry.uid)
+  }, 80)
 }
 
 // 让滑动卡片定位到当前激活项（等待 DOM 更新后再滚动，确保队列已重排）
@@ -669,50 +691,6 @@ function clearQueue() {
 
 function cancelQueue() {
   clearQueue()
-  exitMultiSelect()
-}
-
-// ── 搜索结果多选模式 ──
-function enterMultiSelect() {
-  multiSelectMode.value = true
-  selectedBatchIds.value = []
-}
-
-function exitMultiSelect() {
-  multiSelectMode.value = false
-  selectedBatchIds.value = []
-}
-
-function isItemSelected(item) {
-  return selectedBatchIds.value.includes(String(item?.goods_id))
-}
-
-function toggleBatchSelect(item) {
-  if (!item?.goods_id) return
-  const id = String(item.goods_id)
-  const idx = selectedBatchIds.value.indexOf(id)
-  if (idx >= 0) selectedBatchIds.value.splice(idx, 1)
-  else selectedBatchIds.value.push(id)
-}
-
-// 将勾选的搜索结果加入队列，并行读取所有商品的 SKU 款式
-function enqueueSelected() {
-  const selected = visibleSearchResults.value.filter((item) => isItemSelected(item))
-  if (!selected.length) return
-  const entries = []
-  for (const item of selected) {
-    const priceYuan = Number(item?.price)
-    entries.push(enqueueGoods({
-      goodsId: item.goods_id,
-      shopCode: String(item?.shop_code || getMihoyoShopCodeByIp(item?.ip) || ''),
-      name: item?.name || '',
-      priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
-      coverUrl: getSearchResultCover(item) || item?.cover_url || '',
-    }, { activate: false, load: false }))
-  }
-  activeUid.value = entries[0].uid
-  void Promise.all(entries.map((entry) => loadEntryVariants(entry)))
-  exitMultiSelect()
 }
 
 async function confirmQueue() {
@@ -986,11 +964,6 @@ onMounted(() => {
   cursor: pointer;
 }
 
-.search-result-card--selected {
-  border-color: var(--app-chip-accent-text);
-  background: color-mix(in srgb, var(--app-chip-accent-text) 8%, var(--app-surface-soft));
-}
-
 .search-result-thumb {
   display: flex;
   align-items: center;
@@ -1013,6 +986,8 @@ onMounted(() => {
 }
 
 .search-result-name {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.4;
@@ -1023,32 +998,27 @@ onMounted(() => {
   -webkit-box-orient: vertical;
 }
 
-/* 多选模式：结果卡片右上角勾选圈 */
-.search-result-check {
+/* 已在待选队列中的搜索结果标记 */
+.search-result-queued {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border: 1.5px solid var(--app-border);
-  border-radius: 50%;
+  gap: 4px;
   flex-shrink: 0;
-  color: transparent;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
+  color: var(--app-chip-accent-text);
+  font-size: 11px;
+  font-weight: 600;
 }
 
-.search-result-check svg {
-  width: 12px;
-  height: 12px;
+.search-result-queued svg {
+  width: 11px;
+  height: 11px;
   stroke: currentColor;
 }
 
-.search-result-check--on {
-  border-color: var(--app-chip-accent-text);
-  background: var(--app-chip-accent-text);
-  color: #fff;
-}
-
-/* 搜索结果工具栏：结果数 + 多选入口 / 多选计数 + 批量操作 */
+/* 搜索结果工具栏：结果数提示 */
 .search-results-toolbar {
   display: flex;
   align-items: center;
@@ -1060,52 +1030,6 @@ onMounted(() => {
 .search-results-toolbar__hint {
   color: var(--app-text-tertiary);
   font-size: 12px;
-}
-
-.search-multiselect-toggle {
-  padding: 6px 12px;
-  border: 1px solid var(--app-chip-accent-text);
-  border-radius: 10px;
-  background: transparent;
-  color: var(--app-chip-accent-text);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.search-multiselect-count {
-  color: var(--app-chip-accent-text);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.search-multiselect-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.search-multiselect-btn {
-  padding: 6px 12px;
-  border: none;
-  border-radius: 10px;
-  background: var(--app-text);
-  color: var(--app-surface);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.search-multiselect-btn--ghost {
-  background: var(--app-surface-soft);
-  color: var(--app-text-secondary);
-}
-
-.search-multiselect-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .search-results-toggle-wrap {
@@ -1516,8 +1440,9 @@ onMounted(() => {
 
 .monitor-item__meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px 8px;
   margin-top: 6px;
 }
 

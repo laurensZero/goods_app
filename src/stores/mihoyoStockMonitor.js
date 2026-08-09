@@ -12,6 +12,7 @@ import {
   addMonitoredGoods,
   removeMonitoredGoods,
   checkGoodsAvailability,
+  updateMonitoredGoodsStatus,
 } from '@/services/mihoyoStockMonitorService'
 
 export const useMihoyoStockMonitorStore = defineStore('mihoyoStockMonitor', () => {
@@ -70,6 +71,14 @@ export const useMihoyoStockMonitorStore = defineStore('mihoyoStockMonitor', () =
         if (row.sku_key && status.skuName && status.skuName !== row.sku_name) {
           row.sku_name = status.skuName
         }
+        // 即时检测结果回写服务端，避免刷新列表后因服务端尚未扫描而一直显示“检测中”
+        void updateMonitoredGoodsStatus(row.id, {
+          in_stock: row.in_stock,
+          stock_count: row.stock_count,
+          price_cents: row.price_cents,
+          sku_name: row.sku_name,
+          last_checked_at: row.last_checked_at,
+        }).catch(() => {})
       }
     }
     return row

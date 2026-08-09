@@ -221,7 +221,7 @@
   "mihoyoStock.collapseResults": "Collapse",
   "mihoyoStock.selectSku": "Choose a SKU to monitor",
   "mihoyoStock.wholeGoods": "Whole product",
-  "mihoyoStock.skuAutoSelectedName": "Auto-matched variant: {name}",
+  "mihoyoStock.skuAutoSelectedName": "Selected variant: {name}",
   "mihoyoStock.modifySku": "Edit",
   "mihoyoStock.confirmAdd": "Add to monitor",
   "mihoyoStock.confirmAll": "Add all to monitor",
@@ -231,5 +231,7 @@
   "mihoyoStock.selectedCount": "{count} selected",
   "mihoyoStock.batchAdd": "Add to queue",
   "mihoyoStock.cancelMultiSelect": "Cancel",
-  "mihoyoStock.selectSkuHint": "Choose a variant"
+  "mihoyoStock.selectSkuHint": "Choose a variant",
+  "mihoyoStock.inQueue": "In queue",
+  "mihoyoStock.collapse": "Collapse"
 }

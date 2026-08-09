@@ -337,15 +337,7 @@ const activeDetailTitle = computed(() => {
 const settingsDetailRef = ref(null)
 const notificationPanelScrollTop = ref(0)
 
-function selectManageEntry(key) {
-  selectedManageKey.value = key
-  manageSubPageKey.value = ''
-}
-
-function openManageSubPage(key) {
-  if (!manageComponentMap[key]) return
-  notificationPanelScrollTop.value = settingsDetailRef.value?.scrollTop || 0
-  manageSubPageKey.value = key
+function resetSettingsDetailScroll() {
   nextTick(() => {
     const detail = settingsDetailRef.value
     if (!detail) return
@@ -354,6 +346,19 @@ function openManageSubPage(key) {
       if (settingsDetailRef.value) settingsDetailRef.value.scrollTop = 0
     })
   })
+}
+
+function selectManageEntry(key) {
+  selectedManageKey.value = key
+  manageSubPageKey.value = ''
+  resetSettingsDetailScroll()
+}
+
+function openManageSubPage(key) {
+  if (!manageComponentMap[key]) return
+  notificationPanelScrollTop.value = settingsDetailRef.value?.scrollTop || 0
+  manageSubPageKey.value = key
+  resetSettingsDetailScroll()
 }
 
 function closeManageSubPage() {

@@ -221,7 +221,7 @@
   "mihoyoStock.collapseResults": "收起結果",
   "mihoyoStock.selectSku": "選擇要監控的款式",
   "mihoyoStock.wholeGoods": "整件商品",
-  "mihoyoStock.skuAutoSelectedName": "已自動配對款式：{name}",
+  "mihoyoStock.skuAutoSelectedName": "已選款式：{name}",
   "mihoyoStock.modifySku": "修改",
   "mihoyoStock.confirmAdd": "加入監控",
   "mihoyoStock.confirmAll": "全部加入監控",
@@ -231,5 +231,7 @@
   "mihoyoStock.selectedCount": "已選 {count} 件",
   "mihoyoStock.batchAdd": "加入佇列",
   "mihoyoStock.cancelMultiSelect": "取消",
-  "mihoyoStock.selectSkuHint": "選擇款式"
+  "mihoyoStock.selectSkuHint": "選擇款式",
+  "mihoyoStock.inQueue": "已加入佇列",
+  "mihoyoStock.collapse": "收起"
 }
