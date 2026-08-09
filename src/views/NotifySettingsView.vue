@@ -282,10 +282,9 @@
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--mihoyo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-                    <line x1="9" y1="9" x2="9.01" y2="9" />
-                    <line x1="15" y1="9" x2="15.01" y2="9" />
+                    <path d="M3 9l1.5-5h15L21 9" />
+                    <path d="M3 9h18v2a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V9z" />
+                    <path d="M6 14v6h12v-6" />
                   </svg>
                 </span>
                 <div>
