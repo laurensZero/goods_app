@@ -113,7 +113,7 @@
       </section>
 
       <Transition name="search-drop">
-        <section v-if="showSearch && !selectionMode && eventsStore.activeList.length > 0" class="search-section">
+        <section v-if="showSearch && eventsStore.activeList.length > 0" class="search-section">
           <div class="search-panel">
             <SearchBar
               v-model="searchKeyword"
@@ -537,7 +537,7 @@ const {
   exitSelectionModeQuiet,
   exitSelectionMode,
   handleSelectionPopState
-} = useGoodsSelection(computed(() => eventsStore.activeList), {
+} = useGoodsSelection(computed(() => filteredEvents.value), {
   historyKey: 'eventsSelectionMode',
   onExit: closeSelectionOverlays,
   getScrollTop: readScrollTop
@@ -742,7 +742,6 @@ watch(selectionMode, async (active) => {
     return
   }
 
-  showSearch.value = false
   await nextTick()
   updateSelectionHeaderPosition()
 })
