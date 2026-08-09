@@ -33,7 +33,7 @@
           </div>
         </aside>
 
-        <section v-if="activeManageEntry" class="settings-detail">
+        <section v-if="activeManageEntry" ref="settingsDetailRef" class="settings-detail">
           <div class="settings-detail__header settings-detail__header--compact">
             <button
               v-if="manageSubPageKey"
@@ -334,6 +334,9 @@ const activeDetailTitle = computed(() => {
   return (subTitle && subTitle()) || activeManageEntry.value?.title || ''
 })
 
+const settingsDetailRef = ref(null)
+const notificationPanelScrollTop = ref(0)
+
 function selectManageEntry(key) {
   selectedManageKey.value = key
   manageSubPageKey.value = ''
@@ -341,11 +344,28 @@ function selectManageEntry(key) {
 
 function openManageSubPage(key) {
   if (!manageComponentMap[key]) return
+  notificationPanelScrollTop.value = settingsDetailRef.value?.scrollTop || 0
   manageSubPageKey.value = key
+  nextTick(() => {
+    const detail = settingsDetailRef.value
+    if (!detail) return
+    detail.scrollTop = 0
+    requestAnimationFrame(() => {
+      if (settingsDetailRef.value) settingsDetailRef.value.scrollTop = 0
+    })
+  })
 }
 
 function closeManageSubPage() {
   manageSubPageKey.value = ''
+  nextTick(() => {
+    const detail = settingsDetailRef.value
+    if (!detail) return
+    detail.scrollTop = notificationPanelScrollTop.value
+    requestAnimationFrame(() => {
+      if (settingsDetailRef.value) settingsDetailRef.value.scrollTop = notificationPanelScrollTop.value
+    })
+  })
   if (route.query.sub) {
     const query = { ...route.query }
     delete query.sub
