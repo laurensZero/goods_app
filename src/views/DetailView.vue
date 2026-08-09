@@ -376,6 +376,7 @@ import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
+import { resolveMonitorSkuByVariant } from '@/services/mihoyoStockMonitorService'
 import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
@@ -883,6 +884,7 @@ function openMihoyoGoods() {
 }
 
 // 加入米游铺有货监控（服务端轮询，有货时推 QQ）
+// 若该商品已记录款式，会尝试把款式下钻到具体 SKU；解析失败则回退整件商品。
 async function handleAddToStockMonitor() {
   const g = item.value
   const goodsId = g?.goodsId
@@ -894,12 +896,15 @@ async function handleAddToStockMonitor() {
   }
   stockMonitorAdding.value = true
   try {
+    const sku = await resolveMonitorSkuByVariant(goodsId, variantText.value)
     const row = await stockMonitorStore.add({
       goodsId,
       shopCode: getMihoyoShopCodeByIp(g.ip),
       name: g.name || '',
       priceCents: Math.round(Number(g.price) * 100) || 0,
       coverUrl: activeImage.value?.uri || '',
+      skuKey: sku?.key || '',
+      skuName: sku?.text || '',
     })
     showToast(row.in_stock ? t('mihoyoStock.addSuccessNow') : t('mihoyoStock.addSuccess'))
   } catch (e) {

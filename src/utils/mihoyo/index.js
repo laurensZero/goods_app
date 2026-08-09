@@ -215,6 +215,15 @@ function buildSkuVariantsFromDetail(detail) {
   const groups = normalizeSaleAttrGroups(detail?.sale_attrs)
   if (!groups.length) return []
 
+  // 只有单个可选项的维度组（如「发货时间」）是固定噪音：展示名里去掉，但 key 保留
+  // （key 仍指向完整 SKU 组合，供 skuCovers/skuPrices 与库存精确匹配使用）
+  const noiseKeys = new Set()
+  for (const group of groups) {
+    if (group.content.length <= 1) {
+      for (const item of group.content) noiseKeys.add(item.key)
+    }
+  }
+
   const keyToAttr = new Map()
   for (const group of groups) {
     for (const item of group.content) {
@@ -238,11 +247,17 @@ function buildSkuVariantsFromDetail(detail) {
 
     if (!selections.length) continue
 
+    const displaySelections = selections.filter((s) => !noiseKeys.has(s.key))
+    if (!displaySelections.length) continue
+
     const rawSkuPrice = sku?.price ?? sku?.sale_price ?? sku?.activity_price ?? sku?.actual_price
-    variants.push(buildVariantFromSelections(selections, {
+    const variant = buildVariantFromSelections(displaySelections, {
       cover_url: sku?.cover_url || '',
       price: rawSkuPrice != null && rawSkuPrice > 0 ? rawSkuPrice / 100 : null,
-    }))
+    })
+    // 文本已排除单选项组；key 覆盖为完整组合 key
+    variant.key = selections.map((s) => s.key).join('_')
+    variants.push(variant)
   }
 
   return variants.length ? sortVariantsDeterministically(variants) : buildSaleAttrVariants(groups)
