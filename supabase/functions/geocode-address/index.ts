@@ -235,31 +235,26 @@ function poiResult(poi: Record<string, unknown>): CityResult {
   }
 }
 
-/** 从 poi 列表中选名称完整包含搜索词的 POI；无则返回第一条 */
-function pickPoi(pois: Record<string, unknown>[], address: string): Record<string, unknown> | null {
-  const normalized = String(address || "").trim()
-  // 多条结果时优先选名称完整包含搜索词的 POI：实测「浦发银行东方体育中心」返回的第 1 条是
-  // 场馆综合点「东方体育中心」(耀体路701号，偏南)，而「浦发银行东方体育中心体育馆」(泳耀路300号)
-  // 排在第 6 条——无脑取 pois[0] 会导致坐标偏南。名称包含搜索词的 POI 才是用户要标的具体场馆。
-  const exact = pois.find((p) => String(p.name || "").trim().includes(normalized))
-  return exact || pois[0] || null
+/** 从 poi 列表中取第一条命中（带 city 限定后首条即与搜索词最相关的结果） */
+function pickPoi(pois: Record<string, unknown>[], _address: string): Record<string, unknown> | null {
+  // 直接取 pois[0]：带 city 重查后高德按相关度排序，首条即用户输入关键词最匹配的地点。
+  // 刻意不做「名称完整包含搜索词」的挑选——实测「浦发银行东方体育中心」带 city 查询首条是
+  // 场馆综合点「东方体育中心」(耀体路701号)，而按名称匹配反而会跳到「浦发银行东方体育中心
+  // 体育馆」(泳耀路300号)，用户要的其实是前者。
+  return pois[0] || null
 }
 
 /** POI 关键词搜索。优先带 city 限定城市（不带 city 时「浦发银行XX」这类带品牌词的地址会
- *  被全城市范围搜索干扰成品牌网点，如「浦发银行东方体育中心」→ 一排浦发银行，坐标偏到网点）。 */
+ *  被全城市范围搜索干扰成品牌网点，如「浦发银行东方体育中心」→ 一排浦发银行，坐标偏到网点）。
+ *  性能：正常地址首条即精确命中 → 只发 1 次上游请求；仅在首条不匹配且 POI 无城市信息时才
+ *  额外调 geocode 兜底。 */
 async function searchPoi(apiKey: string, address: string): Promise<CityResult | null> {
   const url = new URL(AMAP_PLACE_TEXT_URL)
   url.searchParams.set("key", apiKey)
   url.searchParams.set("keywords", address)
   url.searchParams.set("output", "JSON")
 
-  // 并行发起 POI 首查 与 geocode（仅拿城市用，跳过 regeo 省一次调用）：
-  // 大多数地址首条即命中，geocode 结果被丢弃但并行不增加耗时；
-  // 首条不含搜索词（品牌词干扰）时无需再串行等 geocode，直接复用已在途的城市结果。
-  const placePromise = fetchJson(url.toString())
-  const geoPromise = searchGeocode(apiKey, address, true).catch(() => null)
-
-  const res = await placePromise
+  const res = await fetchJson(url.toString())
   if (!res.ok) throw new AmapUpstreamError(res.status, res.reason)
   const data = res.data
   if (data.status !== "1" || !Array.isArray(data.pois) || data.pois.length === 0) {
@@ -271,14 +266,22 @@ async function searchPoi(apiKey: string, address: string): Promise<CityResult | 
   }
   const pois = data.pois as Record<string, unknown>[]
   let poi = pickPoi(pois, address)
+  const trimmed = String(address || "").trim()
 
-  // 第一条名称不含搜索词（典型如「浦发银行东方体育中心」被解析成品牌网点）→ 用 geocode 拿城市
-  // 后带 city 重查，排除跨城干扰，再按名称完整匹配选具体场馆。
+  // 首条名称与搜索词不完全一致（可能被品牌词污染成「浦发银行(前滩支行)」，或命中地铁站等
+  // 同名歧义点「东方体育中心(地铁站)」）→ 带 city 重查，排除干扰。
+  // 城市优先取当前 POI 首条自带的 cityname/pname——实测「东方体育中心」用 geocode 拿城市会
+  // 被高德错配成海南省东方市，反而把正确城市丢掉；POI 结果里的城市信息是可信的。
   // 注意：不能带 citylimit=true——实测它会让高德把关键词强制按品牌词解析（「浦发银行东方体育中心」
   // → 一排浦发银行网点），反而复现坐标偏南。
-  if (poi && !String(poi.name || "").trim().includes(String(address || "").trim())) {
-    const geo = await geoPromise
-    const cityName = geo?.city || geo?.province
+  if (poi && String(poi.name || "").trim() !== trimmed) {
+    const poiCity = pickPoiCity(poi)
+    let cityName = poiCity
+    if (!cityName) {
+      // POI 首条无城市信息才补一次 geocode（罕见，绝大多数 POI 都带 cityname/pname）
+      const geo = await searchGeocode(apiKey, address, true)
+      cityName = geo?.city || geo?.province || ""
+    }
     if (cityName) {
       const cityUrl = new URL(AMAP_PLACE_TEXT_URL)
       cityUrl.searchParams.set("key", apiKey)
