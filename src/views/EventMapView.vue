@@ -144,15 +144,10 @@ const CHINA_CENTER = [34.5, 106]
 const CHINA_ZOOM = 4
 // 中国范围（含南海诸岛）加少量边距；限制地图可平移/缩放的区域，避免缩到全球或漂到海上
 const CHINA_BOUNDS = [[0, 66], [58, 146]]
-// 高德瓦片高清参数是 scl（不是 scale）：scl=1=256px，scl=2=512px（最高）。
-// 512px 瓦片显示在 256px 的 CSS 槽里（Leaflet tileSize 不变），缩小永远清晰、放大才糊。
-// 注意：Windows 常见 125%/150% 显示缩放会让 dpr=1.25/1.5，若仍用 256px 瓦片会被放大而发糊，
-// 所以只要 dpr>1 就取 512px。
-function getTileScale() {
-  if (typeof window === 'undefined') return 2
-  return window.devicePixelRatio > 1 ? 2 : 1
-}
-const TILE_URL = `https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scl=${getTileScale()}&style=8&x={x}&y={y}&z={z}`
+// 高德路网瓦片（style=8 = 道路+文字标注，256px）。
+// 实测：scl=1/缺省 = 带文字（透明叠加层，256px）；scl=2 = 512px 但无文字标注。
+// 免费瓦片无法同时满足「带文字 + 高清」，此方案优先保证文字标注。
+const TILE_URL = `https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&style=8&x={x}&y={y}&z={z}`
 const TILE_SUBDOMAINS = ['1', '2', '3', '4']
 const TILE_ATTRIBUTION = '&copy; 高德地图'
 const GEOFENCE_DELAY_MS = 120

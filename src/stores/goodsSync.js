@@ -117,7 +117,7 @@ async function importGoodsBackup(items, list, trashList) {
   return newItems.length
 }
 
-async function updateGoodsBackup(items, list) {
+async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(list.value.map((item) => [item.id, item]))
@@ -125,7 +125,7 @@ async function updateGoodsBackup(items, list) {
   // Filter items that need updating first (cheap), then restore in parallel (expensive I/O)
   const candidates = items.filter((remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
-    return localItem && shouldApplyRemoteBackup(localItem, remoteItem)
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply })
   })
 
   const results = await Promise.all(candidates.map(async (remoteItem) => {
@@ -187,7 +187,7 @@ async function importTrashBackup(items, trashList, purgedTrashIds = null) {
   return newItems.length
 }
 
-async function updateTrashBackup(items, trashList, purgedTrashIds = null) {
+async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forceReapply = false } = {}) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
@@ -195,7 +195,7 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null) {
   const candidates = items.filter((remoteItem) => {
     if (purgedTrashIds?.has(String(remoteItem?.id || '').trim())) return false
     const localItem = existingMap.get(remoteItem.id)
-    return localItem && shouldApplyRemoteBackup(localItem, remoteItem)
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply })
   })
 
   const results = await Promise.all(candidates.map(async (remoteItem) => {

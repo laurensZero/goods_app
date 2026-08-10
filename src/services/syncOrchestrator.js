@@ -110,7 +110,7 @@ export function createSyncOrchestrator({
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
-    const { tables, since = 0, silent = false } = opts
+    const { tables, since = 0, silent = false, schemaResync = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
     const isIncremental = since > 0 && !!be.pullAll
@@ -186,16 +186,23 @@ export function createSyncOrchestrator({
 
       // 3. Full mode: diff
       const diff = diffLocalRemote(stores, remoteData)
-      if (!diff.hasChanges) {
+      // Schema resync（同步格式版本升级回填）：旧版本拉取时丢弃了新字段并把水位线推进到
+      // 这些行之后，增量拉取不会重放它们。此处全量重拉，令所有行参与图片水合，
+      // 并让 merge 按 >= 重放相等时间戳的远端行（mergeToLocal 的 forceReapply）。
+      if (schemaResync) {
+        diff.changedGoodsIds = new Set((remoteData.goods || []).map(g => g.id))
+        diff.changedTrashIds = new Set((remoteData.trash || []).map(t => t.id))
+        diff.hasChanges = true
+      } else if (!diff.hasChanges) {
         await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
         await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
         return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
       }
 
-      // 4. Conflict detection (non-silent only)
+      // 4. Conflict detection (non-silent only; schema resync 直接回填，不弹冲突)
       const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
       const localChanges = conflict.getLocalChangesSince(localSyncTime)
-      if (!silent && localChanges.hasChanges) {
+      if (!silent && !schemaResync && localChanges.hasChanges) {
         log.warn('pull:conflict', { localSyncTime, remoteTime: remoteData.manifest?.lastSyncAt, remoteDevice: remoteData.manifest?.deviceId })
         return {
           action: 'conflict', statusMessage: 'sync.remoteDataDetected',
@@ -219,8 +226,9 @@ export function createSyncOrchestrator({
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
           const merged = await mergeToLocal(stores, remoteData, {
-            reconcileMissing: !remoteData.isIncremental, diff,
+            reconcileMissing: !remoteData.isIncremental && !schemaResync, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
+            forceReapply: schemaResync,
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             resolveRechargeImage: be?.getImagePublicUrl || null
@@ -240,8 +248,8 @@ export function createSyncOrchestrator({
       await flushDbWrites().catch(() => {})
       if (remoteData.manifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteData.manifest.lastSyncAt)
       await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
-      log.info('pull:done', { action: 'pulled', restoredImages: restoredCount, ...pullCounts })
-      return { action: 'pulled', ...pullCounts }
+      log.info('pull:done', { action: 'pulled', schemaResync, restoredImages: restoredCount, ...pullCounts })
+      return { action: 'pulled', schemaResync, ...pullCounts }
     } catch (e) {
       log.error('pull:failed', e)
       wrapSyncError(e, PHASE_PULL)

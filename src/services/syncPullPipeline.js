@@ -158,6 +158,8 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  * @param {object} remoteData - remote data from readRemoteData
  * @param {object} opts
  * @param {boolean} opts.reconcileMissing - if true, delete local items not present in remote
+ * @param {boolean} opts.forceReapply - if true, apply remote rows even when timestamps are equal
+ *   (used by schema-format-version resync to backfill fields an older build stripped from local rows)
  * @param {object} opts.diff - diff result from diffLocalRemote
  * @param {Function} opts.shouldApplyRemoteItem - conflict resolver
  * @param {Set<string>|Function|null} opts.dirtyGoodsIds - 本地未推送改动的商品 id（或返回该集合的 getter），reconcile 删除时排除
@@ -165,7 +167,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -201,11 +203,11 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   // Import new + update existing
   if (goods.length > 0) {
     await goodsStore.importGoodsBackup(goods)
-    await goodsStore.updateGoodsBackup(goods)
+    await goodsStore.updateGoodsBackup(goods, { forceReapply })
   }
   if (trash.length > 0) {
     await goodsStore.importTrashBackup(trash)
-    await goodsStore.updateTrashBackup(trash)
+    await goodsStore.updateTrashBackup(trash, { forceReapply })
   }
 
   // Reconcile: delete local items not in remote
@@ -249,7 +251,8 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     }
     await rechargeStore.importBackup(allRecharge, {
       reconcileMissing,
-      preserveLocalNewerThan: remoteWatermark
+      preserveLocalNewerThan: remoteWatermark,
+      forceReapply
     })
   }
 
@@ -260,7 +263,8 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   if (allEvents.length > 0) {
     await eventsStore.importEventsBackup(allEvents, {
       reconcileMissing,
-      preserveLocalNewerThan: remoteWatermark
+      preserveLocalNewerThan: remoteWatermark,
+      forceReapply
     })
   }
 
@@ -272,7 +276,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   const allGroups = [...groupsArr, ...groupsTrashArr]
   const allGroupItems = [...groupItemsArr, ...groupItemsTrashArr]
   if (allGroups.length > 0 || allGroupItems.length > 0) {
-    await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems)
+    await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems, { forceReapply })
   }
 
   // ── Presets ──

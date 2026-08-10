@@ -27,13 +27,16 @@ import {
   EVENT_COVER_PREFIX,
   EVENT_PHOTO_PREFIX,
   RECHARGE_IMAGE_PREFIX,
-  IMAGE_FILE_SIZE_LIMIT
+  IMAGE_FILE_SIZE_LIMIT,
+  SYNC_SCHEMA_VERSION
 } from '@/constants/syncConstants'
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
 // 服务器域水位线：最后已见 manifest synced_at（行域 LAST_SYNC_KEY 仅作增量拉取的 since）
 const LAST_SERVER_SYNC_KEY = 'sync_last_server_synced_at'
+// 同步数据格式版本：持久化的格式版本低于 SYNC_SCHEMA_VERSION 时，首次同步强制全量回填
+const SYNC_SCHEMA_VERSION_KEY = 'sync_schema_version'
 // 历史版本遗留（加密功能已移除，仅用于一次性清理）
 const LEGACY_SYNC_PASSWORD_KEY = 'sync_password'
 const DEVICE_ID_KEY = Capacitor.isNativePlatform() ? 'sync_native_device_id' : 'sync_web_device_id'
@@ -68,6 +71,10 @@ export const useSyncStore = defineStore('sync', () => {
   // 供 remote-ahead / 冲突分支判定，消除跨时钟域比较造成的误报冲突
   const lastServerSyncedAt = ref('')
   const pendingPush = ref(null) // crash-safe push 标记：{ ts, eventTs, deviceId }
+
+  // 同步数据格式版本升级待回填：init 时发现持久化格式版本低于当前版本即置位，
+  // 首次同步/拉取先做一次全量重放（时间戳相等也应用远端行）再固化为当前版本
+  const schemaResyncPending = ref(false)
 
   // ── Maintenance Mode ──
   // 从 sync_manifest.maintenance_mode JSONB 字段读取，零额外请求
@@ -380,18 +387,24 @@ export const useSyncStore = defineStore('sync', () => {
     const [
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal,
       syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal,
-      pendingPushVal, lastServerSyncedAtVal
+      pendingPushVal, lastServerSyncedAtVal, schemaVersionVal
     ] = await Promise.all([
       readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
       readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
       readSyncKey(SYNC_PAUSED_KEY),
-      readSyncKey(PENDING_PUSH_KEY), readSyncKey(LAST_SERVER_SYNC_KEY)
+      readSyncKey(PENDING_PUSH_KEY), readSyncKey(LAST_SERVER_SYNC_KEY), readSyncKey(SYNC_SCHEMA_VERSION_KEY)
     ])
 
     lastSyncedAt.value = lastSyncedAtVal || ''
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
     lastServerSyncedAt.value = lastServerSyncedAtVal || ''
+    // 持久化版本缺失（新装或从无门控的旧版本升级）按 0 处理：一律 < 当前版本，
+    // 首次同步做一次全量回填，把可能被旧版本丢弃的字段从云端补回
+    schemaResyncPending.value = Number(schemaVersionVal || 0) < SYNC_SCHEMA_VERSION
+    if (schemaResyncPending.value) {
+      console.warn(`[sync] schema format version ${Number(schemaVersionVal || 0)} < ${SYNC_SCHEMA_VERSION}, will force full re-sync`)
+    }
     deviceId.value = deviceIdVal
     syncBackend.value = syncBackendVal || 'supabase'
     supabaseUrl.value = supabaseUrlVal || ''
@@ -586,6 +599,23 @@ export const useSyncStore = defineStore('sync', () => {
     isPulling.value = false
   }
 
+  // ── 同步格式版本升级回填 ──
+  // 旧版本拉取新版本推送的行时，白名单 normalize 会丢弃新字段并把水位线推进到这些行之后，
+  // 升级后增量拉取不会重放它们（提示"数据最新"但字段缺失）。检测到格式版本升级时，
+  // 先做一次全量重拉 + forceReapply（时间戳相等也应用远端行）回填，成功后固化当前版本；
+  // 失败保留 pending，下次同步自动重试。此机制同时覆盖 APK 更新与 capgo OTA 更新：
+  // 两者都会更新 JS bundle，SYNC_SCHEMA_VERSION 常量随之变化，而持久化版本存于 Preferences。
+  async function runSchemaResync(runGen) {
+    console.warn('[sync] schema format upgrade detected, running full re-sync to backfill fields')
+    const result = await withRetry(
+      () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+      { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
+    )
+    schemaResyncPending.value = false
+    await writeSyncKey(SYNC_SCHEMA_VERSION_KEY, String(SYNC_SCHEMA_VERSION))
+    return result
+  }
+
   async function reconnectOnNetworkError(error) {
     if (!isSupabaseMode()) return
     const msg = String(error?.message || '').toLowerCase()
@@ -655,6 +685,12 @@ export const useSyncStore = defineStore('sync', () => {
           publishSyncNotice({ source, level: 'error', message: error.message })
         }
         return { action: 'skipped', reason: 'goods_load_failed' }
+      }
+
+      // 格式版本升级：先强制全量回填丢失字段，再走正常同步推送本地改动
+      if (schemaResyncPending.value) {
+        const resyncResult = await runSchemaResync(runGen)
+        if (runGen !== syncGeneration) return resyncResult
       }
 
       const domains = consumeDirtyDomains()
@@ -763,6 +799,14 @@ export const useSyncStore = defineStore('sync', () => {
           publishSyncNotice({ source, level: 'warning', message: msg })
         }
         return { action: 'skipped', reason: 'maintenance_mode' }
+      }
+
+      // 格式版本升级：全量回填优先于本次增量拉取
+      if (schemaResyncPending.value) {
+        const resyncResult = await runSchemaResync(runGen)
+        if (runGen !== syncGeneration) return resyncResult
+        syncStatus.value = translateStatusMessage(resyncResult)
+        return resyncResult
       }
 
       if (isIncremental) {
@@ -925,6 +969,7 @@ export const useSyncStore = defineStore('sync', () => {
   return {
     lastSyncedAt, eventLastSyncedAt, deviceId,
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
+    schemaResyncPending,
     isConfigured, init,
     getLocalChangesSinceLastSync, sync, pull, resolveConflict, resolvePullConflict,
     autoPushGoods, markGoodsIdsDirty,

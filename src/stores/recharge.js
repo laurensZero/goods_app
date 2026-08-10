@@ -331,7 +331,7 @@ export const useRechargeStore = defineStore('recharge', () => {
       .map((item) => toBackupRecord(item, { stripImage }))
   }
 
-  async function importBackup(list = [], { reconcileMissing = false, preserveLocalNewerThan = 0 } = {}) {
+  async function importBackup(list = [], { reconcileMissing = false, preserveLocalNewerThan = 0, forceReapply = false } = {}) {
     if (!Array.isArray(list) || list.length === 0) {
       const result = { added: 0, updated: 0, removed: 0, skipped: 0, total: records.value.length }
       log.debug('backup:import:skipped', { reason: 'empty', result })
@@ -360,8 +360,9 @@ export const useRechargeStore = defineStore('recharge', () => {
       }
 
       // 严格大于：增量拉取的时钟重叠窗口会拉回本机刚推送的行（时间戳相等），
-      // 用 >= 会把它们计为 updated，绕过下方 noop 早退导致每次拉取全表重写 + 整屏重渲染
-      if (Number(incoming.updatedAt || 0) > Number(existing.updatedAt || 0)) {
+      // 用 >= 会把它们计为 updated，绕过下方 noop 早退导致每次拉取全表重写 + 整屏重渲染。
+      // forceReapply 仅由同步格式版本升级回填开启：此时需要重放相等时间戳的远端行
+      if (Number(incoming.updatedAt || 0) > Number(existing.updatedAt || 0) || forceReapply) {
         currentMap.set(id, incoming)
         updated += 1
       } else {

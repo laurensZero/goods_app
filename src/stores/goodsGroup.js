@@ -330,7 +330,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
 
   // LWW 合并单行：远端更新则取远端并标记变更。时间戳相等的删除态若本地已删除则
   // 视为无变化——增量拉取的时钟重叠窗口会反复拉回本机刚推送的行。
-  function mergeRemoteRow(local, remote, markChanged) {
+  function mergeRemoteRow(local, remote, markChanged, forceReapply = false) {
     if (!remote) return local
     const remoteTs = remote.updatedAt || 0
     const localTs = local.updatedAt || 0
@@ -339,19 +339,19 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       markChanged()
       return remote
     }
-    if (remoteTs > localTs) {
+    if (remoteTs > localTs || (forceReapply && remoteTs === localTs)) {
       markChanged()
       return remote
     }
     return local
   }
 
-  async function updateGroupsBackup(groups, items) {
+  async function updateGroupsBackup(groups, items, { forceReapply = false } = {}) {
     if (Array.isArray(groups) && groups.length > 0) {
       const remoteMap = new Map(groups.map(g => [g.id, g]))
       let changed = false
       const markChanged = () => { changed = true }
-      const merged = groupList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged))
+      const merged = groupList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply))
       // 添加远端有、本地没有的
       const localIds = new Set(groupList.value.map(g => g.id))
       for (const remote of groups) {
@@ -370,7 +370,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       const remoteMap = new Map(items.map(i => [i.id, i]))
       let changed = false
       const markChanged = () => { changed = true }
-      const merged = groupItemList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged))
+      const merged = groupItemList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply))
       const localIds = new Set(groupItemList.value.map(i => i.id))
       for (const remote of items) {
         if (!localIds.has(remote.id)) {
