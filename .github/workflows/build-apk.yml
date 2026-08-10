@@ -79,10 +79,20 @@ jobs:
             echo "::error::Secret 未配置或读取为空！"
             exit 1
           fi
+          if [ -z "${{ secrets.VITE_AMAP_KEY }}" ]; then
+            echo "::error::Secret VITE_AMAP_KEY 未配置或读取为空！"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_AMAP_SECURITY_CODE }}" ]; then
+            echo "::error::Secret VITE_AMAP_SECURITY_CODE 未配置或读取为空！"
+            exit 1
+          fi
 
       - name: Build web assets and sync Android project
         env:
           VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
+          VITE_AMAP_KEY: ${{ secrets.VITE_AMAP_KEY }}
+          VITE_AMAP_SECURITY_CODE: ${{ secrets.VITE_AMAP_SECURITY_CODE }}
         run: npm run build:android
 
       - name: Prepare Gradle wrapper
@@ -192,11 +202,21 @@ jobs:
             echo "::error::Secret 未配置或读取为空！"
             exit 1
           fi
+          if [ -z "${{ secrets.VITE_AMAP_KEY }}" ]; then
+            echo "::error::Secret VITE_AMAP_KEY 未配置或读取为空！"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_AMAP_SECURITY_CODE }}" ]; then
+            echo "::error::Secret VITE_AMAP_SECURITY_CODE 未配置或读取为空！"
+            exit 1
+          fi
       - name: Build web assets and sync Android project
         env:
           VITE_APP_VERSION: ${{ steps.release_meta.outputs.version_name }}
           VITE_ANDROID_VERSION_NAME: ${{ steps.release_meta.outputs.version_name }}
           VITE_GITHUB_OAUTH_CLIENT_ID: ${{ secrets.VITE_GITHUB_OAUTH_CLIENT_ID }}
+          VITE_AMAP_KEY: ${{ secrets.VITE_AMAP_KEY }}
+          VITE_AMAP_SECURITY_CODE: ${{ secrets.VITE_AMAP_SECURITY_CODE }}
         run: npm run build:android
 
       - name: Prepare Gradle wrapper

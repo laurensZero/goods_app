@@ -136,6 +136,7 @@
   "events.map.unlocated": "未定位活動",
   "events.map.unlocatedCount": "共 {count} 場無法在地圖上顯示",
   "events.map.venueEvents": "此地點的活动",
+  "events.map.loadFailed": "地圖載入失敗，請檢查網路後重試",
   "events.matchingEvents": "匹配活動",
   "events.monthSuffix": "月",
   "events.myEvents": "我的活動",

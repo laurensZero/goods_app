@@ -230,8 +230,23 @@ jobs:
             echo "No notes provided"
           fi
 
+      - name: Validate AMap secret
+        if: steps.version.outputs.rollback != 'true'
+        run: |
+          if [ -z "${{ secrets.VITE_AMAP_KEY }}" ]; then
+            echo "::error::Secret VITE_AMAP_KEY 未配置或读取为空！"
+            exit 1
+          fi
+          if [ -z "${{ secrets.VITE_AMAP_SECURITY_CODE }}" ]; then
+            echo "::error::Secret VITE_AMAP_SECURITY_CODE 未配置或读取为空！"
+            exit 1
+          fi
+
       - name: Build web assets
         if: steps.version.outputs.rollback != 'true'
+        env:
+          VITE_AMAP_KEY: ${{ secrets.VITE_AMAP_KEY }}
+          VITE_AMAP_SECURITY_CODE: ${{ secrets.VITE_AMAP_SECURITY_CODE }}
         run: npm run build
 
       - name: Create bundle archive

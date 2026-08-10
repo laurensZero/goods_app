@@ -330,6 +330,8 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
 
   // LWW 合并单行：远端更新则取远端并标记变更。时间戳相等的删除态若本地已删除则
   // 视为无变化——增量拉取的时钟重叠窗口会反复拉回本机刚推送的行。
+  // ⚠️ groups/groupItems 目前直通远端整行（无白名单）。若将来引入白名单裁剪字段，
+  // 增删会同步的字段时必须 bump `src/constants/syncConstants.js` 的 SYNC_SCHEMA_VERSION。
   function mergeRemoteRow(local, remote, markChanged, forceReapply = false) {
     if (!remote) return local
     const remoteTs = remote.updatedAt || 0

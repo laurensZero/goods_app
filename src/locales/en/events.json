@@ -136,6 +136,7 @@
   "events.map.unlocated": "Unlocated events",
   "events.map.unlocatedCount": "{count} events cannot be shown on the map",
   "events.map.venueEvents": "Events at this place",
+  "events.map.loadFailed": "Map failed to load. Check your network and retry.",
   "events.matchingEvents": "Matching Events",
   "events.monthSuffix": "",
   "events.myEvents": "My Events",

@@ -136,6 +136,7 @@
   "events.map.unlocated": "未定位のイベント",
   "events.map.unlocatedCount": "{count} 件は地図に表示できません",
   "events.map.venueEvents": "この場所のイベント",
+  "events.map.loadFailed": "地図の読み込みに失敗しました。ネットワークを確認して再度お試しください",
   "events.matchingEvents": "一致するイベント",
   "events.monthSuffix": "月",
   "events.myEvents": "マイイベント",
