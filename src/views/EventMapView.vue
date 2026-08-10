@@ -1,5 +1,5 @@
 <template>
-  <div ref="pageElRef" class="page event-map-page">
+  <div class="page event-map-page">
     <NavBar :title="t('events.map.title')" show-back @back="handleBackNavigation">
       <template #right>
         <button
@@ -123,11 +123,9 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
@@ -135,21 +133,20 @@ import { useEventsStore } from '@/stores/events'
 import { useThemeStore } from '@/stores/theme'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import { normalizeCityName, resolveCityCoords } from '@/utils/events/cityCoordinates'
-import { runWithRouteTransition } from '@/utils/routeTransition'
+import { loadAmap } from '@/utils/amap'
+import { playRouteSceneSlide, runWithRouteTransition } from '@/utils/routeTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 
 defineOptions({ name: 'EventMapView' })
 
-const CHINA_CENTER = [34.5, 106]
+// 高德 JS API 使用 [经度, 纬度] 顺序（Leaflet 相反），所有坐标需转换
+const CHINA_CENTER = [106, 34.5]
 const CHINA_ZOOM = 4
 // 中国范围（含南海诸岛）加少量边距；限制地图可平移/缩放的区域，避免缩到全球或漂到海上
-const CHINA_BOUNDS = [[0, 66], [58, 146]]
-// 高德路网瓦片（style=8 = 道路+文字标注，256px）。
-// 实测：scl=1/缺省 = 带文字（透明叠加层，256px）；scl=2 = 512px 但无文字标注。
-// 免费瓦片无法同时满足「带文字 + 高清」，此方案优先保证文字标注。
-const TILE_URL = `https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&style=8&x={x}&y={y}&z={z}`
-const TILE_SUBDOMAINS = ['1', '2', '3', '4']
-const TILE_ATTRIBUTION = '&copy; 高德地图'
+const CHINA_BOUNDS = { minLat: 0, minLng: 66, maxLat: 58, maxLng: 146 }
+const MIN_ZOOM = 3
+// 移动端高德 JS API 2.0 支持到 20 级，放开上限让用户可以缩得更近、细节更清楚
+const MAX_ZOOM = 20
 const GEOFENCE_DELAY_MS = 120
 const MAP_VIEW_STATE_KEY = 'event_map_view_state'
 
@@ -160,17 +157,30 @@ const themeStore = useThemeStore()
 const { toastMsg, showToast } = useToast()
 
 const mapElRef = ref(null)
-const pageElRef = ref(null)
 const selectedPin = ref(null)
 const showUnlocated = ref(false)
 const geocoding = ref(false)
 const geocodeProgress = ref({ current: 0, total: 0 })
 
+let amap = null
 let map = null
-let markerLayer = null
+let markers = []
 let fitBoundsDone = false
 let exiting = false
+// 从地图点了 pin 进详情后返回时，需要补一次标准返回滑入动画（KeepAlive 复用不重挂载，无过渡）
+let expectingDetailReturn = false
 let removeAndroidBackListener = null
+
+function bindAndroidBackButton() {
+  if (removeAndroidBackListener) return
+  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+}
+
+function unbindAndroidBackButton() {
+  if (!removeAndroidBackListener) return
+  removeAndroidBackListener()
+  removeAndroidBackListener = null
+}
 
 function hasStoredCoords(evt) {
   const lat = String(evt?.latitude || '').trim()
@@ -304,7 +314,8 @@ function restoreMapView() {
   if (!map) return
   const saved = loadMapViewState()
   if (!saved) return
-  map.setView(saved.center, saved.zoom, { animate: false })
+  // immediately=true：无动画直接跳到保存的视图，避免从全国视野缓慢缩放回原位
+  map.setZoomAndCenter(saved.zoom, [saved.center[1], saved.center[0]], true)
   fitBoundsDone = true
 }
 
@@ -312,97 +323,113 @@ function openEvent(evt) {
   const eventId = String(evt?.id || '')
   if (!eventId) return
   saveMapViewState()
+  expectingDetailReturn = true
   selectedPin.value = null
   showUnlocated.value = false
   runWithRouteTransition(() => router.push(`/events/${eventId}`).catch(() => {}), { direction: 'forward' })
 }
 
-function initMap() {
+function clamp(v, min, max) {
+  return Math.min(max, Math.max(min, v))
+}
+
+// 平移/缩放结束后若中心漂出中国范围，拉回边界内（相当于 Leaflet 的 maxBounds）
+function clampMapView() {
+  if (!map) return
+  const center = map.getCenter()
+  const lat = center.lat
+  const lng = center.lng
+  const clampedLat = clamp(lat, CHINA_BOUNDS.minLat, CHINA_BOUNDS.maxLat)
+  const clampedLng = clamp(lng, CHINA_BOUNDS.minLng, CHINA_BOUNDS.maxLng)
+  if (clampedLat !== lat || clampedLng !== lng) {
+    map.setCenter([clampedLng, clampedLat], false)
+  }
+}
+
+function applyMapStyle() {
+  if (!map) return
+  map.setMapStyle(isDarkMap.value ? 'amap://styles/dark' : 'amap://styles/normal')
+}
+
+async function initMap() {
   if (map || !mapElRef.value) return
-  map = L.map(mapElRef.value, {
-    center: CHINA_CENTER,
-    zoom: CHINA_ZOOM,
-    minZoom: 3,
-    maxBounds: CHINA_BOUNDS,
-    maxBoundsViscosity: 1,
-    zoomControl: true,
-    attributionControl: true
+  amap = await loadAmap()
+  // 从详情页返回时直接用保存的视图初始化，避免先渲染全国视野再动画过渡到原位置
+  const saved = loadMapViewState()
+  map = new amap.Map(mapElRef.value, {
+    center: saved ? [saved.center[1], saved.center[0]] : CHINA_CENTER,
+    zoom: saved ? saved.zoom : CHINA_ZOOM,
+    zooms: [MIN_ZOOM, MAX_ZOOM],
+    viewMode: '2D',
+    // 关闭程序化视图切换动画（setFitView/setZoomAndCenter/setCenter 全部立即跳转）
+    animateEnable: false,
+    resizeEnable: true,
+    mapStyle: isDarkMap.value ? 'amap://styles/dark' : 'amap://styles/normal'
   })
-  L.tileLayer(TILE_URL, {
-    subdomains: TILE_SUBDOMAINS,
-    maxZoom: 18,
-    attribution: TILE_ATTRIBUTION
-  }).addTo(map)
-  markerLayer = L.layerGroup().addTo(map)
   map.on('click', () => {
     selectedPin.value = null
+  })
+  map.on('moveend', clampMapView)
+  if (saved) fitBoundsDone = true
+  // AMap 构造参数 center/zoom 在首帧不一定生效（异步初始化/添加 Marker 后可能被重置），
+  // 地图初始化完成后重新套用保存的视图作为兜底，保证返回时原位原比例
+  map.on('complete', () => {
+    if (saved) {
+      map.setZoomAndCenter(saved.zoom, [saved.center[1], saved.center[0]], true)
+    }
   })
 }
 
 function rebuildMarkers() {
-  if (!map || !markerLayer) return
-  markerLayer.clearLayers()
+  if (!map || !amap) return
+  for (const marker of markers) {
+    marker.setMap(null)
+  }
+  markers = []
   const pins = mapPins.value.pins
   if (pins.length === 0) {
-    map.setView(CHINA_CENTER, CHINA_ZOOM)
+    map.setZoomAndCenter(CHINA_ZOOM, CHINA_CENTER, false)
     fitBoundsDone = true
     return
   }
 
   for (const pin of pins) {
-    const icon = L.divIcon({
-      className: 'map-pin-wrap',
-      html: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.events.length}</div>`,
-      iconSize: [34, 34],
-      iconAnchor: [17, 17]
-    })
-    const marker = L.marker([pin.lat, pin.lng], {
-      icon,
-      title: pin.fallback ? '' : pin.events[0]?.name || ''
+    const marker = new amap.Marker({
+      position: [pin.lng, pin.lat],
+      anchor: 'center',
+      content: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.events.length}</div>`,
+      title: pin.fallback ? '' : (pin.events[0]?.name || '')
     })
     marker.on('click', (e) => {
-      // 阻止冒泡到 map 的 click，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
-      if (e?.originalEvent) {
-        L.DomEvent.stopPropagation(e.originalEvent)
-      }
+      // 阻止 DOM 事件冒泡到地图容器，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
+      e?.originalEvent?.stopPropagation?.()
       selectedPin.value = pin
     })
-    markerLayer.addLayer(marker)
+    marker.setMap(map)
+    markers.push(marker)
   }
 
   if (!fitBoundsDone) {
     fitBoundsDone = true
-    const bounds = L.latLngBounds(pins.map((pin) => [pin.lat, pin.lng]))
-    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 12 })
+    // avoid = [上, 右, 下, 左] 的像素内边距，maxZoom 限制单点时的最大放大级别
+    map.setFitView(markers, false, [48, 48, 48, 48], 12)
   }
 }
 
 function exitMap() {
   if (exiting) return
   exiting = true
-  const reducedMotion = typeof window !== 'undefined'
-    ? (window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches || false)
-    : false
-  const finish = () => {
-    // 彻底离开地图页：清掉保存的视图状态，下次进入重新 fitBounds
-    clearMapViewState()
-    const historyState = router.options.history.state
-    if (historyState?.back != null) {
-      runWithRouteTransition(() => router.back(), { direction: 'back' })
-    } else {
-      runWithRouteTransition(() => router.replace('/events'), { direction: 'back' })
-    }
+  expectingDetailReturn = false
+  // 与其他页面统一：直接走标准返回过渡（runWithRouteTransition 会对目标页做滑入动画），
+  // 不再叠加整页平移/淡出，避免过渡过重
+  // 彻底离开地图页：清掉保存的视图状态，下次进入重新 fitBounds
+  clearMapViewState()
+  const historyState = router.options.history.state
+  if (historyState?.back != null) {
+    runWithRouteTransition(() => router.back(), { direction: 'back' })
+  } else {
+    runWithRouteTransition(() => router.replace('/events'), { direction: 'back' })
   }
-  const pageEl = pageElRef.value
-  if (!pageEl || reducedMotion) {
-    finish()
-    return
-  }
-  // 整页右移淡出，再返回列表页，避免地图瞬间消失没有过渡
-  pageEl.style.transition = 'transform 0.26s cubic-bezier(0.22, 0.8, 0.22, 1), opacity 0.22s ease'
-  pageEl.style.transform = 'translateX(28%)'
-  pageEl.style.opacity = '0'
-  setTimeout(finish, 250)
 }
 
 function handleBackNavigation() {
@@ -473,8 +500,7 @@ watch(mapPins, () => {
 }, { deep: true })
 
 watch(isDarkMap, () => {
-  if (!map) return
-  requestAnimationFrame(() => map.invalidateSize())
+  applyMapStyle()
 })
 
 onMounted(async () => {
@@ -482,20 +508,47 @@ onMounted(async () => {
     await eventsStore.init()
   }
   await nextTick()
-  initMap()
-  restoreMapView()
+  try {
+    await initMap()
+    // 先放 Marker 再恢复视图：AMap 添加 Marker 后 zoom 可能被内部重置，最后恢复才能保证原位原比例
+    rebuildMarkers()
+    restoreMapView()
+  } catch (e) {
+    console.error('amap init failed', e)
+    showToast(t('events.map.loadFailed'))
+  }
+  bindAndroidBackButton()
+})
+
+// 地图页已加入 KeepAlive：从详情返回时实例不销毁，无需重新初始化（避免白屏重新加载）
+onActivated(() => {
+  // KeepAlive 缓存了组件级状态，重新进入地图页时重置退出标志，保证返回键可用
+  exiting = false
+  bindAndroidBackButton()
+  const isDetailReturn = expectingDetailReturn
+  expectingDetailReturn = false
+  if (!map) return
+  // 隐藏再显示后容器尺寸可能失效，下一帧再重新测量（此时布局才计算完成），并刷新 Marker
+  requestAnimationFrame(() => map.resize())
   rebuildMarkers()
-  requestAnimationFrame(() => map?.invalidateSize())
-  removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+  if (isDetailReturn) {
+    // 从详情页返回：KeepAlive 复用实例没有过渡，补一次标准返回滑入动画，与其他页面统一
+    playRouteSceneSlide('back')
+  }
+})
+
+onDeactivated(() => {
+  // 离开地图页（进详情/回列表）时解绑返回键，避免在其他页面误触发
+  unbindAndroidBackButton()
 })
 
 onBeforeUnmount(() => {
-  removeAndroidBackListener?.()
-  removeAndroidBackListener = null
+  unbindAndroidBackButton()
   if (map) {
-    map.remove()
+    map.destroy()
     map = null
-    markerLayer = null
+    amap = null
+    markers = []
   }
 })
 </script>
@@ -515,22 +568,11 @@ onBeforeUnmount(() => {
   z-index: 0;
 }
 
-.event-map :deep(.leaflet-container) {
+.event-map :deep(.amap-container) {
   width: 100%;
   height: 100%;
   background: color-mix(in srgb, var(--app-surface) 40%, var(--app-bg));
   font-family: inherit;
-}
-
-.event-map--dark :deep(.leaflet-container) {
-  background: #1c1c20;
-}
-
-/* 对整层 tile-pane 套 CSS 滤镜时，移动端 GPU 常对整个合成层降采样，瓦片明显发糊；
-   改为对单个瓦片过滤，清晰度和性能都更好 */
-.event-map--dark :deep(.leaflet-tile-pane .leaflet-tile) {
-  filter: invert(0.92) hue-rotate(180deg) saturate(0.75) brightness(0.92);
-  opacity: 0.92;
 }
 
 .map-legend {
@@ -782,12 +824,7 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* Leaflet divIcon 由 Leaflet 动态插入，需穿透作用域 */
-.event-map :deep(.map-pin-wrap) {
-  background: transparent;
-  border: none;
-}
-
+/* AMap Marker 内容由 SDK 动态注入，需穿透作用域 */
 .event-map :deep(.map-pin) {
   width: 34px;
   height: 34px;

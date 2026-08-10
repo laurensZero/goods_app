@@ -136,6 +136,7 @@
   "events.map.unlocated": "위치 없는 이벤트",
   "events.map.unlocatedCount": "{count}개 이벤트는 지도에 표시할 수 없습니다",
   "events.map.venueEvents": "이 장소의 이벤트",
+  "events.map.loadFailed": "지도를 불러오지 못했습니다. 네트워크를 확인한 후 다시 시도해 주세요",
   "events.matchingEvents": "일치하는 이벤트",
   "events.monthSuffix": "월",
   "events.myEvents": "내 이벤트",

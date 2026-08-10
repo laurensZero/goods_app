@@ -138,3 +138,15 @@ export function runManageForwardNavigation(navigate) {
 export function runManageBackNavigation(navigate) {
   return runWithRouteTransition(navigate, { direction: 'back', manageSlide: 'back' })
 }
+
+/**
+ * 手动播放当前路由页的一次滑入动画（direction 决定从左侧/右侧进入）。
+ * 用于 KeepAlive 复用的页面在返回激活时补齐过渡效果（如活动地图从详情页返回），
+ * 内部同样做 reduced-motion 判断。
+ */
+export function playRouteSceneSlide(direction = 'forward') {
+  requestAnimationFrame(() => {
+    const scene = getRouteScene()
+    if (scene) animateScene(scene, direction)
+  })
+}

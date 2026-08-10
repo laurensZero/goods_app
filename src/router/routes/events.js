@@ -15,7 +15,7 @@ export default [
     path: '/events/map',
     name: 'event-map',
     component: () => import('@/views/EventMapView.vue'),
-    meta: { titleKey: 'events.map.title' }
+    meta: { titleKey: 'events.map.title', keepAlive: true }
   },
   {
     path: '/events/edit/:id',

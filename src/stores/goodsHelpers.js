@@ -332,6 +332,8 @@ function diffRemovedManagedImagePaths(previousItem, nextItem) {
 }
 
 /**
+ * goods 行字段白名单。⚠️ 增删此函数收/放的字段会影响同步：旧版本会丢弃新字段并越过水位线，
+ * 升级后不会重放。新增会同步的字段时必须 bump `src/constants/syncConstants.js` 的 SYNC_SCHEMA_VERSION。
  * @param {Record<string, any>} data
  * @param {string} fallbackId
  * @returns {import('@/types/models').GoodsItem}
