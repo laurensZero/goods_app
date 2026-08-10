@@ -144,16 +144,15 @@ const CHINA_CENTER = [34.5, 106]
 const CHINA_ZOOM = 4
 // 中国范围（含南海诸岛）加少量边距；限制地图可平移/缩放的区域，避免缩到全球或漂到海上
 const CHINA_BOUNDS = [[0, 66], [58, 146]]
-// 高德瓦片 scale 与设备像素比对齐：高分屏用更高分辨率瓦片，避免浏览器放大导致发糊
-// （瓦片 CSS 尺寸仍是 256px，仅实际像素数提升，Leaflet tileSize 无需改动）
+// 高德瓦片高清参数是 scl（不是 scale）：scl=1=256px，scl=2=512px（最高）。
+// 512px 瓦片显示在 256px 的 CSS 槽里（Leaflet tileSize 不变），缩小永远清晰、放大才糊。
+// 注意：Windows 常见 125%/150% 显示缩放会让 dpr=1.25/1.5，若仍用 256px 瓦片会被放大而发糊，
+// 所以只要 dpr>1 就取 512px。
 function getTileScale() {
-  if (typeof window === 'undefined') return 1
-  const dpr = window.devicePixelRatio || 1
-  if (dpr >= 3) return 3
-  if (dpr >= 2) return 2
-  return 1
+  if (typeof window === 'undefined') return 2
+  return window.devicePixelRatio > 1 ? 2 : 1
 }
-const TILE_URL = `https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=${getTileScale()}&style=8&x={x}&y={y}&z={z}`
+const TILE_URL = `https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scl=${getTileScale()}&style=8&x={x}&y={y}&z={z}`
 const TILE_SUBDOMAINS = ['1', '2', '3', '4']
 const TILE_ATTRIBUTION = '&copy; 高德地图'
 const GEOFENCE_DELAY_MS = 120
@@ -528,11 +527,14 @@ onBeforeUnmount(() => {
   font-family: inherit;
 }
 
-.event-map--dark :deep(.leaflet-tile-pane) {
-  filter: invert(0.92) hue-rotate(180deg) saturate(0.75) brightness(0.92);
+.event-map--dark :deep(.leaflet-container) {
+  background: #1c1c20;
 }
 
-.event-map--dark :deep(.leaflet-tile) {
+/* 对整层 tile-pane 套 CSS 滤镜时，移动端 GPU 常对整个合成层降采样，瓦片明显发糊；
+   改为对单个瓦片过滤，清晰度和性能都更好 */
+.event-map--dark :deep(.leaflet-tile-pane .leaflet-tile) {
+  filter: invert(0.92) hue-rotate(180deg) saturate(0.75) brightness(0.92);
   opacity: 0.92;
 }
 
