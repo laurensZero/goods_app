@@ -165,6 +165,10 @@ const geocodeProgress = ref({ current: 0, total: 0 })
 let amap = null
 let map = null
 let markers = []
+let clusterer = null
+let clustererReady = false
+// 聚合插件渲染单点时通过坐标反查对应 pin（插件内部把数据点封装成 marker，拿不到原始点对象）
+const pinLookup = new Map()
 let fitBoundsDone = false
 let exiting = false
 // 从地图点了 pin 进详情后返回时，需要补一次标准返回滑入动画（KeepAlive 复用不重挂载，无过渡）
@@ -370,6 +374,7 @@ async function initMap() {
     selectedPin.value = null
   })
   map.on('moveend', clampMapView)
+  await initClusterer()
   if (saved) fitBoundsDone = true
   // AMap 构造参数 center/zoom 在首帧不一定生效（异步初始化/添加 Marker 后可能被重置），
   // 地图初始化完成后重新套用保存的视图作为兜底，保证返回时原位原比例
@@ -380,12 +385,136 @@ async function initMap() {
   })
 }
 
+// 初始化聚合插件（AMap.MarkerCluster，注意 2.0 已从 MarkerClusterer 更名，且直接传点数据而非 Marker）。
+// 插件加载失败/超时不阻塞地图渲染：clustererReady 保持 false，rebuildMarkers 会退回直接渲染单点。
+function initClusterer() {
+  return new Promise((resolve) => {
+    let done = false
+    const timer = setTimeout(() => {
+      if (done) return
+      done = true
+      console.warn('amap: MarkerCluster plugin load timeout, skip clustering')
+      resolve()
+    }, 5000)
+    try {
+      amap.plugin(['AMap.MarkerCluster'], () => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        clustererReady = true
+        resolve()
+      })
+    } catch (e) {
+      clearTimeout(timer)
+      done = true
+      console.warn('amap: MarkerCluster plugin request failed', e)
+      resolve()
+    }
+  })
+}
+
+function destroyClusterer() {
+  if (clusterer) {
+    clusterer.setMap(null)
+    clusterer = null
+  }
+}
+
+// 单个（未聚合）活动点渲染：保留原有 pin 样式与点击弹层行为
+function renderMarker(context) {
+  const pos = context.marker.getPosition()
+  const pin = pinLookup.get(`${pos.getLat().toFixed(5)},${pos.getLng().toFixed(5)}`)
+  context.marker.setContent(
+    `<div class="map-pin ${pin?.fallback ? 'map-pin--fallback' : ''}">${pin ? pin.events.length : '1'}</div>`
+  )
+  context.marker.setOffset(new amap.Pixel(-17, -17))
+  context.marker.setTitle(pin?.fallback ? '' : (pin?.events[0]?.name || ''))
+  if (!context.marker._clusterPinBound) {
+    context.marker._clusterPinBound = true
+    context.marker.on('click', (e) => {
+      // 阻止 DOM 事件冒泡到地图容器，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
+      e?.originalEvent?.stopPropagation?.()
+      if (pin) selectedPin.value = pin
+    })
+  }
+}
+
+// 临时开启地图动画平滑放大一级（地图配置了 animateEnable: false，程序化视图切换默认立即跳转，
+// 直接 setZoomAndCenter 会让聚合点"啪"地散开）。动画结束后恢复，避免影响 fitBounds/详情返回的立即跳转。
+const CLUSTER_ZOOM_DURATION_MS = 380
+let clusterZoomRestoreTimer = null
+
+function restoreAnimateStatus() {
+  if (!map) return
+  map.setStatus({ animateEnable: false })
+  if (clusterZoomRestoreTimer) {
+    clearTimeout(clusterZoomRestoreTimer)
+    clusterZoomRestoreTimer = null
+  }
+}
+
+function zoomInOnCluster(center) {
+  if (!map) return
+  map.setStatus({ animateEnable: true })
+  map.setZoomAndCenter(map.getZoom() + 1, center, false, CLUSTER_ZOOM_DURATION_MS)
+  // zoomend 一定触发（含被用户手势打断的情况），再加超时兜底，保证 animateEnable 恢复
+  map.once('zoomend', restoreAnimateStatus)
+  clusterZoomRestoreTimer = setTimeout(restoreAnimateStatus, CLUSTER_ZOOM_DURATION_MS + 400)
+}
+
+// 聚合点渲染：显示聚合点内的活动总数（各点 events 之和），与单点 pin 上显示活动数保持一致；
+// 注意 context.count 是聚合点内"地点"数量，若直接用它，8 个活动的点 + 1 个活动的点会显示 2 而非 9。
+// context.clusterData 官方未在文档中保证完整性：权重聚合下可能只保留最高权重代表点，大聚合下会被截断，
+// 直接求和会明显小于真实活动总数。每个成员内部挂载的 _amapMarker.originData 保留了该成员的原始点数据
+// （官方工单给出的取法，见 react-amap#340），优先展开它再求和，以还原完整活动数。
+// 2.0 移除了内置的点击散开，这里手动点击平滑放大一级
+function collectClusterPoints(clusterData) {
+  const points = []
+  const seen = new Set()
+  for (const item of clusterData || []) {
+    const origin = item?._amapMarker?.originData
+    let candidates
+    if (Array.isArray(origin) && origin.length > 0) {
+      // originData 是二维数组，例如 [[pointA], [pointB, pointC]]，逐层拍平
+      candidates = []
+      for (const inner of origin) {
+        if (Array.isArray(inner)) candidates.push(...inner)
+        else candidates.push(inner)
+      }
+    } else {
+      candidates = [item]
+    }
+    for (const p of candidates) {
+      if (!p || seen.has(p)) continue
+      seen.add(p)
+      points.push(p)
+    }
+  }
+  return points
+}
+
+function renderClusterMarker(context) {
+  const points = collectClusterPoints(context.clusterData)
+  const total = points.reduce((sum, pt) => sum + (Number(pt.events) || Number(pt.weight) || 1), 0)
+  context.marker.setContent(`<div class="map-cluster">${total}</div>`)
+  context.marker.setOffset(new amap.Pixel(-22, -22))
+  if (!context.marker._clusterClickBound) {
+    context.marker._clusterClickBound = true
+    context.marker.on('click', () => {
+      const pos = context.marker.getPosition()
+      zoomInOnCluster([pos.getLng(), pos.getLat()])
+    })
+  }
+}
+
 function rebuildMarkers() {
   if (!map || !amap) return
+  destroyClusterer()
   for (const marker of markers) {
     marker.setMap(null)
   }
   markers = []
+  pinLookup.clear()
   const pins = mapPins.value.pins
   if (pins.length === 0) {
     map.setZoomAndCenter(CHINA_ZOOM, CHINA_CENTER, false)
@@ -394,26 +523,81 @@ function rebuildMarkers() {
   }
 
   for (const pin of pins) {
-    const marker = new amap.Marker({
-      position: [pin.lng, pin.lat],
-      anchor: 'center',
-      content: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.events.length}</div>`,
-      title: pin.fallback ? '' : (pin.events[0]?.name || '')
-    })
-    marker.on('click', (e) => {
-      // 阻止 DOM 事件冒泡到地图容器，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
-      e?.originalEvent?.stopPropagation?.()
-      selectedPin.value = pin
-    })
-    marker.setMap(map)
-    markers.push(marker)
+    pinLookup.set(pin.key, pin)
+  }
+
+  let clustered = false
+  if (clustererReady) {
+    // 点数据含经纬度字段 lnglat；weight 让聚合中心偏向活动更多的地点，
+    // events 与 weight 相同值，供 renderClusterMarker 汇总显示活动总数
+    const points = pins.map((pin) => ({
+      lnglat: [pin.lng, pin.lat],
+      weight: pin.events.length,
+      events: pin.events.length
+    }))
+    try {
+      clusterer = new amap.MarkerCluster(map, points, {
+        gridSize: 60,
+        // 超过该级别不再聚合，避免城市级别视野仍把附近地点揉在一起
+        maxZoom: 14,
+        averageCenter: true,
+        // 缩放过程中实时重新聚合（默认 false 只在缩放结束后聚合，缩放动画期间会一直显示旧聚合布局/旧数字）
+        clusterByZoomChange: true,
+        renderClusterMarker,
+        renderMarker
+      })
+      clustered = true
+    } catch (e) {
+      console.warn('amap: MarkerCluster init failed, fallback to single markers', e)
+      clusterer = null
+    }
+  }
+
+  if (!clustered) {
+    // 插件不可用/聚合初始化失败时的兜底：直接渲染单个点，不聚合
+    for (const pin of pins) {
+      const marker = new amap.Marker({
+        position: [pin.lng, pin.lat],
+        anchor: 'center',
+        content: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.events.length}</div>`,
+        title: pin.fallback ? '' : (pin.events[0]?.name || '')
+      })
+      marker.on('click', (e) => {
+        // 阻止 DOM 事件冒泡到地图容器，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
+        e?.originalEvent?.stopPropagation?.()
+        selectedPin.value = pin
+      })
+      marker.setMap(map)
+      markers.push(marker)
+    }
   }
 
   if (!fitBoundsDone) {
     fitBoundsDone = true
-    // avoid = [上, 右, 下, 左] 的像素内边距，maxZoom 限制单点时的最大放大级别
-    map.setFitView(markers, false, [48, 48, 48, 48], 12)
+    fitPins(pins)
   }
+}
+
+// 首次进入时把视野定位到全部活动点范围（聚合模式下拿不到单个 Marker 实例，用 Bounds 定位；
+// avoid = [上, 右, 下, 左] 像素内边距）。注意高德没有 LngLatBounds，只有 AMap.Bounds(southWest, northEast)
+function fitPins(pins) {
+  if (!map || !amap) return
+  if (pins.length === 1) {
+    map.setZoomAndCenter(12, [pins[0].lng, pins[0].lat])
+    return
+  }
+  let minLng = Infinity
+  let maxLng = -Infinity
+  let minLat = Infinity
+  let maxLat = -Infinity
+  for (const pin of pins) {
+    minLng = Math.min(minLng, pin.lng)
+    maxLng = Math.max(maxLng, pin.lng)
+    minLat = Math.min(minLat, pin.lat)
+    maxLat = Math.max(maxLat, pin.lat)
+  }
+  const bounds = new amap.Bounds([minLng, minLat], [maxLng, maxLat])
+  map.setBounds(bounds, false, [48, 48, 48, 48])
 }
 
 function exitMap() {
@@ -508,15 +692,17 @@ onMounted(async () => {
     await eventsStore.init()
   }
   await nextTick()
+  // 只有真正的地图初始化失败（AMap 脚本/地图实例构造）才提示失败；
+  // 渲染 marker / 定位视野的异常不弹 toast（rebuildMarkers 内部已做兜底）
   try {
     await initMap()
-    // 先放 Marker 再恢复视图：AMap 添加 Marker 后 zoom 可能被内部重置，最后恢复才能保证原位原比例
-    rebuildMarkers()
-    restoreMapView()
   } catch (e) {
     console.error('amap init failed', e)
     showToast(t('events.map.loadFailed'))
   }
+  // 先放 Marker 再恢复视图：AMap 添加 Marker 后 zoom 可能被内部重置，最后恢复才能保证原位原比例
+  rebuildMarkers()
+  restoreMapView()
   bindAndroidBackButton()
 })
 
@@ -545,6 +731,7 @@ onDeactivated(() => {
 onBeforeUnmount(() => {
   unbindAndroidBackButton()
   if (map) {
+    destroyClusterer()
     map.destroy()
     map = null
     amap = null
@@ -847,6 +1034,22 @@ onBeforeUnmount(() => {
   border: 2px dashed color-mix(in srgb, var(--app-text) 38%, transparent);
   box-shadow: none;
   font-size: 12px;
+}
+
+.event-map :deep(.map-cluster) {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--app-text) 30%, transparent);
+  border: 2px solid color-mix(in srgb, var(--app-surface) 92%, transparent);
+  transform-origin: center;
 }
 
 .map-sheet-enter-active,
