@@ -238,12 +238,22 @@
                 {{ monitorStore.items.length > 0 ? t('mihoyoStock.monitorCount', { count: monitorStore.items.length }) : t('mihoyoStock.empty') }}
               </h2>
             </div>
-            <button class="refresh-btn" type="button" :disabled="loading" @click="loadList">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <button
+              class="refresh-btn"
+              type="button"
+              :disabled="loading || monitorStore.rechecking || recheckCooldownLeft > 0"
+              @click="handleRefresh"
+            >
+              <svg v-if="monitorStore.rechecking" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9" stroke-dasharray="60" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 12a9 9 0 11-6.219-8.56" />
                 <polyline points="21 3 21 9 15 9" />
               </svg>
-              <span>{{ t('mihoyoStock.refresh') }}</span>
+              <span v-if="monitorStore.rechecking">{{ t('mihoyoStock.rechecking') }}</span>
+              <span v-else-if="recheckCooldownLeft > 0">{{ t('mihoyoStock.cooldown', { s: recheckCooldownLeft }) }}</span>
+              <span v-else>{{ t('mihoyoStock.refresh') }}</span>
             </button>
           </div>
 
@@ -336,7 +346,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
@@ -366,6 +376,8 @@ const adding = ref(false)
 const loading = ref(false)
 const loadError = ref('')
 const removingId = ref('')
+const recheckCooldownLeft = ref(0)
+let recheckCooldownTimer = null
 
 // ── 米游铺商品搜索（复用导入页同款搜索引擎，含角色感知） ──
 const search = useMihoyoGoodsSearch({ scrollRootSelector: '.monitor-page .page-body' })
@@ -443,6 +455,45 @@ async function loadList() {
     loadError.value = e.message || t('common.loadingFailed')
   } finally {
     loading.value = false
+  }
+}
+
+// ── 手动重检：逐个检测所有监控商品是否有货（带冷却限制） ──
+function startRecheckCooldownTick() {
+  stopRecheckCooldownTick()
+  const tick = () => {
+    recheckCooldownLeft.value = monitorStore.getRecheckCooldownRemaining()
+    if (recheckCooldownLeft.value > 0) {
+      recheckCooldownTimer = setTimeout(tick, 300)
+    }
+  }
+  tick()
+}
+
+function stopRecheckCooldownTick() {
+  if (recheckCooldownTimer) {
+    clearTimeout(recheckCooldownTimer)
+    recheckCooldownTimer = null
+  }
+}
+
+async function handleRefresh() {
+  if (!authStore.isLoggedIn || monitorStore.rechecking) return
+  // 没有监控商品时退化为普通拉取（无请求可发，无需冷却）
+  if (!monitorStore.items.length) {
+    await loadList()
+    return
+  }
+  const result = await monitorStore.recheckAll()
+  startRecheckCooldownTick()
+  if (result.rateLimited) {
+    showToast(t('mihoyoStock.recheckWait'))
+    return
+  }
+  if (result.checked > 0) {
+    showToast(t('mihoyoStock.recheckDone', { count: result.checked }))
+  } else {
+    showToast(t('mihoyoStock.recheckFail'))
   }
 }
 
@@ -761,9 +812,15 @@ async function handleRemove(item) {
 
 onMounted(() => {
   updateViewport()
+  // 进入页面时同步上次手动重检剩余的冷却时间（store 内存态，同会话内导航仍生效）
+  startRecheckCooldownTick()
   if (authStore.isLoggedIn && !monitorStore.isInitialized) {
     loadList()
   }
+})
+
+onBeforeUnmount(() => {
+  stopRecheckCooldownTick()
 })
 </script>
 
