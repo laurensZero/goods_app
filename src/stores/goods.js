@@ -257,8 +257,8 @@ export const useGoodsStore = defineStore('goods', () => {
     return result
   }
 
-  async function updateGoodsBackup(items) {
-    const result = await _updateGoodsBackup(items, list)
+  async function updateGoodsBackup(items, opts) {
+    const result = await _updateGoodsBackup(items, list, opts)
     await clearPurgedTrashIds((items || []).map((item) => item?.id))
     return result
   }
@@ -310,8 +310,8 @@ export const useGoodsStore = defineStore('goods', () => {
     return _importTrashBackup(items, trashList, purgedTrashIds.value)
   }
 
-  function updateTrashBackup(items) {
-    return _updateTrashBackup(items, trashList, purgedTrashIds.value)
+  function updateTrashBackup(items, opts) {
+    return _updateTrashBackup(items, trashList, purgedTrashIds.value, opts)
   }
 
   function markImagesAsRemote(preparedImagesByItemId) {

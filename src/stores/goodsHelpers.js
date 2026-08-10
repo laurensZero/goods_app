@@ -33,9 +33,13 @@ function parseTimelineYearMonth(value) {
   return isValidYearMonth(yearMonth) ? yearMonth : ''
 }
 
-function shouldApplyRemoteBackup(localItem, remoteItem) {
+function shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply = false } = {}) {
   if (!localItem) return true
-  return (Number(remoteItem?.updatedAt) || 0) > (Number(localItem?.updatedAt) || 0)
+  const remoteTs = Number(remoteItem?.updatedAt) || 0
+  const localTs = Number(localItem?.updatedAt) || 0
+  // forceReapply（同步格式版本升级回填）：时间戳相等也应用远端行，
+  // 覆盖旧版本拉取时丢弃新字段、但水位线已越过这些行的本地副本
+  return forceReapply ? remoteTs >= localTs : remoteTs > localTs
 }
 
 function parseNumericPrice(value) {

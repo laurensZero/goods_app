@@ -108,3 +108,73 @@ describe('mergeToLocal reconcile', () => {
     expect(stores.goodsStore.updateTrashBackup).not.toHaveBeenCalled()
   })
 })
+
+describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => {
+  it('forceReapply=true 时把该标记透传给 goods/trash/events/groups 的更新入口', async () => {
+    const stores = makeStores()
+    const remote = {
+      goods: [makeItem('a', 100)],
+      trash: [makeItem('t', 100)],
+      events: [{ id: 'e1', updatedAt: 100 }],
+      recharge: [{ id: 'r1', updatedAt: 100 }],
+      groups: [{ id: 'g1', updatedAt: 100 }],
+      groupItems: [{ id: 'gi1', updatedAt: 100 }]
+    }
+
+    await mergeToLocal(stores, remote, { forceReapply: true, reconcileMissing: false })
+
+    expect(stores.goodsStore.updateGoodsBackup).toHaveBeenCalledWith(
+      [makeItem('a', 100)],
+      { forceReapply: true }
+    )
+    expect(stores.goodsStore.updateTrashBackup).toHaveBeenCalledWith(
+      [makeItem('t', 100)],
+      { forceReapply: true }
+    )
+    expect(stores.eventsStore.importEventsBackup).toHaveBeenCalledWith(
+      [{ id: 'e1', updatedAt: 100 }],
+      expect.objectContaining({ forceReapply: true })
+    )
+    expect(stores.goodsGroupStore.updateGroupsBackup).toHaveBeenCalledWith(
+      [{ id: 'g1', updatedAt: 100 }],
+      [{ id: 'gi1', updatedAt: 100 }],
+      { forceReapply: true }
+    )
+    expect(stores.rechargeStore.importBackup).toHaveBeenCalledWith(
+      [{ id: 'r1', updatedAt: 100 }],
+      expect.objectContaining({ forceReapply: true })
+    )
+  })
+
+  it('默认不传 forceReapply（保持既有 LWW 行为）', async () => {
+    const stores = makeStores()
+    const remote = {
+      goods: [makeItem('a', 100)],
+      trash: [],
+      events: [{ id: 'e1', updatedAt: 100 }],
+      recharge: [{ id: 'r1', updatedAt: 100 }],
+      groups: [{ id: 'g1', updatedAt: 100 }],
+      groupItems: [{ id: 'gi1', updatedAt: 100 }]
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.goodsStore.updateGoodsBackup).toHaveBeenCalledWith(
+      [makeItem('a', 100)],
+      { forceReapply: false }
+    )
+    expect(stores.goodsGroupStore.updateGroupsBackup).toHaveBeenCalledWith(
+      [{ id: 'g1', updatedAt: 100 }],
+      [{ id: 'gi1', updatedAt: 100 }],
+      { forceReapply: false }
+    )
+    expect(stores.eventsStore.importEventsBackup).toHaveBeenCalledWith(
+      [{ id: 'e1', updatedAt: 100 }],
+      expect.objectContaining({ forceReapply: false })
+    )
+    expect(stores.rechargeStore.importBackup).toHaveBeenCalledWith(
+      [{ id: 'r1', updatedAt: 100 }],
+      expect.objectContaining({ forceReapply: false })
+    )
+  })
+})
