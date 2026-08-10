@@ -253,7 +253,13 @@ async function searchPoi(apiKey: string, address: string): Promise<CityResult | 
   url.searchParams.set("keywords", address)
   url.searchParams.set("output", "JSON")
 
-  const res = await fetchJson(url.toString())
+  // 并行发起 POI 首查 与 geocode（仅拿城市用，跳过 regeo 省一次调用）：
+  // 大多数地址首条即命中，geocode 结果被丢弃但并行不增加耗时；
+  // 首条不含搜索词（品牌词干扰）时无需再串行等 geocode，直接复用已在途的城市结果。
+  const placePromise = fetchJson(url.toString())
+  const geoPromise = searchGeocode(apiKey, address, true).catch(() => null)
+
+  const res = await placePromise
   if (!res.ok) throw new AmapUpstreamError(res.status, res.reason)
   const data = res.data
   if (data.status !== "1" || !Array.isArray(data.pois) || data.pois.length === 0) {
@@ -271,7 +277,7 @@ async function searchPoi(apiKey: string, address: string): Promise<CityResult | 
   // 注意：不能带 citylimit=true——实测它会让高德把关键词强制按品牌词解析（「浦发银行东方体育中心」
   // → 一排浦发银行网点），反而复现坐标偏南。
   if (poi && !String(poi.name || "").trim().includes(String(address || "").trim())) {
-    const geo = await searchGeocode(apiKey, address)
+    const geo = await geoPromise
     const cityName = geo?.city || geo?.province
     if (cityName) {
       const cityUrl = new URL(AMAP_PLACE_TEXT_URL)
@@ -295,8 +301,9 @@ async function searchPoi(apiKey: string, address: string): Promise<CityResult | 
   return poiResult(poi)
 }
 
-/** geocode + regeo 兜底路径，逻辑同旧版两步法 */
-async function searchGeocode(apiKey: string, address: string): Promise<CityResult | null> {
+/** geocode + regeo 兜底路径，逻辑同旧版两步法。
+ *  skipRegeo：仅拿城市用（searchPoi 兜底），跳过 regeo 以省一次上游调用。 */
+async function searchGeocode(apiKey: string, address: string, skipRegeo = false): Promise<CityResult | null> {
   const geoUrl = new URL(AMAP_GEOCODE_URL)
   geoUrl.searchParams.set("key", apiKey)
   geoUrl.searchParams.set("address", address)
@@ -320,7 +327,7 @@ async function searchGeocode(apiKey: string, address: string): Promise<CityResul
   }
 
   // regeo 补全区县（geocode 对 POI 精确地址 district 可能为空）；失败不阻断
-  if (location) {
+  if (location && !skipRegeo) {
     const regeoUrl = new URL(AMAP_REGEOCODE_URL)
     regeoUrl.searchParams.set("key", apiKey)
     regeoUrl.searchParams.set("location", location)
