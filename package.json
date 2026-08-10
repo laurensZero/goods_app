@@ -43,6 +43,7 @@
     "fflate": "^0.8.2",
     "highlight.js": "^11.8.0",
     "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
     "markdown-it": "^13.0.1",
     "markdown-it-task-lists": "^2.1.1",
     "pica": "^9.0.1",

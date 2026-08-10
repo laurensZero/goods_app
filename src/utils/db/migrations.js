@@ -217,4 +217,17 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 12,
+    description: 'Add events.latitude/longitude columns for activity map markers',
+    up: async (db) => {
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('latitude')) {
+        await db.run("ALTER TABLE events ADD COLUMN latitude TEXT DEFAULT ''")
+      }
+      if (!cols.has('longitude')) {
+        await db.run("ALTER TABLE events ADD COLUMN longitude TEXT DEFAULT ''")
+      }
+    }
+  },
 ]

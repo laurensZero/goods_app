@@ -458,6 +458,8 @@ const form = reactive({
   endDate: '',
   location: '',
   city: '',
+  latitude: '',
+  longitude: '',
   description: '',
   coverImage: '',
   photos: [],
@@ -578,6 +580,8 @@ function buildDraftPayload() {
       endDate: String(form.endDate || ''),
       location: String(form.location || ''),
       city: String(form.city || ''),
+      latitude: String(form.latitude || ''),
+      longitude: String(form.longitude || ''),
       description: String(form.description || ''),
       coverImage: String(form.coverImage || ''),
       photos: Array.isArray(form.photos) ? form.photos.map((item) => ({ ...item })) : [],
@@ -600,6 +604,8 @@ function applyFormSnapshot(snapshot) {
   form.endDate = String(snapshot.endDate || '')
   form.location = String(snapshot.location || '')
   form.city = String(snapshot.city || '')
+  form.latitude = String(snapshot.latitude || '')
+  form.longitude = String(snapshot.longitude || '')
   form.description = String(snapshot.description || '')
   form.coverImage = String(snapshot.coverImage || '')
   form.photos = Array.isArray(snapshot.photos) ? snapshot.photos.map((item) => ({ ...item })) : []
@@ -697,6 +703,8 @@ async function loadEditData() {
   form.endDate = existing.endDate || ''
   form.location = existing.location || ''
   form.city = existing.city || ''
+  form.latitude = existing.latitude || ''
+  form.longitude = existing.longitude || ''
   cityDetected.value = form.city
   form.description = existing.description || ''
   form.coverImage = existing.coverImage || ''
@@ -922,14 +930,18 @@ async function detectCityFromLocation() {
   if (result) {
     const combined = combineCityDistrict(result.city, result.district)
     form.city = combined
+    form.latitude = result.latitude || ''
+    form.longitude = result.longitude || ''
     cityDetected.value = combined
   }
 }
 
-// 用户手动叉掉识别结果：清空 city，之后保存不会再写入该字段
+// 用户手动叉掉识别结果：清空城市与坐标，之后保存不会再写入该字段
 function clearCity() {
   if (cityDetecting.value) return
   form.city = ''
+  form.latitude = ''
+  form.longitude = ''
   cityDetected.value = ''
 }
 

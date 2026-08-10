@@ -121,6 +121,9 @@ export interface EventItem {
   startDate: string
   endDate: string
   location: string
+  city: string
+  latitude: string
+  longitude: string
   description: string
   coverImage: string
   coverImageData: EventCoverImageData | null
