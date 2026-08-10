@@ -235,7 +235,18 @@ function poiResult(poi: Record<string, unknown>): CityResult {
   }
 }
 
-/** POI 关键词搜索，返回第一条命中的结果；无匹配返回 null。网络失败抛 AmapUpstreamError */
+/** 从 poi 列表中选名称完整包含搜索词的 POI；无则返回第一条 */
+function pickPoi(pois: Record<string, unknown>[], address: string): Record<string, unknown> | null {
+  const normalized = String(address || "").trim()
+  // 多条结果时优先选名称完整包含搜索词的 POI：实测「浦发银行东方体育中心」返回的第 1 条是
+  // 场馆综合点「东方体育中心」(耀体路701号，偏南)，而「浦发银行东方体育中心体育馆」(泳耀路300号)
+  // 排在第 6 条——无脑取 pois[0] 会导致坐标偏南。名称包含搜索词的 POI 才是用户要标的具体场馆。
+  const exact = pois.find((p) => String(p.name || "").trim().includes(normalized))
+  return exact || pois[0] || null
+}
+
+/** POI 关键词搜索。优先带 city 限定城市（不带 city 时「浦发银行XX」这类带品牌词的地址会
+ *  被全城市范围搜索干扰成品牌网点，如「浦发银行东方体育中心」→ 一排浦发银行，坐标偏到网点）。 */
 async function searchPoi(apiKey: string, address: string): Promise<CityResult | null> {
   const url = new URL(AMAP_PLACE_TEXT_URL)
   url.searchParams.set("key", apiKey)
@@ -252,7 +263,34 @@ async function searchPoi(apiKey: string, address: string): Promise<CityResult | 
     }
     return null
   }
-  const poi = (data.pois as Record<string, unknown>[])[0] || {}
+  const pois = data.pois as Record<string, unknown>[]
+  let poi = pickPoi(pois, address)
+
+  // 第一条名称不含搜索词（典型如「浦发银行东方体育中心」被解析成品牌网点）→ 用 geocode 拿城市
+  // 后带 city 重查，排除跨城干扰，再按名称完整匹配选具体场馆。
+  // 注意：不能带 citylimit=true——实测它会让高德把关键词强制按品牌词解析（「浦发银行东方体育中心」
+  // → 一排浦发银行网点），反而复现坐标偏南。
+  if (poi && !String(poi.name || "").trim().includes(String(address || "").trim())) {
+    const geo = await searchGeocode(apiKey, address)
+    const cityName = geo?.city || geo?.province
+    if (cityName) {
+      const cityUrl = new URL(AMAP_PLACE_TEXT_URL)
+      cityUrl.searchParams.set("key", apiKey)
+      cityUrl.searchParams.set("keywords", address)
+      cityUrl.searchParams.set("city", cityName)
+      cityUrl.searchParams.set("output", "JSON")
+      const cityRes = await fetchJson(cityUrl.toString())
+      if (cityRes.ok && cityRes.data.status === "1" && Array.isArray(cityRes.data.pois)) {
+        const cityPois = cityRes.data.pois as Record<string, unknown>[]
+        if (cityPois.length > 0) {
+          const cityPoi = pickPoi(cityPois, address)
+          if (cityPoi) poi = cityPoi
+        }
+      }
+    }
+  }
+
+  if (!poi) return null
   if (!poi.pname && !poi.cityname) return null
   return poiResult(poi)
 }
