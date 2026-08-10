@@ -99,7 +99,8 @@ export default defineConfig({
           'cutout-engine': ['@imgly/background-removal'],
           'sync-engine': ['@supabase/supabase-js'],
           'tauri-runtime': ['@tauri-apps/api'],
-          'pinyin-engine': ['pinyin-pro']
+          'pinyin-engine': ['pinyin-pro'],
+          'map-engine': ['leaflet']
         }
       }
     }

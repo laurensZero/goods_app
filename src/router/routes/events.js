@@ -12,6 +12,12 @@ export default [
     meta: { titleKey: 'nav.linkGoods' }
   },
   {
+    path: '/events/map',
+    name: 'event-map',
+    component: () => import('@/views/EventMapView.vue'),
+    meta: { titleKey: 'events.map.title' }
+  },
+  {
     path: '/events/edit/:id',
     name: 'event-edit',
     component: () => import('@/views/EventAddView.vue'),

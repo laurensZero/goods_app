@@ -106,6 +106,8 @@ const CREATE_EVENTS_TABLE_SQL = `
     endDate    TEXT DEFAULT '',
     location   TEXT DEFAULT '',
     city       TEXT DEFAULT '',
+    latitude   TEXT DEFAULT '',
+    longitude  TEXT DEFAULT '',
     description TEXT DEFAULT '',
     coverImage TEXT DEFAULT '',
     coverImageData TEXT DEFAULT '{}',
@@ -229,6 +231,8 @@ const EVENTS_REQUIRED_COLUMNS = [
   ['endDate', "TEXT DEFAULT ''"],
   ['location', "TEXT DEFAULT ''"],
   ['city', "TEXT DEFAULT ''"],
+  ['latitude', "TEXT DEFAULT ''"],
+  ['longitude', "TEXT DEFAULT ''"],
   ['description', "TEXT DEFAULT ''"],
   ['coverImage', "TEXT DEFAULT ''"],
   ['coverImageData', "TEXT DEFAULT '{}'"],
@@ -395,7 +399,7 @@ function goodsRecordToValues(record) {
   return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.trashed]
 }
 
-const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,city,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 const RECHARGE_INSERT_SQL = 'INSERT OR REPLACE INTO recharge_records (id,game,itemName,amount,chargedAt,note,image,deleted,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)'
 
@@ -416,7 +420,7 @@ function prepareRechargeRecord(record) {
 function prepareEventValues(event) {
   const {
     id, name = '', type = '', startDate = '', endDate = '',
-    location = '', city = '', description = '', coverImage = '',
+    location = '', city = '', latitude = '', longitude = '', description = '', coverImage = '',
     coverImageData = {},
     photos = [], ticketPrice = '', ticketType = '', seatInfo = '', otherExpenses = [], tracks = [], linkedGoodsIds = [], tags = [],
     deleted = false,
@@ -430,7 +434,7 @@ function prepareEventValues(event) {
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  return [id, name, type, startDate, endDate, location, city, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, deleted ? 1 : 0, created, ts]
+  return [id, name, type, startDate, endDate, location, city, latitude, longitude, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, deleted ? 1 : 0, created, ts]
 }
 
 async function _getSchemaVersion() {

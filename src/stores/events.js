@@ -52,6 +52,8 @@ function normalizeEvent(data) {
     endDate: String(data.endDate || data.startDate || '').trim(),
     location: String(data.location || '').trim(),
     city: String(data.city || '').trim(),
+    latitude: String(data.latitude || '').trim(),
+    longitude: String(data.longitude || '').trim(),
     description: String(data.description || '').trim(),
     coverImage: String(data.coverImage || '').trim(),
     coverImageData: data.coverImageData ? { ...data.coverImageData } : null,

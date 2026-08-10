@@ -14,6 +14,18 @@
           <button
             class="hero-search"
             type="button"
+            :aria-label="t('events.map.openMap')"
+            @click="goToMap"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+              <path d="M9 4v14M15 6v14" />
+            </svg>
+          </button>
+
+          <button
+            class="hero-search"
+            type="button"
             :aria-label="showSearch ? t('events.closeSearch') : t('events.openSearch')"
             @click="toggleSearch"
           >
@@ -559,6 +571,16 @@ function toggleSortDirection() {
 function toggleSearch() {
   showSearch.value = !showSearch.value
   if (!showSearch.value) searchKeyword.value = ''
+}
+
+function goToMap() {
+  saveScrollPosition(true, 'events:goToMap', { includeAnchor: false })
+  runWithRouteTransition(
+    () => router.push('/events/map').catch(() => {
+      eventsDisplayReady.value = true
+    }),
+    { direction: 'forward' }
+  )
 }
 
 function openDetail(payload) {
