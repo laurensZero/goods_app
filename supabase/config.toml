@@ -26,8 +26,8 @@ verify_jwt = false
 verify_jwt = false
 schedule = "*/1 * * * *"
 
-# 米游铺自助下单白名单校验：必须携带登录 JWT（verify_jwt=true）
-[functions.check-checkout-permission]
+# 功能白名单校验（自助下单等）：必须携带登录 JWT（verify_jwt=true），feature 走 query 参数
+[functions.check-feature-permission]
 verify_jwt = true
 
 # 云端智能抠图（FAPIhub）：白名单用户图片转发，必须携带登录 JWT（verify_jwt=true）

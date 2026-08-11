@@ -7,7 +7,7 @@
           <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
-          <button v-if="checkoutPermission.allowed" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
+          <button v-if="checkoutAllowed" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -856,7 +856,7 @@ import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
-import { useCheckoutPermission } from '@/composables/checkout/useCheckoutPermission'
+import { useFeaturePermission } from '@/composables/permission/useFeaturePermission'
 import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
 
@@ -866,7 +866,9 @@ const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
-const checkoutPermission = useCheckoutPermission()
+const checkoutPermission = useFeaturePermission('checkout')
+// 模板 v-if 需用顶层 ref（嵌套属性读取到的是 ref 对象，恒为真，无法隐藏）
+const { allowed: checkoutAllowed } = checkoutPermission
 const checkoutQueue = useCheckoutOrderQueue()
 const activeQueueItems = checkoutQueue.activeQueueItems
 const failedQueueItems = checkoutQueue.failedQueueItems
@@ -1479,7 +1481,7 @@ onMounted(async () => {
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
-  // 白名单权限：决定是否显示自助下单入口（60s 缓存内复用，无重复请求）
+  // 白名单权限：决定是否显示自助下单入口（上次有权限则先乐观显示，后台校验无权限即隐藏）
   await checkoutPermission.check()
 })
 
@@ -1497,8 +1499,6 @@ onActivated(() => {
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
   void loadBudgetSettings()
-  // 每次回到「我的」页重新校验（缓存内直接复用）
-  void checkoutPermission.check()
 })
 </script>
 
