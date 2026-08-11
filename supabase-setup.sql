@@ -292,7 +292,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$fn1$ LANGUAGE plpgsql;
+$fn1$ LANGUAGE plpgsql SET search_path = public;
 
 CREATE OR REPLACE FUNCTION set_events_updated_at() RETURNS TRIGGER AS $fn2$
 BEGIN
@@ -321,7 +321,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$fn2$ LANGUAGE plpgsql;
+$fn2$ LANGUAGE plpgsql SET search_path = public;
 
 CREATE OR REPLACE FUNCTION set_recharge_updated_at() RETURNS TRIGGER AS $fn3$
 BEGIN
@@ -339,7 +339,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$fn3$ LANGUAGE plpgsql;
+$fn3$ LANGUAGE plpgsql SET search_path = public;
 
 CREATE OR REPLACE FUNCTION set_groups_updated_at() RETURNS TRIGGER AS $fn4$
 BEGIN
@@ -360,7 +360,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$fn4$ LANGUAGE plpgsql;
+$fn4$ LANGUAGE plpgsql SET search_path = public;
 
 CREATE OR REPLACE FUNCTION set_group_items_updated_at() RETURNS TRIGGER AS $fn5$
 BEGIN
@@ -375,7 +375,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$fn5$ LANGUAGE plpgsql;
+$fn5$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS goods_updated_at ON goods;
 CREATE TRIGGER goods_updated_at BEFORE INSERT OR UPDATE ON goods FOR EACH ROW EXECUTE FUNCTION set_goods_updated_at();
@@ -399,7 +399,7 @@ BEGIN
   NEW.synced_at = now();
   RETURN NEW;
 END;
-$fn6$ LANGUAGE plpgsql;
+$fn6$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS sync_manifest_synced_at ON sync_manifest;
 CREATE TRIGGER sync_manifest_synced_at BEFORE INSERT OR UPDATE ON sync_manifest FOR EACH ROW EXECUTE FUNCTION set_manifest_synced_at();
@@ -555,7 +555,7 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$fn$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_feedbacks_updated_at ON feedbacks;
 CREATE TRIGGER trg_feedbacks_updated_at
@@ -602,6 +602,12 @@ CREATE POLICY "surveys_select_enabled" ON surveys FOR SELECT
 CREATE POLICY "surveys_service_all" ON surveys FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
+
+-- 收敛历史上在 Dashboard 手工创建的 Admin 宽策略（USING true → 匿名可 CRUD），
+-- service_role 全权管理已由 surveys_service_all 覆盖
+DROP POLICY IF EXISTS "Admin delete surveys" ON surveys;
+DROP POLICY IF EXISTS "Admin insert surveys" ON surveys;
+DROP POLICY IF EXISTS "Admin update surveys" ON surveys;
 
 -- ============================================================
 -- RLS: survey_responses — 用户只能提交，service_role 可读取全部
@@ -699,9 +705,11 @@ ON CONFLICT (id) DO NOTHING;
 
 -- Storage RLS：写操作按 "<userId>/" 一级目录隔离——新文件一律上传到自己的目录，
 -- 任意登录用户不得写/覆盖/删他人目录的文件（文件名确定性可推，整桶开放写等于可互相覆盖）。
--- 读保持全桶（桶本身 public，迁移前根目录平铺的旧文件行内 URL 需继续可读/可回捞）。
--- DELETE 对根目录旧文件保留 owner 兜底（owner_id 匹配或 NULL 的历史文件可被孤儿回收清理，
--- 客户端回收前还有文件名归属校验）。历史部署重跑本脚本即完成策略迁移。
+-- 读按归属收敛：SELECT 仅限「自己目录」+「根级归属自己的旧文件」
+-- （owner_id 匹配或 NULL 的历史平铺文件，供同步回捞/孤儿回收列举），
+-- 不再允许匿名/登录用户枚举整桶他人文件。桶本身 public，行内 URL 仍可直接读取。
+-- DELETE 对根目录旧文件保留同样的 owner 兜底（owner_id 匹配或 NULL 的历史文件可被
+-- 孤儿回收清理，客户端回收前还有文件名归属校验）。历史部署重跑本脚本即完成策略迁移。
 DROP POLICY IF EXISTS "auth_full_goods_images" ON storage.objects;
 DROP POLICY IF EXISTS "auth_full_event_photos" ON storage.objects;
 DROP POLICY IF EXISTS "auth_select_goods_images" ON storage.objects;
@@ -715,7 +723,13 @@ DROP POLICY IF EXISTS "auth_delete_event_photos" ON storage.objects;
 
 CREATE POLICY "auth_select_goods_images" ON storage.objects
   FOR SELECT TO authenticated
-  USING (bucket_id = 'goods-images');
+  USING (
+    bucket_id = 'goods-images'
+    AND (
+      (storage.foldername(name))[1] = auth.uid()::text
+      OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+    )
+  );
 
 CREATE POLICY "auth_insert_goods_images" ON storage.objects
   FOR INSERT TO authenticated
@@ -735,7 +749,13 @@ CREATE POLICY "auth_delete_goods_images" ON storage.objects
 
 CREATE POLICY "auth_select_event_photos" ON storage.objects
   FOR SELECT TO authenticated
-  USING (bucket_id = 'event-photos');
+  USING (
+    bucket_id = 'event-photos'
+    AND (
+      (storage.foldername(name))[1] = auth.uid()::text
+      OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+    )
+  );
 
 CREATE POLICY "auth_insert_event_photos" ON storage.objects
   FOR INSERT TO authenticated
@@ -753,17 +773,26 @@ CREATE POLICY "auth_delete_event_photos" ON storage.objects
     OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
   ));
 
--- Avatars: 公开读取，已登录用户可完全管理（含 upsert 所需的 UPDATE）
+-- Avatars: 桶 public（行内 URL 直接读取，无需 storage.objects SELECT 列举），
+-- 已登录用户仅可管理自己的文件（owner 匹配或 <uid>_ 文件名前缀，
+-- 客户端头像路径为 `<uid>_<timestamp>.<ext>`）
 DROP POLICY IF EXISTS "avatars_public_read" ON storage.objects;
 DROP POLICY IF EXISTS "avatars_auth_all" ON storage.objects;
 
-CREATE POLICY "avatars_public_read" ON storage.objects
-  FOR SELECT USING (bucket_id = 'avatars');
-
 CREATE POLICY "avatars_auth_all" ON storage.objects
   FOR ALL TO authenticated
-  USING (bucket_id = 'avatars')
-  WITH CHECK (bucket_id = 'avatars');
+  USING (
+    bucket_id = 'avatars'
+    AND (
+      owner_id = auth.uid()::text
+      OR name LIKE auth.uid()::text || '_%'
+      OR owner_id IS NULL
+    )
+  )
+  WITH CHECK (
+    bucket_id = 'avatars'
+    AND (owner_id = auth.uid()::text OR name LIKE auth.uid()::text || '_%')
+  );
 
 -- Feedback attachments: 桶与 INSERT policy 历史上在 Dashboard 手工维护（见
 -- feedbackAttachmentService 上传失败时的提示），此处只管理补偿清理所需的策略。
@@ -894,8 +923,10 @@ BEGIN
     event_count = EXCLUDED.event_count,
     image_count = EXCLUDED.image_count;
 END;
-$fn$ LANGUAGE plpgsql SECURITY DEFINER;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE（含 anon）再单独授权
+REVOKE ALL ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION upsert_manifest(TEXT, TIMESTAMPTZ, TEXT, TIMESTAMPTZ, TIMESTAMPTZ, REAL, REAL) TO authenticated;
 
 -- sync_pull（按 user_id 过滤，拒绝未登录）
@@ -923,8 +954,10 @@ BEGIN
     )
   );
 END;
-$fn$ LANGUAGE plpgsql SECURITY DEFINER;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
+-- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE（含 anon）再单独授权
+REVOKE ALL ON FUNCTION sync_pull(TIMESTAMPTZ) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
 
 -- sync_push（入口 auth 检查，写入数据含 user_id）
@@ -1218,7 +1251,7 @@ BEGIN
 
   RETURN jsonb_build_object('synced_at', v_synced_at);
 END;
-$fn$ LANGUAGE plpgsql SECURITY DEFINER;
+$fn$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE 再单独授权
 REVOKE ALL ON FUNCTION sync_push(
@@ -1256,7 +1289,7 @@ BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$fn$ LANGUAGE plpgsql;
+$fn$ LANGUAGE plpgsql SET search_path = public;
 
 DROP TRIGGER IF EXISTS trg_shares_updated_at ON shares;
 CREATE TRIGGER trg_shares_updated_at
@@ -1469,8 +1502,8 @@ ON CONFLICT (id) DO NOTHING;
 DROP POLICY IF EXISTS "ota_releases_public_read" ON storage.objects;
 DROP POLICY IF EXISTS "ota_releases_service_all" ON storage.objects;
 
-CREATE POLICY "ota_releases_public_read" ON storage.objects
-  FOR SELECT USING (bucket_id = 'ota-releases');
+-- 不建公开 SELECT 列举策略：桶 public，客户端/网页走公共 URL 下载无需
+-- storage.objects 的 SELECT；上传/管理由 service_role 执行（绕过 RLS 或下策）
 
 CREATE POLICY "ota_releases_service_all" ON storage.objects
   FOR ALL USING (bucket_id = 'ota-releases' AND auth.role() = 'service_role')
