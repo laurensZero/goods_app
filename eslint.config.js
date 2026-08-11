@@ -8,6 +8,7 @@ export default [
   {
     ignores: [
       'dist/**',
+      'admin/dist/**',
       'android/**',
       'src-tauri/**',
       'node_modules/**',

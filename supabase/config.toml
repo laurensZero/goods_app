@@ -49,3 +49,9 @@ schedule = "30 15 * * *"
 # 需配置 Secret：AMAP_WEB_API_KEY
 [functions.geocode-address]
 verify_jwt = true
+
+# 管理台登录：复用 goods app 账号（Supabase Auth 邮箱+密码）并校验
+# feature_whitelist 的 'admin' 授权，成功后下发 GitHub/Supabase 凭据
+# 需配置 Secret：GITHUB_TOKEN
+[functions.admin-login]
+verify_jwt = false
