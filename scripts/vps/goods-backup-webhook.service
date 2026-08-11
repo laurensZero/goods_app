@@ -1,0 +1,19 @@
+[Unit]
+Description=Goods APP Supabase 备份 Webhook 监听
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=azureuser
+WorkingDirectory=/opt/goods-backup
+ExecStart=/usr/bin/python3 /opt/goods-backup/backup_server.py
+Restart=always
+RestartSec=5
+Environment=HOME=/home/azureuser
+# 备份脚本会长时间占用 CPU/磁盘，降低对主服务的影响
+Nice=5
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

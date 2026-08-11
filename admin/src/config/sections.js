@@ -69,6 +69,14 @@ export const SECTIONS = [
     icon: 'wrench',
     description: '同步功能维护与放行',
     component: defineAsyncComponent(() => import('../sections/MaintenanceSection.vue'))
+  },
+  {
+    id: 'backup',
+    label: '备份管理',
+    short: '备份',
+    icon: 'database',
+    description: 'VPS 备份触发、归档下载与回档',
+    component: defineAsyncComponent(() => import('../sections/BackupSection.vue'))
   }
 ]
 

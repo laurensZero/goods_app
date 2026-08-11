@@ -1,0 +1,13 @@
+{
+  "secret": "REPLACE_WITH_RANDOM_LONG_SECRET",
+  "supabase_url": "https://zvqzicimowfqshgjsrri.supabase.co",
+  "service_key": "REPLACE_WITH_SERVICE_ROLE_JWT",
+  "backup_script": "/home/azureuser/supabase-backup.sh",
+  "image_script": "/home/azureuser/supabase-image-backup.sh",
+  "backup_dir": "/home/azureuser/supabase-backups",
+  "image_dir": "/home/azureuser/supabase-image-backup",
+  "log_dir": "/opt/goods-backup/logs",
+  "log_table": "backup_logs",
+  "host": "127.0.0.1",
+  "port": 8080
+}
