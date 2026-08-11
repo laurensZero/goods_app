@@ -57,8 +57,6 @@ on:
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-  # Workflow-level env for ota-bundle-manager.html build
-  VITE_APP_VERSION: ${{ vars.VITE_APP_VERSION || '1.0' }}
 
 jobs:
   publish:
@@ -426,19 +424,6 @@ jobs:
           done
 
           echo "Pruning complete."
-
-      - name: Prepare manager page
-        run: |
-          mkdir -p ghpages-deploy
-          cp docs/ota-bundle-manager.html ghpages-deploy/index.html
-
-      - name: Deploy manager page to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ghpages-deploy
-          destination_dir: .
-          keep_files: true
 
       - name: Summary
         env:

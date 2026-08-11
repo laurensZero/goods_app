@@ -3,7 +3,11 @@ import { onMounted, reactive } from 'vue'
 import { CHANNELS, fetchOtaBundles, pruneOldBundles } from '../services/channels'
 import { getSupabaseConfig, getGithubToken } from '../services/supabase'
 import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW } from '../services/github'
-import { formatTime } from '../services/versionRules'
+import { formatTime } from '../utils/format'
+import { useConfirm } from '../composables/useConfirm'
+import StatusPill from '../components/ui/StatusPill.vue'
+
+const { confirm } = useConfirm()
 
 const channels = reactive({})
 
@@ -56,6 +60,12 @@ async function triggerRollback(channel, version) {
     channels[channel].error = '回档需要先填写 GitHub Token。'
     return
   }
+  const ok = await confirm({
+    title: '触发回档',
+    message: `确认将 ${channel} 通道回档到 ${version} 版本？`,
+    confirmText: '确认回档'
+  })
+  if (!ok) return
   rollbackingChannel = channel
   try {
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, {
@@ -74,6 +84,14 @@ async function triggerRollback(channel, version) {
   }
 }
 
+function channelState(channel) {
+  const s = channels[channel]
+  if (!s) return { pill: 'default', label: '…' }
+  if (s.loading) return { pill: 'warn', label: '加载中' }
+  if (s.error) return { pill: 'error', label: '读取失败' }
+  return { pill: 'ok', label: '正常' }
+}
+
 onMounted(loadAll)
 </script>
 
@@ -89,12 +107,7 @@ onMounted(loadAll)
           <p class="card-kicker">channel</p>
           <h3 class="card-title">{{ channel }}</h3>
         </div>
-        <span
-          class="state"
-          :class="!channels[channel] ? 'state' : channels[channel].loading ? 'state--warn' : channels[channel].error ? 'state--error' : 'state--ok'"
-        >
-          {{ !channels[channel] ? '…' : channels[channel].loading ? '加载中' : channels[channel].error ? '读取失败' : '正常' }}
-        </span>
+        <StatusPill :status="channelState(channel).pill" :label="channelState(channel).label" />
       </header>
 
       <div class="meta">

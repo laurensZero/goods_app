@@ -1,14 +1,12 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { loadMaintenanceMode, saveMaintenanceMode, clearMaintenanceMode } from '../services/maintenance'
+import { MAINTENANCE_BLOCKS } from '../constants'
+import { useConfirm } from '../composables/useConfirm'
 
-const BLOCKS = [
-  { key: 'sync_all', label: '停用全部数据同步' },
-  { key: 'goods_data', label: '停用商品数据同步' },
-  { key: 'goods_image', label: '停用商品图片同步' },
-  { key: 'event_photo', label: '停用活动照片同步' },
-  { key: 'feedback_attachment', label: '停用反馈附件同步' }
-]
+const { confirm } = useConfirm()
+
+const BLOCKS = MAINTENANCE_BLOCKS
 
 const form = reactive({
   enabled: false,
@@ -73,7 +71,13 @@ async function save() {
 }
 
 async function clear() {
-  if (!confirm('确认清除维护模式配置？所有功能将恢复正常。')) return
+  const ok = await confirm({
+    title: '清除维护模式',
+    message: '确认清除维护模式配置？所有功能将恢复正常。',
+    confirmText: '确认清除',
+    danger: true
+  })
+  if (!ok) return
   busy.value = 'clear'
   setStatus('正在清除维护模式配置…')
   try {

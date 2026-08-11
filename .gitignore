@@ -7,7 +7,6 @@ dist
 !.github/workflows/**
 .idea
 docs/*
-!docs/ota-bundle-manager.html
 scripts/generate-android-icons.ps1
 .vscode/settings.json
 scripts/build_recharge_import_file.mjs

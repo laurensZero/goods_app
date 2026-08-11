@@ -431,3 +431,48 @@ hr.sep {
     animation: admin-fade-up var(--motion-medium) var(--motion-ease-emphasis);
   }
 }
+
+/* ── View Transition：主题切换圆形展开（以点击按钮为圆心）────────── */
+
+/* 给根元素命名，使整页可被快照 */
+html {
+  view-transition-name: root;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 旧帧定格，不淡出不移位 */
+::view-transition-old(root) {
+  animation: admin-vt-old-hold 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* 新帧从点击原点圆形展开覆盖 */
+::view-transition-new(root) {
+  animation: admin-vt-circle-expand 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes admin-vt-old-hold {
+  from { opacity: 1; }
+  to   { opacity: 1; }
+}
+
+@keyframes admin-vt-circle-expand {
+  from {
+    clip-path: circle(0% at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+  to {
+    clip-path: circle(150% at var(--vt-x, 50%) var(--vt-y, 50%));
+  }
+}
+
+/* 尊重 reduced-motion：动画时长归零，直接切换 */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0s;
+  }
+}
