@@ -44,6 +44,7 @@ on:
     paths-ignore:
       - '.github/**'
       - 'docs/**'
+      - 'admin/**'
       - '**.sql'
       - '.gitignore'
       - '.gitattributes'
