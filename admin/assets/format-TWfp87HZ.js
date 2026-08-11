@@ -1,0 +1,2 @@
+function i(n){if(!n)return"--";const e=new Date(n);return Number.isNaN(e.getTime())?String(n):e.toLocaleString("zh-CN",{hour12:!1})}function s(n,e,c="text/plain"){const r=new Blob([n],{type:c}),t=URL.createObjectURL(r),o=document.createElement("a");o.href=t,o.download=e,o.click(),URL.revokeObjectURL(t)}function f(n,e){const c=t=>{const o=t==null?"":String(t);return/[",\n\r]/.test(o)?`"${o.replace(/"/g,'""')}"`:o},r=[];e&&r.push(e.map(c).join(","));for(const t of n)r.push(t.map(c).join(","));return"\uFEFF"+r.join(`\r
+`)}export{s as d,i as f,f as t};
