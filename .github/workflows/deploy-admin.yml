@@ -1,0 +1,46 @@
+name: Deploy Admin Dashboard
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'admin/**'
+      - '.github/workflows/deploy-admin.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 防止在 fork 中运行（fork 没有 secrets）
+    if: github.repository == 'laurensZero/goods_app'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install dependencies
+        working-directory: admin
+        run: npm ci
+
+      - name: Build admin
+        working-directory: admin
+        run: npm run build
+
+      - name: Deploy to GitHub Pages (admin/)
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./admin/dist
+          destination_dir: admin
+          keep_files: true

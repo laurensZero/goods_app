@@ -1,0 +1,100 @@
+/* ============================================================
+   Admin 管理台 Design Tokens
+   与核心 App（src/assets/base.css）保持同一套 token 体系，
+   确保管理后台与主 App 视觉语言一致（见 docs/ui-design-language.md）。
+   通过 html.theme-dark 切换暗色，不另起散乱样式。
+   ============================================================ */
+:root {
+  /* 颜色与材质 */
+  --app-bg: #f5f5f7;
+  --app-surface: #ffffff;
+  --app-surface-soft: #eeeff2;
+  --app-surface-muted: #f0f0f2;
+  --app-text: #141416;
+  --app-primary: #141416;
+  --app-text-secondary: #5f6570;
+  --app-text-tertiary: #8e8e93;
+  --app-placeholder: #a1a1a6;
+  --app-border: rgba(17, 20, 22, 0.06);
+  --app-input-border: rgba(20, 20, 22, 0.08);
+  --app-input-focus-border: rgba(20, 20, 22, 0.16);
+  --app-input-focus-ring: rgba(20, 20, 22, 0.04);
+  --app-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  --app-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --app-bg-gradient: linear-gradient(180deg, #f5f5f7 0%, #eaecef 100%);
+  /* 玻璃层 */
+  --app-glass: rgba(255, 255, 255, 0.86);
+  --app-glass-strong: rgba(255, 255, 255, 0.72);
+  --app-glass-border: rgba(255, 255, 255, 0.52);
+  --app-overlay: rgba(20, 20, 22, 0.22);
+  --app-frost-blur: 22px;
+  --app-overlay-blur: 8px;
+  --app-frost-saturate: 140%;
+  /* 状态色（语义色，明暗都保证可读） */
+  --app-pending: #0e74e9;
+  --app-pending-bg: rgba(14, 116, 233, 0.9);
+  --status-ok: #22a161;
+  --status-warn: #ce7c12;
+  --status-error: #c74444;
+  --status-info: #0e74e9;
+  --status-ok-bg: rgba(34, 161, 97, 0.12);
+  --status-warn-bg: rgba(206, 124, 18, 0.12);
+  --status-error-bg: rgba(199, 68, 68, 0.12);
+  --status-info-bg: rgba(14, 116, 233, 0.12);
+  /* 圆角 */
+  --radius-xxs: 6px;
+  --radius-xs: 12px;
+  --radius-small: 14px;
+  --radius-card: 18px;
+  --radius-large: 24px;
+  /* 间距与尺寸 */
+  --page-padding: 16px;
+  --section-gap: 18px;
+  --card-gap: 12px;
+  --input-height: 44px;
+  --button-height: 44px;
+  --icon-button-size: 40px;
+  /* 动效 */
+  --motion-fast: 200ms;
+  --motion-medium: 260ms;
+  --motion-slow: 400ms;
+  --motion-ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasis: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-emphasis: var(--motion-ease-emphasis);
+  --press-scale-button: 0.96;
+  --press-scale-card: 0.98;
+}
+
+/* ── 深色模式 ── */
+html.theme-dark {
+  --app-bg: #0f0f10;
+  --app-bg-gradient: linear-gradient(180deg, #0f0f10 0%, #141417 100%);
+  --app-surface: #1c1c1e;
+  --app-surface-soft: #2c2c2e;
+  --app-surface-muted: #28282a;
+  --app-text: #f5f5f7;
+  --app-primary: #f5f5f7;
+  --app-text-secondary: #aeaeb2;
+  --app-text-tertiary: #636366;
+  --app-placeholder: #5a5a5f;
+  --app-border: rgba(255, 255, 255, 0.08);
+  --app-input-border: rgba(255, 255, 255, 0.08);
+  --app-input-focus-border: rgba(255, 255, 255, 0.16);
+  --app-input-focus-ring: rgba(255, 255, 255, 0.04);
+  --app-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --app-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --app-glass: rgba(34, 34, 38, 0.68);
+  --app-glass-strong: rgba(24, 24, 28, 0.78);
+  --app-glass-border: rgba(255, 255, 255, 0.1);
+  --app-overlay: rgba(0, 0, 0, 0.36);
+  --app-pending: #3b9aff;
+  --app-pending-bg: rgba(59, 154, 255, 0.88);
+  --status-ok: #34c26b;
+  --status-warn: #e6a23c;
+  --status-error: #e05757;
+  --status-info: #3b9aff;
+  --status-ok-bg: rgba(52, 194, 107, 0.14);
+  --status-warn-bg: rgba(230, 162, 60, 0.14);
+  --status-error-bg: rgba(224, 87, 87, 0.14);
+  --status-info-bg: rgba(59, 154, 255, 0.14);
+}
