@@ -29,13 +29,11 @@ function addCondition() {
   else if (type === 'sync_configured') { /* no params */ }
   else if (type === 'db') { c.table = ''; c.op = 'count>='; c.value = 0 }
   else if (type === 'flag') { c.key = ''; c.value = '' }
-  props.conditions.push(c)
-  emit('update:conditions', props.conditions)
+  emit('update:conditions', [...props.conditions, c])
 }
 
 function removeCondition(i) {
-  props.conditions.splice(i, 1)
-  emit('update:conditions', props.conditions)
+  emit('update:conditions', props.conditions.filter((_, idx) => idx !== i))
 }
 
 function setExists(c, which) {

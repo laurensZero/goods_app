@@ -37,7 +37,7 @@ defineEmits(['toggle-theme'])
     </div>
 
     <p class="tip tip--warn admin-header__note">
-      <strong>安全提示：</strong>Service Role Key 绕过 RLS，请勿提交到公开仓库。每次打开页面需输入并保存到 localStorage。
+      <strong>安全提示：</strong>管理凭据由管理员登录接口下发，仅保存在本机浏览器 localStorage。请勿在公共设备上使用。
     </p>
   </header>
 </template>

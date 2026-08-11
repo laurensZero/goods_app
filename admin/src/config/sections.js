@@ -8,11 +8,19 @@ import { defineAsyncComponent } from 'vue'
 export const SECTIONS = [
   {
     id: 'auth',
-    label: '认证信息',
-    short: '认证',
+    label: '账号信息',
+    short: '账号',
     icon: 'lock',
-    description: 'GitHub Token 与 Supabase 凭据',
+    description: '管理员账号与会话凭据',
     component: defineAsyncComponent(() => import('../sections/AuthSection.vue'))
+  },
+  {
+    id: 'whitelist',
+    label: '功能白名单',
+    short: '白名单',
+    icon: 'shield',
+    description: '按功能授权用户（feature_whitelist）',
+    component: defineAsyncComponent(() => import('../sections/FeatureWhitelistSection.vue'))
   },
   {
     id: 'channels',
@@ -66,6 +74,3 @@ export const SECTIONS = [
 
 export const DEFAULT_SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
 export const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXppY2ltb3dmcXNoZ2pzcnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjE3NzEsImV4cCI6MjA5Mzk5Nzc3MX0.AZQhPIv79WKtF1bhreMhM89CvOJ8p-1wizNiRgmnRzI'
-
-export const GITHUB_TOKEN_STORAGE_KEY = 'ota_manager_github_token'
-export const SUPABASE_CONFIG_STORAGE_KEY = 'ota_manager_supabase_config'

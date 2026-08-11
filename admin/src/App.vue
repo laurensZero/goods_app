@@ -1,13 +1,16 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useAdminTheme } from './composables/useAdminTheme'
+import { useAdminAuth } from './composables/useAdminAuth'
 import { SECTIONS } from './config/sections'
+import AdminLogin from './components/AdminLogin.vue'
 import AdminSidebar from './components/layout/AdminSidebar.vue'
 import AdminNav from './components/layout/AdminNav.vue'
 import AdminHeader from './components/layout/AdminHeader.vue'
 import SectionCard from './components/ui/SectionCard.vue'
 
 const { appearance, toggleDark } = useAdminTheme()
+const { authenticated } = useAdminAuth()
 
 // 侧栏展开/收起状态持久化
 const SIDEBAR_KEY = 'goods_admin_sidebar_collapsed'
@@ -41,7 +44,10 @@ watch(activeSectionId, () => {
 </script>
 
 <template>
+  <AdminLogin v-if="!authenticated" />
+
   <div
+    v-else
     class="admin-shell"
     :class="{ 'admin-shell--nav-collapsed': sidebarCollapsed }"
   >
