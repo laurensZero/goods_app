@@ -1,9 +1,0 @@
-{
-  "version": "20260728.18",
-  "url": "bundle-20260728.18.zip",
-  "hash": "063d6e31639fcbf98743211180395a40371ec1745616d6ecdbfce2428fd26f0d",
-  "minNativeVersion": null,
-  "notes": "- Revert \"feat: 更新更新源管理，移除 jsDelivr 并优化源候选解析逻辑\"\n  This reverts commit ec6ca2c12290f6579c7d6dd5b6a0a0f1efccbe4a.\n\n- Revert \"feat: 更新应用程序以支持 jsDelivr 作为更新源，优化更新管理\"\n  This reverts commit 1a0d4e9019244d452d8f7f6444d7e2e826ec73b0.",
-  "updateLevel": "silent",
-  "publishedAt": "2026-07-28T15:03:07Z"
-}
