@@ -15,6 +15,10 @@
  *
  * 扩展：新场景只需要在 backend 的 feature_whitelist 表登记新 feature 行，
  *       再 `useFeaturePermission('xxx')` 即可，无需改动本文件。
+ *
+ * 使用注意：返回对象里的 ref 在模板中必须解构成顶层变量再用
+ *       `const { allowed } = useFeaturePermission('xxx')` + `v-if="allowed"`。
+ *       直接 `v-if="perm.allowed"` 读到的是 ref 对象（恒为真），无法隐藏入口。
  */
 import { ref } from 'vue'
 import { useAuthStore } from '@/stores/auth'
