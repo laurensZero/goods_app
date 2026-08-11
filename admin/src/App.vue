@@ -8,6 +8,7 @@ import AdminSidebar from './components/layout/AdminSidebar.vue'
 import AdminNav from './components/layout/AdminNav.vue'
 import AdminHeader from './components/layout/AdminHeader.vue'
 import SectionCard from './components/ui/SectionCard.vue'
+import ConfirmHost from './components/ui/ConfirmHost.vue'
 
 const { appearance, toggleDark } = useAdminTheme()
 const { authenticated } = useAdminAuth()
@@ -44,6 +45,7 @@ watch(activeSectionId, () => {
 </script>
 
 <template>
+  <ConfirmHost />
   <AdminLogin v-if="!authenticated" />
 
   <div

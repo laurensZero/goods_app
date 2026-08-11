@@ -1,5 +1,6 @@
 <script setup>
 import AppIcon from '../ui/AppIcon.vue'
+import { captureTransitionOrigin } from '../../composables/useAdminTheme'
 
 defineProps({
   isDark: { type: Boolean, default: false },
@@ -25,6 +26,7 @@ defineEmits(['toggle-theme'])
         type="button"
         :aria-label="isDark ? '切换到浅色' : '切换到深色'"
         :title="isDark ? '切换到浅色' : '切换到深色'"
+        @pointerdown="captureTransitionOrigin"
         @click="$emit('toggle-theme')"
       >
         <AppIcon :name="isDark ? 'sun' : 'moon'" :size="16" />

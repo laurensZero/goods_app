@@ -3,6 +3,20 @@ import { ref, watch } from 'vue'
 const STORAGE_KEY = 'goods_admin_theme_preference'
 
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
+
+/**
+ * 记录触发元素指针坐标到 <html> 的 --vt-x / --vt-y，
+ * 供 View Transition 圆形展开动画使用（在 @pointerdown 中调用，先于 @click）。
+ */
+export function captureTransitionOrigin(event) {
+  const rect = event.currentTarget?.getBoundingClientRect?.()
+  const x = event.clientX ?? (rect ? rect.left + rect.width / 2 : window.innerWidth / 2)
+  const y = event.clientY ?? (rect ? rect.top + rect.height / 2 : window.innerHeight / 2)
+  const root = document.documentElement
+  root.style.setProperty('--vt-x', `${x}px`)
+  root.style.setProperty('--vt-y', `${y}px`)
+}
 
 /** 读取用户偏好：dark / light / system（默认跟随系统） */
 function readStoredPreference() {
@@ -79,7 +93,19 @@ export function useAdminTheme() {
 
   function toggleDark() {
     // 手动切换后固定为显式偏好
-    setPreference(appearance.value === 'dark' ? 'light' : 'dark')
+    const target = appearance.value === 'dark' ? 'light' : 'dark'
+
+    // 尊重 reduced-motion，或 API 不可用时直接切换
+    const prefersReduced = window.matchMedia?.(REDUCED_MOTION_QUERY)?.matches
+    if (prefersReduced || typeof document.startViewTransition !== 'function') {
+      setPreference(target)
+      return
+    }
+
+    // 用 View Transition 包裹状态变更：旧帧定格，新帧以按钮为圆心圆形展开
+    document.startViewTransition(() => {
+      setPreference(target)
+    })
   }
 
   watch(preference, () => { /* keep for potential future use */ })

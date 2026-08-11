@@ -4,22 +4,10 @@ import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW, APK_WORKFLOW, workflowUrl, fetch
 import { getGithubToken } from '../services/supabase'
 import { fetchLatestApkVersion } from '../services/channels'
 import AppSelect from '../components/admin/AppSelect.vue'
+import { CHANNEL_OPTIONS, UPDATE_LEVELS, APK_BUILD_TYPES } from '../constants'
+import { useConfirm } from '../composables/useConfirm'
 
-const CHANNEL_OPTIONS = [
-  { value: 'stable', label: 'stable（正式）' },
-  { value: 'beta', label: 'beta（预览）' }
-]
-
-const UPDATE_LEVELS = [
-  { value: 'prompt', label: 'prompt — 提示后更新' },
-  { value: 'silent', label: 'silent — 静默更新' },
-  { value: 'force', label: 'force — 强制更新' }
-]
-
-const APK_BUILD_TYPES = [
-  { value: 'release', label: 'release（发布版，需 tag）' },
-  { value: 'debug', label: 'debug（调试版）' }
-]
+const { confirm } = useConfirm()
 
 const form = reactive({
   channel: 'beta',
@@ -111,6 +99,12 @@ function buildPublishInputs() {
 async function triggerPublish() {
   try {
     const inputs = buildPublishInputs()
+    const ok = await confirm({
+      title: '构建并发布',
+      message: `确认触发 ${inputs.channel} 通道的 OTA Bundle 发布？`,
+      confirmText: '确认发布'
+    })
+    if (!ok) return
     publishBusy.value = true
     setPublishStatus('正在触发发布工作流…')
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, inputs)
@@ -127,6 +121,12 @@ async function triggerRollback() {
   try {
     if (!getGithubToken()) throw new Error('回档需要先填写 GitHub Token。')
     if (!version) throw new Error('请填写要回档到的版本号。')
+    const ok = await confirm({
+      title: '触发回档',
+      message: `确认将 ${form.channel} 通道回档到 ${version} 版本？`,
+      confirmText: '确认回档'
+    })
+    if (!ok) return
     publishBusy.value = true
     setPublishStatus(`正在回档 ${form.channel} -> ${version} …`)
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, {
@@ -154,6 +154,12 @@ async function triggerApkBuild() {
       if (!tag) throw new Error('release 构建必须填写 Release Tag（如 v1.5.0）。')
       inputs.release_tag = tag
     }
+    const ok = await confirm({
+      title: '触发 APK 构建',
+      message: `确认触发 ${apk.buildType === 'release' ? 'release' : 'debug'} 构建${inputs.release_tag ? `（${inputs.release_tag}）` : ''}？`,
+      confirmText: '确认构建'
+    })
+    if (!ok) return
     apkBusy.value = true
     setApkStatus('正在触发 APK 构建工作流…')
     await dispatchWorkflow(APK_WORKFLOW, inputs)

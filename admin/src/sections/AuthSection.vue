@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useAdminAuth } from '../composables/useAdminAuth'
 import { getGithubToken, getSupabaseConfig } from '../services/supabase'
+import StatusPill from '../components/ui/StatusPill.vue'
 
 const { admin, logout } = useAdminAuth()
 
@@ -41,17 +42,19 @@ const serviceKeySet = computed(() => !!getSupabaseConfig().serviceKey)
     </div>
 
     <div class="list">
-      <div class="list-item">
-        <span class="cred-name">GitHub Token</span>
-        <span class="state" :class="githubSet ? 'state--ok' : 'state--warn'">
-          {{ githubSet ? '已下发' : '未配置' }}
-        </span>
+      <div class="cred-card">
+        <div class="cred-head">
+          <span class="cred-name">GitHub Token</span>
+          <StatusPill :status="githubSet ? 'ok' : 'warn'" :label="githubSet ? '已下发' : '未配置'" />
+        </div>
+        <p class="cred-desc">用于触发 GitHub Actions 发布 / 回档工作流</p>
       </div>
-      <div class="list-item">
-        <span class="cred-name">Supabase Service Role Key</span>
-        <span class="state" :class="serviceKeySet ? 'state--ok' : 'state--warn'">
-          {{ serviceKeySet ? '已下发' : '未配置' }}
-        </span>
+      <div class="cred-card">
+        <div class="cred-head">
+          <span class="cred-name">Supabase Service Role Key</span>
+          <StatusPill :status="serviceKeySet ? 'ok' : 'warn'" :label="serviceKeySet ? '已下发' : '未配置'" />
+        </div>
+        <p class="cred-desc">用于管理台直连 Supabase REST（数据读写）</p>
       </div>
     </div>
 
@@ -66,8 +69,37 @@ const serviceKeySet = computed(() => !!getSupabaseConfig().serviceKey)
   gap: 12px;
 }
 
+.list {
+  display: grid;
+  gap: 10px;
+}
+
+.cred-card {
+  padding: 14px 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: var(--app-surface-soft);
+  display: grid;
+  gap: 6px;
+}
+
+.cred-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .cred-name {
-  font-size: 13px;
-  color: var(--app-text-secondary);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.cred-desc {
+  margin: 0;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
 }
 </style>

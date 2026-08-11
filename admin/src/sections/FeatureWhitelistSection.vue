@@ -4,6 +4,9 @@ import { supabaseRequest } from '../services/supabase'
 import { fetchUsersList } from '../services/versionRules'
 import UserPicker from '../components/admin/UserPicker.vue'
 import AppSelect from '../components/admin/AppSelect.vue'
+import { useConfirm } from '../composables/useConfirm'
+
+const { confirm } = useConfirm()
 
 const FEATURE_OPTIONS = [
   { value: 'checkout', label: 'checkout（自助下单）', hint: '我的页「自助下单」入口与路由守卫' },
@@ -116,7 +119,13 @@ async function addUsers() {
 
 async function removeUser(userId) {
   const feature = activeFeature.value
-  if (!confirm(`确认移除 ${displayFor(userId)} 的 ${feature} 权限？`)) return
+  const ok = await confirm({
+    title: '移除授权',
+    message: `确认移除 ${displayFor(userId)} 的 ${feature} 权限？`,
+    confirmText: '确认移除',
+    danger: true
+  })
+  if (!ok) return
   try {
     await supabaseRequest('/rest/v1/feature_whitelist', {
       method: 'DELETE',
