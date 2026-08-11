@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { supabaseRequest } from '../services/supabase'
 import { formatTime } from '../services/versionRules'
+import AppSelect from '../components/admin/AppSelect.vue'
 
 const STATUS_OPTIONS = [
   { value: 'pending', label: '待处理' },
@@ -133,14 +134,20 @@ onMounted(loadList)
 
 <template>
   <div class="filters">
-    <select v-model="filters.status" class="select" @change="loadList">
-      <option value="">全部状态</option>
-      <option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-    </select>
-    <select v-model="filters.type" class="select" @change="loadList">
-      <option value="">全部类型</option>
-      <option v-for="opt in TYPE_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-    </select>
+    <AppSelect
+      v-model="filters.status"
+      :options="[{ value: '', label: '全部状态' }, ...STATUS_OPTIONS]"
+      inline
+      class="filter-select"
+      @change="loadList"
+    />
+    <AppSelect
+      v-model="filters.type"
+      :options="[{ value: '', label: '全部类型' }, ...TYPE_OPTIONS]"
+      inline
+      class="filter-select"
+      @change="loadList"
+    />
     <button class="btn btn--soft" type="button" :disabled="!filters.status && !filters.type" @click="resetFilters">清除筛选</button>
     <button class="btn" type="button" :disabled="loading" @click="loadList">{{ loading ? '加载中…' : '刷新' }}</button>
   </div>
@@ -246,9 +253,7 @@ onMounted(loadList)
         <button class="btn btn--primary btn--sm" type="button" :disabled="replyBusy" @click="sendReply">
           {{ replyBusy ? '发送中…' : '发送回复' }}
         </button>
-        <select v-model="detail.status" class="select status-select">
-          <option v-for="opt in STATUS_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <AppSelect v-model="detail.status" :options="STATUS_OPTIONS" class="status-select" />
         <button class="btn btn--sm" type="button" :disabled="statusBusy" @click="updateStatus">更新状态</button>
       </div>
     </div>
@@ -267,7 +272,7 @@ onMounted(loadList)
   align-items: center;
 }
 
-.filters .select {
+.filters .filter-select {
   width: auto;
   min-width: 130px;
 }
@@ -332,7 +337,8 @@ onMounted(loadList)
   margin-top: 4px;
 }
 
-.status-select {
+.actions .status-select {
   width: 130px;
+  flex-shrink: 0;
 }
 </style>

@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { supabaseRequest } from '../services/supabase'
 import { fetchUsersList } from '../services/versionRules'
 import UserPicker from '../components/admin/UserPicker.vue'
+import AppSelect from '../components/admin/AppSelect.vue'
 
 const FEATURE_OPTIONS = [
   { value: 'checkout', label: 'checkout（自助下单）', hint: '我的页「自助下单」入口与路由守卫' },
@@ -158,9 +159,7 @@ onMounted(() => {
       </div>
     </div>
     <div class="field">
-      <select v-model="activeFeature" class="select" @change="pendingIds = []">
-        <option v-for="f in featureOptions" :key="f.value" :value="f.value">{{ f.label }}</option>
-      </select>
+      <AppSelect v-model="activeFeature" :options="featureOptions" @change="pendingIds = []" />
       <p class="tip">{{ currentFeature.hint }}</p>
     </div>
   </div>

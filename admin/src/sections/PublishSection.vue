@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW, APK_WORKFLOW, workflowUrl, fetchRecentCommits, formatBetaNotesFromCommits } from '../services/github'
 import { getGithubToken } from '../services/supabase'
 import { fetchLatestApkVersion } from '../services/channels'
+import AppSelect from '../components/admin/AppSelect.vue'
 
 const CHANNEL_OPTIONS = [
   { value: 'stable', label: 'stable（正式）' },
@@ -43,6 +44,11 @@ const apkBusy = ref(false)
 const notesBusy = ref(false)
 const latestApk = ref('')
 const channelHint = ref('')
+
+const updateLevelOptions = computed(() => [
+  { value: '', label: `默认（${channelHint.value}）` },
+  ...UPDATE_LEVELS
+])
 
 function setPublishStatus(text, type = 'default') {
   publishStatus.value = { text, type }
@@ -193,9 +199,7 @@ onMounted(async () => {
 
       <div class="field">
         <label class="field-label">发布通道</label>
-        <select v-model="form.channel" class="select" @change="syncUpdateLevelByChannel">
-          <option v-for="opt in CHANNEL_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <AppSelect v-model="form.channel" :options="CHANNEL_OPTIONS" @change="syncUpdateLevelByChannel" />
       </div>
 
       <div class="field">
@@ -205,10 +209,7 @@ onMounted(async () => {
 
       <div class="field">
         <label class="field-label">更新级别（可选）</label>
-        <select v-model="form.updateLevel" class="select">
-          <option value="">默认（{{ channelHint }}）</option>
-          <option v-for="opt in UPDATE_LEVELS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <AppSelect v-model="form.updateLevel" :options="updateLevelOptions" />
       </div>
 
       <div class="field">
@@ -253,9 +254,7 @@ onMounted(async () => {
 
       <div class="field">
         <label class="field-label">构建类型</label>
-        <select v-model="apk.buildType" class="select">
-          <option v-for="opt in APK_BUILD_TYPES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <AppSelect v-model="apk.buildType" :options="APK_BUILD_TYPES" />
       </div>
 
       <div class="field">
@@ -265,9 +264,7 @@ onMounted(async () => {
 
       <div class="field">
         <label class="field-label">更新级别</label>
-        <select v-model="apk.updateLevel" class="select">
-          <option v-for="opt in UPDATE_LEVELS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <AppSelect v-model="apk.updateLevel" :options="UPDATE_LEVELS" />
       </div>
 
       <div class="actions">

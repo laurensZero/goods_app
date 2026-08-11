@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import AppSelect from './AppSelect.vue'
 
 const props = defineProps({
   modelValue: { type: Object, required: true }, // { mode, value }
@@ -33,13 +34,12 @@ function onModeChange(mode) {
   <div class="version-rule">
     <div class="rule-mode">
       <span class="field-label">{{ label }}</span>
-      <select
-        class="select"
-        :value="current.mode"
-        @change="onModeChange($event.target.value)"
-      >
-        <option v-for="m in MODES" :key="m.value" :value="m.value">{{ m.label }}</option>
-      </select>
+      <AppSelect
+        class="rule-mode-select"
+        :model-value="current.mode"
+        :options="MODES"
+        @update:model-value="onModeChange"
+      />
     </div>
     <div v-if="current.mode !== 'any'" class="rule-value">
       <input
@@ -68,7 +68,8 @@ function onModeChange(mode) {
   min-width: 72px;
 }
 
-.rule-mode .select {
+.rule-mode .rule-mode-select {
   width: 130px;
+  flex-shrink: 0;
 }
 </style>

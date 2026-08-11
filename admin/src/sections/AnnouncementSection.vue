@@ -5,6 +5,8 @@ import { normalizeVersionRuleForForm, buildVersionRuleFromForm, normalizeHttpsUr
 import UserPicker from '../components/admin/UserPicker.vue'
 import ConditionEditor from '../components/admin/ConditionEditor.vue'
 import VersionRuleFields from '../components/admin/VersionRuleFields.vue'
+import AppSelect from '../components/admin/AppSelect.vue'
+import AppDateField from '../components/admin/AppDateField.vue'
 
 const SHOW_MODES = [
   { value: 'once', label: 'once（仅一次）' },
@@ -309,9 +311,7 @@ onMounted(loadList)
 
       <div class="field">
         <label class="field-label">展示模式</label>
-        <select v-model="form.showMode" class="select">
-          <option v-for="m in SHOW_MODES" :key="m.value" :value="m.value">{{ m.label }}</option>
-        </select>
+        <AppSelect v-model="form.showMode" :options="SHOW_MODES" />
       </div>
 
       <div class="field">
@@ -321,12 +321,12 @@ onMounted(loadList)
 
       <div class="field">
         <label class="field-label">开始时间（可选）</label>
-        <input v-model="form.startAt" class="input" type="datetime-local">
+        <AppDateField v-model="form.startAt" type="datetime" placeholder="选择开始时间" />
       </div>
 
       <div class="field">
         <label class="field-label">结束时间（可选）</label>
-        <input v-model="form.endAt" class="input" type="datetime-local">
+        <AppDateField v-model="form.endAt" type="datetime" placeholder="选择结束时间" />
       </div>
     </div>
 
@@ -350,10 +350,13 @@ onMounted(loadList)
       </div>
       <div class="field">
         <label class="field-label">按钮动作</label>
-        <select v-model="form.ctaAction" class="select">
-          <option value="dismiss">直接关闭</option>
-          <option value="link">打开链接</option>
-        </select>
+        <AppSelect
+          v-model="form.ctaAction"
+          :options="[
+            { value: 'dismiss', label: '直接关闭' },
+            { value: 'link', label: '打开链接' }
+          ]"
+        />
       </div>
     </div>
 
@@ -366,10 +369,13 @@ onMounted(loadList)
 
     <div class="field">
       <label class="field-label">条件逻辑（AND / OR）</label>
-      <select v-model="form.conditionLogic" class="select">
-        <option value="and">and（全部满足）</option>
-        <option value="or">or（任一满足）</option>
-      </select>
+      <AppSelect
+        v-model="form.conditionLogic"
+        :options="[
+          { value: 'and', label: 'and（全部满足）' },
+          { value: 'or', label: 'or（任一满足）' }
+        ]"
+      />
     </div>
 
     <div class="field">
