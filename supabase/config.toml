@@ -55,3 +55,9 @@ verify_jwt = true
 # 需配置 Secret：GITHUB_TOKEN
 [functions.admin-login]
 verify_jwt = false
+
+# 备份管理 API：管理台 → VPS webhook 桥接（触发备份/回档/归档列表/下载/日志）。
+# 调用方需携带 Authorization: Bearer <serviceKey>（与 admin-login 下发的 serviceKey 一致）。
+# 需配置 Secret：BACKUP_VPS_URL、BACKUP_WEBHOOK_SECRET
+[functions.backup-api]
+verify_jwt = false
