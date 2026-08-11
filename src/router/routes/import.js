@@ -30,8 +30,8 @@ export default [
       // 确保 session 已恢复（刷新后 Supabase auth 异步加载，否则 isLoggedIn 可能为 false）
       await auth.init()
       if (!auth.isLoggedIn) return fallback
-      const { checkCheckoutPermission } = await import('@/composables/checkout/useCheckoutPermission')
-      const allowed = await checkCheckoutPermission()
+      const { checkFeaturePermission } = await import('@/composables/permission/useFeaturePermission')
+      const allowed = await checkFeaturePermission('checkout')
       if (!allowed) {
         const { showGlobalToast } = await import('@/utils/globalToast')
         const { default: i18n } = await import('@/locales')
