@@ -1,5 +1,6 @@
 <script setup>
 import { reactive } from 'vue'
+import AppSelect from './AppSelect.vue'
 
 const props = defineProps({
   conditions: { type: Array, required: true }
@@ -82,9 +83,7 @@ function typeLabel(type) {
 
         <div v-else-if="c.type === 'db'" class="cond-fields cond-fields--row">
           <input v-model="c.table" class="input" type="text" placeholder="表名" @input="update">
-          <select v-model="c.op" class="select" @change="update">
-            <option v-for="op in DB_OPS" :key="op" :value="op">{{ op }}</option>
-          </select>
+          <AppSelect v-model="c.op" :options="DB_OPS" @change="update" />
           <input v-model.number="c.value" class="input" type="number" placeholder="值" @input="update">
         </div>
 
@@ -97,9 +96,7 @@ function typeLabel(type) {
     <p v-else class="tip">暂无条件（对所有命中版本/通道的用户生效）</p>
 
     <div class="add-row">
-      <select v-model="fresh.type" class="select add-select">
-        <option v-for="t in TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
-      </select>
+      <AppSelect v-model="fresh.type" :options="TYPE_OPTIONS" class="add-select" />
       <button class="btn btn--soft" type="button" @click="addCondition">+ 添加条件</button>
     </div>
   </div>
@@ -163,7 +160,8 @@ function typeLabel(type) {
   align-items: center;
 }
 
-.add-select {
+.add-row .add-select {
   width: 150px;
+  flex-shrink: 0;
 }
 </style>

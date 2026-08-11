@@ -4,6 +4,8 @@ import { supabaseRequest } from '../services/supabase'
 import { formatTime } from '../services/versionRules'
 import UserPicker from '../components/admin/UserPicker.vue'
 import ConditionEditor from '../components/admin/ConditionEditor.vue'
+import AppSelect from '../components/admin/AppSelect.vue'
+import AppDateField from '../components/admin/AppDateField.vue'
 
 const SHOW_MODES = [
   { value: 'once', label: 'once（仅一次）' },
@@ -505,9 +507,7 @@ onMounted(loadList)
 
       <div class="field">
         <label class="field-label">展示模式</label>
-        <select v-model="form.showMode" class="select">
-          <option v-for="m in SHOW_MODES" :key="m.value" :value="m.value">{{ m.label }}</option>
-        </select>
+        <AppSelect v-model="form.showMode" :options="SHOW_MODES" />
       </div>
 
       <div class="field">
@@ -517,12 +517,12 @@ onMounted(loadList)
 
       <div class="field">
         <label class="field-label">开始时间（可选）</label>
-        <input v-model="form.startAt" class="input" type="text" placeholder="2026-07-24T00:00:00Z">
+        <AppDateField v-model="form.startAt" type="datetime" placeholder="选择开始时间" />
       </div>
 
       <div class="field">
         <label class="field-label">结束时间（可选）</label>
-        <input v-model="form.endAt" class="input" type="text" placeholder="2026-08-31T23:59:59Z">
+        <AppDateField v-model="form.endAt" type="datetime" placeholder="选择结束时间" />
       </div>
 
       <div class="field field--full">
@@ -532,10 +532,13 @@ onMounted(loadList)
 
       <div class="field field--full">
         <label class="field-label">高级显示条件逻辑</label>
-        <select v-model="form.conditionLogic" class="select">
-          <option value="and">AND（全部满足）</option>
-          <option value="or">OR（任一满足）</option>
-        </select>
+        <AppSelect
+          v-model="form.conditionLogic"
+          :options="[
+            { value: 'and', label: 'AND（全部满足）' },
+            { value: 'or', label: 'OR（任一满足）' }
+          ]"
+        />
       </div>
 
       <div class="field field--full">
@@ -563,9 +566,7 @@ onMounted(loadList)
 
         <div class="question-title-row">
           <input v-model="q.title" class="input" type="text" placeholder="题目标题">
-          <select v-model="q.type" class="select question-type" @change="changeType(q, q.type)">
-            <option v-for="t in TYPE_OPTIONS" :key="t.value" :value="t.value">{{ t.label }}</option>
-          </select>
+          <AppSelect v-model="q.type" :options="TYPE_OPTIONS" @change="(v) => changeType(q, v)" />
         </div>
 
         <input v-model="q.description" class="input" type="text" placeholder="题目描述（可选）">
@@ -639,10 +640,13 @@ onMounted(loadList)
     </div>
 
     <div class="responses-toolbar">
-      <select v-model="responsesSurveyId" class="select responses-select" @change="loadResponses">
-        <option value="">选择问卷…</option>
-        <option v-for="s in list" :key="s.id" :value="s.id">{{ s.title || s.id }}（{{ s.questions?.length || 0 }} 题）</option>
-      </select>
+      <AppSelect
+        v-model="responsesSurveyId"
+        :options="[{ value: '', label: '选择问卷…' }, ...list.map(s => ({ value: s.id, label: `${s.title || s.id}（${s.questions?.length || 0} 题）` }))]"
+        inline
+        class="responses-select"
+        @change="loadResponses"
+      />
       <button class="btn" type="button" :disabled="responsesBusy" @click="loadResponses">
         {{ responsesBusy ? '加载中…' : '加载回复' }}
       </button>
@@ -832,7 +836,7 @@ onMounted(loadList)
   flex-wrap: wrap;
 }
 
-.responses-select {
+.responses-toolbar .responses-select {
   min-width: 260px;
 }
 
