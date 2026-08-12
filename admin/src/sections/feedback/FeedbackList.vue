@@ -9,6 +9,7 @@ import StatusPill from '../../components/ui/StatusPill.vue'
 import TypeBadge from '../../components/ui/TypeBadge.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 import AppSelect from '../../components/admin/AppSelect.vue'
 
 const emit = defineEmits(['open-detail'])
@@ -159,7 +160,8 @@ defineExpose({ load })
   </p>
 
   <div class="list">
-    <EmptyState v-if="!loading && items.length === 0" title="暂无反馈" description="调整筛选条件试试" />
+    <Skeleton v-if="loading" variant="list" count="6" />
+    <EmptyState v-else-if="!items.length" title="暂无反馈" description="调整筛选条件试试" />
     <article v-for="item in items" :key="item.id" class="list-item fb-item">
       <label class="select-box" @click.stop>
         <input type="checkbox" :checked="selectedSet.has(item.id)" @change="toggleSelect(item.id)">

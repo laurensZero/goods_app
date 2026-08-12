@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { loadMaintenanceMode, saveMaintenanceMode, clearMaintenanceMode } from '../services/maintenance'
 import { MAINTENANCE_BLOCKS } from '../constants'
 import { useConfirm } from '../composables/useConfirm'
+import Skeleton from '../components/ui/Skeleton.vue'
 
 const { confirm } = useConfirm()
 
@@ -16,6 +17,7 @@ const form = reactive({
 
 const status = ref({ text: '等待操作', type: 'default' })
 const busy = ref('')
+const loaded = ref(false)
 
 const hasBlock = computed(() => BLOCKS.some(b => form.blocks[b.key]))
 
@@ -40,6 +42,7 @@ async function load() {
   try {
     const data = await loadMaintenanceMode()
     setFormData(data)
+    loaded.value = true
     setStatus(data ? '已加载维护模式配置。' : '维护模式未配置。', 'ok')
   } catch (e) {
     setStatus(e?.message || '加载失败。', 'error')
@@ -99,22 +102,25 @@ onMounted(load)
     维护模式用于停更 / 数据异常期间临时关闭同步功能。状态会写入云端 sync_manifest，对所有客户端生效。
   </p>
 
-  <label class="checkbox-row">
-    <input v-model="form.enabled" type="checkbox">
-    <strong>启用维护模式</strong>
-  </label>
-
-  <div class="field">
-    <label class="field-label" for="maintenance-message">维护提示消息（可选，客户端展示）</label>
-    <input id="maintenance-message" v-model="form.message" class="input" type="text" placeholder="例如：系统维护中，同步功能暂时不可用">
-  </div>
-
-  <div class="block-grid">
-    <label v-for="block in BLOCKS" :key="block.key" class="checkbox-row block-checkbox">
-      <input v-model="form.blocks[block.key]" type="checkbox">
-      {{ block.label }}
+  <Skeleton v-if="busy === 'load' && !loaded" variant="form" count="3" />
+  <template v-else>
+    <label class="checkbox-row">
+      <input v-model="form.enabled" type="checkbox">
+      <strong>启用维护模式</strong>
     </label>
-  </div>
+
+    <div class="field">
+      <label class="field-label" for="maintenance-message">维护提示消息（可选，客户端展示）</label>
+      <input id="maintenance-message" v-model="form.message" class="input" type="text" placeholder="例如：系统维护中，同步功能暂时不可用">
+    </div>
+
+    <div class="block-grid">
+      <label v-for="block in BLOCKS" :key="block.key" class="checkbox-row block-checkbox">
+        <input v-model="form.blocks[block.key]" type="checkbox">
+        {{ block.label }}
+      </label>
+    </div>
+  </template>
 
   <div class="actions">
     <button class="btn btn--primary" type="button" :disabled="busy === 'save'" @click="save">

@@ -4,6 +4,7 @@ import { supabaseRequest } from '../services/supabase'
 import { fetchUsersList } from '../services/versionRules'
 import UserPicker from '../components/admin/UserPicker.vue'
 import AppSelect from '../components/admin/AppSelect.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import { useConfirm } from '../composables/useConfirm'
 
 const { confirm } = useConfirm()
@@ -182,7 +183,8 @@ onMounted(() => {
       <span class="state">{{ activeEntries.length }} 人</span>
     </div>
 
-    <div v-if="activeEntries.length" class="list">
+    <Skeleton v-if="loading" variant="list" count="4" />
+    <div v-else-if="activeEntries.length" class="list">
       <div v-for="e in activeEntries" :key="e.user_id" class="list-item">
         <div class="list-item-main">
           <span class="list-item-title">{{ displayFor(e.user_id) }}</span>

@@ -9,6 +9,7 @@ import PanelDrawer from '../components/ui/PanelDrawer.vue'
 import StatusPill from '../components/ui/StatusPill.vue'
 import SearchInput from '../components/ui/SearchInput.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import AnnouncementForm from './announcement/AnnouncementForm.vue'
 
 const { items, loading, keyword, status, load, setStatus } = useAdminList({
@@ -112,7 +113,8 @@ onMounted(load)
   </p>
 
   <div class="list">
-    <EmptyState v-if="!loading && filtered.length === 0" title="暂无公告" description="点击「新建公告」创建第一条" />
+    <Skeleton v-if="loading" variant="list" count="5" />
+    <EmptyState v-else-if="!filtered.length" title="暂无公告" description="点击「新建公告」创建第一条" />
     <article v-for="item in filtered" :key="item.id" class="list-item">
       <div class="list-item-main">
         <span class="list-item-title">{{ item.title || item.id }}</span>

@@ -4,6 +4,7 @@ import { supabaseRequest } from '../../services/supabase'
 import { formatTime, toCsv, downloadBlob } from '../../utils/format'
 import { SURVEY_QUESTION_TYPE_LABEL } from '../../constants'
 import EmptyState from '../../components/ui/EmptyState.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 import AppSelect from '../../components/admin/AppSelect.vue'
 
 const props = defineProps({
@@ -240,6 +241,9 @@ function exportJson() {
     </p>
 
     <template v-if="selectedId">
+      <!-- 首次加载骨架 -->
+      <Skeleton v-if="busy && !list.length" variant="list" count="5" />
+
       <!-- 聚合摘要 -->
       <div v-if="aggregate.length" class="agg-grid">
         <div v-for="agg in aggregate" :key="agg.q.id" class="card agg-card">
