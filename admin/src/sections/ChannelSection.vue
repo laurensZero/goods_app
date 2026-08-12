@@ -6,6 +6,7 @@ import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW } from '../services/github'
 import { formatTime } from '../utils/format'
 import { useConfirm } from '../composables/useConfirm'
 import StatusPill from '../components/ui/StatusPill.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 
 const { confirm } = useConfirm()
 
@@ -92,6 +93,12 @@ function channelState(channel) {
   return { pill: 'ok', label: '正常' }
 }
 
+// 首次加载（尚无数据）时显示骨架；刷新时保留旧数据不闪骨架
+function channelLoading(channel) {
+  const s = channels[channel]
+  return !!s?.loading && !s?.data
+}
+
 onMounted(loadAll)
 </script>
 
@@ -110,7 +117,8 @@ onMounted(loadAll)
         <StatusPill :status="channelState(channel).pill" :label="channelState(channel).label" />
       </header>
 
-      <div class="meta">
+      <Skeleton v-if="channelLoading(channel)" variant="meta" count="5" />
+      <div v-else class="meta">
         <dt>当前版本</dt>
         <dd>{{ channels[channel]?.data?.version || '--' }}</dd>
         <dt>发布说明</dt>
@@ -126,7 +134,7 @@ onMounted(loadAll)
       <p v-if="channels[channel]?.error" class="tip tip--warn">{{ channels[channel].error }}</p>
 
       <div class="history-list">
-        <div v-if="channels[channel]?.loading" class="history-item">加载中…</div>
+        <Skeleton v-if="channelLoading(channel)" variant="list" count="2" />
         <div v-else-if="channels[channel]?.versions?.length === 0" class="history-item">
           {{ channels[channel]?.error ? '暂无可用历史' : '暂无历史（发布后自动生成）' }}
         </div>

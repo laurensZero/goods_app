@@ -8,6 +8,7 @@ import { showModeLabel } from '../../constants'
 import StatusPill from '../../components/ui/StatusPill.vue'
 import SearchInput from '../../components/ui/SearchInput.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 
 const emit = defineEmits(['create', 'edit', 'view-responses', 'updated'])
 
@@ -98,7 +99,8 @@ defineExpose({ items, load })
   </p>
 
   <div class="list">
-    <EmptyState v-if="!loading && filtered.length === 0" title="暂无问卷" description="点击「新建问卷」创建第一份" />
+    <Skeleton v-if="loading" variant="list" count="5" />
+    <EmptyState v-else-if="!filtered.length" title="暂无问卷" description="点击「新建问卷」创建第一份" />
     <article v-for="item in filtered" :key="item.id" class="list-item">
       <div class="list-item-main">
         <span class="list-item-title">{{ item.title || item.id }}</span>

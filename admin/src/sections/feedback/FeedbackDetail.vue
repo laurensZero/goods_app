@@ -6,6 +6,7 @@ import { FEEDBACK_STATUS, FEEDBACK_STATUS_LABEL, FEEDBACK_TYPE_LABEL } from '../
 import TypeBadge from '../../components/ui/TypeBadge.vue'
 import StatusPill from '../../components/ui/StatusPill.vue'
 import EmptyState from '../../components/ui/EmptyState.vue'
+import Skeleton from '../../components/ui/Skeleton.vue'
 import AppSelect from '../../components/admin/AppSelect.vue'
 
 const props = defineProps({
@@ -231,7 +232,7 @@ async function updateStatus() {
     </p>
   </div>
 
-  <EmptyState v-else title="加载中…" description="正在获取反馈详情" />
+  <Skeleton v-else variant="meta" count="6" />
 </template>
 
 <style scoped>

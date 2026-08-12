@@ -2,6 +2,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import { useConfirm } from '../composables/useConfirm'
 import StatusPill from '../components/ui/StatusPill.vue'
+import Skeleton from '../components/ui/Skeleton.vue'
 import {
   backupHealth,
   listArchives,
@@ -226,7 +227,8 @@ onMounted(load)
       <span class="state">{{ archives.length }} 个</span>
     </div>
 
-    <template v-if="archives.length">
+    <Skeleton v-if="busy === 'load' && !archives.length" variant="list" count="4" />
+    <template v-else-if="archives.length">
       <div v-for="a in archives" :key="a.name" class="list-item">
         <div class="list-item-main">
           <span class="list-item-title">
@@ -256,7 +258,8 @@ onMounted(load)
       <span class="state">{{ logs.length }} 条</span>
     </div>
 
-    <template v-if="logs.length">
+    <Skeleton v-if="busy === 'load' && !logs.length" variant="list" count="5" />
+    <template v-else-if="logs.length">
       <div v-for="l in logs" :key="l.id" class="list-item">
         <div class="list-item-main">
           <span class="list-item-title">
