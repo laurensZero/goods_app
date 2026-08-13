@@ -12,6 +12,7 @@ import {
   restoreBackup,
   getDownloadUrl
 } from '../services/backup'
+import { logAudit } from '../services/audit'
 
 const { confirm } = useConfirm()
 
@@ -162,6 +163,7 @@ async function confirmRestore() {
   setStatus('正在触发回档…')
   try {
     await restoreBackup(restoreDialog.archive, restoreDialog.includeImages, restoreDialog.password)
+    logAudit('backup.restore', restoreDialog.archive, { includeImages: restoreDialog.includeImages })
     restoreDialog.visible = false
     setStatus('已触发回档。VPS 将先自动备份当前数据库存档（安全快照），再执行回档，完成后写入备份日志。', 'ok')
   } catch (e) {

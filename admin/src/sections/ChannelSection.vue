@@ -3,6 +3,7 @@ import { onMounted, reactive } from 'vue'
 import { CHANNELS, fetchOtaBundles, pruneOldBundles } from '../services/channels'
 import { getSupabaseConfig, getGithubToken } from '../services/supabase'
 import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW } from '../services/github'
+import { logAudit } from '../services/audit'
 import { formatTime } from '../utils/format'
 import { useConfirm } from '../composables/useConfirm'
 import StatusPill from '../components/ui/StatusPill.vue'
@@ -77,6 +78,7 @@ async function triggerRollback(channel, version) {
       notes: '',
       rollback_version: version
     })
+    logAudit('rollback', `${channel} -> ${version}`)
     channels[channel].error = '已触发回档，请到 Actions 查看进度。'
   } catch (e) {
     channels[channel].error = e?.message || '回档触发失败。'
