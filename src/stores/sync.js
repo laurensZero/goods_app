@@ -679,6 +679,8 @@ export const useSyncStore = defineStore('sync', () => {
       if (!serverTs) return false
       const lastProcessed = (await readSyncKey(DEVICE_FORCE_RESYNC_KEY)) || ''
       if (lastProcessed && new Date(serverTs).getTime() <= new Date(lastProcessed).getTime()) {
+        // 本地已消费但服务端标记未清（如上次清理失败）：补清一次，让 admin 不再显示「待重同步」
+        void activeBackend.clearDeviceForceResync(serverTs).catch(() => {})
         return false
       }
       console.warn('[sync] admin-triggered device force resync detected, running full re-pull')
@@ -687,6 +689,8 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       await writeSyncKey(DEVICE_FORCE_RESYNC_KEY, serverTs)
+      // 清掉服务端标记（仅清自己消费的那个值，避免误清更新的标记），让 admin「待重同步」随消费消失
+      void activeBackend.clearDeviceForceResync(serverTs).catch(() => {})
       // 打标记：UI 据此显示明确的「强制重同步」文案，而不是普通拉取/数据最新
       return { ...result, forceResynced: true }
     } catch (e) {

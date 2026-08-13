@@ -53,6 +53,7 @@ export function createSupabaseBackendAdapter({
     readManifest: reader.readManifest,
     readDeviceRow: reader.readDeviceRow,
     writeDeviceHeartbeat: writer.writeDeviceHeartbeat,
+    clearDeviceForceResync: writer.clearDeviceForceResync,
     getDb
   })
 }

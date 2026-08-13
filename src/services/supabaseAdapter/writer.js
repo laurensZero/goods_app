@@ -58,6 +58,18 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (error) console.warn('[supabase] device heartbeat upsert warning:', error.message)
   }
 
+  // 消费强制重同步标记后清除服务端字段，让 admin「待重同步」随消费消失。
+  // 只清自己读到的那个值：若 admin 在消费过程中又设了更新的标记，则不误清。
+  async function clearDeviceForceResync(forceResyncAt = '') {
+    const db = getDb()
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    if (!currentDeviceId) return
+    let query = db.from('devices').update({ force_resync_at: null }).eq('device_id', currentDeviceId)
+    if (forceResyncAt) query = query.eq('force_resync_at', forceResyncAt)
+    const { error } = await withRetry(() => query)
+    if (error) console.warn('[supabase] device force_resync clear warning:', error.message)
+  }
+
   async function writePresets(presetsData) {
     const db = getDb()
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -242,5 +254,5 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     return { syncedAt: serverSyncedAt }
   }
 
-  return { writeManifest, writePresets, pushDomainRows, pushAll, writeDeviceHeartbeat }
+  return { writeManifest, writePresets, pushDomainRows, pushAll, writeDeviceHeartbeat, clearDeviceForceResync }
 }
