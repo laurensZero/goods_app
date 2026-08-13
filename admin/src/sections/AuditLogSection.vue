@@ -26,7 +26,8 @@ const ACTION_LABEL = {
   'announcement.update': '更新公告',
   'announcement.delete': '删除公告',
   'user.delete': '删除用户',
-  'qq.unbind': '解绑 QQ'
+  'qq.unbind': '解绑 QQ',
+  'device.force_resync': '强制重同步'
 }
 
 const DANGEROUS = new Set(['rollback', 'backup.restore', 'announcement.delete', 'user.delete', 'qq.unbind'])

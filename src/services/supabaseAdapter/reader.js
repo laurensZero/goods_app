@@ -15,7 +15,22 @@ async function fetchRowsSince(makeQuery, sinceMs) {
   return fetchAllRows(makeQuery(sinceMs > 0 ? 'updated_at' : null))
 }
 
-export function createReader({ getDb, trackSyncStep, userIdRef }) {
+export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
+  // 读当前设备行（devices 表）：返回 forceResyncAt，供设备级强制重同步判定。
+  // 无行（尚未心跳）返回 null。
+  async function readDeviceRow() {
+    const db = getDb()
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    if (!currentDeviceId) return null
+    const { data, error } = await withRetry(() =>
+      db.from('devices').select('*').eq('device_id', currentDeviceId).limit(1)
+    )
+    if (error) throw error
+    if (!data || data.length === 0) return null
+    const row = toCamelCase(data[0])
+    return { forceResyncAt: row.forceResyncAt || '' }
+  }
+
   async function readPresets() {
     const db = getDb()
     const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -310,5 +325,5 @@ export function createReader({ getDb, trackSyncStep, userIdRef }) {
     }
   }
 
-  return { readPresets, readManifest, pullDomainRows, pullAll }
+  return { readPresets, readManifest, pullDomainRows, pullAll, readDeviceRow }
 }
