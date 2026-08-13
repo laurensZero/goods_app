@@ -16,8 +16,6 @@ const { items, loading, keyword, status, load } = useAdminList({
 
 const { confirm } = useConfirm()
 
-const short = (s) => String(s || '').slice(0, 12)
-
 function platformLabel(p) {
   return p === 'native' ? '原生' : p === 'web' ? '网页' : (p || '--')
 }
@@ -62,7 +60,7 @@ const busyResync = ref('')
 async function doForceResync(device) {
   const ok = await confirm({
     title: '强制重同步',
-    message: `确认让设备 "${short(device.device_id)}" 下次同步时整量重拉全部数据？`,
+    message: `确认让设备 "${device.device_id}" 下次同步时整量重拉全部数据？`,
     confirmText: '触发'
   })
   if (!ok) return
@@ -143,7 +141,7 @@ onMounted(load)
     <article v-for="d in filtered" :key="d.device_id" class="list-item">
       <div class="list-item-main">
         <span class="list-item-title">
-          {{ short(d.device_id) }}
+          {{ d.device_id }}
           <template v-if="d.force_resync_at"> · 待重同步</template>
         </span>
         <span class="list-item-meta">
