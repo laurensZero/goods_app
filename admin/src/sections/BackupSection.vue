@@ -359,6 +359,32 @@ onMounted(load)
     </div>
   </div>
 
+  <!-- 备份/图库打包进行中：实时进度（紧跟操作按钮，点完立即可见） -->
+  <div v-if="backupLive.polling" class="restore-progress">
+    <span class="restore-progress-pulse"></span>
+    <span class="restore-progress-text">
+      <template v-if="backupLive.status === 'success'">备份完成。</template>
+      <template v-else-if="backupLive.status === 'failed'">备份失败：{{ backupLive.error || '见表内错误' }}</template>
+      <template v-else>
+        备份进行中：{{ backupLive.progress || '…' }}
+        <template v-if="backupLive.id">（{{ backupLive.id }}）</template>
+      </template>
+    </span>
+  </div>
+
+  <!-- 回档进行中：实时进度 -->
+  <div v-if="restoreLive.polling" class="restore-progress">
+    <span class="restore-progress-pulse"></span>
+    <span class="restore-progress-text">
+      <template v-if="restoreLive.status === 'success'">回档完成。</template>
+      <template v-else-if="restoreLive.status === 'failed'">回档失败：{{ restoreLive.error || '见表内错误' }}</template>
+      <template v-else>
+        回档进行中：{{ restoreLive.progress || '…' }}
+        <template v-if="restoreLive.id">（{{ restoreLive.id }}）</template>
+      </template>
+    </span>
+  </div>
+
   <div class="card card--inner">
     <div class="card-header">
       <div>
@@ -422,32 +448,6 @@ onMounted(load)
       </div>
     </template>
     <p v-else class="status-text">暂无备份记录。</p>
-  </div>
-
-  <!-- 备份/图库打包进行中：实时进度 -->
-  <div v-if="backupLive.polling" class="restore-progress">
-    <span class="restore-progress-pulse"></span>
-    <span class="restore-progress-text">
-      <template v-if="backupLive.status === 'success'">备份完成。</template>
-      <template v-else-if="backupLive.status === 'failed'">备份失败：{{ backupLive.error || '见表内错误' }}</template>
-      <template v-else>
-        备份进行中：{{ backupLive.progress || '…' }}
-        <template v-if="backupLive.id">（{{ backupLive.id }}）</template>
-      </template>
-    </span>
-  </div>
-
-  <!-- 回档进行中：实时进度 -->
-  <div v-if="restoreLive.polling" class="restore-progress">
-    <span class="restore-progress-pulse"></span>
-    <span class="restore-progress-text">
-      <template v-if="restoreLive.status === 'success'">回档完成。</template>
-      <template v-else-if="restoreLive.status === 'failed'">回档失败：{{ restoreLive.error || '见表内错误' }}</template>
-      <template v-else>
-        回档进行中：{{ restoreLive.progress || '…' }}
-        <template v-if="restoreLive.id">（{{ restoreLive.id }}）</template>
-      </template>
-    </span>
   </div>
 
   <p class="status-text" :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''">
