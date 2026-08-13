@@ -5,10 +5,15 @@ restore.py <archive> [--with-images]
 
 从备份归档回档 Supabase 数据。由 backup_server.py 以 detach 方式调用。
 流程：
-  1) 先对当前数据库做一次 db 快照备份（安全网，防止回档过程出错丢失现网数据）
-  2) 解压归档，对每张业务表「清空 + 分批 upsert」
-  3) 可选 --with-images：把本地图库目录全部重传到 Supabase Storage（幂等覆盖）
-状态写回 Supabase backup_logs 表（kind=restore）。
+  1) 先对当前数据库做一次 db 快照备份（安全网，防止回档过程出错丢失现网数据；
+     通过 --no-lock 让 run_backup.sh 跳过锁检查，否则会因本进程持锁而静默跳过）
+  2) 解压归档，校验 7 张表文件齐全
+  3) 单事务调用 admin_restore_all RPC：全部表「清空 + 重建」原子完成，
+     任一步失败整体回滚（不再留下半恢复状态）；RPC 内保留原始 updated_at、
+     跳过 user_id 已不在 auth.users 的孤儿行
+  4) 可选 --with-images：把本地图库目录全部重传到 Supabase Storage（幂等覆盖）
+状态写回 Supabase backup_logs 表（kind=restore），detail.progress 记录当前阶段，
+供管理台轮询展示「恢复到哪一步」。
 """
 
 import base64
@@ -85,7 +90,7 @@ def log(msg):
 
 
 # ── Supabase REST ─────────────────────────────────────────────────────
-def rest(method, path, data=None, prefer="return=minimal"):
+def rest(method, path, data=None, prefer="return=minimal", timeout=120):
     req = urllib.request.Request(
         SUPABASE_URL + path,
         method=method,
@@ -98,7 +103,7 @@ def rest(method, path, data=None, prefer="return=minimal"):
         data=json.dumps(data).encode("utf-8") if data is not None else None,
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as r:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status, r.read()
     except urllib.error.HTTPError as e:
         return e.code, e.read()[:2000]
@@ -123,32 +128,36 @@ def report_fail(err):
     rest("PATCH", f"/rest/v1/{LOG_TABLE}?id=eq.{LOG_ID}", body)
 
 
-# ── 表回档 ─────────────────────────────────────────────────────────────
-def replace_table(table, rows):
-    if not rows:
-        log(f"  (skip {table}: 备份为空)")
-        return True
-    filter_col = "user_id" if table in ("sync_manifest", "sync_presets") else "id"
-    status, _ = rest("DELETE", f"/rest/v1/{table}?{filter_col}=not.is.null")
+# ── 回档进度上报（写 backup_logs.detail.progress，供管理台轮询展示）────
+def report_progress(stage):
+    rest("PATCH", f"/rest/v1/{LOG_TABLE}?id=eq.{LOG_ID}",
+         {"detail": {"progress": stage}})
+
+
+# ── 表回档（单事务原子）────────────────────────────────────────────────
+def restore_tables(tables):
+    """单次调用 admin_restore_all RPC 完成全部表的清空+重建。
+
+    整个回档在一个数据库事务里执行，任一步失败整体回滚，避免旧实现
+    「逐表 DELETE + 插入」中途失败留下半恢复状态。
+    RPC 内部会：设 app.is_sync_push=true 保留归档里的原始 updated_at，
+    并过滤掉 user_id 已不在 auth.users 的孤儿行（已删除用户的数据不回档）。
+    超时放宽到 1800s：大库 + updated_at/提醒触发器可能超过默认 120s。
+    """
+    payload = {t: tables[t] for t in INSERT_ORDER}
+    status, body = rest(
+        "POST", "/rest/v1/rpc/admin_restore_all", payload, timeout=1800,
+    )
     if status >= 400:
-        log(f"  [ERR {status}] 清空 {table} 失败")
-        return False
-    total = 0
-    for i in range(0, len(rows), 500):
-        batch = rows[i:i + 500]
-        # 走 admin_restore_upsert RPC：会话内设 app.is_sync_push=true，
-        # 让 set_xxx_updated_at 触发器短路，保留归档里的原始 updated_at。
-        # （要求线上先应用 supabase-migration-restore-preserve-updated-at.sql）
-        status, body = rest(
-            "POST", "/rest/v1/rpc/admin_restore_upsert",
-            {"p_table": table, "p_rows": batch, "p_conflict": filter_col},
-        )
-        if status >= 400:
-            log(f"  [ERR {status}] restore_upsert {table} batch {i // 500}: {body[:200]}")
-            return False
-        total += len(batch)
-    log(f"  [OK] {table}: {total} 行")
-    return True
+        text = body.decode("utf-8", "replace")[:300] if isinstance(body, (bytes, bytearray)) else str(body)[:300]
+        log(f"  [ERR {status}] admin_restore_all: {text}")
+        return False, {}
+    text = body.decode("utf-8", "replace") if isinstance(body, (bytes, bytearray)) else str(body)
+    try:
+        counts = json.loads(text) if text.strip() else {}
+    except Exception:
+        counts = {}
+    return True, counts
 
 
 # ── 图库回档（幂等覆盖重传）───────────────────────────────────────────
@@ -211,14 +220,25 @@ def main():
         log(f"restore archive={archive} with_images={with_images}")
 
         # 1) 安全网快照
+        #    --no-lock：本进程已持有备份锁，run_backup.sh 默认会因锁被占用而跳过；
+        #    显式要求它跳过锁检查才能真正执行快照。
+        #    快照失败 → 中止回档（没有安全网就不动线上数据）。
+        report_progress("安全快照")
         log(">>> pre-restore snapshot (db)")
         try:
-            subprocess.run(
-                ["bash", str(BASE_DIR / "run_backup.sh"), "db"],
+            r = subprocess.run(
+                ["bash", str(BASE_DIR / "run_backup.sh"), "db", "--no-lock"],
                 stdout=open(LOG_FILE, "a"), stderr=subprocess.STDOUT, timeout=1800,
             )
         except Exception as e:
-            log(f"  (snapshot skipped: {e})")
+            log(f"  (snapshot error: {e})")
+            report_fail(f"回档前快照异常: {e}")
+            return 1
+        if r.returncode != 0:
+            log("[ERR] 快照失败，中止回档")
+            report_fail("回档前快照失败")
+            return 1
+        log(">>> snapshot done")
 
         # 2) 解压
         import tempfile
@@ -238,43 +258,50 @@ def main():
                 report_fail("归档结构异常")
                 return 1
 
-            # 3) 清空 + 重建
+            # 3) 校验归档完整性 + 读取全部表
+            #    7 张表文件缺一不可：缺失就中止（避免 RPC 里清空该表后无处恢复）。
+            #    （备份脚本每次都会写全 7 个文件，缺失只可能因拷贝损坏/不完整。）
             tables = {t: [] for t in INSERT_ORDER}
             for t in INSERT_ORDER:
                 p = os.path.join(data_dir, t + ".json")
-                if os.path.isfile(p):
-                    try:
-                        tables[t] = json.loads(open(p, encoding="utf-8").read())
-                    except Exception as e:
-                        log(f"[ERR] 读取 {t}.json 失败: {e}")
-                        report_fail(f"读取 {t}.json 失败")
-                        return 1
+                if not os.path.isfile(p):
+                    log(f"[ERR] 归档缺少 {t}.json，中止回档")
+                    report_fail(f"归档缺少 {t}.json")
+                    return 1
+                try:
+                    tables[t] = json.loads(open(p, encoding="utf-8").read())
+                except Exception as e:
+                    log(f"[ERR] 读取 {t}.json 失败: {e}")
+                    report_fail(f"读取 {t}.json 失败")
+                    return 1
 
-            failed = False
-            for t in INSERT_ORDER:
-                if not replace_table(t, tables[t]):
-                    failed = True
-                    break
-
-            if failed:
-                log("[FAILED] 表回档失败")
-                report_fail("表回档失败")
+            # 4) 原子回档（单事务，失败整体回滚）
+            report_progress("回档数据表")
+            log(">>> atomic restore (admin_restore_all)")
+            ok, counts = restore_tables(tables)
+            if not ok:
+                log("[FAILED] 表回档失败（事务已回滚，线上数据未改变）")
+                report_fail("表回档失败（事务已回滚）")
                 return 1
-
+            for t in INSERT_ORDER:
+                n = counts.get(t, 0)
+                log(f"  [OK] {t}: {n} 行")
             summary = {
                 "archive": archive,
                 "db_rows": sum(len(v) for v in tables.values()),
             }
-            log(">>> tables restored")
+            log(">>> tables restored (atomic, committed)")
 
-            # 4) 图库
+            # 5) 图库
             if with_images:
+                report_progress("回传图库")
                 ok, new_count = restore_images()
                 summary["image_new"] = new_count
                 if not ok:
                     report_fail("图库回档部分失败")
                     return 1
 
+            report_progress("完成")
             report_done(summary)
             log("restore complete")
             return 0

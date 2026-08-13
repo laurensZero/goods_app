@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { useConfirm } from '../composables/useConfirm'
 import StatusPill from '../components/ui/StatusPill.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
@@ -10,6 +10,7 @@ import {
   triggerBackup,
   imageExport,
   restoreBackup,
+  deleteBackup,
   getDownloadUrl
 } from '../services/backup'
 import { logAudit } from '../services/audit'
@@ -130,6 +131,27 @@ async function downloadArchive(name) {
   }
 }
 
+async function deleteArchive(name) {
+  const ok = await confirm({
+    title: '删除备份归档',
+    message: `确认删除「${name}」？文件将从 VPS 上永久移除，不可恢复。\n（backup_logs 历史记录会保留。）`,
+    confirmText: '删除'
+  })
+  if (!ok) return
+  busy.value = `delete`
+  setStatus(`正在删除 ${name}…`)
+  try {
+    await deleteBackup(name)
+    logAudit('backup.delete', name, {})
+    await load()
+    setStatus(`已删除 ${name}。`, 'ok')
+  } catch (e) {
+    setStatus(e?.message || '删除失败。', 'error')
+  } finally {
+    busy.value = ''
+  }
+}
+
 // ── 回档确认弹窗（自实现，含二级密码）──
 const restoreDialog = reactive({
   visible: false,
@@ -165,7 +187,8 @@ async function confirmRestore() {
     await restoreBackup(restoreDialog.archive, restoreDialog.includeImages, restoreDialog.password)
     logAudit('backup.restore', restoreDialog.archive, { includeImages: restoreDialog.includeImages })
     restoreDialog.visible = false
-    setStatus('已触发回档。VPS 将先自动备份当前数据库存档（安全快照），再执行回档，完成后写入备份日志。', 'ok')
+    setStatus('已触发回档，正在跟踪进度…', 'ok')
+    startRestorePolling()
   } catch (e) {
     restoreError.value = e?.message || '回档触发失败。'
   } finally {
@@ -173,6 +196,63 @@ async function confirmRestore() {
   }
 }
 
+// ── 回档进度轮询（VPS 异步执行，轮询 backup_logs 展示恢复到哪一步）──
+const restoreLive = reactive({ polling: false, id: '', status: '', progress: '', error: '' })
+let restoreTimer = null
+const RESTORE_POLL_MS = 3000
+const RESTORE_POLL_MAX_MS = 10 * 60 * 1000 // 最多盯 10 分钟
+
+function stopRestorePolling() {
+  if (restoreTimer) { clearTimeout(restoreTimer); restoreTimer = null }
+  restoreLive.polling = false
+}
+
+function startRestorePolling() {
+  stopRestorePolling()
+  restoreLive.polling = true
+  restoreLive.status = 'running'
+  restoreLive.progress = '准备中'
+  restoreLive.error = ''
+  restoreLive.id = ''
+  const deadline = Date.now() + RESTORE_POLL_MAX_MS
+  const tick = async () => {
+    if (!restoreLive.polling) return
+    try {
+      const l = await listLogs(20)
+      const rows = Array.isArray(l?.logs) ? l.logs : []
+      // 取最近 2 分钟内新建的 restore 任务（本次触发的那一个）
+      const job = rows.find(r =>
+        r.kind === 'restore' && new Date(r.started_at).getTime() > Date.now() - 120 * 1000
+      )
+      if (job) {
+        restoreLive.id = job.id
+        restoreLive.status = job.status || ''
+        restoreLive.progress = job.detail?.progress || ''
+        restoreLive.error = job.error || ''
+        if (job.status === 'success' || job.status === 'failed') {
+          setStatus(
+            job.status === 'success' ? '回档完成。' : `回档失败：${job.error || '见表内错误'}`,
+            job.status === 'success' ? 'ok' : 'error'
+          )
+          stopRestorePolling()
+          await load()
+          return
+        }
+      }
+    } catch (e) {
+      // 单次轮询失败不打断，下一轮继续
+    }
+    if (Date.now() > deadline) {
+      setStatus('回档仍在进行中，请稍后手动刷新查看。')
+      stopRestorePolling()
+      return
+    }
+    restoreTimer = setTimeout(tick, RESTORE_POLL_MS)
+  }
+  restoreTimer = setTimeout(tick, RESTORE_POLL_MS)
+}
+
+onBeforeUnmount(stopRestorePolling)
 onMounted(load)
 </script>
 
@@ -245,6 +325,7 @@ onMounted(load)
             <button class="btn btn--sm" type="button" @click="openRestore(a.name, false)">回档(数据)</button>
             <button class="btn btn--sm btn--danger" type="button" @click="openRestore(a.name, true)">回档(含图库)</button>
           </template>
+          <button class="btn btn--sm btn--danger" type="button" :disabled="busy === 'delete'" @click="deleteArchive(a.name)">删除</button>
         </div>
       </div>
     </template>
@@ -270,6 +351,7 @@ onMounted(load)
           </span>
           <span class="list-item-meta">
             {{ formatTime(l.started_at) }} → {{ formatTime(l.finished_at) }}
+            <template v-if="l.detail && l.detail.progress"> · 阶段 {{ l.detail.progress }}</template>
             <template v-if="l.archive"> · {{ l.archive }}</template>
             <template v-if="l.db_rows != null"> · {{ l.db_rows }} 行</template>
             <template v-if="l.archive_size"> · {{ formatBytes(l.archive_size) }}</template>
@@ -281,6 +363,19 @@ onMounted(load)
       </div>
     </template>
     <p v-else class="status-text">暂无备份记录。</p>
+  </div>
+
+  <!-- 回档进行中：实时进度 -->
+  <div v-if="restoreLive.polling" class="restore-progress">
+    <span class="restore-progress-pulse"></span>
+    <span class="restore-progress-text">
+      <template v-if="restoreLive.status === 'success'">回档完成。</template>
+      <template v-else-if="restoreLive.status === 'failed'">回档失败：{{ restoreLive.error || '见表内错误' }}</template>
+      <template v-else>
+        回档进行中：{{ restoreLive.progress || '…' }}
+        <template v-if="restoreLive.id">（{{ restoreLive.id }}）</template>
+      </template>
+    </span>
   </div>
 
   <p class="status-text" :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''">
@@ -403,5 +498,35 @@ onMounted(load)
 .overlay-fade-enter-from,
 .overlay-fade-leave-to {
   opacity: 0;
+}
+
+/* ── 回档进行中：实时进度条 ── */
+.restore-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius, 10px);
+  background: var(--app-surface-2, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--status-warn, rgba(180, 120, 0, 0.35));
+}
+
+.restore-progress-pulse {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--status-warn, #b07800);
+  animation: restore-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes restore-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.restore-progress-text {
+  font-size: 13px;
+  color: var(--app-text, inherit);
 }
 </style>

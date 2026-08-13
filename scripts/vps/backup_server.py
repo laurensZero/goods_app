@@ -9,6 +9,7 @@ Goods 备份 Webhook 监听服务（纯 Python 标准库，无第三方依赖）
 接口：
   POST /api/backup/trigger  触发备份（detach 运行 run_backup.sh，立即返回 202）
   POST /api/backup/restore  从归档回档（detach 运行 restore.py，立即返回 202）
+  POST /api/backup/delete   删除指定归档文件（仅文件；backup_logs 历史行保留）
   GET  /api/backup/files    列出备份归档（名称/大小/时间）
   GET  /files/<archive>     下载归档（需签名 token，见下）
   GET  /health              健康检查
@@ -26,6 +27,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -257,6 +259,21 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/backup/image-export":
             status, payload = spawn_job(["bash", IMAGE_EXPORT_SH], "image-export", {})
             return self._send(status, payload)
+
+        if path == "/api/backup/delete":
+            body = self._read_json() or {}
+            name = os.path.basename(str(body.get("archive") or "").strip())
+            # 只允许合法归档名，防目录穿越
+            if not re.match(r"^(backup|images)-[\w.-]+\.tar\.gz$", name):
+                return self._send(400, {"error": "invalid_archive"})
+            target = os.path.join(CFG.get("backup_dir", ""), name)
+            if not os.path.isfile(target):
+                return self._send(404, {"error": "not_found", "archive": name})
+            try:
+                os.remove(target)
+            except OSError as e:
+                return self._send(500, {"error": "remove_failed", "detail": str(e)})
+            return self._send(200, {"ok": True, "deleted": name})
 
         return self._send(404, {"error": "not_found"})
 
