@@ -53,6 +53,7 @@ on:
       - 'supabase/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/**'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
