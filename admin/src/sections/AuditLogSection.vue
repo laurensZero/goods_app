@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { supabaseRequest } from '../services/supabase'
 import { useAdminList } from '../composables/useAdminList'
 import { formatTime } from '../utils/format'
@@ -35,6 +35,8 @@ const DANGEROUS = new Set(['rollback', 'backup.restore', 'announcement.delete', 
 function actionLabel(action) {
   return ACTION_LABEL[action] || action || '--'
 }
+
+onMounted(load)
 
 const filtered = computed(() => {
   const q = keyword.value.trim().toLowerCase()

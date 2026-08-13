@@ -666,6 +666,12 @@ export const useSyncStore = defineStore('sync', () => {
     }
   }
 
+  // 冷启动心跳：应用启动时上报一次设备存活与当前版本（供 admin 设备管理页）。
+  // fire-and-forget；未登录 / 未配置时静默跳过。
+  function reportHeartbeat() {
+    void heartbeatDevice()
+  }
+
   // ── 管理员触发的设备级强制重同步 ──
   // 读 devices.force_resync_at，若比本地记住的「已处理」值新，走一次整量重拉
   // （复用 orchestrator.pull 的 schemaResync = 全量重拉 + forceReapply + 不弹冲突），
@@ -1085,6 +1091,7 @@ export const useSyncStore = defineStore('sync', () => {
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,
     restoreImageFromCloud,
-    maintenanceMode
+    maintenanceMode,
+    reportHeartbeat
   }
 })

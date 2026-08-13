@@ -51,6 +51,10 @@ export function useAppStartup() {
       console.error('[app] syncStore.init failed:', e)
     }
 
+    // 冷启动心跳：上报设备存活与当前 APK/bundle 版本（fire-and-forget）。
+    // 未登录时静默跳过；即使下方启动拉取被跳过/失败，也保证启动时上报一次。
+    syncStore.reportHeartbeat()
+
     // 公告检查；结束后再检查角色生日彩蛋（公告弹窗未关时等它关闭，避免弹窗叠加）
     void announcementStore.checkAndDecide().catch(() => {
       // silent fail on startup announcement check
