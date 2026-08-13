@@ -1,98 +1,41 @@
 // src/utils/syncColumnMapping.js
-// camelCase ↔ snake_case 列名映射。
-// 映射表兜底：表内已有的列按精确映射；表外的新列回退到通用转换
-// （snake_case → camelCase / camelCase → snake_case），避免新列漏登记导致的静默字段丢失。
+// camelCase ↔ snake_case 通用转换。
+// 用算法自动转换、不维护静态映射表 —— 任何新列（如 force_resync_at、apk_version、
+// bundle_version）都自动正确转换，杜绝「新列漏登记 → 读回 undefined / 写入错列」这类坑。
+// 已校验：旧静态表的全部列与本算法输出完全一致（见历史提交）。
 
-const CAMEL_TO_SNAKE = {
-  goodsId: 'goods_id',
-  isWishlist: 'is_wishlist',
-  storageLocation: 'storage_location',
-  actualPrice: 'actual_price',
-  acquiredAt: 'acquired_at',
-  saleAt: 'sale_at',
-  saleReminderEnabled: 'sale_reminder_enabled',
-  saleReminderOffsets: 'sale_reminder_offsets',
-  unitAcquiredAtList: 'unit_acquired_at_list',
-  unitActualPriceList: 'unit_actual_price_list',
-  unitCharacterList: 'unit_character_list',
-  unitCollectStatusList: 'unit_collect_status_list',
-  actualPriceCurrency: 'actual_price_currency',
-  collectStatus: 'collect_status',
-  shippingFee: 'shipping_fee',
-  statusTimeline: 'status_timeline',
-  sellPrice: 'sell_price',
-  sellPlatform: 'sell_platform',
-  sellFee: 'sell_fee',
-  sellDate: 'sell_date',
-  unitSaleInfoList: 'unit_sale_info_list',
-  coverImage: 'cover_image',
-  coverImageData: 'cover_image_data',
-  ticketPrice: 'ticket_price',
-  ticketType: 'ticket_type',
-  seatInfo: 'seat_info',
-  otherExpenses: 'other_expenses',
-  linkedGoodsIds: 'linked_goods_ids',
-  startDate: 'start_date',
-  endDate: 'end_date',
-  itemName: 'item_name',
-  chargedAt: 'charged_at',
-  updatedAt: 'updated_at',
-  createdAt: 'created_at',
-  syncedBy: 'synced_by',
-  userId: 'user_id',
-  // sync_manifest
-  deviceId: 'device_id',
-  syncedAt: 'synced_at',
-  collectionCount: 'collection_count',
-  wishlistCount: 'wishlist_count',
-  imageCount: 'image_count',
-  goodsCount: 'goods_count',
-  trashCount: 'trash_count',
-  rechargeCount: 'recharge_count',
-  eventCount: 'event_count',
-  rechargeUpdatedAt: 'recharge_updated_at',
-  eventUpdatedAt: 'event_updated_at',
-  imageBucket: 'image_bucket',
-  budgetMonthly: 'budget_monthly',
-  budgetYearly: 'budget_yearly',
-  maintenanceMode: 'maintenance_mode',
-  // sync_presets
-  storageLocations: 'storage_locations',
-  // goods_groups
-  summaryMode: 'summary_mode',
-  totalAmount: 'total_amount',
-  coverMode: 'cover_mode',
-  coverItemId: 'cover_item_id',
-  displayMode: 'display_mode',
-  // goods_group_items
-  groupId: 'group_id',
-  sortOrder: 'sort_order'
+// snake_case → camelCase：foo_bar_baz → fooBarBaz
+function snakeToCamelKey(key) {
+  return String(key).replace(/_([a-zA-Z0-9])/g, (_, c) => c.toUpperCase())
 }
 
-const SNAKE_TO_CAMEL = Object.fromEntries(
-  Object.entries(CAMEL_TO_SNAKE).map(([k, v]) => [v, k])
-)
+// camelCase → snake_case：fooBarBaz → foo_bar_baz
+function camelToSnakeKey(key) {
+  return String(key)
+    .replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`)
+    .replace(/^_/, '')
+}
 
 /**
- * 将 camelCase 对象转为 snake_case（用于写入 Supabase）
+ * 将 camelCase 对象转为 snake_case（用于写入 Supabase）。
+ * 已是 snake_case 的键保持原样；camelCase 键自动转换。
  */
 export function toSnakeCase(obj) {
   const result = {}
   for (const [key, value] of Object.entries(obj)) {
-    const snakeKey = CAMEL_TO_SNAKE[key] || key
-    result[snakeKey] = value
+    result[camelToSnakeKey(key)] = value
   }
   return result
 }
 
 /**
- * 将 snake_case 对象转为 camelCase（用于从 Supabase 读取）
+ * 将 snake_case 对象转为 camelCase（用于从 Supabase 读取）。
+ * 已是 camelCase 的键保持原样；snake_case 键自动转换。
  */
 export function toCamelCase(obj) {
   const result = {}
   for (const [key, value] of Object.entries(obj)) {
-    const camelKey = SNAKE_TO_CAMEL[key] || key
-    result[camelKey] = value
+    result[snakeToCamelKey(key)] = value
   }
   return result
 }
