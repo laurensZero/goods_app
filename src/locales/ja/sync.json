@@ -99,6 +99,7 @@
   "sync.supabaseKeyTitle": "Supabase Anon Key",
   "sync.uploadComplete": "アップロード完了",
   "sync.pullComplete": "プル完了",
+  "sync.forceResyncComplete": "管理者の指示による強制再同期を実行しました",
   "sync.syncComplete": "同期完了",
   "sync.firstSupabaseUpload": "Supabase への初回アップロード",
   "sync.noRemoteDataSkipPull": "リモートデータなし、プルをスキップ",

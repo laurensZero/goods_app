@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
+import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { useGoodsStore } from './goods'
 import { useEventsStore } from './events'
 import { usePresetsStore, normalizeCharacterName } from './presets'
@@ -571,6 +573,9 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   function translateStatusMessage(result) {
+    if (result?.forceResynced) {
+      return i18n.global.t('sync.forceResyncComplete')
+    }
     if (result.statusMessage) {
       return result.statusMessage.startsWith('sync.')
         ? i18n.global.t(result.statusMessage)
@@ -627,14 +632,35 @@ export const useSyncStore = defineStore('sync', () => {
 
   // ── 设备心跳 ──
   // 每次同步上报一次设备存活（fire-and-forget，失败不影响同步）。
-  // last_seen_at 由服务端触发器恒取 now()，客户端只带 platform / app_version。
-  function heartbeatDevice() {
+  // last_seen_at 由服务端触发器恒取 now()，客户端带 platform / apk_version / bundle_version。
+  // 版本解析失败时取不到的值回退空串或 bundle 构建版本，不阻断心跳。
+  async function resolveDeviceVersions() {
+    let apkVersion = ''
+    let bundleVersion = ''
+    if (IS_NATIVE) {
+      try {
+        const info = await CapacitorApp.getInfo()
+        apkVersion = normalizeVersionTag(info?.version) || ''
+      } catch {}
+      try {
+        const bundleInfo = await CapacitorUpdater.current()
+        bundleVersion = normalizeVersionTag(bundleInfo?.bundle?.version) || ''
+      } catch {}
+    }
+    // web 或取不到 capgo bundle 时回退 JS bundle 构建版本
+    if (!bundleVersion) bundleVersion = APP_VERSION
+    return { apkVersion, bundleVersion }
+  }
+
+  async function heartbeatDevice() {
     try {
       if (!deviceId.value || typeof activeBackend?.writeDeviceHeartbeat !== 'function') return
-      void activeBackend.writeDeviceHeartbeat({
+      const { apkVersion, bundleVersion } = await resolveDeviceVersions()
+      await activeBackend.writeDeviceHeartbeat({
         platform: IS_NATIVE ? 'native' : 'web',
-        appVersion: APP_VERSION
-      }).catch(() => {})
+        apkVersion,
+        bundleVersion
+      })
     } catch (e) {
       console.warn('[sync] device heartbeat failed (non-fatal):', e?.message)
     }
@@ -661,7 +687,8 @@ export const useSyncStore = defineStore('sync', () => {
         { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       await writeSyncKey(DEVICE_FORCE_RESYNC_KEY, serverTs)
-      return result
+      // 打标记：UI 据此显示明确的「强制重同步」文案，而不是普通拉取/数据最新
+      return { ...result, forceResynced: true }
     } catch (e) {
       console.warn('[sync] device force resync failed (will retry next sync):', e?.message)
       return false
@@ -711,7 +738,7 @@ export const useSyncStore = defineStore('sync', () => {
       await ensureSyncAccountConsistent()
 
       // 设备心跳上报（fire-and-forget）
-      heartbeatDevice()
+      void heartbeatDevice()
 
       // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
       try {
@@ -748,9 +775,15 @@ export const useSyncStore = defineStore('sync', () => {
         if (runGen !== syncGeneration) return resyncResult
       }
 
-      // 管理员触发的设备级强制重同步：整量重拉一次，再继续正常同步推送本地改动
-      await maybeForceDeviceResync(runGen)
+      // 管理员触发的设备级强制重同步：整量重拉一次，并直接用重拉结果作为本次同步反馈
+      // （不再继续走正常同步，否则重拉刚拉到最新、随后的 sync 会报 no_changes「数据最新」，
+      //  盖掉重拉的真实结果；未推送的本地改动留在脏标记，下次同步自动推送）
+      const forcedResync = await maybeForceDeviceResync(runGen)
       if (runGen !== syncGeneration) return { action: 'skipped', reason: 'stale' }
+      if (forcedResync) {
+        syncStatus.value = translateStatusMessage(forcedResync)
+        return forcedResync
+      }
 
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
@@ -843,7 +876,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
 
       // 设备心跳上报（fire-and-forget）
-      heartbeatDevice()
+      void heartbeatDevice()
 
       // 预读 manifest 缓存维护模式
       try {

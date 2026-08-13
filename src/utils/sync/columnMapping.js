@@ -1,5 +1,7 @@
 // src/utils/syncColumnMapping.js
-// camelCase ↔ snake_case 列名映射
+// camelCase ↔ snake_case 列名映射。
+// 映射表兜底：表内已有的列按精确映射；表外的新列回退到通用转换
+// （snake_case → camelCase / camelCase → snake_case），避免新列漏登记导致的静默字段丢失。
 
 const CAMEL_TO_SNAKE = {
   goodsId: 'goods_id',
