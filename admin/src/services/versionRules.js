@@ -117,20 +117,39 @@ export async function fetchUsersList() {
 
   usersFetchPromise = (async () => {
     try {
-      const res = await fetch(`${config.url}/auth/v1/admin/users?page=1&per_page=200`, {
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
-      })
-      if (!res.ok) {
-        const detail = await res.text().catch(() => '')
-        throw new Error(`获取用户列表失败（${res.status}）${detail ? '：' + detail : ''}`)
+      const all = []
+      let page = 1
+      const perPage = 200
+      // 翻页拉全量（GoTrue 返回 next_page 字段；不足一页即结束）
+      for (;;) {
+        const res = await fetch(`${config.url}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
+          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+        })
+        if (!res.ok) {
+          const detail = await res.text().catch(() => '')
+          throw new Error(`获取用户列表失败（${res.status}）${detail ? '：' + detail : ''}`)
+        }
+        const payload = await res.json()
+        const list = Array.isArray(payload?.users) ? payload.users : []
+        all.push(...list)
+        const next = payload?.next_page
+        if (!next || list.length < perPage) break
+        page = Number(next) || page + 1
       }
-      const payload = await res.json()
-      const list = Array.isArray(payload?.users) ? payload.users : []
-      cachedUsers = list.map(u => ({
+      cachedUsers = all.map(u => ({
         id: u.id,
         email: u.email || '',
         phone: u.phone || '',
-        display: String(u.email || u.phone || u.id || '')
+        display: String(
+          u.user_metadata?.display_name ||
+          u.user_metadata?.full_name ||
+          u.email ||
+          u.phone ||
+          u.id ||
+          ''
+        ),
+        createdAt: u.created_at || '',
+        lastSignInAt: u.last_sign_in_at || ''
       }))
       return cachedUsers
     } catch (e) {

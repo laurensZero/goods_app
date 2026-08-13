@@ -23,6 +23,14 @@ export const SECTIONS = [
     component: defineAsyncComponent(() => import('../sections/FeatureWhitelistSection.vue'))
   },
   {
+    id: 'users',
+    label: '用户管理',
+    short: '用户',
+    icon: 'users',
+    description: '用户列表、数据概览与 QQ 绑定管理',
+    component: defineAsyncComponent(() => import('../sections/UserSection.vue'))
+  },
+  {
     id: 'channels',
     label: '发布通道',
     short: '通道',
@@ -77,6 +85,38 @@ export const SECTIONS = [
     icon: 'database',
     description: 'VPS 备份触发、归档下载与回档',
     component: defineAsyncComponent(() => import('../sections/BackupSection.vue'))
+  },
+  {
+    id: 'shares',
+    label: '分享链接',
+    short: '分享',
+    icon: 'share',
+    description: '用户分享链接（Supabase shares）',
+    component: defineAsyncComponent(() => import('../sections/ShareSection.vue'))
+  },
+  {
+    id: 'mihoyo',
+    label: '米游铺监控',
+    short: '米游铺',
+    icon: 'activity',
+    description: '库存有货监控总览（mihoyo_monitor_goods）',
+    component: defineAsyncComponent(() => import('../sections/MihoyoMonitorSection.vue'))
+  },
+  {
+    id: 'birthday',
+    label: '角色生日',
+    short: '生日',
+    icon: 'cake',
+    description: '角色生日彩蛋数据（character_birthdays）',
+    component: defineAsyncComponent(() => import('../sections/BirthdaySection.vue'))
+  },
+  {
+    id: 'exchange',
+    label: '汇率覆盖',
+    short: '汇率',
+    icon: 'coins',
+    description: '权威汇率快照查看与手动覆盖（exchange_rates）',
+    component: defineAsyncComponent(() => import('../sections/ExchangeRateSection.vue'))
   }
 ]
 
