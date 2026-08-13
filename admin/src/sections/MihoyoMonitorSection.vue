@@ -48,8 +48,7 @@ const filtered = computed(() => {
   if (!q) return items.value
   return items.value.filter((i) =>
     String(i.name || '').toLowerCase().includes(q) ||
-    String(i.goods_id || '').toLowerCase().includes(q) ||
-    String(i.shop_code || '').toLowerCase().includes(q)
+    String(i.goods_id || '').toLowerCase().includes(q)
   )
 })
 
@@ -66,7 +65,7 @@ onMounted(() => {
 
 <template>
   <div class="mihoyo-toolbar">
-    <SearchInput v-model="keyword" placeholder="搜索商品名 / 商品 ID / 店铺码…" />
+    <SearchInput v-model="keyword" placeholder="搜索商品名 / 商品 ID…" />
     <button class="btn" type="button" :disabled="loading" @click="load">{{ loading ? '加载中…' : '刷新' }}</button>
   </div>
 
@@ -96,7 +95,7 @@ onMounted(() => {
       <div class="list-item-main">
         <span class="list-item-title">{{ item.name || item.goods_id }}</span>
         <span class="list-item-meta">
-          ID: {{ item.goods_id }} · 店铺: {{ item.shop_code || '--' }} · {{ item.sku_name || '整件商品' }} ·
+          ID: {{ item.goods_id }} · {{ item.sku_name || '整件商品' }} ·
           价格 {{ priceLabel(item.price_cents) }} · 库存 {{ item.stock_count ?? 0 }} · 用户 {{ displayName(item.user_id) }}
         </span>
         <span class="list-item-meta">添加 {{ formatTime(item.added_at) }} · 最近检测 {{ formatTime(item.last_checked_at) }}</span>
