@@ -27,7 +27,12 @@ function toggleSidebar() {
 }
 
 // 始终只聚焦一个分区，无「全部」模式
-const activeSectionId = ref(SECTIONS[0].id)
+// 当前分区持久化：刷新后仍停留在上次打开的 section
+const SECTION_KEY = 'goods_admin_active_section'
+const savedSection = localStorage.getItem(SECTION_KEY)
+const activeSectionId = ref(
+  SECTIONS.some((s) => s.id === savedSection) ? savedSection : SECTIONS[0].id
+)
 const activeSection = computed(() =>
   SECTIONS.find((s) => s.id === activeSectionId.value) ?? SECTIONS[0]
 )
@@ -38,8 +43,13 @@ function selectSection(id) {
   activeSectionId.value = id
 }
 
-watch(activeSectionId, () => {
-  const el = document.getElementById(activeSectionId.value)
+watch(activeSectionId, (id) => {
+  try {
+    localStorage.setItem(SECTION_KEY, id)
+  } catch {
+    /* ignore */
+  }
+  const el = document.getElementById(id)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
 </script>
