@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { fetchUsersList, clearUsersCache } from '../services/versionRules'
 import { supabaseRequest } from '../services/supabase'
+import { logAudit } from '../services/audit'
 import { useConfirm } from '../composables/useConfirm'
 import { formatTime } from '../utils/format'
 import StatusPill from '../components/ui/StatusPill.vue'
@@ -123,6 +124,7 @@ async function unbindQq(id) {
   if (!ok) return
   try {
     await patchQq(id, { status: 'unbound', enabled: false, unbound_at: new Date().toISOString() })
+    logAudit('qq.unbind', u?.display || short(id))
     setStatus('已解绑。', 'ok')
   } catch (e) {
     setStatus(e?.message || '解绑失败。', 'error')
@@ -159,6 +161,7 @@ async function removeUser(u) {
       method: 'DELETE',
       params: { should_soft_delete: 'false' }
     })
+    logAudit('user.delete', u.email || u.id)
     setStatus('已删除用户。', 'ok')
     clearUsersCache()
     await load()

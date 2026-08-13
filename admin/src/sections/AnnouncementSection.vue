@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { supabaseRequest } from '../services/supabase'
+import { logAudit } from '../services/audit'
 import { useAdminList } from '../composables/useAdminList'
 import { useConfirm } from '../composables/useConfirm'
 import { formatTime } from '../utils/format'
@@ -50,12 +51,14 @@ function closeDrawer() {
 }
 
 async function onSubmit(row) {
+  const isEdit = !!editingItem.value
   try {
-    if (editingItem.value) {
+    if (isEdit) {
       await supabaseRequest(`/rest/v1/announcements?id=eq.${encodeURIComponent(row.id)}`, { method: 'PATCH', body: row })
     } else {
       await supabaseRequest('/rest/v1/announcements', { method: 'POST', body: row })
     }
+    logAudit(isEdit ? 'announcement.update' : 'announcement.create', row.title || row.id)
     closeDrawer()
     setStatus('保存成功。', 'ok')
     await load()
@@ -86,6 +89,7 @@ async function removeItem(item) {
   if (!ok) return
   try {
     await supabaseRequest(`/rest/v1/announcements?id=eq.${encodeURIComponent(item.id)}`, { method: 'DELETE' })
+    logAudit('announcement.delete', item.title || item.id)
     setStatus('已删除。', 'ok')
     await load()
   } catch (e) {

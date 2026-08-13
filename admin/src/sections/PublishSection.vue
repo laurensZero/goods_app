@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW, APK_WORKFLOW, workflowUrl, fetchRecentCommits, formatBetaNotesFromCommits } from '../services/github'
 import { getGithubToken } from '../services/supabase'
 import { fetchLatestApkVersion } from '../services/channels'
+import { logAudit } from '../services/audit'
 import AppSelect from '../components/admin/AppSelect.vue'
 import { CHANNEL_OPTIONS, UPDATE_LEVELS, APK_BUILD_TYPES } from '../constants'
 import { useConfirm } from '../composables/useConfirm'
@@ -108,6 +109,7 @@ async function triggerPublish() {
     publishBusy.value = true
     setPublishStatus('正在触发发布工作流…')
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, inputs)
+    logAudit('publish', inputs.version || `${inputs.channel} 通道`, { channel: inputs.channel })
     setPublishStatus('已触发发布。请在 Actions 页面查看执行进度，完成后可刷新通道。', 'ok')
   } catch (e) {
     setPublishStatus(e?.message || '触发发布失败。', 'error')
@@ -137,6 +139,7 @@ async function triggerRollback() {
       notes: '',
       rollback_version: version
     })
+    logAudit('rollback', `${form.channel} -> ${version}`)
     setPublishStatus(`已触发回档：${form.channel} -> ${version}。请到 Actions 查看进度。`, 'ok')
   } catch (e) {
     setPublishStatus(e?.message || '回档触发失败。', 'error')
@@ -163,6 +166,7 @@ async function triggerApkBuild() {
     apkBusy.value = true
     setApkStatus('正在触发 APK 构建工作流…')
     await dispatchWorkflow(APK_WORKFLOW, inputs)
+    logAudit('apk_build', inputs.release_tag || apk.buildType)
     const label = apk.buildType === 'release' ? `（${inputs.release_tag}）` : '（debug）'
     setApkStatus(`已触发 APK 构建${label}。请到 Actions 页面查看执行进度。`, 'ok')
   } catch (e) {

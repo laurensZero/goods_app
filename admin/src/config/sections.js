@@ -7,6 +7,14 @@ import { defineAsyncComponent } from 'vue'
  */
 export const SECTIONS = [
   {
+    id: 'dashboard',
+    label: '概览',
+    short: '概览',
+    icon: 'gauge',
+    description: '整体数据概览（用户/商品/同步/存储占用）',
+    component: defineAsyncComponent(() => import('../sections/DashboardSection.vue'))
+  },
+  {
     id: 'auth',
     label: '账号信息',
     short: '账号',
@@ -85,6 +93,22 @@ export const SECTIONS = [
     icon: 'database',
     description: 'VPS 备份触发、归档下载与回档',
     component: defineAsyncComponent(() => import('../sections/BackupSection.vue'))
+  },
+  {
+    id: 'audit',
+    label: '审计日志',
+    short: '审计',
+    icon: 'history',
+    description: '后台高危操作留痕（发布/回档/删除等）',
+    component: defineAsyncComponent(() => import('../sections/AuditLogSection.vue'))
+  },
+  {
+    id: 'storage',
+    label: '图片存储',
+    short: '存储',
+    icon: 'image',
+    description: '存储占用与孤儿图回收（Supabase Storage）',
+    component: defineAsyncComponent(() => import('../sections/ImageStorageSection.vue'))
   },
   {
     id: 'shares',
