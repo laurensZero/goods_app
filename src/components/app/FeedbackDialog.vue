@@ -168,7 +168,7 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { submitFeedback } from '@/services/feedbackService'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
-import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
+import { uploadAttachments, removeAttachments, collectDeviceLog, attachmentFolderKey } from '@/services/feedbackAttachmentService'
 import { getDeviceId } from '@/utils/feedbackDevice'
 import packageJson from '../../../package.json'
 
@@ -291,9 +291,8 @@ async function handleSubmit() {
       filesToUpload.push(await collectDeviceLog())
     }
     if (filesToUpload.length > 0) {
-      // Use userId (or device id for anonymous) as temp path prefix
-      const tempId = props.userId ? props.userId.slice(0, 8) : `anon-${getDeviceId().slice(0, 8)}`
-      attachments = await uploadAttachments(filesToUpload, tempId)
+      // 一个用户一个附件文件夹（匿名用设备号），与反馈 id 无关
+      attachments = await uploadAttachments(filesToUpload, attachmentFolderKey(props.userId, getDeviceId()))
     }
 
     // 2. Submit feedback with attachments

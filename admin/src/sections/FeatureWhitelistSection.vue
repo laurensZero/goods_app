@@ -25,7 +25,10 @@ const pendingIds = ref([])
 const note = ref('')
 const saving = ref(false)
 
-let usersMap = {}
+// 用户 id -> 显示名映射。用 ref 保持响应式：
+// 白名单列表可能先渲染（usersMap 尚未填充），用户映射返回后必须触发重渲染，
+// 否则 list-item 里永远显示截断 UUID。
+const usersMap = ref({})
 
 const currentFeature = computed(() =>
   featureOptions.value.find((f) => f.value === activeFeature.value)
@@ -38,14 +41,15 @@ function setStatus(text, type = 'default') {
 }
 
 function displayFor(id) {
-  return usersMap[id] || String(id).slice(0, 12)
+  return usersMap.value[id] || String(id).slice(0, 12)
 }
 
 async function ensureUsers() {
   try {
     const list = await fetchUsersList()
-    usersMap = {}
-    list.forEach((u) => { usersMap[u.id] = u.display })
+    const map = {}
+    list.forEach((u) => { map[u.id] = u.display })
+    usersMap.value = map
   } catch {
     /* UserPicker 内部会提示 */
   }

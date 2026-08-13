@@ -18,10 +18,20 @@ function db() {
 }
 
 /**
+ * 附件文件夹名（一个用户对应一个文件夹，与反馈 id 无关）：
+ * 登录用户用 user_id 前 8 位，匿名用户用设备号前 8 位。
+ */
+export function attachmentFolderKey(userId, deviceId) {
+  return userId ? String(userId).slice(0, 8) : `anon-${String(deviceId || 'unknown').slice(0, 8)}`
+}
+
+/**
  * Upload a file and return attachment metadata.
  * Bucket must be pre-created in Supabase Dashboard.
+ *
+ * @param {string} folderKey 附件所属文件夹（用 attachmentFolderKey 计算）
  */
-export async function uploadAttachment(file, feedbackId) {
+export async function uploadAttachment(file, folderKey) {
   // 检查维护模式（从 sync store 缓存读取，零额外网络请求）
   try {
     const { useSyncStore } = await import('@/stores/sync')
@@ -36,7 +46,7 @@ export async function uploadAttachment(file, feedbackId) {
   }
 
   const ext = file.name.split('.').pop() || 'bin'
-  const path = `fb-${feedbackId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+  const path = `${folderKey}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
 
 const { error } = await db().storage
     .from(BUCKET)
@@ -112,11 +122,11 @@ export async function removeAttachments(paths) {
 /**
  * Upload multiple files. Returns successful uploads only.
  */
-export async function uploadAttachments(files, feedbackId) {
+export async function uploadAttachments(files, folderKey) {
   const results = []
   for (const file of files) {
     try {
-      const meta = await uploadAttachment(file, feedbackId)
+      const meta = await uploadAttachment(file, folderKey)
       results.push(meta)
     } catch (e) {
       console.error('[feedback] upload failed:', file.name, e.message)

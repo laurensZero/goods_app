@@ -174,7 +174,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { getFeedback, addFollowup } from '@/services/feedbackService'
-import { uploadAttachments, removeAttachments, collectDeviceLog } from '@/services/feedbackAttachmentService'
+import { uploadAttachments, removeAttachments, collectDeviceLog, attachmentFolderKey } from '@/services/feedbackAttachmentService'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
@@ -274,7 +274,8 @@ async function handleAddFollowup() {
     const filesToUpload = fuFiles.value.map(f => f.file)
     if (fuCollectLog.value) filesToUpload.push(await collectDeviceLog())
     if (filesToUpload.length > 0) {
-      attachments = await uploadAttachments(filesToUpload, props.feedbackId)
+      // 与提交反馈一致：一个用户一个附件文件夹（这里已保证登录态）
+      attachments = await uploadAttachments(filesToUpload, attachmentFolderKey(authStore.user.id, ''))
     }
 
     const updated = await addFollowup({
