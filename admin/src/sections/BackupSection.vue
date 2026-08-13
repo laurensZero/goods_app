@@ -100,7 +100,8 @@ async function doBackup(kind) {
   setStatus(`正在触发${label}备份…`)
   try {
     await triggerBackup(kind)
-    setStatus(`已触发${label}备份。任务在 VPS 后台执行，稍后刷新查看进度。`, 'ok')
+    setStatus(`已触发${label}备份，正在跟踪进度…`, 'ok')
+    startBackupPolling(['all', 'db', 'images'])
   } catch (e) {
     setStatus(e?.message || '触发失败。', 'error')
   } finally {
@@ -113,7 +114,8 @@ async function doImageExport() {
   setStatus('正在触发图库打包…')
   try {
     await imageExport()
-    setStatus('已开始打包图库。完成后「images-*.tar.gz」会出现在归档列表，可点击下载。', 'ok')
+    setStatus('已开始打包图库，正在跟踪进度…', 'ok')
+    startBackupPolling(['image_export'])
   } catch (e) {
     setStatus(e?.message || '图库打包触发失败。', 'error')
   } finally {
@@ -252,7 +254,64 @@ function startRestorePolling() {
   restoreTimer = setTimeout(tick, RESTORE_POLL_MS)
 }
 
-onBeforeUnmount(stopRestorePolling)
+// ── 备份/图库打包进度轮询（复用 backup_logs.detail.progress）──
+const backupLive = reactive({ polling: false, id: '', status: '', progress: '', error: '' })
+let backupTimer = null
+const BACKUP_POLL_MS = 3000
+const BACKUP_POLL_MAX_MS = 10 * 60 * 1000 // 最多盯 10 分钟
+
+function stopBackupPolling() {
+  if (backupTimer) { clearTimeout(backupTimer); backupTimer = null }
+  backupLive.polling = false
+}
+
+function startBackupPolling(kinds) {
+  stopBackupPolling()
+  backupLive.polling = true
+  backupLive.status = 'running'
+  backupLive.progress = '准备中'
+  backupLive.error = ''
+  backupLive.id = ''
+  const KINDS = Array.isArray(kinds) ? kinds : [kinds]
+  const deadline = Date.now() + BACKUP_POLL_MAX_MS
+  const tick = async () => {
+    if (!backupLive.polling) return
+    try {
+      const l = await listLogs(20)
+      const rows = Array.isArray(l?.logs) ? l.logs : []
+      // 取最近 2 分钟内新建的、属于本次 kind 的任务
+      const job = rows.find(r =>
+        KINDS.includes(r.kind) && new Date(r.started_at).getTime() > Date.now() - 120 * 1000
+      )
+      if (job) {
+        backupLive.id = job.id
+        backupLive.status = job.status || ''
+        backupLive.progress = job.detail?.progress || ''
+        backupLive.error = job.error || ''
+        if (job.status === 'success' || job.status === 'failed') {
+          setStatus(
+            job.status === 'success' ? '备份完成。' : `备份失败：${job.error || '见表内错误'}`,
+            job.status === 'success' ? 'ok' : 'error'
+          )
+          stopBackupPolling()
+          await load()
+          return
+        }
+      }
+    } catch (e) {
+      // 单次轮询失败不打断，下一轮继续
+    }
+    if (Date.now() > deadline) {
+      setStatus('备份仍在进行中，请稍后手动刷新查看。')
+      stopBackupPolling()
+      return
+    }
+    backupTimer = setTimeout(tick, BACKUP_POLL_MS)
+  }
+  backupTimer = setTimeout(tick, BACKUP_POLL_MS)
+}
+
+onBeforeUnmount(() => { stopRestorePolling(); stopBackupPolling() })
 onMounted(load)
 </script>
 
@@ -363,6 +422,19 @@ onMounted(load)
       </div>
     </template>
     <p v-else class="status-text">暂无备份记录。</p>
+  </div>
+
+  <!-- 备份/图库打包进行中：实时进度 -->
+  <div v-if="backupLive.polling" class="restore-progress">
+    <span class="restore-progress-pulse"></span>
+    <span class="restore-progress-text">
+      <template v-if="backupLive.status === 'success'">备份完成。</template>
+      <template v-else-if="backupLive.status === 'failed'">备份失败：{{ backupLive.error || '见表内错误' }}</template>
+      <template v-else>
+        备份进行中：{{ backupLive.progress || '…' }}
+        <template v-if="backupLive.id">（{{ backupLive.id }}）</template>
+      </template>
+    </span>
   </div>
 
   <!-- 回档进行中：实时进度 -->

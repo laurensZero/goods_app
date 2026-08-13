@@ -1,8 +1,10 @@
 #!/bin/bash
-# run_image_export.sh
+# run_image_export.sh [--no-lock]
 # 把本地图库镜像目录（image_dir）打包为 images-<日期>_<时间>.tar.gz，
 # 落到 backup_dir，并把运行状态写回 Supabase backup_logs（kind=image_export）。
 # 由 backup_server.py 以 detach 方式调用；打包结果出现在归档列表供下载。
+# --no-lock：跳过互斥锁。run_backup.sh 在 kind=all 时持有锁调用本脚本，
+#   需要跳过锁检查才能真正打包（见 run_backup.sh）。
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,21 +21,25 @@ LOG_TABLE="$(cfg log_table)"
 [ -z "$LOG_DIR" ] && LOG_DIR="$SCRIPT_DIR/logs"
 mkdir -p "$LOG_DIR"
 
+NO_LOCK=0
+[ "${1:-}" = "--no-lock" ] && NO_LOCK=1
 ID="image-export-$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="$LOG_DIR/$ID.log"
 LOCK_FILE="$LOG_DIR/backup.lock"
 
-# ── 单任务互斥（与备份/回档共用同一把锁）──
-if [ -f "$LOCK_FILE" ]; then
-  OLD_PID="$(cat "$LOCK_FILE" 2>/dev/null || true)"
-  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "[$ID] 已有任务运行中 (pid=$OLD_PID)，跳过本次" >> "$LOG_FILE"
-    exit 0
+# ── 单任务互斥（与备份/回档共用同一把锁）；--no-lock 时整体跳过 ──
+if [ "$NO_LOCK" = "0" ]; then
+  if [ -f "$LOCK_FILE" ]; then
+    OLD_PID="$(cat "$LOCK_FILE" 2>/dev/null || true)"
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+      echo "[$ID] 已有任务运行中 (pid=$OLD_PID)，跳过本次" >> "$LOG_FILE"
+      exit 0
+    fi
+    rm -f "$LOCK_FILE"
   fi
-  rm -f "$LOCK_FILE"
+  echo "$$" > "$LOCK_FILE"
+  trap 'rm -f "$LOCK_FILE"' EXIT
 fi
-echo "$$" > "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
 
 # ── Supabase REST 上报 ──
 supa() {
@@ -65,8 +71,15 @@ report_fail() {
     "{\"status\":\"failed\",\"finished_at\":\"$finished\",\"error\":$err}"
 }
 
+report_progress() {
+  local stage="$1"
+  supa PATCH "/rest/v1/$LOG_TABLE?id=eq.$ID" \
+    "{\"detail\":{\"progress\":\"$stage\"}}"
+}
+
 # ── 主流程 ──
 report_start
+report_progress "打包图库"
 echo "[$ID] export images started: $(date)" | tee -a "$LOG_FILE"
 
 if [ ! -d "$IMAGE_DIR" ]; then
@@ -92,6 +105,7 @@ SIZE="$(python3 -c "import os,sys; print(os.path.getsize(sys.argv[1]))" "$ARCHIV
 # 只保留最新一个 images-*.tar.gz，避免冗余堆积
 ls -1t "$BACKUP_DIR"/images-*.tar.gz 2>/dev/null | tail -n +2 | xargs -r rm -f 2>/dev/null || true
 
+report_progress "完成"
 report_done "\"archive\":\"$(basename "$ARCHIVE")\",\"archive_size\":$SIZE"
 echo "[$ID] done: archive=$(basename "$ARCHIVE") size=$SIZE" | tee -a "$LOG_FILE"
 exit 0

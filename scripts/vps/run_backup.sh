@@ -76,11 +76,18 @@ report_fail() {
     "{\"status\":\"failed\",\"finished_at\":\"$finished\",\"error\":$err}"
 }
 
+report_progress() {
+  local stage="$1"
+  supa PATCH "/rest/v1/$LOG_TABLE?id=eq.$ID" \
+    "{\"detail\":{\"progress\":\"$stage\"}}"
+}
+
 # ── 主流程 ──
 report_start
 echo "[$ID] kind=$KIND started: $(date)" | tee -a "$LOG_FILE"
 
 if [ "$KIND" = "all" ] || [ "$KIND" = "db" ]; then
+  report_progress "导出数据库"
   if [ ! -x "$BACKUP_SCRIPT" ]; then
     report_fail "supabase-backup.sh 不存在或不可执行: $BACKUP_SCRIPT"
     echo "[$ID] missing backup_script: $BACKUP_SCRIPT" | tee -a "$LOG_FILE"
@@ -96,6 +103,7 @@ if [ "$KIND" = "all" ] || [ "$KIND" = "db" ]; then
 fi
 
 if [ "$KIND" = "all" ] || [ "$KIND" = "images" ]; then
+  report_progress "增量图库镜像"
   if [ ! -x "$IMAGE_SCRIPT" ]; then
     report_fail "supabase-image-backup.sh 不存在或不可执行: $IMAGE_SCRIPT"
     echo "[$ID] missing image_script: $IMAGE_SCRIPT" | tee -a "$LOG_FILE"
@@ -109,6 +117,21 @@ if [ "$KIND" = "all" ] || [ "$KIND" = "images" ]; then
     exit 1
   fi
 fi
+
+# kind=all：镜像同步后再重新打包 images-*.tar.gz（覆盖旧的，只留最新一份）
+# --no-lock：本进程已持锁，run_image_export.sh 需跳过锁检查才能真正执行。
+if [ "$KIND" = "all" ]; then
+  report_progress "打包图库"
+  echo "[$ID] >>> running run_image_export.sh (pack images)" | tee -a "$LOG_FILE"
+  if ! bash "$SCRIPT_DIR/run_image_export.sh" --no-lock >> "$LOG_FILE" 2>&1; then
+    report_fail "图库打包失败"
+    echo "[$ID] FAILED run_image_export.sh" | tee -a "$LOG_FILE"
+    tail -n 20 "$LOG_FILE"
+    exit 1
+  fi
+fi
+
+report_progress "完成"
 
 # ── 汇总（解析日志摘要 + 兜底扫描归档/图库目录）──
 SUMMARY="$(python3 - "$LOG_FILE" "$BACKUP_DIR" "$IMAGE_DIR" <<'PY'
