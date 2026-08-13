@@ -99,6 +99,7 @@
   "sync.supabaseKeyTitle": "Supabase Anon Key",
   "sync.uploadComplete": "업로드 완료",
   "sync.pullComplete": "풀 완료",
+  "sync.forceResyncComplete": "관리자 요청으로 강제 재동기화 완료",
   "sync.syncComplete": "동기화 완료",
   "sync.firstSupabaseUpload": "Supabase에 첫 업로드",
   "sync.noRemoteDataSkipPull": "원격 데이터 없음, 풀 건너뜀",

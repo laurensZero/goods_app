@@ -99,6 +99,7 @@
   "sync.supabaseKeyTitle": "Supabase Anon Key",
   "sync.uploadComplete": "Upload complete",
   "sync.pullComplete": "Pull complete",
+  "sync.forceResyncComplete": "Force re-sync requested by admin completed",
   "sync.syncComplete": "Sync complete",
   "sync.firstSupabaseUpload": "First upload to Supabase",
   "sync.noRemoteDataSkipPull": "No remote data, skipping pull",

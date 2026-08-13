@@ -27,8 +27,9 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     )
     if (error) throw error
     if (!data || data.length === 0) return null
-    const row = toCamelCase(data[0])
-    return { forceResyncAt: row.forceResyncAt || '' }
+    // 直接读原始列名：force_resync_at 不在 columnMapping 静态映射表里，
+    // toCamelCase 会原样保留键名，row.forceResyncAt 会取到 undefined
+    return { forceResyncAt: data[0].force_resync_at || '' }
   }
 
   async function readPresets() {

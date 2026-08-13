@@ -847,7 +847,10 @@ async function handleSync() {
     }
 
     let message = ''
-    if (result.action === 'pulled') {
+    if (result.forceResynced) {
+      const parts = buildPullResultParts(result)
+      message = parts.length > 0 ? `${t('sync.forceResyncComplete')}，${parts.join('，')}` : t('sync.forceResyncComplete')
+    } else if (result.action === 'pulled') {
       const parts = buildPullResultParts(result)
       message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
     } else if (result.action === 'no_changes') {
@@ -881,7 +884,12 @@ async function handlePull() {
     const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
     const result = await syncStore.pull({ tables, since })
 
-    if (result?.action === 'pulled') {
+    if (result?.forceResynced) {
+      const parts = buildPullResultParts(result)
+      const message = parts.length > 0 ? `${t('sync.forceResyncComplete')}，${parts.join('，')}` : t('sync.forceResyncComplete')
+      showToast(message, 3500)
+      await loadCloudInfo()
+    } else if (result?.action === 'pulled') {
       const parts = buildPullResultParts(result)
       let message = parts.length > 0 ? `${t('sync.pullComplete')}，${parts.join('，')}` : t('sync.dataUpToDate')
       showToast(message, 3500)

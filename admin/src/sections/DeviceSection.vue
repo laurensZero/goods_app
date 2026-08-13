@@ -28,7 +28,8 @@ const filtered = computed(() => {
   return items.value.filter((d) =>
     String(d.device_id || '').toLowerCase().includes(q) ||
     String(d.userName || '').toLowerCase().includes(q) ||
-    String(d.app_version || '').toLowerCase().includes(q)
+    String(d.apk_version || '').toLowerCase().includes(q) ||
+    String(d.bundle_version || '').toLowerCase().includes(q)
   )
 })
 
@@ -36,22 +37,25 @@ const stats = computed(() => {
   const list = items.value
   const native = list.filter((d) => d.platform === 'native').length
   const web = list.filter((d) => d.platform === 'web').length
-  const versions = new Set(list.map((d) => String(d.app_version || '').trim()).filter(Boolean)).size
-  return { total: list.length, native, web, versions }
+  const apkVersions = new Set(list.map((d) => String(d.apk_version || '').trim()).filter(Boolean)).size
+  const bundleVersions = new Set(list.map((d) => String(d.bundle_version || '').trim()).filter(Boolean)).size
+  return { total: list.length, native, web, apkVersions, bundleVersions }
 })
 
-// 版本分布：按数量倒序，取前 8
-const versionDist = computed(() => {
+// 版本分布（APK / Bundle 各一条）：按数量倒序，取前 8
+function buildVersionDist(key) {
   const map = new Map()
   for (const d of items.value) {
-    const v = String(d.app_version || '').trim()
+    const v = String(d[key] || '').trim()
     if (!v) continue
     map.set(v, (map.get(v) || 0) + 1)
   }
   return [...map.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
-})
+}
+const apkDist = computed(() => buildVersionDist('apk_version'))
+const bundleDist = computed(() => buildVersionDist('bundle_version'))
 
 const busyResync = ref('')
 
@@ -101,19 +105,33 @@ onMounted(load)
       <span class="stat-label">网页端</span>
     </div>
     <div class="stat">
-      <span class="stat-num">{{ stats.versions }}</span>
-      <span class="stat-label">版本数</span>
+      <span class="stat-num">{{ stats.apkVersions }}</span>
+      <span class="stat-label">APK 版本数</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">{{ stats.bundleVersions }}</span>
+      <span class="stat-label">Bundle 版本数</span>
     </div>
   </div>
 
-  <template v-if="versionDist.length">
+  <div v-if="apkDist.length" class="dist-group">
+    <span class="dist-label">APK 版本</span>
     <div class="version-dist">
-      <span v-for="[v, n] in versionDist" :key="v" class="version-chip">
+      <span v-for="[v, n] in apkDist" :key="v" class="version-chip">
         <span class="version-name">{{ v }}</span>
         <span class="version-count">{{ n }}</span>
       </span>
     </div>
-  </template>
+  </div>
+  <div v-if="bundleDist.length" class="dist-group">
+    <span class="dist-label">Bundle 版本</span>
+    <div class="version-dist">
+      <span v-for="[v, n] in bundleDist" :key="v" class="version-chip">
+        <span class="version-name">{{ v }}</span>
+        <span class="version-count">{{ n }}</span>
+      </span>
+    </div>
+  </div>
 
   <p class="status-text" :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''">
     {{ status.text }}
@@ -129,7 +147,8 @@ onMounted(load)
           <template v-if="d.force_resync_at"> · 待重同步</template>
         </span>
         <span class="list-item-meta">
-          {{ d.userName || d.user_id }} · {{ platformLabel(d.platform) }} · v{{ d.app_version || '--' }} · 最近活跃 {{ formatTime(d.last_seen_at) }}
+          {{ d.userName || d.user_id }} · {{ platformLabel(d.platform) }} ·
+          APK v{{ d.apk_version || '--' }} · Bundle v{{ d.bundle_version || '--' }} · 最近活跃 {{ formatTime(d.last_seen_at) }}
         </span>
       </div>
       <div class="list-actions">
@@ -157,7 +176,7 @@ onMounted(load)
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
 }
 
@@ -178,6 +197,16 @@ onMounted(load)
 }
 
 .stat-label {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.dist-group {
+  display: grid;
+  gap: 6px;
+}
+
+.dist-label {
   font-size: 12px;
   color: var(--app-text-tertiary);
 }

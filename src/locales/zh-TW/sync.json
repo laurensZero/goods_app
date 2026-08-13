@@ -99,6 +99,7 @@
   "sync.supabaseKeyTitle": "Supabase Anon Key",
   "sync.uploadComplete": "上傳完成",
   "sync.pullComplete": "拉取完成",
+  "sync.forceResyncComplete": "已依管理員要求強制重新同步",
   "sync.syncComplete": "同步完成",
   "sync.firstSupabaseUpload": "首次上傳到 Supabase",
   "sync.noRemoteDataSkipPull": "遠端無數據，跳過拉取",
