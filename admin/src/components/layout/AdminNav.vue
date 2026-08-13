@@ -25,15 +25,26 @@ defineEmits(['select'])
 <style scoped>
 .admin-topnav {
   position: sticky;
-  top: 8px;
+  top: 0;
   z-index: 30;
   display: flex;
   gap: 8px;
-  flex-wrap: wrap;
-  padding: 14px 0 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 calc(var(--page-padding) * -1);
+  padding: 12px var(--page-padding);
+  background: color-mix(in srgb, var(--app-bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+}
+
+.admin-topnav::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-item {
+  flex-shrink: 0;
   min-height: 34px;
   padding: 0 14px;
   border-radius: 999px;
