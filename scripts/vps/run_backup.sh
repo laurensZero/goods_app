@@ -1,8 +1,12 @@
 #!/bin/bash
-# run_backup.sh <kind>   kind: all | db | images
+# run_backup.sh <kind> [--no-lock]   kind: all | db | images
 # 由 backup_server.py 以 detach 方式调用；也可手动执行（如 crontab）。
 # 职责：调用现有 supabase-backup.sh / supabase-image-backup.sh，并把
 # 运行状态写回 Supabase backup_logs 表（service key，绕过 RLS）。
+#
+# --no-lock：跳过单任务互斥锁。仅供 restore.py 在「回档前安全快照」场景调用
+# （restore 进程已持有锁，run_backup.sh 默认会因锁被占用而静默跳过，快照就
+# 从未真正执行过）。开启后既不检查也不写锁文件。
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,21 +26,25 @@ LOG_TABLE="$(cfg log_table)"
 mkdir -p "$LOG_DIR"
 
 KIND="${1:-all}"
+NO_LOCK=0
+[ "${2:-}" = "--no-lock" ] && NO_LOCK=1
 ID="backup-$(date +%Y%m%d-%H%M%S)"
 LOG_FILE="$LOG_DIR/$ID.log"
 LOCK_FILE="$LOG_DIR/backup.lock"
 
-# ── 单任务互斥（pidfile + 进程存活检查）──
-if [ -f "$LOCK_FILE" ]; then
-  OLD_PID="$(cat "$LOCK_FILE" 2>/dev/null || true)"
-  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "[$ID] 已有任务运行中 (pid=$OLD_PID)，跳过本次" >> "$LOG_FILE"
-    exit 0
+# ── 单任务互斥（pidfile + 进程存活检查）；--no-lock 时整体跳过 ──
+if [ "$NO_LOCK" = "0" ]; then
+  if [ -f "$LOCK_FILE" ]; then
+    OLD_PID="$(cat "$LOCK_FILE" 2>/dev/null || true)"
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+      echo "[$ID] 已有任务运行中 (pid=$OLD_PID)，跳过本次" >> "$LOG_FILE"
+      exit 0
+    fi
+    rm -f "$LOCK_FILE"
   fi
-  rm -f "$LOCK_FILE"
+  echo "$$" > "$LOCK_FILE"
+  trap 'rm -f "$LOCK_FILE"' EXIT
 fi
-echo "$$" > "$LOCK_FILE"
-trap 'rm -f "$LOCK_FILE"' EXIT
 
 # ── Supabase REST 上报 ──
 supa() {

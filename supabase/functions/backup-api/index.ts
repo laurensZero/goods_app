@@ -24,6 +24,7 @@
 //   POST /trigger  {kind?}      触发备份 kind: all|db|images，默认 all
 //   POST /restore  {archive, includeImages?, password}  回档（需二级密码）
 //   POST /image-export          打包下载图库（VPS 把本地图库镜像打成 tar.gz）
+//   POST /delete    {archive}   删除 VPS 上的归档文件（backup_logs 历史行保留）
 //   GET  /files                 列出 VPS 上全部备份归档（名称/大小/时间）
 //   GET  /download?archive=xxx  签发短时效下载 URL
 //   GET  /logs?limit=50         读取 backup_logs 备份历史
@@ -191,6 +192,19 @@ serve(async (req) => {
     if (path === "image-export" && req.method === "POST") {
       const { data, status } = await forwardToVps("/api/backup/image-export", {})
       return json({ ok: status < 300, vps: data }, status < 300 ? 202 : status)
+    }
+
+    // 删除归档（VPS 移除归档文件；backup_logs 历史行保留）
+    if (path === "delete" && req.method === "POST") {
+      const body = await req.json().catch(() => ({}))
+      const archive = String(body?.archive || "").trim()
+      if (!archive) return error("missing_archive", "缺少 archive 参数")
+      // 防目录穿越：只允许合法的归档文件名
+      if (!/^(backup|images)-[\w.-]+\.tar\.gz$/.test(archive)) {
+        return error("invalid_archive", "非法归档文件名")
+      }
+      const { data, status } = await forwardToVps("/api/backup/delete", { archive })
+      return json({ ok: status < 300, vps: data }, status < 300 ? 200 : 502)
     }
 
     // 归档列表（VPS 响应为 {files:[...]}，解包后回传数组）

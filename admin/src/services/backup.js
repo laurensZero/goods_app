@@ -64,6 +64,10 @@ export function listArchives() {
   return callBackupApi('files')
 }
 
+export function deleteBackup(archive) {
+  return callBackupApi('delete', { method: 'POST', body: { archive } })
+}
+
 export async function getDownloadUrl(archive) {
   const data = await callBackupApi('download', { params: { archive } })
   return data?.url || ''
