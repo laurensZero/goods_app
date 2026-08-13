@@ -37,6 +37,26 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
   }
 
+  // 设备心跳 upsert：每次同步调用一次，记录 platform / app_version / last_seen_at。
+  // 用 onConflict: 'device_id'，不写 force_resync_at（管理员设的强制重同步标记得以保留）。
+  // last_seen_at 由服务端触发器恒取 now()，此处不必传。
+  async function writeDeviceHeartbeat({ platform = '', appVersion = '' } = {}) {
+    const db = getDb()
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    if (!currentDeviceId || !currentUserId) return
+    const row = {
+      device_id: currentDeviceId,
+      user_id: currentUserId,
+      platform: String(platform || ''),
+      app_version: String(appVersion || '')
+    }
+    const { error } = await withRetry(() =>
+      db.from('devices').upsert(row, { onConflict: 'device_id' })
+    )
+    if (error) console.warn('[supabase] device heartbeat upsert warning:', error.message)
+  }
+
   async function writePresets(presetsData) {
     const db = getDb()
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -221,5 +241,5 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     return { syncedAt: serverSyncedAt }
   }
 
-  return { writeManifest, writePresets, pushDomainRows, pushAll }
+  return { writeManifest, writePresets, pushDomainRows, pushAll, writeDeviceHeartbeat }
 }

@@ -39,6 +39,14 @@ export const SECTIONS = [
     component: defineAsyncComponent(() => import('../sections/UserSection.vue'))
   },
   {
+    id: 'device',
+    label: '设备管理',
+    short: '设备',
+    icon: 'smartphone',
+    description: '设备心跳清单与按设备强制重同步',
+    component: defineAsyncComponent(() => import('../sections/DeviceSection.vue'))
+  },
+  {
     id: 'channels',
     label: '发布通道',
     short: '通道',

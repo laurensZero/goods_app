@@ -19,7 +19,7 @@ export function createSupabaseBackendAdapter({
   }
 
   const storage = createStorageOps({ getDb, withRetry, userIdRef })
-  const reader = createReader({ getDb, trackSyncStep, userIdRef })
+  const reader = createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef })
   const writer = createWriter({ getDb, deviceIdRef, userIdRef })
 
   async function ensureImageCloud() {
@@ -51,6 +51,8 @@ export function createSupabaseBackendAdapter({
     pushAll: writer.pushAll,
     pullAll: reader.pullAll,
     readManifest: reader.readManifest,
+    readDeviceRow: reader.readDeviceRow,
+    writeDeviceHeartbeat: writer.writeDeviceHeartbeat,
     getDb
   })
 }

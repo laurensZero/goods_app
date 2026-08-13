@@ -30,6 +30,8 @@ import {
   IMAGE_FILE_SIZE_LIMIT,
   SYNC_SCHEMA_VERSION
 } from '@/constants/syncConstants'
+import packageJson from '../../package.json'
+import { normalizeVersionTag } from '@/utils/github/release'
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
@@ -50,6 +52,13 @@ const PENDING_PUSH_KEY = 'sync_pending_push'
 const LAST_SYNC_USER_KEY = 'sync_last_user_id'
 
 const IS_NATIVE = Capacitor.isNativePlatform()
+
+// 设备级强制重同步：服务端 devices.force_resync_at 时间戳，本地记住「已处理」值避免重复触发
+const DEVICE_FORCE_RESYNC_KEY = 'sync_device_force_resync_at'
+// 心跳上报的 app 版本（JS bundle 版本，同步用 FALLBACK_VERSION 模式）
+const APP_VERSION = normalizeVersionTag(
+  import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0'
+) || '0.0.0'
 
 function generateDeviceId() {
   const platform = IS_NATIVE ? 'native' : 'web'
@@ -616,6 +625,49 @@ export const useSyncStore = defineStore('sync', () => {
     return result
   }
 
+  // ── 设备心跳 ──
+  // 每次同步上报一次设备存活（fire-and-forget，失败不影响同步）。
+  // last_seen_at 由服务端触发器恒取 now()，客户端只带 platform / app_version。
+  function heartbeatDevice() {
+    try {
+      if (!deviceId.value || typeof activeBackend?.writeDeviceHeartbeat !== 'function') return
+      void activeBackend.writeDeviceHeartbeat({
+        platform: IS_NATIVE ? 'native' : 'web',
+        appVersion: APP_VERSION
+      }).catch(() => {})
+    } catch (e) {
+      console.warn('[sync] device heartbeat failed (non-fatal):', e?.message)
+    }
+  }
+
+  // ── 管理员触发的设备级强制重同步 ──
+  // 读 devices.force_resync_at，若比本地记住的「已处理」值新，走一次整量重拉
+  // （复用 orchestrator.pull 的 schemaResync = 全量重拉 + forceReapply + 不弹冲突），
+  // 成功后固化本地时间戳；失败保留，下次同步自动重试。
+  // 返回拉取结果（执行过）或 false（无需执行）。
+  async function maybeForceDeviceResync(runGen) {
+    try {
+      if (typeof activeBackend?.readDeviceRow !== 'function') return false
+      const row = await activeBackend.readDeviceRow()
+      const serverTs = row?.forceResyncAt || ''
+      if (!serverTs) return false
+      const lastProcessed = (await readSyncKey(DEVICE_FORCE_RESYNC_KEY)) || ''
+      if (lastProcessed && new Date(serverTs).getTime() <= new Date(lastProcessed).getTime()) {
+        return false
+      }
+      console.warn('[sync] admin-triggered device force resync detected, running full re-pull')
+      const result = await withRetry(
+        () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+        { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
+      )
+      await writeSyncKey(DEVICE_FORCE_RESYNC_KEY, serverTs)
+      return result
+    } catch (e) {
+      console.warn('[sync] device force resync failed (will retry next sync):', e?.message)
+      return false
+    }
+  }
+
   async function reconnectOnNetworkError(error) {
     if (!isSupabaseMode()) return
     const msg = String(error?.message || '').toLowerCase()
@@ -658,6 +710,9 @@ export const useSyncStore = defineStore('sync', () => {
       // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
       await ensureSyncAccountConsistent()
 
+      // 设备心跳上报（fire-and-forget）
+      heartbeatDevice()
+
       // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
       try {
         const manifest = await activeBackend.readManifest()
@@ -692,6 +747,10 @@ export const useSyncStore = defineStore('sync', () => {
         const resyncResult = await runSchemaResync(runGen)
         if (runGen !== syncGeneration) return resyncResult
       }
+
+      // 管理员触发的设备级强制重同步：整量重拉一次，再继续正常同步推送本地改动
+      await maybeForceDeviceResync(runGen)
+      if (runGen !== syncGeneration) return { action: 'skipped', reason: 'stale' }
 
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
@@ -783,6 +842,9 @@ export const useSyncStore = defineStore('sync', () => {
         return { action: 'skipped', reason: 'account_switched' }
       }
 
+      // 设备心跳上报（fire-and-forget）
+      heartbeatDevice()
+
       // 预读 manifest 缓存维护模式
       try {
         const manifest = await activeBackend.readManifest()
@@ -807,6 +869,14 @@ export const useSyncStore = defineStore('sync', () => {
         if (runGen !== syncGeneration) return resyncResult
         syncStatus.value = translateStatusMessage(resyncResult)
         return resyncResult
+      }
+
+      // 管理员触发的设备级强制重同步：整量重拉一次，已覆盖本次拉取请求
+      const forcedResync = await maybeForceDeviceResync(runGen)
+      if (runGen !== syncGeneration) return { action: 'skipped', reason: 'stale' }
+      if (forcedResync) {
+        syncStatus.value = translateStatusMessage(forcedResync)
+        return forcedResync
       }
 
       if (isIncremental) {

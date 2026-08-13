@@ -1419,14 +1419,26 @@ BEGIN
     'created_at', now()::text
   );
 
-  -- 单语句原子追加，避免并发追加时读改写竞态丢失回复
-  UPDATE feedbacks
-  SET followups = COALESCE(followups, '[]'::jsonb) || new_followup,
-      updated_at = now()
-  WHERE id::text = p_feedback_id;
-
+  -- admin 回复：首条写入主回复位 admin_reply（不重复进 followups），后续回复只进
+  -- followups；user 回复只进 followups。单条 UPDATE 借行锁保证并发下首条回复不
+  -- 丢失也不重复（同一语句内各 SET 表达式基于同一次行快照求值）
   IF v_role = 'admin' THEN
-    UPDATE feedbacks SET admin_reply = p_content WHERE id::text = p_feedback_id;
+    UPDATE feedbacks
+    SET admin_reply    = COALESCE(NULLIF(admin_reply, ''), p_content),
+        admin_reply_at = COALESCE(admin_reply_at, now()),
+        followups      = CASE
+                           WHEN admin_reply IS NOT NULL AND admin_reply <> '' THEN
+                             COALESCE(followups, '[]'::jsonb) || new_followup
+                           ELSE followups
+                         END,
+        updated_at     = now()
+    WHERE id::text = p_feedback_id;
+  ELSE
+    -- 单语句原子追加，避免并发追加时读改写竞态丢失回复
+    UPDATE feedbacks
+    SET followups = COALESCE(followups, '[]'::jsonb) || new_followup,
+        updated_at = now()
+    WHERE id::text = p_feedback_id;
   END IF;
 
   RETURN new_followup;
