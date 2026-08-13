@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { supabaseRequest } from '../../services/supabase'
+import { fetchUsersList } from '../../services/versionRules'
 import { formatTime } from '../../utils/format'
 import { FEEDBACK_STATUS, FEEDBACK_STATUS_LABEL, FEEDBACK_TYPE_LABEL } from '../../constants'
 import TypeBadge from '../../components/ui/TypeBadge.vue'
@@ -21,6 +22,26 @@ const replyContent = ref('')
 const replyBusy = ref(false)
 const statusBusy = ref(false)
 const showMore = ref(false)
+
+// user_id -> 显示名。解析提交者用户名，未命中（匿名/无权限）时回退「用户」
+const usersMap = ref({})
+
+async function loadUsers() {
+  try {
+    const list = await fetchUsersList()
+    const map = {}
+    list.forEach((u) => { map[u.id] = u.display })
+    usersMap.value = map
+  } catch {
+    /* 未配置 service key 或调用失败时保持回退 */
+  }
+}
+
+function roleLabel(item) {
+  if (item.role === 'admin') return '管理员'
+  const uid = item.user_id || detail.value?.user_id
+  return usersMap.value[uid] || '用户'
+}
 
 function setStatus(text, type = 'default') {
   status.value = { text, type }
@@ -44,6 +65,7 @@ async function loadDetail() {
   detail.value = null
   showMore.value = false
   replyContent.value = ''
+  loadUsers() // 后台解析用户名，不阻塞详情渲染
   try {
     const fb = await supabaseRequest(`/rest/v1/feedbacks?id=eq.${encodeURIComponent(props.feedbackId)}`, { params: { select: '*' } })
     const item = Array.isArray(fb) ? fb[0] : fb
@@ -200,7 +222,7 @@ async function updateStatus() {
           class="timeline-item"
           :class="item.role === 'admin' ? 'timeline-item--admin' : 'timeline-item--user'"
         >
-          <span class="timeline-role">{{ item.role === 'admin' ? '管理员' : '用户' }}</span>
+          <span class="timeline-role">{{ roleLabel(item) }}</span>
           <span class="timeline-time">{{ formatTime(item.createdAt) }}</span>
           <p class="pre-wrap timeline-content">{{ item.content }}</p>
           <div v-if="item.attachments?.length" class="followup-attachments">
