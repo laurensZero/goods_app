@@ -371,7 +371,7 @@ import SellGoodsSheet from '@/components/goods/SellGoodsSheet.vue'
 import StatusTimeline from '@/components/goods/StatusTimeline.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useI18n } from 'vue-i18n'
-import { addToCart, fetchGoodsDetailForCart, getMihoyoShopCodeByIp } from '@/utils/mihoyo/index'
+import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
 import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { useAuthStore } from '@/stores/auth'
@@ -899,7 +899,6 @@ async function handleAddToStockMonitor() {
     const sku = await resolveMonitorSkuByVariant(goodsId, variantText.value)
     const row = await stockMonitorStore.add({
       goodsId,
-      shopCode: getMihoyoShopCodeByIp(g.ip),
       name: g.name || '',
       priceCents: Math.round(Number(g.price) * 100) || 0,
       coverUrl: activeImage.value?.uri || '',

@@ -31,7 +31,6 @@ export async function listMonitoredGoods() {
  * UNIQUE(user_id, goods_id, sku_key) 保证同一商品的同一 SKU 只监控一次。
  * @param {Object} entry
  * @param {string} entry.goodsId - 米游铺商品 ID
- * @param {string} [entry.shopCode]
  * @param {string} [entry.name]
  * @param {number} [entry.priceCents]
  * @param {string} [entry.coverUrl]
@@ -39,7 +38,7 @@ export async function listMonitoredGoods() {
  * @param {string} [entry.skuName] - 所选 SKU 展示名，空 = 整件商品
  * @returns {Promise<Object>}
  */
-export async function addMonitoredGoods({ goodsId, shopCode = '', name = '', priceCents = 0, coverUrl = '', skuKey = '', skuName = '' }) {
+export async function addMonitoredGoods({ goodsId, name = '', priceCents = 0, coverUrl = '', skuKey = '', skuName = '' }) {
   const db = getSupabaseClient()
   const { data: { user } } = await db.auth.getUser()
   if (!user) throw new Error('not_logged_in')
@@ -49,7 +48,6 @@ export async function addMonitoredGoods({ goodsId, shopCode = '', name = '', pri
     .upsert({
       user_id: user.id,
       goods_id: String(goodsId || '').trim(),
-      shop_code: String(shopCode || '').trim(),
       name: String(name || '').trim(),
       price_cents: Number(priceCents) || 0,
       cover_url: String(coverUrl || '').trim(),

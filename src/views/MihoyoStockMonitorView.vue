@@ -359,7 +359,7 @@ import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/imp
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { normalizeCharacterName, displayVariantText } from '@/utils/variantText'
 import { pinyinIncludes } from '@/utils/pinyin'
-import { parseMihoyoUrl, fetchGoodsDetail, getMihoyoShopCodeByIp, isMihoyoGiftUrl } from '@/utils/mihoyo'
+import { parseMihoyoUrl, fetchGoodsDetail, isMihoyoGiftUrl } from '@/utils/mihoyo'
 
 defineOptions({ name: 'MihoyoStockMonitorView' })
 
@@ -399,7 +399,7 @@ const {
 } = search
 
 // ── 待确认添加队列（搜索/URL 解析后先选 SKU 再入库，支持多选逐个处理） ──
-// 每项：{ uid, goodsId, shopCode, name, priceCents, coverUrl, variants, selectedSkus, loading, variantsLoaded, error, expanded }
+// 每项：{ uid, goodsId, name, priceCents, coverUrl, variants, selectedSkus, loading, variantsLoaded, error, expanded }
 const queue = ref([])
 const activeUid = ref('')              // 当前正在选 SKU 的队列项
 const skuDeckRef = ref(null)           // 手机端左右滑动卡片容器
@@ -499,7 +499,7 @@ async function handleRefresh() {
 
 // ── 待确认队列：单个/多个商品逐个选 SKU 后统一确认；同一商品可多选多个 SKU ──
 let queueUid = 0
-function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, coverUrl = '' }) {
+function createQueueEntry({ goodsId, name = '', priceCents = 0, coverUrl = '' }) {
   queueUid += 1
   // 必须用 reactive() 创建：plain object 被 push 进响应式 queue 后由 Vue 代理，
   // 而 loadEntryVariants 等直接对 entry 字段赋值走的是原始对象，视图不会更新。
@@ -507,7 +507,6 @@ function createQueueEntry({ goodsId, shopCode = '', name = '', priceCents = 0, c
   return reactive({
     uid: `queue-${queueUid}`,
     goodsId: String(goodsId || '').trim(),
-    shopCode: String(shopCode || '').trim(),
     name: String(name || '').trim() || t('mihoyoStock.unnamed'),
     priceCents: Number(priceCents) || 0,
     coverUrl: String(coverUrl || '').trim(),
@@ -619,7 +618,6 @@ function onSearchResultClick(item) {
   const priceYuan = Number(item?.price)
   enqueueGoods({
     goodsId: item.goods_id,
-    shopCode: String(item?.shop_code || getMihoyoShopCodeByIp(item?.ip) || ''),
     name: item?.name || '',
     priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
     coverUrl: getSearchResultCover(item) || item?.cover_url || '',
@@ -650,7 +648,6 @@ async function handleAdd() {
     const parsed = await parseMihoyoUrl(url)
     enqueueGoods({
       goodsId: parsed.goodsId,
-      shopCode: getMihoyoShopCodeByIp(parsed.ip),
       name: parsed.name,
       priceCents: parsed.price ? Math.round(parsed.price * 100) : 0,
       coverUrl: parsed.image,
@@ -766,7 +763,6 @@ async function confirmQueue() {
         for (const sku of targets) {
           const row = await monitorStore.add({
             goodsId: entry.goodsId,
-            shopCode: entry.shopCode,
             name: entry.name,
             priceCents: entry.priceCents,
             coverUrl: sku?.cover_url || entry.coverUrl,
