@@ -1,0 +1,1 @@
+import{o as a,c as e,t as s,n as l}from"./index-DTzRs1UO.js";const c={__name:"StatusPill",props:{status:{type:String,default:"default"},label:{type:String,required:!0}},setup(t){return(r,n)=>(a(),e("span",{class:l(["state",t.status!=="default"?`state--${t.status}`:""])},s(t.label),3))}};export{c as _};
