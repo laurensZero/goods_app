@@ -136,10 +136,15 @@ def replace_table(table, rows):
     total = 0
     for i in range(0, len(rows), 500):
         batch = rows[i:i + 500]
-        status, body = rest("POST", f"/rest/v1/{table}",
-                            batch, prefer="resolution=merge-duplicates")
+        # 走 admin_restore_upsert RPC：会话内设 app.is_sync_push=true，
+        # 让 set_xxx_updated_at 触发器短路，保留归档里的原始 updated_at。
+        # （要求线上先应用 supabase-migration-restore-preserve-updated-at.sql）
+        status, body = rest(
+            "POST", "/rest/v1/rpc/admin_restore_upsert",
+            {"p_table": table, "p_rows": batch, "p_conflict": filter_col},
+        )
         if status >= 400:
-            log(f"  [ERR {status}] upsert {table} batch {i // 500}: {body[:200]}")
+            log(f"  [ERR {status}] restore_upsert {table} batch {i // 500}: {body[:200]}")
             return False
         total += len(batch)
     log(f"  [OK] {table}: {total} 行")
