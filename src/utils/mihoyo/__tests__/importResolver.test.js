@@ -130,4 +130,68 @@ describe('mihoyo import resolver', () => {
     }, { context })
     expect(draft.category).toBe('卡片')
   })
+
+  it('resolves a 胶片卡 import to 卡片 with a 4-vs-3 goods base (no character pollution)', () => {
+    // 贴近用户真实库存：4 条胶片卡→卡片，3 条→满赠，1 条未分类，另有正常商品/角色
+    const goodsList = [
+      { name: '满赠 胶片卡', category: '满赠' },
+      { name: '满赠 胶片卡', category: '满赠' },
+      { name: '满赠 胶片卡', category: '满赠' },
+      { name: '芙宁娜 胶片卡', category: '卡片' },
+      { name: '芙宁娜 胶片卡', category: '卡片' },
+      { name: '娜维娅 胶片卡', category: '卡片' },
+      { name: '温迪 胶片卡', category: '卡片' },
+      { name: '散装 胶片卡', category: '' },
+      { name: '芙宁娜 立牌', category: '立牌' },
+    ]
+    const presetCharacters = [
+      { name: '芙宁娜', ip: '原神' },
+      { name: '娜维娅', ip: '原神' },
+      { name: '温迪', ip: '原神' },
+    ]
+    const context = buildMihoyoImportContext({
+      goodsList,
+      presetCharacters,
+      categories: ['卡片', '满赠', '立牌'],
+    })
+    expect(context.learnedCategories).toContainEqual({ keyword: '胶片卡', value: '卡片' })
+
+    // SKU 里把「胶片卡」放在名为「角色」的属性组中（店铺数据如此）
+    const draft = resolveMihoyoImportDraft({
+      name: '原神 芙宁娜 胶片卡',
+      skuCharacters: ['胶片卡'],
+      image: 'https://example.com/a.png',
+    }, { context })
+    expect(draft.category).toBe('卡片')
+    expect(draft.characters).not.toContain('胶片卡')
+
+    // 款式（SKU）选择路径同样识别为卡片
+    const variantDraft = resolveMihoyoVariantDraft({
+      name: '原神 芙宁娜 胶片卡',
+      variant: { text: '胶片卡', key: '1', price: 500 },
+      context,
+    })
+    expect(variantDraft.category).toBe('卡片')
+    expect(variantDraft.selectedCharacterName).not.toBe('胶片卡')
+  })
+
+  it('drops a learned category keyword from characters during import', () => {
+    const context = buildMihoyoImportContext({
+      goodsList: [
+        { name: '烫金卡', category: '卡片' },
+        { name: '烫金卡', category: '卡片' },
+      ],
+      categories: ['卡片', '立牌'],
+    })
+    expect(context.learnedCategories).toContainEqual({ keyword: '烫金卡', value: '卡片' })
+
+    // SKU 中把「烫金卡」误标成角色：既然它是学到的分类关键词，就不应被当作角色
+    const draft = resolveMihoyoImportDraft({
+      name: '测试 烫金卡',
+      skuCharacters: ['烫金卡'],
+      image: 'https://example.com/a.png',
+    }, { context })
+    expect(draft.characters).toEqual([])
+    expect(draft.category).toBe('卡片')
+  })
 })

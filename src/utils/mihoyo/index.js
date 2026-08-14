@@ -568,7 +568,7 @@ const CATEGORY_KEYWORDS = [
   { keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], category: '挂件' },
   { keywords: ['徽章', '马口铁', '胸章', 'Pin', 'pin'], category: '徽章' },
   { keywords: ['明信片'], category: '明信片' },
-  { keywords: ['卡片', '随机卡', '收藏卡', '可换卡', '卡组'], category: '卡片' },
+  { keywords: ['卡片', '胶片卡', '随机卡', '收藏卡', '可换卡', '卡组'], category: '卡片' },
   { keywords: ['CD', '专辑', '唱片', 'OST'], category: 'CD/专辑' },
   { keywords: ['色纸', '签板'], category: '色纸' },
   { keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰'], category: '服饰' },

@@ -85,6 +85,44 @@ describe('learnCategoryKeywords', () => {
     expect(result).toEqual([{ keyword: '胶片卡', value: '卡片' }])
   })
 
+  it('learns the majority category for a 4:3 split (e.g. 卡片 4 vs 满赠 3)', () => {
+    const result = learnCategoryKeywords(
+      [
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '散装 胶片卡', category: '' },
+      ],
+      { characters: [{ name: '芙宁娜', ip: '原神' }] }
+    )
+    expect(result).toContainEqual({ keyword: '胶片卡', value: '卡片' })
+  })
+
+  it('stops learning a gram once it was saved as a known character', () => {
+    // 若「胶片卡」曾被误存成角色，它进入角色预设，学习会把它当角色名排除（自毁循环）
+    const result = learnCategoryKeywords(
+      [
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '满赠 胶片卡', category: '满赠' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '散装 胶片卡', category: '' },
+      ],
+      {
+        categories: ['卡片', '满赠'],
+        characters: [{ name: '胶片卡' }, { name: '芙宁娜' }],
+      }
+    )
+    expect(result.some((r) => r.keyword.includes('胶片卡'))).toBe(false)
+  })
+
   it('returns deterministic, length-descending order', () => {
     const list = [
       { name: '随机胶片卡', category: '卡片' },
