@@ -240,5 +240,7 @@
   "mihoyoStock.cancelMultiSelect": "Cancel",
   "mihoyoStock.selectSkuHint": "Choose a variant",
   "mihoyoStock.inQueue": "In queue",
+  "mihoyoStock.removedFromQueue": "Removed from queue",
+  "mihoyoStock.variantLoadError": "Failed to load variants, please retry",
   "mihoyoStock.collapse": "Collapse"
 }

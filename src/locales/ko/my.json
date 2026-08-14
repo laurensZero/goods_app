@@ -240,5 +240,7 @@
   "mihoyoStock.cancelMultiSelect": "취소",
   "mihoyoStock.selectSkuHint": "款式 선택",
   "mihoyoStock.inQueue": "대기열에 추가됨",
+  "mihoyoStock.removedFromQueue": "대기열에서 제거됨",
+  "mihoyoStock.variantLoadError": "款式 불러오기 실패, 다시 시도하세요",
   "mihoyoStock.collapse": "접기"
 }

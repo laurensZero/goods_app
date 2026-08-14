@@ -1,12 +1,12 @@
 <template>
   <article class="sku-picker-card">
     <div class="sku-picker-card__head">
-      <span class="sku-picker-thumb">
+      <span class="sku-picker-thumb" :class="{ 'sku-picker-thumb--large': props.largeThumb }">
         <img v-if="displayCover" :src="displayCover" class="sku-picker-thumb-img" alt="" loading="lazy" />
         <span v-else class="sku-picker-thumb-fallback">{{ (entry.name || '谷').charAt(0) }}</span>
       </span>
       <div class="sku-picker-copy">
-        <p class="sku-picker-label">{{ t('mihoyoStock.selectSku') }}</p>
+        <p class="sku-picker-label">{{ props.label || t('mihoyoStock.selectSku') }}</p>
         <h3 class="sku-picker-title">{{ entry.name }}</h3>
         <p v-if="selectedSkus.length > 0" class="sku-picker-match">{{ selectionSummary }}</p>
       </div>
@@ -45,7 +45,7 @@
 
       <div v-if="entry.expanded" class="sku-picker">
         <div class="sku-picker__toolbar">
-          <span class="sku-picker__hint">{{ t('mihoyoStock.skuMultiSelectHint') }}</span>
+          <span class="sku-picker__hint">{{ props.multiSelect ? t('mihoyoStock.skuMultiSelectHint') : t('import.skuSingleSelectHint') }}</span>
           <button type="button" class="sku-picker__collapse" @click="$emit('collapse')">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <polyline points="6 15 12 9 18 15" />
@@ -55,6 +55,7 @@
         </div>
 
         <button
+          v-if="props.showWhole"
           type="button"
           class="sku-whole"
           :class="{ 'sku-whole--selected': selectedSkus.length === 0 }"
@@ -63,19 +64,25 @@
           {{ t('mihoyoStock.wholeGoods') }}
         </button>
 
-        <div v-if="entry.variants.length > 0" class="sku-chips" :class="{ 'sku-chips--tablet': isTablet }">
+        <div v-if="entry.variants.length > 0" class="sku-cards" :class="{ 'sku-cards--tablet': isTablet }">
           <button
             v-for="v in entry.variants"
             :key="v.key"
             type="button"
-            class="sku-chip"
-            :class="{ 'sku-chip--selected': isSkuSelected(v.key) }"
+            class="sku-card"
+            :class="{ 'sku-card--selected': isSkuSelected(v.key) }"
             @click="$emit('select-sku', v)"
           >
-            <svg v-if="isSkuSelected(v.key)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="sku-chip__check">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-            {{ v.text }}
+            <span class="sku-card__img-wrap">
+              <img v-if="v.cover_url" :src="v.cover_url" :alt="v.text" class="sku-card__img" loading="lazy" />
+              <span v-else class="sku-card__fallback">{{ (v.text || '款').charAt(0) }}</span>
+            </span>
+            <span class="sku-card__text">{{ v.text }}</span>
+            <span v-if="isSkuSelected(v.key)" class="sku-card__check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </span>
           </button>
         </div>
       </div>
@@ -108,6 +115,14 @@ const props = defineProps({
   isTablet: { type: Boolean, default: false },
   showRemove: { type: Boolean, default: false },
   counter: { type: String, default: '' },
+  // 顶部提示文案（监控页=选择要监控的款式；导入页=选择款式）
+  label: { type: String, default: '' },
+  // 是否多选款式（有货监控多选；导入页单选）
+  multiSelect: { type: Boolean, default: true },
+  // 导入页要求明确选择 SKU；有货监控仍保留「整件商品」
+  showWhole: { type: Boolean, default: true },
+  // 是否放大顶部款式图（导入队列里让选中的款式图更醒目；有货监控保持原尺寸）
+  largeThumb: { type: Boolean, default: false },
 })
 
 defineEmits(['select-sku', 'select-whole', 'expand', 'collapse', 'remove', 'retry'])
@@ -153,6 +168,15 @@ const displayCover = computed(() => {
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
   font-size: 18px;
+}
+
+/* 导入队列：放大选中的款式图 */
+.sku-picker-thumb--large {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
+  font-size: 24px;
+  box-shadow: 0 0 0 1px var(--app-border);
 }
 
 .sku-picker-thumb-img {
@@ -353,49 +377,107 @@ const displayCover = computed(() => {
   color: var(--app-chip-accent-text);
 }
 
-.sku-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+/* 款式选择：带图的款式卡片网格（导入与有货监控共用） */
+.sku-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
   margin-top: 10px;
 }
 
-.sku-chip {
-  display: inline-flex;
-  align-items: center;
+.sku-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
-  padding: 8px 12px;
+  min-width: 0;
+  padding: 8px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
-  line-height: 1.3;
+  text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
 }
 
-.sku-chip__check {
-  width: 13px;
-  height: 13px;
-  flex-shrink: 0;
+.sku-card:active {
+  transform: scale(0.96);
 }
 
-.sku-chip--selected {
+.sku-card--selected {
   border-color: var(--app-chip-accent-text);
   background: color-mix(in srgb, var(--app-chip-accent-text) 12%, var(--app-surface-soft));
+}
+
+.sku-card__img-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 20px;
+}
+
+.sku-card__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.sku-card__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+.sku-card__text {
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 1.3;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.sku-card--selected .sku-card__text {
   color: var(--app-chip-accent-text);
   font-weight: 600;
 }
 
-/* 平板：款式改为双栏卡片排列，方便核对/点选（长文案换行不截断） */
-.sku-chips--tablet {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.sku-card__check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--app-chip-accent-text);
+  color: #fff;
 }
 
-.sku-chips--tablet .sku-chip {
-  text-align: left;
-  white-space: normal;
+.sku-card__check svg {
+  width: 10px;
+  height: 10px;
+  stroke: currentColor;
+}
+
+/* 平板：双栏更宽卡片，方便核对/点选 */
+.sku-cards--tablet {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .sku-picker-error {

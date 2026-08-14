@@ -240,5 +240,7 @@
   "mihoyoStock.cancelMultiSelect": "取消",
   "mihoyoStock.selectSkuHint": "选择款式",
   "mihoyoStock.inQueue": "已加入队列",
+  "mihoyoStock.removedFromQueue": "已从队列移除",
+  "mihoyoStock.variantLoadError": "款式加载失败，请重试",
   "mihoyoStock.collapse": "收起"
 }

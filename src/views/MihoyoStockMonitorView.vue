@@ -121,98 +121,37 @@
         </section>
 
         <!-- SKU 选择确认区：手机端左右滑动卡片逐个选 SKU；平板端选择卡片 + 队列卡片并排 -->
-        <section
-          v-if="queue.length > 0"
-          class="confirm-card"
-          :class="{ 'confirm-card--queue': queue.length > 1 }"
+        <!-- 与米游铺批量导入共用同一套队列面板（MihoyoGoodsQueuePanel + useMihoyoGoodsQueue） -->
+        <MihoyoGoodsQueuePanel
+          ref="queuePanelRef"
+          :queue="queue"
+          :active-uid="activeUid"
+          :is-tablet="isTabletViewport"
+          @activate="activateQueueEntry($event, { scrollDeck: true })"
+          @remove="removeFromQueue($event)"
+          @deck-scroll="onDeckScroll"
         >
-          <div class="confirm-card__inner">
-            <!-- 手机端：左右滑动切换待确认商品，每张卡片 = 一个商品（含 SKU 选择） -->
-            <div
-              v-if="!isTabletViewport"
-              ref="skuDeckRef"
-              class="sku-deck"
-              @scroll="onDeckScroll"
-            >
-              <div v-for="(entry, index) in queue" :key="entry.uid" class="sku-deck__slide">
-                <MihoyoSkuPickerCard
-                  :entry="entry"
-                  :show-remove="queue.length > 1"
-                  :counter="queue.length > 1 ? `${index + 1} / ${queue.length}` : ''"
-                  @select-sku="selectSku(entry, $event)"
-                  @select-whole="selectWholeGoods(entry)"
-                  @expand="expandSkuPicker(entry)"
-                  @collapse="collapseSkuPicker(entry)"
-                  @retry="retryLoadVariants(entry)"
-                  @remove="removeFromQueue(entry.uid)"
-                />
-              </div>
-            </div>
-
-            <!-- 平板端：当前商品 SKU 选择 -->
-            <div v-else class="confirm-card__body">
-              <MihoyoSkuPickerCard
-                :entry="activeEntry"
-                :is-tablet="true"
-                @select-sku="selectSku(activeEntry, $event)"
-                @select-whole="selectWholeGoods(activeEntry)"
-                @expand="expandSkuPicker(activeEntry)"
-                @collapse="collapseSkuPicker(activeEntry)"
-                @retry="retryLoadVariants(activeEntry)"
-              />
-            </div>
-
-            <!-- 平板端：队列卡片铺在 SKU 选择卡片旁 -->
-            <div v-if="isTabletViewport && queue.length > 1" class="queue-cards">
-              <button
-                v-for="entry in queue"
-                :key="entry.uid"
-                type="button"
-                class="queue-card"
-                :class="{ 'queue-card--active': entry.uid === activeUid }"
-                @click="activateQueueEntry(entry.uid, { scrollDeck: true })"
-              >
-                <span class="queue-card__thumb">
-                  <img v-if="entry.coverUrl" :src="entry.coverUrl" alt="" loading="lazy" />
-                  <span v-else>{{ (entry.name || '谷').charAt(0) }}</span>
-                </span>
-                <span class="queue-card__copy">
-                  <span class="queue-card__name">{{ entry.name }}</span>
-                  <span class="queue-card__sku" :class="{ 'queue-card__sku--pending': !entry.selectedSkus.length && !entry.error }">
-                    {{ entry.error || queueSkuSummary(entry) }}
-                  </span>
-                </span>
-                <span
-                  class="queue-card__remove"
-                  :aria-label="t('mihoyoStock.remove')"
-                  @click.stop="removeFromQueue(entry.uid)"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </span>
-              </button>
-            </div>
-          </div>
-
-          <!-- 手机端：滑动指示点 -->
-          <div v-if="!isTabletViewport && queue.length > 1" class="sku-deck-dots">
-            <span
-              v-for="entry in queue"
-              :key="entry.uid"
-              class="sku-deck-dot"
-              :class="{ 'sku-deck-dot--on': entry.uid === activeUid }"
+          <template #slide="{ entry }">
+            <MihoyoSkuPickerCard
+              :entry="entry"
+              :show-remove="queue.length > 1"
+              :counter="queue.length > 1 ? `${queue.indexOf(entry) + 1} / ${queue.length}` : ''"
+              :large-thumb="true"
+              @select-sku="selectSku(entry, $event)"
+              @select-whole="selectWholeGoods(entry)"
+              @expand="expandSkuPicker(entry)"
+              @collapse="collapseSkuPicker(entry)"
+              @retry="retryLoadVariants(entry)"
+              @remove="removeFromQueue(entry.uid)"
             />
-          </div>
+          </template>
 
-          <!-- 底部操作：取消 / 全部加入监控 -->
-          <div class="confirm-actions">
+          <template #actions>
             <button
               class="confirm-btn confirm-btn--ghost"
               type="button"
               :disabled="adding"
-              @click="cancelQueue"
+              @click="clearQueue"
             >
               {{ t('mihoyoStock.cancel') }}
             </button>
@@ -227,8 +166,8 @@
               </svg>
               <span>{{ queue.length > 1 ? t('mihoyoStock.confirmAll') : t('mihoyoStock.confirmAdd') }}</span>
             </button>
-          </div>
-        </section>
+          </template>
+        </MihoyoGoodsQueuePanel>
 
         <section class="list-card">
           <div class="list-card__head">
@@ -346,20 +285,20 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
+import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import { useToast } from '@/composables/useToast'
 import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
-import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'
+import { useMihoyoGoodsSearch } from '@/composables/import/useMihoyoGoodsSearch'
+import { useMihoyoGoodsQueue } from '@/composables/import/useMihoyoGoodsQueue'
 import { useTabletViewport } from '@/composables/useTabletViewport'
-import { normalizeCharacterName, displayVariantText } from '@/utils/variantText'
-import { pinyinIncludes } from '@/utils/pinyin'
-import { parseMihoyoUrl, fetchGoodsDetail, isMihoyoGiftUrl } from '@/utils/mihoyo'
+import { parseMihoyoUrl, isMihoyoGiftUrl } from '@/utils/mihoyo'
 
 defineOptions({ name: 'MihoyoStockMonitorView' })
 
@@ -399,19 +338,27 @@ const {
 } = search
 
 // ── 待确认添加队列（搜索/URL 解析后先选 SKU 再入库，支持多选逐个处理） ──
-// 每项：{ uid, goodsId, name, priceCents, coverUrl, variants, selectedSkus, loading, variantsLoaded, error, expanded }
-const queue = ref([])
-const activeUid = ref('')              // 当前正在选 SKU 的队列项
-const skuDeckRef = ref(null)           // 手机端左右滑动卡片容器
-
-const activeEntry = computed(() => queue.value.find((e) => e.uid === activeUid.value) || null)
-
-// 已在待选队列中的商品 ID 集合（搜索列表标记 + 防重复加入）
-const queuedGoodsIds = computed(() => new Set(queue.value.map((e) => String(e.goodsId || '').trim()).filter(Boolean)))
-
-function isQueued(item) {
-  return queuedGoodsIds.value.has(String(item?.goods_id || '').trim())
-}
+// 与米游铺批量导入共用同一套队列逻辑（useMihoyoGoodsQueue + MihoyoGoodsQueuePanel）
+const queuePanelRef = ref(null)
+const {
+  queue,
+  activeUid,
+  isQueued,
+  getQueuedEntry,
+  enqueueGoods,
+  selectSku,
+  selectWholeGoods,
+  expandSkuPicker,
+  collapseSkuPicker,
+  retryLoadVariants,
+  activateQueueEntry,
+  onDeckScroll,
+  removeFromQueue,
+  clearQueue,
+} = useMihoyoGoodsQueue({
+  hint: () => variantSearchHint.value,
+  getDeckEl: () => queuePanelRef.value?.deckEl || null,
+})
 
 const inStockCount = computed(() => monitorStore.items.filter((i) => !!i.in_stock).length)
 
@@ -498,120 +445,15 @@ async function handleRefresh() {
 }
 
 // ── 待确认队列：单个/多个商品逐个选 SKU 后统一确认；同一商品可多选多个 SKU ──
-let queueUid = 0
-function createQueueEntry({ goodsId, name = '', priceCents = 0, coverUrl = '' }) {
-  queueUid += 1
-  // 必须用 reactive() 创建：plain object 被 push 进响应式 queue 后由 Vue 代理，
-  // 而 loadEntryVariants 等直接对 entry 字段赋值走的是原始对象，视图不会更新。
-  // 最后一个入队项再没有后续 push 触发重渲染，卡片会一直卡在「加载中」。
-  return reactive({
-    uid: `queue-${queueUid}`,
-    goodsId: String(goodsId || '').trim(),
-    name: String(name || '').trim() || t('mihoyoStock.unnamed'),
-    priceCents: Number(priceCents) || 0,
-    coverUrl: String(coverUrl || '').trim(),
-    variants: [],
-    selectedSkus: [],
-    loading: false,
-    variantsLoaded: false,
-    variantLoadFailed: false,
-    error: '',
-    expanded: false,
-  })
-}
+// 队列增删、款式加载、自动选款、滑动/切换逻辑均来自共享 useMihoyoGoodsQueue（见上方）
 
-// 将商品加入队列；activate 时置为当前处理项，load 时拉取 SKU 变体
-function enqueueGoods(payload, { activate = true, load = true } = {}) {
-  const entry = createQueueEntry(payload)
-  queue.value.push(entry)
-  if (activate) activeUid.value = entry.uid
-  if (activate) scrollDeckToActive()
-  if (load) loadEntryVariants(entry)
-  return entry
-}
-
-// 拉取 SKU 变体并自动选中，进入「选择款式 → 确认」流程（懒加载：切换队列项时才拉取）
-// 变体请求加上限时看门狗，接口偶发挂起/限流时卡片不能一直卡在「加载中」
-const VARIANT_LOAD_TIMEOUT_MS = 12000
-async function loadEntryVariants(entry) {
-  if (entry.loading || entry.variantsLoaded) return
-  entry.loading = true
-  entry.error = ''
-  entry.variantLoadFailed = false
-  try {
-    const result = await Promise.race([
-      fetchGoodsDetail(entry.goodsId),
-      new Promise((resolve) => {
-        setTimeout(() => resolve({ skuVariants: [], ok: false, timedOut: true }), VARIANT_LOAD_TIMEOUT_MS)
-      }),
-    ])
-    if (!result.ok) {
-      entry.variantLoadFailed = true
-      entry.expanded = true
-      entry.error = t('mihoyoStock.variantLoadError')
-      return
-    }
-    entry.variants = (result.skuVariants || [])
-      .filter((v) => v && v.key)
-      .map((v) => ({
-        text: String(v.text || v.key),
-        key: String(v.key),
-        cover_url: String(v.cover_url || v.img_url || ''),
-      }))
-    autoSelectSku(entry)
-    // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
-    entry.expanded = !entry.selectedSkus.length
-  } catch (e) {
-    entry.variantLoadFailed = true
-    entry.expanded = true
-    entry.error = e.message || t('common.failed')
-  } finally {
-    entry.loading = false
-    entry.variantsLoaded = true
-  }
-}
-
-// 变体加载超时/失败后手动重试
-function retryLoadVariants(entry) {
-  entry.variantsLoaded = false
-  entry.loading = false
-  entry.error = ''
-  entry.variantLoadFailed = false
-  loadEntryVariants(entry)
-}
-
-// 自动选中 SKU：单选直接选中；搜索角色/关键词后，若唯一命中该角色款则自动选中（与导入页一致）
-// 多选场景：自动选中只作为默认选择，用户可继续在卡片里勾选/取消其它 SKU
-function autoSelectSku(entry) {
-  const list = entry.variants
-  if (!list.length) return
-
-  if (list.length === 1) {
-    entry.selectedSkus = [{ key: list[0].key, text: list[0].text, cover_url: list[0].cover_url || '' }]
-    return
-  }
-
-  const hint = normalizeSearchHintText(variantSearchHint.value).toLowerCase()
-  if (!hint) return
-
-  const matched = list.filter((v) => {
-    const text = String(v.text || '').trim().toLowerCase()
-    const display = displayVariantText(v.text).trim().toLowerCase()
-    const normalizedChar = normalizeCharacterName(v.text).trim().toLowerCase()
-    if (text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)) return true
-    return pinyinIncludes(v.text, hint) || pinyinIncludes(displayVariantText(v.text), hint)
-  })
-
-  if (matched.length === 1) {
-    entry.selectedSkus = [{ key: matched[0].key, text: matched[0].text, cover_url: matched[0].cover_url || '' }]
-  }
-}
-
-// 搜索点击：点一个商品就加入待选 SKU 队列，逐个确认后统一入库（已在队列的直接提示）
+// 搜索点击：点一个商品就加入待选 SKU 队列，逐个确认后统一入库（已在队列的再次点击 = 移出队列）
 function onSearchResultClick(item) {
   if (!item?.goods_id) return
-  if (isQueued(item)) {
-    showToast(t('mihoyoStock.inQueue'))
+  const existing = getQueuedEntry(item)
+  if (existing) {
+    removeFromQueue(existing.uid)
+    showToast(t('mihoyoStock.removedFromQueue'))
     return
   }
   search.selectSearchResult(item)
@@ -658,96 +500,6 @@ async function handleAdd() {
   } finally {
     adding.value = false
   }
-}
-
-function selectWholeGoods(entry) {
-  entry.selectedSkus = []
-}
-
-// 多选款式：点击 chip 切换选中/取消；手动操作后保持选择器展开便于继续调整
-function selectSku(entry, variant) {
-  const idx = entry.selectedSkus.findIndex((s) => s.key === variant.key)
-  if (idx >= 0) {
-    entry.selectedSkus.splice(idx, 1)
-  } else {
-    entry.selectedSkus.push({ key: variant.key, text: variant.text, cover_url: variant.cover_url || '' })
-  }
-}
-
-function expandSkuPicker(entry) {
-  entry.expanded = true
-}
-
-function collapseSkuPicker(entry) {
-  entry.expanded = false
-}
-
-// 平板端队列卡片摘要：整件 / 单款式名 / 已选 N 款
-function queueSkuSummary(entry) {
-  const list = entry.selectedSkus || []
-  if (list.length === 0) return t('mihoyoStock.selectSkuHint')
-  if (list.length === 1) return list[0].text || list[0].key
-  return t('mihoyoStock.skuSelectedCount', { count: list.length })
-}
-
-function activateQueueEntry(uid, { scrollDeck = false } = {}) {
-  const entry = queue.value.find((e) => e.uid === uid)
-  if (!entry) return
-  activeUid.value = uid
-  if (scrollDeck) scrollDeckToActive()
-  if (!entry.variants.length && !entry.loading) loadEntryVariants(entry)
-}
-
-// 手机端滑动卡片：根据滑动位置同步当前激活的商品（并懒加载其 SKU）。
-// 滑动停止后再更新，避免程序化平滑滚动过程中 activeUid 反复横跳。
-let deckScrollTimer = null
-function onDeckScroll() {
-  const el = skuDeckRef.value
-  if (!el) return
-  clearTimeout(deckScrollTimer)
-  deckScrollTimer = setTimeout(() => {
-    const idx = Math.round(el.scrollLeft / el.clientWidth)
-    const entry = queue.value[idx]
-    if (entry && entry.uid !== activeUid.value) activateQueueEntry(entry.uid)
-  }, 80)
-}
-
-// 让滑动卡片定位到当前激活项（等待 DOM 更新后再滚动，确保队列已重排）
-function scrollDeckToActive() {
-  if (isTabletViewport.value || queue.value.length < 2) return
-  const el = skuDeckRef.value
-  if (!el) return
-  const idx = queue.value.findIndex((e) => e.uid === activeUid.value)
-  if (idx < 0) return
-  nextTick(() => {
-    el.scrollTo({ left: idx * el.clientWidth, behavior: 'smooth' })
-  })
-}
-
-function removeFromQueue(uid) {
-  const idx = queue.value.findIndex((e) => e.uid === uid)
-  if (idx < 0) return
-  queue.value.splice(idx, 1)
-  if (activeUid.value === uid) {
-    const next = queue.value[Math.min(idx, queue.value.length - 1)]
-    if (next) {
-      activateQueueEntry(next.uid, { scrollDeck: true })
-    } else {
-      activeUid.value = ''
-    }
-  } else {
-    // 移除的是激活项之前的卡片，激活项下标已变化，滑动区需重新对齐
-    scrollDeckToActive()
-  }
-}
-
-function clearQueue() {
-  queue.value = []
-  activeUid.value = ''
-}
-
-function cancelQueue() {
-  clearQueue()
 }
 
 async function confirmQueue() {
@@ -1130,76 +882,8 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 
-/* SKU 选择确认 */
-.confirm-card {
-  width: 100%;
-  max-width: none;
-  padding: 16px;
-  border-radius: 20px;
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-}
-
-/* shared-ui.css 为通用弹窗也定义了 .confirm-card 宽度；监控页这里是普通内容卡片。 */
-.monitor-page .confirm-card {
-  width: 100%;
-  max-width: none;
-}
-
-.confirm-card__inner {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* 手机端：左右滑动卡片，一屏一卡 */
-.sku-deck {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.sku-deck::-webkit-scrollbar {
-  display: none;
-}
-
-.sku-deck__slide {
-  flex: 0 0 100%;
-  min-width: 0;
-  scroll-snap-align: start;
-  scroll-snap-stop: always;
-}
-
-/* 滑动指示点 */
-.sku-deck-dots {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 14px;
-}
-
-.sku-deck-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--app-border);
-  transition: background 0.2s, width 0.2s;
-}
-
-.sku-deck-dot--on {
-  width: 18px;
-  border-radius: 4px;
-  background: var(--app-chip-accent-text);
-}
-
-.confirm-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
+/* 队列面板（滑动卡片 / 平板队列条 / 指示点）样式由共享组件 MihoyoGoodsQueuePanel 提供，
+   这里只保留「底部操作按钮」样式（按钮由本页通过插槽注入面板）。 */
 
 .confirm-btn {
   flex: 1;
@@ -1234,126 +918,6 @@ onBeforeUnmount(() => {
 .confirm-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* 平板：多选队列在 SKU 选择卡片旁并排铺开 */
-.confirm-card__body {
-  flex: 1;
-  min-width: 0;
-}
-
-.queue-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  flex-shrink: 0;
-}
-
-/* 平板：队列卡片竖排在 SKU 选择卡片右侧，并排铺开 */
-.monitor-page--tablet .confirm-card--queue .confirm-card__inner {
-  flex-direction: row;
-  align-items: flex-start;
-}
-
-.monitor-page--tablet .queue-cards {
-  width: 240px;
-  max-height: 420px;
-  overflow-y: auto;
-}
-
-.queue-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 8px;
-  border: 1px solid var(--app-border);
-  border-radius: 12px;
-  background: var(--app-surface-soft);
-  color: var(--app-text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.queue-card--active {
-  border-color: var(--app-chip-accent-text);
-  background: color-mix(in srgb, var(--app-chip-accent-text) 8%, var(--app-surface-soft));
-}
-
-.queue-card__thumb {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 9px;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: var(--app-surface);
-  color: var(--app-text-tertiary);
-  font-size: 14px;
-}
-
-.queue-card__thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.queue-card__copy {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.queue-card__name {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.queue-card__sku {
-  font-size: 11px;
-  color: var(--app-text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.queue-card__sku--pending {
-  color: var(--app-text-tertiary);
-}
-
-.queue-card__remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--app-text-tertiary);
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.queue-card__remove svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-}
-
-.queue-card__remove:active {
-  background: color-mix(in srgb, var(--app-text) 8%, transparent);
-  color: #ff3b30;
 }
 
 /* List */

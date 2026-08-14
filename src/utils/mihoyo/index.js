@@ -469,6 +469,7 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
       goods_id:  item.goods_id,
       name:      item.name,
       cover_url: item.cover_url || '',
+      price:     item.price != null ? item.price / 100 : null,
     }))
   } catch {
     return []

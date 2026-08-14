@@ -214,7 +214,10 @@ export function useMihoyoGoodsSearch(options = {}) {
         return
       }
 
-      const { skuCovers, skuVariants, coverUrl } = await fetchGoodsDetail(goodsId)
+      const { skuCovers, skuVariants, coverUrl, price } = await fetchGoodsDetail(goodsId)
+      if ((item.price == null || Number(item.price) <= 0) && price != null) {
+        item.price = Number(price)
+      }
       if (!Array.isArray(skuVariants) || skuVariants.length <= 1) {
         searchResultVariantCoverCache.set(cacheKey, '')
         return

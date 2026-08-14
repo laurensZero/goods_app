@@ -240,5 +240,7 @@
   "mihoyoStock.cancelMultiSelect": "キャンセル",
   "mihoyoStock.selectSkuHint": "款式を選択",
   "mihoyoStock.inQueue": "キューに追加済み",
+  "mihoyoStock.removedFromQueue": "キューから削除しました",
+  "mihoyoStock.variantLoadError": "バリエーションの読み込みに失敗しました。再試行してください",
   "mihoyoStock.collapse": "折りたたむ"
 }

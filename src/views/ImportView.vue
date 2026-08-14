@@ -25,20 +25,36 @@
 
           <p v-if="searchError" class="search-error">{{ searchError }}</p>
 
+          <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
+            <span class="search-results-toolbar__hint">{{ t('import.searchAddHint') }}</span>
+            <span v-if="queue.length > 0" class="search-results-toolbar__actions">
+              <span class="search-results-toolbar__count">{{ t('import.queueSelectedCount', { count: queue.length }) }}</span>
+              <button type="button" class="search-results-toolbar__clear" @click="clearQueue">
+                {{ t('import.clearQueue') }}
+              </button>
+            </span>
+          </div>
+
           <div v-if="visibleSearchResults.length > 0" class="search-results">
             <button
               v-for="item in visibleSearchResults"
               :key="item.goods_id"
               type="button"
               class="search-result-card"
-              :class="{ 'search-result-card--selected': selectedSearchGoodsId === item.goods_id }"
-              @click="selectSearchResult(item)"
+              :class="{ 'search-result-card--selected': isQueued(item) }"
+              @click="onSearchResultClick(item)"
             >
               <div class="search-result-thumb">
                 <img v-if="getSearchResultCover(item)" :src="getSearchResultCover(item)" :alt="item.name" loading="lazy" />
                 <span v-else>{{ (item.name || '?').charAt(0) }}</span>
               </div>
               <span class="search-result-name">{{ item.name }}</span>
+              <span v-if="isQueued(item)" class="search-result-queued">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {{ t('mihoyoStock.inQueue') }}
+              </span>
             </button>
           </div>
 
@@ -98,18 +114,250 @@
               />
               <button
                 class="btn-parse"
-                :class="{ 'btn-parse--loading': parsing || batchParsing }"
-                :disabled="parsing || batchParsing || batchStep === 'list'"
+                :class="{ 'btn-parse--loading': parsing || parsingLinks }"
+                :disabled="parsing || parsingLinks"
                 @pointerdown="syncUrlInput()"
                 @click="batchMode ? handleBatchImport() : handleParse()"
               >
-                <span v-if="!parsing && !batchParsing">{{ batchMode ? batchParseButtonText : parseButtonText }}</span>
+                <span v-if="!parsing && !parsingLinks">{{ batchMode ? batchParseButtonText : parseButtonText }}</span>
                 <span v-else class="parse-spinner" />
               </button>
             </div>
             <p v-if="parseError" class="parse-error">{{ parseError }}</p>
           </div>
         </div>
+      </section>
+
+      <!-- 批量链接解析进度（多链接 / 带数量入队解析时显示） -->
+      <transition name="result-fade">
+        <section v-if="parsingLinks" class="batch-section">
+          <div class="section-head">
+            <p class="section-label">{{ t('import.batchParse') }}</p>
+            <h2 class="section-title">{{ t('import.identifyingProgress', { done: linkProgress.done, total: linkProgress.total }) }}</h2>
+          </div>
+          <div class="field-card batch-progress-card">
+            <div class="batch-progress-row">
+              <span class="batch-status-indicator batch-si--parsing">
+                <span class="parse-spinner batch-spinner" />
+              </span>
+              <span class="batch-progress-text">{{ t('import.identifyingLinks') }}</span>
+            </div>
+          </div>
+          <button class="batch-reparse-link" type="button" @click="stopBatchParsing">
+            {{ t('import.stopParsing') }}
+          </button>
+        </section>
+      </transition>
+
+      <!-- 待导入队列：手机端左右滑动、平板端右侧条切换；选择款式 + 填入/修改信息 -->
+      <!-- 与有货监控共用同一套队列面板（MihoyoGoodsQueuePanel + useMihoyoGoodsQueue） -->
+      <section v-if="queue.length > 0" class="queue-section">
+        <MihoyoGoodsQueuePanel
+          ref="queuePanelRef"
+          :queue="queue"
+          :active-uid="activeUid"
+          :is-tablet="isTabletViewport"
+          :queue-summary="queueSummary"
+          @activate="activateQueueEntry($event, { scrollDeck: true })"
+          @remove="removeFromQueue($event)"
+          @deck-scroll="onDeckScroll"
+        >
+          <template #slide="{ entry }">
+            <div class="import-queue-slide">
+              <!-- 链接解析失败项：留在队列里可重试/移除 -->
+              <div v-if="entry.parseFailed" class="queue-parse-error">
+                <span class="queue-parse-error__thumb">
+                  <span class="queue-parse-error__initial">{{ (entry.name || '?').charAt(0) }}</span>
+                </span>
+                <div class="queue-parse-error__copy">
+                  <p class="queue-parse-error__title">{{ entry.name }}</p>
+                  <p class="queue-parse-error__msg">{{ entry.parseError || t('import.linkParseFailed') }}</p>
+                </div>
+                <button
+                  type="button"
+                  class="queue-parse-error__retry"
+                  :disabled="entry.loading"
+                  @click="retryParseLink(entry)"
+                >
+                  <span v-if="entry.loading" class="parse-spinner" />
+                  <span v-else>{{ t('import.retryParse') }}</span>
+                </button>
+                <button
+                  type="button"
+                  class="queue-parse-error__remove"
+                  :aria-label="t('common.remove')"
+                  @click="removeFromQueue(entry.uid)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <template v-else>
+                <!-- 款式选择（共享 SKU 卡片：自动选款 / 多选 / 整件） -->
+                <MihoyoSkuPickerCard
+                  :entry="entry"
+                  :show-remove="queue.length > 1"
+                  :counter="queue.length > 1 ? `${queue.indexOf(entry) + 1} / ${queue.length}` : ''"
+                  :label="t('import.selectVariant')"
+                  :multi-select="false"
+                  :show-whole="false"
+                  :large-thumb="true"
+                  @select-sku="selectSingleSku(entry, $event)"
+                  @select-whole="selectWholeGoods(entry)"
+                  @expand="expandSkuPicker(entry)"
+                  @collapse="collapseSkuPicker(entry)"
+                  @retry="retryLoadVariants(entry)"
+                  @remove="removeFromQueue(entry.uid)"
+                />
+
+                <!-- 信息编辑（展开/收起）：按钮与上方 SKU 卡片的「修改款式」按钮右侧对齐 -->
+                <div class="import-queue-info">
+                  <div class="import-queue-info__head">
+                    <span v-if="isQueueItemOwned(entry)" class="queue-owned-tag">{{ t('import.maybeOwned') }}</span>
+                    <!-- 收起态展示基础信息：IP / 分类 / 角色 -->
+                    <div v-if="!entry.infoExpanded" class="queue-info-mini">
+                      <span v-if="entry.info.ip" class="queue-mini-chip">{{ entry.info.ip }}</span>
+                      <span v-if="entry.info.category" class="queue-mini-chip">{{ entry.info.category }}</span>
+                      <span
+                        v-for="char in entry.info.characters"
+                        :key="char"
+                        class="queue-mini-chip queue-mini-chip--char"
+                      >{{ char }}</span>
+                    </div>
+                    <button
+                      type="button"
+                      class="info-toggle"
+                      :class="{ 'info-toggle--open': entry.infoExpanded }"
+                      @click="entry.infoExpanded = !entry.infoExpanded"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="info-toggle__icon">
+                        <polyline points="6 9 12 15 18 9" />
+                      </svg>
+                      <span>{{ entry.infoExpanded ? t('import.collapseInfo') : t('import.editInfo') }}</span>
+                    </button>
+                  </div>
+
+                  <div v-if="entry.infoExpanded && entry.info" class="info-fields field-card">
+                    <label class="field">
+                      <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
+                      <input v-model="entry.name" type="text" :placeholder="t('import.goodsName')" />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">{{ t('common.category') }}</span>
+                      <AppSelect v-model="entry.info.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">IP</span>
+                      <AppSelect v-model="entry.info.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
+                    </label>
+                    <!-- 角色显示（智能识别，随选中款式联动） -->
+                    <div v-if="entry.info.characters.length > 0" class="field">
+                      <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
+                      <div class="char-chips">
+                        <span
+                          v-for="char in entry.info.characters"
+                          :key="char"
+                          class="char-chip"
+                        >
+                          {{ char }}
+                          <button
+                            class="char-chip-del"
+                            type="button"
+                            @click="entry.info.characters = entry.info.characters.filter(c => c !== char)"
+                          >×</button>
+                        </span>
+                      </div>
+                    </div>
+                    <!-- 智能识别建议（分类/IP/角色/标签） -->
+                    <ImportQueueTagSuggestions :entry="entry" />
+                    <label class="field">
+                      <span class="field-label">{{ t('import.price') }}</span>
+                      <input v-model.number="entry.info.price" type="number" placeholder="0.00" min="0" step="1" />
+                    </label>
+                    <!-- 图片选择（支持多选） -->
+                    <div v-if="entry.parsedImages.length > 1" class="field">
+                      <span class="field-label">
+                        {{ t('import.selectImages') }}
+                        <span v-if="entry.info.images.length > 1" class="img-picker-count">{{ entry.info.images.length }}</span>
+                      </span>
+                      <div class="img-picker-scroll">
+                        <button
+                          v-for="(imgUrl, idx) in entry.parsedImages"
+                          :key="idx"
+                          type="button"
+                          class="img-picker-item"
+                          :class="{ 'img-picker-item--active': entry.info.images.includes(imgUrl) }"
+                          @click="toggleQueueImage(entry, imgUrl)"
+                        >
+                          <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
+                          <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
+                          <div v-if="entry.info.images.includes(imgUrl)" class="img-picker-check">✓</div>
+                        </button>
+                      </div>
+                    </div>
+                    <label class="field">
+                      <span class="field-label">{{ t('import.imageUrl') }}</span>
+                      <input v-model="entry.info.image" type="text" inputmode="url"
+                        autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
+                        placeholder="https://..." />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">{{ isWishlistMode ? t('import.expectedDate') : t('import.purchaseDate') }}</span>
+                      <button class="date-field" type="button" @click="openQueueDatePicker(entry)">
+                        <span :class="{ 'date-field__value--placeholder': !entry.info.purchaseDate }">
+                          {{ entry.info.purchaseDate || (isWishlistMode ? t('import.optionalNoPlan') : t('import.selectDate')) }}
+                        </span>
+                        <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <rect x="3" y="5" width="18" height="16" rx="3" />
+                          <path d="M8 3V7" />
+                          <path d="M16 3V7" />
+                          <path d="M3 10H21" />
+                        </svg>
+                      </button>
+                    </label>
+                    <label class="field">
+                      <span class="field-label">{{ t('common.note') }}</span>
+                      <textarea
+                        v-model="entry.info.notes"
+                        class="markdown-textarea"
+                        :placeholder="t('import.notesPlaceholder')"
+                        rows="3"
+                      />
+                    </label>
+                    <label class="field">
+                      <span class="field-label">{{ t('common.tag') }}</span>
+                      <TagInput v-model="entry.info.tags" :placeholder="t('import.tagsPlaceholder')" />
+                    </label>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </template>
+
+          <template #actions>
+            <button
+              class="confirm-btn confirm-btn--ghost"
+              type="button"
+              :disabled="savingAll || parsingLinks"
+              @click="clearQueue"
+            >
+              {{ t('import.clearQueue') }}
+            </button>
+            <button
+              class="confirm-btn confirm-btn--primary"
+              type="button"
+              :disabled="savingAll || parsingLinks || !queue.length"
+              @click="confirmImportQueue"
+            >
+              <svg v-if="savingAll" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="9" stroke-dasharray="60" />
+              </svg>
+              <span>{{ t('import.confirmImportCount', { count: queueImportCount }) }}</span>
+            </button>
+          </template>
+        </MihoyoGoodsQueuePanel>
       </section>
 
       <div class="import-entry-list">
@@ -335,105 +583,7 @@
         </div>
       </transition>
 
-      <!-- 批量解析进度 -->
-      <transition name="result-fade">
-        <section v-if="batchStep === 'parsing'" class="batch-section">
-          <div class="section-head">
-            <p class="section-label">{{ t('import.batchParse') }}</p>
-            <h2 class="section-title">{{ t('import.identifyingProgress', { done: batchParsedDoneCount, total: batchItems.length }) }}</h2>
-          </div>
-          <div class="field-card batch-progress-card">
-            <div v-for="(item, i) in batchItems" :key="i" class="batch-progress-row">
-              <span class="batch-status-indicator" :class="`batch-si--${item.status}`">
-                <svg v-if="item.status === 'ready'" viewBox="0 0 24 24" fill="none">
-                  <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-                <span v-else-if="item.status === 'parsing'" class="parse-spinner batch-spinner" />
-                <svg v-else-if="item.status === 'error'" viewBox="0 0 24 24" fill="none">
-                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                </svg>
-                <span v-else class="batch-si-dot" />
-              </span>
-              <span class="batch-progress-text">
-                {{ item.status === 'ready' ? item.data?.name : shortenUrl(item.url) }}
-              </span>
-              <span v-if="item.status === 'error'" class="batch-progress-err">{{ item.error }}</span>
-            </div>
-          </div>
-          <button class="batch-reparse-link" type="button" @click="cancelBatchParsing">
-            {{ t('import.stopParsing') }}
-          </button>
-        </section>
-      </transition>
-
-      <!-- 批量导入结果列表 -->
-      <transition name="result-fade">
-        <section v-if="batchStep === 'list'" class="batch-section">
-          <div class="section-head">
-            <p class="section-label">
-              {{ t('import.identifyComplete', { errorCount: batchErrorCount }) }}
-            </p>
-            <h2 class="section-title">{{ t('import.resultsReady', { count: batchReadyCount }) }}</h2>
-          </div>
-          <ul class="field-card batch-goods-list">
-            <li
-              v-for="(item, i) in batchItems"
-              :key="i"
-              class="batch-goods-row"
-              :class="{ 'batch-goods-row--saved': item.status === 'saved', 'batch-goods-row--error': item.status === 'error' }"
-            >
-              <div class="batch-goods-thumb">
-                <img
-                  v-if="item.data?.image"
-                  :src="item.data.image"
-                  class="batch-goods-img"
-                  loading="lazy"
-                />
-                <span v-else class="batch-goods-initial">{{ (item.data?.name || '?').charAt(0) }}</span>
-              </div>
-              <div class="batch-goods-info">
-                <p class="batch-goods-name">{{ item.data?.name || shortenUrl(item.url) }}</p>
-                <div class="batch-goods-meta">
-                  <span v-if="isBatchItemOwned(item)" class="batch-meta-tag batch-meta-tag--owned">{{ t('import.maybeOwned') }}</span>
-                  <span v-if="item.data?.price" class="batch-meta-tag batch-meta-tag--price">¥{{ item.data.price }}</span>
-                  <span v-if="item.data?.ip" class="batch-meta-tag">{{ item.data.ip }}</span>
-                  <span v-if="item.data?.variant" class="batch-meta-tag">{{ item.data.variant }}</span>
-                  <span v-if="item.data?.variants?.length && !item.data?.variant" class="batch-meta-tag batch-meta-tag--hint">{{ t('import.variantsAvailable', { count: item.data.variants.length }) }}</span>
-                  <span v-if="item.status === 'error'" class="batch-meta-tag batch-meta-tag--error">{{ item.error }}</span>
-                </div>
-              </div>
-              <span v-if="item.status === 'saved'" class="batch-saved-badge">{{ t('import.saved') }}</span>
-              <button
-                v-if="item.status === 'ready'"
-                class="batch-goods-edit-btn"
-                type="button"
-                :aria-label="t('common.edit')"
-                @click="openBatchEdit(i)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M11 4H4a2 2 0 0 0-2 2v14c0 1.1.9 2 2 2h14a2 2 0 0 0 2-2v-7" />
-                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                </svg>
-              </button>
-              <button
-                v-if="item.status !== 'saved'"
-                class="batch-goods-remove-btn"
-                type="button"
-                :aria-label="t('common.remove')"
-                @click="removeBatchItem(i)"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            </li>
-          </ul>
-          <button class="batch-reparse-link" type="button" @click="batchStep = 'input'; batchItems = []">
-            {{ t('import.reinputLinks') }}
-          </button>
-        </section>
-      </transition>
-
+      <!-- 批量导入结果列表已迁移到上方共享队列面板（MihoyoGoodsQueuePanel） -->
       <!-- 底部空白，防止内容被浮动按钮遮挡 -->
       <div style="height: 120px" />
     </main>
@@ -444,129 +594,6 @@
       <div v-if="parsed && !batchMode" class="float-footer">
         <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? t('import.addToWishlist') : t('import.saveGoods') }}</button>
       </div>
-      <!-- 批量模式保存全部 -->
-      <div v-if="batchStep === 'list' && batchItems.some(i => i.status === 'ready')" class="float-footer">
-        <button class="btn-primary btn-float" :disabled="savingAll" @click="saveAllBatch">
-          {{ savingAll ? t('import.saving') : t('import.saveAll', { count: batchReadyCount }) }}
-        </button>
-      </div>
-      <!-- 批量编辑遮罩 -->
-      <Transition name="batch-sheet-backdrop">
-        <div v-if="editingBatchIdx >= 0" class="batch-edit-backdrop" @click="editingBatchIdx = -1" />
-      </Transition>
-      <!-- 批量编辑底部面板 -->
-      <Transition name="batch-sheet-slide">
-        <div v-if="editingBatchIdx >= 0" class="batch-edit-sheet">
-          <div class="batch-edit-handle" />
-          <p class="batch-edit-title">{{ t('import.editGoodsInfo') }}</p>
-          <div class="batch-edit-form">
-            <label class="field">
-              <span class="field-label">{{ t('common.name') }}</span>
-              <input v-model="batchEditForm.name" type="text" :placeholder="t('import.goodsName')" />
-            </label>
-            <label class="field">
-              <span class="field-label">{{ t('common.category') }}</span>
-              <AppSelect v-model="batchEditForm.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
-            </label>
-            <label class="field">
-              <span class="field-label">IP</span>
-              <AppSelect v-model="batchEditForm.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
-            </label>
-            <label class="field">
-              <span class="field-label">{{ t('import.price') }}</span>
-              <input v-model.number="batchEditForm.price" type="number" placeholder="0.00" min="0" step="1" />
-              <p v-if="batchEditPriceError" class="parse-error">{{ batchEditPriceError }}</p>
-            </label>
-            <!-- 款式选择（有 SKU 变体时显示） -->
-            <div v-if="batchEditVariants.length > 0" class="field">
-              <span class="field-label">
-                {{ t('import.selectVariant') }}
-                <span class="auto-badge">{{ t('import.variantCount', { count: batchEditVariants.length }) }}</span>
-              </span>
-              <div class="variant-grid">
-                <button
-                  v-for="v in sortedBatchEditVariants"
-                  :key="v.key"
-                  type="button"
-                  class="variant-btn"
-                  :class="{ 'variant-btn--selected': batchEditSelectedVariantKey === v.key }"
-                  @click="handleBatchVariantSelect(v)"
-                >
-                  <div v-if="isVariantSuggested(v)" class="variant-suggest-tag">{{ t('import.guessYouWant') }}</div>
-                  <div class="variant-img-wrap">
-                    <img
-                      class="variant-img"
-                      :src="v.cover_url || v.img_url"
-                      :alt="v.text"
-                    />
-                  </div>
-                  <span class="variant-name">{{ displayVariantText(v.text) }}</span>
-                  <div v-if="batchEditSelectedVariantKey === v.key" class="variant-check">✓</div>
-                </button>
-              </div>
-              <div v-if="batchEditSelectedVariantKey && batchEditSelectedCharacterName" class="save-char-row" @click="toggleBatchSaveAsCharacter">
-                <span class="save-char-label">
-                  {{ t('import.saveAsCharacter', { name: batchEditSelectedCharacterName }) }}
-                </span>
-                <div class="save-char-toggle" :class="{ 'save-char-toggle--on': batchEditSaveAsCharacter }">
-                  <div class="save-char-knob" />
-                </div>
-              </div>
-            </div>
-            <!-- 图片选择（支持多选） -->
-            <div v-if="batchEditImages.length > 1" class="field">
-              <span class="field-label">{{ t('import.selectImages') }} <span v-if="batchEditForm.images.length > 1" class="img-picker-count">{{ batchEditForm.images.length }}</span></span>
-              <div class="img-picker-scroll">
-                <button
-                  v-for="(imgUrl, idx) in batchEditImages"
-                  :key="idx"
-                  type="button"
-                  class="img-picker-item"
-                  :class="{ 'img-picker-item--active': batchEditForm.images.includes(imgUrl) }"
-                  @click="toggleBatchEditImage(imgUrl)"
-                >
-                  <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
-                  <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                  <div v-if="batchEditForm.images.includes(imgUrl)" class="img-picker-check">✓</div>
-                </button>
-              </div>
-            </div>
-            <label class="field">
-              <span class="field-label">{{ t('import.purchaseDate') }}</span>
-              <button class="date-field" type="button" @click="openBatchDatePicker">
-                <span :class="{ 'date-field__value--placeholder': !batchEditForm.purchaseDate }">
-                  {{ batchEditForm.purchaseDate || t('import.selectDate') }}
-                </span>
-                <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="3" y="5" width="18" height="16" rx="3" />
-                  <path d="M8 3V7" />
-                  <path d="M16 3V7" />
-                  <path d="M3 10H21" />
-                </svg>
-              </button>
-            </label>
-            <label class="field">
-              <span class="field-label">{{ t('common.note') }}</span>
-              <textarea
-                ref="batchNotesTextareaRef"
-                v-model="batchEditForm.notes"
-                class="markdown-textarea"
-                rows="4"
-                :placeholder="t('import.batchNotesPlaceholder')"
-              />
-            </label>
-            <label class="field">
-              <span class="field-label">{{ t('common.tag') }}</span>
-              <TagInput v-model="batchEditForm.tags" :placeholder="t('import.tagsPlaceholder')" />
-            </label>
-            <MarkdownPreviewCard :content="batchEditForm.notes" :title="t('import.livePreview')" />
-          </div>
-          <div class="batch-edit-actions">
-            <button class="batch-edit-cancel" type="button" @click="editingBatchIdx = -1">{{ t('common.cancel') }}</button>
-            <button class="batch-edit-save" type="button" @click="saveBatchEdit">{{ t('common.done') }}</button>
-          </div>
-        </div>
-      </Transition>
     </Teleport>
 
     <!-- 日期选择器弹层（teleport 到 body 防止被 float-footer 遮挡） -->
@@ -581,16 +608,16 @@
       @confirm="onDateConfirm"
     />
 
-    <!-- 批量编辑日期选择器（z-index 高于批量编辑面板） -->
+    <!-- 队列项日期选择器 -->
     <AppDatePicker
-      v-model:show="showBatchDatePicker"
-      v-model="batchDatePickerValue"
+      v-model:show="showQueueDatePicker"
+      v-model="queueDatePickerValue"
       :z-index="2100"
       :is-tablet="isTabletViewport"
       :title="t('import.selectPurchaseDate')"
       :min-date="minDate"
       :max-date="maxDate"
-      @confirm="onBatchDateConfirm"
+      @confirm="onQueueDateConfirm"
     />
   </div>
 </template>
@@ -631,11 +658,14 @@ import {
   resolveMihoyoImportDraft,
   resolveMihoyoVariantDraft,
 } from '@/utils/mihoyo/importResolver'
-import { useImportSearch, normalizeSearchHintText } from '@/composables/import/useImportSearch'
+import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'
 import { useBatchImport } from '@/composables/import/useBatchImport'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
+import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
+import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
+import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -710,33 +740,43 @@ const { isTabletViewport, updateViewport } = useTabletViewport()
 const urlInputRef = ref(null)
 const urlInput = ref('')
 const notesTextareaRef = ref(null)
-const batchNotesTextareaRef = ref(null)
 const parsing = ref(false)
 const parseError = ref('')
 const formPriceError = ref('')
 const parsed = ref(false)
 
 // ── Composables ──
+const search = useMihoyoGoodsSearch({ scrollRootSelector: '.import-page .page-body' })
 const {
   searchKeyword, searchExpanded, searching, searchLoadingMore, searchError,
-  variantSearchHint, selectedSearchCharacter, selectedSearchGoodsId, searchLoadMoreRef,
+  variantSearchHint, selectedSearchCharacter, searchLoadMoreRef,
   visibleSearchResults, showSearchToggle, showSearchLoadMoreStatus,
-  getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult, shortenUrl
-} = useImportSearch({ setUrlInputValue, handleParse })
+  getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult,
+} = search
+
+// 队列项日期选择器（单件表单用 showDatePicker / datePickerValue）
+const queuePanelRef = ref(null)
+
+function getSearchContext() {
+  return {
+    hint: normalizeSearchHintText(variantSearchHint.value),
+    preferredCharacter: preferredSearchCharacterName.value,
+  }
+}
 
 const {
-  batchStep, batchItems, batchParsing, savingAll, editingBatchIdx,
-  batchEditForm, batchEditPriceError, batchEditImages,
-  batchEditVariants, batchEditSelectedVariantKey, batchEditSelectedCharacterName,
-  batchEditSaveAsCharacter, batchMode,
-  batchParseButtonText, batchReadyCount, batchErrorCount,
-  batchParsedDoneCount, isBatchItemOwned,
-  handleBatchImport, cancelBatchParsing, removeBatchItem,
-  openBatchEdit, saveBatchEdit, handleBatchVariantSelect,
-  toggleBatchSaveAsCharacter, toggleBatchEditImage, saveAllBatch
+  queue, activeUid, isQueued, getQueuedEntry,
+  enqueueFromSearch, activateQueueEntry, onDeckScroll, removeFromQueue, clearQueue,
+  selectWholeGoods, expandSkuPicker, collapseSkuPicker, retryLoadVariants,
+  batchMode, batchParseButtonText, parsingLinks, linkProgress,
+  savingAll, queueImportCount, isQueueItemOwned, queueSummary,
+  handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue, toggleQueueImage,
+  selectSingleSku,
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
-  ensureHistoricalTagContext, updateHistoricalTagContextFromItem
+  ensureHistoricalTagContext, updateHistoricalTagContextFromItem,
+  getSearchContext,
+  getDeckEl: () => queuePanelRef.value?.deckEl || null,
 })
 
 
@@ -757,19 +797,14 @@ const sortedParsedVariants = computed(() => {
   return [...variants].sort((a, b) => getVariantCharacterCount(b) - getVariantCharacterCount(a))
 })
 
-const sortedBatchEditVariants = computed(() => {
-  const variants = batchEditVariants.value
-  if (!variants.length) return variants
-  return [...variants].sort((a, b) => getVariantCharacterCount(b) - getVariantCharacterCount(a))
-})
-
 // ── 日期选择器 ──
 const showDatePicker = ref(false)
-const showBatchDatePicker = ref(false)
+const showQueueDatePicker = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 const datePickerValue = ref(toDatePickerValue(''))
-const batchDatePickerValue = ref(toDatePickerValue(''))
+const queueDatePickerValue = ref(toDatePickerValue(''))
+const queueDateEntry = ref(null) // 正在编辑日期的队列项
 
 const form = reactive({
   name: '',
@@ -793,27 +828,11 @@ watch(() => form.price, () => {
   }
 })
 
-watch(() => batchEditForm.price, () => {
-  if (batchEditPriceError.value) {
-    batchEditPriceError.value = ''
-  }
-})
-
 watch(
   () => form.notes,
   async () => {
     await nextTick()
     resizeTextarea(notesTextareaRef.value)
-  },
-  { immediate: true }
-)
-
-watch(
-  [editingBatchIdx, () => batchEditForm.notes],
-  async () => {
-    if (editingBatchIdx.value < 0) return
-    await nextTick()
-    resizeTextarea(batchNotesTextareaRef.value)
   },
   { immediate: true }
 )
@@ -861,12 +880,24 @@ function syncUrlInputLater() {
   })
 }
 
-function setUrlInputValue(value) {
-  const nextValue = String(value || '')
-  urlInput.value = nextValue
-  if (urlInputRef.value) {
-    urlInputRef.value.value = nextValue
+// 搜索结果点击：加入/移出「待导入队列」（支持多选，与有货监控同一套交互）
+function onSearchResultClick(item) {
+  if (!item?.goods_id) return
+  const existing = getQueuedEntry(item)
+  if (existing) {
+    removeFromQueue(existing.uid)
+    showGlobalToast(t('import.removedFromQueue'))
+    return
   }
+  selectSearchResult(item)
+  const priceYuan = Number(item?.price)
+  enqueueFromSearch({
+    goodsId: item.goods_id,
+    name: item?.name || '',
+    priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
+    coverUrl: getSearchResultCover(item) || item?.cover_url || '',
+  })
+  parsed.value = false
 }
 
 // ── 图片多选切换 ──
@@ -1065,17 +1096,21 @@ function onDateConfirm({ selectedValues }) {
   showDatePicker.value = false
 }
 
-// ── 批量编辑日期选择器 ──
-function openBatchDatePicker() {
-  batchDatePickerValue.value = toDatePickerValue(batchEditForm.purchaseDate)
-  showBatchDatePicker.value = true
+// ── 队列项日期选择器 ──
+function openQueueDatePicker(entry) {
+  if (!entry?.info) return
+  queueDateEntry.value = entry
+  queueDatePickerValue.value = toDatePickerValue(entry.info.purchaseDate)
+  showQueueDatePicker.value = true
 }
 
-function onBatchDateConfirm({ selectedValues }) {
+function onQueueDateConfirm({ selectedValues }) {
   const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
-  batchEditForm.purchaseDate = `${year}-${month}-${day}`
-  batchDatePickerValue.value = [year, month, day]
-  showBatchDatePicker.value = false
+  if (queueDateEntry.value?.info) {
+    queueDateEntry.value.info.purchaseDate = `${year}-${month}-${day}`
+  }
+  queueDatePickerValue.value = [year, month, day]
+  showQueueDatePicker.value = false
 }
 
 function toDatePickerValue(dateString) {
