@@ -25,7 +25,7 @@ function getConfidenceRating(score) {
  * 执行匹配规则库（提取出候选项）
  * @param {string} text - 输入文本
  * @param {Array} rules - 静态正则匹配规则集 [{key, value, weight, ...}]
- * @param {Array} dynamicKeywords - 动态词汇列表 (精准匹配为主)
+ * @param {Array} dynamicKeywords - 动态词汇列表（字符串，或 { keyword, value } 对象）(精准匹配为主)
  * @param {Number} fieldWeight - 字段基础权重
  * @param {String} source - 来源说明 ('name' | 'note')
  */
@@ -33,13 +33,19 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
   const matches = []
 
   // 1. 匹配动态库 (全词或精确子串匹配)
+  // 支持两种形态：纯字符串（keyword 即 value），或 { keyword, value } 对象
+  // （用 keyword 做匹配，value 作为建议值——用于自学习的「关键词→分类」映射）
   if (dynamicKeywords && dynamicKeywords.length > 0) {
-    for (const keyword of dynamicKeywords) {
+    for (const entry of dynamicKeywords) {
+      if (!entry) continue
+      const isObject = typeof entry === 'object'
+      const keyword = isObject ? entry.keyword : entry
+      const value = isObject ? entry.value : entry
       if (!keyword) continue
-      const lowerKeyword = keyword.toLowerCase()
+      const lowerKeyword = String(keyword).toLowerCase()
       if (text.includes(lowerKeyword)) {
         matches.push({
-          value: keyword,
+          value,
           score: 1.0 * fieldWeight, // 动态完全匹配基础分是1.0
           reasons: [`在 ${source} 中匹配到已知项: ${keyword}`]
         })

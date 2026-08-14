@@ -109,4 +109,25 @@ describe('mihoyo import resolver', () => {
 
     expect(draft.characters).toEqual(['空'])
   })
+
+  it('uses a learned category keyword from stored goods for import category fallback', () => {
+    const context = buildMihoyoImportContext({
+      goodsList: [
+        { name: '芙宁娜 胶片卡', category: '卡片' },
+        { name: '娜维娅 胶片卡', category: '卡片' },
+      ],
+      categories: ['卡片', '立牌'],
+      presetCharacters: [
+        { name: '芙宁娜', ip: '原神' },
+        { name: '娜维娅', ip: '原神' },
+      ],
+    })
+    expect(context.learnedCategories).toContainEqual({ keyword: '胶片卡', value: '卡片' })
+
+    const draft = resolveMihoyoImportDraft({
+      name: '测试 胶片卡 随机',
+      image: 'https://example.com/a.png',
+    }, { context })
+    expect(draft.category).toBe('卡片')
+  })
 })
