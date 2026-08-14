@@ -54,6 +54,14 @@ on:
       - 'package.json'
       - 'package-lock.json'
       - 'scripts/**'
+      - '**/__tests__/**'
+      - '**/*.test.js'
+      - '**/*.test.ts'
+      - '**/*.test.vue'
+      - '**/*.spec.js'
+      - '**/*.spec.ts'
+      - '**/*.spec.vue'
+      - 'tests/**'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
