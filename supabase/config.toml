@@ -39,11 +39,12 @@ verify_jwt = true
 [functions.get-server-time]
 verify_jwt = false
 
-# 汇率权威源：每日 15:30 UTC（约北京时间 23:30，晚于 ECB 每日发布）刷新
-# 人民币基准汇率到 exchange_rates 单行表；所有设备从该表读取同一份快照
+# 汇率权威源：每 6 小时刷新（0 */6 * * *，UTC）人民币基准汇率到
+# exchange_rates 单行表；所有设备从该表读取同一份快照。6 小时粒度让
+# 单次槽位失败（如 8.13 漏跑）后数小时内自动重试，避免客户端连看旧汇率。
 [functions.refresh-exchange-rates]
 verify_jwt = false
-schedule = "30 15 * * *"
+schedule = "0 */6 * * *"
 
 # 地址 → 城市地理编码（高德 Web 服务）：必须携带登录 JWT（verify_jwt=true）
 # 需配置 Secret：AMAP_WEB_API_KEY
