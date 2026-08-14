@@ -1,5 +1,3 @@
-import { supabaseRequest } from './supabase'
-
 export function normalizeHttpsUrl(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
