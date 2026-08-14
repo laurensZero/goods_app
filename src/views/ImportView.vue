@@ -49,11 +49,15 @@
                 <span v-else>{{ (item.name || '?').charAt(0) }}</span>
               </div>
               <span class="search-result-name">{{ item.name }}</span>
-              <span v-if="isQueued(item)" class="search-result-queued">
+              <span
+                v-if="isQueued(item)"
+                class="search-result-queued"
+                :aria-label="t('mihoyoStock.inQueue')"
+                :title="t('mihoyoStock.inQueue')"
+              >
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                {{ t('mihoyoStock.inQueue') }}
               </span>
             </button>
           </div>
