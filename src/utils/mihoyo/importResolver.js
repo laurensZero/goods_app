@@ -1,4 +1,5 @@
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
+import { learnCategoryKeywords } from '@/utils/tagging/learnCategoryKeywords'
 import staticDictionaries from '@/constants/tagging-dictionaries.json'
 import { parseCategoryFromName } from '@/utils/mihoyo/index'
 import {
@@ -212,6 +213,12 @@ export function buildMihoyoImportContext({
     addCharacterToContext(context, getPresetCharacterName(item), getPresetCharacterIp(item), baseCategoryBlocklist)
   }
 
+  // 从已入库商品学习「名称关键词 → 分类」映射（>= 2 条且分类一致才学）
+  context.learnedCategories = learnCategoryKeywords(goodsList, {
+    categories,
+    characters: presetCharacters,
+  })
+
   return context
 }
 
@@ -235,6 +242,7 @@ function normalizeContext(context = {}) {
 
   return {
     categories: Array.isArray(context.categories) ? context.categories : [],
+    learnedCategories: Array.isArray(context.learnedCategories) ? context.learnedCategories : [],
     ips: Array.isArray(context.ips) ? context.ips : [],
     characters: context.characters && typeof context.characters === 'object' ? context.characters : {},
     tags,
@@ -247,7 +255,7 @@ function getTaggingResult({ name, note = '', chars = [] }, context, options = {}
     { name, note, chars },
     staticDictionaries,
     {
-      categories: dynamicContext.categories,
+      categories: [...dynamicContext.categories, ...dynamicContext.learnedCategories],
       ips: dynamicContext.ips,
       characters: filterDynamicCharactersForText(
         dynamicContext.characters,

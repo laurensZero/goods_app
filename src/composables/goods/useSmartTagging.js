@@ -2,6 +2,7 @@ import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
+import { learnCategoryKeywords } from '@/utils/tagging/learnCategoryKeywords'
 import staticDictionaries from '@/constants/tagging-dictionaries.json'
 
 export function useSmartTagging(form) {
@@ -55,6 +56,14 @@ export function useSmartTagging(form) {
     return { charMap, extractedTags }
   })
 
+  // 从已入库商品学习「名称关键词 → 分类」映射（>= 2 条且分类一致才学）
+  const cachedLearnedCategoryKeywords = computed(() =>
+    learnCategoryKeywords(goodsStore?.list || [], {
+      categories: presetsStore.categories || [],
+      characters: presetsStore.characters || []
+    })
+  )
+
   // 延时计算，防抖
   let timeoutId = null
 
@@ -92,7 +101,10 @@ export function useSmartTagging(form) {
     const { charMap, extractedTags } = cachedGoodsDerivedPresets.value
 
     const dynamicPresets = {
-      categories: presetsStore.categories || [],
+      categories: [
+        ...(presetsStore.categories || []),
+        ...cachedLearnedCategoryKeywords.value
+      ],
       ips: presetsStore.ips || [],
       characters: charMap,
       tags: Array.from(extractedTags)
