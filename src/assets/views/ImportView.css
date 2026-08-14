@@ -1502,3 +1502,301 @@
   }
 }
 
+/* ── 搜索结果多选（批量导入队列） ── */
+.search-results-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.search-results-toolbar__hint {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.search-results-toolbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.search-results-toolbar__count {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-chip-accent-text) 12%, var(--app-surface-soft));
+  color: var(--app-chip-accent-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.search-results-toolbar__clear {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.search-results-toolbar__clear:active {
+  transform: scale(0.96);
+}
+
+/* 已在待选队列中的搜索结果标记 */
+.search-result-queued {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
+  color: var(--app-chip-accent-text);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.search-result-queued svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+}
+
+/* ── 待导入队列（与有货监控共用 MihoyoGoodsQueuePanel） ── */
+/* 间距由 .page-body 的 flex gap 控制 */
+.import-queue-slide {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.import-queue-info {
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--app-surface-soft);
+}
+
+.import-queue-info__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  /* 与上方 SKU 卡片「修改款式」按钮同尺寸，并靠右对齐 */
+  margin-left: auto;
+  padding: 7px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.info-toggle__icon {
+  width: 13px;
+  height: 13px;
+  stroke: currentColor;
+  transition: transform 0.2s ease;
+}
+
+.info-toggle--open .info-toggle__icon {
+  transform: rotate(180deg);
+}
+
+.queue-owned-tag {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.queue-owned-tag {
+  background: rgba(255, 149, 0, 0.14);
+  color: #ff9500;
+}
+
+/* 收起态基础信息（IP / 分类 / 角色） */
+.queue-info-mini {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.queue-mini-chip {
+  max-width: 160px;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-mini-chip--char {
+  background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
+  color: var(--app-chip-accent-text);
+}
+
+
+/* 信息编辑表单（叠加 field-card 的圆角/阴影/间距） */
+.info-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* 链接解析失败项：留在队列里可重试/移除 */
+.queue-parse-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: var(--app-surface-soft);
+}
+
+.queue-parse-error__thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
+.queue-parse-error__initial {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.queue-parse-error__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.queue-parse-error__title {
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-parse-error__msg {
+  margin-top: 3px;
+  color: #ff3b30;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.queue-parse-error__retry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-chip-accent-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.queue-parse-error__retry .parse-spinner {
+  width: 14px;
+  height: 14px;
+}
+
+.queue-parse-error__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.queue-parse-error__remove svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+}
+
+.queue-parse-error__remove:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: #ff3b30;
+}
+
+/* 队列底部操作按钮（面板提供布局，这里提供按钮样式） */
+.confirm-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 0;
+  border: none;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.confirm-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.confirm-btn--ghost {
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+}
+
+.confirm-btn--primary {
+  background: var(--app-text);
+  color: var(--app-surface);
+}
+
+.confirm-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirm-btn .spinner {
+  animation: spin 0.9s linear infinite;
+}
+
+/* 平板端：主卡片内 SKU 选择与信息表单保持纵向堆叠（右侧为队列切换条，避免三列过挤） */
+
