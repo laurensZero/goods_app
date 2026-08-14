@@ -28,6 +28,7 @@ const STATIC_CATEGORY_NAMES = [
   '胸章',
   '明信片',
   '卡片',
+  '胶片卡',
   '随机卡',
   '收藏卡',
   '可换卡',
@@ -91,6 +92,13 @@ function createCategoryBlocklist(categories = [], extraCategories = []) {
       .map(normalizeNameKey)
       .filter(Boolean)
   )
+}
+
+/** 取上下文中学到的分类关键词列表（学到的关键词也不应被当作角色） */
+function learnedKeywordList(contextData) {
+  return (contextData?.learnedCategories || [])
+    .map((item) => item?.keyword)
+    .filter(Boolean)
 }
 
 function isCategoryName(value, categoryBlocklist) {
@@ -198,11 +206,18 @@ export function buildMihoyoImportContext({
     characters: {},
     tags: new Set(),
   }
-  const baseCategoryBlocklist = createCategoryBlocklist(context.categories)
+
+  // 先学习「名称关键词 → 分类」，学到的关键词用于角色过滤：分类词不应再当作角色
+  context.learnedCategories = learnCategoryKeywords(goodsList, {
+    categories,
+    characters: presetCharacters,
+  })
+  const learnedKeywords = learnedKeywordList(context)
+  const baseCategoryBlocklist = createCategoryBlocklist(context.categories, learnedKeywords)
 
   for (const item of Array.isArray(goodsList) ? goodsList : []) {
     const ip = normalizeText(item?.ip) || UNKNOWN_IP
-    const itemCategoryBlocklist = createCategoryBlocklist(context.categories, [item?.category])
+    const itemCategoryBlocklist = createCategoryBlocklist(context.categories, [item?.category, ...learnedKeywords])
     for (const character of normalizeCharacterList(item?.characters, itemCategoryBlocklist)) {
       addCharacterToContext(context, character, ip, itemCategoryBlocklist)
     }
@@ -213,12 +228,6 @@ export function buildMihoyoImportContext({
     addCharacterToContext(context, getPresetCharacterName(item), getPresetCharacterIp(item), baseCategoryBlocklist)
   }
 
-  // 从已入库商品学习「名称关键词 → 分类」映射（>= 2 条且分类一致才学）
-  context.learnedCategories = learnCategoryKeywords(goodsList, {
-    categories,
-    characters: presetCharacters,
-  })
-
   return context
 }
 
@@ -227,7 +236,7 @@ export function addMihoyoImportContextItem(context, item) {
   const ip = normalizeText(item?.ip) || UNKNOWN_IP
   addUniqueValue(context.categories, item?.category)
   addUniqueValue(context.ips, item?.ip)
-  const categoryBlocklist = createCategoryBlocklist(context.categories, [item?.category])
+  const categoryBlocklist = createCategoryBlocklist(context.categories, [item?.category, ...learnedKeywordList(context)])
   for (const character of normalizeCharacterList(item?.characters, categoryBlocklist)) {
     addCharacterToContext(context, character, ip, categoryBlocklist)
   }
@@ -364,6 +373,7 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
   const initialCategoryBlocklist = createCategoryBlocklist(contextData.categories, [
     source?.category,
     preliminaryCategory,
+    ...learnedKeywordList(contextData),
   ])
   const explicitCharacters = collectExplicitCharacters({ ...source, variants, variant }, preferredCharacter, initialCategoryBlocklist)
   const taggingResult = getTaggingResult({
@@ -385,6 +395,7 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     preliminaryCategory,
     category,
     taggingResult.categorySuggestion?.value,
+    ...learnedKeywordList(contextData),
   ])
   const imageCandidates = resolveImageCandidates({ ...source, variants })
   const defaultImages = getDefaultMihoyoImages(imageCandidates)
@@ -426,6 +437,7 @@ export function resolveMihoyoVariantDraft({
   const initialCategoryBlocklist = createCategoryBlocklist(contextData.categories, [
     currentCategory,
     preliminaryCategory,
+    ...learnedKeywordList(contextData),
   ])
   const preferred = resolvePreferredCharacter(preferredCharacter, [variant], initialCategoryBlocklist)
   const explicitCharacters = preferred ? [preferred] : []
@@ -447,6 +459,7 @@ export function resolveMihoyoVariantDraft({
     preliminaryCategory,
     category,
     taggingResult.categorySuggestion?.value,
+    ...learnedKeywordList(contextData),
   ])
   const characters = resolveCharacters({ explicitCharacters, taggingResult, categoryBlocklist, evidenceTexts })
 
