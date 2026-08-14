@@ -48,7 +48,6 @@ export function useAdminTheme() {
   applyAppearanceToDocument(appearance.value)
 
   let mediaQueryList = null
-  let removeSystemListener = null
 
   function applySystemSync() {
     const next = window.matchMedia(SYSTEM_DARK_QUERY).matches ? 'dark' : 'light'
@@ -56,6 +55,7 @@ export function useAdminTheme() {
     applyAppearanceToDocument(next)
   }
 
+  // useAdminTheme 在 admin 应用根组件使用（App.vue，常驻不卸载），监听器无需移除
   function bindSystemListener() {
     if (typeof window === 'undefined' || mediaQueryList) return
     mediaQueryList = window.matchMedia(SYSTEM_DARK_QUERY)
@@ -66,10 +66,8 @@ export function useAdminTheme() {
     }
     if (typeof mediaQueryList.addEventListener === 'function') {
       mediaQueryList.addEventListener('change', listener)
-      removeSystemListener = () => mediaQueryList?.removeEventListener('change', listener)
     } else {
       mediaQueryList.addListener(listener)
-      removeSystemListener = () => mediaQueryList?.removeListener(listener)
     }
   }
 
