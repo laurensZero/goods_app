@@ -501,7 +501,7 @@
               <TagSuggestionPanel
                 :suggestions="tagSuggestions"
                 @apply="applySuggestion"
-                @ignore="ignoreSuggestion"
+                @ignore="handleIgnoreSuggestion"
                 @apply-all="applyAllSuggestions"
               />
               <label class="field">
@@ -825,6 +825,13 @@ const form = reactive({
 })
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
+
+function handleIgnoreSuggestion({ field }) {
+  if (field === 'characters') {
+    form.characters = []
+  }
+  ignoreSuggestion({ field })
+}
 
 watch(() => form.price, () => {
   if (formPriceError.value) {

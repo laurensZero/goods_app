@@ -2,7 +2,7 @@
   <TagSuggestionPanel
     :suggestions="tagSuggestions"
     @apply="applySuggestion"
-    @ignore="ignoreSuggestion"
+    @ignore="handleIgnore"
     @apply-all="applyAllSuggestions"
   />
 </template>
@@ -64,4 +64,11 @@ const form = reactive({
 })
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
+
+function handleIgnore({ field }) {
+  if (field === 'characters' && entry.info) {
+    entry.info.characters = []
+  }
+  ignoreSuggestion({ field })
+}
 </script>
