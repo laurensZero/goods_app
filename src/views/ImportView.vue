@@ -257,7 +257,7 @@
                       <AppSelect v-model="entry.info.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
                     </label>
                     <!-- 角色显示（智能识别，随选中款式联动） -->
-                    <div v-if="entry.info.characters.length > 0" class="field">
+                    <div v-if="false" class="field">
                       <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
                       <div class="char-chips">
                         <span
@@ -275,6 +275,10 @@
                       </div>
                     </div>
                     <!-- 智能识别建议（分类/IP/角色/标签） -->
+                    <div class="field">
+                      <span class="field-label">{{ t('common.character') }}</span>
+                      <ImportCharacterPicker v-model="entry.info.characters" :ip="entry.info.ip" />
+                    </div>
                     <ImportQueueTagSuggestions :entry="entry" />
                     <label class="field">
                       <span class="field-label">{{ t('import.price') }}</span>
@@ -485,7 +489,7 @@
                 </div>
               </div>
               <!-- 角色显示（智能建议或已识别） -->
-              <div v-if="form.characters.length > 0" class="field">
+              <div v-if="false" class="field">
                 <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
                 <div class="char-chips">
                   <span
@@ -497,6 +501,10 @@
                     <button class="char-chip-del" type="button" @click="form.characters = form.characters.filter(c => c !== char)">×</button>
                   </span>
                 </div>
+              </div>
+              <div class="field">
+                <span class="field-label">{{ t('common.character') }}</span>
+                <ImportCharacterPicker v-model="form.characters" :ip="form.ip" />
               </div>
               <TagSuggestionPanel
                 :suggestions="tagSuggestions"
@@ -670,6 +678,7 @@ import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
 import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
+import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
 
 const { t } = useI18n()
 const router = useRouter()
