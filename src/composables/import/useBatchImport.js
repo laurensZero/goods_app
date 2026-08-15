@@ -491,16 +491,9 @@ export function useBatchImport({
   // ── 生成一条入库数据（选中款式 → 每款一条；未选款式 → 整件一条） ──
   function buildGoodsRow(entry, sku) {
     const info = entry.info || {}
-    const resolved = sku ? resolveMihoyoVariantDraft({
-      name: entry.name,
-      variant: sku,
-      context: ensureHistoricalTagContext(),
-      preferredCharacter: getSearchContext().preferredCharacter,
-      currentCategory: info.category || '',
-    }) : null
-    const characters = resolved?.selectedCharacterName
-      ? [resolved.selectedCharacterName]
-      : cloneImages(info.characters)
+    // 款式选择时已经通过 applySkuInfo 回填角色；保存阶段必须以表单值为准，
+    // 否则用户忽略或删除自动识别的角色后会被再次写回。
+    const characters = cloneImages(info.characters)
     const skuCover = sku?.cover_url || ''
     const image = skuCover || info.image || ''
     const images = skuCover
