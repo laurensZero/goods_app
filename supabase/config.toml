@@ -26,6 +26,10 @@ verify_jwt = false
 verify_jwt = false
 schedule = "*/1 * * * *"
 
+# 历史谷子 goods_id 批量回填：函数内部使用 service role 鉴权，默认 dry_run
+[functions.backfill-goods-id]
+verify_jwt = false
+
 # 功能白名单校验（自助下单等）：必须携带登录 JWT（verify_jwt=true），feature 走 query 参数
 [functions.check-feature-permission]
 verify_jwt = true
