@@ -902,7 +902,10 @@ function syncUrlInputLater() {
 
 // 搜索结果点击：加入/移出「待导入队列」（支持多选，与有货监控同一套交互）
 function onSearchResultClick(item) {
-  if (!item?.goods_id) return
+  // 米游铺搜索接口通常返回 snake_case，但部分代理/缓存响应会返回 camelCase。
+  // 统一取值，避免搜索结果实际有 ID 却因为字段名不同而无法入队。
+  const mihoyoGoodsId = item?.goods_id || item?.goodsId
+  if (!mihoyoGoodsId) return
   const existing = getQueuedEntry(item)
   if (existing) {
     removeFromQueue(existing.uid)
@@ -912,7 +915,7 @@ function onSearchResultClick(item) {
   selectSearchResult(item)
   const priceYuan = Number(item?.price)
   enqueueFromSearch({
-    goodsId: item.goods_id,
+    goodsId: mihoyoGoodsId,
     name: item?.name || '',
     priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
     coverUrl: getSearchResultCover(item) || item?.cover_url || '',
