@@ -1536,7 +1536,8 @@ const {
   timelineUnknown,
   showVisibleTimelineUnknown
 } = useHomeTimeline({
-  goodsList,
+  // Reuse the normal collection page's filtered, grouped, and sorted list.
+  displayList,
   displayDensity,
   sortDirection,
   visibleTimelineMonthStart,
@@ -1550,12 +1551,8 @@ const goodsGridStyle = computed(() => ({
 
 // 时间线尾部 spacer：限制渲染窗口后，尾部未渲染月份的高度
 const timelineTailSpacerHeight = computed(() => {
-  if (displayDensity.value !== 'timeline') return 0
-  const total = allTimelineMonthCount.value
-  const end = visibleTimelineMonthStart.value + visibleTimelineMonthCount.value
-  if (end >= total) return 0
-  return timelineMetrics.offsetOfMonth(total, allTimelineMonthList.value)
-       - timelineMetrics.offsetOfMonth(end, allTimelineMonthList.value)
+  // Temporarily disable timeline tail compensation to prevent DOM/scroll jumps.
+  return 0
 })
 const visibleGoodsHeadSpacerHeight = computed(() => {
   if (displayDensity.value === 'timeline') return 0
@@ -1607,9 +1604,6 @@ watch(
     syncVisibleGoodsCount(readScrollTop(), { useFlipViewport: true })
     syncVisibleTimelineMonthCount(readScrollTop(), { useFlipViewport: true })
     gridMetrics.scheduleMeasure()
-    if (displayDensity.value === 'timeline') {
-      timelineMetrics.scheduleMeasure()
-    }
   },
   { immediate: true }
 )
