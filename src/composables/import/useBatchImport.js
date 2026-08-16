@@ -13,6 +13,12 @@ import {
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { showGlobalToast } from '@/utils/globalToast'
 
+// 解析接口偶发只返回商品详情、不带 goodsId；链接本身仍然是可靠的数据源。
+function extractGoodsIdFromMihoyoUrl(url) {
+  const match = String(url || '').match(/\/goods\/(\d+)/i)
+  return match ? match[1] : ''
+}
+
 /**
  * 从多行文本中解析米游铺链接条目：
  * - 每行一个链接（或一行多个链接），行内可带数量后缀（x3 / 3个 / 单独数字）
@@ -160,7 +166,9 @@ export function useBatchImport({
 
   // ── 把解析草稿回填到队列项（入队与重试共用） ──
   function fillEntryFromDraft(entry, draft, variants = []) {
-    entry.goodsId = String(draft.goodsId || '').trim()
+    entry.goodsId = String(
+      draft.goodsId || draft.goods_id || extractGoodsIdFromMihoyoUrl(entry.url)
+    ).trim()
     entry.name = String(draft.name || '').trim() || t('mihoyoStock.unnamed')
     entry.priceCents = draft.price !== '' && draft.price != null ? Math.round(Number(draft.price) * 100) : 0
     entry.coverUrl = String(draft.image || '').trim()
@@ -504,11 +512,16 @@ export function useBatchImport({
       ? skuPrice
       : (info.price === '' || info.price == null ? null : Number(info.price))
 
+    const goodsId = String(
+      entry.goodsId || entry.goods_id || entry._goodsId ||
+      entry.info?.goodsId || extractGoodsIdFromMihoyoUrl(entry.url)
+    ).trim()
+
     return {
       name: String(entry.name || '').trim(),
       category: info.category || '',
       ip: info.ip || '',
-      goodsId: String(entry.goodsId || '').trim(),
+      goodsId,
       image,
       images,
       price,

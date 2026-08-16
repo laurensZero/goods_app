@@ -273,15 +273,15 @@ export async function parseMihoyoUrl(url) {
     throw new Error('请输入米游铺商品链接，例如：https://www.mihoyogift.com/goods/... 或 https://www.mihoyogift.com/m/goods/...')
   }
 
-  const goodsId = extractGoodsId(url)
-  if (!goodsId) throw new Error('无法解析商品 ID，请检查链接')
+  const urlGoodsId = extractGoodsId(url)
+  if (!urlGoodsId) throw new Error('无法解析商品 ID，请检查链接')
 
   const reqHeaders = {
     'Referer': 'https://www.mihoyogift.com/',
     'x-rpc-language': 'zh-cn',
   }
 
-  const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
+  const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, { headers: reqHeaders })
 
   if (json.retcode !== 0) {
     throw new Error(`接口返回错误：${json.message || json.retcode}`)
@@ -291,6 +291,10 @@ export async function parseMihoyoUrl(url) {
   if (!detail || !detail.name) {
     throw new Error('未能识别商品信息，请确认链接有效')
   }
+
+  // 以米游铺详情响应中的 goods_id 为最终 ID，链接 ID 只作为请求参数和兜底。
+  // 详情接口的标准字段是 data.goods.detail.goods_id。
+  const goodsId = String(detail.goods_id || detail.goodsId || urlGoodsId).trim()
 
   const { ip: parsedIpFromTitle, name: rawName } = parseTitleIpName(detail.name)
 
@@ -853,7 +857,9 @@ function cartItemToGoods(shop, item, index = 0) {
     variant: style,
     note: noteParts.join('｜'),
     _itemKey: `cart_${shop?.shop_code || shop?.shopCode || 'unknown'}_${item.goods_id || 'goods'}_${item.sku_id || index}`,
-    _goodsId: String(item.goods_id || ''),
+    // 购物车接口字段是 goods_id；统一暴露 goodsId，兼容旧的 _goodsId 调用方。
+    goodsId: String(item.goods_id || item.goodsId || ''),
+    _goodsId: String(item.goods_id || item.goodsId || ''),
     _skuId: String(item.sku_id || ''),
     _shopCode: String(shop?.shop_code || shop?.shopCode || ''),
     _shopName: String(shop?.shop_name || shop?.shopName || ''),

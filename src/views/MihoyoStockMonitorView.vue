@@ -449,7 +449,8 @@ async function handleRefresh() {
 
 // 搜索点击：点一个商品就加入待选 SKU 队列，逐个确认后统一入库（已在队列的再次点击 = 移出队列）
 function onSearchResultClick(item) {
-  if (!item?.goods_id) return
+  const mihoyoGoodsId = item?.goods_id || item?.goodsId
+  if (!mihoyoGoodsId) return
   const existing = getQueuedEntry(item)
   if (existing) {
     removeFromQueue(existing.uid)
@@ -459,7 +460,7 @@ function onSearchResultClick(item) {
   search.selectSearchResult(item)
   const priceYuan = Number(item?.price)
   enqueueGoods({
-    goodsId: item.goods_id,
+    goodsId: mihoyoGoodsId,
     name: item?.name || '',
     priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
     coverUrl: getSearchResultCover(item) || item?.cover_url || '',
