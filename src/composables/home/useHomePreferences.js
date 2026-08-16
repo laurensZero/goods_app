@@ -7,8 +7,7 @@ const DEFAULT_STORAGE_KEYS = {
   gridDensity: 'goods-app:home-grid-density',
   sortDirection: 'goods-app:home-sort-direction',
   sortMode: 'goods-app:home-sort-mode',
-  groupDisplayMode: 'goods-app:home-group-display-mode',
-  expandedTimelineItem: 'goods-app:home-timeline-expanded-item'
+  groupDisplayMode: 'goods-app:home-group-display-mode'
 }
 
 export const GROUP_DISPLAY_MODES = {
@@ -65,7 +64,6 @@ export function useHomePreferences(windowWidth, options = {}) {
   const sortDirection = ref('desc')
   const sortMode = ref('createdAt')
   const groupDisplayMode = ref(GROUP_DISPLAY_MODES.pinned)
-  const expandedTimelineItemId = ref(null)
   const isDensityAnimating = ref(false)
   const isSortAnimating = ref(false)
   let densityAnimationTimer = 0
@@ -178,28 +176,11 @@ export function useHomePreferences(windowWidth, options = {}) {
     }
   }
 
-  function restoreExpandedTimelineItem() {
-    if (!allowTimeline) {
-      expandedTimelineItemId.value = null
-      return
-    }
-    expandedTimelineItemId.value = localStorage.getItem(storageKeys.expandedTimelineItem) || null
-  }
-
   function restoreHomePreferences() {
     restoreSortMode()
     restoreSortDirection()
     restoreDisplayDensity()
     restoreGroupDisplayMode()
-    restoreExpandedTimelineItem()
-  }
-
-  function toggleExpandedTimelineItem(id) {
-    expandedTimelineItemId.value = expandedTimelineItemId.value === id ? null : id
-  }
-
-  function clearExpandedTimelineItem() {
-    expandedTimelineItemId.value = null
   }
 
   // Restore synchronously during setup so keep-alive pages don't flash
@@ -225,16 +206,6 @@ export function useHomePreferences(windowWidth, options = {}) {
     localStorage.setItem(storageKeys.groupDisplayMode, value)
   })
 
-  watch(expandedTimelineItemId, (value) => {
-    if (!allowTimeline) return
-    if (value) {
-      localStorage.setItem(storageKeys.expandedTimelineItem, value)
-      return
-    }
-
-    localStorage.removeItem(storageKeys.expandedTimelineItem)
-  })
-
   onBeforeUnmount(() => {
     clearDensityAnimationTimer()
     clearSortAnimationTimer()
@@ -247,7 +218,6 @@ export function useHomePreferences(windowWidth, options = {}) {
     sortDirection,
     sortMode,
     groupDisplayMode,
-    expandedTimelineItemId,
     isDensityAnimating,
     isSortAnimating,
     getResponsiveCols,
@@ -256,13 +226,10 @@ export function useHomePreferences(windowWidth, options = {}) {
     toggleSortDirection,
     setSortMode,
     setGroupDisplayMode,
-    toggleExpandedTimelineItem,
-    clearExpandedTimelineItem,
     restoreDisplayDensity,
     restoreSortDirection,
     restoreSortMode,
     restoreGroupDisplayMode,
-    restoreExpandedTimelineItem,
     restoreHomePreferences,
     clearDensityAnimationTimer,
     clearSortAnimationTimer

@@ -130,22 +130,8 @@ function buildTimelineEntries(goodsList) {
   return entries
 }
 
-function compareTimelineEntries(a, b, sortDirection) {
-  const directionFactor = sortDirection === 'asc' ? 1 : -1
-  const timeDelta = (Number(a.timelineSortTime) || 0) - (Number(b.timelineSortTime) || 0)
-  if (timeDelta !== 0) return timeDelta * directionFactor
-
-  const monthDelta = String(a.timelineYearMonth || '').localeCompare(String(b.timelineYearMonth || ''))
-  if (monthDelta !== 0) return monthDelta * directionFactor
-
-  const sourceDelta = String(a.sourceId || a.id || '').localeCompare(String(b.sourceId || b.id || ''))
-  if (sourceDelta !== 0) return sourceDelta * directionFactor
-
-  return String(a.id || '').localeCompare(String(b.id || '')) * directionFactor
-}
-
 export function useHomeTimeline({
-  goodsList,
+  displayList,
   displayDensity,
   sortDirection,
   visibleTimelineMonthStart,
@@ -155,7 +141,9 @@ export function useHomeTimeline({
 }) {
   const timelineEntries = computed(() => {
     if (displayDensity.value !== 'timeline') return []
-    return buildTimelineEntries(goodsList.value).sort((a, b) => compareTimelineEntries(a, b, sortDirection.value))
+    // displayList already contains the normal collection page's filtering,
+    // grouping, and sorting result. Keep that order here.
+    return buildTimelineEntries(displayList.value)
   })
 
   // Flat month list — single source of truth for month ordering
@@ -255,48 +243,14 @@ export function useHomeTimeline({
 
   // Visible window: slice allTimelineMonthList[start .. start+count)
   const visibleTimelineYearGroups = computed(() => {
-    if (displayDensity.value !== 'timeline') return timelineYearGroups.value
-
-    const start = visibleTimelineMonthStart.value || 0
-    const count = visibleTimelineMonthCount.value || getInitialVisibleTimelineMonths()
-    const end = start + count
-    const allMonths = allTimelineMonthList.value
-    const visibleMonths = allMonths.slice(start, end)
-
-    if (visibleMonths.length === 0) return []
-
-    // Rebuild year groups from the sliced month list
-    const yearGroups = []
-    const yearMap = new Map()
-
-    for (const monthGroup of visibleMonths) {
-      const { year } = monthGroup
-      let yearGroup = yearMap.get(year)
-
-      if (!yearGroup) {
-        yearGroup = { year, months: [], yearTotal: 0, yearCount: 0 }
-        yearMap.set(year, yearGroup)
-        yearGroups.push(yearGroup)
-      }
-
-      yearGroup.months.push(monthGroup)
-      yearGroup.yearCount += monthGroup.count
-      yearGroup.yearTotal += monthGroup.totalSpend
-    }
-
-    return yearGroups
+    // 暂时完整渲染时间线，避免月份窗口裁剪和 spacer 高度变化造成节点跳动。
+    return timelineYearGroups.value
   })
 
-  // Height of pruned months before the visible window (for head spacer).
-  // Uses per-month measured heights (offsetOfMonth) so that months which
-  // were previously visible contribute their exact DOM height; unmeasured
-  // months fall back to the measured average. This eliminates the cumulative
-  // error that caused scroll-position jumps on prune/restore.
+  // Kept as a zero-valued compatibility output while timeline virtualization
+  // is disabled during stabilization.
   const prunedTimelineHeadHeight = computed(() => {
-    if (displayDensity.value !== 'timeline') return 0
-    const start = visibleTimelineMonthStart.value || 0
-    if (start <= 0) return 0
-    return offsetOfMonth ? offsetOfMonth(start, allTimelineMonthList.value) : (start * 360)
+    return 0
   })
 
   const timelineUnknown = computed(() =>
