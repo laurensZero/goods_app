@@ -26,7 +26,7 @@ import { useSurveyStore } from './stores/survey'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { hasOverlays } from './composables/useDialogBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
-import { signalImageCacheRefresh } from './utils/image/cache'
+import { cleanupImageCache, signalImageCacheRefresh } from './utils/image/cache'
 import { createLogger } from './utils/logger'
 import { handleAuthCallback } from './utils/supabase/auth'
 import { cleanupDownloadedApkFiles } from './stores/appUpdate'
@@ -129,6 +129,7 @@ function setupAndroidBackButton() {
 function setupAndroidResumeListener(theme) {
   const handleAppVisible = () => {
     theme.syncSystemAppearance({ forceApply: true })
+    void cleanupImageCache()
     signalImageCacheRefresh('resume')
   }
 
@@ -241,6 +242,7 @@ async function bootstrap() {
   timings.routerReady = performance.now() - t3
   setupAndroidBackButton()
   setupAndroidResumeListener(theme)
+  void cleanupImageCache()
   import('./utils/saleReminder').then(({ registerSaleReminderNotificationNavigation, watchSaleReminderNotifications }) => {
     registerSaleReminderNotificationNavigation()
     watchSaleReminderNotifications(store)
