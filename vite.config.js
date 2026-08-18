@@ -15,7 +15,50 @@ export default defineConfig({
     Components({
       resolvers: [VantResolver()],
       dts: false
-    })
+    }),
+    {
+      name: 'bilibili-media-proxy',
+      configureServer(server) {
+        server.middlewares.use('/bilibili-media', async (req, res) => {
+          try {
+            const requestUrl = new URL(req.url || '', 'http://localhost')
+            const targetUrl = requestUrl.searchParams.get('url')
+            const target = targetUrl ? new URL(targetUrl) : null
+            if (!target || !/(^|\.)bilivideo\.com$/i.test(target.hostname)) {
+              res.statusCode = 400
+              res.end('Invalid Bilibili media URL')
+              return
+            }
+
+            const headers = {
+              Referer: 'https://www.bilibili.com/',
+              'User-Agent': String(req.headers['user-agent'] || 'Mozilla/5.0')
+            }
+            if (req.headers.range) headers.Range = String(req.headers.range)
+            const upstream = await fetch(target, { headers })
+            res.statusCode = upstream.status
+            for (const headerName of ['content-type', 'content-length', 'content-range', 'accept-ranges']) {
+              const value = upstream.headers.get(headerName)
+              if (value) res.setHeader(headerName, value)
+            }
+            if (!upstream.body) {
+              res.end()
+              return
+            }
+            const reader = upstream.body.getReader()
+            while (true) {
+              const chunk = await reader.read()
+              if (chunk.done) break
+              res.write(Buffer.from(chunk.value))
+            }
+            res.end()
+          } catch (error) {
+            res.statusCode = 502
+            res.end(String(error?.message || 'Bilibili media proxy failed'))
+          }
+        })
+      }
+    }
   ],
   // Capacitor 打包时从 file:// 协议加载，必须用相对路径
   base: './',
@@ -70,6 +113,14 @@ export default defineConfig({
           Referer: 'https://y.qq.com/'
         }
       },
+      '/bilibili-api': {
+        target: 'https://api.bilibili.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/bilibili-api/, ''),
+        headers: {
+          Referer: 'https://www.bilibili.com/'
+        }
+      },
       '/mihoyo-static': {
         target: 'https://sdk-webstatic.mihoyo.com',
         changeOrigin: true,
@@ -98,7 +149,6 @@ export default defineConfig({
           'fabric-engine': ['fabric'],
           'cutout-engine': ['@imgly/background-removal'],
           'sync-engine': ['@supabase/supabase-js'],
-          'tauri-runtime': ['@tauri-apps/api'],
           'pinyin-engine': ['pinyin-pro']
         }
       }

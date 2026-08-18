@@ -1,5 +1,3 @@
-import { invoke } from '@tauri-apps/api/core'
-
 const DEFAULT_TIMEOUT_MS = 30000
 
 const DESKTOP_PROXY_RULES = Object.freeze([
@@ -8,6 +6,7 @@ const DESKTOP_PROXY_RULES = Object.freeze([
   { prefix: '/netease-api', target: 'https://music.163.com' },
   { prefix: '/qqmusic-api', target: 'https://u.y.qq.com' },
   { prefix: '/qqmusic-c', target: 'https://c.y.qq.com' },
+  { prefix: '/bilibili-api', target: 'https://api.bilibili.com' },
   { prefix: '/github-oauth', target: 'https://github.com' }
 ])
 
@@ -16,7 +15,8 @@ function isAbortError(error) {
 }
 
 export function isPlatformBridgeAvailable() {
-  return typeof window !== 'undefined' && typeof window.__TAURI_INTERNALS__?.invoke === 'function'
+  // Tauri 已移除；原生请求由各业务模块（如 CapacitorHttp）自行处理。
+  return false
 }
 
 function normalizeHeaders(headers = {}) {

@@ -2,9 +2,10 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
 import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
+import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
 
 function getTrackIdentity(track = {}) {
-  return String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
+  return String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
 }
 
 function normalizeQueue(queue) {
@@ -219,7 +220,23 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   function ensureAudio() {
     if (audio || typeof Audio === 'undefined') return audio
 
-    audio = new Audio()
+    // Bilibili 的普通 durl 是带视频轨的 MP4 容器；部分 WebView 用 Audio
+    // 加载它会报 no supported sources。用隐藏 video 元素只播放其音轨。
+    audio = document.createElement('video')
+    audio.setAttribute('playsinline', '')
+    audio.playsInline = true
+    audio.controls = false
+    audio.setAttribute('aria-hidden', 'true')
+    // 不使用 display:none；部分 WebView 会因此继续播放但不输出音频。
+    Object.assign(audio.style, {
+      position: 'fixed',
+      width: '1px',
+      height: '1px',
+      opacity: '0',
+      pointerEvents: 'none',
+      left: '-2px',
+      top: '-2px'
+    })
     audio.preload = 'metadata'
     audio.volume = volume.value
     audio.muted = isMuted.value
@@ -264,6 +281,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     })
 
     audio.addEventListener('error', () => {
+      const failedTrackId = getTrackIdentity(currentTrack.value)
+      if (failedTrackId) playableUrlCache.delete(failedTrackId)
       lastError.value = '音频播放失败'
       isLoading.value = false
       isPlaying.value = false
@@ -329,10 +348,14 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     const source = String(track?.source || '').trim()
     const qqSongId = String(track?.qqSongId || '').trim()
+    const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
     let url = ''
-    if (source === 'qq' && qqSongId) {
+    if (source === 'bilibili' && bilibiliVideoId) {
+      const result = await fetchBilibiliPlayableUrl(bilibiliVideoId)
+      url = result.url
+    } else if (source === 'qq' && qqSongId) {
       const result = await fetchQQPlayableUrl(qqSongId)
       url = result.url
     } else if (neteaseSongId) {
@@ -353,9 +376,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const trackId = getTrackIdentity(track)
     const source = String(track?.source || '').trim()
     const qqSongId = String(track?.qqSongId || '').trim()
+    const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
-    if (!trackId || (!neteaseSongId && !qqSongId)) {
+    if (!trackId || (!neteaseSongId && !qqSongId && !bilibiliVideoId)) {
       resetLyrics()
       return
     }
@@ -410,6 +434,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       if (targetAudio.src !== url) {
         targetAudio.src = url
       }
+      targetAudio.muted = isMuted.value
+      targetAudio.volume = volume.value
       await targetAudio.play()
       if (requestToken !== playRequestToken) return
       miniVisible.value = true

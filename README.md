@@ -1,6 +1,6 @@
 # 谷子收纳
 
-一款用于管理动漫/游戏周边（谷子）收藏的 Android 应用，同时支持 Tauri 桌面端和 Web 端。界面支持简体中文、繁体中文、English、日本語、한국어。
+一款用于管理动漫/游戏周边（谷子）收藏的 Android 应用，同时支持 Web 端。界面支持简体中文、繁体中文、English、日本語、한국어。
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/laurensZero/goods_app)
 
@@ -43,13 +43,6 @@ npm run build:android
 
 # 在 Android Studio 中打开
 npm run open:android
-```
-
-### 桌面端（Tauri）
-
-```bash
-npm run tauri dev    # 开发
-npm run tauri build  # 打包
 ```
 
 ## 使用说明
@@ -183,7 +176,7 @@ Bundle 发布级别默认规则（用于客户端弹窗策略）：
 ## 技术栈
 
 - Vue 3（Composition API）+ Vite 5
-- Capacitor 8（Android）/ Tauri 2（桌面端）
+- Capacitor 8（Android）
 - Vant 4（UI 组件库）
 - Pinia（状态管理）
 - vue-i18n（国际化，5 种语言）
