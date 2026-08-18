@@ -6,7 +6,6 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "tauri": "tauri",
     "icons:android": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-android-icons.ps1",
     "preview": "vite preview",
     "build:android": "npm run build && npx cap sync android",
@@ -35,7 +34,6 @@
     "@ebarooni/capacitor-calendar": "^8.0.2",
     "@imgly/background-removal": "^1.7.0",
     "@supabase/supabase-js": "^2.105.4",
-    "@tauri-apps/api": "^2.10.1",
     "cropperjs": "^1.6.2",
     "dompurify": "^3.0.3",
     "echarts": "^5.4.2",
@@ -59,7 +57,6 @@
     "@capacitor/android": "^8.2.0",
     "@capacitor/cli": "^8.2.0",
     "@intlify/unplugin-vue-i18n": "^4.0.0",
-    "@tauri-apps/cli": "^2.10.1",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.10",
     "eslint": "^9.39.0",

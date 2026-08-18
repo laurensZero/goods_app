@@ -2,7 +2,7 @@
   <section class="track-list">
     <article
       v-for="(track, index) in normalizedTracks"
-      :key="track.id || `${track.neteaseSongId || track.qqSongId || 'manual'}_${index}`"
+      :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${index}`"
       class="track-list__item"
       :class="{ 'track-list__item--active': activeTrackId === track.identity }"
       @click="handleTrackClick(track, $event)"
@@ -32,6 +32,7 @@
           <span class="track-list__index">#{{ index + 1 }}</span>
           <span v-if="track.source === 'netease'" class="track-list__badge">{{ t('events.tracks.netease') }}</span>
           <span v-if="track.source === 'qq'" class="track-list__badge track-list__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
+          <span v-if="track.source === 'bilibili'" class="track-list__badge track-list__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
           <span v-if="track.durationText" class="track-list__duration">{{ track.durationText }}</span>
         </div>
         <strong class="track-list__title">{{ track.title || t('events.tracks.unnamedTrack') }}</strong>
@@ -54,7 +55,7 @@
           class="track-list__action"
           :title="playButtonLabel(track)"
           :aria-label="playButtonLabel(track)"
-          :disabled="(!track.neteaseSongId && !track.qqSongId) || (isLoading && activeTrackId === track.identity)"
+          :disabled="(!track.neteaseSongId && !track.qqSongId && !track.bilibiliVideoId) || (isLoading && activeTrackId === track.identity)"
           @click="handlePlay(track)"
         >
           <span class="track-list__action-icon track-list__action-icon--dark" aria-hidden="true">
@@ -83,11 +84,11 @@
           class="track-list__action"
           :title="openButtonLabel(track)"
           :aria-label="openButtonLabel(track)"
-          :disabled="(!track.neteaseSongId && !track.qqSongId) || openingSongId === (track.neteaseSongId || track.qqSongId)"
+          :disabled="(!track.neteaseSongId && !track.qqSongId && !track.bilibiliVideoId) || openingSongId === (track.neteaseSongId || track.qqSongId || track.bilibiliVideoId)"
           @click="handleOpen(track)"
         >
           <span class="track-list__action-icon track-list__action-icon--light" aria-hidden="true">
-            <svg v-if="openingSongId === (track.neteaseSongId || track.qqSongId)" viewBox="0 0 24 24" fill="none">
+            <svg v-if="openingSongId === (track.neteaseSongId || track.qqSongId || track.bilibiliVideoId)" viewBox="0 0 24 24" fill="none">
               <path d="M12 4V7" />
               <path d="M12 17V20" />
               <path d="M4 12H7" />
@@ -116,6 +117,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
 import { fetchQQSongCoverMap, openQQSong } from '@/utils/qqMusic'
+import { buildBilibiliWebUrl } from '@/utils/bilibiliMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
@@ -141,6 +143,7 @@ const normalizedTracks = computed(() =>
   (Array.isArray(props.tracks) ? props.tracks : []).map((item) => {
     const neteaseSongId = String(item?.neteaseSongId || '').trim()
     const qqSongId = String(item?.qqSongId || '').trim()
+    const bilibiliVideoId = String(item?.bilibiliVideoId || '').trim()
     const source = String(item?.source || '').trim()
     const coverUrl = String(
       item?.coverUrl
@@ -149,7 +152,7 @@ const normalizedTracks = computed(() =>
     ).trim()
     return {
       ...item,
-      identity: String(item?.id || neteaseSongId || qqSongId || ''),
+      identity: String(item?.id || neteaseSongId || qqSongId || bilibiliVideoId || ''),
       coverUrl,
       durationText: formatTrackDuration(item?.durationMs)
     }
@@ -205,20 +208,23 @@ watch(
 async function handleOpen(track) {
   const neteaseSongId = String(track?.neteaseSongId || '').trim()
   const qqSongId = String(track?.qqSongId || '').trim()
+  const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
   const source = String(track?.source || '').trim()
-  const songId = neteaseSongId || qqSongId
+  const songId = neteaseSongId || qqSongId || bilibiliVideoId
   if (!songId) return
 
   openingSongId.value = songId
   errorMessage.value = ''
   try {
-    if (source === 'qq' && qqSongId) {
+    if (source === 'bilibili' && bilibiliVideoId) {
+      window.open(buildBilibiliWebUrl(bilibiliVideoId), '_blank', 'noopener,noreferrer')
+    } else if (source === 'qq' && qqSongId) {
       await openQQSong(qqSongId)
     } else if (neteaseSongId) {
       await openNeteaseSong(neteaseSongId)
     }
   } catch (error) {
-    errorMessage.value = error?.message || (source === 'qq' ? t('events.tracks.openFailedQQ') : t('events.tracks.openFailedNetease'))
+    errorMessage.value = error?.message || (source === 'qq' ? t('events.tracks.openFailedQQ') : source === 'bilibili' ? t('events.tracks.openFailedBilibili') : t('events.tracks.openFailedNetease'))
   } finally {
     window.setTimeout(() => {
       if (openingSongId.value === songId) {
@@ -231,11 +237,12 @@ async function handleOpen(track) {
 function openButtonLabel(track) {
   const source = String(track?.source || '').trim()
   if (source === 'qq') return t('events.tracks.openQQ')
+  if (source === 'bilibili') return t('events.tracks.openBilibili')
   return t('events.tracks.openNetease')
 }
 
 function playButtonLabel(track) {
-  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
+  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
   if (isLoading.value && activeTrackId.value === identity) return t('events.tracks.loading')
   if (isPlaying.value && activeTrackId.value === identity) return t('events.tracks.pause')
   if (!isPlaying.value && activeTrackId.value === identity) return t('events.tracks.resume')
@@ -243,8 +250,8 @@ function playButtonLabel(track) {
 }
 
 async function handlePlay(track) {
-  if (!track?.neteaseSongId && !track?.qqSongId) return
-  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || '').trim()
+  if (!track?.neteaseSongId && !track?.qqSongId && !track?.bilibiliVideoId) return
+  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
   if (isLoading.value && activeTrackId.value === identity) return
   errorMessage.value = ''
   try {
@@ -272,7 +279,7 @@ function clearTrackTapTimer() {
 function handleTrackClick(track, event) {
   if (isActionTarget(event)) return
 
-  const identity = String(track?.id || track?.neteaseSongId || '').trim()
+  const identity = String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
   if (!identity) return
 
   if (trackTapState.value.identity === identity && trackTapState.value.timerId) {
@@ -382,6 +389,11 @@ function handleTrackClick(track, event) {
 .track-list__badge--qq {
   background: rgba(49, 194, 124, 0.14);
   color: #1a9c54;
+}
+
+.track-list__badge--bilibili {
+  background: rgba(251, 114, 153, 0.16);
+  color: #e85c86;
 }
 
 .track-list__title {

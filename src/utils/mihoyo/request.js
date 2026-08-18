@@ -1,6 +1,6 @@
 /**
  * 米游铺请求传输层
- * 统一封装原生（CapacitorHttp）与 Web / 桌面（fetch + Vite/Tauri 代理）双路径请求：
+ * 统一封装原生（CapacitorHttp）与 Web / 桌面（fetch + Vite 代理）双路径请求：
  *   - 原生：直连 api-mall.mihoyogift.com，Cookie 头原样发送
  *   - Web：走 /mihoyo-api 代理，Cookie 头转换为 x-cookie-forward（浏览器禁止 JS 设置 Cookie 头）
  * 并为两条路径统一补齐超时控制（连接 + 读取 + 总时长看门狗）。
@@ -138,7 +138,7 @@ export async function mihoyoRequestWithResponse(path, {
   }
 
   // Web / 浏览器开发：通过 Vite proxy（/mihoyo-api → api-mall.mihoyogift.com）
-  // AbortController 覆盖浏览器 fetch 路径；timeoutMs 覆盖 Tauri 桥接路径
+  // AbortController 覆盖浏览器 fetch 路径；
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), totalTimeoutMs)
   try {

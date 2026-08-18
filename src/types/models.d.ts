@@ -27,9 +27,10 @@ export interface TrackItem {
   album: string
   coverUrl: string
   durationMs: number
-  source: 'netease' | 'qq' | 'manual' | string
+  source: 'netease' | 'qq' | 'bilibili' | 'manual' | string
   neteaseSongId: string
   qqSongId: string
+  bilibiliVideoId: string
 }
 
 /** 活动封面图片数据 */

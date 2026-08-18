@@ -16,7 +16,7 @@
             <div class="track-editor__source-toggle">
               <button
                 type="button"
-                class="track-editor__source-btn"
+                class="track-editor__source-btn track-editor__source-btn--netease"
                 :class="{ 'track-editor__source-btn--active': searchSource === 'netease' }"
                 @click="searchSource = 'netease'"
               >{{ t('events.tracks.netease') }}</button>
@@ -26,13 +26,19 @@
                 :class="{ 'track-editor__source-btn--active': searchSource === 'qq' }"
                 @click="searchSource = 'qq'"
               >{{ t('events.tracks.qqMusic') }}</button>
+              <button
+                type="button"
+                class="track-editor__source-btn track-editor__source-btn--bilibili"
+                :class="{ 'track-editor__source-btn--active': searchSource === 'bilibili' }"
+                @click="searchSource = 'bilibili'"
+              >{{ t('events.tracks.bilibili') }}</button>
             </div>
           </div>
           <div class="track-editor__input-row">
             <input
               v-model="searchKeyword"
               type="text"
-              :placeholder="searchSource === 'qq' ? t('events.tracks.searchPlaceholderQQ') : t('events.tracks.searchPlaceholder')"
+              :placeholder="searchSource === 'qq' ? t('events.tracks.searchPlaceholderQQ') : searchSource === 'bilibili' ? t('events.tracks.searchPlaceholderBilibili') : t('events.tracks.searchPlaceholder')"
               @keydown.enter.prevent="runSongSearch"
             />
             <button type="button" class="track-editor__action" :disabled="searchLoading" @click="runSongSearch">
@@ -45,7 +51,7 @@
           <div v-if="searchResults.length" ref="searchResultListRef" class="track-editor__result-list" @scroll="onSearchResultScroll">
             <article
               v-for="(item, idx) in searchResults"
-              :key="`${item.neteaseSongId || item.qqSongId || ''}_${idx}`"
+              :key="`${item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || ''}_${idx}`"
               class="track-editor__result-item"
             >
               <div class="track-editor__result-copy">
@@ -87,12 +93,13 @@
       </div>
 
       <div v-if="tracks.length" class="track-editor__list">
-        <article v-for="(track, index) in tracks" :key="track.id || `${track.neteaseSongId || track.qqSongId || 'manual'}_${index}`" class="track-editor__item">
+          <article v-for="(track, index) in tracks" :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${index}`" class="track-editor__item">
           <div class="track-editor__item-head">
             <span class="track-editor__item-index">#{{ index + 1 }}</span>
             <div class="track-editor__badges">
               <span v-if="track.source === 'netease'" class="track-editor__badge">{{ t('events.tracks.netease') }}</span>
               <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
+              <span v-if="track.source === 'bilibili'" class="track-editor__badge track-editor__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
               <span v-if="track.durationMs" class="track-editor__badge track-editor__badge--muted">{{ formatTrackDuration(track.durationMs) }}</span>
             </div>
             <button type="button" class="track-editor__remove" @click="removeTrack(index)">{{ t('events.tracks.delete') }}</button>
@@ -134,6 +141,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
+import { searchBilibiliVideos } from '@/utils/bilibiliMusic'
 
 const { t } = useI18n()
 
@@ -194,7 +202,8 @@ function buildManualTrack() {
     durationMs: 0,
     source: 'manual',
     neteaseSongId: '',
-    qqSongId: ''
+    qqSongId: '',
+    bilibiliVideoId: ''
   }
 }
 
@@ -206,9 +215,10 @@ function normalizeTrack(track = {}) {
     album: String(track.album || '').trim(),
     coverUrl: String(track.coverUrl || '').trim(),
     durationMs: Math.max(0, Number(track.durationMs) || 0),
-    source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : 'manual')),
+    source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : track.bilibiliVideoId ? 'bilibili' : 'manual')),
     neteaseSongId: String(track.neteaseSongId || '').trim(),
-    qqSongId: String(track.qqSongId || '').trim()
+    qqSongId: String(track.qqSongId || '').trim(),
+    bilibiliVideoId: String(track.bilibiliVideoId || track.bvid || '').trim()
   }
 }
 
@@ -219,6 +229,7 @@ function updateTracks(nextTracks) {
 function buildTrackDedupKey(track = {}) {
   if (track.neteaseSongId) return `netease:${track.neteaseSongId}`
   if (track.qqSongId) return `qq:${track.qqSongId}`
+  if (track.bilibiliVideoId) return `bilibili:${track.bilibiliVideoId}`
   return `manual:${String(track.title || '').trim().toLowerCase()}::${String(track.artist || '').trim().toLowerCase()}`
 }
 
@@ -299,6 +310,8 @@ async function runSongSearch() {
     let results
     if (searchSource.value === 'qq') {
       results = await searchQQSongs(keyword, limit)
+    } else if (searchSource.value === 'bilibili') {
+      results = await searchBilibiliVideos(keyword, limit)
     } else {
       results = await searchNeteaseSongs(keyword, limit)
     }
@@ -327,12 +340,14 @@ async function loadMoreSearch() {
     let results
     if (searchSource.value === 'qq') {
       results = await searchQQSongs(keyword, limit, searchPage.value)
+    } else if (searchSource.value === 'bilibili') {
+      results = await searchBilibiliVideos(keyword, limit, searchPage.value)
     } else {
       results = await searchNeteaseSongs(keyword, limit, offset)
     }
     if (results.length) {
-      const existingKeys = new Set(searchResults.value.map((item) => item.neteaseSongId || item.qqSongId || item.title))
-      const fresh = results.filter((item) => !existingKeys.has(item.neteaseSongId || item.qqSongId || item.title))
+       const existingKeys = new Set(searchResults.value.map((item) => item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || item.title))
+       const fresh = results.filter((item) => !existingKeys.has(item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || item.title))
       searchResults.value = [...searchResults.value, ...fresh]
     }
     searchHasMore.value = results.length >= limit
@@ -495,8 +510,18 @@ async function importPlaylist() {
   color: #fff;
 }
 
+.track-editor__source-btn--netease.track-editor__source-btn--active {
+  background: #d70012;
+  color: #fff;
+}
+
 .track-editor__source-btn--qq.track-editor__source-btn--active {
   background: #1a9c54;
+  color: #fff;
+}
+
+.track-editor__source-btn--bilibili.track-editor__source-btn--active {
+  background: #fb7299;
   color: #fff;
 }
 

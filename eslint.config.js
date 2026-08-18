@@ -10,7 +10,6 @@ export default [
       'dist/**',
       'admin/dist/**',
       'android/**',
-      'src-tauri/**',
       'node_modules/**',
       'public/**',
       'src/assets/**',

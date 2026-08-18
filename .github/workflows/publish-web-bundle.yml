@@ -62,7 +62,6 @@ on:
       - '**/*.spec.ts'
       - '**/*.spec.vue'
       - 'tests/**'
-      - 'src-tauri'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
