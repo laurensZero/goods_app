@@ -29,6 +29,60 @@ function buildQQCoverUrl(mid, size = 300) {
   return `https://y.gtimg.cn/music/photo_new/T002R${size}x${size}M000${normalizedMid}.jpg`
 }
 
+function buildQQSongCoverUrl(mid, size = 300) {
+  const normalizedMid = String(mid || '').trim()
+  if (!normalizedMid) return ''
+  return `https://y.qq.com/music/photo_new/T062R${size}x${size}M000${normalizedMid}.jpg?max_age=2592000`
+}
+
+function firstNonEmptyString(...values) {
+  return values
+    .map((value) => String(value || '').trim())
+    .find(Boolean) || ''
+}
+
+/**
+ * QQ 的歌曲详情页不一定把封面放在 album 中。
+ * 搜索结果和详情接口的字段名也不完全一致，因此先使用歌曲自身的图片，
+ * 再回退到 album MID 拼接的传统封面地址。
+ */
+export function resolveQQCoverUrl(song = {}, size = 300) {
+  const track = song?.track_info || song?.trackInfo || song
+  const album = track?.album || {}
+  const directCover = firstNonEmptyString(
+    track?.coverUrl,
+    track?.cover_url,
+    track?.cover,
+    track?.picUrl,
+    track?.picurl,
+    track?.pic_url,
+    track?.albumPic,
+    track?.album_pic,
+    track?.album_pic_url,
+    album?.picUrl,
+    album?.picurl,
+    album?.coverUrl,
+    album?.cover_url,
+    album?.cover,
+    album?.pic_url
+  )
+  if (directCover) return directCover
+
+  // 无专辑歌曲的详情页封面来自 track_info.vs，而不是 album.mid。
+  const songCoverMid = Array.isArray(track?.vs)
+    ? track.vs.map((item) => String(item || '').trim()).find((item) => /^[a-zA-Z0-9]{10,}$/.test(item))
+    : ''
+  if (songCoverMid) return buildQQSongCoverUrl(songCoverMid, size)
+
+  const albumMid = firstNonEmptyString(
+    album?.mid,
+    album?.albummid,
+    track?.albummid,
+    track?.albumMid
+  )
+  return albumMid ? buildQQCoverUrl(albumMid, size) : ''
+}
+
 function mapSongToTrack(song = {}) {
   const songMid = String(song?.mid || song?.songmid || '').trim()
   const songId = String(song?.id || song?.songid || '').trim()
@@ -41,7 +95,7 @@ function mapSongToTrack(song = {}) {
     title: String(song?.name || song?.songname || '').trim(),
     artist: normalizeArtists(singerList),
     album: String(song?.album?.name || song?.albumname || '').trim(),
-    coverUrl: albumMid ? buildQQCoverUrl(albumMid) : '',
+    coverUrl: resolveQQCoverUrl(song),
     durationMs: durationSec > 0 ? durationSec * 1000 : 0,
     source: songMid ? 'qq' : 'manual',
     qqSongId: songMid || songId
@@ -337,23 +391,28 @@ export async function fetchQQSongCoverMap(songMids) {
 
   if (!normalizedMids.length) return {}
 
-  // Fetch song details from c.y.qq.com to get album MIDs
+  // The legacy c.y.qq.com track-info endpoint now returns 404 for this request.
+  // Use the current musicu.fcg song-detail endpoint instead.
   const coverMap = {}
   for (const mid of normalizedMids) {
     try {
-      const query = new URLSearchParams({
-        songmid: mid,
-        format: 'json',
-        inCharset: 'utf-8',
-        outCharset: 'utf-8'
-      })
-      const rawText = await requestCUrl(`/v8/fcg-bin/fcg_v8_track_info_cp.fc?${query.toString()}`)
-      const payload = JSON.parse(rawText)
-      const data = payload?.data
-      const albumMid = String(data?.track_info?.album?.mid || data?.album?.mid || '').trim()
-      if (albumMid) {
-        coverMap[mid] = buildQQCoverUrl(albumMid)
+      const requestData = {
+        songinfo: {
+          module: 'music.pf_song_detail_svr',
+          method: 'get_song_detail_yqq',
+          param: {
+            song_mid: mid
+          }
+        }
       }
+      const params = new URLSearchParams({
+        format: 'json',
+        data: JSON.stringify(requestData)
+      })
+      const payload = await requestJson(`${QQ_MUSIC_API_BASE}/musicu.fcg?${params.toString()}`)
+      const data = payload?.songinfo?.data || payload?.data || payload
+      const coverUrl = resolveQQCoverUrl(data?.track_info || data)
+      if (coverUrl) coverMap[mid] = coverUrl
     } catch {
       // skip this track
     }
