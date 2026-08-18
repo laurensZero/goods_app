@@ -97,7 +97,7 @@
           <div class="track-editor__item-head">
             <span class="track-editor__item-index">#{{ index + 1 }}</span>
             <div class="track-editor__badges">
-              <span v-if="track.source === 'netease'" class="track-editor__badge">{{ t('events.tracks.netease') }}</span>
+              <span v-if="track.source === 'netease'" class="track-editor__badge track-editor__badge--netease">{{ t('events.tracks.netease') }}</span>
               <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
               <span v-if="track.source === 'bilibili'" class="track-editor__badge track-editor__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
               <span v-if="track.durationMs" class="track-editor__badge track-editor__badge--muted">{{ formatTrackDuration(track.durationMs) }}</span>
@@ -664,6 +664,16 @@ async function importPlaylist() {
 .track-editor__badge--qq {
   background: rgba(49, 194, 124, 0.14);
   color: #1a9c54;
+}
+
+.track-editor__badge--netease {
+  background: rgba(215, 0, 18, 0.14);
+  color: #d70012;
+}
+
+.track-editor__badge--bilibili {
+  background: rgba(251, 114, 153, 0.16);
+  color: #e85c86;
 }
 
 .track-editor__detected-badge {

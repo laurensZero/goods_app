@@ -34,4 +34,11 @@ describe('QQ Music cover resolution', () => {
       'https://y.gtimg.cn/music/photo_new/T002R300x300M000003abcXYZ123.jpg'
     )
   })
+
+  it('prefers the album cover over the T062 song cover variant', () => {
+    expect(resolveQQCoverUrl({
+      album: { mid: '003albumMid123' },
+      vs: ['', '003songCover123']
+    })).toBe('https://y.gtimg.cn/music/photo_new/T002R300x300M000003albumMid123.jpg')
+  })
 })
