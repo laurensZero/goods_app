@@ -11,7 +11,7 @@ const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
 const CAP_FOLDER = 'img-cache'
 const NATIVE_CACHE_META_KEY = 'img-cache-lru-v1'
-const DEFAULT_NATIVE_CACHE_LIMIT_MB = 512
+const DEFAULT_NATIVE_CACHE_LIMIT_MB = 256
 
 function getNativeCacheLimitBytes() {
   try {
@@ -423,7 +423,10 @@ function urlToFilename(url) {
 
 // --- Layer 2: Cache API (Web 端持久化) ---
 async function getFromCacheAPI(url) {
-  if (!supportsCacheAPI) return null
+  // Native Android uses Capacitor Filesystem below. Keeping a second WebView
+  // Cache API copy makes the same image consume storage twice and bypasses
+  // the native LRU limit.
+  if (!supportsCacheAPI || isNative()) return null
   try {
     const cache = await caches.open(CACHE_NAME)
     for (const key of getCacheKeyCandidates(url)) {
@@ -439,7 +442,7 @@ async function getFromCacheAPI(url) {
 }
 
 async function putToCacheAPI(url, responseClone) {
-  if (!supportsCacheAPI) return
+  if (!supportsCacheAPI || isNative()) return
   try {
     const cache = await caches.open(CACHE_NAME)
     await cache.put(normalizeCacheUrl(url) || url, responseClone)
@@ -481,6 +484,7 @@ async function getFromCapacitorFS(url) {
  */
 let _writesSinceEviction = 0
 const EVICT_EVERY_N_WRITES = 10
+let _cleanupPromise = null
 
 async function putToCapacitorFS(url, blob) {
   if (!isNative()) return
@@ -790,6 +794,31 @@ export function clearMemoryCache() {
     _lruFlushTimer = null
   }
   flushLruMeta()
+}
+
+/**
+ * Reconcile the persistent native image cache with the configured LRU limit.
+ * This is intentionally separate from clearAllCache: it removes only stale
+ * network-image cache files and never touches user-images or app data.
+ */
+export async function cleanupImageCache() {
+  if (!isNative()) return
+  if (_cleanupPromise) return _cleanupPromise
+
+  _cleanupPromise = (async () => {
+    // Remove the duplicate cache created by older Android builds. Native
+    // builds no longer write to Cache API, so this is safe on every cleanup.
+    if (supportsCacheAPI) {
+      try { await caches.delete(CACHE_NAME) } catch { /* ignore */ }
+    }
+    await evictNativeCacheIfNeeded()
+  })()
+    .catch(() => {})
+    .finally(() => {
+      _cleanupPromise = null
+    })
+
+  return _cleanupPromise
 }
 
 export async function clearAllCache() {
