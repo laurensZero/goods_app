@@ -68,19 +68,21 @@ export function resolveQQCoverUrl(song = {}, size = 300) {
   )
   if (directCover) return directCover
 
-  // 无专辑歌曲的详情页封面来自 track_info.vs，而不是 album.mid。
-  const songCoverMid = Array.isArray(track?.vs)
-    ? track.vs.map((item) => String(item || '').trim()).find((item) => /^[a-zA-Z0-9]{10,}$/.test(item))
-    : ''
-  if (songCoverMid) return buildQQSongCoverUrl(songCoverMid, size)
-
   const albumMid = firstNonEmptyString(
     album?.mid,
     album?.albummid,
     track?.albummid,
     track?.albumMid
   )
-  return albumMid ? buildQQCoverUrl(albumMid, size) : ''
+  if (albumMid) return buildQQCoverUrl(albumMid, size)
+
+  // 无专辑歌曲的详情页封面来自 track_info.vs，而不是 album.mid。
+  const songCoverMid = Array.isArray(track?.vs)
+    ? track.vs.map((item) => String(item || '').trim()).find((item) => /^[a-zA-Z0-9]{10,}$/.test(item))
+    : ''
+  if (songCoverMid) return buildQQSongCoverUrl(songCoverMid, size)
+
+  return ''
 }
 
 function mapSongToTrack(song = {}) {
