@@ -93,38 +93,44 @@
       </div>
 
       <div v-if="tracks.length" class="track-editor__list">
-          <article v-for="(track, index) in tracks" :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${index}`" class="track-editor__item">
+          <article v-for="({ track, sourceIndex }) in displayTracks" :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${sourceIndex}`" class="track-editor__item">
           <div class="track-editor__item-head">
-            <span class="track-editor__item-index">#{{ index + 1 }}</span>
+            <span class="track-editor__item-index">#{{ sourceIndex + 1 }}</span>
             <div class="track-editor__badges">
               <span v-if="track.source === 'netease'" class="track-editor__badge track-editor__badge--netease">{{ t('events.tracks.netease') }}</span>
               <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
               <span v-if="track.source === 'bilibili'" class="track-editor__badge track-editor__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
               <span v-if="track.durationMs" class="track-editor__badge track-editor__badge--muted">{{ formatTrackDuration(track.durationMs) }}</span>
             </div>
-            <button type="button" class="track-editor__remove" @click="removeTrack(index)">{{ t('events.tracks.delete') }}</button>
+            <button type="button" class="track-editor__remove" @click="removeTrack(sourceIndex)">{{ t('events.tracks.delete') }}</button>
           </div>
 
           <div class="track-editor__field-grid">
-            <label class="track-editor__field">
-              <span>{{ t('events.tracks.trackName') }}</span>
-              <input :value="track.title || ''" type="text" :placeholder="t('events.tracks.trackNamePlaceholder')" @input="updateField(index, 'title', $event.target.value)" />
-            </label>
+            <div class="track-editor__cover-preview" :class="{ 'track-editor__cover-preview--empty': !trackCoverUrl(track) }">
+              <img v-if="trackCoverUrl(track)" :src="trackCoverUrl(track)" :alt="track.title || t('events.tracks.cover')" loading="lazy" />
+              <span v-else aria-hidden="true">♪</span>
+            </div>
+            <div class="track-editor__fields">
+              <label class="track-editor__field">
+                <span>{{ t('events.tracks.trackName') }}</span>
+                <input :value="track.title || ''" type="text" :placeholder="t('events.tracks.trackNamePlaceholder')" @input="updateField(sourceIndex, 'title', $event.target.value)" />
+              </label>
 
-            <label class="track-editor__field">
-              <span>{{ t('events.tracks.artist') }}</span>
-              <input :value="track.artist || ''" type="text" :placeholder="t('events.tracks.artistPlaceholder')" @input="updateField(index, 'artist', $event.target.value)" />
-            </label>
+              <label class="track-editor__field">
+                <span>{{ t('events.tracks.artist') }}</span>
+                <input :value="track.artist || ''" type="text" :placeholder="t('events.tracks.artistPlaceholder')" @input="updateField(sourceIndex, 'artist', $event.target.value)" />
+              </label>
 
-            <label class="track-editor__field">
-              <span>{{ t('events.tracks.album') }}</span>
-              <input :value="track.album || ''" type="text" :placeholder="t('events.tracks.albumPlaceholder')" @input="updateField(index, 'album', $event.target.value)" />
-            </label>
+              <label class="track-editor__field">
+                <span>{{ t('events.tracks.album') }}</span>
+                <input :value="track.album || ''" type="text" :placeholder="t('events.tracks.albumPlaceholder')" @input="updateField(sourceIndex, 'album', $event.target.value)" />
+              </label>
 
-            <label class="track-editor__field">
-              <span>{{ t('events.tracks.duration') }}</span>
-              <input :value="formatEditableDuration(track.durationMs)" type="text" :placeholder="t('events.tracks.durationPlaceholder')" @input="updateDuration(index, $event.target.value)" />
-            </label>
+              <label class="track-editor__field">
+                <span>{{ t('events.tracks.duration') }}</span>
+                <input :value="formatEditableDuration(track.durationMs)" type="text" :placeholder="t('events.tracks.durationPlaceholder')" @input="updateDuration(sourceIndex, $event.target.value)" />
+              </label>
+            </div>
           </div>
         </article>
       </div>
@@ -139,7 +145,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { fetchNeteaseCollectionTracks, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
+import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
 import { searchBilibiliVideos } from '@/utils/bilibiliMusic'
 
@@ -175,8 +181,16 @@ const searchResults = ref([])
 const searchPage = ref(1)
 const searchHasMore = ref(true)
 const searchResultListRef = ref(null)
+const neteaseCoverMap = ref({})
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
+const displayTracks = computed(() => tracks.value.map((track, sourceIndex) => ({ track, sourceIndex })).reverse())
+
+const trackCoverUrl = (track) => {
+  if (track?.coverUrl) return track.coverUrl
+  if (track?.source !== 'netease' || !track?.neteaseSongId) return ''
+  return neteaseCoverMap.value[track.neteaseSongId] || ''
+}
 
 const importDetectedSource = computed(() => {
   const raw = String(playlistInput.value || '').trim()
@@ -191,6 +205,21 @@ watch(searchSource, () => {
     void runSongSearch()
   }
 })
+
+watch(tracks, async (value) => {
+  const songIds = value
+    .filter((track) => track?.source === 'netease' && track?.neteaseSongId && !track?.coverUrl)
+    .map((track) => track.neteaseSongId)
+  if (!songIds.length) return
+  try {
+    neteaseCoverMap.value = {
+      ...neteaseCoverMap.value,
+      ...await fetchNeteaseSongCoverMap(songIds)
+    }
+  } catch {
+    // Keep the placeholder when the cover lookup fails.
+  }
+}, { immediate: true })
 
 function buildManualTrack() {
   return {
@@ -700,9 +729,39 @@ async function importPlaylist() {
 
 .track-editor__field-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: 112px minmax(0, 1fr);
   gap: 12px;
   margin-top: 12px;
+}
+
+.track-editor__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+}
+
+.track-editor__cover-preview {
+  width: 112px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--app-surface-soft);
+}
+
+.track-editor__cover-preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.track-editor__cover-preview--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--app-text-tertiary);
+  font-size: 32px;
 }
 
 .track-editor__field {
@@ -731,9 +790,20 @@ async function importPlaylist() {
   }
 
   .track-editor__import-grid,
-  .track-editor__field-grid,
   .track-editor__input-row {
     grid-template-columns: 1fr;
+  }
+
+  .track-editor__field-grid {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .track-editor__fields {
+    grid-template-columns: 1fr;
+  }
+
+  .track-editor__cover-preview {
+    width: 88px;
   }
 }
 </style>
