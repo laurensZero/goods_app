@@ -302,7 +302,7 @@ function handleSeekInput(event) {
 
 function beginSeek(event) {
   isDragging.value = true
-  previewTime.value = Number(event?.target?.value) || previewTime.value || 0
+  previewTime.value = getSeekTimeFromPointer(event, Number(event?.target?.value) || previewTime.value || 0)
 }
 
 function commitSeekValue(nextTime) {
@@ -315,8 +315,19 @@ function commitSeekValue(nextTime) {
 }
 
 function commitSeek(event) {
-  const nextTime = Number(event?.target?.value) || previewTime.value || 0
+  const fallbackTime = Number(event?.target?.value) || previewTime.value || 0
+  const nextTime = event?.type === 'pointerup'
+    ? getSeekTimeFromPointer(event, fallbackTime)
+    : fallbackTime
   commitSeekValue(nextTime)
+}
+
+function getSeekTimeFromPointer(event, fallbackTime = 0) {
+  const element = event?.currentTarget
+  const rect = element?.getBoundingClientRect?.()
+  const clientX = Number(event?.clientX)
+  if (!rect || !rect.width || !Number.isFinite(clientX)) return fallbackTime
+  return ((Math.min(rect.right, Math.max(rect.left, clientX)) - rect.left) / rect.width) * sliderMax.value
 }
 
 function cancelSeek() {
