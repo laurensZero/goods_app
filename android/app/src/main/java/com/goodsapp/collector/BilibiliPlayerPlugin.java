@@ -10,7 +10,6 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
-import androidx.media3.datasource.HttpDataSourceException;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
@@ -127,7 +126,7 @@ public class BilibiliPlayerPlugin extends Plugin {
     private String classifyError(PlaybackException error) {
         if (error.getCause() instanceof HttpDataSource.InvalidResponseCodeException) return "cdn_http";
         if (error.errorCode == PlaybackException.ERROR_CODE_DECODING_FAILED) return "decoder";
-        if (error.getCause() instanceof HttpDataSourceException) return "network";
+        if (error.getCause() instanceof HttpDataSource.HttpDataSourceException) return "network";
         return "playback";
     }
     private void logError(String type, Exception error, String url) {
