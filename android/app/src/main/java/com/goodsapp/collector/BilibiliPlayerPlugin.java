@@ -146,7 +146,26 @@ public class BilibiliPlayerPlugin extends Plugin {
                 call,
                 () -> {
                     long targetMs = Math.max(0L, positionMs);
-                    player.seekTo(targetMs);
+                    long durationMs = player.getDuration();
+                    if (durationMs > 0) targetMs = Math.min(targetMs, durationMs);
+                    boolean seekable = player.isCurrentMediaItemSeekable();
+                    Log.d(TAG, "seekTo positionMs=" + targetMs + " durationMs=" + durationMs + " seekable=" + seekable);
+                    if (seekable) {
+                        player.seekTo(targetMs);
+                    } else if (!lastUrl.isEmpty()) {
+                        // 某些 Bilibili .m4s 资源没有向 ExoPlayer 暴露 seek map。
+                        // 重新从目标位置装载同一 URL，交给 HTTP Range/Extractor 处理。
+                        MediaItem currentItem = player.getCurrentMediaItem();
+                        MediaItem.Builder itemBuilder = new MediaItem.Builder().setUri(Uri.parse(lastUrl));
+                        if (currentItem != null && currentItem.mediaMetadata != null) {
+                            itemBuilder.setMediaMetadata(currentItem.mediaMetadata);
+                        }
+                        player.setMediaItem(itemBuilder.build(), targetMs);
+                        player.prepare();
+                        player.play();
+                    } else {
+                        player.seekTo(targetMs);
+                    }
                 }
         );
     }
@@ -252,6 +271,15 @@ public class BilibiliPlayerPlugin extends Plugin {
                     progressHandler.removeCallbacks(progressTicker);
                     emitState("ended");
                 }
+            }
+
+            @Override
+            public void onPositionDiscontinuity(
+                    @NonNull Player.PositionInfo oldPosition,
+                    @NonNull Player.PositionInfo newPosition,
+                    int reason
+            ) {
+                emitState("progress");
             }
 
             @Override
