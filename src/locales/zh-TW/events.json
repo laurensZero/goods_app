@@ -124,6 +124,7 @@
   "events.linkGoods": "選择關聯穀子",
   "events.linkedGoods": "關聯穀子",
   "events.linkedGoodsCount": "關聯穀子",
+  "events.longDesc": "記錄你的線下活動",
   "events.map.eventCount": "{count} 場活動",
   "events.map.locate": "為缺少座標的活動重新定位",
   "events.map.locateDone": "已為 {count} 場活動補充座標",
