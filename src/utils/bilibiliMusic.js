@@ -120,7 +120,27 @@ async function prepareBilibiliMediaUrl(url) {
   if (rawData instanceof ArrayBuffer || ArrayBuffer.isView(rawData)) {
     return URL.createObjectURL(new Blob([rawData], { type: 'video/mp4' }))
   }
-  const binary = atob(String(rawData).replace(/^data:[^,]+,/, ''))
+
+  // CapacitorHttp 在 Android 上通常会把 arraybuffer 返回成 Base64 字符串，
+  // 但不同版本也可能返回 { data: [...] } 或带 data: 前缀的字符串。
+  let encoded = rawData
+  if (encoded && typeof encoded === 'object') {
+    if (Array.isArray(encoded.data)) {
+      return URL.createObjectURL(new Blob([Uint8Array.from(encoded.data)], { type: 'video/mp4' }))
+    }
+    encoded = encoded.data
+  }
+  if (typeof encoded !== 'string') {
+    throw new Error('Bilibili 音频响应格式异常')
+  }
+  encoded = encoded.trim().replace(/^data:[^,]+,/, '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/')
+  encoded += '='.repeat((4 - (encoded.length % 4)) % 4)
+  let binary
+  try {
+    binary = atob(encoded)
+  } catch {
+    throw new Error('Bilibili 音频数据解码失败')
+  }
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
   return URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }))
 }
