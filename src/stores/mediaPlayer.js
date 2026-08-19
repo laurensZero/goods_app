@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
 import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
+import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
 
 function getTrackIdentity(track = {}) {
   return String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
@@ -71,6 +72,38 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let audio = null
   let rafId = 0
   let playRequestToken = 0
+  let nativeListenersReady = false
+  let nativeListenerPromise = null
+
+  function isNativeBilibiliTrack(track = currentTrack.value) {
+    return isAndroidBilibiliPlayer() && String(track?.source || '').trim() === 'bilibili'
+  }
+
+  async function ensureNativeListeners() {
+    if (!isAndroidBilibiliPlayer() || nativeListenersReady) return
+    if (nativeListenerPromise) return nativeListenerPromise
+    nativeListenerPromise = Promise.all([
+      addBilibiliPlayerListener('state', (event = {}) => {
+        currentTime.value = Math.max(0, Number(event.positionMs || 0) / 1000)
+        duration.value = Math.max(0, Number(event.durationMs || 0) / 1000)
+        isLoading.value = event.state === 'buffering'
+        isPlaying.value = event.state === 'playing'
+        if (event.state === 'ended') {
+          isPlaying.value = false
+          if (hasNext.value) void playAtIndex(currentIndex.value + 1)
+        }
+        syncMediaSessionPlaybackState()
+        syncMediaSessionPositionState()
+      }),
+      addBilibiliPlayerListener('error', (event = {}) => {
+        lastError.value = `${event.type || 'playback'}: ${event.message || 'Bilibili 原生播放失败'}`
+        isLoading.value = false
+        isPlaying.value = false
+        syncMediaSessionPlaybackState()
+      })
+    ]).then(() => { nativeListenersReady = true }).finally(() => { nativeListenerPromise = null })
+    return nativeListenerPromise
+  }
 
   const currentTrack = computed(() => queue.value[currentIndex.value] || null)
   const currentTrackId = computed(() => getTrackIdentity(currentTrack.value))
@@ -127,6 +160,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     if (audio) {
       audio.volume = normalized
+    }
+    if (isNativeBilibiliTrack()) {
+      void bilibiliPlayer.setVolume(isMuted.value ? 0 : normalized)
     }
 
     persistVolume(normalized)
@@ -417,9 +453,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   async function playAtIndex(index) {
-    const targetAudio = ensureAudio()
     const track = queue.value[index]
-    if (!targetAudio || !track) return
+    const nativeBilibili = isNativeBilibiliTrack(track)
+    const targetAudio = nativeBilibili ? null : ensureAudio()
+    if ((!targetAudio && !nativeBilibili) || !track) return
     const trackId = getTrackIdentity(track)
     const requestToken = ++playRequestToken
 
@@ -429,8 +466,15 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     currentIndex.value = index
 
     try {
+      if (nativeBilibili) await ensureNativeListeners()
       const url = await resolvePlayableUrl(track)
       if (requestToken !== playRequestToken || getTrackIdentity(queue.value[index]) !== trackId) return
+      if (nativeBilibili) {
+        await playBilibiliNative({ url, title: track.title, artist: track.artist })
+        miniVisible.value = true
+        void resolveLyrics(track)
+        return
+      }
       if (targetAudio.src !== url) {
         targetAudio.src = url
       }
@@ -483,6 +527,19 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   async function toggleTrackPlayback(track, nextQueue = []) {
+    if (isNativeBilibiliTrack(track)) {
+      const identity = getTrackIdentity(track)
+      if (currentTrackId.value === identity && isPlaying.value) {
+        await bilibiliPlayer.pause()
+        return
+      }
+      if (currentTrackId.value === identity && !isLoading.value && duration.value > 0) {
+        await bilibiliPlayer.resume()
+        return
+      }
+      await playTrack(track, nextQueue)
+      return
+    }
     const targetAudio = ensureAudio()
     const identity = getTrackIdentity(track)
     if (!targetAudio || !identity) return
@@ -506,6 +563,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   async function togglePlayPause() {
+    if (isNativeBilibiliTrack()) {
+      if (isPlaying.value) await bilibiliPlayer.pause()
+      else await bilibiliPlayer.resume()
+      return
+    }
     const targetAudio = ensureAudio()
     if (!targetAudio || !currentTrack.value) return
 
@@ -528,6 +590,13 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function seekTo(nextTime) {
+    if (isNativeBilibiliTrack()) {
+      const bounded = Math.min(Math.max(0, Number(nextTime) || 0), duration.value || 0)
+      currentTime.value = bounded
+      void bilibiliPlayer.seekTo(Math.round(bounded * 1000))
+      syncMediaSessionPositionState()
+      return
+    }
     const targetAudio = ensureAudio()
     if (!targetAudio) return
 
@@ -538,7 +607,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function setVolume(nextVolume) {
-    ensureAudio()
     applyVolume(nextVolume)
   }
 
@@ -547,6 +615,17 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function toggleMute() {
+    if (isNativeBilibiliTrack()) {
+      if (isMuted.value) {
+        isMuted.value = false
+        applyVolume(volume.value > 0 ? volume.value : (previousVolumeBeforeMute.value || 0.8))
+      } else {
+        if (volume.value > 0) previousVolumeBeforeMute.value = volume.value
+        isMuted.value = true
+        void bilibiliPlayer.setVolume(0)
+      }
+      return
+    }
     const targetAudio = ensureAudio()
     if (!targetAudio) return
 
@@ -567,6 +646,17 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function stopPlayback() {
+    if (isNativeBilibiliTrack()) {
+      playRequestToken += 1
+      void bilibiliPlayer.stop()
+      currentTime.value = 0
+      duration.value = 0
+      isPlaying.value = false
+      isLoading.value = false
+      resetLyrics()
+      syncMediaSessionMetadata(null)
+      return
+    }
     if (!audio) return
     playRequestToken += 1
     audio.pause()
