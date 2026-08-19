@@ -110,7 +110,12 @@ async function biliSearchJson(query) {
 }
 
 async function prepareBilibiliMediaUrl(url) {
-  return toHttpsUrl(url)
+  const normalizedUrl = toHttpsUrl(url)
+  if (!normalizedUrl) return ''
+  if (!Capacitor.isNativePlatform()) {
+    return `/bilibili-media?url=${encodeURIComponent(normalizedUrl)}`
+  }
+  return normalizedUrl
 }
 
 async function getWbiQuery(params) {
@@ -164,6 +169,18 @@ export async function fetchBilibiliPlayableUrl(bvid) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) throw new Error('缺少 Bilibili 视频 BV 号')
   const detail = await biliJson('/x/web-interface/view', { bvid: normalizedBvid })
+  if (!Capacitor.isNativePlatform()) {
+    const webPlayData = await biliJson('/x/player/playurl', {
+      bvid: normalizedBvid,
+      cid: detail?.cid,
+      qn: 0,
+      fnver: 0,
+      fnval: 0,
+      fourk: 1
+    })
+    const legacyUrl = toHttpsUrl(webPlayData?.durl?.[0]?.url || webPlayData?.durl?.[0]?.backup_url)
+    if (legacyUrl) return { url: await prepareBilibiliMediaUrl(legacyUrl), code: 0 }
+  }
   const playData = await biliJson('/x/player/playurl', {
     bvid: normalizedBvid,
     cid: detail?.cid,

@@ -140,8 +140,9 @@ public class BilibiliPlayerPlugin extends Plugin {
 
     @PluginMethod
     public void seekTo(PluginCall call) {
-        long positionMs = call.getLong("positionMs", 0L);
-
+        double rawPositionMs = call.getDouble("positionMs", 0.0);
+        long positionMs = Math.round(rawPositionMs);
+        
         runPlayerCommand(
                 call,
                 () -> {
