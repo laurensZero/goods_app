@@ -6,8 +6,14 @@ import {
   resolveMihoyoImportDraft,
   resolveMihoyoVariantDraft,
 } from '../importResolver'
+import { parseCategoryFromName } from '../index'
 
 describe('mihoyo import resolver', () => {
+  it('distinguishes acrylic pendants from acrylic standees', () => {
+    expect(parseCategoryFromName('流萤 亚克力挂件')).toBe('挂件')
+    expect(parseCategoryFromName('流萤 亚克力立牌')).toBe('立牌')
+  })
+
   it('selects only the first image by default while keeping all candidates', () => {
     const draft = resolveMihoyoImportDraft({
       name: '原神 角色徽章',
