@@ -1,9 +1,11 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { createLogger } from '@/utils/logger'
 
 const BILIBILI_API_BASE = 'https://api.bilibili.com'
 const BILIBILI_PROXY_PREFIX = '/bilibili-api'
 const BILIBILI_REFERER = 'https://www.bilibili.com/'
+const logger = createLogger('bilibili-media')
 const MIXIN_KEY_ENC_TAB = [
   46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43,
   5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41, 13, 37, 48, 7,
@@ -116,8 +118,18 @@ async function prepareBilibiliMediaUrl(url) {
     responseType: 'arraybuffer'
   })
   const rawData = response?.data
+  logger.info('native-response', {
+    status: response?.status,
+    responseType: typeof rawData,
+    isArrayBuffer: rawData instanceof ArrayBuffer,
+    isTypedArray: ArrayBuffer.isView(rawData),
+    objectKeys: rawData && typeof rawData === 'object' && !ArrayBuffer.isView(rawData) ? Object.keys(rawData).slice(0, 8) : [],
+    dataLength: typeof rawData === 'string' ? rawData.length : rawData?.byteLength || rawData?.length || 0,
+    contentType: response?.headers?.['content-type'] || response?.headers?.['Content-Type'] || ''
+  })
   if (!rawData) throw new Error('Bilibili 音频下载为空')
   if (rawData instanceof ArrayBuffer || ArrayBuffer.isView(rawData)) {
+    logger.info('native-binary-success', { byteLength: rawData.byteLength })
     return URL.createObjectURL(new Blob([rawData], { type: 'video/mp4' }))
   }
 
@@ -126,22 +138,31 @@ async function prepareBilibiliMediaUrl(url) {
   let encoded = rawData
   if (encoded && typeof encoded === 'object') {
     if (Array.isArray(encoded.data)) {
+      logger.info('native-buffer-object-success', { byteLength: encoded.data.length })
       return URL.createObjectURL(new Blob([Uint8Array.from(encoded.data)], { type: 'video/mp4' }))
     }
     encoded = encoded.data
   }
   if (typeof encoded !== 'string') {
+    logger.error('native-decode-invalid-type', { responseType: typeof encoded })
     throw new Error('Bilibili 音频响应格式异常')
   }
   encoded = encoded.trim().replace(/^data:[^,]+,/, '').replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/')
+  logger.info('native-base64-input', { dataLength: encoded.length, prefix: encoded.slice(0, 16) })
   encoded += '='.repeat((4 - (encoded.length % 4)) % 4)
   let binary
   try {
     binary = atob(encoded)
   } catch {
+    logger.error('native-base64-decode-failed', {
+      dataLength: encoded.length,
+      prefix: encoded.slice(0, 32),
+      remainder: encoded.length % 4
+    })
     throw new Error('Bilibili 音频数据解码失败')
   }
   const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0))
+  logger.info('native-base64-success', { byteLength: bytes.byteLength })
   return URL.createObjectURL(new Blob([bytes], { type: 'video/mp4' }))
 }
 
