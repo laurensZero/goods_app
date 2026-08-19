@@ -457,6 +457,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   async function playAtIndex(index) {
+    const previousTrack = currentTrack.value
     const track = queue.value[index]
     const nativeBilibili = isNativeBilibiliTrack(track)
     const targetAudio = nativeBilibili ? null : ensureAudio()
@@ -470,6 +471,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     currentIndex.value = index
 
     try {
+      if (isNativeBilibiliTrack(previousTrack) && getTrackIdentity(previousTrack) !== trackId) {
+        await bilibiliPlayer.stop()
+      }
       if (nativeBilibili) await ensureNativeListeners()
       const playable = await resolvePlayableUrl(track)
       const url = typeof playable === 'string' ? playable : playable.url
