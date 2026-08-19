@@ -237,17 +237,23 @@ function buildManualTrack() {
 }
 
 function normalizeTrack(track = {}) {
+  const rawId = String(track.id || '').trim()
+  const bilibiliVideoId = String(
+    track.bilibiliVideoId
+      || track.bvid
+      || (rawId.match(/^bili_(BV[a-zA-Z0-9]+)/i)?.[1] || '')
+  ).trim()
   return {
-    id: String(track.id || `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+    id: rawId || `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     title: String(track.title || '').trim(),
     artist: String(track.artist || '').trim(),
     album: String(track.album || '').trim(),
     coverUrl: String(track.coverUrl || '').trim(),
     durationMs: Math.max(0, Number(track.durationMs) || 0),
-    source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : track.bilibiliVideoId ? 'bilibili' : 'manual')),
+    source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : bilibiliVideoId ? 'bilibili' : 'manual')),
     neteaseSongId: String(track.neteaseSongId || '').trim(),
     qqSongId: String(track.qqSongId || '').trim(),
-    bilibiliVideoId: String(track.bilibiliVideoId || track.bvid || '').trim()
+    bilibiliVideoId
   }
 }
 

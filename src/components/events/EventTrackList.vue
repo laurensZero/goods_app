@@ -143,7 +143,8 @@ const normalizedTracks = computed(() =>
   (Array.isArray(props.tracks) ? props.tracks : []).map((item) => {
     const neteaseSongId = String(item?.neteaseSongId || '').trim()
     const qqSongId = String(item?.qqSongId || '').trim()
-    const bilibiliVideoId = String(item?.bilibiliVideoId || '').trim()
+    const rawTrackId = String(item?.id || '').trim()
+    const bilibiliVideoId = String(item?.bilibiliVideoId || item?.bvid || (rawTrackId.match(/^bili_(BV[a-zA-Z0-9]+)/i)?.[1] || '')).trim()
     const source = String(item?.source || '').trim()
     const coverUrl = String(
       item?.coverUrl
@@ -153,6 +154,7 @@ const normalizedTracks = computed(() =>
     return {
       ...item,
       identity: String(item?.id || neteaseSongId || qqSongId || bilibiliVideoId || ''),
+      bilibiliVideoId,
       coverUrl,
       durationText: formatTrackDuration(item?.durationMs)
     }
