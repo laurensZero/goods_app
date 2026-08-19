@@ -40,7 +40,6 @@
             @pointerdown="beginSeek"
             @input="handleSeekInput"
             @change="commitSeek"
-            @click="handleSeekClick"
             @pointerup="commitSeek"
             @touchend="commitSeek"
             @pointercancel="cancelSeek"
@@ -313,14 +312,6 @@ function commitSeekValue(nextTime) {
   window.setTimeout(() => {
     isDragging.value = false
   }, 0)
-}
-
-function handleSeekClick(event) {
-  const element = event?.currentTarget
-  const rect = element?.getBoundingClientRect?.()
-  const clientX = Number(event?.clientX)
-  if (!rect || !rect.width || !Number.isFinite(clientX)) return
-  commitSeekValue(((clientX - rect.left) / rect.width) * sliderMax.value)
 }
 
 function commitSeek(event) {
