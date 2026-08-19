@@ -124,6 +124,7 @@
   "events.linkGoods": "グッズを紐付け",
   "events.linkedGoods": "関連グッズ",
   "events.linkedGoodsCount": "関連グッズ",
+  "events.longDesc": "あなたのオフライン活動を記録する",
   "events.map.eventCount": "{count} 件のイベント",
   "events.map.locate": "座標が未設定のイベントを再定位",
   "events.map.locateDone": "{count} 件のイベントに座標を追加しました",

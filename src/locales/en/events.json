@@ -124,6 +124,7 @@
   "events.linkGoods": "Link Goods",
   "events.linkedGoods": "Linked Goods",
   "events.linkedGoodsCount": "Linked Goods",
+  "events.longDesc": "Record your offline activities",
   "events.map.eventCount": "{count} events",
   "events.map.locate": "Locate events with missing coordinates",
   "events.map.locateDone": "Coordinates added for {count} events",
