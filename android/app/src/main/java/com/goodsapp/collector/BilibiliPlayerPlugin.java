@@ -144,7 +144,10 @@ public class BilibiliPlayerPlugin extends Plugin {
 
         runPlayerCommand(
                 call,
-                () -> player.seekTo(Math.max(0L, positionMs))
+                () -> {
+                    long targetMs = Math.max(0L, positionMs);
+                    player.seekTo(targetMs);
+                }
         );
     }
 
