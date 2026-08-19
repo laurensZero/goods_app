@@ -86,8 +86,12 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       addBilibiliPlayerListener('state', (event = {}) => {
         currentTime.value = Math.max(0, Number(event.positionMs || 0) / 1000)
         duration.value = Math.max(0, Number(event.durationMs || 0) / 1000)
-        isLoading.value = event.state === 'buffering'
-        isPlaying.value = event.state === 'playing'
+        if (event.state === 'buffering') isLoading.value = true
+        if (event.state === 'playing') {
+          isLoading.value = false
+          isPlaying.value = true
+        }
+        if (event.state === 'paused' || event.state === 'ended') isPlaying.value = false
         if (event.state === 'ended') {
           isPlaying.value = false
           if (hasNext.value) void playAtIndex(currentIndex.value + 1)
@@ -387,25 +391,25 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
-    let url = ''
+    let playable = ''
     if (source === 'bilibili' && bilibiliVideoId) {
       const result = await fetchBilibiliPlayableUrl(bilibiliVideoId)
-      url = result.url
+      playable = result
     } else if (source === 'qq' && qqSongId) {
       const result = await fetchQQPlayableUrl(qqSongId)
-      url = result.url
+      playable = result.url
     } else if (neteaseSongId) {
       const result = await fetchNeteasePlayableUrl(neteaseSongId)
-      url = result.url
+      playable = result.url
     } else if (qqSongId) {
       const result = await fetchQQPlayableUrl(qqSongId)
-      url = result.url
+      playable = result.url
     } else {
       throw new Error('缺少歌曲 ID，无法播放')
     }
 
-    lruSet(playableUrlCache, trackId, url)
-    return url
+    lruSet(playableUrlCache, trackId, playable)
+    return playable
   }
 
   async function resolveLyrics(track) {
@@ -467,10 +471,16 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     try {
       if (nativeBilibili) await ensureNativeListeners()
-      const url = await resolvePlayableUrl(track)
+      const playable = await resolvePlayableUrl(track)
+      const url = typeof playable === 'string' ? playable : playable.url
       if (requestToken !== playRequestToken || getTrackIdentity(queue.value[index]) !== trackId) return
       if (nativeBilibili) {
-        await playBilibiliNative({ url, title: track.title, artist: track.artist })
+        await playBilibiliNative({
+          url,
+          fallbackUrls: playable?.fallbackUrls,
+          title: track.title,
+          artist: track.artist
+        })
         miniVisible.value = true
         void resolveLyrics(track)
         return

@@ -6,8 +6,13 @@ export function isAndroidBilibiliPlayer() {
   return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
 }
 
-export async function playBilibiliNative({ url, title = '', artist = '' } = {}) {
-  return BilibiliPlayer.play({ url: String(url || ''), title: String(title || ''), artist: String(artist || '') })
+export async function playBilibiliNative({ url, fallbackUrls = [], title = '', artist = '' } = {}) {
+  return BilibiliPlayer.play({
+    url: String(url || ''),
+    fallbackUrls: Array.isArray(fallbackUrls) ? fallbackUrls : [],
+    title: String(title || ''),
+    artist: String(artist || '')
+  })
 }
 
 export function addBilibiliPlayerListener(eventName, listener) {

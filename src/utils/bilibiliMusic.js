@@ -176,9 +176,17 @@ export async function fetchBilibiliPlayableUrl(bvid) {
   const audioStreams = Array.isArray(dashData?.audio) ? dashData.audio : []
   if (!audioStreams.length) throw new Error('该 Bilibili 视频没有可用音频流')
   const bestAudio = selectBilibiliAudioStream(audioStreams)
-  const url = toHttpsUrl(bestAudio?.baseUrl || bestAudio?.base_url || bestAudio?.backupUrl?.[0] || bestAudio?.backup_url?.[0])
+  const baseUrl = bestAudio?.baseUrl || bestAudio?.base_url
+  const backupUrls = (bestAudio?.backupUrl || bestAudio?.backup_url || [])
+    .map((candidate) => toHttpsUrl(candidate))
+    .filter(Boolean)
+  const url = toHttpsUrl(baseUrl || backupUrls[0])
   if (!url) throw new Error('Bilibili 音频流地址为空')
-  return { url: await prepareBilibiliMediaUrl(url), code: 0 }
+  return {
+    url: await prepareBilibiliMediaUrl(url),
+    fallbackUrls: backupUrls.filter((candidate) => candidate !== url),
+    code: 0
+  }
 }
 
 export function selectBilibiliAudioStream(audioStreams = []) {
