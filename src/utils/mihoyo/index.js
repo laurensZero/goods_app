@@ -568,7 +568,8 @@ export async function fetchCartList(cookieStr) {
 const CATEGORY_KEYWORDS = [
   { keywords: ['满赠', '赠品'], category: '满赠' },
   { keywords: ['手办'], category: '手办' },
-  { keywords: ['立牌', '亚克力'], category: '立牌' },
+  // 只有明确写出「立牌」才归入立牌；「亚克力挂件」应由下一条归入挂件。
+  { keywords: ['立牌'], category: '立牌' },
   { keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], category: '挂件' },
   { keywords: ['徽章', '马口铁', '胸章', 'Pin', 'pin'], category: '徽章' },
   { keywords: ['明信片'], category: '明信片' },
