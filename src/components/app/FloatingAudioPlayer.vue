@@ -38,8 +38,9 @@
             :value="sliderValue"
             :style="{ '--player-progress': progressPercent }"
             @pointerdown="beginSeek"
+            @touchstart="beginSeek"
             @input="handleSeekInput"
-            @change="commitSeek"
+            @touchmove="handleSeekMove"
             @pointerup="commitSeek"
             @touchend="commitSeek"
             @pointercancel="cancelSeek"
@@ -243,6 +244,8 @@ const queueTriggerRef = ref(null)
 const queuePopoverRef = ref(null)
 const queueListRef = ref(null)
 const queuePopoverStyle = ref(null)
+let lastCommittedSeekValue = null
+let lastCommittedSeekAt = 0
 const effectiveCurrentTime = computed(() => (isDragging.value ? previewTime.value : (playerStore.currentTime || 0)))
 const progressPercent = computed(() => {
   const total = Number(playerStore.duration) || 0
@@ -305,8 +308,20 @@ function beginSeek(event) {
   previewTime.value = getSeekTimeFromPointer(event, Number(event?.target?.value) || previewTime.value || 0)
 }
 
+function handleSeekMove(event) {
+  isDragging.value = true
+  previewTime.value = getSeekTimeFromPointer(event, previewTime.value || 0)
+}
+
 function commitSeekValue(nextTime) {
   const bounded = Math.min(Math.max(0, Number(nextTime) || 0), sliderMax.value)
+  const now = Date.now()
+  if (lastCommittedSeekValue !== null && Math.abs(lastCommittedSeekValue - bounded) < 0.01 && now - lastCommittedSeekAt < 250) {
+    isDragging.value = false
+    return
+  }
+  lastCommittedSeekValue = bounded
+  lastCommittedSeekAt = now
   previewTime.value = bounded
   playerStore.seekTo(bounded)
   window.setTimeout(() => {
@@ -316,7 +331,7 @@ function commitSeekValue(nextTime) {
 
 function commitSeek(event) {
   const fallbackTime = Number(event?.target?.value) || previewTime.value || 0
-  const nextTime = event?.type === 'pointerup'
+  const nextTime = event?.type === 'pointerup' || event?.type === 'touchend'
     ? getSeekTimeFromPointer(event, fallbackTime)
     : fallbackTime
   commitSeekValue(nextTime)
@@ -325,8 +340,15 @@ function commitSeek(event) {
 function getSeekTimeFromPointer(event, fallbackTime = 0) {
   const element = event?.currentTarget
   const rect = element?.getBoundingClientRect?.()
-  const clientX = Number(event?.clientX)
-  if (!rect || !rect.width || !Number.isFinite(clientX)) return fallbackTime
+  if (!rect || !rect.width) return fallbackTime
+  const touch = event?.changedTouches?.[0] || event?.touches?.[0]
+  const candidates = [
+    Number(touch?.clientX),
+    Number(event?.clientX),
+    Number.isFinite(Number(event?.offsetX)) ? rect.left + Number(event.offsetX) : NaN
+  ]
+  const clientX = candidates.find((value) => Number.isFinite(value) && value > 0)
+  if (!Number.isFinite(clientX)) return fallbackTime
   return ((Math.min(rect.right, Math.max(rect.left, clientX)) - rect.left) / rect.width) * sliderMax.value
 }
 
