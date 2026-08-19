@@ -37,11 +37,12 @@
             step="0.01"
             :value="sliderValue"
             :style="{ '--player-progress': progressPercent }"
+            @pointerdown="beginSeek"
             @input="handleSeekInput"
             @change="commitSeek"
             @pointerup="commitSeek"
             @touchend="commitSeek"
-            @blur="cancelSeek"
+            @pointercancel="cancelSeek"
           />
           <div class="floating-player__time">
             <span>{{ currentTimeLabel }}</span>
@@ -297,6 +298,11 @@ watch(
 function handleSeekInput(event) {
   isDragging.value = true
   previewTime.value = Number(event?.target?.value) || 0
+}
+
+function beginSeek(event) {
+  isDragging.value = true
+  previewTime.value = Number(event?.target?.value) || previewTime.value || 0
 }
 
 function commitSeek(event) {
