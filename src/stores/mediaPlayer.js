@@ -76,7 +76,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let nativeListenerPromise = null
 
   function isNativeBilibiliTrack(track = currentTrack.value) {
-    return isAndroidBilibiliPlayer() && String(track?.source || '').trim() === 'bilibili'
+    return isAndroidBilibiliPlayer() && Boolean(String(track?.bilibiliVideoId || '').trim())
   }
 
   async function ensureNativeListeners() {
@@ -392,7 +392,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
     let playable = ''
-    if (source === 'bilibili' && bilibiliVideoId) {
+    if (bilibiliVideoId && (source === 'bilibili' || (!neteaseSongId && !qqSongId))) {
       const result = await fetchBilibiliPlayableUrl(bilibiliVideoId)
       playable = result
     } else if (source === 'qq' && qqSongId) {
