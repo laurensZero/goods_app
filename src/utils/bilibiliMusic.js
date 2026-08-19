@@ -164,7 +164,15 @@ export async function fetchBilibiliPlayableUrl(bvid) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) throw new Error('缺少 Bilibili 视频 BV 号')
   const detail = await biliJson('/x/web-interface/view', { bvid: normalizedBvid })
-  const playData = await biliJson('/x/player/playurl', { bvid: normalizedBvid, cid: detail?.cid, qn: 0, fnver: 0, fnval: 16, fourk: 1 })
+  const playData = await biliJson('/x/player/playurl', {
+    bvid: normalizedBvid,
+    cid: detail?.cid,
+    qn: 0,
+    fnver: 0,
+    fnval: 16,
+    fourk: 1,
+    ...(Capacitor.isNativePlatform() ? { platform: 'android' } : {})
+  })
   const dashData = playData?.dash
   const audioStreams = Array.isArray(dashData?.audio) ? dashData.audio : []
   if (!audioStreams.length) throw new Error('该 Bilibili 视频没有可用音频流')
