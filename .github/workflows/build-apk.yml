@@ -192,7 +192,8 @@ jobs:
           VERSION_NAME="${VERSION_NAME#V}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
-          echo "asset_name=goods-app-$TAG-release.apk" >> "$GITHUB_OUTPUT"
+          # Keep the Storage filename stable regardless of whether the Git tag is v1.10.2 or 1.10.2.
+          echo "asset_name=goods-app-$VERSION_NAME-release.apk" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
         run: npm ci
@@ -356,6 +357,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RELEASE_TAG: ${{ steps.release_meta.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release_meta.outputs.version_name }}
           RELEASE_ASSET_NAME: ${{ steps.release_meta.outputs.asset_name }}
           APK_SHA256: ${{ steps.release_meta.outputs.apk_sha256 }}
         run: |
@@ -372,7 +374,7 @@ jobs:
           FILE_SIZE=$(stat -c%s "${APK_FILE}")
 
           echo "Uploading APK to Supabase Storage: ${STORAGE_PATH}"
-          curl -sS -X POST \
+          curl -sS -f -X POST \
             "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Content-Type: application/vnd.android.package-archive" \
@@ -381,16 +383,16 @@ jobs:
             -w "\nHTTP %{http_code}"
 
           echo ""
-          echo "Inserting APK record into ota_releases..."
+          echo "Upserting APK record into ota_releases..."
 
           PAYLOAD=$(jq -n \
             --arg channel "stable" \
             --arg type "apk" \
-            --arg version "${RELEASE_TAG}" \
+             --arg version "${RELEASE_VERSION}" \
             --arg storage_path "${STORAGE_PATH}" \
             --argjson file_size "${FILE_SIZE}" \
             --arg sha256 "${APK_SHA256}" \
-            --arg update_level "${UPDATE_LEVEL:-prompt}" \
+            --arg update_level "${{ steps.release_notes.outputs.update_level || 'prompt' }}" \
             --arg notes "$(cat release-notes.md)" \
             '{
               channel: $channel,
@@ -403,14 +405,34 @@ jobs:
               notes: $notes
             }')
 
-          curl -sS -X POST \
-            "${SUPABASE_URL}/rest/v1/ota_releases" \
+          VERSION_ENCODED=$(printf '%s' "${RELEASE_VERSION}" | jq -sRr @uri)
+          EXISTING=$(curl -sS -f \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=id&channel=eq.stable&type=eq.apk&version=eq.${VERSION_ENCODED}&limit=1" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: return=minimal" \
-            -d "${PAYLOAD}" \
-            -w "\nInsert HTTP %{http_code}"
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}")
+          EXISTING_ID=$(echo "${EXISTING}" | jq -r '.[0].id // empty')
+
+          if [ -n "${EXISTING_ID}" ]; then
+            echo "Updating existing APK record id=${EXISTING_ID}"
+            curl -sS -f -X PATCH \
+              "${SUPABASE_URL}/rest/v1/ota_releases?id=eq.${EXISTING_ID}" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "${PAYLOAD}" \
+              -w "\nUpdate HTTP %{http_code}"
+          else
+            echo "Inserting new APK record"
+            curl -sS -f -X POST \
+              "${SUPABASE_URL}/rest/v1/ota_releases" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "${PAYLOAD}" \
+              -w "\nInsert HTTP %{http_code}"
+          fi
 
           echo ""
           echo "Pruning old APKs, keeping latest 2..."
