@@ -1,6 +1,8 @@
 package com.goodsapp.collector;
 
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -14,6 +16,7 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.JSArray;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -21,6 +24,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 @CapacitorPlugin(name = "BilibiliPlayer")
 public class BilibiliPlayerPlugin extends Plugin {
@@ -37,6 +42,17 @@ public class BilibiliPlayerPlugin extends Plugin {
 
     private ExoPlayer player;
     private String lastUrl = "";
+    private final Handler progressHandler = new Handler(Looper.getMainLooper());
+    private final List<String> fallbackUrls = new ArrayList<>();
+    private int fallbackIndex = 0;
+    private final Runnable progressTicker = new Runnable() {
+        @Override public void run() {
+            if (player != null && player.isPlaying()) {
+                emitState("progress");
+                progressHandler.postDelayed(this, 250L);
+            }
+        }
+    };
 
     // =========================
     // Play
@@ -55,12 +71,21 @@ public class BilibiliPlayerPlugin extends Plugin {
 
         String title = call.getString("title", "");
         String artist = call.getString("artist", "");
+        JSArray requestedFallbacks = call.getArray("fallbackUrls");
 
         getActivity().runOnUiThread(() -> {
             try {
                 ensurePlayer();
 
                 lastUrl = finalUrl;
+                fallbackUrls.clear();
+                fallbackIndex = 0;
+                if (requestedFallbacks != null) {
+                    for (int index = 0; index < requestedFallbacks.length(); index += 1) {
+                        String fallback = requestedFallbacks.optString(index, "");
+                        if (!fallback.isEmpty() && !fallback.equals(finalUrl)) fallbackUrls.add(fallback);
+                    }
+                }
 
                 MediaMetadata metadata = new MediaMetadata.Builder()
                         .setTitle(title)
@@ -201,6 +226,12 @@ public class BilibiliPlayerPlugin extends Plugin {
 
             @Override
             public void onIsPlayingChanged(boolean isPlaying) {
+                if (isPlaying) {
+                    progressHandler.removeCallbacks(progressTicker);
+                    progressHandler.post(progressTicker);
+                } else {
+                    progressHandler.removeCallbacks(progressTicker);
+                }
                 emitState(
                         isPlaying
                                 ? "playing"
@@ -215,6 +246,7 @@ public class BilibiliPlayerPlugin extends Plugin {
                 } else if (state == Player.STATE_READY) {
                     emitState("ready");
                 } else if (state == Player.STATE_ENDED) {
+                    progressHandler.removeCallbacks(progressTicker);
                     emitState("ended");
                 }
             }
@@ -239,6 +271,19 @@ public class BilibiliPlayerPlugin extends Plugin {
             @NonNull PlaybackException error
     ) {
         String url = currentUrl();
+
+        HttpDataSource.InvalidResponseCodeException httpError = findHttpError(error);
+        if (httpError != null && httpError.responseCode == 403 && fallbackIndex < fallbackUrls.size()) {
+            String retryUrl = fallbackUrls.get(fallbackIndex++);
+            Log.w(TAG, "CDN 403, retrying fallback " + fallbackIndex + "/" + fallbackUrls.size() + " host=" + hostOf(retryUrl));
+            lastUrl = retryUrl;
+            getActivity().runOnUiThread(() -> {
+                player.setMediaItem(MediaItem.fromUri(retryUrl));
+                player.prepare();
+                player.play();
+            });
+            return;
+        }
 
         Log.e(
                 TAG,
@@ -468,6 +513,8 @@ public class BilibiliPlayerPlugin extends Plugin {
     }
 
     private void releasePlayer() {
+        progressHandler.removeCallbacks(progressTicker);
+        fallbackUrls.clear();
         if (player != null) {
             Log.d(TAG, "Releasing ExoPlayer");
             player.release();
