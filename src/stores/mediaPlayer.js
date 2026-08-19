@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
 import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
-import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
+import { fetchBilibiliPlayableUrl, parseBilibiliVideoId } from '@/utils/bilibiliMusic'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
 
 function getTrackIdentity(track = {}) {
@@ -11,6 +11,14 @@ function getTrackIdentity(track = {}) {
 
 function normalizeQueue(queue) {
   return (Array.isArray(queue) ? queue : []).filter((item) => getTrackIdentity(item))
+}
+
+function getBilibiliVideoId(track = {}) {
+  const explicitId = String(track?.bilibiliVideoId || track?.bvid || '').trim()
+  if (explicitId) return explicitId
+  const trackId = String(track?.id || '').trim()
+  if (/^bili_/i.test(trackId)) return trackId.slice(5).trim()
+  return parseBilibiliVideoId(track?.url || track?.webUrl || track?.link || '')
 }
 
 const MAX_CACHE_SIZE = 50
@@ -76,7 +84,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let nativeListenerPromise = null
 
   function isNativeBilibiliTrack(track = currentTrack.value) {
-    return isAndroidBilibiliPlayer() && Boolean(String(track?.bilibiliVideoId || '').trim())
+    return isAndroidBilibiliPlayer() && Boolean(getBilibiliVideoId(track))
   }
 
   async function ensureNativeListeners() {
@@ -388,7 +396,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     const source = String(track?.source || '').trim()
     const qqSongId = String(track?.qqSongId || '').trim()
-    const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
+    const bilibiliVideoId = getBilibiliVideoId(track)
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
     let playable = ''
@@ -416,7 +424,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const trackId = getTrackIdentity(track)
     const source = String(track?.source || '').trim()
     const qqSongId = String(track?.qqSongId || '').trim()
-    const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
+    const bilibiliVideoId = getBilibiliVideoId(track)
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
     if (!trackId || (!neteaseSongId && !qqSongId && !bilibiliVideoId)) {
