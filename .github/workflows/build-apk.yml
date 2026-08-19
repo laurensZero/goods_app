@@ -374,6 +374,20 @@ jobs:
           FILE_SIZE=$(stat -c%s "${APK_FILE}")
 
           echo "Uploading APK to Supabase Storage: ${STORAGE_PATH}"
+          # Remove both the canonical path and the legacy tag-based path first.
+          # This guarantees replacement when an older release used a `v` prefix.
+          LEGACY_STORAGE_PATH="apk/goods-app-${RELEASE_TAG}-release.apk"
+          for OLD_STORAGE_PATH in "${STORAGE_PATH}" "${LEGACY_STORAGE_PATH}"; do
+            if [ "${OLD_STORAGE_PATH}" != "${STORAGE_PATH}" ]; then
+              echo "Removing legacy Storage object: ${OLD_STORAGE_PATH}"
+            fi
+            OLD_STORAGE_PATH_ENCODED=$(printf '%s' "${OLD_STORAGE_PATH}" | jq -sRr @uri)
+            curl -sS -X DELETE \
+              "${SUPABASE_URL}/storage/v1/object/ota-releases/${OLD_STORAGE_PATH_ENCODED}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -o /dev/null || true
+          done
+
           curl -sS -f -X POST \
             "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
