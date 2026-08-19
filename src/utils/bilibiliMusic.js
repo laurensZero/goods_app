@@ -5,6 +5,12 @@ import { createLogger } from '@/utils/logger'
 const BILIBILI_API_BASE = 'https://api.bilibili.com'
 const BILIBILI_PROXY_PREFIX = '/bilibili-api'
 const BILIBILI_REFERER = 'https://www.bilibili.com/'
+const BILIBILI_MEDIA_HEADERS = {
+  Referer: BILIBILI_REFERER,
+  Origin: 'https://www.bilibili.com',
+  Accept: '*/*',
+  'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36'
+}
 const logger = createLogger('bilibili-media')
 const MIXIN_KEY_ENC_TAB = [
   46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43,
@@ -114,7 +120,7 @@ async function prepareBilibiliMediaUrl(url) {
 
   const response = await CapacitorHttp.get({
     url: normalizedUrl,
-    headers: { Referer: BILIBILI_REFERER },
+    headers: BILIBILI_MEDIA_HEADERS,
     responseType: 'arraybuffer'
   })
   const rawData = response?.data
@@ -128,6 +134,10 @@ async function prepareBilibiliMediaUrl(url) {
     contentType: response?.headers?.['content-type'] || response?.headers?.['Content-Type'] || ''
   })
   if (!rawData) throw new Error('Bilibili 音频下载为空')
+  if (Number(response?.status) >= 400) {
+    logger.error('native-http-failed', { status: response?.status, contentType: response?.headers?.['content-type'] || response?.headers?.['Content-Type'] || '' })
+    throw new Error(`Bilibili 音频请求失败（${response.status}）`)
+  }
   if (rawData instanceof ArrayBuffer || ArrayBuffer.isView(rawData)) {
     logger.info('native-binary-success', { byteLength: rawData.byteLength })
     return URL.createObjectURL(new Blob([rawData], { type: 'video/mp4' }))
