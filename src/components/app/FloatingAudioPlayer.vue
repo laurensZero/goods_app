@@ -40,6 +40,7 @@
             @pointerdown="beginSeek"
             @input="handleSeekInput"
             @change="commitSeek"
+            @click="handleSeekClick"
             @pointerup="commitSeek"
             @touchend="commitSeek"
             @pointercancel="cancelSeek"
@@ -305,13 +306,26 @@ function beginSeek(event) {
   previewTime.value = Number(event?.target?.value) || previewTime.value || 0
 }
 
-function commitSeek(event) {
-  const nextTime = Number(event?.target?.value) || previewTime.value || 0
-  previewTime.value = nextTime
-  playerStore.seekTo(nextTime)
+function commitSeekValue(nextTime) {
+  const bounded = Math.min(Math.max(0, Number(nextTime) || 0), sliderMax.value)
+  previewTime.value = bounded
+  playerStore.seekTo(bounded)
   window.setTimeout(() => {
     isDragging.value = false
   }, 0)
+}
+
+function handleSeekClick(event) {
+  const element = event?.currentTarget
+  const rect = element?.getBoundingClientRect?.()
+  const clientX = Number(event?.clientX)
+  if (!rect || !rect.width || !Number.isFinite(clientX)) return
+  commitSeekValue(((clientX - rect.left) / rect.width) * sliderMax.value)
+}
+
+function commitSeek(event) {
+  const nextTime = Number(event?.target?.value) || previewTime.value || 0
+  commitSeekValue(nextTime)
 }
 
 function cancelSeek() {

@@ -474,6 +474,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       if (isNativeBilibiliTrack(previousTrack) && getTrackIdentity(previousTrack) !== trackId) {
         await bilibiliPlayer.stop()
       }
+      if (nativeBilibili && audio && getTrackIdentity(previousTrack) !== trackId) {
+        audio.pause()
+        audio.removeAttribute('src')
+        audio.load()
+      }
       if (nativeBilibili) await ensureNativeListeners()
       const playable = await resolvePlayableUrl(track)
       const url = typeof playable === 'string' ? playable : playable.url
