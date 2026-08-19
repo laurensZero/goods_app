@@ -350,7 +350,7 @@ async function runSongSearch() {
     } else {
       results = await searchNeteaseSongs(keyword, limit)
     }
-    searchResults.value = results
+    searchResults.value = results.map(normalizeTrack)
     searchHasMore.value = results.length >= limit
     if (!results.length) {
       searchError.value = t('events.tracks.noResults')
@@ -382,7 +382,9 @@ async function loadMoreSearch() {
     }
     if (results.length) {
        const existingKeys = new Set(searchResults.value.map((item) => item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || item.title))
-       const fresh = results.filter((item) => !existingKeys.has(item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || item.title))
+       const fresh = results
+         .map(normalizeTrack)
+         .filter((item) => !existingKeys.has(item.neteaseSongId || item.qqSongId || item.bilibiliVideoId || item.title))
       searchResults.value = [...searchResults.value, ...fresh]
     }
     searchHasMore.value = results.length >= limit
