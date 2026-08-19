@@ -617,7 +617,6 @@ onMounted(async () => {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 6px;
-  margin-bottom: 12px;
   background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
   border-radius: 16px;
@@ -660,19 +659,76 @@ onMounted(async () => {
 /* Float footer */
 .float-footer {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  right: auto;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(100vw, 430px);
   display: flex;
-  justify-content: center;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px;
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
-  z-index: 60;
+  z-index: 9999;
+  border-radius: 22px;
+  pointer-events: auto !important;
 }
 
+/* 导入目标切换 */
+.import-target-switch {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
+  border-radius: 16px;
+  isolation: isolate;
+  pointer-events: auto !important;
+}
+
+.import-target-indicator {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: calc(50% - 10px);
+  height: 40px;
+  border-radius: 12px;
+  background: var(--app-text);
+  transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.import-target-indicator.right {
+  transform: translateX(calc(100% + 8px));
+}
+
+.import-target-tab {
+  position: relative;
+  z-index: 1;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-tertiary, #8e8e93);
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s ease;
+  pointer-events: auto !important;
+}
+
+.import-target-tab.active {
+  color: var(--app-surface);
+}
+
+/* 导入全部按钮 */
 .btn-float {
   width: 100%;
   max-width: 400px;
@@ -684,6 +740,7 @@ onMounted(async () => {
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.02em;
+  pointer-events: auto !important;
 }
 
 .btn-float:disabled {
@@ -704,13 +761,7 @@ onMounted(async () => {
 
 @media (min-width: 600px) {
   .float-footer {
-    left: 50%;
-    right: auto;
-    bottom: max(12px, env(safe-area-inset-bottom));
-    width: min(100vw, 430px);
-    transform: translateX(-50%);
-    border: 1px solid var(--app-glass-border);
-    border-radius: 22px;
+    bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
 
