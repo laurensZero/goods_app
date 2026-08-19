@@ -10,7 +10,6 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.HttpDataSource;
-import androidx.media3.datasource.HttpDataSourceException;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 
@@ -375,12 +374,12 @@ public class BilibiliPlayerPlugin extends Plugin {
         Throwable cause = error.getCause();
 
         while (cause != null) {
-            if (cause instanceof HttpDataSourceException) {
+            if (cause.getClass().getName().contains("HttpDataSource")) {
                 return "network";
             }
 
-            cause = cause.getCause();
-        }
+        cause = cause.getCause();
+}
 
         return "playback";
     }
