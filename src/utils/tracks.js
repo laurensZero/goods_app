@@ -5,6 +5,13 @@ function buildTrackId(index = 0) {
   return `track_${Date.now()}_${index}`
 }
 
+function recoverBilibiliVideoId(item = {}) {
+  const explicit = String(item?.bilibiliVideoId || item?.bvid || '').trim()
+  if (explicit) return explicit
+  const id = String(item?.id || '').trim()
+  return /^bili_/i.test(id) ? id.slice(5).trim() : ''
+}
+
 /**
  * @param {unknown} tracks
  * @returns {import('@/types/models').TrackItem[]}
@@ -20,10 +27,10 @@ export function normalizeTracks(tracks) {
       album: String(item?.album || '').trim(),
       coverUrl: String(item?.coverUrl || '').trim(),
       durationMs: Math.max(0, Number(item?.durationMs) || 0),
-      source: String(item?.source || (item?.neteaseSongId ? 'netease' : item?.qqSongId ? 'qq' : item?.bilibiliVideoId ? 'bilibili' : 'manual')).trim() || 'manual',
+      source: String(item?.source || (item?.neteaseSongId ? 'netease' : item?.qqSongId ? 'qq' : recoverBilibiliVideoId(item) ? 'bilibili' : 'manual')).trim() || 'manual',
       neteaseSongId: String(item?.neteaseSongId || '').trim(),
       qqSongId: String(item?.qqSongId || '').trim(),
-      bilibiliVideoId: String(item?.bilibiliVideoId || item?.bvid || '').trim()
+      bilibiliVideoId: recoverBilibiliVideoId(item)
     }))
     .filter((item) => item.title || item.artist || item.album || item.neteaseSongId || item.qqSongId || item.bilibiliVideoId)
 }
