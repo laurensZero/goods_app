@@ -31,9 +31,9 @@ public class BilibiliPlayerPlugin extends Plugin {
             "https://www.bilibili.com/";
 
     private static final String USER_AGENT =
-            "Mozilla/5.0 (Linux; Android 10; K) " +
-            "AppleWebKit/537.36 Chrome/120.0.0.0 " +
-            "Mobile Safari/537.36";
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/120.0.0.0 Safari/537.36";
 
     private ExoPlayer player;
     private String lastUrl = "";
@@ -182,7 +182,6 @@ public class BilibiliPlayerPlugin extends Plugin {
 
         // Bilibili CDN 防盗链关键请求头
         headers.put("Referer", REFERER);
-        headers.put("Origin", "https://www.bilibili.com");
         headers.put("Accept", "*/*");
 
         DefaultHttpDataSource.Factory httpFactory =
@@ -229,7 +228,7 @@ public class BilibiliPlayerPlugin extends Plugin {
         });
 
         Log.d(TAG, "ExoPlayer initialized");
-        Log.d(TAG, "HTTP headers Referer=" + REFERER + " Origin=https://www.bilibili.com Accept=*/* User-Agent=" + USER_AGENT);
+        Log.d(TAG, "HTTP headers Referer=" + REFERER + " Accept=*/* User-Agent=" + USER_AGENT);
     }
 
     // =========================

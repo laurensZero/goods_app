@@ -170,8 +170,7 @@ export async function fetchBilibiliPlayableUrl(bvid) {
     qn: 0,
     fnver: 0,
     fnval: 16,
-    fourk: 1,
-    ...(Capacitor.isNativePlatform() ? { platform: 'android' } : {})
+    fourk: 1
   })
   const dashData = playData?.dash
   const audioStreams = Array.isArray(dashData?.audio) ? dashData.audio : []
