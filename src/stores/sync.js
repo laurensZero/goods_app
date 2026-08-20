@@ -21,6 +21,7 @@ import { readOrCreateDeviceId, readSyncKey, writeSyncKey, removeSyncKey } from '
 import { SyncError, buildSyncErrorStatus } from '@/services/syncError'
 import { initSupabaseClient, testSupabaseConnection, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
+import { getDeviceInfo } from '@/utils/deviceInfo'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 import { isFeatureBlocked, FEATURE_KEYS } from '@/services/maintenanceModeService'
 import i18n from '@/locales'
@@ -656,10 +657,13 @@ export const useSyncStore = defineStore('sync', () => {
     try {
       if (!deviceId.value || typeof activeBackend?.writeDeviceHeartbeat !== 'function') return
       const { apkVersion, bundleVersion } = await resolveDeviceVersions()
+      const { manufacturer, model } = await getDeviceInfo()
       await activeBackend.writeDeviceHeartbeat({
         platform: IS_NATIVE ? 'native' : 'web',
         apkVersion,
-        bundleVersion
+        bundleVersion,
+        manufacturer,
+        model
       })
     } catch (e) {
       console.warn('[sync] device heartbeat failed (non-fatal):', e?.message)

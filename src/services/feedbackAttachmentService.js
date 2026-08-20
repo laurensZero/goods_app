@@ -151,6 +151,13 @@ export async function collectDeviceLog() {
   lines.push(`Time: ${now.toISOString()}`)
   lines.push(`Platform: ${navigator.platform}`)
   lines.push(`User Agent: ${navigator.userAgent}`)
+  try {
+    const { getDeviceInfo } = await import('@/utils/deviceInfo')
+    const di = await getDeviceInfo()
+    if (di?.label) lines.push(`Device Model: ${di.label}`)
+    if (di?.manufacturer) lines.push(`Manufacturer: ${di.manufacturer}`)
+    if (di?.model) lines.push(`Model: ${di.model}`)
+  } catch {}
   lines.push(`Language: ${navigator.language}`)
   lines.push(`Screen: ${screen.width}x${screen.height} (DPR: ${window.devicePixelRatio || 1})`)
   lines.push(`Viewport: ${window.innerWidth}x${window.innerHeight}`)
