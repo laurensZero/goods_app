@@ -127,10 +127,15 @@ export function createDensityFlip({
     }
 
     for (const { el, dx, dy } of animations) {
+      // Read the element's resting opacity (e.g. `opacity: 0.5` for sold/lost
+      // "exited" cards) and compose the collective fade relative to it. WAAPI
+      // keyframes are absolute and override CSS classes, so without this the
+      // exited graying vanishes mid-animation and snaps back afterwards.
+      const baseOpacity = parseFloat(getComputedStyle(el).opacity) || 1
       el.animate(
         [
-          { transform: `translate(${dx}px, ${dy}px) scale(${effectiveScale})`, opacity: effectiveFade },
-          { transform: 'translate(0, 0) scale(1)', opacity: 1 }
+          { transform: `translate(${dx}px, ${dy}px) scale(${effectiveScale})`, opacity: baseOpacity * effectiveFade },
+          { transform: 'translate(0, 0) scale(1)', opacity: baseOpacity }
         ],
         { duration: effectiveDuration, easing: effectiveEasing }
       )
