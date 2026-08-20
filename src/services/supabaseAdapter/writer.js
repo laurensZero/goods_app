@@ -40,7 +40,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
   // 设备心跳 upsert：每次同步调用一次，记录 platform / apk_version / bundle_version / last_seen_at。
   // 用 onConflict: 'device_id'，不写 force_resync_at（管理员设的强制重同步标记得以保留）。
   // last_seen_at 由服务端触发器恒取 now()，此处不必传。
-  async function writeDeviceHeartbeat({ platform = '', apkVersion = '', bundleVersion = '' } = {}) {
+  async function writeDeviceHeartbeat({ platform = '', apkVersion = '', bundleVersion = '', manufacturer = '', model = '' } = {}) {
     const db = getDb()
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -50,7 +50,9 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       user_id: currentUserId,
       platform: String(platform || ''),
       apk_version: String(apkVersion || ''),
-      bundle_version: String(bundleVersion || '')
+      bundle_version: String(bundleVersion || ''),
+      manufacturer: String(manufacturer || ''),
+      model: String(model || '')
     }
     const { error } = await withRetry(() =>
       db.from('devices').upsert(row, { onConflict: 'device_id' })

@@ -27,7 +27,9 @@ const filtered = computed(() => {
     String(d.device_id || '').toLowerCase().includes(q) ||
     String(d.userName || '').toLowerCase().includes(q) ||
     String(d.apk_version || '').toLowerCase().includes(q) ||
-    String(d.bundle_version || '').toLowerCase().includes(q)
+    String(d.bundle_version || '').toLowerCase().includes(q) ||
+    String(d.manufacturer || '').toLowerCase().includes(q) ||
+    String(d.model || '').toLowerCase().includes(q)
   )
 })
 
@@ -146,6 +148,7 @@ onMounted(load)
         </span>
         <span class="list-item-meta">
           {{ d.userName || d.user_id }} · {{ platformLabel(d.platform) }} ·
+          <template v-if="d.model || d.manufacturer">{{ d.manufacturer ? d.manufacturer + ' ' : '' }}{{ d.model || '--' }} · </template>
           APK v{{ d.apk_version || '--' }} · Bundle v{{ d.bundle_version || '--' }} · 最近活跃 {{ formatTime(d.last_seen_at) }}
         </span>
       </div>
