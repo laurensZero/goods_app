@@ -88,7 +88,6 @@ export function resolveQQCoverUrl(song = {}, size = 300) {
 function mapSongToTrack(song = {}) {
   const songMid = String(song?.mid || song?.songmid || '').trim()
   const songId = String(song?.id || song?.songid || '').trim()
-  const albumMid = String(song?.album?.mid || song?.albummid || '').trim()
   const singerList = Array.isArray(song?.singer) ? song.singer : []
   const durationSec = Number(song?.interval || song?.dt || 0)
 

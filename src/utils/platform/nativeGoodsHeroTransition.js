@@ -322,6 +322,19 @@ function readRadius(el) {
   return Number.isFinite(value) ? value : 0
 }
 
+// 已售出/已丢失( exited ) 卡片的置灰是通过 `.goods-card--exited { opacity }`
+// 实现的，值来自祖先 article(>0 且 <1)。回退 hero 时读取这个基准灰度，
+// 供覆盖层降落末段逐渐变灰使用。
+function readExitedBaseOpacity(targetEl) {
+  if (!targetEl) return 1
+  const article = typeof targetEl.closest === 'function'
+    ? targetEl.closest('.goods-card--exited')
+    : null
+  if (!article) return 1
+  const value = parseFloat(getComputedStyle(article).opacity)
+  return Number.isFinite(value) && value > 0 && value < 1 ? value : 1
+}
+
 function readRect(el) {
   if (!el) return null
   const rect = el.getBoundingClientRect()
@@ -764,6 +777,31 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   } catch (e) {
     finalize()
     return Promise.resolve()
+  }
+
+  // 回退(关闭)动画时，已售出/已丢失卡片的覆盖层镜像在降落末段逐渐变灰到卡片的
+  // 基准灰度(opacity)。去除覆盖层时卡片本身已处于灰色状态——避免灰色“瞬间闪现”，
+  // 呈现“慢慢恢复到灰色”的过渡。仅在回退方向生效，打开方向保持原有行为。
+  if (direction === 'back' && targetEl) {
+    const baseOpacity = readExitedBaseOpacity(targetEl)
+    if (baseOpacity < 1) {
+      const clipEl = node.querySelector('[data-hero-clip]')
+      if (clipEl) {
+        const scrimDuration = Math.max(120, Math.round(duration * 0.5))
+        const scrimDelay = Math.max(0, duration - scrimDuration)
+        try {
+          const scrimAnim = clipEl.animate(
+            [
+              { opacity: 1 },
+              { opacity: String(baseOpacity) }
+            ],
+            { duration: scrimDuration, delay: scrimDelay, fill: 'both', easing: resolveHeroEasing('back', snapshot, targetRect) }
+          )
+          activeHeroAnimations.add(scrimAnim)
+          extraAnimations.push(scrimAnim)
+        } catch (e) {}
+      }
+    }
   }
 
   activeHeroAnimations.add(animation)
