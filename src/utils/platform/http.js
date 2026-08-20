@@ -1,3 +1,5 @@
+import { CapacitorHttp } from '@capacitor/core'
+
 const DEFAULT_TIMEOUT_MS = 30000
 
 const DESKTOP_PROXY_RULES = Object.freeze([
@@ -120,13 +122,11 @@ export async function fetchWithPlatformBridge(input, init = {}) {
 
   let abortHandler = null
   let timeoutId = null
-  const requestPromise = invoke('native_http_request', {
-    payload: {
-      method,
-      url: resolvedUrl,
-      headers,
-      body
-    }
+  const requestPromise = CapacitorHttp.request({
+    method,
+    url: resolvedUrl,
+    headers,
+    ...(body != null ? { data: body } : {})
   })
 
   const timeoutPromise = new Promise((_, reject) => {
@@ -152,7 +152,7 @@ export async function fetchWithPlatformBridge(input, init = {}) {
     return createNativeResponse({
       status: Number(response?.status || 0),
       headers: normalizedHeaders,
-      body: String(response?.body || ''),
+      body: String(response?.data || ''),
       url: resolvedUrl
     })
   } catch (error) {
