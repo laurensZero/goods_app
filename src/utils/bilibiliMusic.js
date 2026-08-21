@@ -79,20 +79,54 @@ function toHttpsUrl(url) {
   return raw
 }
 
+function isTransientNetworkError(error) {
+  const msg = String(error?.message || '').toLowerCase()
+  return (
+    error?.name === 'TypeError' ||
+    msg.includes('unable to resolve host') ||
+    msg.includes('no address associated with hostname') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('timeout') ||
+    msg.includes('econnrefused') ||
+    msg.includes('econnreset') ||
+    msg.includes('network')
+  )
+}
+
+export { isTransientNetworkError }
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
 async function biliJson(path, params = {}, options = {}) {
   const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))
   const requestUrl = `${BILIBILI_API_BASE}${path}?${query.toString()}`
   let payload
   let status = 200
-  if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.get({ url: requestUrl, headers: { Referer: BILIBILI_REFERER } })
-    payload = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
-    status = Number(response.status || 0)
-  } else {
-    const response = await fetchWithPlatformBridge(`${BILIBILI_PROXY_PREFIX}${path}?${query.toString()}`, { headers: { Referer: BILIBILI_REFERER } })
-    payload = await response.json()
-    status = response.status
+
+  const maxRetries = 2
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        const response = await CapacitorHttp.get({ url: requestUrl, headers: { Referer: BILIBILI_REFERER } })
+        payload = typeof response.data === 'string' ? JSON.parse(response.data) : response.data
+        status = Number(response.status || 0)
+      } else {
+        const response = await fetchWithPlatformBridge(`${BILIBILI_PROXY_PREFIX}${path}?${query.toString()}`, { headers: { Referer: BILIBILI_REFERER } })
+        payload = await response.json()
+        status = response.status
+      }
+      break
+    } catch (error) {
+      if (!isTransientNetworkError(error) || attempt >= maxRetries) throw error
+      const jitter = Math.random() * 200 + 300
+      const delay = jitter * Math.pow(2, attempt)
+      console.warn(`[bilibili] API 请求失败，第 ${attempt + 1} 次重试，等待 ${Math.round(delay)}ms:`, error.message)
+      await sleep(delay)
+    }
   }
+
   if (status < 200 || status >= 300 || (!options.allowApiError && payload?.code !== 0)) {
     throw new Error(payload?.message || `Bilibili 请求失败（${status}）`)
   }
