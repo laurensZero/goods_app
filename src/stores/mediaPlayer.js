@@ -94,7 +94,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         if (event.state === 'paused' || event.state === 'ended') isPlaying.value = false
         if (event.state === 'ended') {
           isPlaying.value = false
-          if (hasNext.value) void playAtIndex(currentIndex.value + 1)
+          if (hasNext.value) void handleAutoAdvance()
         }
         syncMediaSessionPlaybackState()
         syncMediaSessionPositionState()
@@ -308,12 +308,12 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       syncMediaSessionPositionState()
     })
 
-    audio.addEventListener('ended', () => {
+     audio.addEventListener('ended', () => {
       syncCurrentTime()
       syncMediaSessionPlaybackState()
       syncMediaSessionPositionState()
       if (hasNext.value) {
-        void playAtIndex(currentIndex.value + 1)
+        void handleAutoAdvance()
         return
       }
       isPlaying.value = false
@@ -376,6 +376,40 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     queue.value = normalizeQueue(nextQueue)
   }
 
+  function isTransientNetworkError(error) {
+    const msg = String(error?.message || '').toLowerCase()
+    return (
+      error?.name === 'TypeError' ||
+      msg.includes('unable to resolve host') ||
+      msg.includes('no address associated with hostname') ||
+      msg.includes('failed to fetch') ||
+      msg.includes('timeout') ||
+      msg.includes('econnrefused') ||
+      msg.includes('econnreset') ||
+      msg.includes('network')
+    )
+  }
+
+  async function resolvePlayableUrlWithRetry(track) {
+    const trackId = getTrackIdentity(track)
+    if (playableUrlCache.has(trackId)) {
+      return playableUrlCache.get(trackId)
+    }
+
+    const maxRetries = 2
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        return await resolvePlayableUrl(track)
+      } catch (error) {
+        if (!isTransientNetworkError(error) || attempt >= maxRetries) throw error
+        const jitter = Math.random() * 200 + 300
+        const delay = jitter * Math.pow(2, attempt)
+        console.warn(`[mediaPlayer] URL 解析失败，第 ${attempt + 1} 次重试，等待 ${Math.round(delay)}ms:`, error.message)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+      }
+    }
+  }
+
   async function resolvePlayableUrl(track) {
     const trackId = getTrackIdentity(track)
     if (!trackId) {
@@ -410,6 +444,17 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     lruSet(playableUrlCache, trackId, playable)
     return playable
+  }
+
+  async function preloadNextTrackUrl() {
+    if (!hasNext.value) return
+    const nextTrack = queue.value[currentIndex.value + 1]
+    if (!nextTrack) return
+    const nextTrackId = getTrackIdentity(nextTrack)
+    if (playableUrlCache.has(nextTrackId)) return
+    void resolvePlayableUrlWithRetry(nextTrack).catch((error) => {
+      console.warn('[mediaPlayer] 预解析下一首失败（将在播放结束时重试）:', error.message)
+    })
   }
 
   async function resolveLyrics(track) {
@@ -480,7 +525,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         audio.load()
       }
       if (nativeBilibili) await ensureNativeListeners()
-      const playable = await resolvePlayableUrl(track)
+      const playable = await resolvePlayableUrlWithRetry(track)
       const url = typeof playable === 'string' ? playable : playable.url
       if (requestToken !== playRequestToken || getTrackIdentity(queue.value[index]) !== trackId) return
       if (nativeBilibili) {
@@ -492,6 +537,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         })
         miniVisible.value = true
         void resolveLyrics(track)
+        void preloadNextTrackUrl()
         return
       }
       if (targetAudio.src !== url) {
@@ -503,6 +549,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       if (requestToken !== playRequestToken) return
       miniVisible.value = true
       void resolveLyrics(track)
+      void preloadNextTrackUrl()
     } catch (error) {
       if (requestToken !== playRequestToken) return
       lastError.value = error?.message || '内嵌播放失败'
@@ -596,6 +643,24 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     } else {
       targetAudio.pause()
     }
+  }
+
+  async function handleAutoAdvance() {
+    let nextIndex = currentIndex.value + 1
+    while (nextIndex < queue.value.length) {
+      try {
+        await playAtIndex(nextIndex)
+        return true
+      } catch (error) {
+        const trackId = getTrackIdentity(queue.value[nextIndex])
+        if (trackId) playableUrlCache.delete(trackId)
+        console.warn(`[mediaPlayer] 自动播放下一首失败（索引 ${nextIndex}），尝试下一曲:`, error.message)
+        nextIndex += 1
+      }
+    }
+    isPlaying.value = false
+    lastError.value = '网络异常，无法播放下一首'
+    return false
   }
 
   async function playNext() {
