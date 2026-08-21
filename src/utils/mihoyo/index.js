@@ -771,7 +771,9 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     ? new Date(Number(payTime) * 1000).toISOString().split('T')[0]
     : ''
   const orderNo = order.order_no || order.orderNo || ''
-  const goodsId = goods.goods_id || goods.goodsId || goods.sku_id || ''
+  const goodsId =
+    goods.goods_id || goods.goodsId || goods.sku_id ||
+    goodsWrapper.goods_id || goodsWrapper.goodsId || ''
   // 加上 index 防止同订单内 goods_id 相同时 key 碰撞
   const itemKey = `${orderNo}_${index}_${goodsId}`
   // SKU 名称字段（"徽章-茜特菈莉" 等），用于优先提取分类
