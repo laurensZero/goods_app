@@ -376,7 +376,16 @@ const otherExpenseTotalAmount = computed(() => (
   otherExpenseItems.value.reduce((sum, item) => sum + (Number.parseFloat(item.amount) || 0), 0)
 ))
 const linkedGoodsTotalPrice = computed(() =>
-  linkedGoodsList.value.reduce((sum, item) => sum + (Number.parseFloat(String(item?.actualPrice || item?.price || '').trim()) || 0), 0)
+  linkedGoodsList.value.reduce((sum, item) => {
+    const unitActualSum = (Array.isArray(item?.unitActualPriceList) ? item.unitActualPriceList : [])
+      .reduce((acc, value) => acc + (Number.parseFloat(String(value || '').trim()) || 0), 0)
+    if (unitActualSum > 0) return sum + unitActualSum
+    if (item?.actualPrice !== '' && item?.actualPrice != null) {
+      return sum + (Number.parseFloat(String(item.actualPrice).trim()) || 0)
+    }
+    const quantity = Math.max(1, Number(item?.quantity) || 1)
+    return sum + ((Number.parseFloat(String(item?.price || '').trim()) || 0) * quantity)
+  }, 0)
 )
 const showExpenseSection = computed(() => otherExpenseItems.value.length > 0 || linkedGoodsTotalPrice.value > 0)
 const expenseSectionTotalAmount = computed(() => otherExpenseTotalAmount.value + linkedGoodsTotalPrice.value)
