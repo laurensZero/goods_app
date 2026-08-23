@@ -107,7 +107,15 @@
 
           <div class="track-editor__field-grid">
             <div class="track-editor__cover-preview" :class="{ 'track-editor__cover-preview--empty': !trackCoverUrl(track) }">
-              <img v-if="trackCoverUrl(track)" :src="trackCoverUrl(track)" :alt="track.title || t('events.tracks.cover')" loading="lazy" />
+              <LazyCachedImage
+                v-if="trackCoverUrl(track)"
+                class="track-editor__cover-image"
+                :src="trackCoverUrl(track)"
+                :alt="track.title || t('events.tracks.cover')"
+                :lazy="false"
+                :use-cache="track.source !== 'qq'"
+                referrerpolicy="no-referrer"
+              />
               <span v-else aria-hidden="true">♪</span>
             </div>
             <div class="track-editor__fields">
@@ -148,6 +156,7 @@ import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
 import { searchBilibiliVideos } from '@/utils/bilibiliMusic'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
 
@@ -757,7 +766,12 @@ async function importPlaylist() {
   background: var(--app-surface-soft);
 }
 
-.track-editor__cover-preview img {
+.track-editor__cover-preview :deep(.track-editor__cover-image) {
+  width: 100%;
+  height: 100%;
+}
+
+.track-editor__cover-preview :deep(.track-editor__cover-image img) {
   display: block;
   width: 100%;
   height: 100%;
