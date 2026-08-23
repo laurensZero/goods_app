@@ -1,24 +1,39 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { SECTION_GROUPS } from '../../config/sections'
+
+const props = defineProps({
   sections: { type: Array, required: true },
   activeId: { type: String, required: true }
 })
 
 defineEmits(['select'])
+
+// 与侧栏同一套分组：组间插入细分隔线，未登记 group 的分区兜底到最后
+const groups = computed(() => {
+  const known = SECTION_GROUPS
+    .map((g) => ({ ...g, items: props.sections.filter((s) => s.group === g.id) }))
+    .filter((g) => g.items.length)
+  const orphans = props.sections.filter((s) => !SECTION_GROUPS.some((g) => g.id === s.group))
+  return orphans.length ? [...known, { id: '_other', label: '其他', items: orphans }] : known
+})
 </script>
 
 <template>
   <nav class="admin-topnav" aria-label="分区切换">
-    <button
-      v-for="section in sections"
-      :key="section.id"
-      type="button"
-      class="nav-item"
-      :class="{ active: activeId === section.id }"
-      @click="$emit('select', section.id)"
-    >
-      {{ section.short }}
-    </button>
+    <template v-for="(group, gi) in groups" :key="group.id">
+      <span v-if="gi > 0" class="nav-sep" aria-hidden="true" />
+      <button
+        v-for="section in group.items"
+        :key="section.id"
+        type="button"
+        class="nav-item"
+        :class="{ active: activeId === section.id }"
+        @click="$emit('select', section.id)"
+      >
+        {{ section.short }}
+      </button>
+    </template>
   </nav>
 </template>
 
@@ -41,6 +56,14 @@ defineEmits(['select'])
 
 .admin-topnav::-webkit-scrollbar {
   display: none;
+}
+
+.nav-sep {
+  flex-shrink: 0;
+  align-self: stretch;
+  width: 1px;
+  margin: 2px 3px;
+  background: var(--app-border);
 }
 
 .nav-item {
