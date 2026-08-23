@@ -28,15 +28,40 @@
 
         <div v-if="currentLyricLine" class="floating-player__lyric-row">
           <p class="floating-player__lyric">{{ currentLyricLine }}</p>
-          <button
+          <div
             v-if="lyricsFromMatch"
-            type="button"
             class="floating-player__lyric-sync"
             :class="{ 'floating-player__lyric-sync--active': lyricsOffsetMs }"
-            :title="t('common.aria.lyricSync')"
-            :aria-label="t('common.aria.lyricSync')"
-            @click.stop="handleLyricTap"
-          >{{ lyricsOffsetChipLabel }}</button>
+          >
+            <button
+              type="button"
+              class="floating-player__lyric-sync-btn"
+              :aria-label="t('common.aria.lyricSyncDecrease')"
+              @click.stop="decreaseLyricOffset"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M5 12H19" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="floating-player__lyric-sync-value"
+              :title="t('common.aria.lyricSyncReset')"
+              :aria-label="`${t('common.aria.lyricSync')} (${lyricsOffsetChipLabel})`"
+              @click.stop="resetLyricOffset"
+            >{{ lyricsOffsetChipLabel }}</button>
+            <button
+              type="button"
+              class="floating-player__lyric-sync-btn"
+              :aria-label="t('common.aria.lyricSyncIncrease')"
+              @click.stop="increaseLyricOffset"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5V19" />
+                <path d="M5 12H19" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div class="floating-player__progress">
@@ -246,8 +271,16 @@ const lyricsOffsetChipLabel = computed(() => {
   return `${ms > 0 ? '+' : '-'}${(Math.abs(ms) / 1000).toFixed(1)}s`
 })
 
-function handleLyricTap() {
-  playerStore.cycleLyricsOffset()
+function decreaseLyricOffset() {
+  playerStore.adjustLyricsOffset(-1000)
+}
+
+function increaseLyricOffset() {
+  playerStore.adjustLyricsOffset(1000)
+}
+
+function resetLyricOffset() {
+  playerStore.resetLyricsOffset()
 }
 const volumePercent = computed(() => playerStore.volumePercent)
 const volumeStateLabel = computed(() => playerStore.volumeStateLabel)
@@ -742,19 +775,58 @@ onBeforeUnmount(() => {
 
 .floating-player__lyric-sync {
   flex-shrink: 0;
-  padding: 2px 8px;
-  border: none;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   background: var(--app-surface);
+}
+
+.floating-player__lyric-sync-btn,
+.floating-player__lyric-sync-value {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 10px;
-  font-weight: 700;
   font-variant-numeric: tabular-nums;
   cursor: pointer;
 }
 
+.floating-player__lyric-sync-btn {
+  width: 20px;
+  height: 20px;
+  line-height: 0;
+}
+
+.floating-player__lyric-sync-btn svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.floating-player__lyric-sync-btn:active,
+.floating-player__lyric-sync-value:active {
+  transform: scale(var(--press-scale-button, 0.94));
+}
+
+.floating-player__lyric-sync-value {
+  min-width: 34px;
+  height: 20px;
+  padding: 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .floating-player__lyric-sync--active {
   background: rgba(251, 114, 153, 0.16);
+}
+
+.floating-player__lyric-sync--active .floating-player__lyric-sync-btn,
+.floating-player__lyric-sync--active .floating-player__lyric-sync-value {
   color: #e85c86;
 }
 

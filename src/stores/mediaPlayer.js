@@ -205,21 +205,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     saveCurrentLyricsOffset(0)
   }
 
-  function cycleLyricsOffset() {
-    const current = clampLyricsOffset(lyricsOffsetMs.value)
-    let next
-    if (Math.abs(current) > 1500) {
-      next = current - Math.sign(current) * 1000
-    } else if (current === 0) {
-      next = -1000
-    } else if (current === -1000) {
-      next = 1000
-    } else {
-      next = 0
-    }
-    saveCurrentLyricsOffset(next)
-  }
-
   function seedLyricsOffsetFromMatch(trackId, trackDurationMs, matchedDurationMs) {
     if (!trackId || lyricOffsetStore[trackId] != null) return
     const diff = Math.round((Number(trackDurationMs) || 0) - (Number(matchedDurationMs) || 0))
@@ -919,7 +904,6 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     stopPlayback,
     resolveLyrics,
     adjustLyricsOffset,
-    resetLyricsOffset,
-    cycleLyricsOffset
+    resetLyricsOffset
   }
 })
