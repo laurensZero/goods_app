@@ -26,7 +26,18 @@
           </button>
         </div>
 
-        <p v-if="currentLyricLine" class="floating-player__lyric">{{ currentLyricLine }}</p>
+        <div v-if="currentLyricLine" class="floating-player__lyric-row">
+          <p class="floating-player__lyric">{{ currentLyricLine }}</p>
+          <button
+            v-if="lyricsFromMatch"
+            type="button"
+            class="floating-player__lyric-sync"
+            :class="{ 'floating-player__lyric-sync--active': lyricsOffsetMs }"
+            :title="t('common.aria.lyricSync')"
+            :aria-label="t('common.aria.lyricSync')"
+            @click.stop="handleLyricTap"
+          >{{ lyricsOffsetChipLabel }}</button>
+        </div>
 
         <div class="floating-player__progress">
           <input
@@ -227,6 +238,17 @@ const lastError = computed(() => playerStore.lastError)
 const hasPrevious = computed(() => playerStore.hasPrevious)
 const hasNext = computed(() => playerStore.hasNext)
 const currentLyricLine = computed(() => playerStore.currentLyricLine)
+const lyricsFromMatch = computed(() => !!playerStore.lyricsFromMatch)
+const lyricsOffsetMs = computed(() => Math.round(Number(playerStore.lyricsOffsetMs) || 0))
+const lyricsOffsetChipLabel = computed(() => {
+  const ms = lyricsOffsetMs.value
+  if (!ms) return '0s'
+  return `${ms > 0 ? '+' : '-'}${(Math.abs(ms) / 1000).toFixed(1)}s`
+})
+
+function handleLyricTap() {
+  playerStore.cycleLyricsOffset()
+}
 const volumePercent = computed(() => playerStore.volumePercent)
 const volumeStateLabel = computed(() => playerStore.volumeStateLabel)
 const isMuted = computed(() => playerStore.isMuted)
@@ -700,14 +722,40 @@ onBeforeUnmount(() => {
   margin-top: 10px;
 }
 
-.floating-player__lyric {
+.floating-player__lyric-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 10px;
+}
+
+.floating-player__lyric {
+  flex: 1;
+  min-width: 0;
   color: var(--app-text-secondary);
   font-size: 11px;
   line-height: 1.45;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.floating-player__lyric-sync {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.floating-player__lyric-sync--active {
+  background: rgba(251, 114, 153, 0.16);
+  color: #e85c86;
 }
 
 .floating-player__slider {
