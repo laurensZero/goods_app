@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
 import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
+import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
 
 function getTrackIdentity(track = {}) {
@@ -53,6 +54,43 @@ function getInitialVolume() {
   }
 }
 
+const LYRIC_OFFSETS_STORAGE_KEY = 'goods_media_player_lyric_offsets'
+const LYRIC_OFFSETS_MAX_ENTRIES = 100
+const LYRIC_OFFSET_LIMIT_MS = 30000
+
+function clampLyricsOffset(value) {
+  const ms = Math.round(Number(value) || 0)
+  return Math.min(LYRIC_OFFSET_LIMIT_MS, Math.max(-LYRIC_OFFSET_LIMIT_MS, ms))
+}
+
+function loadStoredLyricOffsets() {
+  try {
+    const raw = localStorage.getItem(LYRIC_OFFSETS_STORAGE_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    const offsets = {}
+    for (const [key, value] of Object.entries(parsed && typeof parsed === 'object' ? parsed : {})) {
+      const ms = Math.round(Number(value))
+      if (key && Number.isFinite(ms)) offsets[key] = ms
+    }
+    return offsets
+  } catch {
+    return {}
+  }
+}
+
+function persistLyricOffsets(offsets) {
+  try {
+    const keys = Object.keys(offsets)
+    while (keys.length > LYRIC_OFFSETS_MAX_ENTRIES) {
+      delete offsets[keys.shift()]
+    }
+    localStorage.setItem(LYRIC_OFFSETS_STORAGE_KEY, JSON.stringify(offsets))
+  } catch {
+    // ignore persistence errors
+  }
+}
+
 export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const queue = ref([])
   const currentIndex = ref(-1)
@@ -66,6 +104,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const lyricsCache = new Map()
   const lyricsStatus = ref('idle')
   const lyricsLines = ref([])
+  const lyricOffsetStore = loadStoredLyricOffsets()
+  const lyricsOffsetMs = ref(0)
+  const lyricsFromMatch = ref(false)
   const volume = ref(getInitialVolume())
   const isMuted = ref(false)
   const previousVolumeBeforeMute = ref(volume.value || 0.8)
@@ -119,7 +160,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const hasPrevious = computed(() => currentIndex.value > 0)
   const hasNext = computed(() => currentIndex.value >= 0 && currentIndex.value < queue.value.length - 1)
   const currentLyricLine = computed(() => {
-    const nowMs = Math.max(0, Math.round((currentTime.value || 0) * 1000))
+    const nowMs = Math.max(0, Math.round((currentTime.value || 0) * 1000) - (lyricsOffsetMs.value || 0))
     const lines = Array.isArray(lyricsLines.value) ? lyricsLines.value : []
     if (!lines.length) {
       return lyricsStatus.value === 'loading' ? '歌词加载中...' : ''
@@ -140,6 +181,55 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   function resetLyrics() {
     lyricsStatus.value = 'idle'
     lyricsLines.value = []
+    lyricsFromMatch.value = false
+  }
+
+  function applyStoredLyricsOffset(trackId) {
+    const stored = lyricOffsetStore[trackId]
+    lyricsOffsetMs.value = Number.isFinite(stored) ? clampLyricsOffset(stored) : 0
+  }
+
+  function saveCurrentLyricsOffset(ms) {
+    lyricsOffsetMs.value = clampLyricsOffset(ms)
+    const trackId = currentTrackId.value
+    if (!trackId) return
+    lyricOffsetStore[trackId] = lyricsOffsetMs.value
+    persistLyricOffsets(lyricOffsetStore)
+  }
+
+  function adjustLyricsOffset(delta) {
+    saveCurrentLyricsOffset((Number(lyricsOffsetMs.value) || 0) + Math.round(Number(delta) || 0))
+  }
+
+  function resetLyricsOffset() {
+    saveCurrentLyricsOffset(0)
+  }
+
+  function cycleLyricsOffset() {
+    const current = clampLyricsOffset(lyricsOffsetMs.value)
+    let next
+    if (Math.abs(current) > 1500) {
+      next = current - Math.sign(current) * 1000
+    } else if (current === 0) {
+      next = -1000
+    } else if (current === -1000) {
+      next = 1000
+    } else {
+      next = 0
+    }
+    saveCurrentLyricsOffset(next)
+  }
+
+  function seedLyricsOffsetFromMatch(trackId, trackDurationMs, matchedDurationMs) {
+    if (!trackId || lyricOffsetStore[trackId] != null) return
+    const diff = Math.round((Number(trackDurationMs) || 0) - (Number(matchedDurationMs) || 0))
+    if (Math.abs(diff) < 3000 || Math.abs(diff) > 20000) return
+    const clamped = clampLyricsOffset(diff)
+    lyricOffsetStore[trackId] = clamped
+    persistLyricOffsets(lyricOffsetStore)
+    if (currentTrackId.value === trackId) {
+      lyricsOffsetMs.value = clamped
+    }
   }
 
   function persistVolume(nextVolume) {
@@ -470,7 +560,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
 
     if (lyricsCache.has(trackId)) {
-      lyricsLines.value = lyricsCache.get(trackId)
+      const cached = lyricsCache.get(trackId)
+      lyricsLines.value = Array.isArray(cached?.lines) ? cached.lines : []
+      lyricsFromMatch.value = !!cached?.matched
       lyricsStatus.value = lyricsLines.value.length ? 'ready' : 'empty'
       return
     }
@@ -478,20 +570,30 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     lyricsStatus.value = 'loading'
     try {
       let result
+      let matched = false
       if (source === 'qq' && qqSongId) {
         result = await fetchQQLyrics(qqSongId)
       } else if (neteaseSongId) {
         result = await fetchNeteaseLyrics(neteaseSongId)
       } else if (qqSongId) {
         result = await fetchQQLyrics(qqSongId)
+      } else if (bilibiliVideoId) {
+        result = await matchLyricsByTitle({
+          title: track.title,
+          artist: track.artist,
+          durationMs: Number(track.durationMs) || 0
+        })
+        seedLyricsOffsetFromMatch(trackId, track.durationMs, result?.matchedDurationMs)
+        matched = !!result
       } else {
         resetLyrics()
         return
       }
 
       const nextLines = Array.isArray(result?.lines) ? result.lines : []
-      lruSet(lyricsCache, trackId, nextLines)
+      lruSet(lyricsCache, trackId, { lines: nextLines, matched })
       if (currentTrackId.value !== trackId) return
+      lyricsFromMatch.value = matched
       lyricsLines.value = nextLines
       lyricsStatus.value = nextLines.length ? 'ready' : 'empty'
     } catch {
@@ -775,6 +877,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     syncMediaSessionPlaybackState()
   }, { immediate: true })
 
+  watch(currentTrackId, (trackId) => {
+    applyStoredLyricsOffset(trackId)
+  }, { immediate: true })
+
   return {
     queue,
     currentIndex,
@@ -788,6 +894,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     progressPercent,
     lyricsStatus,
     lyricsLines,
+    lyricsFromMatch,
+    lyricsOffsetMs,
     currentLyricLine,
     lastError,
     miniVisible,
@@ -808,6 +916,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     toggleMute,
     closeMiniPlayer,
     showMiniPlayer,
-    stopPlayback
+    stopPlayback,
+    resolveLyrics,
+    adjustLyricsOffset,
+    resetLyricsOffset,
+    cycleLyricsOffset
   }
 })
