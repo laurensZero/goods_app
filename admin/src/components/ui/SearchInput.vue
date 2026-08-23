@@ -54,6 +54,13 @@ function clear() {
   padding-right: 34px;
 }
 
+/* 隐藏 Chromium 对 type=search 自带的原生清除按钮，避免与自定义 × 重复 */
+.search-input::-webkit-search-cancel-button,
+.search-input::-webkit-search-decoration {
+  display: none;
+  -webkit-appearance: none;
+}
+
 .search-clear {
   position: absolute;
   right: 8px;

@@ -1,13 +1,24 @@
 <script setup>
+import { computed } from 'vue'
 import AppIcon from '../ui/AppIcon.vue'
+import { SECTION_GROUPS } from '../../config/sections'
 
-defineProps({
+const props = defineProps({
   sections: { type: Array, required: true },
   activeId: { type: String, required: true },
   collapsed: { type: Boolean, default: false }
 })
 
 defineEmits(['toggle', 'select'])
+
+// 按 SECTION_GROUPS 顺序归类；未登记 group 的分区兜底到最后
+const groups = computed(() => {
+  const known = SECTION_GROUPS
+    .map((g) => ({ ...g, items: props.sections.filter((s) => s.group === g.id) }))
+    .filter((g) => g.items.length)
+  const orphans = props.sections.filter((s) => !SECTION_GROUPS.some((g) => g.id === s.group))
+  return orphans.length ? [...known, { id: '_other', label: '其他', items: orphans }] : known
+})
 </script>
 
 <template>
@@ -26,20 +37,22 @@ defineEmits(['toggle', 'select'])
       <span v-if="!collapsed" class="nav-label">Goods APP 管理台</span>
     </button>
 
-    <p v-if="!collapsed" class="admin-sidebar__divider">分区</p>
+    <template v-for="group in groups" :key="group.id">
+      <p v-if="!collapsed" class="admin-sidebar__divider">{{ group.label }}</p>
 
-    <button
-      v-for="section in sections"
-      :key="section.id"
-      type="button"
-      class="nav-item"
-      :class="{ active: activeId === section.id }"
-      :title="section.label"
-      @click="$emit('select', section.id)"
-    >
-      <AppIcon class="nav-icon" :name="section.icon" :size="16" />
-      <span v-if="!collapsed" class="nav-label">{{ section.label }}</span>
-    </button>
+      <button
+        v-for="section in group.items"
+        :key="section.id"
+        type="button"
+        class="nav-item"
+        :class="{ active: activeId === section.id }"
+        :title="section.label"
+        @click="$emit('select', section.id)"
+      >
+        <AppIcon class="nav-icon" :name="section.icon" :size="16" />
+        <span v-if="!collapsed" class="nav-label">{{ section.label }}</span>
+      </button>
+    </template>
   </aside>
 </template>
 
@@ -81,11 +94,12 @@ defineEmits(['toggle', 'select'])
   }
 
   .admin-sidebar__divider {
-    margin: 2px 10px 6px;
+    margin: 10px 10px 6px;
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--app-text-tertiary);
+    user-select: none;
   }
 
   .admin-sidebar--collapsed .admin-sidebar__divider {
