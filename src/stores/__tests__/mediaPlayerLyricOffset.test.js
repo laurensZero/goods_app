@@ -159,20 +159,22 @@ describe('mediaPlayer lyric offset', () => {
     expect(store.lyricsOffsetMs).toBe(-4000)
   })
 
-  it('cycles the offset 0 → -1s → +1s → 0 when not auto-seeded', () => {
+  it('steps the offset by ±1s in either direction', () => {
     const store = useMediaPlayerStore()
     store.queue = [makeBilibiliTrack()]
     store.currentIndex = 0
 
-    store.cycleLyricsOffset()
+    store.adjustLyricsOffset(-1000)
     expect(store.lyricsOffsetMs).toBe(-1000)
-    store.cycleLyricsOffset()
-    expect(store.lyricsOffsetMs).toBe(1000)
-    store.cycleLyricsOffset()
+    store.adjustLyricsOffset(-1000)
+    expect(store.lyricsOffsetMs).toBe(-2000)
+    store.adjustLyricsOffset(1000)
+    expect(store.lyricsOffsetMs).toBe(-1000)
+    store.adjustLyricsOffset(1000)
     expect(store.lyricsOffsetMs).toBe(0)
   })
 
-  it('cycles toward zero by 1s per tap when the offset was auto-seeded', async () => {
+  it('nudges an auto-seeded offset by ±1s per tap', async () => {
     matchLyricsByTitle.mockResolvedValue({
       lines: [{ timeMs: 0, text: 'a' }],
       source: 'qq',
@@ -188,9 +190,9 @@ describe('mediaPlayer lyric offset', () => {
 
     await store.resolveLyrics(track)
     expect(store.lyricsOffsetMs).toBe(7000)
-    store.cycleLyricsOffset()
+    store.adjustLyricsOffset(-1000)
     expect(store.lyricsOffsetMs).toBe(6000)
-    store.cycleLyricsOffset()
+    store.adjustLyricsOffset(-1000)
     expect(store.lyricsOffsetMs).toBe(5000)
   })
 
