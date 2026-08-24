@@ -125,6 +125,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let autoAdvanceRecoveryTimer = 0
   let autoAdvanceRecoveryAttempts = 0
   let backgroundAudioListenerAdded = false
+  let lyricsResumeRetryBound = false
+  let lastLyricsRequestAt = 0
 
   const AUTO_ADVANCE_RETRY_DELAY_MS = 1500
   const AUTO_ADVANCE_RECOVERY_DELAY_MS = 10000
@@ -552,6 +554,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   async function resolveLyrics(track) {
+    lastLyricsRequestAt = Date.now()
     const trackId = getTrackIdentity(track)
     const source = String(track?.source || '').trim()
     const qqSongId = String(track?.qqSongId || '').trim()
@@ -1020,6 +1023,23 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   function showMiniPlayer() {
     miniVisible.value = true
   }
+
+  // 后台切歌时歌词请求可能被挂起/失败，回到前台后自动补载一次
+  function registerLyricsResumeRetry() {
+    if (lyricsResumeRetryBound || typeof document === 'undefined') return
+    lyricsResumeRetryBound = true
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible') return
+      const track = currentTrack.value
+      if (!track) return
+      const status = lyricsStatus.value
+      if ((status === 'error' || status === 'loading') && Date.now() - lastLyricsRequestAt > 3000) {
+        void resolveLyrics(track)
+      }
+    })
+  }
+
+  registerLyricsResumeRetry()
 
   watch(currentTrack, (track) => {
     syncMediaSessionMetadata(track)
