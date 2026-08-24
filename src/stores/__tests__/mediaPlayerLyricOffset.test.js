@@ -24,12 +24,14 @@ vi.mock('@/utils/platform/backgroundAudio', () => ({
 vi.mock('@/utils/neteaseMusic', () => ({
   fetchNeteaseLyrics: vi.fn(),
   fetchNeteasePlayableUrl: vi.fn(),
+  fetchNeteaseSongCoverMap: vi.fn(async () => ({})),
   formatTrackDuration: vi.fn((ms) => `${Math.round((Number(ms) || 0) / 1000)}s`)
 }))
 
 vi.mock('@/utils/qqMusic', () => ({
   fetchQQLyrics: vi.fn(),
-  fetchQQPlayableUrl: vi.fn()
+  fetchQQPlayableUrl: vi.fn(),
+  fetchQQSongCoverMap: vi.fn(async () => ({}))
 }))
 
 vi.mock('@/utils/bilibiliMusic', () => ({

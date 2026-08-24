@@ -1,7 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/neteaseMusic'
-import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
+import { fetchNeteaseLyrics, fetchNeteasePlayableUrl, fetchNeteaseSongCoverMap } from '@/utils/neteaseMusic'
+import { fetchQQPlayableUrl, fetchQQLyrics, fetchQQSongCoverMap } from '@/utils/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
 import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
@@ -108,6 +108,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   const miniVisible = ref(true)
   const playableUrlCache = new Map()
   const lyricsCache = new Map()
+  const trackCoverCache = new Map()
   const lyricsStatus = ref('idle')
   const lyricsLines = ref([])
   const lyricOffsetStore = loadStoredLyricOffsets()
@@ -606,6 +607,35 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
   }
 
+  // 事件等入口存的曲目不带封面（封面是列表 UI 懒加载的），播放时补齐供通知栏显示
+  async function ensureTrackCover(track) {
+    const trackId = getTrackIdentity(track)
+    if (!trackId) return
+    const neteaseSongId = String(track?.neteaseSongId || '').trim()
+    const qqSongId = String(track?.qqSongId || '').trim()
+    if (!neteaseSongId && !qqSongId) return
+
+    const cacheKey = neteaseSongId ? `netease:${neteaseSongId}` : `qq:${qqSongId}`
+    let coverUrl = trackCoverCache.get(cacheKey)
+    if (coverUrl === undefined) {
+      try {
+        const map = neteaseSongId
+          ? await fetchNeteaseSongCoverMap([neteaseSongId])
+          : await fetchQQSongCoverMap([qqSongId])
+        coverUrl = String(map?.[neteaseSongId || qqSongId] || '').trim()
+      } catch {
+        coverUrl = ''
+      }
+      trackCoverCache.set(cacheKey, coverUrl)
+    }
+    if (!coverUrl) return
+
+    const index = queue.value.findIndex((item) => getTrackIdentity(item) === trackId)
+    if (index < 0 || String(queue.value[index]?.coverUrl || '').trim()) return
+    queue.value[index] = { ...queue.value[index], coverUrl }
+    syncBackgroundAudioState()
+  }
+
   function buildBackgroundAudioMeta() {
     const track = currentTrack.value
     return {
@@ -630,6 +660,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     cancelAutoAdvanceRecovery()
     registerBackgroundAudioActions()
     void startBackgroundAudio(buildBackgroundAudioMeta())
+    const track = currentTrack.value
+    if (track && !String(track?.coverUrl || '').trim()) {
+      void ensureTrackCover(track)
+    }
   }
 
   // 通知栏/锁屏媒体按钮 → 原生事件 → 播放器操作
@@ -836,33 +870,40 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }, AUTO_ADVANCE_RECOVERY_DELAY_MS)
   }
 
-  async function handleAutoAdvance() {
-    let nextIndex = currentIndex.value + 1
-    while (nextIndex < queue.value.length) {
+  // 从 startIndex 沿 step 方向找第一首能播的曲目；VIP/版权/瞬时网络错误逐个跳过
+  async function playNearestPlayable(startIndex, step) {
+    let index = startIndex
+    while (index >= 0 && index < queue.value.length) {
       try {
-        await playAtIndex(nextIndex)
+        await playAtIndex(index)
         autoAdvanceRecoveryAttempts = 0
         return true
       } catch (error) {
-        const trackId = getTrackIdentity(queue.value[nextIndex])
+        const trackId = getTrackIdentity(queue.value[index])
         if (trackId) playableUrlCache.delete(trackId)
-        console.warn(`[mediaPlayer] 自动播放下一首失败（索引 ${nextIndex}），尝试下一曲:`, error.message)
+        console.warn(`[mediaPlayer] 播放失败（索引 ${index}），跳过该曲:`, error.message)
         if (isTransientNetworkError(error)) {
           // 息屏后网络可能只是短暂不可达（DNS/无线唤醒），稍候重试同一首再跳过
           await waitDelay(AUTO_ADVANCE_RETRY_DELAY_MS)
           try {
-            await playAtIndex(nextIndex)
+            await playAtIndex(index)
             autoAdvanceRecoveryAttempts = 0
             return true
           } catch (retryError) {
-            const retryTrackId = getTrackIdentity(queue.value[nextIndex])
+            const retryTrackId = getTrackIdentity(queue.value[index])
             if (retryTrackId) playableUrlCache.delete(retryTrackId)
-            console.warn(`[mediaPlayer] 重试失败（索引 ${nextIndex}），尝试下一曲:`, retryError.message)
+            console.warn(`[mediaPlayer] 重试失败（索引 ${index}），跳过该曲:`, retryError.message)
           }
         }
-        nextIndex += 1
+        index += step
       }
     }
+    return false
+  }
+
+  async function handleAutoAdvance() {
+    const played = await playNearestPlayable(currentIndex.value + 1, 1)
+    if (played) return true
     isPlaying.value = false
     lastError.value = '网络异常，无法播放下一首'
     void stopBackgroundAudio()
@@ -872,12 +913,14 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
   async function playNext() {
     if (!hasNext.value) return
-    await playTrack(queue.value[currentIndex.value + 1], queue.value)
+    const played = await playNearestPlayable(currentIndex.value + 1, 1)
+    if (!played && !lastError.value) lastError.value = '下一首暂不可播放'
   }
 
   async function playPrevious() {
     if (!hasPrevious.value) return
-    await playTrack(queue.value[currentIndex.value - 1], queue.value)
+    const played = await playNearestPlayable(currentIndex.value - 1, -1)
+    if (!played && !lastError.value) lastError.value = '上一首暂不可播放'
   }
 
   function seekTo(nextTime) {
