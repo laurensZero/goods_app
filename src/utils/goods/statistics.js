@@ -52,6 +52,12 @@ function getItemDatesAndPrices(item) {
   return [{ date: d, price: amount + shipping }]
 }
 
+export function getItemSpendEntries(item) {
+  if (item?.isWishlist) return []
+  if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return []
+  return getItemDatesAndPrices(item)
+}
+
 // ─── Heatmap ───
 
 export function buildHeatmapData(list) {

@@ -141,6 +141,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getItemSpendEntries } from '@/utils/goods/statistics'
 
 const { t } = useI18n()
 
@@ -154,6 +155,7 @@ const props = defineProps({
   currency: { type: String, default: '¥' },
   showTips: { type: Boolean, default: true },
   tipsTitle: { type: String, default: '' },
+  spendMode: { type: Boolean, default: false },
   tipsItems: {
     type: Array,
     default: undefined
@@ -236,6 +238,23 @@ const trendStats = computed(() => {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1).getTime()
 
     for (const item of props.trendItems) {
+      if (props.spendMode) {
+        // 预算口径:排除心愿单/已出等状态,按逐份购入日期与折算后单价(含运费摊销)累计
+        for (const { date, price } of getItemSpendEntries(item)) {
+          const timestamp = date.getTime()
+          const dayIndex = Math.floor((startOfToday - new Date(timestamp).setHours(0, 0, 0, 0)) / MS_PER_DAY)
+          if (dayIndex >= 0 && dayIndex <= 29) {
+            buckets[29 - dayIndex] += price
+          }
+          if (timestamp >= sevenDayStart) recentCount++
+          if (timestamp >= monthStart) {
+            monthCount++
+            monthAmount += price
+          }
+        }
+        continue
+      }
+
       const trendTimestamp = getTrendTimestamp(item)
       if (!trendTimestamp) continue
 
