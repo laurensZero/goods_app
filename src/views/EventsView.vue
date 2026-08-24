@@ -2,6 +2,7 @@
   <div
     class="page events-page"
     :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
+    :style="HOME_MOTION_CSS_VARS"
   >
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
@@ -93,27 +94,30 @@
         <div class="toolbar-actions">
           <button
             type="button"
-            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'timeline' }]"
+            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'timeline', 'mode-toggle--animating': toggleAnimating.timeline }]"
             :aria-label="t('events.timelineView')"
-            @click="toggleViewMode('timeline')"
+            @click="handleToggleTimeline"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M12 8v4l2.5 2.5" />
               <circle cx="12" cy="12" r="8" />
+              <g class="clock-hand">
+                <path d="M12 8v4l2.5 2.5" />
+              </g>
             </svg>
           </button>
 
           <button
             type="button"
-            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'countdown' }]"
+            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'countdown', 'mode-toggle--animating': toggleAnimating.countdown }]"
             :aria-label="t('events.countdown.toggleAria')"
-            @click="toggleViewMode('countdown')"
+            @click="handleToggleCountdown"
           >
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M5 22h14" />
-              <path d="M5 2h14" />
-              <path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22" />
-              <path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2" />
+              <path d="M8 2v4" />
+              <path d="M16 2v4" />
+              <rect x="3" y="4" width="18" height="18" rx="3" />
+              <path d="M3 10h18" />
+              <rect class="cal-mark" x="9.5" y="13.5" width="5" height="5" rx="1.4" />
             </svg>
           </button>
 
@@ -307,7 +311,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -326,6 +330,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { buildCountdownList } from '@/utils/events/countdown'
+import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { clearRouteTransitionFallback, playRouteSceneSlide, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { cleanupAllHeroes, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
@@ -392,6 +397,46 @@ function setViewMode(nextMode) {
 
 function toggleViewMode(mode) {
   setViewMode(viewMode.value === mode ? 'grid' : mode)
+}
+
+// ── 工具栏按钮微动效（时钟指针旋转 / 沙漏翻转漏沙）──
+
+const MODE_TOGGLE_PULSE_MS = 750
+const toggleAnimating = reactive({ timeline: false, countdown: false })
+const modeTogglePulseTimers = { timeline: 0, countdown: 0 }
+
+function pulseModeToggle(mode) {
+  toggleAnimating[mode] = false
+  requestAnimationFrame(() => {
+    toggleAnimating[mode] = true
+  })
+  if (modeTogglePulseTimers[mode]) {
+    window.clearTimeout(modeTogglePulseTimers[mode])
+  }
+  modeTogglePulseTimers[mode] = window.setTimeout(() => {
+    toggleAnimating[mode] = false
+    modeTogglePulseTimers[mode] = 0
+  }, MODE_TOGGLE_PULSE_MS)
+}
+
+function clearModeTogglePulses() {
+  for (const key of Object.keys(modeTogglePulseTimers)) {
+    if (modeTogglePulseTimers[key]) {
+      window.clearTimeout(modeTogglePulseTimers[key])
+      modeTogglePulseTimers[key] = 0
+    }
+    toggleAnimating[key] = false
+  }
+}
+
+function handleToggleTimeline() {
+  pulseModeToggle('timeline')
+  toggleViewMode('timeline')
+}
+
+function handleToggleCountdown() {
+  pulseModeToggle('countdown')
+  toggleViewMode('countdown')
 }
 
 const EVENT_TYPE_LABELS = computed(() => ({
@@ -895,6 +940,7 @@ onBeforeUnmount(() => {
   unbindAndroidBackButton()
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
+  clearModeTogglePulses()
   if (topJumpMaskTimer) {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
@@ -1284,6 +1330,49 @@ onBeforeRouteLeave(() => {
 .mode-toggle--active {
   background: #141416;
   color: #ffffff;
+}
+
+/* ---- 时钟指针：点击转一圈 ---- */
+
+.clock-hand {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+.mode-toggle--animating .clock-hand {
+  /* 首尾均为 0°/360°，与静止态重合：起止无跳变，且视觉上完整转满一圈 */
+  animation: mode-clock-spin 640ms cubic-bezier(0.5, 0.05, 0.35, 1);
+}
+
+@keyframes mode-clock-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ---- 日历日期块：点击弹跳标记 ---- */
+
+.mode-toggle .cal-mark {
+  fill: currentColor;
+  stroke: none;
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+.mode-toggle--animating .cal-mark {
+  animation: cal-mark-pop 560ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cal-mark-pop {
+  0% { transform: scale(0.3); opacity: 0.35; }
+  60% { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mode-toggle--animating .clock-hand,
+  .mode-toggle--animating .cal-mark {
+    animation: none;
+  }
 }
 
 .search-panel {

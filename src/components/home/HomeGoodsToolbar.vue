@@ -56,13 +56,15 @@
         <button
           v-if="showTimelineToggle"
           type="button"
-          :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline' }]"
+          :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline', 'timeline-toggle--animating': timelinePulsing }]"
           :aria-label="t('home.toolbar.timelineAria')"
-          @click="$emit('toggle-timeline')"
+          @click="handleTimelineClick"
         >
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 8v4l2.5 2.5" />
             <circle cx="12" cy="12" r="8" />
+            <g class="clock-hand">
+              <path d="M12 8v4l2.5 2.5" />
+            </g>
           </svg>
         </button>
       </div>
@@ -177,11 +179,29 @@ const showSortSheet = ref(false)
 const windowWidth = ref(window.innerWidth)
 const isTablet = computed(() => windowWidth.value >= TABLET_BREAKPOINT)
 const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
+const timelinePulsing = ref(false)
 let sortLongPressTimer = 0
 let suppressNextSortClick = false
+let timelinePulseTimer = 0
 
 function handleResize() {
   windowWidth.value = window.innerWidth
+}
+
+// 点击时钟按钮时指针转一圈的小动效
+function handleTimelineClick() {
+  emit('toggle-timeline')
+  timelinePulsing.value = false
+  requestAnimationFrame(() => {
+    timelinePulsing.value = true
+  })
+  if (timelinePulseTimer) {
+    window.clearTimeout(timelinePulseTimer)
+  }
+  timelinePulseTimer = window.setTimeout(() => {
+    timelinePulsing.value = false
+    timelinePulseTimer = 0
+  }, 700)
 }
 
 const currentSortOption = computed(() =>
@@ -267,6 +287,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   clearSortLongPressTimer()
+  if (timelinePulseTimer) {
+    window.clearTimeout(timelinePulseTimer)
+    timelinePulseTimer = 0
+  }
   window.removeEventListener('resize', handleResize)
 })
 </script>
@@ -506,6 +530,29 @@ onBeforeUnmount(() => {
 
 .timeline-toggle--active svg {
   transform: rotate(18deg) scale(1.04);
+}
+
+/* ---- 时钟指针：点击转一圈 ---- */
+
+.timeline-toggle .clock-hand {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+
+.timeline-toggle--animating .clock-hand {
+  /* 首尾均为 0°/360°，与静止态重合：起止无跳变，且视觉上完整转满一圈 */
+  animation: home-clock-spin 640ms cubic-bezier(0.5, 0.05, 0.35, 1);
+}
+
+@keyframes home-clock-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timeline-toggle--animating .clock-hand {
+    animation: none;
+  }
 }
 
 .sort-toggle--asc {

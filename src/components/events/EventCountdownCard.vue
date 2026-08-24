@@ -73,9 +73,12 @@ const press = useEventCardPress({
 })
 bindEventCardPress(press)
 
-const isTextFigure = computed(() =>
-  props.status === COUNTDOWN_STATUS.UPCOMING && props.days === 0
+// 单日活动且就在今天：大字显示「今天」而不是「第 1 天」
+const isTodaySingle = computed(() =>
+  props.status === COUNTDOWN_STATUS.ONGOING && props.days === 1 && props.endsInDays === 0
 )
+
+const isTextFigure = computed(() => isTodaySingle.value)
 
 const figure = computed(() => {
   if (isTextFigure.value) return t('events.countdown.today')
@@ -90,6 +93,7 @@ const caption = computed(() => {
       if (props.days === 1) return t('events.countdown.capTomorrow')
       return t('events.countdown.capUntil', { n: props.days })
     case COUNTDOWN_STATUS.ONGOING:
+      if (isTodaySingle.value) return t('events.countdown.capIsToday')
       if (props.endsInDays === 0) return t('events.countdown.capEndsToday')
       if (props.endsInDays === 1) return t('events.countdown.capEndsTomorrow')
       return t('events.countdown.capEndsIn', { n: props.endsInDays })
@@ -106,7 +110,7 @@ const toneClass = computed(() => {
     case COUNTDOWN_STATUS.UPCOMING:
       return props.days <= 7 ? 'cd-card--tone-hot' : 'cd-card--tone-cool'
     case COUNTDOWN_STATUS.ONGOING:
-      return 'cd-card--tone-live'
+      return isTodaySingle.value ? 'cd-card--tone-hot' : 'cd-card--tone-live'
     case COUNTDOWN_STATUS.PAST:
       return 'cd-card--tone-past'
     default:
