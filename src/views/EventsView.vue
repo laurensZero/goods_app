@@ -91,18 +91,31 @@
         </div>
 
         <div class="toolbar-actions">
-          <div class="view-switch" :style="viewSwitchStyle" :aria-label="t('events.viewSwitchAria')">
-            <span class="view-switch__indicator" aria-hidden="true" />
-            <button
-              v-for="option in viewOptions"
-              :key="option.value"
-              type="button"
-              :class="['view-switch__option', { 'view-switch__option--active': viewMode === option.value }]"
-              @click="setViewMode(option.value)"
-            >
-              {{ option.label }}
-            </button>
-          </div>
+          <button
+            type="button"
+            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'timeline' }]"
+            :aria-label="t('events.timelineView')"
+            @click="toggleViewMode('timeline')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M12 8v4l2.5 2.5" />
+              <circle cx="12" cy="12" r="8" />
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'countdown' }]"
+            :aria-label="t('events.countdown.toggleAria')"
+            @click="toggleViewMode('countdown')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M5 22h14" />
+              <path d="M5 2h14" />
+              <path d="M17 22v-4.17a2 2 0 0 0-.59-1.42L12 12l-4.41 4.41A2 2 0 0 0 7 17.83V22" />
+              <path d="M7 2v4.17a2 2 0 0 0 .59 1.42L12 12l4.41-4.41A2 2 0 0 0 17 6.17V2" />
+            </svg>
+          </button>
 
           <button
             type="button"
@@ -138,7 +151,25 @@
 
       <template v-if="filteredEvents.length > 0">
         <Transition name="search-drop" mode="out-in">
-          <section :key="viewMode" class="list-shell">
+          <section v-if="viewMode === 'countdown'" key="countdown" class="list-shell">
+            <div class="cd-grid">
+              <EventCountdownCard
+                v-for="entry in countdownEntries"
+                :key="entry.event.id"
+                :event="entry.event"
+                :status="entry.status"
+                :days="entry.days"
+                :ends-in-days="entry.endsInDays"
+                :selection-mode="selectionMode"
+                :selected="selectedIds.has(entry.event.id)"
+                @long-press="enterSelectionMode"
+                @toggle-select="toggleSelect"
+                @open-detail="openDetail"
+              />
+            </div>
+          </section>
+
+          <section v-else :key="viewMode" class="list-shell">
             <template v-if="viewMode === 'grid'">
               <div class="event-grid">
                 <EventCard
@@ -283,6 +314,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
+import EventCountdownCard from '@/components/events/EventCountdownCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -293,12 +325,14 @@ import { formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
-import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { buildCountdownList } from '@/utils/events/countdown'
+import { clearRouteTransitionFallback, playRouteSceneSlide, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { cleanupAllHeroes, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
 
 const EVENT_VIEW_STORAGE_KEY = 'events-view-mode-v1'
+const EVENT_VIEW_MODES = ['grid', 'timeline', 'countdown']
 const EVENT_SORT_STORAGE_KEY = 'events-sort-direction-v1'
 const SELECTION_HEADER_HEIGHT = 64
 const SCROLL_TOP_ANCHOR_REASON = 'events:openDetail'
@@ -317,7 +351,7 @@ const showScrollTopButton = ref(false)
 const searchKeyword = ref('')
 const topJumpMasking = ref(false)
 const sortDirection = ref(localStorage.getItem(EVENT_SORT_STORAGE_KEY) === 'asc' ? 'asc' : 'desc')
-const viewMode = ref(localStorage.getItem(EVENT_VIEW_STORAGE_KEY) === 'timeline' ? 'timeline' : 'grid')
+const viewMode = ref(normalizeViewMode(localStorage.getItem(EVENT_VIEW_STORAGE_KEY)))
 const selectionHeaderTop = ref(0)
 let pageScrollRaf = 0
 let topJumpMaskTimer = 0
@@ -347,10 +381,18 @@ function unbindAndroidBackButton() {
 
 const { t } = useI18n()
 
-const viewOptions = computed(() => [
-  { value: 'grid', label: t('events.gridView') },
-  { value: 'timeline', label: t('events.timelineView') }
-])
+function normalizeViewMode(value) {
+  return EVENT_VIEW_MODES.includes(value) ? value : 'grid'
+}
+
+function setViewMode(nextMode) {
+  viewMode.value = normalizeViewMode(nextMode)
+  localStorage.setItem(EVENT_VIEW_STORAGE_KEY, viewMode.value)
+}
+
+function toggleViewMode(mode) {
+  setViewMode(viewMode.value === mode ? 'grid' : mode)
+}
 
 const EVENT_TYPE_LABELS = computed(() => ({
   exhibition: t('events.typeExhibition'),
@@ -526,10 +568,8 @@ const _eventTotals = computed(() => {
 const totalLinkedGoods = computed(() => _eventTotals.value.linkedGoods)
 const totalPhotos = computed(() => _eventTotals.value.photos)
 
-const viewSwitchStyle = computed(() => ({
-  '--view-switch-count': String(viewOptions.value.length),
-  '--view-switch-index': String(Math.max(viewOptions.value.findIndex((item) => item.value === viewMode.value), 0))
-}))
+// 倒数视图：智能排序（进行中 → 未开始 → 已结束 → 无日期），不受升降序按钮影响
+const countdownEntries = computed(() => buildCountdownList(filteredEvents.value))
 
 const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
@@ -557,11 +597,6 @@ const {
 
 function syncVisibleEventsCount() {}
 function syncVisibleTimelineCount() {}
-
-function setViewMode(nextMode) {
-  viewMode.value = nextMode === 'timeline' ? 'timeline' : 'grid'
-  localStorage.setItem(EVENT_VIEW_STORAGE_KEY, viewMode.value)
-}
 
 function toggleSortDirection() {
   sortDirection.value = sortDirection.value === 'asc' ? 'desc' : 'asc'
@@ -598,6 +633,18 @@ function openDetail(payload) {
     return
   }
   saveScrollPosition(true, `${SCROLL_TOP_ANCHOR_REASON}:${eventId}`)
+
+  // 倒数模式卡片没有封面图：进/出详情改用统一的标准滑动过渡，不播 hero 动画
+  if (viewMode.value === 'countdown') {
+    runWithRouteTransition(
+      () => router.push(`/events/${eventId}`).catch(() => {
+        eventsDisplayReady.value = true
+      }),
+      { direction: 'forward', returnPath: route.fullPath }
+    )
+    return
+  }
+
   clearRouteTransitionFallback()
   prepareEventHeroForward({ eventId, sourceEl: p.sourceEl || null })
   setPendingDetailReturnPath(route.fullPath)
@@ -800,6 +847,14 @@ onActivated(async () => {
   isEventsActive.value = true
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
+  // 倒数模式返回：清掉待播放的 hero，改播统一的标准滑动过渡
+  if (viewMode.value === 'countdown') {
+    const hadPendingHeroBack = hasPendingEventHeroBack(route.fullPath)
+    cleanupAllHeroes()
+    if (hadPendingHeroBack) {
+      playRouteSceneSlide('back')
+    }
+  }
   // 仅 hero 返回动画需要整页遮罩：普通 tab 切换的滚动恢复同步完成，错误位置
   // 不会被绘制，整页 visibility:hidden 只会造成可感知的空白闪烁。
   if (hasPendingEventHeroBack(route.fullPath)) {
@@ -972,12 +1027,13 @@ onBeforeRouteLeave(() => {
 }
 
 .hero-search:active,
-.sort-toggle:active,
-.view-switch__option:active {
+.mode-toggle:active,
+.sort-toggle:active {
   transform: scale(0.96);
 }
 
 .hero-search svg,
+.mode-toggle svg,
 .sort-toggle__icon,
 .fab svg,
 .event-selection-action-btn svg {
@@ -1207,60 +1263,26 @@ onBeforeRouteLeave(() => {
   stroke-width: 2.15;
 }
 
-.view-switch {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(var(--view-switch-count, 2), minmax(0, 1fr));
-  gap: var(--view-switch-gap, 6px);
-  padding: var(--view-switch-pad, 6px);
-  --view-switch-gap: 6px;
-  --view-switch-pad: 6px;
-  --view-switch-height: 36px;
-  --view-switch-duration: calc(var(--home-motion-density-duration) + 120ms);
-  --view-switch-count: 2;
-  --view-switch-index: 0;
+.mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: none;
   border-radius: 18px;
   background: var(--app-glass);
-  box-shadow: var(--app-shadow);
-}
-
-.view-switch__indicator {
-  position: absolute;
-  top: var(--view-switch-pad, 6px);
-  left: var(--view-switch-pad, 6px);
-  height: var(--view-switch-height, 36px);
-  width: calc((100% - (var(--view-switch-gap, 6px) * (var(--view-switch-count, 2) - 1)) - (var(--view-switch-pad, 6px) * 2)) / var(--view-switch-count, 2));
-  border-radius: 14px;
-  background: #141416;
-  transform: translateX(calc((100% + var(--view-switch-gap, 6px)) * var(--view-switch-index, 0)));
-  transition:
-    transform var(--view-switch-duration) var(--home-motion-ease-emphasis),
-    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
-    box-shadow var(--home-motion-density-duration) var(--home-motion-ease-standard);
-  box-shadow: 0 8px 18px rgba(20, 20, 22, 0.16);
-  will-change: transform;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.view-switch__option {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  height: 36px;
-  padding: 0 12px;
-  border: none;
-  border-radius: 14px;
-  background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
-  font-weight: 600;
+  box-shadow: var(--app-shadow);
+  flex-shrink: 0;
   transition:
     transform var(--home-motion-density-duration) var(--home-motion-ease-standard),
+    background var(--home-motion-density-duration) var(--home-motion-ease-standard),
     color var(--home-motion-density-duration) var(--home-motion-ease-standard);
 }
 
-.view-switch__option--active {
+.mode-toggle--active {
+  background: #141416;
   color: #ffffff;
 }
 
@@ -1323,6 +1345,12 @@ onBeforeRouteLeave(() => {
 .event-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
 }
 
@@ -1512,6 +1540,11 @@ onBeforeRouteLeave(() => {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
+
+  .cd-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
 }
 
 @media (min-width: 900px) {
@@ -1558,16 +1591,6 @@ onBeforeRouteLeave(() => {
     gap: 6px;
   }
 
-  .view-switch {
-    flex: 0 0 auto;
-    width: 180px;
-    min-width: 180px;
-    --view-switch-pad: 5px;
-    --view-switch-gap: 4px;
-    --view-switch-height: 34px;
-    border-radius: 16px;
-  }
-
   .sort-toggle {
     flex: 0 0 auto;
     width: 44px;
@@ -1575,15 +1598,10 @@ onBeforeRouteLeave(() => {
     border-radius: 16px;
   }
 
-  .view-switch__indicator {
-    transform: translateX(calc((100% + var(--view-switch-gap, 4px)) * var(--view-switch-index, 0)));
-  }
-
-  .view-switch__option {
-    height: 34px;
-    padding: 0 10px;
-    font-size: 12px;
-    border-radius: 12px;
+  .mode-toggle {
+    width: 44px;
+    height: 44px;
+    border-radius: 16px;
   }
 
   .toolbar-title {
@@ -1616,6 +1634,10 @@ onBeforeRouteLeave(() => {
     gap: 10px;
   }
 
+  .cd-grid {
+    gap: 10px;
+  }
+
   .fab {
     right: 16px;
     bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
@@ -1625,17 +1647,14 @@ onBeforeRouteLeave(() => {
 }
 
 @media (prefers-color-scheme: dark) {
-  .view-switch__indicator {
-    background: #f5f5f7;
-  }
-
-  .view-switch__option--active {
-    color: #141416;
-  }
-
   .month-line {
     background: color-mix(in srgb, var(--app-text-secondary) 18%, transparent);
   }
+}
+
+:global(html.theme-dark) .mode-toggle--active {
+  background: #f5f5f7;
+  color: #141416;
 }
 </style>
 
