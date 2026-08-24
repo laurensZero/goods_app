@@ -14,6 +14,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(BilibiliPlayerPlugin.class);
         registerPlugin(MihoyoSessionImportPlugin.class);
         registerPlugin(BackgroundAudioPlugin.class);
+        registerPlugin(SystemUiThemePlugin.class);
 
         Intent normalizedIntent = normalizeNfcIntent(getIntent());
         if (normalizedIntent != null) {
