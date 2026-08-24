@@ -117,12 +117,14 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
     .filter((keyword, index, list) => keyword && list.indexOf(keyword) === index)
 
   const fetchedKeys = new Set()
+  let searchSucceeded = false
 
   for (const source of ['qq', 'netease']) {
     for (const keyword of keywords) {
       let candidates = []
       try {
         candidates = await searchCandidates(source, keyword)
+        searchSucceeded = true
       } catch {
         continue
       }
@@ -148,6 +150,12 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
         }
       }
     }
+  }
+
+  // 所有搜索请求都失败（典型场景：后台切歌时请求被挂起/失败）时抛错，
+  // 让调用方进入可重试的 error 态，而不是把"无歌词"错误地缓存下来
+  if (!searchSucceeded) {
+    throw new Error('歌词匹配服务暂不可用')
   }
 
   return null
