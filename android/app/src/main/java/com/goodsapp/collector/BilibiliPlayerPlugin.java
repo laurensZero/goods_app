@@ -6,6 +6,7 @@ import android.os.Looper;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
@@ -244,6 +245,9 @@ public class BilibiliPlayerPlugin extends Plugin {
                         new DefaultMediaSourceFactory(httpFactory)
                 )
                 .build();
+
+        // 息屏/后台播放时保持 CPU 与网络可用，避免缓冲中断流
+        player.setWakeMode(C.WAKE_MODE_NETWORK);
 
         player.addListener(new Player.Listener() {
 

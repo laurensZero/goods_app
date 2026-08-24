@@ -5,6 +5,12 @@ import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
 import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
+import {
+  addBackgroundAudioActionListener,
+  startBackgroundAudio,
+  stopBackgroundAudio,
+  updateBackgroundAudio
+} from '@/utils/platform/backgroundAudio'
 
 function getTrackIdentity(track = {}) {
   return String(track?.id || track?.neteaseSongId || track?.qqSongId || track?.bilibiliVideoId || '').trim()
@@ -115,6 +121,13 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let playRequestToken = 0
   let nativeListenersReady = false
   let nativeListenerPromise = null
+  let autoAdvanceRecoveryTimer = 0
+  let autoAdvanceRecoveryAttempts = 0
+  let backgroundAudioListenerAdded = false
+
+  const AUTO_ADVANCE_RETRY_DELAY_MS = 1500
+  const AUTO_ADVANCE_RECOVERY_DELAY_MS = 10000
+  const AUTO_ADVANCE_RECOVERY_MAX_ATTEMPTS = 3
 
   function isNativeBilibiliTrack(track = currentTrack.value) {
     return isAndroidBilibiliPlayer() && Boolean(String(track?.bilibiliVideoId || '').trim())
@@ -135,7 +148,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         if (event.state === 'paused' || event.state === 'ended') isPlaying.value = false
         if (event.state === 'ended') {
           isPlaying.value = false
-          if (hasNext.value) void handleAutoAdvance()
+          if (hasNext.value) {
+            void handleAutoAdvance()
+          } else {
+            void stopBackgroundAudio()
+          }
         }
         syncMediaSessionPlaybackState()
         syncMediaSessionPositionState()
@@ -392,6 +409,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         return
       }
       isPlaying.value = false
+      void stopBackgroundAudio()
       stopProgressLoop()
     })
 
@@ -588,6 +606,64 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
   }
 
+  function buildBackgroundAudioMeta() {
+    const track = currentTrack.value
+    return {
+      title: track?.title,
+      artist: track?.artist,
+      coverUrl: track?.coverUrl,
+      isPlaying: isPlaying.value,
+      durationMs: Math.round((Number(duration.value) || 0) * 1000),
+      positionMs: Math.round((Number(currentTime.value) || 0) * 1000)
+    }
+  }
+
+  function syncBackgroundAudioState() {
+    // 避免无曲目时（如 store 初始化的 immediate watch）误启动前台服务
+    if (!currentTrack.value) return
+    void updateBackgroundAudio(buildBackgroundAudioMeta())
+  }
+
+  // 播放真正开始后启动前台服务，保证息屏时 CPU/网络不被限制（切歌需要联网解析地址）
+  function activatePlaybackKeepAlive() {
+    autoAdvanceRecoveryAttempts = 0
+    cancelAutoAdvanceRecovery()
+    registerBackgroundAudioActions()
+    void startBackgroundAudio(buildBackgroundAudioMeta())
+  }
+
+  // 通知栏/锁屏媒体按钮 → 原生事件 → 播放器操作
+  function registerBackgroundAudioActions() {
+    if (backgroundAudioListenerAdded) return
+    backgroundAudioListenerAdded = true
+    addBackgroundAudioActionListener((event = {}) => {
+      const action = String(event.action || '')
+      if (action === 'toggle') {
+        void togglePlayPause()
+        return
+      }
+      if (action === 'play') {
+        if (!isPlaying.value) void togglePlayPause()
+        return
+      }
+      if (action === 'pause') {
+        if (isPlaying.value) void togglePlayPause()
+        return
+      }
+      if (action === 'next') {
+        void playNext()
+        return
+      }
+      if (action === 'previous') {
+        void playPrevious()
+        return
+      }
+      if (action === 'seek') {
+        seekTo(Math.max(0, Number(event.positionMs) || 0) / 1000)
+      }
+    })
+  }
+
   async function playAtIndex(index) {
     const previousTrack = currentTrack.value
     const track = queue.value[index]
@@ -623,6 +699,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
           artist: track.artist
         })
         miniVisible.value = true
+        activatePlaybackKeepAlive()
         void resolveLyrics(track)
         void preloadNextTrackUrl()
         return
@@ -635,6 +712,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       await targetAudio.play()
       if (requestToken !== playRequestToken) return
       miniVisible.value = true
+      activatePlaybackKeepAlive()
       void resolveLyrics(track)
       void preloadNextTrackUrl()
     } catch (error) {
@@ -732,21 +810,63 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
   }
 
+  function waitDelay(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms))
+  }
+
+  function cancelAutoAdvanceRecovery() {
+    if (autoAdvanceRecoveryTimer) {
+      clearTimeout(autoAdvanceRecoveryTimer)
+      autoAdvanceRecoveryTimer = 0
+    }
+  }
+
+  // 息屏/弱网下整条队列切歌失败后的兜底：等网络恢复再试几轮
+  function scheduleAutoAdvanceRecovery() {
+    if (currentIndex.value < 0 || !hasNext.value) return
+    if (autoAdvanceRecoveryAttempts >= AUTO_ADVANCE_RECOVERY_MAX_ATTEMPTS) return
+    cancelAutoAdvanceRecovery()
+    autoAdvanceRecoveryAttempts += 1
+    console.warn(`[mediaPlayer] 将在 ${AUTO_ADVANCE_RECOVERY_DELAY_MS / 1000}s 后重试自动切歌（第 ${autoAdvanceRecoveryAttempts}/${AUTO_ADVANCE_RECOVERY_MAX_ATTEMPTS} 次）`)
+    autoAdvanceRecoveryTimer = setTimeout(() => {
+      autoAdvanceRecoveryTimer = 0
+      if (isPlaying.value || isLoading.value) return
+      if (currentIndex.value < 0 || !hasNext.value) return
+      void handleAutoAdvance()
+    }, AUTO_ADVANCE_RECOVERY_DELAY_MS)
+  }
+
   async function handleAutoAdvance() {
     let nextIndex = currentIndex.value + 1
     while (nextIndex < queue.value.length) {
       try {
         await playAtIndex(nextIndex)
+        autoAdvanceRecoveryAttempts = 0
         return true
       } catch (error) {
         const trackId = getTrackIdentity(queue.value[nextIndex])
         if (trackId) playableUrlCache.delete(trackId)
         console.warn(`[mediaPlayer] 自动播放下一首失败（索引 ${nextIndex}），尝试下一曲:`, error.message)
+        if (isTransientNetworkError(error)) {
+          // 息屏后网络可能只是短暂不可达（DNS/无线唤醒），稍候重试同一首再跳过
+          await waitDelay(AUTO_ADVANCE_RETRY_DELAY_MS)
+          try {
+            await playAtIndex(nextIndex)
+            autoAdvanceRecoveryAttempts = 0
+            return true
+          } catch (retryError) {
+            const retryTrackId = getTrackIdentity(queue.value[nextIndex])
+            if (retryTrackId) playableUrlCache.delete(retryTrackId)
+            console.warn(`[mediaPlayer] 重试失败（索引 ${nextIndex}），尝试下一曲:`, retryError.message)
+          }
+        }
         nextIndex += 1
       }
     }
     isPlaying.value = false
     lastError.value = '网络异常，无法播放下一首'
+    void stopBackgroundAudio()
+    scheduleAutoAdvanceRecovery()
     return false
   }
 
@@ -766,6 +886,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       currentTime.value = bounded
       void bilibiliPlayer.seekTo(Math.round(bounded * 1000))
       syncMediaSessionPositionState()
+      syncBackgroundAudioState()
       return
     }
     const targetAudio = ensureAudio()
@@ -775,6 +896,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     targetAudio.currentTime = bounded
     currentTime.value = bounded
     syncMediaSessionPositionState()
+    syncBackgroundAudioState()
   }
 
   function setVolume(nextVolume) {
@@ -817,6 +939,8 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function stopPlayback() {
+    cancelAutoAdvanceRecovery()
+    void stopBackgroundAudio()
     if (isNativeBilibiliTrack()) {
       playRequestToken += 1
       void bilibiliPlayer.stop()
@@ -860,7 +984,13 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
   watch(isPlaying, () => {
     syncMediaSessionPlaybackState()
+    syncBackgroundAudioState()
   }, { immediate: true })
+
+  watch(duration, () => {
+    // 新曲目元数据加载完成后刷新通知栏进度
+    if (currentTrack.value) syncBackgroundAudioState()
+  })
 
   watch(currentTrackId, (trackId) => {
     applyStoredLyricsOffset(trackId)
