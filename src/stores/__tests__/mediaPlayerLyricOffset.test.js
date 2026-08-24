@@ -9,7 +9,16 @@ vi.mock('@capacitor/core', () => ({
   },
   CapacitorHttp: {
     get: vi.fn()
-  }
+  },
+  registerPlugin: vi.fn(() => ({
+    start: vi.fn(),
+    stop: vi.fn()
+  }))
+}))
+
+vi.mock('@/utils/platform/backgroundAudio', () => ({
+  startBackgroundAudio: vi.fn(),
+  stopBackgroundAudio: vi.fn()
 }))
 
 vi.mock('@/utils/neteaseMusic', () => ({
