@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { Capacitor, registerPlugin } from '@capacitor/core'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import {
   APPEARANCE_PREFERENCES,
@@ -17,6 +18,29 @@ const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
 const CUSTOM_THEME_MODES = ['light', 'dark']
 const CUSTOM_THEME_KEYS = ['bg', 'surface', 'text', 'primary']
 const CUSTOM_THEME_EFFECT_KEYS = ['blur']
+
+// 自定义 Android 插件：同步系统栏图标深浅 + 窗口背景色（与页面顶部同色）
+const AndroidSystemUiTheme = registerPlugin('SystemUiTheme')
+
+function extractTopBackgroundColor(tokens = {}) {
+  // 渐变的第一个色值即页面顶部实际观感；含 var()/color-mix() 时退回 --app-bg
+  const gradient = String(tokens['--app-bg-gradient'] || '')
+  const hexMatch = gradient.match(/#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6})/)
+  return hexMatch ? hexMatch[0] : (tokens['--app-bg'] || '#f5f5f7')
+}
+
+function syncAndroidSystemBarsStyle(appearance, tokens = {}) {
+  if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'android') return
+  try {
+    // style 指图标颜色：深色页面用浅色（DARK）图标
+    AndroidSystemUiTheme.apply({
+      style: appearance === 'dark' ? 'DARK' : 'LIGHT',
+      backgroundColor: extractTopBackgroundColor(tokens)
+    }).catch(() => {})
+  } catch {
+    // ignore
+  }
+}
 const DEFAULT_CUSTOM_COLORS = Object.freeze({
   light: Object.freeze({
     bg: '#ffffff',
@@ -310,6 +334,8 @@ export const useThemeStore = defineStore('theme', () => {
       appRoot.style.backgroundColor = bgColor
       appRoot.style.background = bgGradient
     }
+
+    syncAndroidSystemBarsStyle(appearance, tokens)
   }
 
   function applyThemeWithTransition() {
