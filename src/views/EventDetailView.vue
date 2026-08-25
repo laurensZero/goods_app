@@ -204,20 +204,60 @@
       </div>
     </Transition>
 
-    <Transition name="sheet-pop">
-      <div v-if="previewPhotoIndex >= 0" class="photo-preview-overlay" @click.self="closePhotoPreview">
-        <button class="photo-preview__close" type="button" @click="closePhotoPreview">
+    <Transition name="photo-preview">
+      <div v-if="previewPhoto" class="photo-preview-overlay">
+        <div
+          ref="previewStageRef"
+          class="photo-preview__stage"
+          @touchstart="onPreviewTouchStart"
+          @touchmove="onPreviewTouchMove"
+          @touchend="onPreviewTouchEnd"
+          @touchcancel="onPreviewTouchEnd"
+          @click="onPreviewStageClick"
+          @dblclick="onPreviewDblClick"
+        >
+          <div class="photo-preview__zoom" :style="previewZoomStyle">
+            <Transition name="photo-swap" mode="out-in">
+              <LazyCachedImage
+                v-if="previewPhoto.uri"
+                :key="previewPhoto.uri"
+                :src="previewPhoto.uri"
+                :alt="previewPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
+                :lazy="false"
+                loading="eager"
+                fetchpriority="high"
+                resume-decode-validation
+                :image-attrs="{ class: 'photo-preview__img' }"
+              />
+            </Transition>
+          </div>
+        </div>
+        <button
+          v-if="canGoPrevPhoto"
+          class="photo-preview__nav photo-preview__nav--prev"
+          type="button"
+          @click.stop="showPrevPhoto"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 18L9 12L15 6" />
+          </svg>
+        </button>
+        <button
+          v-if="canGoNextPhoto"
+          class="photo-preview__nav photo-preview__nav--next"
+          type="button"
+          @click.stop="showNextPhoto"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6L15 12L9 18" />
+          </svg>
+        </button>
+        <button class="photo-preview__close" type="button" @click.stop="closePhotoPreview">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M18 6L6 18" />
             <path d="M6 6L18 18" />
           </svg>
         </button>
-        <img
-          v-if="event.photos[previewPhotoIndex]?.uri"
-          class="photo-preview__img"
-          :src="event.photos[previewPhotoIndex].uri"
-          :alt="event.photos[previewPhotoIndex]?.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
-        />
       </div>
     </Transition>
   </div>
@@ -239,7 +279,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
@@ -281,8 +321,22 @@ let galleryReadyTimer = 0
 
 const showDeleteDialog = ref(false)
 const previewPhotoIndex = ref(-1)
+const previewStageRef = ref(null)
+const previewZoom = reactive({ scale: 1, x: 0, y: 0 })
+const pzAnimating = ref(false)
 const trackSectionExpanded = ref(true)
 let removeAndroidBackListener = null
+
+const PREVIEW_MAX_SCALE = 4
+const PREVIEW_DOUBLE_TAP_SCALE = 2.5
+const PREVIEW_DOUBLE_TAP_GAP_MS = 300
+const PREVIEW_BLANK_TAP_TOLERANCE_PX = 10
+let pzGesture = null
+let pzStart = null
+let pzTapMoved = false
+let pzLastTap = { time: 0, x: 0, y: 0 }
+let pzLastTouchEndAt = 0
+let pzAnimatingTimer = 0
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -539,6 +593,7 @@ function preloadLinkedGoodsImages() {
 
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
+  window.addEventListener('keydown', handlePreviewKeydown)
   lockDetailEntryScrollLock()
   galleryReady.value = false
   if (!eventsStore.isReady) {
@@ -570,6 +625,8 @@ onBeforeUnmount(() => {
   releaseDetailEntryScrollLock()
   clearGalleryReadyTimer()
   cancelLinkedGoodsBackHeroRetry()
+  closePhotoPreview()
+  window.removeEventListener('keydown', handlePreviewKeydown)
   if (typeof removeAndroidBackListener === 'function') {
     removeAndroidBackListener()
   }
@@ -609,7 +666,7 @@ onBeforeRouteLeave((to) => {
 
 watch(eventId, async () => {
   lockDetailEntryScrollLock()
-  previewPhotoIndex.value = -1
+  closePhotoPreview()
   coverMediaVisible.value = false
   galleryReady.value = false
   await restoreViewState()
@@ -628,12 +685,279 @@ watch(trackSectionExpanded, (value) => {
   localStorage.setItem(eventTrackKey.value, value ? '1' : '0')
 })
 
+const previewPhoto = computed(() => {
+  const photos = event.value?.photos || []
+  return previewPhotoIndex.value >= 0 ? (photos[previewPhotoIndex.value] || null) : null
+})
+
+const previewZoomStyle = computed(() => ({
+  transform: `translate3d(${previewZoom.x}px, ${previewZoom.y}px, 0) scale(${previewZoom.scale})`,
+  transition: pzAnimating.value ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
+}))
+
+function setPreviewZoomAnimating(animate) {
+  if (pzAnimatingTimer) {
+    window.clearTimeout(pzAnimatingTimer)
+    pzAnimatingTimer = 0
+  }
+  pzAnimating.value = !!animate
+  if (animate) {
+    pzAnimatingTimer = window.setTimeout(() => {
+      pzAnimatingTimer = 0
+      pzAnimating.value = false
+    }, 280)
+  }
+}
+
+function resetPreviewZoom(animate = false) {
+  previewZoom.scale = 1
+  previewZoom.x = 0
+  previewZoom.y = 0
+  setPreviewZoomAnimating(animate)
+}
+
+function clampPreviewScale(value) {
+  return Math.min(PREVIEW_MAX_SCALE, Math.max(1, value))
+}
+
+function previewMaxOffset(scale) {
+  const stageEl = previewStageRef.value
+  const imgEl = stageEl?.querySelector('img') || null
+  const stageW = stageEl?.offsetWidth || window.innerWidth
+  const stageH = stageEl?.offsetHeight || window.innerHeight
+  // object-fit: contain 后的实际内容尺寸（未放大前），用于限制拖动范围
+  let contentW = stageW
+  let contentH = stageH
+  const naturalW = imgEl?.naturalWidth || 0
+  const naturalH = imgEl?.naturalHeight || 0
+  if (naturalW > 0 && naturalH > 0) {
+    const fit = Math.min(stageW / naturalW, stageH / naturalH)
+    contentW = naturalW * fit
+    contentH = naturalH * fit
+  }
+  return {
+    x: Math.max(0, (contentW * scale - stageW) / 2),
+    y: Math.max(0, (contentH * scale - stageH) / 2)
+  }
+}
+
+function clampPreviewTranslate(x, y, scale) {
+  const max = previewMaxOffset(scale)
+  return {
+    x: Math.min(max.x, Math.max(-max.x, x)),
+    y: Math.min(max.y, Math.max(-max.y, y))
+  }
+}
+
+function applyPreviewZoom(scale, x, y, animate = false) {
+  const next = clampPreviewTranslate(x, y, scale)
+  previewZoom.scale = scale
+  previewZoom.x = next.x
+  previewZoom.y = next.y
+  setPreviewZoomAnimating(animate)
+}
+
+// 以点击点为不动点切换缩放：v = O + (b - O)*s + t ⇒ t1 = u - (u - t0)*(s1/s0)
+function togglePreviewZoomAt(clientX, clientY) {
+  if (previewZoom.scale > 1) {
+    applyPreviewZoom(1, 0, 0, true)
+    return
+  }
+  const ux = clientX - window.innerWidth / 2
+  const uy = clientY - window.innerHeight / 2
+  applyPreviewZoom(
+    PREVIEW_DOUBLE_TAP_SCALE,
+    ux - (ux - previewZoom.x) * PREVIEW_DOUBLE_TAP_SCALE,
+    uy - (uy - previewZoom.y) * PREVIEW_DOUBLE_TAP_SCALE,
+    true
+  )
+}
+
+function getTouchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX
+  const dy = touches[0].clientY - touches[1].clientY
+  return Math.hypot(dx, dy)
+}
+
+// object-fit: contain 后的可见内容盒（含当前缩放/位移），用于判断点击是否落在空白区域
+function isPointOnPreviewImage(clientX, clientY) {
+  const stageEl = previewStageRef.value
+  if (!stageEl) return true
+  const stageW = stageEl.offsetWidth || window.innerWidth
+  const stageH = stageEl.offsetHeight || window.innerHeight
+  const imgEl = stageEl.querySelector('img')
+  const naturalW = imgEl?.naturalWidth || 0
+  const naturalH = imgEl?.naturalHeight || 0
+  let contentW = stageW
+  let contentH = stageH
+  if (naturalW > 0 && naturalH > 0) {
+    const fit = Math.min(stageW / naturalW, stageH / naturalH)
+    contentW = naturalW * fit
+    contentH = naturalH * fit
+  }
+  // 变换以 stage 中心为原点：v = O + (b - O)*s + t
+  const halfW = (contentW * previewZoom.scale) / 2 + PREVIEW_BLANK_TAP_TOLERANCE_PX
+  const halfH = (contentH * previewZoom.scale) / 2 + PREVIEW_BLANK_TAP_TOLERANCE_PX
+  return (
+    clientX >= stageW / 2 - halfW + previewZoom.x &&
+    clientX <= stageW / 2 + halfW + previewZoom.x &&
+    clientY >= stageH / 2 - halfH + previewZoom.y &&
+    clientY <= stageH / 2 + halfH + previewZoom.y
+  )
+}
+
+function closeIfTapOnBlank(clientX, clientY) {
+  if (!isPointOnPreviewImage(clientX, clientY)) {
+    closePhotoPreview()
+    return true
+  }
+  return false
+}
+
+// 触屏产生的合成 click 需要忽略，只响应鼠标点击
+function onPreviewStageClick(event) {
+  if (Date.now() - pzLastTouchEndAt < 700) return
+  if (event.detail > 1) return
+  closeIfTapOnBlank(event.clientX, event.clientY)
+}
+
+function onPreviewTouchStart(event) {
+  const touches = event.touches
+  if (touches.length >= 2) {
+    pzGesture = 'pinch'
+    pzStart = {
+      distance: getTouchDistance(touches),
+      centerX: (touches[0].clientX + touches[1].clientX) / 2,
+      centerY: (touches[0].clientY + touches[1].clientY) / 2,
+      scale: previewZoom.scale,
+      x: previewZoom.x,
+      y: previewZoom.y
+    }
+    return
+  }
+  pzGesture = 'pan'
+  pzTapMoved = false
+  pzStart = {
+    startX: touches[0].clientX,
+    startY: touches[0].clientY,
+    x: previewZoom.x,
+    y: previewZoom.y
+  }
+}
+
+function onPreviewTouchMove(event) {
+  if (!pzStart) return
+  const touches = event.touches
+  if (pzGesture === 'pinch') {
+    if (touches.length < 2) return
+    event.preventDefault()
+    const nextScale = clampPreviewScale(pzStart.scale * getTouchDistance(touches) / Math.max(1, pzStart.distance))
+    // 保持双指中心下的内容点不动
+    const ux = pzStart.centerX - window.innerWidth / 2
+    const uy = pzStart.centerY - window.innerHeight / 2
+    const ratio = nextScale / Math.max(pzStart.scale, 0.01)
+    pzTapMoved = true
+    applyPreviewZoom(
+      nextScale,
+      ux - (ux - pzStart.x) * ratio,
+      uy - (uy - pzStart.y) * ratio
+    )
+    return
+  }
+  if (previewZoom.scale <= 1) {
+    if (
+      Math.abs(touches[0].clientX - pzStart.startX) > 6 ||
+      Math.abs(touches[0].clientY - pzStart.startY) > 6
+    ) {
+      pzTapMoved = true
+    }
+    return
+  }
+  event.preventDefault()
+  pzTapMoved = true
+  applyPreviewZoom(
+    previewZoom.scale,
+    pzStart.x + (touches[0].clientX - pzStart.startX),
+    pzStart.y + (touches[0].clientY - pzStart.startY)
+  )
+}
+
+function onPreviewTouchEnd(event) {
+  if (!pzStart) return
+  if (event.touches.length === 0) {
+    pzLastTouchEndAt = Date.now()
+    if (pzGesture === 'pan' && !pzTapMoved) {
+      const touch = event.changedTouches[0]
+      const now = pzLastTouchEndAt
+      const isNearLastTap = Math.hypot(touch.clientX - pzLastTap.x, touch.clientY - pzLastTap.y) < 48
+      if (now - pzLastTap.time < PREVIEW_DOUBLE_TAP_GAP_MS && isNearLastTap) {
+        pzLastTap.time = 0
+        togglePreviewZoomAt(touch.clientX, touch.clientY)
+      } else {
+        pzLastTap.time = now
+        pzLastTap.x = touch.clientX
+        pzLastTap.y = touch.clientY
+        closeIfTapOnBlank(touch.clientX, touch.clientY)
+      }
+    }
+    if (previewZoom.scale < 1) {
+      applyPreviewZoom(1, 0, 0, true)
+    }
+    pzStart = null
+    pzGesture = null
+    return
+  }
+  if (pzGesture === 'pinch' && event.touches.length === 1) {
+    pzGesture = 'pan'
+    pzTapMoved = true
+    pzStart = {
+      startX: event.touches[0].clientX,
+      startY: event.touches[0].clientY,
+      x: previewZoom.x,
+      y: previewZoom.y
+    }
+  }
+}
+
+function onPreviewDblClick(event) {
+  togglePreviewZoomAt(event.clientX, event.clientY)
+}
+
 function openPhotoPreview(index) {
+  const photos = event.value?.photos || []
+  if (!photos[index]?.uri) return
+  resetPreviewZoom(false)
+  pzLastTap.time = 0
   previewPhotoIndex.value = index
 }
 
 function closePhotoPreview() {
   previewPhotoIndex.value = -1
+}
+
+const canGoPrevPhoto = computed(() => previewPhotoIndex.value > 0)
+const canGoNextPhoto = computed(() => {
+  const photos = event.value?.photos || []
+  return previewPhotoIndex.value >= 0 && previewPhotoIndex.value < photos.length - 1
+})
+
+function showPrevPhoto() {
+  if (canGoPrevPhoto.value) openPhotoPreview(previewPhotoIndex.value - 1)
+}
+
+function showNextPhoto() {
+  if (canGoNextPhoto.value) openPhotoPreview(previewPhotoIndex.value + 1)
+}
+
+function handlePreviewKeydown(event) {
+  if (previewPhotoIndex.value < 0) return
+  if (event.key === 'Escape') {
+    closePhotoPreview()
+  } else if (event.key === 'ArrowLeft') {
+    showPrevPhoto()
+  } else if (event.key === 'ArrowRight') {
+    showNextPhoto()
+  }
 }
 
 async function handleDelete() {
@@ -685,6 +1009,10 @@ function handleBackNavigation() {
 
 function handleAndroidBackButton(event) {
   event.preventDefault()
+  if (previewPhotoIndex.value >= 0) {
+    closePhotoPreview()
+    return
+  }
   handleBackNavigation()
 }
 
@@ -1296,19 +1624,16 @@ function tryPlayLinkedGoodsBackHero() {
   position: fixed;
   inset: 0;
   z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background: rgba(0, 0, 0, 0.88);
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
-  transition: backdrop-filter 600ms var(--motion-ease-emphasis);
 }
 
 .photo-preview__close {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 12px);
   right: 16px;
+  z-index: 10;
   width: 40px;
   height: 40px;
   border: none;
@@ -1318,6 +1643,19 @@ function tryPlayLinkedGoodsBackHero() {
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 200ms ease, transform 180ms ease, backdrop-filter 200ms ease;
+}
+
+.photo-preview__close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.photo-preview__close:active {
+  transform: scale(0.88);
+  background: rgba(255, 255, 255, 0.34);
 }
 
 .photo-preview__close svg {
@@ -1327,11 +1665,109 @@ function tryPlayLinkedGoodsBackHero() {
   stroke-width: 2.2;
 }
 
-.photo-preview__img {
-  max-width: 90vw;
-  max-height: 82vh;
+.photo-preview__nav {
+  position: absolute;
+  top: 50%;
+  z-index: 10;
+  width: 40px;
+  height: 40px;
+  transform: translateY(-50%);
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: background-color 200ms ease, transform 180ms ease, backdrop-filter 200ms ease;
+}
+
+.photo-preview__nav:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.photo-preview__nav:active {
+  transform: translateY(-50%) scale(0.88);
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.photo-preview__nav--prev {
+  left: 16px;
+}
+
+.photo-preview__nav--next {
+  right: 16px;
+}
+
+.photo-preview__nav svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.photo-preview__stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  touch-action: none;
+}
+
+.photo-preview__zoom {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+
+.photo-preview__zoom :deep(.lazy-image-element) {
   object-fit: contain;
-  border-radius: 10px;
+}
+
+.photo-preview-enter-active {
+  transition: opacity 220ms ease;
+}
+
+.photo-preview-enter-active .photo-preview__stage {
+  transition: transform 260ms var(--motion-ease-emphasis);
+}
+
+.photo-preview-leave-active {
+  transition: opacity 180ms ease;
+}
+
+.photo-preview-leave-active .photo-preview__stage {
+  transition: transform 180ms ease;
+}
+
+.photo-preview-enter-from,
+.photo-preview-leave-to {
+  opacity: 0;
+}
+
+.photo-preview-enter-from .photo-preview__stage {
+  transform: scale(0.92);
+}
+
+.photo-preview-leave-to .photo-preview__stage {
+  transform: scale(0.95);
+}
+
+.photo-swap-enter-active,
+.photo-swap-leave-active {
+  transition: opacity 140ms ease;
+}
+
+.photo-swap-enter-from,
+.photo-swap-leave-to {
+  opacity: 0;
 }
 
 .empty-wrap {
