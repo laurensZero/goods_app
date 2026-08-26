@@ -118,6 +118,7 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
 
   const fetchedKeys = new Set()
   let searchSucceeded = false
+  let searchFailed = false
 
   for (const source of ['qq', 'netease']) {
     for (const keyword of keywords) {
@@ -126,6 +127,8 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
         candidates = await searchCandidates(source, keyword)
         searchSucceeded = true
       } catch {
+        // 典型场景：后台切歌时请求被挂起/失败、接口风控
+        searchFailed = true
         continue
       }
 
@@ -152,9 +155,11 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
     }
   }
 
-  // 所有搜索请求都失败（典型场景：后台切歌时请求被挂起/失败）时抛错，
-  // 让调用方进入可重试的 error 态，而不是把"无歌词"错误地缓存下来
-  if (!searchSucceeded) {
+  // 有搜索请求失败（典型场景：后台切歌时请求被挂起/失败）时抛错，
+  // 让调用方进入可重试的 error 态，而不是把"无歌词"错误地缓存下来。
+  // 部分源失败同样抛错：歌曲可能只上架在失败的源（例如仅 QQ 音乐有的歌，
+  // 网易云上只有翻唱），此时"没匹配到"只是网络问题的假象。
+  if (!searchSucceeded || searchFailed) {
     throw new Error('歌词匹配服务暂不可用')
   }
 

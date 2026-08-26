@@ -598,7 +598,12 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       }
 
       const nextLines = Array.isArray(result?.lines) ? result.lines : []
-      lruSet(lyricsCache, trackId, { lines: nextLines, matched })
+      // B 站曲目靠标题跨源匹配：空结果往往只是搜索源临时失败/风控
+      // （歌曲可能只上架在其中一个源），不缓存，下次播放或回前台时重试。
+      // QQ/网易云直连 ID 的空歌词是稳定事实（歌存在但没词），照常缓存。
+      if (!bilibiliVideoId || nextLines.length) {
+        lruSet(lyricsCache, trackId, { lines: nextLines, matched })
+      }
       if (currentTrackId.value !== trackId) return
       lyricsFromMatch.value = matched
       lyricsLines.value = nextLines
@@ -1033,7 +1038,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       const track = currentTrack.value
       if (!track) return
       const status = lyricsStatus.value
-      if ((status === 'error' || status === 'loading') && Date.now() - lastLyricsRequestAt > 3000) {
+      // B 站曲目的 empty 是"标题匹配没结果"，可能只是搜索源临时失败，同样值得重试
+      const retryable = status === 'error' || status === 'loading'
+        || (status === 'empty' && String(track?.bilibiliVideoId || '').trim())
+      if (retryable && Date.now() - lastLyricsRequestAt > 3000) {
         void resolveLyrics(track)
       }
     })

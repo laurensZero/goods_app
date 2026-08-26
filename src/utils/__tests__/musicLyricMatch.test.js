@@ -119,4 +119,29 @@ describe('matchLyricsByTitle', () => {
     expect(result.matchedTitle).toBe('晴天')
     expect(fetchNeteaseLyrics).toHaveBeenCalledWith('2')
   })
+
+  it('throws (retryable) when every search request fails', async () => {
+    searchQQSongs.mockRejectedValue(new Error('风控'))
+    searchNeteaseSongs.mockRejectedValue(new Error('超时'))
+
+    await expect(matchLyricsByTitle({ title: '晴天', artist: '周杰伦' }))
+      .rejects.toThrow('歌词匹配服务暂不可用')
+  })
+
+  it('throws when a source fails and the other has no match (song may exist only on failed source)', async () => {
+    // QQ 搜索成功但没有匹配；网易云失败 → 不能断言"无歌词"，必须可重试
+    searchQQSongs.mockResolvedValue([])
+    searchNeteaseSongs.mockRejectedValue(new Error('请求挂起'))
+
+    await expect(matchLyricsByTitle({ title: '室内系的TrackMaker', artist: 'hanser' }))
+      .rejects.toThrow('歌词匹配服务暂不可用')
+  })
+
+  it('still returns null when every source succeeded but nothing matched', async () => {
+    searchQQSongs.mockResolvedValue([])
+    searchNeteaseSongs.mockResolvedValue([])
+
+    const result = await matchLyricsByTitle({ title: '不存在的歌', artist: '某人' })
+    expect(result).toBeNull()
+  })
 })
