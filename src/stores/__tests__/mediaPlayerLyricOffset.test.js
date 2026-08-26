@@ -245,6 +245,52 @@ describe('mediaPlayer lyric offset', () => {
     expect(store.lyricsFromMatch).toBe(true)
   })
 
+  it('retries a failed bilibili title match instead of caching the empty result', async () => {
+    const store = useMediaPlayerStore()
+    const track = makeBilibiliTrack()
+    store.queue = [track]
+    store.currentIndex = 0
+
+    // 第一次：搜索源临时失败（如 QQ 被风控）→ 无匹配
+    matchLyricsByTitle.mockResolvedValueOnce(null)
+    await store.resolveLyrics(track)
+    expect(store.lyricsLines).toEqual([])
+    expect(matchLyricsByTitle).toHaveBeenCalledTimes(1)
+
+    // 第二次播放/回前台重试：网络恢复 → 匹配成功，不能被上次的空结果挡住
+    matchLyricsByTitle.mockResolvedValueOnce({
+      lines: [{ timeMs: 0, text: '故事的小黄花' }],
+      source: 'qq',
+      matchedTitle: '晴天',
+      matchedArtist: '周杰伦',
+      matchedDurationMs: 234000
+    })
+    await store.resolveLyrics(track)
+    expect(matchLyricsByTitle).toHaveBeenCalledTimes(2)
+    expect(store.lyricsLines).toEqual([{ timeMs: 0, text: '故事的小黄花' }])
+    expect(store.lyricsFromMatch).toBe(true)
+  })
+
+  it('still caches empty lyrics for direct-id sources (stable fact)', async () => {
+    const store = useMediaPlayerStore()
+    const neteaseTrack = {
+      id: 'netease_2', title: '纯音乐', artist: '某人', durationMs: 100000,
+      source: 'netease', neteaseSongId: '42', qqSongId: '', bilibiliVideoId: ''
+    }
+    store.queue = [neteaseTrack]
+    store.currentIndex = 0
+
+    const { fetchNeteaseLyrics } = vi.mocked(await import('@/utils/neteaseMusic'))
+    fetchNeteaseLyrics.mockResolvedValue({ lines: [], hasLyric: false })
+
+    await store.resolveLyrics(neteaseTrack)
+    expect(store.lyricsStatus).toBe('empty')
+
+    // 第二次直接命中缓存，不再发请求
+    await store.resolveLyrics(neteaseTrack)
+    expect(fetchNeteaseLyrics).toHaveBeenCalledTimes(1)
+  })
+
   it('persists manual adjustments and clamps them to ±30s', async () => {
     const store = useMediaPlayerStore()
     store.queue = [makeBilibiliTrack()]
