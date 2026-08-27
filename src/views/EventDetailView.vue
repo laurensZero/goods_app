@@ -593,7 +593,7 @@ const infoItems = computed(() => {
     items.push({ label: t('events.detail.eventPhotos'), value: `${event.value.photos.length} ${t('common.images_count')}` })
   }
   if (trackList.value.length > 0) {
-    items.push({ label: t('events.detail.tracks'), value: `${trackList.value.length} ${t('common.items')}` })
+    items.push({ label: t('events.detail.tracks'), value: `${trackList.value.length} ${t('common.tracksUnit')}` })
   }
   if (linkedGoodsList.value.length > 0) {
     items.push({ label: t('events.detail.linkedGoodsCount'), value: `${linkedGoodsList.value.length} ${t('common.items')}` })
