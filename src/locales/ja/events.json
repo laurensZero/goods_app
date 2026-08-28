@@ -41,7 +41,7 @@
   "events.addEdit.newHeroTitle": "新しいオフラインイベントを記録",
   "events.addEdit.newLabel": "新規イベント",
   "events.addEdit.notes": "メモ",
-  "events.addEdit.notesPlaceholder": "感想、戦利品、混雑状況、次回欲しいものを記録しましょう。",
+  "events.addEdit.notesPlaceholder": "感想、戦利品、混雑状況、次回欲しいものを記録しましょう。Markdown 対応。",
   "events.addEdit.otherExpenses": "その他費用",
   "events.addEdit.otherExpensesEmpty": "右のボタンをクリックして宿泊費・交通費などを追加してください。",
   "events.addEdit.otherExpensesHint": "宿泊費・交通費などを追加。空の行は無視されます。",

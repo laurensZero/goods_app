@@ -41,7 +41,7 @@
   "events.addEdit.newHeroTitle": "记录一场新的线下活动",
   "events.addEdit.newLabel": "NEW EVENT",
   "events.addEdit.notes": "备注",
-  "events.addEdit.notesPlaceholder": "记录一下这场活动的感受、收获、排队情况，或者下次还想补的东西。",
+  "events.addEdit.notesPlaceholder": "记录一下这场活动的感受、收获、排队情况，或者下次还想补的东西。支持 markdown。",
   "events.addEdit.otherExpenses": "其他费用",
   "events.addEdit.otherExpensesEmpty": "点击右侧按钮添加住宿、交通等费用。",
   "events.addEdit.otherExpensesHint": "可自行添加住宿、交通等明细，留空行会自动忽略。",

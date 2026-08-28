@@ -41,7 +41,7 @@
   "events.addEdit.newHeroTitle": "記錄一場新的線下活動",
   "events.addEdit.newLabel": "NEW EVENT",
   "events.addEdit.notes": "備註",
-  "events.addEdit.notesPlaceholder": "記錄一下这場活動的感受、收獲、排隊情况，或者下次還想補的東西。",
+  "events.addEdit.notesPlaceholder": "記錄一下这場活動的感受、收獲、排隊情况，或者下次還想補的東西。支援 markdown。",
   "events.addEdit.otherExpenses": "其他費用",
   "events.addEdit.otherExpensesEmpty": "點击右侧按钮新增住宿、交通等費用。",
   "events.addEdit.otherExpensesHint": "可自行新增住宿、交通等明細，留空行會自動忽略。",

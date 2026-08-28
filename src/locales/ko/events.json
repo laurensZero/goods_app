@@ -41,7 +41,7 @@
   "events.addEdit.newHeroTitle": "새 오프라인 이벤트 기록",
   "events.addEdit.newLabel": "새 이벤트",
   "events.addEdit.notes": "메모",
-  "events.addEdit.notesPlaceholder": "소감, 전리품, 대기 상황, 다음에 사고 싶은 것을 기록하세요.",
+  "events.addEdit.notesPlaceholder": "소감, 전리품, 대기 상황, 다음에 사고 싶은 것을 기록하세요. 마크다운 지원.",
   "events.addEdit.otherExpenses": "기타 비용",
   "events.addEdit.otherExpensesEmpty": "오른쪽 버튼을 클릭하여 숙박비, 교통비 등을 추가하세요.",
   "events.addEdit.otherExpensesHint": "숙박비, 교통비 등을 추가하세요. 빈 줄은 무시됩니다.",
