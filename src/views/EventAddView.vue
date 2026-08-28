@@ -404,7 +404,7 @@ import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeac
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { pickLinkedLocalImage } from '@/utils/image/localImage'
+import { pickLinkedLocalImage, pickLinkedLocalImages } from '@/utils/image/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 // ...
@@ -889,8 +889,9 @@ async function pickCoverImage() {
 
 async function pickPhoto() {
   try {
-    const result = await pickLinkedLocalImage()
-    if (result?.uri) {
+    const results = await pickLinkedLocalImages()
+    for (const result of results) {
+      if (!result?.uri) continue
       form.photos.push({
         id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
         uri: result.uri,
