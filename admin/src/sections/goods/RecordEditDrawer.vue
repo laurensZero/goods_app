@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { KIND_FIELDS, patchRow } from '../../services/goodsAdmin'
+import { DATA_KINDS, KIND_FIELDS, patchRow } from '../../services/goodsAdmin'
 import { logAudit } from '../../services/audit'
 import { useConfirm } from '../../composables/useConfirm'
 import { formatTime } from '../../utils/format'
@@ -22,11 +22,49 @@ const saving = ref(false)
 
 // 原始 JSON 区
 const jsonText = ref('')
+// 记录哪些字段在原始数据里是「以字符串形式存储的 JSON」，保存时需重新序列化回字符串
+const jsonStringKeys = ref(new Set())
 
 function defaultValue(field) {
   if (field.type === 'boolean') return 0
   if (field.type === 'number') return ''
   return ''
+}
+
+// 判断字符串是否为合法的 JSON 对象/数组字面量（用于自动展开显示）
+function isJsonString(v) {
+  if (typeof v !== 'string') return false
+  const s = v.trim()
+  if (!s) return false
+  if (!((s[0] === '{' && s.endsWith('}')) || (s[0] === '[' && s.endsWith(']')))) return false
+  try {
+    JSON.parse(s)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// 将记录中「以字符串存储的 JSON 列」解析为嵌套对象，便于阅读/编辑
+function buildDisplayJson(record) {
+  if (!record) return ''
+  const keys = new Set(DATA_KINDS[props.kind]?.jsonStringColumns || [])
+  const out = {}
+  const jsonKeys = new Set()
+  for (const [k, v] of Object.entries(record)) {
+    if (keys.has(k) && isJsonString(v)) {
+      try {
+        out[k] = JSON.parse(v)
+        jsonKeys.add(k)
+        continue
+      } catch {
+        /* 解析失败保留原值 */
+      }
+    }
+    out[k] = v
+  }
+  jsonStringKeys.value = jsonKeys
+  return JSON.stringify(out, null, 2)
 }
 
 function buildForm(record) {
@@ -43,7 +81,7 @@ watch(
   ([open]) => {
     if (!open) return
     buildForm(props.record)
-    jsonText.value = props.record ? JSON.stringify(props.record, null, 2) : ''
+    jsonText.value = buildDisplayJson(props.record)
     status.value = { text: '', type: 'default' }
   },
   { immediate: true }
@@ -114,6 +152,12 @@ async function onApplyJson() {
   if (!ok) return
   saving.value = true
   try {
+    // 把显示时已展开的 JSON 对象重新序列化为字符串，保持 TEXT(JSON) 列格式
+    for (const key of jsonStringKeys.value) {
+      if (parsed[key] != null && typeof parsed[key] === 'object') {
+        parsed[key] = JSON.stringify(parsed[key])
+      }
+    }
     delete parsed.updated_at
     await patchRow(props.kind, props.record.id, parsed)
     logAudit(`${props.kind}.update_json`, props.record.id, { kind: props.kind, keys: Object.keys(parsed) })
