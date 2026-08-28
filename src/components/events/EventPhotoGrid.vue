@@ -1,45 +1,110 @@
 <template>
-  <div class="photo-scroll-wrapper">
-    <div class="photo-grid">
-      <button
-        v-for="(photo, index) in photos"
-        :key="(photo.cloudFileName || photo.id) || index"
-        type="button"
-        class="photo-grid__item"
-        @click="$emit('preview', index)"
-      >
-        <LazyCachedImage
-          v-if="photo.uri && !suspend"
-          :src="photo.uri"
-          :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
-          root-margin="120px 0px"
-          loading="lazy"
-          decoding="async"
-          fetchpriority="low"
-          :skeleton-delay-ms="180"
-          :image-attrs="{ class: 'photo-grid__img' }"
-        />
-        <div v-else class="photo-grid__placeholder">✦</div>
-      </button>
+  <div class="photo-scroll">
+    <div class="photo-scroll-wrapper" ref="scrollRef" @wheel="onWheel">
+      <div class="photo-grid">
+        <button
+          v-for="(photo, index) in photos"
+          :key="(photo.cloudFileName || photo.id) || index"
+          type="button"
+          class="photo-grid__item"
+          @click="$emit('preview', index)"
+        >
+          <LazyCachedImage
+            v-if="photo.uri && !suspend"
+            :src="photo.uri"
+            :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
+            root-margin="120px 0px"
+            loading="lazy"
+            decoding="async"
+            fetchpriority="low"
+            :skeleton-delay-ms="180"
+            :image-attrs="{ class: 'photo-grid__img' }"
+          />
+          <div v-else class="photo-grid__placeholder">✦</div>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="thumbWidthPct > 0" class="photo-scroll-indicator">
+      <div
+        class="photo-scroll-indicator__thumb"
+        :style="{ width: thumbWidthPct + '%', left: thumbLeftPct + '%' }"
+      />
     </div>
   </div>
 </template>
 
 <script setup>
+import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
 
-defineProps({
+const props = defineProps({
   photos: { type: Array, default: () => [] },
   suspend: { type: Boolean, default: false }
 })
 
 defineEmits(['preview'])
+
+const scrollRef = ref(null)
+const thumbWidthPct = ref(0)
+const thumbLeftPct = ref(0)
+
+function updateScroll() {
+  const el = scrollRef.value
+  if (!el) return
+  const { scrollLeft, scrollWidth, clientWidth } = el
+  if (scrollWidth <= clientWidth) {
+    thumbWidthPct.value = 0
+    return
+  }
+  const ratio = clientWidth / scrollWidth
+  thumbWidthPct.value = ratio * 100
+  thumbLeftPct.value = (scrollLeft / (scrollWidth - clientWidth)) * (100 - ratio * 100)
+}
+
+function onWheel(e) {
+  const el = scrollRef.value
+  if (!el || el.scrollWidth <= el.clientWidth) return
+  if (Math.abs(e.deltaX) >= Math.abs(e.deltaY)) return
+
+  const delta = e.deltaY
+  const atStart = el.scrollLeft <= 0
+  const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1
+
+  if ((delta < 0 && atStart) || (delta > 0 && atEnd)) return
+
+  e.preventDefault()
+  el.scrollLeft += delta
+}
+
+watch(
+  () => [props.photos, props.suspend],
+  async () => {
+    await nextTick()
+    updateScroll()
+  }
+)
+
+onMounted(() => {
+  updateScroll()
+  scrollRef.value?.addEventListener('scroll', updateScroll, { passive: true })
+  window.addEventListener('resize', updateScroll)
+})
+
+onBeforeUnmount(() => {
+  scrollRef.value?.removeEventListener('scroll', updateScroll)
+  window.removeEventListener('resize', updateScroll)
+})
 </script>
 
 <style scoped>
+.photo-scroll {
+  margin: 0;
+}
+
 .photo-scroll-wrapper {
   overflow-x: auto;
   overflow-y: visible;
@@ -47,10 +112,31 @@ defineEmits(['preview'])
   -ms-overflow-style: none;
   margin: -4px;
   padding: 4px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
 }
 
 .photo-scroll-wrapper::-webkit-scrollbar {
   display: none;
+}
+
+.photo-scroll-indicator {
+  position: relative;
+  height: 4px;
+  margin: 4px 4px 0;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.18);
+  overflow: hidden;
+}
+
+.photo-scroll-indicator__thumb {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.45);
+  transition: left 0.05s linear;
 }
 
 .photo-grid {
@@ -69,6 +155,7 @@ defineEmits(['preview'])
   border-radius: 18px;
   overflow: hidden;
   cursor: pointer;
+  scroll-snap-align: start;
   transition: transform 0.15s ease, opacity 0.15s ease;
 }
 
