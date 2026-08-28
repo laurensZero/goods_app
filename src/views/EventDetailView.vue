@@ -217,19 +217,43 @@
           @dblclick="onPreviewDblClick"
         >
           <div class="photo-preview__zoom" :style="previewZoomStyle">
-            <Transition name="photo-swap" mode="out-in">
-              <LazyCachedImage
-                v-if="previewPhoto.uri"
-                :key="previewPhoto.uri"
-                :src="previewPhoto.uri"
-                :alt="previewPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
-                :lazy="false"
-                loading="eager"
-                fetchpriority="high"
-                resume-decode-validation
-                :image-attrs="{ class: 'photo-preview__img' }"
-              />
-            </Transition>
+            <div class="photo-preview__track" :style="photoTrackStyle">
+              <div class="photo-preview__cell">
+                <LazyCachedImage
+                  v-if="prevPhoto"
+                  :src="prevPhoto.uri"
+                  :alt="prevPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex })"
+                  :lazy="false"
+                  loading="eager"
+                  fetchpriority="low"
+                  :image-attrs="{ class: 'photo-preview__img' }"
+                />
+              </div>
+              <div class="photo-preview__cell">
+                <LazyCachedImage
+                  v-if="previewPhoto && previewPhoto.uri"
+                  :key="previewPhoto.uri"
+                  :src="previewPhoto.uri"
+                  :alt="previewPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
+                  :lazy="false"
+                  loading="eager"
+                  fetchpriority="high"
+                  resume-decode-validation
+                  :image-attrs="{ class: 'photo-preview__img' }"
+                />
+              </div>
+              <div class="photo-preview__cell">
+                <LazyCachedImage
+                  v-if="nextPhoto"
+                  :src="nextPhoto.uri"
+                  :alt="nextPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 2 })"
+                  :lazy="false"
+                  loading="eager"
+                  fetchpriority="low"
+                  :image-attrs="{ class: 'photo-preview__img' }"
+                />
+              </div>
+            </div>
           </div>
         </div>
         <button
@@ -740,8 +764,27 @@ const previewPhoto = computed(() => {
   return previewPhotoIndex.value >= 0 ? (photos[previewPhotoIndex.value] || null) : null
 })
 
+const prevPhoto = computed(() => {
+  const photos = event.value?.photos || []
+  const i = previewPhotoIndex.value
+  return i > 0 ? (photos[i - 1] || null) : null
+})
+
+const nextPhoto = computed(() => {
+  const photos = event.value?.photos || []
+  const i = previewPhotoIndex.value
+  return i >= 0 && i < photos.length - 1 ? (photos[i + 1] || null) : null
+})
+
 const previewZoomStyle = computed(() => ({
-  transform: `translate3d(${previewZoom.x + previewSwipeX.value}px, ${previewZoom.y}px, 0) scale(${previewZoom.scale})`,
+  transform: `translate3d(${previewZoom.x}px, ${previewZoom.y}px, 0) scale(${previewZoom.scale})`,
+  transition: pzAnimating.value ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
+}))
+
+// 三图轨道：prev/current/next 各占一屏宽，默认把 current 居中（translateX(-100%)），
+// 拖动时叠加 previewSwipeX 即可同时看到前后图片
+const photoTrackStyle = computed(() => ({
+  transform: `translate3d(calc(-100% + ${previewSwipeX.value}px), 0, 0)`,
   transition: pzAnimating.value ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
 }))
 
@@ -771,13 +814,30 @@ function snapBackPreviewSwipe() {
   previewSwipeX.value = 0
 }
 
+// 提交滑动切换：先把整条轨道滑到目标位置（前后图自然露出），到位后无动画地把
+// 索引归位并复位位移，因为归位后的「居中图」正是刚才滑入的那张，视觉上无缝衔接
+function commitSwipeSwitch(direction) {
+  const stageW = window.innerWidth
+  setPreviewZoomAnimating(true)
+  previewSwipeX.value = direction * stageW
+  window.setTimeout(() => {
+    previewPhotoIndex.value += direction < 0 ? 1 : -1
+    pzAnimating.value = false
+    previewSwipeX.value = 0
+    window.requestAnimationFrame(() => {
+      pzAnimating.value = false
+    })
+  }, 260)
+}
+
 function clampPreviewScale(value) {
   return Math.min(PREVIEW_MAX_SCALE, Math.max(1, value))
 }
 
 function previewMaxOffset(scale) {
   const stageEl = previewStageRef.value
-  const imgEl = stageEl?.querySelector('img') || null
+  const imgs = stageEl?.querySelectorAll('.photo-preview__img') || []
+  const imgEl = imgs[Math.min(1, imgs.length - 1)] || null
   const stageW = stageEl?.offsetWidth || window.innerWidth
   const stageH = stageEl?.offsetHeight || window.innerHeight
   // object-fit: contain 后的实际内容尺寸（未放大前），用于限制拖动范围
@@ -840,7 +900,9 @@ function isPointOnPreviewImage(clientX, clientY) {
   if (!stageEl) return true
   const stageW = stageEl.offsetWidth || window.innerWidth
   const stageH = stageEl.offsetHeight || window.innerHeight
-  const imgEl = stageEl.querySelector('img')
+  // 取当前居中（current）的图片用于命中判断
+  const imgs = stageEl.querySelectorAll('.photo-preview__img')
+  const imgEl = imgs[Math.min(1, imgs.length - 1)] || null
   const naturalW = imgEl?.naturalWidth || 0
   const naturalH = imgEl?.naturalHeight || 0
   let contentW = stageW
@@ -956,10 +1018,8 @@ function onPreviewTouchEnd(event) {
       const swipeThreshold = Math.max(40, window.innerWidth * PREVIEW_SWIPE_RATIO)
       // 未放大时的水平滑动优先判定为切换图片
       if (Math.abs(dx) > swipeThreshold && Math.abs(dx) > Math.abs(dy)) {
-        if (dx < 0 && canGoNextPhoto.value) {
-          showNextPhoto()
-        } else if (dx > 0 && canGoPrevPhoto.value) {
-          showPrevPhoto()
+        if ((dx < 0 && canGoNextPhoto.value) || (dx > 0 && canGoPrevPhoto.value)) {
+          commitSwipeSwitch(dx < 0 ? -1 : 1)
         } else {
           snapBackPreviewSwipe()
         }
@@ -1028,11 +1088,11 @@ const canGoNextPhoto = computed(() => {
 })
 
 function showPrevPhoto() {
-  if (canGoPrevPhoto.value) openPhotoPreview(previewPhotoIndex.value - 1)
+  if (canGoPrevPhoto.value) commitSwipeSwitch(1)
 }
 
 function showNextPhoto() {
-  if (canGoNextPhoto.value) openPhotoPreview(previewPhotoIndex.value + 1)
+  if (canGoNextPhoto.value) commitSwipeSwitch(-1)
 }
 
 function handlePreviewKeydown(event) {
@@ -1933,6 +1993,23 @@ function tryPlayLinkedGoodsBackHero() {
   will-change: transform;
 }
 
+.photo-preview__track {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  will-change: transform;
+}
+
+.photo-preview__cell {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .photo-preview__zoom :deep(.lazy-image-element) {
   object-fit: contain;
 }
@@ -1964,16 +2041,6 @@ function tryPlayLinkedGoodsBackHero() {
 
 .photo-preview-leave-to .photo-preview__stage {
   transform: scale(0.95);
-}
-
-.photo-swap-enter-active,
-.photo-swap-leave-active {
-  transition: opacity 140ms ease;
-}
-
-.photo-swap-enter-from,
-.photo-swap-leave-to {
-  opacity: 0;
 }
 
 .empty-wrap {
