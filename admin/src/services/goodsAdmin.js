@@ -99,7 +99,13 @@ export const KIND_FIELDS = {
     { key: 'start_date', label: '开始日期', type: 'text' },
     { key: 'end_date', label: '结束日期', type: 'text' },
     { key: 'location', label: '地点', type: 'text' },
+    { key: 'city', label: '城市', type: 'text' },
+    { key: 'latitude', label: '纬度', type: 'text' },
+    { key: 'longitude', label: '经度', type: 'text' },
     { key: 'ticket_price', label: '票价', type: 'text' },
+    { key: 'ticket_type', label: '票种', type: 'text' },
+    { key: 'seat_info', label: '座位信息', type: 'textarea' },
+    { key: 'cover_image', label: '封面图 URL', type: 'text' },
     { key: 'description', label: '描述', type: 'textarea' },
     { key: 'deleted', label: '已删除', type: 'boolean' }
   ],

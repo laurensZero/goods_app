@@ -88,8 +88,9 @@ const scopeOptions = computed(() => scopeDef.value.scopes.map((s) => ({ value: s
 watch(kind, () => {
   keyword.value = ''
   scope.value = DATA_KINDS[kind.value].defaultScope
+  clearTimeout(searchTimer)
 })
-watch([userId, scope], reload)
+watch([userId, scope, kind], reload)
 
 let searchTimer = null
 watch(keyword, () => {
