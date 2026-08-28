@@ -1676,8 +1676,8 @@ function tryPlayLinkedGoodsBackHero() {
 
 .linked-goods-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  gap: 14px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .linked-goods-card {
@@ -1981,9 +1981,9 @@ function tryPlayLinkedGoodsBackHero() {
 
 @media (min-width: 900px) {
   .detail-shell {
-    grid-template-columns: 580px minmax(0, 1fr);
+    grid-template-columns: clamp(280px, 42%, 480px) 1fr;
     align-items: start;
-    column-gap: 30px;
+    column-gap: 28px;
   }
 
   .media-column {
@@ -1997,6 +1997,12 @@ function tryPlayLinkedGoodsBackHero() {
 
   .linked-goods-grid {
     grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .linked-goods-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 
