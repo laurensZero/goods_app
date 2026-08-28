@@ -340,7 +340,8 @@ import { useImageExport } from '@/composables/image/useImageExport'
 const props = defineProps({
   show: { type: Boolean, default: false },
   sourceFile: { type: Object, default: null },
-  simpleMode: { type: Boolean, default: false }
+  simpleMode: { type: Boolean, default: false },
+  aspectRatio: { type: Number, default: 0 }
 })
 
 const emit = defineEmits(['update:show', 'save'])
@@ -667,6 +668,7 @@ async function initCropper() {
     zoomOnWheel: false,
     toggleDragModeOnDblclick: false,
     restore: false,
+    aspectRatio: props.aspectRatio || NaN,
     cropend: () => {
       recordEditorHistory()
     },
