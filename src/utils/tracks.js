@@ -23,7 +23,9 @@ export function normalizeTracks(tracks) {
       source: String(item?.source || (item?.neteaseSongId ? 'netease' : item?.qqSongId ? 'qq' : item?.bilibiliVideoId ? 'bilibili' : 'manual')).trim() || 'manual',
       neteaseSongId: String(item?.neteaseSongId || '').trim(),
       qqSongId: String(item?.qqSongId || '').trim(),
-      bilibiliVideoId: String(item?.bilibiliVideoId || '').trim()
+      bilibiliVideoId: String(item?.bilibiliVideoId || '').trim(),
+      lyricSource: String(item?.lyricSource || '').trim(),
+      lyricSongId: String(item?.lyricSongId || '').trim()
     }))
     .filter((item) => item.title || item.artist || item.album || item.neteaseSongId || item.qqSongId || item.bilibiliVideoId)
 }

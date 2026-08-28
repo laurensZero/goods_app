@@ -4,6 +4,7 @@ import { fetchNeteaseLyrics, fetchNeteasePlayableUrl, fetchNeteaseSongCoverMap }
 import { fetchQQPlayableUrl, fetchQQLyrics, fetchQQSongCoverMap } from '@/utils/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
 import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { useEventsStore } from '@/stores/events'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
 import {
   addBackgroundAudioActionListener,
@@ -560,8 +561,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const qqSongId = String(track?.qqSongId || '').trim()
     const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
+    const lyricSource = String(track?.lyricSource || '').trim()
+    const lyricSongId = String(track?.lyricSongId || '').trim()
 
-    if (!trackId || (!neteaseSongId && !qqSongId && !bilibiliVideoId)) {
+    if (!trackId || (!neteaseSongId && !qqSongId && !bilibiliVideoId && !(lyricSource && lyricSongId))) {
       resetLyrics()
       return
     }
@@ -584,6 +587,12 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         result = await fetchNeteaseLyrics(neteaseSongId)
       } else if (qqSongId) {
         result = await fetchQQLyrics(qqSongId)
+      } else if (lyricSource === 'qq' && lyricSongId) {
+        result = await fetchQQLyrics(lyricSongId)
+        matched = true
+      } else if (lyricSource === 'netease' && lyricSongId) {
+        result = await fetchNeteaseLyrics(lyricSongId)
+        matched = true
       } else if (bilibiliVideoId) {
         result = await matchLyricsByTitle({
           title: track.title,
@@ -592,6 +601,21 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         })
         seedLyricsOffsetFromMatch(trackId, track.durationMs, result?.matchedDurationMs)
         matched = !!result
+        // 匹配成功：把命中平台 + 歌曲 id 写回曲目（落库并随 events 同步云端），
+        // 之后播放直接走对应平台歌词接口，不再撞不稳定的标题搜索
+        if (result?.songId && (result.source === 'qq' || result.source === 'netease')) {
+          try {
+            track.lyricSource = result.source
+            track.lyricSongId = result.songId
+            const eventsStore = useEventsStore()
+            await eventsStore.applyTrackLyricMatch(trackId, {
+              lyricSource: result.source,
+              lyricSongId: result.songId
+            })
+          } catch {
+            // 写回失败不影响本次歌词展示
+          }
+        }
       } else {
         resetLyrics()
         return

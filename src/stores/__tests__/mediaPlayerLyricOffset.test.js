@@ -49,7 +49,18 @@ vi.mock('@/utils/musicLyricMatch', () => ({
   matchLyricsByTitle: vi.fn()
 }))
 
+const { mockApplyTrackLyricMatch } = vi.hoisted(() => ({
+  mockApplyTrackLyricMatch: vi.fn(async () => true)
+}))
+
+vi.mock('@/stores/events', () => ({
+  useEventsStore: vi.fn(() => ({
+    applyTrackLyricMatch: mockApplyTrackLyricMatch
+  }))
+}))
+
 import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { useEventsStore } from '@/stores/events'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 
 const OFFSETS_KEY = 'goods_media_player_lyric_offsets'
@@ -289,6 +300,51 @@ describe('mediaPlayer lyric offset', () => {
     // 第二次直接命中缓存，不再发请求
     await store.resolveLyrics(neteaseTrack)
     expect(fetchNeteaseLyrics).toHaveBeenCalledTimes(1)
+  })
+
+  it('persists the matched platform+id so later plays skip title matching', async () => {
+    matchLyricsByTitle.mockResolvedValue({
+      lines: [{ timeMs: 0, text: '故事的小黄花' }],
+      source: 'qq',
+      songId: '0039MnYb0qxYhV',
+      matchedTitle: '晴天',
+      matchedArtist: '周杰伦',
+      matchedDurationMs: 234000
+    })
+
+    const store = useMediaPlayerStore()
+    const track = makeBilibiliTrack()
+    store.queue = [track]
+    store.currentIndex = 0
+    await store.resolveLyrics(track)
+
+    expect(track.lyricSource).toBe('qq')
+    expect(track.lyricSongId).toBe('0039MnYb0qxYhV')
+    expect(mockApplyTrackLyricMatch).toHaveBeenCalledWith(
+      'bili_BV1xx411c7mD',
+      { lyricSource: 'qq', lyricSongId: '0039MnYb0qxYhV' }
+    )
+
+    // 第二次（缓存命中）不再走标题匹配
+    matchLyricsByTitle.mockResolvedValue(null)
+    await store.resolveLyrics(track)
+    expect(store.lyricsLines).toEqual([{ timeMs: 0, text: '故事的小黄花' }])
+    expect(matchLyricsByTitle).toHaveBeenCalledTimes(1)
+  })
+
+  it('uses a stored lyricSource/lyricSongId to fetch lyrics directly', async () => {
+    const { fetchQQLyrics } = vi.mocked(await import('@/utils/qqMusic'))
+    fetchQQLyrics.mockResolvedValue({ lines: [{ timeMs: 0, text: 'direct' }] })
+
+    const store = useMediaPlayerStore()
+    const track = makeBilibiliTrack({ lyricSource: 'qq', lyricSongId: '0039MnYb0qxYhV' })
+    store.queue = [track]
+    store.currentIndex = 0
+    await store.resolveLyrics(track)
+
+    expect(matchLyricsByTitle).not.toHaveBeenCalled()
+    expect(fetchQQLyrics).toHaveBeenCalledWith('0039MnYb0qxYhV')
+    expect(store.lyricsLines).toEqual([{ timeMs: 0, text: 'direct' }])
   })
 
   it('persists manual adjustments and clamps them to ±30s', async () => {
