@@ -396,6 +396,14 @@
       @confirm="onDateConfirm"
     />
 
+    <QuickImageEditorDialog
+      v-model:show="showCoverEditor"
+      :source-file="coverEditorSource"
+      :aspect-ratio="4 / 4.6"
+      simple-mode
+      @save="onCoverEditorSave"
+    />
+
   </div>
 </template>
 
@@ -404,7 +412,13 @@ import { computed, nextTick, onActivated, onBeforeMount, onBeforeUnmount, onDeac
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { pickLinkedLocalImage, pickLinkedLocalImages } from '@/utils/image/localImage'
+import {
+  pickLinkedLocalImages,
+  readLocalImageAsDataUrl,
+  saveLocalImage,
+  extractManagedLocalImagePath,
+  deleteManagedLocalImages
+} from '@/utils/image/localImage'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 
 // ...
@@ -426,6 +440,7 @@ import FormTabNav from '@/components/goods/FormTabNav.vue'
 import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { resizeTextarea } from '@/utils/textarea'
+import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 
 defineOptions({ name: 'EventAddView' })
 
@@ -876,16 +891,63 @@ function normalizeDateParts(dateString) {
   return [year, month.padStart(2, '0'), day.padStart(2, '0')]
 }
 
+const showCoverEditor = ref(false)
+const coverEditorSource = ref(null)
+const pendingCoverTempUri = ref('')
+
 async function pickCoverImage() {
   try {
-    const result = await pickLinkedLocalImage()
-    if (result?.uri) {
-      form.coverImage = result.uri
-    }
+    const picked = await pickLinkedLocalImages(1)
+    if (!picked.length) return
+    const source = picked[0]
+    const dataUrl = await readLocalImageAsDataUrl(source.uri, source.localPath)
+    if (!dataUrl) return
+    const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
+    if (!match) return
+    const mime = match[1]
+    const binary = atob(match[2])
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+    const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg')
+    coverEditorSource.value = new File([bytes], `cover_${Date.now()}.${ext}`, { type: mime })
+    pendingCoverTempUri.value = source.uri
+    showCoverEditor.value = true
   } catch {
     // user cancelled
   }
 }
+
+async function onCoverEditorSave(result) {
+  showCoverEditor.value = false
+  if (!result?.file) return
+  try {
+    const oldPaths = []
+    if (pendingCoverTempUri.value) {
+      const p = extractManagedLocalImagePath(pendingCoverTempUri.value)
+      if (p) oldPaths.push(p)
+    }
+    if (form.coverImage) {
+      const p = extractManagedLocalImagePath(form.coverImage)
+      if (p) oldPaths.push(p)
+    }
+    pendingCoverTempUri.value = ''
+    const saved = await saveLocalImage(result.file)
+    if (saved?.uri) {
+      form.coverImage = saved.uri
+      if (oldPaths.length) await deleteManagedLocalImages(oldPaths)
+    }
+  } catch (e) {
+    console.error('[EventAdd] save cover failed', e)
+  }
+}
+
+watch(showCoverEditor, async (shown) => {
+  if (shown) return
+  if (!pendingCoverTempUri.value) return
+  const p = extractManagedLocalImagePath(pendingCoverTempUri.value)
+  pendingCoverTempUri.value = ''
+  if (p) await deleteManagedLocalImages([p])
+})
 
 async function pickPhoto() {
   try {
@@ -1092,7 +1154,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 4.6;
   border-radius: 32px;
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
@@ -1525,7 +1587,7 @@ onBeforeUnmount(() => {
 
 .media-picker__preview {
   width: 88px;
-  height: 88px;
+  aspect-ratio: 4 / 4.6;
   border-radius: 18px;
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
