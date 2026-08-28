@@ -56,6 +56,7 @@ describe('matchLyricsByTitle', () => {
     expect(result.source).toBe('qq')
     expect(result.matchedTitle).toBe('晴天')
     expect(result.matchedDurationMs).toBe(269000)
+    expect(result.songId).toBe('0039MnYb0qxYhV')
     expect(result.lines).toEqual([makeLine(0, '故事的小黄花')])
     // 搜索词：歌名+作者，随后是纯歌名兜底
     expect(searchQQSongs).toHaveBeenNthCalledWith(1, '晴天 周杰伦', 10)

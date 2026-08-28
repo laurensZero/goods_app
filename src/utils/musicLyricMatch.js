@@ -143,6 +143,7 @@ export async function matchLyricsByTitle({ title, artist, durationMs } = {}) {
             return {
               lines: lyric.lines,
               source,
+              songId: candidate.songId,
               matchedTitle: candidate.title,
               matchedArtist: candidate.artist,
               matchedDurationMs: candidate.durationMs

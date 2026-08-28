@@ -222,6 +222,34 @@ export const useEventsStore = defineStore('events', () => {
     return id
   }
 
+  // 把一次成功的歌词匹配结果（命中平台 + 歌曲 id）写回曲目，
+  // 之后播放该曲目直接走对应平台的歌词接口，不再重新标题匹配。
+  // 写入会随 events 自动同步到云端，等价于「云端多存一段 json」。
+  async function applyTrackLyricMatch(trackId, patch = {}) {
+    if (!trackId) return false
+    const normalizedPatch = {}
+    const source = String(patch?.lyricSource || '').trim()
+    const songId = String(patch?.lyricSongId || '').trim()
+    if ((source === 'qq' || source === 'netease') && songId) {
+      normalizedPatch.lyricSource = source
+      normalizedPatch.lyricSongId = songId
+    }
+    if (!Object.keys(normalizedPatch).length) return false
+
+    for (const event of list.value) {
+      const tracks = Array.isArray(event.tracks) ? event.tracks : []
+      const target = tracks.find((t) => String(t?.id || '').trim() === trackId)
+      if (!target) continue
+
+      const updatedTracks = tracks.map((t) =>
+        String(t?.id || '').trim() === trackId ? { ...t, ...normalizedPatch } : t
+      )
+      await updateEventRecord(event.id, { ...event, tracks: updatedTracks })
+      return true
+    }
+    return false
+  }
+
   async function removeEventRecord(id) {
     const index = list.value.findIndex((item) => item.id === id)
     if (index === -1) return
@@ -444,6 +472,7 @@ export const useEventsStore = defineStore('events', () => {
     purgeSyncedDeleted,
     refreshList,
     importEventsBackup,
-    markMediaAsRemote
+    markMediaAsRemote,
+    applyTrackLyricMatch
   }
 })
