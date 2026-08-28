@@ -80,10 +80,15 @@ export function useRealtimeSync({ syncStore }) {
       }
       channel.value = builder.subscribe((status) => {
           isConnected.value = status === 'SUBSCRIBED'
+          console.log('[realtime] channel status:', status)
           if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             setTimeout(async () => {
               if (syncStore.syncPaused) return
-              if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
+              if (!syncStore.isSupabaseMode()) return
+              // 先重建订阅（realtime client 不会自动从 channel 级错误恢复），再补拉
+              unsubscribe()
+              await subscribe()
+              if (!syncStore.isSyncing && !syncStore.isPulling) {
                 const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
                 const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
                 try {
@@ -141,10 +146,21 @@ export function useRealtimeSync({ syncStore }) {
     }, 5000)
   }
 
+  // user / 同步后端就绪（或变化）时（重新）订阅；任一未就绪则退订
+  const authStore = useAuthStore()
+  watch(
+    () => [authStore.user?.id, syncStore.syncBackend],
+    ([uid, backend]) => {
+      if (uid && backend === 'supabase') {
+        subscribe()
+      } else {
+        unsubscribe()
+      }
+    },
+    { immediate: true }
+  )
+
   onMounted(() => {
-    if (syncStore.isSupabaseMode()) {
-      subscribe()
-    }
     document.addEventListener('visibilitychange', handleVisibilityChange, { passive: true })
   })
 
