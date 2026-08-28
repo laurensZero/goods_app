@@ -25,8 +25,15 @@ export const DATA_KINDS = {
     table: 'goods',
     label: '谷子',
     order: 'updated_at.desc',
-    selectColumns:
-      'id,user_id,name,category,ip,goods_id,is_wishlist,trashed,storage_location,variant,price,actual_price,currency,actual_price_currency,quantity,collect_status,note,updated_at',
+    // 用 * 拉全字段，避免本地 schema 与线上库列不一致的「column does not exist」错误；
+    // JSONB 列会直接以嵌套对象返回，便于在「原始数据（JSON）」中查看
+    selectColumns: '*',
+    // TEXT(JSON) 列：在「原始数据」里会被自动展开并美化显示，保存时再序列化回字符串
+    jsonStringColumns: [
+      'characters', 'tags', 'sale_reminder_offsets', 'unit_acquired_at_list',
+      'unit_actual_price_list', 'unit_character_list', 'unit_collect_status_list',
+      'cover_image', 'images', 'tracks', 'unit_sale_info_list', 'status_timeline'
+    ],
     searchFields: ['name', 'ip', 'category', 'goods_id', 'storage_location'],
     defaultScope: 'all',
     // PostgREST 过滤参数；scope 切换即整组替换
@@ -41,7 +48,8 @@ export const DATA_KINDS = {
     table: 'events',
     label: '活动',
     order: 'updated_at.desc',
-    selectColumns: 'id,user_id,name,type,start_date,end_date,location,ticket_price,description,deleted,updated_at',
+    selectColumns: '*',
+    jsonStringColumns: ['other_expenses'],
     searchFields: ['name', 'location', 'type'],
     defaultScope: 'active',
     scopes: [
@@ -54,7 +62,7 @@ export const DATA_KINDS = {
     table: 'recharge_records',
     label: '充值',
     order: 'updated_at.desc',
-    selectColumns: 'id,user_id,game,item_name,amount,charged_at,note,deleted,updated_at',
+    selectColumns: '*',
     searchFields: ['item_name', 'game', 'note'],
     defaultScope: 'active',
     scopes: [
