@@ -41,7 +41,7 @@
   "events.addEdit.newHeroTitle": "Record a new offline event",
   "events.addEdit.newLabel": "NEW EVENT",
   "events.addEdit.notes": "Notes",
-  "events.addEdit.notesPlaceholder": "Record your thoughts, haul, queue situation, or things you want to get next time.",
+  "events.addEdit.notesPlaceholder": "Record your thoughts, haul, queue situation, or things you want to get next time. Markdown supported.",
   "events.addEdit.otherExpenses": "Other Expenses",
   "events.addEdit.otherExpensesEmpty": "Click the button on the right to add accommodation, transport, etc.",
   "events.addEdit.otherExpensesHint": "Add accommodation, transport, etc. Empty rows are ignored.",

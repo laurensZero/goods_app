@@ -225,6 +225,14 @@ body :is(
   user-select: text;
 }
 
+body .note-body--markdown,
+body .note-body--markdown * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 body {
   overflow-x: hidden;
 }

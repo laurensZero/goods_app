@@ -188,12 +188,11 @@
         <StatusTimeline v-if="!item.isWishlist" :timeline="item.statusTimeline" />
 
         <section v-if="item.note" class="note-section">
-            <div class="section-head section-head--split">
+            <div class="section-head">
             <div>
               <p class="section-label">{{ t('goods.detail.extraInfo') }}</p>
               <h2 class="section-title">{{ t('common.note') }}</h2>
             </div>
-            <button v-if="isNoteMarkdown" class="section-head__copy" type="button" @click="copyNoteMarkdown">{{ t('goods.detail.copyMarkdown') }}</button>
           </div>
 
           <article class="note-card">
@@ -357,7 +356,7 @@ import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
-import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
+import { renderMarkdown } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -596,18 +595,6 @@ const noteHtml = ref('')
 watch(() => item.value?.note || '', async (note) => {
   noteHtml.value = note ? await renderMarkdown(note) : ''
 }, { immediate: true })
-const isNoteMarkdown = computed(() => detectMarkdownContent(item.value?.note || ''))
-
-async function copyNoteMarkdown() {
-  const text = String(item.value?.note || '').trim()
-  if (!text) return
-
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-    // 在某些环境下剪贴板可能不可用，静默失败
-  }
-}
 const itemCurrency = computed(() => (item.value?.currency || 'CNY'))
 const itemCurrencySymbol = computed(() => CURRENCY_MAP[itemCurrency.value]?.symbol || '¥')
 const actualPriceCurrencySymbol = computed(() => CURRENCY_MAP[item.value?.actualPriceCurrency]?.symbol || '¥')

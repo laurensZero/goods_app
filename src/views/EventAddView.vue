@@ -356,6 +356,7 @@
                             @compositionend="syncField('description', $event)"
                             @paste="syncFieldLater('description', $event)"
                           ></textarea>
+                          <MarkdownPreviewCard :content="form.description" :title="t('import.livePreview')" />
                         </label>
                       </div>
                     </div>
@@ -422,7 +423,9 @@ import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import FormTabNav from '@/components/goods/FormTabNav.vue'
+import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { resizeTextarea } from '@/utils/textarea'
 
 defineOptions({ name: 'EventAddView' })
 
@@ -484,6 +487,22 @@ const nameInputRef = ref(null)
 const ticketPriceError = ref('')
 const ticketPriceInputRef = ref(null)
 const descInputRef = ref(null)
+
+function resizeDescription() {
+  const el = descInputRef.value
+  if (!el || el.offsetParent === null) return
+  resizeTextarea(el)
+}
+
+watch(
+  () => form.description,
+  async () => {
+    await nextTick()
+    resizeDescription()
+  },
+  { immediate: true }
+)
+
 const cityDetecting = ref(false)
 const cityDetected = ref('')
 const showDatePicker = ref(false)
@@ -496,6 +515,14 @@ const maxDate = new Date(2100, 11, 31)
 const { isTabletViewport, updateViewport } = useTabletViewport()
 
 const activeTab = ref('basic')
+
+watch(activeTab, async () => {
+  if (activeTab.value === 'gallery') {
+    await nextTick()
+    resizeDescription()
+  }
+})
+
 const tabItems = computed(() => {
   const items = [
     { key: 'basic', label: t('events.addEdit.basics'), badge: Boolean(nameError.value || !String(form.name || '').trim()) },
