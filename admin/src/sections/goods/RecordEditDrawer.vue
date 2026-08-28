@@ -76,11 +76,59 @@ function buildForm(record) {
   form.value = next
 }
 
+// ── 曲目（tracks）编辑器：仅活动类型 ──
+const isEvents = computed(() => props.kind === 'events')
+const TRACK_SOURCES = ['bilibili', 'netease', 'qq', 'manual']
+const tracksDraft = ref([])
+
+function initTracks(record) {
+  const raw = Array.isArray(record?.tracks) ? record.tracks : []
+  // 深拷贝，避免直接改动 props
+  tracksDraft.value = raw.map((t) => ({ ...t }))
+}
+
+function tracksEqual(a, b) {
+  return JSON.stringify(a) === JSON.stringify(b)
+}
+
+function newTrack() {
+  return {
+    id: `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    title: '',
+    artist: '',
+    album: '',
+    source: 'manual',
+    coverUrl: '',
+    durationMs: 0,
+    qqSongId: '',
+    neteaseSongId: '',
+    bilibiliVideoId: '',
+    lyricSongId: '',
+    lyricSource: ''
+  }
+}
+
+function addTrack() {
+  tracksDraft.value.push(newTrack())
+}
+
+function removeTrack(i) {
+  tracksDraft.value.splice(i, 1)
+}
+
+function moveTrack(i, dir) {
+  const j = i + dir
+  if (j < 0 || j >= tracksDraft.value.length) return
+  const arr = tracksDraft.value
+  ;[arr[i], arr[j]] = [arr[j], arr[i]]
+}
+
 watch(
   [() => props.open, () => props.kind, () => props.record],
   ([open]) => {
     if (!open) return
     buildForm(props.record)
+    initTracks(props.record)
     jsonText.value = buildDisplayJson(props.record)
     status.value = { text: '', type: 'default' }
   },
@@ -110,6 +158,9 @@ function diffBody() {
 async function onSave() {
   if (!props.record || saving.value) return
   const body = diffBody()
+  if (isEvents.value && !tracksEqual(tracksDraft.value, props.record?.tracks || [])) {
+    body.tracks = tracksDraft.value
+  }
   if (!Object.keys(body).length) {
     status.value = { text: '没有改动。', type: 'default' }
     return
@@ -238,6 +289,85 @@ async function copyJson() {
       </label>
     </div>
 
+    <details v-if="isEvents" class="tracks-editor" open>
+      <summary>曲目列表（{{ tracksDraft.length }}）</summary>
+      <div class="tracks-body">
+        <div class="tracks-head">
+          <button class="btn btn--sm" type="button" @click="addTrack">+ 添加曲目</button>
+        </div>
+
+        <p v-if="!tracksDraft.length" class="tracks-empty">暂无曲目</p>
+
+        <div v-for="(t, i) in tracksDraft" :key="t.id || i" class="track-card">
+          <div class="track-card-head">
+            <span class="track-index">#{{ i + 1 }}</span>
+            <span class="track-id">{{ t.id }}</span>
+            <div class="track-ops">
+              <button class="btn btn--xs" type="button" :disabled="i === 0" @click="moveTrack(i, -1)">↑</button>
+              <button class="btn btn--xs" type="button" :disabled="i === tracksDraft.length - 1" @click="moveTrack(i, 1)">↓</button>
+              <button class="btn btn--xs btn--danger" type="button" @click="removeTrack(i)">✕</button>
+            </div>
+          </div>
+          <div class="track-grid">
+            <label class="track-field track-field--wide">
+              <span>标题</span>
+              <input v-model="t.title" class="input" type="text">
+            </label>
+            <label class="track-field">
+              <span>艺术家</span>
+              <input v-model="t.artist" class="input" type="text">
+            </label>
+            <label class="track-field">
+              <span>专辑</span>
+              <input v-model="t.album" class="input" type="text">
+            </label>
+            <label class="track-field">
+              <span>来源</span>
+              <select v-model="t.source" class="input">
+                <option v-for="s in TRACK_SOURCES" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </label>
+            <label class="track-field">
+              <span>时长(ms)</span>
+              <input v-model.number="t.durationMs" class="input" type="number" step="any">
+            </label>
+            <label class="track-field track-field--wide">
+              <span>封面 URL</span>
+              <input v-model="t.coverUrl" class="input" type="text">
+            </label>
+            <div class="track-field track-field--wide track-ids">
+              <span class="track-ids-label">各平台 ID</span>
+              <div class="track-ids-grid">
+                <label v-if="t.source === 'bilibili'" class="track-id-field">
+                  <span>Bilibili</span>
+                  <input v-model="t.bilibiliVideoId" class="input" type="text" placeholder="BV...">
+                </label>
+                <label v-if="t.source === 'qq'" class="track-id-field">
+                  <span>QQ</span>
+                  <input v-model="t.qqSongId" class="input" type="text">
+                </label>
+                <label v-if="t.source === 'netease'" class="track-id-field">
+                  <span>网易云</span>
+                  <input v-model="t.neteaseSongId" class="input" type="text">
+                </label>
+              <label class="track-id-field">
+                <span>歌词来源</span>
+                <select v-model="t.lyricSource" class="input">
+                  <option value="">--</option>
+                  <option v-for="s in TRACK_SOURCES" :key="s" :value="s">{{ s }}</option>
+                </select>
+              </label>
+              <label v-if="t.lyricSource" class="track-id-field">
+                <span>歌词 ID（{{ t.lyricSource }}）</span>
+                <input v-model="t.lyricSongId" class="input" type="text">
+              </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </details>
+
     <details class="json-box">
       <summary>原始数据（JSON）</summary>
       <textarea v-model="jsonText" class="input json-textarea" rows="14" spellcheck="false" />
@@ -335,6 +465,132 @@ async function copyJson() {
   padding: 10px 12px;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-xs);
+}
+
+.tracks-editor {
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: var(--app-surface-soft);
+}
+
+.tracks-editor summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.tracks-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.tracks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tracks-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.tracks-empty {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.track-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: var(--app-surface);
+}
+
+.track-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-index {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.track-id {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+}
+
+.track-ops {
+  display: flex;
+  gap: 4px;
+}
+
+.track-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 10px;
+}
+
+.track-field {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.track-field--wide {
+  grid-column: 1 / -1;
+}
+
+.track-field > span {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+}
+
+.track-ids {
+  gap: 6px;
+}
+
+.track-ids-label {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+}
+
+.track-ids-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px 10px;
+}
+
+.track-id-field {
+  display: grid;
+  gap: 3px;
+  align-content: start;
+}
+
+.track-id-field > span {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+}
+
+.btn--xs {
+  padding: 2px 8px;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .json-box summary {
