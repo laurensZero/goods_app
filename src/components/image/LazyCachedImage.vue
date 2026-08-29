@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
+import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 
@@ -191,49 +191,55 @@ function getViewportDistance() {
   return dist
 }
 
+async function runLoad() {
+  const requestId = ++loadRequestId
+  const url = props.src
+  const isVisible = hasEnteredViewport.value
+  if (!url) {
+    resolvedSrc.value = ''
+    hasLoadError.value = false
+    isImageLoading.value = false
+    resetSkeletonVisibility()
+    return
+  }
+  if (!isVisible) {
+    resolvedSrc.value = ''
+    hasLoadError.value = false
+    isImageLoading.value = false
+    resetSkeletonVisibility()
+    return
+  }
+  hasLoadError.value = false
+  isImageLoading.value = true
+  const cached = peekCachedImage(url)
+  if (cached) {
+    resolvedSrc.value = cached
+    resetSkeletonVisibility()
+    if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+      await ensureCachedImageReady(cached, requestId)
+    } else {
+      isImageLoading.value = false
+    }
+    return
+  }
+  resolvedSrc.value = ''
+  isImageLoading.value = true
+  resetSkeletonVisibility()
+  const nextSrc = props.useCache
+    ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
+    : url
+  if (requestId !== loadRequestId) return
+  resolvedSrc.value = nextSrc
+  const ok = await waitForImgDecode(nextSrc)
+  if (requestId !== loadRequestId) return
+  isImageLoading.value = !ok
+  if (ok) markImageDecoded(nextSrc)
+}
+
 watch(
   [() => props.src, hasEnteredViewport],
-  async ([url, isVisible]) => {
-    const requestId = ++loadRequestId
-    if (!url) {
-      resolvedSrc.value = ''
-      hasLoadError.value = false
-      isImageLoading.value = false
-      resetSkeletonVisibility()
-      return
-    }
-    if (!isVisible) {
-      resolvedSrc.value = ''
-      hasLoadError.value = false
-      isImageLoading.value = false
-      resetSkeletonVisibility()
-      return
-    }
-    hasLoadError.value = false
-    isImageLoading.value = true
-    const cached = peekCachedImage(url)
-    if (cached) {
-      resolvedSrc.value = cached
-      resetSkeletonVisibility()
-      if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
-        await ensureCachedImageReady(cached, requestId)
-      } else {
-        isImageLoading.value = false
-      }
-      return
-    }
-    resolvedSrc.value = ''
-    isImageLoading.value = true
-    resetSkeletonVisibility()
-    const nextSrc = props.useCache
-      ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
-      : url
-    if (requestId !== loadRequestId) return
-    resolvedSrc.value = nextSrc
-    const ok = await waitForImgDecode(nextSrc)
-    if (requestId !== loadRequestId) return
-    isImageLoading.value = !ok
-    if (ok) markImageDecoded(nextSrc)
+  () => {
+    void runLoad()
   },
   { immediate: true }
 )
@@ -409,6 +415,18 @@ onBeforeUnmount(() => {
     imageCacheRefreshHandler = null
   }
   clearSkeletonDelayTimer()
+})
+
+// When the host view is kept-alive (e.g. the Events tab) and we navigate back
+// into it, the cached `blob:` URL may have been revoked while the view was
+// deactivated, leaving the image in a "load failed" or stuck-loading state.
+// Re-validate only when something is actually wrong so we don't flash or
+// re-fetch healthy images on every switch.
+onActivated(() => {
+  if (!hasEnteredViewport.value) return
+  if (hasLoadError.value || (!resolvedSrc.value && !isImageLoading.value)) {
+    void runLoad()
+  }
 })
 </script>
 

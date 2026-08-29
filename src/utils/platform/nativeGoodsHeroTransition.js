@@ -305,6 +305,23 @@ function readFallbackText(el) {
   return String(fallback?.textContent || '').trim().slice(0, 1)
 }
 
+// Resolve the hero image source. Prefer the element's live `blob:` src (fast,
+// already cached), but after the app resumes from background those blob URLs
+// are often revoked and the <img> src can be empty at tap time. Fall back to
+// the original cover URL (data-original-src) so the hero still renders the real
+// image instead of degrading to a "?" placeholder.
+function resolveHeroImageSrc(sourceEl) {
+  const immediate = readImageSource(sourceEl)
+  if (immediate) {
+    return { imageSrc: immediate, imageOriginalSrc: readOriginalImageSource(sourceEl) }
+  }
+  const original = readOriginalImageSource(sourceEl)
+  if (original) {
+    return { imageSrc: original, imageOriginalSrc: original }
+  }
+  return { imageSrc: '', imageOriginalSrc: '' }
+}
+
 function readBoxShadow(el) {
   if (!el || typeof window === 'undefined') return ''
   try {
@@ -425,7 +442,16 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
   clip.style.overflow = 'hidden'
   clip.style.backfaceVisibility = 'hidden'
   clip.style.borderRadius = 'inherit'
-  clip.style.background = snapshot.background || 'var(--app-surface, #fff)'
+  // When an image is present, keep the clip transparent so that if the
+  // overlay image is still decoding — or fails to load (e.g. a revoked
+  // `blob:` URL after the app resumes from background) — the source
+  // element behind the overlay shows through instead of flashing the
+  // (often dark) media background. This removes the "black placeholder"
+  // flash on the event hero. For goods the source is a light surface, so
+  // this is also strictly better than the previous white flash.
+  clip.style.background = snapshot.imageSrc
+    ? 'transparent'
+    : (snapshot.background || 'var(--app-surface, #fff)')
   node.appendChild(clip)
 
   if (snapshot.imageSrc) {
@@ -658,9 +684,12 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   document.body.appendChild(node)
   activeHeroNodes.add(node)
 
-  // Update clip background to match target element to avoid white flash
+  // Update clip background to match target element to avoid a flash. Only
+  // do this for the fallback-text case — when an image is present the clip
+  // stays transparent so the source shows through if the image is still
+  // decoding or fails to load (see createHeroNode).
   const clipEl = node.querySelector('[data-hero-clip]')
-  if (clipEl && targetEl) {
+  if (clipEl && targetEl && !snapshot.imageSrc) {
     const targetBg = window.getComputedStyle(targetEl).background
     if (targetBg && targetBg !== 'none' && targetBg !== 'rgba(0, 0, 0, 0)') {
       clipEl.style.background = targetBg
@@ -830,6 +859,8 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+
   pendingForwardHero = {
     goodsId: String(goodsId),
     preparedAt: Date.now(),
@@ -838,8 +869,8 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
-    imageOriginalSrc: readOriginalImageSource(sourceEl),
+    imageSrc,
+    imageOriginalSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -897,6 +928,8 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+
   pendingBackHero = {
     goodsId: String(goodsId),
     preparedAt: Date.now(),
@@ -906,8 +939,8 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
-    imageOriginalSrc: readOriginalImageSource(sourceEl),
+    imageSrc,
+    imageOriginalSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -969,6 +1002,8 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+
   pendingForwardEventHero = {
     eventId: String(eventId),
     preparedAt: Date.now(),
@@ -977,8 +1012,8 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
-    imageOriginalSrc: readOriginalImageSource(sourceEl),
+    imageSrc,
+    imageOriginalSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -1035,6 +1070,8 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
+  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+
   pendingBackEventHero = {
     eventId: String(eventId),
     preparedAt: Date.now(),
@@ -1044,8 +1081,8 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     width: rect.width,
     height: rect.height,
     radius: readRadius(sourceEl),
-    imageSrc: readImageSource(sourceEl),
-    imageOriginalSrc: readOriginalImageSource(sourceEl),
+    imageSrc,
+    imageOriginalSrc,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
