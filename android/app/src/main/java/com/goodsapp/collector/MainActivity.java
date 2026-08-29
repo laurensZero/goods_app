@@ -72,24 +72,33 @@ public class MainActivity extends BridgeActivity {
 
     /**
      * 让 WebView 内嵌的 B 站播放器在部分设备（如 MIUI 平板）也能正常播放。
-     * - 允许混合内容：Android WebView 默认 MIXED_CONTENT_NEVER_ALLOW，会直接拦截
-     *   B 站播放器请求的 http:// 资源（封面/CDN），而 Chrome 浏览器会自动升级为 https。
-     *   拦截后播放器拉不到资源、卡在基础信息，故强制允许。
-     * - 允许第三方 Cookie：播放器 iframe 相对 App 是第三方，流鉴权依赖跨站 Cookie，
-     *   部分系统 WebView 默认拦截，强制开启（对本来允许的设备无副作用）。
+     * 典型现象：播放器 UI 正常、但视频画面黑屏/一直 loading，同一设备的 Chrome 浏览器却正常。
+     * 这是 Android WebView 的经典坑，常见根因与对策（均来自小米/MIUI 实测案例）：
+     * - 强制硬件图层：很多 ROM 默认把 WebView 当作软件层渲染，视频 surface 直接黑。
+     *   小米设备上 setLayerType(LAYER_TYPE_HARDWARE) + hardwareAccelerated=true 可修黑屏。
+     * - 开启 DOM/数据库存储：B 站播放器把清晰度/音量等存进 localStorage，被关会导致
+     *   播放器初始化卡死 → 一直 loading。
+     * - 允许混合内容：Capacitor 因 allowMixedContent=true 已默认设 ALWAYS_ALLOW，此处为双保险。
+     * - 允许第三方 Cookie：播放器 iframe 相对 App 是第三方，流鉴权依赖跨站 Cookie。
      */
     private void configureWebViewForMedia(WebView webView) {
         if (webView == null) return;
         try {
             WebSettings settings = webView.getSettings();
             settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            settings.setDomStorageEnabled(true);
+            settings.setDatabaseEnabled(true);
+
+            // MIUI/部分 ROM 默认软件层渲染视频 surface 会黑屏，强制硬件图层
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
             CookieManager cm = CookieManager.getInstance();
             boolean acceptThirdPartyBefore = cm.acceptThirdPartyCookies(webView);
             cm.setAcceptThirdPartyCookies(webView, true);
             boolean acceptThirdPartyAfter = cm.acceptThirdPartyCookies(webView);
             Log.d("MainActivity",
-                    "WebView media cfg: mixedContent=ALWAYS_ALLOW"
+                    "WebView media cfg: layerType=HARDWARE domStorage=true"
+                            + " mixedContent=ALWAYS_ALLOW"
                             + " acceptThirdPartyBefore=" + acceptThirdPartyBefore
                             + " acceptThirdPartyAfter=" + acceptThirdPartyAfter);
         } catch (Exception error) {
