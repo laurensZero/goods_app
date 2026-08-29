@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.webkit.CookieManager;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 
 import androidx.core.graphics.Insets;
@@ -42,7 +43,7 @@ public class MainActivity extends BridgeActivity {
     private void setupStableEdgeToEdge() {
         try {
             WebView webView = bridge != null ? bridge.getWebView() : null;
-            logWebViewDiagnostics(webView);
+            configureWebViewForMedia(webView);
             View parent = webView != null ? (View) webView.getParent() : null;
             if (parent == null) return;
 
@@ -70,28 +71,29 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * 排查 B 站播放器在部分 WebView（平板/VSCode 预览）里卡在基础信息的问题：
-     * 打印第三方 Cookie 是否被拦截、以及 UA，用于判断是否为跨站鉴权被拦。
+     * 让 WebView 内嵌的 B 站播放器在部分设备（如 MIUI 平板）也能正常播放。
+     * - 允许混合内容：Android WebView 默认 MIXED_CONTENT_NEVER_ALLOW，会直接拦截
+     *   B 站播放器请求的 http:// 资源（封面/CDN），而 Chrome 浏览器会自动升级为 https。
+     *   拦截后播放器拉不到资源、卡在基础信息，故强制允许。
+     * - 允许第三方 Cookie：播放器 iframe 相对 App 是第三方，流鉴权依赖跨站 Cookie，
+     *   部分系统 WebView 默认拦截，强制开启（对本来允许的设备无副作用）。
      */
-    private void logWebViewDiagnostics(WebView webView) {
+    private void configureWebViewForMedia(WebView webView) {
         if (webView == null) return;
         try {
+            WebSettings settings = webView.getSettings();
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
             CookieManager cm = CookieManager.getInstance();
-            boolean acceptCookie = cm.acceptCookie();
             boolean acceptThirdPartyBefore = cm.acceptThirdPartyCookies(webView);
-            // B 站播放器 iframe 是相对 App 的第三方，流鉴权依赖跨站 Cookie。
-            // 部分设备/系统的 WebView 默认拦截，导致视频流请求失败、卡在基础信息。
-            // 强制开启（对本来允许的设备无副作用）。
             cm.setAcceptThirdPartyCookies(webView, true);
             boolean acceptThirdPartyAfter = cm.acceptThirdPartyCookies(webView);
-            String ua = webView.getSettings().getUserAgentString();
             Log.d("MainActivity",
-                    "WebView diag: acceptCookie=" + acceptCookie
+                    "WebView media cfg: mixedContent=ALWAYS_ALLOW"
                             + " acceptThirdPartyBefore=" + acceptThirdPartyBefore
-                            + " acceptThirdPartyAfter=" + acceptThirdPartyAfter
-                            + " ua=" + ua);
+                            + " acceptThirdPartyAfter=" + acceptThirdPartyAfter);
         } catch (Exception error) {
-            Log.w("MainActivity", "WebView diag failed", error);
+            Log.w("MainActivity", "WebView media cfg failed", error);
         }
     }
 
