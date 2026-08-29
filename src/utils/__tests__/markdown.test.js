@@ -5,7 +5,7 @@ describe('renderMarkdown bilibili embed', () => {
   it('renders <video>BVxxx</video> as an iframe to player.bilibili.com', async () => {
     const html = await renderMarkdown('see <video>BV1xx411c7mD</video> here')
     expect(html).toContain('class="bili-embed"')
-    expect(html).toContain('https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&amp;page=1&amp;autoplay=0&amp;danmaku=0&amp;isOutside=true&amp;high_quality=1&amp;poster=1')
+    expect(html).toContain('https://player.bilibili.com/player.html?bvid=BV1xx411c7mD&amp;page=1&amp;autoplay=0&amp;danmaku=0&amp;isOutside=true&amp;poster=1')
     expect(html).toContain('<iframe')
     expect(html).toContain('sandbox="allow-scripts allow-same-origin allow-presentation"')
   })
