@@ -364,6 +364,7 @@ let pzStart = null
 let pzTapMoved = false
 let pzLastTap = { time: 0, x: 0, y: 0 }
 let pzLastTouchEndAt = 0
+let pzPendingBlankClose = null
 let pzAnimatingTimer = 0
 let eventPhotosPreloadPromise = Promise.resolve()
 
@@ -875,6 +876,7 @@ function applyPreviewZoom(scale, x, y, animate = false) {
 // 以点击点为不动点切换缩放：v = O + (b - O)*s + t ⇒ t1 = u - (u - t0)*(s1/s0)
 function togglePreviewZoomAt(clientX, clientY) {
   if (previewZoom.scale > 1) {
+    if (!isPointOnPreviewImage(clientX, clientY)) return
     applyPreviewZoom(1, 0, 0, true)
     return
   }
@@ -923,19 +925,32 @@ function isPointOnPreviewImage(clientX, clientY) {
   )
 }
 
-function closeIfTapOnBlank(clientX, clientY) {
-  if (!isPointOnPreviewImage(clientX, clientY)) {
+// 单击空白区关闭预览，但延迟执行：若紧跟双击（放大/缩小）则取消关闭，
+// 避免双击首击落在角落空白时直接退出照片
+function scheduleBlankCloseIfNeeded(clientX, clientY) {
+  if (isPointOnPreviewImage(clientX, clientY)) return
+  if (pzPendingBlankClose) clearTimeout(pzPendingBlankClose)
+  pzPendingBlankClose = setTimeout(() => {
+    pzPendingBlankClose = null
     closePhotoPreview()
-    return true
+  }, PREVIEW_DOUBLE_TAP_GAP_MS)
+}
+
+function cancelPendingBlankClose() {
+  if (pzPendingBlankClose) {
+    clearTimeout(pzPendingBlankClose)
+    pzPendingBlankClose = null
   }
-  return false
 }
 
 // 触屏产生的合成 click 需要忽略，只响应鼠标点击
 function onPreviewStageClick(event) {
   if (Date.now() - pzLastTouchEndAt < 700) return
-  if (event.detail > 1) return
-  closeIfTapOnBlank(event.clientX, event.clientY)
+  if (event.detail > 1) {
+    cancelPendingBlankClose()
+    return
+  }
+  scheduleBlankCloseIfNeeded(event.clientX, event.clientY)
 }
 
 function onPreviewTouchStart(event) {
@@ -1032,12 +1047,13 @@ function onPreviewTouchEnd(event) {
         const isNearLastTap = Math.hypot(touch.clientX - pzLastTap.x, touch.clientY - pzLastTap.y) < 48
         if (now - pzLastTap.time < PREVIEW_DOUBLE_TAP_GAP_MS && isNearLastTap) {
           pzLastTap.time = 0
+          cancelPendingBlankClose()
           togglePreviewZoomAt(touch.clientX, touch.clientY)
         } else {
           pzLastTap.time = now
           pzLastTap.x = touch.clientX
           pzLastTap.y = touch.clientY
-          closeIfTapOnBlank(touch.clientX, touch.clientY)
+          scheduleBlankCloseIfNeeded(touch.clientX, touch.clientY)
         }
       }
     }
@@ -1064,6 +1080,7 @@ function onPreviewTouchEnd(event) {
 }
 
 function onPreviewDblClick(event) {
+  cancelPendingBlankClose()
   togglePreviewZoomAt(event.clientX, event.clientY)
 }
 
@@ -1073,6 +1090,7 @@ function openPhotoPreview(index) {
   resetPreviewZoom(false)
   previewSwipeX.value = 0
   pzLastTap.time = 0
+  cancelPendingBlankClose()
   previewPhotoIndex.value = index
 }
 
