@@ -72,14 +72,15 @@ public class MainActivity extends BridgeActivity {
 
     /**
      * 让 WebView 内嵌的 B 站播放器在部分设备（如 MIUI 平板）也能正常播放。
-     * 典型现象：播放器 UI 正常、但视频画面黑屏/一直 loading，同一设备的 Chrome 浏览器却正常。
-     * 这是 Android WebView 的经典坑，常见根因与对策（均来自小米/MIUI 实测案例）：
-     * - 强制硬件图层：很多 ROM 默认把 WebView 当作软件层渲染，视频 surface 直接黑。
-     *   小米设备上 setLayerType(LAYER_TYPE_HARDWARE) + hardwareAccelerated=true 可修黑屏。
-     * - 开启 DOM/数据库存储：B 站播放器把清晰度/音量等存进 localStorage，被关会导致
-     *   播放器初始化卡死 → 一直 loading。
-     * - 允许混合内容：Capacitor 因 allowMixedContent=true 已默认设 ALWAYS_ALLOW，此处为双保险。
-     * - 允许第三方 Cookie：播放器 iframe 相对 App 是第三方，流鉴权依赖跨站 Cookie。
+     * 根因（DevTools 确认）：平板上 B 站播放器拿到的是 platform=pc 的流地址，
+     * 其 CDN 按 Referer/防盗链返回 403，导致 <video> 拉流失败、一直黑屏/loading；
+     * 而手机能放是因为手机 UA 含 "Mobile"，播放器改请求 platform=android 移动流（校验更宽松）。
+     * 平板 WebView 的 UA 默认不含 "Mobile" 标记，被播放器当成桌面浏览器 → 拿到 PC 流 → 403。
+     * 对策：给 UA 补上 "Mobile"，让播放器像手机一样请求 android 流。
+     * 附带几项稳妥的兜底（对本来正常的设备无副作用）：
+     * - 强制硬件图层：部分 ROM 软件层渲染视频 surface 会黑屏。
+     * - 开启 DOM/数据库存储：B 站播放器把清晰度/音量等存进 localStorage。
+     * - 允许混合内容 + 第三方 Cookie：Capacitor 已默认，这里双保险。
      */
     private void configureWebViewForMedia(WebView webView) {
         if (webView == null) return;
@@ -89,6 +90,17 @@ public class MainActivity extends BridgeActivity {
             settings.setDomStorageEnabled(true);
             settings.setDatabaseEnabled(true);
 
+            // 平板 UA 缺 "Mobile" → B 站播放器误判为桌面 → 请求 PC 流被 CDN 403。
+            // 补上 "Mobile" 标记，使其像手机一样请求 android 流。
+            String ua = settings.getUserAgentString();
+            if (ua != null && !ua.contains("Mobile")) {
+                String patched = ua + " Mobile";
+                settings.setUserAgentString(patched);
+                Log.d("MainActivity", "WebView UA patched (added Mobile): " + patched);
+            } else {
+                Log.d("MainActivity", "WebView UA already has Mobile: " + ua);
+            }
+
             // MIUI/部分 ROM 默认软件层渲染视频 surface 会黑屏，强制硬件图层
             webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
@@ -97,7 +109,8 @@ public class MainActivity extends BridgeActivity {
             cm.setAcceptThirdPartyCookies(webView, true);
             boolean acceptThirdPartyAfter = cm.acceptThirdPartyCookies(webView);
             Log.d("MainActivity",
-                    "WebView media cfg: layerType=HARDWARE domStorage=true"
+                    "WebView media cfg: uaHasMobile=" + (ua != null && ua.contains("Mobile"))
+                            + " layerType=HARDWARE domStorage=true"
                             + " mixedContent=ALWAYS_ALLOW"
                             + " acceptThirdPartyBefore=" + acceptThirdPartyBefore
                             + " acceptThirdPartyAfter=" + acceptThirdPartyAfter);
