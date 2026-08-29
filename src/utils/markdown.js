@@ -33,7 +33,10 @@ function buildBiliEmbed(id) {
     }
   })
   const extra = params.toString() ? `&${params.toString()}` : ''
-  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&autoplay=0&danmaku=0&isOutside=true&high_quality=1&poster=1${extra}`
+  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
+  if (typeof console !== 'undefined') {
+    console.log('[bili-embed] url=', src)
+  }
   return `<div class="bili-embed"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe></div>`
 }
 

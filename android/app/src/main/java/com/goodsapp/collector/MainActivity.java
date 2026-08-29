@@ -41,6 +41,7 @@ public class MainActivity extends BridgeActivity {
     private void setupStableEdgeToEdge() {
         try {
             WebView webView = bridge != null ? bridge.getWebView() : null;
+            logWebViewDiagnostics(webView);
             View parent = webView != null ? (View) webView.getParent() : null;
             if (parent == null) return;
 
@@ -64,6 +65,32 @@ public class MainActivity extends BridgeActivity {
             });
         } catch (Exception error) {
             Log.w("MainActivity", "stable edge-to-edge setup failed", error);
+        }
+    }
+
+    /**
+     * 排查 B 站播放器在部分 WebView（平板/VSCode 预览）里卡在基础信息的问题：
+     * 打印第三方 Cookie 是否被拦截、以及 UA，用于判断是否为跨站鉴权被拦。
+     */
+    private void logWebViewDiagnostics(WebView webView) {
+        if (webView == null) return;
+        try {
+            CookieManager cm = CookieManager.getInstance();
+            boolean acceptCookie = cm.acceptCookie();
+            boolean acceptThirdPartyBefore = cm.acceptThirdPartyCookies(webView);
+            // B 站播放器 iframe 是相对 App 的第三方，流鉴权依赖跨站 Cookie。
+            // 部分设备/系统的 WebView 默认拦截，导致视频流请求失败、卡在基础信息。
+            // 强制开启（对本来允许的设备无副作用）。
+            cm.setAcceptThirdPartyCookies(webView, true);
+            boolean acceptThirdPartyAfter = cm.acceptThirdPartyCookies(webView);
+            String ua = webView.getSettings().getUserAgentString();
+            Log.d("MainActivity",
+                    "WebView diag: acceptCookie=" + acceptCookie
+                            + " acceptThirdPartyBefore=" + acceptThirdPartyBefore
+                            + " acceptThirdPartyAfter=" + acceptThirdPartyAfter
+                            + " ua=" + ua);
+        } catch (Exception error) {
+            Log.w("MainActivity", "WebView diag failed", error);
         }
     }
 
