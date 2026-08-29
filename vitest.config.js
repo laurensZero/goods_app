@@ -11,6 +11,16 @@ export default defineConfig({
   },
   test: {
     environment: 'happy-dom',
+    environmentOptions: {
+      happyDOM: {
+        settings: {
+          disableIframePageLoading: true,
+          fetch: {
+            disableSameOriginPolicy: true
+          }
+        }
+      }
+    },
     include: ['src/**/__tests__/**/*.test.js'],
     globals: true,
     restoreMocks: true,
