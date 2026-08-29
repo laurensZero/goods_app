@@ -1297,6 +1297,7 @@ function tryPlayLinkedGoodsBackHero() {
   overscroll-behavior-y: contain;
   -ms-overflow-style: none;
   scrollbar-width: none;
+  overflow-x: hidden;
 }
 
 .event-detail-page .page-body::-webkit-scrollbar {
@@ -1307,6 +1308,7 @@ function tryPlayLinkedGoodsBackHero() {
 
 .detail-shell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
 }
 
@@ -1325,6 +1327,7 @@ function tryPlayLinkedGoodsBackHero() {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .cover-card {
@@ -1363,7 +1366,9 @@ function tryPlayLinkedGoodsBackHero() {
 
 .gallery-card {
   padding: 12px;
-  border-radius: 24px;
+  border-radius: 30px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hero-card {
@@ -2075,6 +2080,7 @@ function tryPlayLinkedGoodsBackHero() {
   .media-column {
     position: sticky;
     top: 0;
+    min-width: 0;
   }
 
   .info-card {
@@ -2093,11 +2099,6 @@ function tryPlayLinkedGoodsBackHero() {
 }
 
 @media (max-width: 899px) {
-  .gallery-card {
-    margin-inline: calc(var(--page-padding) * -1);
-    border-radius: 0;
-    padding-inline: var(--page-padding);
-  }
 }
 
 @media (max-width: 720px) {

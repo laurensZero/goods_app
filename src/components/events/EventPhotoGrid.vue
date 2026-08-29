@@ -114,6 +114,19 @@ onBeforeUnmount(() => {
   padding: 4px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+    /* 右侧渐隐，避免图片被硬切 */
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 32px),
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
+    black 0,
+    black calc(100% - 32px),
+    transparent 100%
+  );
 }
 
 .photo-scroll-wrapper::-webkit-scrollbar {
