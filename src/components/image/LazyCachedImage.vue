@@ -262,6 +262,8 @@ watch(
   () => {
     hasLoadError.value = false
     retryKey.value = 0
+    resolvedSrc.value = ''
+    isImageLoading.value = true
   },
   { immediate: true }
 )
