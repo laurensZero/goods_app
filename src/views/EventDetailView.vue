@@ -221,6 +221,7 @@
               <div class="photo-preview__cell">
                 <LazyCachedImage
                   v-if="prevPhoto"
+                  :key="prevPhoto.uri"
                   :src="prevPhoto.uri"
                   :alt="prevPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex })"
                   :lazy="false"
@@ -245,6 +246,7 @@
               <div class="photo-preview__cell">
                 <LazyCachedImage
                   v-if="nextPhoto"
+                  :key="nextPhoto.uri"
                   :src="nextPhoto.uri"
                   :alt="nextPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 2 })"
                   :lazy="false"
@@ -828,6 +830,12 @@ function commitSwipeSwitch(direction) {
   previewSwipeX.value = direction * stageW
   window.setTimeout(() => {
     previewPhotoIndex.value += direction < 0 ? 1 : -1
+    const photos = event.value?.photos || []
+    const preloadRange = [previewPhotoIndex.value - 2, previewPhotoIndex.value - 1, previewPhotoIndex.value + 1, previewPhotoIndex.value + 2]
+    preloadRange.forEach((i) => {
+      const uri = photos[i]?.uri
+      if (uri) getCachedImage(uri, { priority: 'viewport' })
+    })
     pzAnimating.value = false
     previewSwipeX.value = 0
     window.requestAnimationFrame(() => {
@@ -1097,6 +1105,11 @@ function openPhotoPreview(index) {
   pzLastTap.time = 0
   cancelPendingBlankClose()
   previewPhotoIndex.value = index
+  const preloadRange = [index - 2, index - 1, index + 1, index + 2]
+  preloadRange.forEach((i) => {
+    const uri = photos[i]?.uri
+    if (uri) getCachedImage(uri, { priority: 'viewport' })
+  })
 }
 
 function closePhotoPreview() {
