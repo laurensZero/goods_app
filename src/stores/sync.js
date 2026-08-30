@@ -1095,7 +1095,6 @@ export const useSyncStore = defineStore('sync', () => {
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,
     restoreImageFromCloud,
-    maintenanceMode,
-    reportHeartbeat
+    maintenanceMode, reportHeartbeat, getCurrentBackend
   }
 })

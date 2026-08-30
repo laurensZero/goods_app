@@ -48,6 +48,7 @@ const { t } = useI18n()
 const props = defineProps({
   src: { type: String, default: '' },
   alt: { type: String, default: '' },
+  fallbackSrc: { type: String, default: '' },
   rootMargin: { type: String, default: '720px 0px' },
   loading: { type: String, default: 'lazy' },
   decoding: { type: String, default: 'async' },
@@ -57,8 +58,12 @@ const props = defineProps({
   resumeDecodeValidation: { type: Boolean, default: false },
   skeletonEnabled: { type: Boolean, default: true },
   skeletonDelayMs: { type: Number, default: 0 },
+  skipDecodeCheck: { type: Boolean, default: false },
   imageAttrs: { type: Object, default: () => ({}) }
 })
+
+const effectiveSrc = ref(props.src)
+const fallbackUsed = ref(false)
 
 const attrs = useAttrs()
 const rootRef = ref(null)
@@ -193,7 +198,7 @@ function getViewportDistance() {
 
 async function runLoad() {
   const requestId = ++loadRequestId
-  const url = props.src
+  const url = effectiveSrc.value
   const isVisible = hasEnteredViewport.value
   if (!url) {
     resolvedSrc.value = ''
@@ -230,15 +235,23 @@ async function runLoad() {
     : url
   if (requestId !== loadRequestId) return
   resolvedSrc.value = nextSrc
-  const ok = await waitForImgDecode(nextSrc)
-  if (requestId !== loadRequestId) return
-  isImageLoading.value = !ok
-  if (ok) markImageDecoded(nextSrc)
+  if (props.skipDecodeCheck) {
+    isImageLoading.value = false
+  } else {
+    const ok = await waitForImgDecode(nextSrc)
+    if (requestId !== loadRequestId) return
+    isImageLoading.value = !ok
+    if (ok) markImageDecoded(nextSrc)
+  }
 }
 
 watch(
   [() => props.src, hasEnteredViewport],
   () => {
+    if (props.src !== effectiveSrc.value) {
+      effectiveSrc.value = props.src
+      fallbackUsed.value = false
+    }
     void runLoad()
   },
   { immediate: true }
@@ -264,6 +277,17 @@ function onImageError() {
   if (retryKey.value < MAX_AUTO_RETRY) {
     retryKey.value += 1
     isImageLoading.value = true
+    return
+  }
+  // 缩略图等服务端小图加载失败时，回退到原图（如 edge function 未部署）
+  if (props.fallbackSrc && props.fallbackSrc !== effectiveSrc.value && !fallbackUsed.value) {
+    fallbackUsed.value = true
+    retryKey.value = 0
+    hasLoadError.value = false
+    effectiveSrc.value = props.fallbackSrc
+    isImageLoading.value = true
+    resetSkeletonVisibility()
+    void runLoad()
     return
   }
   hasLoadError.value = true
