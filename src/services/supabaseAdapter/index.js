@@ -47,7 +47,6 @@ export function createSupabaseBackendAdapter({
     readImage: storage.readImage,
     writeImages: writeImagesWithTracking,
     getImagePublicUrl: storage.getImagePublicUrl,
-    getPhotoThumbUrl: storage.getPhotoThumbUrl,
     removeImages: storage.removeImages,
     pushAll: writer.pushAll,
     pullAll: reader.pullAll,
