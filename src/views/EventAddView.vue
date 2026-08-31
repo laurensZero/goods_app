@@ -203,10 +203,57 @@
                             min="0"
                             step="1"
                             placeholder="0.00"
+                            :disabled="disableTicketPriceInput"
+                            :class="{ 'day-ticket-input--auto': disableTicketPriceInput }"
                             :aria-invalid="Boolean(ticketPriceError)"
                           />
+                          <span v-if="disableTicketPriceInput" class="field-hint">{{ t('events.addEdit.dayTicketAutoTotal') }}</span>
                           <span v-if="ticketPriceError" class="field-error">{{ ticketPriceError }}</span>
                         </label>
+
+                        <div v-if="dayCount >= 2" class="field field--full day-ticket-block">
+                          <button class="day-ticket-toggle" type="button" @click="toggleDayTicketPanel">
+                            <span class="day-ticket-toggle__copy">
+                              <span class="day-ticket-toggle__title">{{ dayTicketToggleTitle }}</span>
+                              <span class="day-ticket-toggle__desc">{{ dayTicketToggleDesc }}</span>
+                            </span>
+                            <svg class="day-ticket-toggle__arrow" :class="{ 'day-ticket-toggle__arrow--open': showDayTicketInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M7 10L12 15L17 10" />
+                            </svg>
+                          </button>
+
+                          <div v-if="showDayTicketInput" ref="dayTicketPanelRef" class="day-ticket-panel">
+                            <div class="day-ticket-inline-actions">
+                              <span class="day-ticket-inline-actions__label">{{ t('events.addEdit.dayTicketDetail') }}</span>
+                              <button class="day-ticket-clear-btn" type="button" @click="clearDayTicketList">{{ t('common.clear') }}</button>
+                            </div>
+                            <article v-for="index in dayCount" :key="`day-ticket-${index}`" class="day-ticket-row">
+                              <span class="day-ticket-row__date">{{ t('events.addEdit.dayTicketDate', { index, date: dayDateAt(index - 1) }) }}</span>
+                              <div class="day-ticket-row__grid">
+                                <label class="field" :class="{ 'field--error': dayTicketValidation[index - 1] }">
+                                  <span class="field-label">{{ t('events.addEdit.dayTicketPrice', { index }) }}</span>
+                                  <input
+                                    v-model="form.dayTicketList[index - 1].price"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    placeholder="0.00"
+                                    :aria-invalid="Boolean(dayTicketValidation[index - 1])"
+                                  />
+                                  <span v-if="dayTicketValidation[index - 1]" class="field-error">{{ dayTicketValidation[index - 1] }}</span>
+                                </label>
+                                <label class="field">
+                                  <span class="field-label">{{ t('events.addEdit.dayTicketType', { index }) }}</span>
+                                  <input
+                                    v-model="form.dayTicketList[index - 1].ticketType"
+                                    type="text"
+                                    :placeholder="t('events.addEdit.ticketTypePlaceholder')"
+                                  />
+                                </label>
+                              </div>
+                            </article>
+                          </div>
+                        </div>
 
                         <div class="field field--full expense-section">
                           <div class="expense-section__head">
@@ -428,6 +475,7 @@ import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
+import { getDayDate, normalizeDayTicketPrice, parseDayCount } from '@/utils/events/dayTickets'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import NavBar from '@/components/common/NavBar.vue'
@@ -485,6 +533,7 @@ const form = reactive({
   ticketPrice: '',
   ticketType: '',
   seatInfo: '',
+  dayTicketList: [],
   otherExpenses: [],
   linkedGoodsIds: [],
   tags: []
@@ -542,7 +591,7 @@ const tabItems = computed(() => {
   const items = [
     { key: 'basic', label: t('events.addEdit.basics'), badge: Boolean(nameError.value || !String(form.name || '').trim()) },
     { key: 'schedule', label: t('events.addEdit.schedule') },
-    { key: 'ticket', label: t('events.addEdit.ticketGoods'), badge: Boolean(ticketPriceError.value || hasOtherExpenseValidationError.value) },
+    { key: 'ticket', label: t('events.addEdit.ticketGoods'), badge: Boolean(ticketPriceError.value || hasOtherExpenseValidationError.value || hasDayTicketValidationError.value) },
     { key: 'gallery', label: t('events.addEdit.galleryNotes') }
   ]
 
@@ -600,6 +649,109 @@ const hasOtherExpenseValidationError = computed(() => (
   otherExpenseValidation.value.some((item) => item.nameError || item.amountError)
 ))
 
+// ── 逐天票务（多天活动各天票价/票种不同）──
+
+const showDayTicketInput = ref(false)
+const dayTicketPanelRef = ref(null)
+
+const dayCount = computed(() => parseDayCount(form.startDate, form.endDate))
+
+const hasDayTicketValue = computed(() => (
+  form.dayTicketList.some((item) => (
+    item && (String(item.price ?? '').trim() || String(item.ticketType ?? '').trim())
+  ))
+))
+
+const dayTicketToggleTitle = computed(() => {
+  if (showDayTicketInput.value) return t('events.addEdit.dayTicketToggleOpen')
+  return hasDayTicketValue.value ? t('events.addEdit.dayTicketToggleEdit') : t('events.addEdit.dayTicketToggleSet')
+})
+
+const dayTicketToggleDesc = computed(() => {
+  if (showDayTicketInput.value) return t('events.addEdit.dayTicketDescOpen')
+  return hasDayTicketValue.value ? t('events.addEdit.dayTicketDescEdit') : t('events.addEdit.dayTicketDescSet')
+})
+
+// 主票价输入在逐天面板展开时禁用（镜像谷子逐份入手价），由逐天合计接管
+const disableTicketPriceInput = computed(() => dayCount.value >= 2 && showDayTicketInput.value)
+
+// 已填价格合计：全部填满即总价；部分填写时同步为 ticketPrice 基线，避免列表页统计残留旧汇总
+const filledDayTicketTotal = computed(() => {
+  let total = 0
+  let hasAny = false
+  for (const item of form.dayTicketList) {
+    const numeric = Number.parseFloat(String(item?.price ?? '').trim())
+    if (Number.isFinite(numeric) && numeric >= 0) {
+      total += numeric
+      hasAny = true
+    }
+  }
+  return hasAny ? `${Math.round(total * 100) / 100}` : ''
+})
+
+const dayTicketValidation = computed(() => (
+  form.dayTicketList.map((item) => {
+    const price = String(item?.price ?? '').trim()
+    if (!price) return ''
+    const result = validateNumericPrice(price)
+    return result.valid ? '' : result.message
+  })
+))
+
+const hasDayTicketValidationError = computed(() => dayTicketValidation.value.some(Boolean))
+
+function dayDateAt(index) {
+  return getDayDate(form.startDate, index)
+}
+
+// 日期区间变化时增减行：已有值保留，新行留空；行数始终与天数对齐（模板 v-model 依赖下标存在）
+function syncDayTicketListLength() {
+  const targetLength = dayCount.value
+  if (targetLength < 2) return
+  const current = Array.isArray(form.dayTicketList) ? form.dayTicketList : []
+  form.dayTicketList = Array.from({ length: targetLength }, (_, index) => {
+    const item = current[index]
+    return item && typeof item === 'object'
+      ? { price: String(item.price ?? ''), ticketType: String(item.ticketType ?? '') }
+      : { price: '', ticketType: '' }
+  })
+}
+
+watch(
+  () => [form.startDate, form.endDate],
+  () => {
+    syncDayTicketListLength()
+  }
+)
+
+// 逐天数据变化时保持 ticketPrice 同步（卡片与票务统计读 ticketPrice）
+watch(
+  () => form.dayTicketList,
+  () => {
+    if (!showDayTicketInput.value || dayCount.value < 2) return
+    if (filledDayTicketTotal.value) {
+      form.ticketPrice = filledDayTicketTotal.value
+    }
+  },
+  { deep: true }
+)
+
+// 展开面板：尚无逐天数据时以已填门票价格作为每天初始价（统一票价起步，再单天微调）
+function toggleDayTicketPanel() {
+  showDayTicketInput.value = !showDayTicketInput.value
+  if (showDayTicketInput.value && dayCount.value >= 2 && !hasDayTicketValue.value) {
+    const base = normalizeDayTicketPrice(form.ticketPrice)
+    if (base) {
+      form.dayTicketList = form.dayTicketList.map(() => ({ price: base, ticketType: '' }))
+    }
+  }
+}
+
+function clearDayTicketList() {
+  form.dayTicketList = []
+  showDayTicketInput.value = false
+}
+
 function setActiveTab(tabKey, options = {}) {
   if (!tabItems.value.some((item) => item.key === tabKey)) return
   activeTab.value = tabKey
@@ -631,6 +783,7 @@ function buildDraftPayload() {
       ticketPrice: String(form.ticketPrice || ''),
       ticketType: String(form.ticketType || ''),
       seatInfo: String(form.seatInfo || ''),
+      dayTicketList: Array.isArray(form.dayTicketList) ? form.dayTicketList.map((item) => ({ ...item })) : [],
       otherExpenses: Array.isArray(form.otherExpenses) ? form.otherExpenses.map((item) => ({ ...item })) : [],
       linkedGoodsIds: Array.isArray(form.linkedGoodsIds) ? [...form.linkedGoodsIds] : [],
       tags: Array.isArray(form.tags) ? [...form.tags] : []
@@ -655,6 +808,11 @@ function applyFormSnapshot(snapshot) {
   form.ticketPrice = String(snapshot.ticketPrice || '')
   form.ticketType = String(snapshot.ticketType || '')
   form.seatInfo = String(snapshot.seatInfo || '')
+  form.dayTicketList = Array.isArray(snapshot.dayTicketList)
+    ? snapshot.dayTicketList.map((item) => ({ price: String(item?.price ?? ''), ticketType: String(item?.ticketType ?? '') }))
+    : []
+  syncDayTicketListLength()
+  showDayTicketInput.value = hasDayTicketValue.value
   form.otherExpenses = Array.isArray(snapshot.otherExpenses) ? snapshot.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = Array.isArray(snapshot.linkedGoodsIds) ? [...snapshot.linkedGoodsIds] : []
   form.tags = Array.isArray(snapshot.tags) ? [...snapshot.tags] : []
@@ -755,6 +913,11 @@ async function loadEditData() {
   form.ticketPrice = existing.ticketPrice || ''
   form.ticketType = existing.ticketType || ''
   form.seatInfo = existing.seatInfo || ''
+  form.dayTicketList = Array.isArray(existing.dayTicketList)
+    ? existing.dayTicketList.map((item) => ({ price: String(item?.price ?? ''), ticketType: String(item?.ticketType ?? '') }))
+    : []
+  syncDayTicketListLength()
+  showDayTicketInput.value = hasDayTicketValue.value
   form.otherExpenses = Array.isArray(existing.otherExpenses) ? existing.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = existing.linkedGoodsIds ? [...existing.linkedGoodsIds] : []
   form.tags = existing.tags ? [...existing.tags] : []
@@ -818,6 +981,15 @@ async function handleSubmit() {
   }
   if (!validateTicketPrice()) {
     setActiveTab('ticket', { scroll: false })
+    return
+  }
+  if (hasDayTicketValidationError.value) {
+    // 面板收起时展开，让用户能看到出错的行
+    showDayTicketInput.value = true
+    setActiveTab('ticket', { scroll: false })
+    nextTick(() => {
+      dayTicketPanelRef.value?.scrollIntoView?.({ block: 'center', behavior: 'smooth' })
+    })
     return
   }
   if (hasOtherExpenseValidationError.value) {
@@ -1542,6 +1714,124 @@ onBeforeUnmount(() => {
 
 .field--error input {
   border-color: rgba(209, 83, 83, 0.35);
+}
+
+.day-ticket-input--auto {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.day-ticket-block {
+  border-top: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  padding-top: 12px;
+}
+
+.day-ticket-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+}
+
+.day-ticket-toggle__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.day-ticket-toggle__title {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.day-ticket-toggle__desc {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.day-ticket-toggle__arrow {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  stroke: var(--app-text-tertiary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 0.18s ease;
+}
+
+.day-ticket-toggle__arrow--open {
+  transform: rotate(180deg);
+}
+
+.day-ticket-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.day-ticket-inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.day-ticket-inline-actions__label {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.day-ticket-clear-btn {
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  transition: transform 0.16s ease;
+}
+
+.day-ticket-clear-btn:active {
+  transform: scale(0.98);
+}
+
+.day-ticket-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--app-surface-soft) 90%, var(--app-surface));
+}
+
+.day-ticket-row__date {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.day-ticket-row__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 720px) {
+  .day-ticket-row__grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .date-field {

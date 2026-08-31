@@ -65,6 +65,7 @@ CREATE TABLE IF NOT EXISTS events (
   ticket_price TEXT DEFAULT '',
   ticket_type TEXT DEFAULT '',
   seat_info TEXT DEFAULT '',
+  day_ticket_list JSONB DEFAULT '[]',
   other_expenses JSONB DEFAULT '[]',
   tracks JSONB DEFAULT '[]',
   linked_goods_ids JSONB DEFAULT '[]',
@@ -186,6 +187,9 @@ ALTER TABLE goods DROP COLUMN IF EXISTS image;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude TEXT DEFAULT '';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude TEXT DEFAULT '';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS day_ticket_list JSONB DEFAULT '[]';
 
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -305,6 +309,8 @@ BEGIN
     OR NEW.end_date IS DISTINCT FROM OLD.end_date
     OR NEW.location IS DISTINCT FROM OLD.location
     OR NEW.city IS DISTINCT FROM OLD.city
+    OR NEW.latitude IS DISTINCT FROM OLD.latitude
+    OR NEW.longitude IS DISTINCT FROM OLD.longitude
     OR NEW.description IS DISTINCT FROM OLD.description
     OR NEW.cover_image IS DISTINCT FROM OLD.cover_image
     OR NEW.cover_image_data IS DISTINCT FROM OLD.cover_image_data
@@ -312,6 +318,7 @@ BEGIN
     OR NEW.ticket_price IS DISTINCT FROM OLD.ticket_price
     OR NEW.ticket_type IS DISTINCT FROM OLD.ticket_type
     OR NEW.seat_info IS DISTINCT FROM OLD.seat_info
+    OR NEW.day_ticket_list IS DISTINCT FROM OLD.day_ticket_list
     OR NEW.other_expenses IS DISTINCT FROM OLD.other_expenses
     OR NEW.tracks IS DISTINCT FROM OLD.tracks
     OR NEW.linked_goods_ids IS DISTINCT FROM OLD.linked_goods_ids
@@ -1167,10 +1174,13 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      location = EXCLUDED.location, city = EXCLUDED.city, description = EXCLUDED.description,
+      location = EXCLUDED.location, city = EXCLUDED.city,
+      latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+      description = EXCLUDED.description,
       cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
       photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
       ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
+      day_ticket_list = EXCLUDED.day_ticket_list,
       other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
       deleted = EXCLUDED.deleted,
@@ -1186,10 +1196,13 @@ BEGIN
     ON CONFLICT (id) DO UPDATE SET
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      location = EXCLUDED.location, city = EXCLUDED.city, description = EXCLUDED.description,
+      location = EXCLUDED.location, city = EXCLUDED.city,
+      latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
+      description = EXCLUDED.description,
       cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
       photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
       ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
+      day_ticket_list = EXCLUDED.day_ticket_list,
       other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
       linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
       deleted = EXCLUDED.deleted,

@@ -456,6 +456,19 @@ const ticketPriceAmount = computed(() => {
   const value = Number.parseFloat(String(event.value?.ticketPrice || '').trim())
   return Number.isFinite(value) ? String(Math.round(value * 100) / 100) : '0'
 })
+// 逐天票价：有逐天数据时票价行显示逐天拼接（参考谷子逐份入手价），否则显示总价
+const dayTicketPriceText = computed(() => {
+  const list = Array.isArray(event.value?.dayTicketList) ? event.value.dayTicketList : []
+  const normalized = list
+    .map((item) => {
+      const numeric = Number.parseFloat(String(item?.price || '').trim())
+      if (!Number.isFinite(numeric) || numeric < 0) return ''
+      return `¥${Math.round(numeric * 100) / 100}`
+    })
+    .filter(Boolean)
+  if (normalized.length < 2) return ''
+  return normalized.join(' / ')
+})
 const otherExpenseItems = computed(() => (
   Array.isArray(event.value?.otherExpenses)
     ? event.value.otherExpenses
@@ -611,7 +624,7 @@ const infoItems = computed(() => {
     items.push({ label: t('events.detail.eventLocation'), value: event.value.location })
   }
   if (hasTicketPrice.value) {
-    items.push({ label: t('events.detail.ticketPrice'), value: `¥${ticketPriceAmount.value}` })
+    items.push({ label: t('events.detail.ticketPrice'), value: dayTicketPriceText.value || `¥${ticketPriceAmount.value}` })
   }
   if (showExpenseSection.value) {
     items.push({ label: t('events.detail.otherExpensesLabel'), value: `¥${Math.round(expenseSectionTotalAmount.value * 100) / 100}` })

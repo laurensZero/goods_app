@@ -9,6 +9,10 @@ import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { replaceEventBase64WithPublicUrls } from '@/stores/goodsMigrations'
+import {
+  normalizeDayTicketList,
+  resolveCompleteDayTicketTotal
+} from '@/utils/events/dayTickets'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -42,16 +46,23 @@ function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
 }
 
 // events 行字段白名单。⚠️ 增删此函数收/放的字段会影响同步：旧版本会丢弃新字段并越过水位线，
-// 升级后不会重放。新增会同步的字段时必须 bump `src/constants/syncConstants.js` 的 SYNC_SCHEMA_VERSION。
-function normalizeEvent(data) {
+// 升级后不会重放。新增会同步的字段时必须 bump `src/constants/syncConstants.js` 的 SYNC_SCHEMA_VERSION，
+// 并在 EVENT_BUSINESS_KEYS（supabaseAdapter/helpers.js）同步登记——syncColumnConsistency 测试兜底防漏。
+// 导出仅供 syncColumnConsistency 测试做白名单一致性比对。
+export function normalizeEvent(data) {
   const now = Date.now()
   const id = data.id || String(now)
+  const startDate = String(data.startDate || '').trim()
+  const endDate = String(data.endDate || data.startDate || '').trim()
+  const dayTicketList = normalizeDayTicketList(data.dayTicketList, startDate, endDate)
+  // 逐天价格填满时以逐天总和为准（表单已同步，这里兜底备份导入等旁路写入）
+  const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, startDate, endDate)
   return {
     id,
     name: String(data.name || '').trim(),
     type: String(data.type || '').trim(),
-    startDate: String(data.startDate || '').trim(),
-    endDate: String(data.endDate || data.startDate || '').trim(),
+    startDate,
+    endDate,
     location: String(data.location || '').trim(),
     city: String(data.city || '').trim(),
     latitude: String(data.latitude || '').trim(),
@@ -60,11 +71,12 @@ function normalizeEvent(data) {
     coverImage: String(data.coverImage || '').trim(),
     coverImageData: data.coverImageData ? { ...data.coverImageData } : null,
     photos: Array.isArray(data.photos) ? data.photos : [],
-    tracks: normalizeTracks(data.tracks),
-    ticketPrice: String(data.ticketPrice || '').trim(),
+    ticketPrice: dayTicketTotal || String(data.ticketPrice || '').trim(),
     ticketType: String(data.ticketType || '').trim(),
     seatInfo: String(data.seatInfo || '').trim(),
+    dayTicketList,
     otherExpenses: normalizeOtherExpenses(data.otherExpenses),
+    tracks: normalizeTracks(data.tracks),
     linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
     tags: Array.isArray(data.tags) ? data.tags : [],
     deleted: Boolean(data.deleted),
@@ -187,6 +199,11 @@ export const useEventsStore = defineStore('events', () => {
       tracks: normalizeTracks(data?.tracks),
       otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
     }
+    const nextStartDate = String(normalizedData.startDate ?? previous.startDate ?? '').trim()
+    const nextEndDate = String(normalizedData.endDate ?? previous.endDate ?? '').trim()
+    normalizedData.dayTicketList = normalizeDayTicketList(data?.dayTicketList, nextStartDate, nextEndDate)
+    const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, nextStartDate, nextEndDate)
+    if (dayTicketTotal) normalizedData.ticketPrice = dayTicketTotal
 
     // The cloud filename belongs to the specific cover image.  The event
     // editor only submits coverImage, so retain the metadata for an
