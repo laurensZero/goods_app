@@ -327,23 +327,13 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     return data?.publicUrl || ''
   }
 
-  // 每个浏览器会话生成一次 cache-bust，使缩略图 URL 在各会话间不同，
-  // 避免浏览器 Cache API 命中旧响应而导致 edge function 不被调用（原图已从 Storage 删除时无法重新落盘）。
-  function getResizeImageCacheBust() {
-    try {
-      let b = sessionStorage.getItem('rmb')
-      if (!b) {
-        b = Math.random().toString(36).slice(2, 10)
-        sessionStorage.setItem('rmb', b)
-      }
-      return b
-    } catch {
-      return ''
-    }
-  }
-
   // 把一张原图公开 URL 转成「服务端缩放后的缩略图」URL（走 resize-image edge function）。
   // 仅返回拼接好的 URL；edge function 会校验来源为本项目 Storage 公开图，否则拒绝。
+  // 注意：返回的 URL 必须跨会话稳定（不含随机参数），否则客户端三层图片缓存
+  // （内存 → Cache API → Capacitor FS，以完整 URL 为 key）会每次冷启动全部失效。
+  // 稳定性依赖「同一 Storage 文件名内容不可变」：所有图片文件名都在上传时一次性生成
+  // （含唯一图片 id），内容替换走新 id 新文件名，不会同名覆盖（见 utils/sync/shared.js 的
+  // buildXxxFilename 系列）。
   function getImageThumbUrl(originalPublicUrl, { width = 400, height = 0 } = {}) {
     const original = String(originalPublicUrl || '').trim()
     if (!original) return ''
@@ -352,8 +342,6 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     params.set('url', original)
     params.set('w', String(Math.max(16, Math.floor(Number(width) || 400))))
     if (height && Number(height) > 0) params.set('h', String(Math.max(16, Math.floor(Number(height)))))
-    const bust = getResizeImageCacheBust()
-    if (bust) params.set('_', bust)
     return `${fn}?${params.toString()}`
   }
 
