@@ -71,6 +71,9 @@ verify_jwt = false
 verify_jwt = false
 
 # 图片缩略图：客户端缩略图网格直连，无需用户登录 JWT。
-# 仅允许缩放本项目 Supabase Storage 公开 URL，避免被当作开放代理。
+# 函数内自行设防（不依赖平台 JWT 校验，避免带自定义头请求的 CORS 预检依赖平台行为）：
+# apikey 头须等于公开 anon key（随 app 分发，挡无 key 盗用）、bucket/uid/文件名白名单、
+# 宽度仅限离散档位、每 isolate 限流、上游拉取超时+大小上限。
+# 旧版本 app 不带 apikey 头会得到 401，客户端按设计回退原图加载。
 [functions.resize-image]
 verify_jwt = false
