@@ -6,6 +6,7 @@
 
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { getThumbFetchHeaders } from '@/utils/image/thumbFetch'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -587,7 +588,8 @@ export async function getCachedImage(url, options = {}) {
         }
 
         try {
-          const response = await fetchWithPlatformBridge(fetchUrl)
+          const thumbHeaders = getThumbFetchHeaders(fetchUrl)
+          const response = await fetchWithPlatformBridge(fetchUrl, thumbHeaders ? { headers: thumbHeaders } : {})
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const blob = await response.blob()
