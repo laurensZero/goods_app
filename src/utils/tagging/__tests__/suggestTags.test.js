@@ -41,4 +41,16 @@ describe('getTaggingSuggestions dynamic category matching', () => {
     expect(result.categorySuggestion.reasons.some((r) => r.includes('胶片卡'))).toBe(true)
     expect(result.categorySuggestion.reasons.some((r) => r.includes('卡片'))).toBe(true)
   })
+
+  it('merges the learned category with the static rule instead of suggesting a lowercase duplicate', () => {
+    const result = getTaggingSuggestions(
+      { name: '某乐队 现场专辑CD' },
+      {
+        categoryRules: [{ key: '(CD|专辑|唱片|OST)', value: 'CD/专辑', weight: 1.0 }],
+      },
+      { categories: [{ keyword: '现场专辑', value: 'CD/专辑' }] }
+    )
+    expect(result.categorySuggestion.value).toBe('CD/专辑')
+    expect(result.categorySuggestion.reasons.some((r) => r.includes('现场专辑'))).toBe(true)
+  })
 })

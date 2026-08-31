@@ -83,6 +83,16 @@ export function learnCategoryKeywords(goodsList = [], options = {}) {
     includeWishlist = true,
   } = options
 
+  // 规范化分类名 → 原始写法（预设分类优先，其次商品上首次出现的写法），
+  // 学到的映射 value 需用原始大小写，否则会把「CD/专辑」建议成「cd/专辑」
+  const categoryDisplayNames = new Map()
+  const registerCategory = (raw) => {
+    const key = normalizeKey(raw)
+    if (!key || categoryDisplayNames.has(key)) return
+    categoryDisplayNames.set(key, String(raw))
+  }
+  toNameList(categories).forEach(registerCategory)
+
   // 只把 >= 2 字的角色名纳入黑名单，避免单字角色过度过滤常用双字词
   const charNames = toNameList(characters)
     .map(normalizeKey)
@@ -98,6 +108,7 @@ export function learnCategoryKeywords(goodsList = [], options = {}) {
     if (!includeWishlist && item.isWishlist) return
     const category = normalizeKey(item.category)
     if (!category || category === '其他') return
+    registerCategory(item.category)
     const normName = normalizeKey(item.name)
     if (!HAN_REGEX.test(normName)) return
 
@@ -125,7 +136,7 @@ export function learnCategoryKeywords(goodsList = [], options = {}) {
     const winner = pickMajorityCategory(hist)
     if (!winner) continue
 
-    result.push({ keyword: gram, value: winner, count })
+    result.push({ keyword: gram, value: categoryDisplayNames.get(winner) || winner, count })
   }
 
   // 确定性排序：更长关键词优先 → 出现商品数多优先 → 中文拼音序兜底
