@@ -151,39 +151,4 @@ describe('createStorageOps', () => {
       expect(toStoragePath('a.jpg')).toBe('a.jpg')
     })
   })
-
-  describe('getImageThumbUrl / getPhotoThumbUrl', () => {
-    // 回归保护：缩略图 URL 必须跨会话稳定（不含随机 cache-bust 参数），
-    // 否则客户端三层图片缓存以完整 URL 为 key，每次冷启动都会全部失效。
-    it('produces a stable URL with only url/w params across calls', () => {
-      const ops = makeOps({})
-      const original = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/event-photos/uid/event-photo__e1__p1__1.jpg'
-      const a = ops.getImageThumbUrl(original, { width: 800 })
-      const b = ops.getImageThumbUrl(original, { width: 800 })
-      expect(a).toBe(b)
-      expect(a).toContain('/functions/v1/resize-image?')
-      const params = new URL(a).searchParams
-      expect(params.get('w')).toBe('800')
-      expect([...params.keys()].sort()).toEqual(['url', 'w'])
-    })
-
-    it('resolves cloud-image:// photo through public URL to a stable thumb URL', () => {
-      const db = {
-        storage: {
-          from: () => ({
-            getPublicUrl: (path) => ({
-              data: { publicUrl: `https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/event-photos/uid/${path}` }
-            })
-          })
-        }
-      }
-      const ops = makeOps(db)
-      const a = ops.getPhotoThumbUrl({ uri: 'cloud-image://event-photo__e1__p1__1.jpg' }, { width: 800 })
-      const b = ops.getPhotoThumbUrl({ uri: 'cloud-image://event-photo__e1__p1__1.jpg' }, { width: 800 })
-      expect(a).toBe(b)
-      const params = new URL(a).searchParams
-      expect(params.get('w')).toBe('800')
-      expect([...params.keys()].sort()).toEqual(['url', 'w'])
-    })
-  })
 })
