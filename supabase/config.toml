@@ -69,8 +69,3 @@ verify_jwt = false
 
 [functions.storage-admin]
 verify_jwt = false
-
-# 图片缩略图：客户端缩略图网格直连，无需用户登录 JWT。
-# 仅允许缩放本项目 Supabase Storage 公开 URL，避免被当作开放代理。
-[functions.resize-image]
-verify_jwt = false

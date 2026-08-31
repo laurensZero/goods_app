@@ -317,7 +317,6 @@ import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteT
 import { hasPendingEventHeroForward, hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { getCachedImage, preloadImages } from '@/utils/image/cache'
-import { resolvePhotoThumbUrl } from '@/utils/image/thumbUrl'
 import { renderMarkdown } from '@/utils/markdown'
 
 defineOptions({ name: 'EventDetailView' })
@@ -652,17 +651,13 @@ function preloadLinkedGoodsImages() {
 
 // 预热照片缩略图缓存并记录 Promise，供 revealGalleryWhenPhotosReady 等待
 function preloadEventPhotos() {
-  const photos = Array.isArray(event.value?.photos) ? event.value.photos : []
-  if (!photos.length) {
+  const uris = eventPhotoUris.value
+  if (!uris.length) {
     eventPhotosPreloadPromise = Promise.resolve()
     return
   }
-  // 预热的也是缩略图（不是原图），避免页面刚打开就并发解码多张几 MB 原图
   eventPhotosPreloadPromise = Promise.all(
-    photos.map((photo) => {
-      const thumb = resolvePhotoThumbUrl(photo, { width: 800 })
-      return thumb ? getCachedImage(thumb, { priority: 'preload' }).catch(() => null) : Promise.resolve(null)
-    })
+    uris.map((uri) => getCachedImage(uri, { priority: 'preload' }).catch(() => null))
   ).then(() => {})
 }
 

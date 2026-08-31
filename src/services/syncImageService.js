@@ -270,9 +270,6 @@ export function createSyncImageService({
       if (orphans.length >= MAX_ORPHAN_DELETE_PER_SYNC) break
       // 跳过 .txt 别名条目（与真实文件指向同一对象，避免重复删除）
       if (key.endsWith('.txt')) continue
-      // 跳过 <uid>/compressed/ 下的网格缩略图：它们由 resize-image 函数按需生成并复用，
-      // 不对应任何行内引用，若按引用集比对会被误判为孤儿删除
-      if (key.includes('/compressed/')) continue
       const matchedPrefix = prefixes.find((prefix) => key.startsWith(prefix))
       if (!matchedPrefix) continue
       if (refs.has(key)) continue
@@ -314,7 +311,6 @@ export function createSyncImageService({
         && !filename.startsWith(eventPhotoPrefix)
         && !filename.startsWith(rechargeImagePrefix)
       ) continue
-      if (filename.includes('/compressed/')) continue
       if (referencedImageFiles.has(filename)) continue
       files[filename] = null
     }

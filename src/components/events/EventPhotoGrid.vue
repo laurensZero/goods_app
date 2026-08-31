@@ -1,13 +1,6 @@
 <template>
   <div class="photo-scroll">
-    <div
-      class="photo-scroll-wrapper"
-      ref="scrollRef"
-      @wheel="onWheel"
-      @touchstart.passive="onTouchStart"
-      @touchend.passive="onTouchEnd"
-      @touchcancel.passive="onTouchEnd"
-    >
+    <div class="photo-scroll-wrapper" ref="scrollRef" @wheel="onWheel">
       <div class="photo-grid">
         <button
           v-for="(photo, index) in photos"
@@ -18,14 +11,12 @@
         >
           <LazyCachedImage
             v-if="photo.uri && !suspend"
-            :src="thumbFor(photo)"
-            :fallback-src="thumbFor(photo) !== photo.uri ? photo.uri : ''"
+            :src="photo.uri"
             :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
             root-margin="120px 0px"
             loading="lazy"
             decoding="async"
             fetchpriority="low"
-            :skip-decode-check="true"
             :skeleton-delay-ms="180"
             :image-attrs="{ class: 'photo-grid__img' }"
           />
@@ -47,8 +38,6 @@
 import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { setImagePreloadPaused } from '@/utils/image/cache'
-import { resolvePhotoThumbUrl } from '@/utils/image/thumbUrl'
 
 const { t } = useI18n()
 
@@ -58,14 +47,6 @@ const props = defineProps({
 })
 
 defineEmits(['preview'])
-
-const THUMB_WIDTH = 800
-
-// 缩略图网格只加载服务端缩放后的小图，原图留给点开大图预览时再加载，
-// 避免几 MB 的原图解码/合成拖垮整个详情页。edge function 未部署时回退到原图。
-function thumbFor(photo) {
-  return resolvePhotoThumbUrl(photo, { width: THUMB_WIDTH })
-}
 
 const scrollRef = ref(null)
 const thumbWidthPct = ref(0)
@@ -97,16 +78,6 @@ function onWheel(e) {
 
   e.preventDefault()
   el.scrollLeft += delta
-}
-
-// 手指拖动横滑条时暂停后台 preload，把主线程让给交互本身，
-// 避免「正好在加载」与滑动手势抢资源导致跟手卡。
-function onTouchStart() {
-  setImagePreloadPaused(true)
-}
-
-function onTouchEnd() {
-  setImagePreloadPaused(false)
 }
 
 watch(

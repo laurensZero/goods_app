@@ -3,8 +3,6 @@
 
 import { EVENT_PHOTO_PREFIX } from '@/constants/syncConstants'
 import i18n from '@/locales'
-import { SUPABASE_URL } from '@/config/supabase'
-import { parseCloudImageUri } from '@/utils/goods/images'
 
 export const GOODS_IMAGE_BUCKET = 'goods-images'
 export const EVENT_PHOTO_BUCKET = 'event-photos'
@@ -327,53 +325,6 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     return data?.publicUrl || ''
   }
 
-  // 每个浏览器会话生成一次 cache-bust，使缩略图 URL 在各会话间不同，
-  // 避免浏览器 Cache API 命中旧响应而导致 edge function 不被调用（原图已从 Storage 删除时无法重新落盘）。
-  function getResizeImageCacheBust() {
-    try {
-      let b = sessionStorage.getItem('rmb')
-      if (!b) {
-        b = Math.random().toString(36).slice(2, 10)
-        sessionStorage.setItem('rmb', b)
-      }
-      return b
-    } catch {
-      return ''
-    }
-  }
-
-  // 把一张原图公开 URL 转成「服务端缩放后的缩略图」URL（走 resize-image edge function）。
-  // 仅返回拼接好的 URL；edge function 会校验来源为本项目 Storage 公开图，否则拒绝。
-  function getImageThumbUrl(originalPublicUrl, { width = 400, height = 0 } = {}) {
-    const original = String(originalPublicUrl || '').trim()
-    if (!original) return ''
-    const fn = `${SUPABASE_URL}/functions/v1/resize-image`
-    const params = new URLSearchParams()
-    params.set('url', original)
-    params.set('w', String(Math.max(16, Math.floor(Number(width) || 400))))
-    if (height && Number(height) > 0) params.set('h', String(Math.max(16, Math.floor(Number(height)))))
-    const bust = getResizeImageCacheBust()
-    if (bust) params.set('_', bust)
-    return `${fn}?${params.toString()}`
-  }
-
-  // 由商品/活动图片条目解析出「缩略图 URL」；
-  // - cloud-image:// 先转公开 URL 再走 edge function 缩放
-  // - 远程 https URL 直接走 edge function 缩放
-  // - 本地/linked 图片无法服务端缩放，原样返回（LazyCachedImage 会回退到原图）
-  function getPhotoThumbUrl(photo, { width = 400, height = 0 } = {}) {
-    const uri = String(photo?.uri || '').trim()
-    if (!uri) return ''
-    const cloudFileName = parseCloudImageUri(uri)
-    if (cloudFileName) {
-      return getImageThumbUrl(getImagePublicUrl(cloudFileName), { width, height })
-    }
-    if (/^https?:\/\//i.test(uri)) {
-      return getImageThumbUrl(uri, { width, height })
-    }
-    return uri
-  }
-
   return {
     getExistingImageCloud,
     readImage,
@@ -381,8 +332,6 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     removeImages,
     ensureStorageBuckets,
     getImagePublicUrl,
-    getImageThumbUrl,
-    getPhotoThumbUrl,
     invalidateImageCache
   }
 }
