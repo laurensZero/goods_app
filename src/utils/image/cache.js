@@ -511,6 +511,21 @@ async function putToCapacitorFS(url, blob) {
   } catch { /* 写入失败不影响主流程 */ }
 }
 
+// --- 派生图持久层（供本地缩略图等客户端生成的小图复用） ---
+// 与原图共用同一份持久缓存：Web 走 Cache API、原生走 Capacitor FS（img-cache 目录
+// + 同一份 LRU 预算），因此 clearAllCache / cleanupImageCache 对它们同样生效，
+// 无需单独清理。key 必须是合法 URL（Cache API 要求 http(s)），由调用方保证。
+export async function readDerivedImageCache(key) {
+  const cacheHit = await getFromCacheAPI(key)
+  if (cacheHit) return cacheHit
+  return getFromCapacitorFS(key)
+}
+
+export async function writeDerivedImageCache(key, blob) {
+  putToCacheAPI(key, new Response(blob.slice(), { headers: { 'Content-Type': blob.type || 'application/octet-stream' } }))
+  putToCapacitorFS(key, blob)
+}
+
 // --- 核心函数 ---
 /**
  * 获取缓存图片

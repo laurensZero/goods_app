@@ -12,6 +12,7 @@
           <LazyCachedImage
             v-if="photo.uri && !suspend"
             :src="photo.uri"
+            :thumb-max-size="THUMB_MAX_SIZE"
             :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
             root-margin="120px 0px"
             loading="lazy"
@@ -47,6 +48,11 @@ const props = defineProps({
 })
 
 defineEmits(['preview'])
+
+// 网格项 136~156px，×3x DPR 后 480px 足够清晰。
+// 缩略图由本地解码原图降采样生成并持久缓存（utils/image/thumb），
+// 原图留给点开大图预览时再解码；生成失败时自动回退原图。
+const THUMB_MAX_SIZE = 480
 
 const scrollRef = ref(null)
 const thumbWidthPct = ref(0)
