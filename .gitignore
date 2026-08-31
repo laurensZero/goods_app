@@ -13,6 +13,7 @@ scripts/build_recharge_import_file.mjs
 scripts/fetch_recharge_distribution.py
 .claude/
 .mimocode/
+.zcode/
 .tmp/
 !docs/share.html
 CLAUDE.md

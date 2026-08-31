@@ -10,7 +10,7 @@ function snakeToCamelKey(key) {
 }
 
 // camelCase → snake_case：fooBarBaz → foo_bar_baz
-function camelToSnakeKey(key) {
+export function camelToSnake(key) {
   return String(key)
     .replace(/([A-Z])/g, (c) => `_${c.toLowerCase()}`)
     .replace(/^_/, '')
@@ -23,7 +23,7 @@ function camelToSnakeKey(key) {
 export function toSnakeCase(obj) {
   const result = {}
   for (const [key, value] of Object.entries(obj)) {
-    result[camelToSnakeKey(key)] = value
+    result[camelToSnake(key)] = value
   }
   return result
 }

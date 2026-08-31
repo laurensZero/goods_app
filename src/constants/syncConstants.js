@@ -11,7 +11,7 @@ export const MANIFEST_VERSION = 1
 // 使旧版本拉取时会丢弃新字段时，必须 bump 此版本。App 升级（APK 与 capgo OTA 都会更新 JS
 // bundle，此常量随之变化）后，若持久化版本低于当前版本，首次同步/拉取会强制全量重拉并按 >=
 // 重放相等时间戳的远端行，回填旧版本提前吸收（字段被丢弃、水位线已越过）的字段。
-export const SYNC_SCHEMA_VERSION = 1
+export const SYNC_SCHEMA_VERSION = 2
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

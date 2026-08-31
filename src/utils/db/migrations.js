@@ -230,4 +230,14 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 13,
+    description: 'Add events.dayTicketList column for per-day ticket prices/types',
+    up: async (db) => {
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('dayTicketList')) {
+        await db.run("ALTER TABLE events ADD COLUMN dayTicketList TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]

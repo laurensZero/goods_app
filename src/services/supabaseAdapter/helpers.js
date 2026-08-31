@@ -1,26 +1,47 @@
 // src/services/supabaseAdapter/helpers.js
 // Shared constants and utility functions for Supabase adapter
 
-import { toSnakeCase } from '@/utils/sync/columnMapping'
+import { camelToSnake, toSnakeCase } from '@/utils/sync/columnMapping'
 import { asyncBuildComparableRecordMap, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { withRetry } from '@/services/syncRetry'
 import i18n from '@/locales'
 
 // ── Column definitions ──
 
-// Allowed columns per table (camelCase) — filters out extra fields from sync payload
-export const GOODS_COLS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'syncedBy', 'userId']
-export const EVENT_COLS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'city', 'latitude', 'longitude', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'deleted', 'syncedBy', 'userId']
-export const RECHARGE_COLS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'syncedBy', 'userId']
-export const GOODS_GROUP_COLS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'currency', 'coverMode', 'coverItemId', 'displayMode', 'note', 'deleted', 'syncedBy', 'userId']
-export const GOODS_GROUP_ITEM_COLS = ['id', 'groupId', 'goodsId', 'sortOrder', 'deleted', 'syncedBy', 'userId']
+// 各表同步字段的唯一登记处：业务字段数组（camelCase）。两个白名单都从它派生：
+//   COLS        = 业务字段 + ['syncedBy', 'userId']          —— push 白名单（pickCols 过滤）
+//   SELECT_COLS = 业务字段 snake_case 投影 + 各表服务器生成列 —— pull 显式 select
+// 派生从源头消除「白名单加了、SELECT 串忘了」的双表漂移。
+// 新增同步字段的完整配套（store 清洗 / 云端迁移 / SYNC_SCHEMA_VERSION / 本地 SQLite）各表流程相同：
+// 云端迁移 SQL 与 supabase-setup.sql 同步加列（存量库没有该列时 SELECT_COLS 显式 select
+// 会报错、该表域同步整体失败，必须先迁移再发版）、本地 SQLite 建表/INSERT/读取/migrations、
+// bump src/constants/syncConstants.js 的 SYNC_SCHEMA_VERSION——syncColumnConsistency 测试兜底防漏。
 
-// snake_case SELECT column lists — excludes auto-generated columns (e.g. created_at)
-export const GOODS_SELECT_COLS = 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, sell_price, sell_platform, sell_fee, sell_date, unit_sale_info_list, status_timeline, trashed, updated_at, user_id'
-export const RECHARGE_SELECT_COLS = 'id, game, item_name, amount, charged_at, note, image, deleted, updated_at, user_id'
-export const EVENT_SELECT_COLS = 'id, name, type, start_date, end_date, location, city, latitude, longitude, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, other_expenses, tracks, linked_goods_ids, tags, deleted, updated_at, created_at, user_id'
-export const GOODS_GROUP_SELECT_COLS = 'id, name, type, summary_mode, total_amount, currency, cover_mode, cover_item_id, display_mode, note, deleted, updated_at, created_at, user_id'
-export const GOODS_GROUP_ITEM_SELECT_COLS = 'id, group_id, goods_id, sort_order, deleted, updated_at, created_at, user_id'
+// goods：业务字段。trashed 不在 push 白名单（由 toGoodsRows 的 isTrash 桶路由参数决定），
+// 但 pull 侧要读回分桶，归入 SELECT 的服务器生成列。
+export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline']
+export const GOODS_COLS = [...GOODS_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const GOODS_SELECT_COLS = [...GOODS_BUSINESS_KEYS.map(camelToSnake), 'trashed', 'updated_at', 'user_id'].join(', ')
+
+// recharge：deleted 同 trashed——push 侧由 toRechargeRow 显式写入，pull 侧需要读回
+export const RECHARGE_BUSINESS_KEYS = ['id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image']
+export const RECHARGE_COLS = [...RECHARGE_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const RECHARGE_SELECT_COLS = [...RECHARGE_BUSINESS_KEYS.map(camelToSnake), 'deleted', 'updated_at', 'user_id'].join(', ')
+
+export const GOODS_GROUP_BUSINESS_KEYS = ['id', 'name', 'type', 'summaryMode', 'totalAmount', 'currency', 'coverMode', 'coverItemId', 'displayMode', 'note', 'deleted']
+export const GOODS_GROUP_COLS = [...GOODS_GROUP_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const GOODS_GROUP_SELECT_COLS = [...GOODS_GROUP_BUSINESS_KEYS.map(camelToSnake), 'updated_at', 'created_at', 'user_id'].join(', ')
+
+export const GOODS_GROUP_ITEM_BUSINESS_KEYS = ['id', 'groupId', 'goodsId', 'sortOrder', 'deleted']
+export const GOODS_GROUP_ITEM_COLS = [...GOODS_GROUP_ITEM_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const GOODS_GROUP_ITEM_SELECT_COLS = [...GOODS_GROUP_ITEM_BUSINESS_KEYS.map(camelToSnake), 'updated_at', 'created_at', 'user_id'].join(', ')
+
+// events：业务字段。JSONB 数组字段额外登记在 EVENT_JSON_KEYS（reader 拉回后自动
+// safeParseJsonArray）；coverImageData 是对象，由 reader 单独处理，不在此列
+export const EVENT_BUSINESS_KEYS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'city', 'latitude', 'longitude', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'deleted']
+export const EVENT_COLS = [...EVENT_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const EVENT_JSON_KEYS = ['photos', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags']
+export const EVENT_SELECT_COLS = [...EVENT_BUSINESS_KEYS.map(camelToSnake), 'updated_at', 'created_at', 'user_id'].join(', ')
 
 // ── Primitive helpers ──
 

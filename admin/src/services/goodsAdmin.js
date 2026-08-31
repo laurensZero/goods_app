@@ -49,7 +49,7 @@ export const DATA_KINDS = {
     label: '活动',
     order: 'updated_at.desc',
     selectColumns: '*',
-    jsonStringColumns: ['other_expenses'],
+    jsonStringColumns: ['other_expenses', 'day_ticket_list'],
     searchFields: ['name', 'location', 'type'],
     defaultScope: 'active',
     scopes: [
@@ -105,6 +105,7 @@ export const KIND_FIELDS = {
     { key: 'ticket_price', label: '票价', type: 'text' },
     { key: 'ticket_type', label: '票种', type: 'text' },
     { key: 'seat_info', label: '座位信息', type: 'textarea' },
+    { key: 'day_ticket_list', label: '逐天票务(JSON)', type: 'textarea' },
     { key: 'cover_image', label: '封面图 URL', type: 'text' },
     { key: 'description', label: '描述', type: 'textarea' },
     { key: 'deleted', label: '已删除', type: 'boolean' }

@@ -4,10 +4,19 @@
 import { toCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/syncRetry'
 import {
-  GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS,
+  GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
   fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
 } from './helpers'
+
+// events 行的 JSONB 数组列统一解析（coverImageData 是对象，单独处理）。
+// 字段清单由 helpers.js 的 EVENT_JSON_KEYS 声明，加字段不再需要改这里
+function parseEventJsonKeys(item) {
+  for (const key of EVENT_JSON_KEYS) {
+    item[key] = safeParseJsonArray(item[key])
+  }
+  return item
+}
 
 // 增量拉取：sinceMs 由调用方（orchestrator）减去重叠窗口后传入，
 // 用于吸收设备间时钟偏移；合并是幂等 LWW，多拉无害
@@ -135,11 +144,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
         item.createdAt = normalizeTimestamp(item.createdAt)
         item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
         if (typeof item.coverImageData !== 'object') item.coverImageData = {}
-        item.photos = safeParseJsonArray(item.photos)
-        item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
-        item.tags = safeParseJsonArray(item.tags)
-        item.tracks = safeParseJsonArray(item.tracks)
-        item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+        parseEventJsonKeys(item)
         return item
       })
     }
@@ -229,11 +234,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
       item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
       if (typeof item.coverImageData !== 'object') item.coverImageData = {}
-      item.photos = safeParseJsonArray(item.photos)
-      item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
-      item.tags = safeParseJsonArray(item.tags)
-      item.tracks = safeParseJsonArray(item.tracks)
-      item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+      parseEventJsonKeys(item)
       if (Number(row.deleted) === 1) eventsTrash.push(item)
       else events.push(item)
     }
@@ -243,11 +244,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       if (item.createdAt) item.createdAt = normalizeTimestamp(item.createdAt)
       item.coverImageData = safeParseJsonArray(item.coverImageData) || {}
       if (typeof item.coverImageData !== 'object') item.coverImageData = {}
-      item.photos = safeParseJsonArray(item.photos)
-      item.linkedGoodsIds = safeParseJsonArray(item.linkedGoodsIds)
-      item.tags = safeParseJsonArray(item.tags)
-      item.tracks = safeParseJsonArray(item.tracks)
-      item.otherExpenses = safeParseJsonArray(item.otherExpenses)
+      parseEventJsonKeys(item)
       item.deleted = true
       eventsTrash.push(item)
     }

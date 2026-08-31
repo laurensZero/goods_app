@@ -48,6 +48,12 @@ export interface EventExpenseItem {
   amount: string
 }
 
+/** 活动逐天票务条目（天数由 startDate~endDate 区间得出，按下标对应第 N 天） */
+export interface DayTicketEntry {
+  price: string
+  ticketType: string
+}
+
 /** 状态时间线条目(纯状态历史;卖出金额数据存 GoodsItem 的 sell* 字段) */
 export interface StatusTimelineEntry {
   status: string
@@ -132,6 +138,7 @@ export interface EventItem {
   ticketPrice: string
   ticketType: string
   seatInfo: string
+  dayTicketList: DayTicketEntry[]
   otherExpenses: EventExpenseItem[]
   tracks: TrackItem[]
   linkedGoodsIds: string[]
