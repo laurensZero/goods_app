@@ -355,7 +355,10 @@ let removeAndroidBackListener = null
 
 const PREVIEW_MAX_SCALE = 4
 const PREVIEW_DOUBLE_TAP_SCALE = 2.5
-const PREVIEW_DOUBLE_TAP_GAP_MS = 300
+// 双击判定窗口放宽到 350ms（平板双击节奏偏慢；同时也是单击空白延迟关闭的等待时长）
+const PREVIEW_DOUBLE_TAP_GAP_MS = 350
+// 两次点击落点距离阈值放宽（平板手指落点偏差大）
+const PREVIEW_DOUBLE_TAP_DISTANCE_PX = 64
 const PREVIEW_BLANK_TAP_TOLERANCE_PX = 10
 // 未放大时左右滑动切换图片的触发阈值（占屏宽比例）
 const PREVIEW_SWIPE_RATIO = 0.18
@@ -897,7 +900,8 @@ function applyPreviewZoom(scale, x, y, animate = false) {
 // 以点击点为不动点切换缩放：v = O + (b - O)*s + t ⇒ t1 = u - (u - t0)*(s1/s0)
 function togglePreviewZoomAt(clientX, clientY) {
   if (previewZoom.scale > 1) {
-    if (!isPointOnPreviewImage(clientX, clientY)) return
+    // 放大状态下双击任意位置都恢复原尺寸（此前要求点在图片内容上，
+    // 点到空白区会没反应）
     applyPreviewZoom(1, 0, 0, true)
     return
   }
@@ -1034,6 +1038,20 @@ function onPreviewTouchMove(event) {
     previewSwipeX.value = dx
     return
   }
+  // 与未放大时相同的死区：手指轻微抖动（平板上尤其常见）不算拖动，
+  // 否则双击恢复会被识别成拖动而没反应；越过死区才把起点重置到当前位置，避免内容跳动
+  const dx = touches[0].clientX - pzStart.startX
+  const dy = touches[0].clientY - pzStart.startY
+  if (!pzTapMoved) {
+    if (Math.hypot(dx, dy) <= 6) {
+      event.preventDefault()
+      return
+    }
+    pzStart.startX = touches[0].clientX
+    pzStart.startY = touches[0].clientY
+    pzStart.x = previewZoom.x
+    pzStart.y = previewZoom.y
+  }
   event.preventDefault()
   pzTapMoved = true
   applyPreviewZoom(
@@ -1065,7 +1083,7 @@ function onPreviewTouchEnd(event) {
       }
       if (!pzTapMoved) {
         const now = pzLastTouchEndAt
-        const isNearLastTap = Math.hypot(touch.clientX - pzLastTap.x, touch.clientY - pzLastTap.y) < 48
+        const isNearLastTap = Math.hypot(touch.clientX - pzLastTap.x, touch.clientY - pzLastTap.y) < PREVIEW_DOUBLE_TAP_DISTANCE_PX
         if (now - pzLastTap.time < PREVIEW_DOUBLE_TAP_GAP_MS && isNearLastTap) {
           pzLastTap.time = 0
           cancelPendingBlankClose()
