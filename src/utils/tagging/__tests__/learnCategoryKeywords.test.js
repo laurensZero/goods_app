@@ -144,4 +144,23 @@ describe('learnCategoryKeywords', () => {
     expect(learnCategoryKeywords(list)).toContainEqual({ keyword: '胶片卡', value: '卡片' })
     expect(learnCategoryKeywords(list, { includeWishlist: false })).toEqual([])
   })
+
+  it('keeps the original casing of learned category values', () => {
+    const result = learnCategoryKeywords([
+      { name: '现场专辑CD', category: 'CD/专辑' },
+      { name: '现场专辑CD 豪华版', category: 'CD/专辑' },
+    ])
+    expect(result).toContainEqual({ keyword: '现场专辑', value: 'CD/专辑' })
+  })
+
+  it('prefers the preset category casing over item casing', () => {
+    const result = learnCategoryKeywords(
+      [
+        { name: '现场专辑CD', category: 'cd/专辑' },
+        { name: '现场专辑CD 豪华版', category: 'cd/专辑' },
+      ],
+      { categories: ['CD/专辑'] }
+    )
+    expect(result).toContainEqual({ keyword: '现场专辑', value: 'CD/专辑' })
+  })
 })
