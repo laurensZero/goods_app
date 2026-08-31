@@ -40,6 +40,7 @@
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
 
 defineOptions({ inheritAttrs: false })
 
@@ -57,11 +58,36 @@ const props = defineProps({
   resumeDecodeValidation: { type: Boolean, default: false },
   skeletonEnabled: { type: Boolean, default: true },
   skeletonDelayMs: { type: Number, default: 0 },
+  // >0 时启用本地缩略图：只加载客户端降采样的小图（见 utils/image/thumb），
+  // 生成失败时 thumb 层会回退原图 URL，组件内其余逻辑（骨架屏/重试/刷新）不变
+  thumbMaxSize: { type: Number, default: 0 },
   imageAttrs: { type: Object, default: () => ({}) }
 })
 
 const attrs = useAttrs()
 const rootRef = ref(null)
+
+// 缩略图模式下，src 的解析/内存窥视/刷新都走 thumb 层，且 key 带上原 URL
+const thumbEnabled = computed(() => Number(props.thumbMaxSize || 0) > 0)
+
+function peekDisplaySrc(url) {
+  if (!url) return ''
+  return thumbEnabled.value ? peekImageThumb(url, props.thumbMaxSize) : peekCachedImage(url)
+}
+
+function resolveDisplaySrc(url, options = {}) {
+  if (!thumbEnabled.value) return getCachedImage(url, options)
+  return getCachedImageThumb(url, {
+    maxSize: props.thumbMaxSize,
+    viewportDistance: options?.viewportDistance
+  })
+}
+
+function refreshDisplaySrc(url) {
+  return thumbEnabled.value
+    ? refreshCachedImageThumb(url, { maxSize: props.thumbMaxSize })
+    : refreshCachedImage(url)
+}
 const rootAttrs = computed(() => {
   const { class: _class, style: _style, ...rest } = attrs
   return {
@@ -211,7 +237,7 @@ async function runLoad() {
   }
   hasLoadError.value = false
   isImageLoading.value = true
-  const cached = peekCachedImage(url)
+  const cached = peekDisplaySrc(url)
   if (cached) {
     resolvedSrc.value = cached
     resetSkeletonVisibility()
@@ -226,7 +252,7 @@ async function runLoad() {
   isImageLoading.value = true
   resetSkeletonVisibility()
   const nextSrc = props.useCache
-    ? await getCachedImage(url, { viewportDistance: getViewportDistance() })
+    ? await resolveDisplaySrc(url, { viewportDistance: getViewportDistance() })
     : url
   if (requestId !== loadRequestId) return
   resolvedSrc.value = nextSrc
@@ -291,13 +317,13 @@ onMounted(() => {
 
     if (reason === 'resume') {
       // try to refresh memory cache entry to create a new objectURL if needed
-      const reloadSrc = await (async () => {
-        try {
-          return await refreshCachedImage(props.src)
-        } catch {
-          return peekCachedImage(props.src) || resolvedSrc.value || props.src
-        }
-      })()
+        const reloadSrc = await (async () => {
+          try {
+            return await refreshDisplaySrc(props.src)
+          } catch {
+            return peekDisplaySrc(props.src) || resolvedSrc.value || props.src
+          }
+        })()
       if (reloadSrc) {
         // detect shared-element hero images (goods and events are both animated)
         const isHero = !!(rootRef.value && typeof rootRef.value.closest === 'function' && rootRef.value.closest('[data-goods-hero-id], [data-event-hero-id]'))
@@ -325,7 +351,7 @@ onMounted(() => {
     void Promise.resolve().then(async () => {
       if (requestId !== loadRequestId) return
       if (!props.src || !hasEnteredViewport.value) return
-      const cached = peekCachedImage(props.src)
+      const cached = peekDisplaySrc(props.src)
       if (cached) {
         if (requestId !== loadRequestId) return
         resolvedSrc.value = cached
@@ -362,7 +388,7 @@ onMounted(() => {
       isImageLoading.value = true
       resetSkeletonVisibility()
       const loadPromise = props.useCache
-        ? getCachedImage(props.src, { viewportDistance: getViewportDistance() })
+        ? resolveDisplaySrc(props.src, { viewportDistance: getViewportDistance() })
         : Promise.resolve(props.src)
       void loadPromise.then((nextSrc) => {
         if (requestId !== loadRequestId) return
