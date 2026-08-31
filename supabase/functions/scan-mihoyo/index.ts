@@ -10,7 +10,8 @@
 //   GET .../scan-mihoyo?catalog=all     全量（手动/补数据）
 //
 // 去重：seen 表按 (catalog, shop_code, goods_id) 记录已见，已通知商品不再通知；
-//       开售后/下架商品从列表消失，>7 天未再出现即清理，之后重新出现会再通知。
+//       TTL 按目录区分——商店「即将上架」7 天（开售后从列表消失，重新出现视为重新上架可再通知），
+//       积分商城 90 天（售罄商品会被列表接口摘下、补货后原样放回，生命周期按月计，短 TTL 会误清）。
 // 通知：每轮每目录聚合一条消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
 //       消息内容按用户自选的店铺集合（user_qq_bindings.mihoyo_shops，空=全不选）过滤——
 //       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息。
@@ -42,7 +43,8 @@ const PAGE_SIZE = 50
 const MAX_EMPTY_PAGES = 5
 const MAX_MESSAGE_ITEMS = 40
 const MAX_MESSAGE_CHARS = 1500
-const SEEN_TTL_DAYS = 7 // 商品从列表消失超过 7 天即清理去重记录
+const SEEN_TTL_DAYS = 7 // 商店目录：商品从列表消失超过 7 天即清理去重记录
+const POINT_SEEN_TTL_DAYS = 90 // 积分目录：售罄摘下→补货放回很常见，TTL 放宽避免误清
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -256,9 +258,15 @@ async function scanCatalog(
     }
   }
 
-  // 清理：开售后/下架商品从「即将上架」消失，>7 天未再出现即删去重记录
-  const cutoff = new Date(Date.now() - SEEN_TTL_DAYS * 86_400_000).toISOString()
-  await admin.from("mihoyo_monitor_seen").delete().lt("last_seen_at", cutoff)
+  // 清理：商店目录开售后/下架商品从「即将上架」消失，>7 天未再出现即删去重记录；
+  // 积分目录放宽到 90 天。两目录各清各的（cutoff 不同，不能跨目录删）。
+  const ttlDays = catalog === "point" ? POINT_SEEN_TTL_DAYS : SEEN_TTL_DAYS
+  const cutoff = new Date(Date.now() - ttlDays * 86_400_000).toISOString()
+  await admin
+    .from("mihoyo_monitor_seen")
+    .delete()
+    .eq("catalog", catalog)
+    .lt("last_seen_at", cutoff)
 
   let enqueued = { users: 0, jobs: 0 }
   if (newItems.length > 0) {
