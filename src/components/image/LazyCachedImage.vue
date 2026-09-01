@@ -265,18 +265,14 @@ async function runLoad() {
 watch(
   [() => props.src, hasEnteredViewport],
   () => {
-    void runLoad()
-  },
-  { immediate: true }
-)
-
-watch(
-  () => props.src,
-  () => {
+    // 状态重置必须与 runLoad 在同一同步块内且先于它执行：runLoad 命中内存缓存时
+    // 会在同步段直接写入 resolvedSrc，若重置晚于它（watcher 按创建顺序 flush），
+    // 刚写入的 src 会被清空，<img> 被卸载后再无触发点，画面永远停在骨架屏。
     hasLoadError.value = false
     retryKey.value = 0
     resolvedSrc.value = ''
     isImageLoading.value = true
+    void runLoad()
   },
   { immediate: true }
 )
