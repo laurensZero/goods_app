@@ -1203,14 +1203,27 @@ watch(showTrackEditor, (visible) => {
 
 // Do not persist editor tab to sessionStorage for goods editor.
 
+function resizeNoteTextarea() {
+  const el = noteInputRef.value
+  if (!el || el.offsetParent === null) return
+  resizeTextarea(el)
+}
+
 watch(
   () => form.note,
   async () => {
     await nextTick()
-    resizeTextarea(noteInputRef.value)
+    resizeNoteTextarea()
   },
   { immediate: true }
 )
+
+watch(activeTab, async () => {
+  if (activeTab.value === 'notes') {
+    await nextTick()
+    resizeNoteTextarea()
+  }
+})
 
 watch(
   tabItems,
