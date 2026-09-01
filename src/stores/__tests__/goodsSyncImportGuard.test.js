@@ -3,7 +3,8 @@ import { shallowRef } from 'vue'
 
 vi.mock('@/utils/db/index', () => ({
   getItems: vi.fn(async () => []),
-  saveItems: vi.fn(async () => {})
+  saveItems: vi.fn(async () => {}),
+  softDeleteItems: vi.fn(async () => {})
 }))
 vi.mock('@/utils/image/localImage', () => ({
   deleteManagedLocalImages: vi.fn(async () => {}),
@@ -12,9 +13,12 @@ vi.mock('@/utils/image/localImage', () => ({
 vi.mock('@/stores/goodsPersistence', () => ({
   writePersistedTrash: vi.fn(async () => {})
 }))
+vi.mock('@/utils/saleReminder', () => ({
+  cancelSaleReminderNotifications: vi.fn(async () => {})
+}))
 
-import { importGoodsBackup, importTrashBackup } from '../goodsSync'
-import { saveItems } from '@/utils/db/index'
+import { importGoodsBackup, importTrashBackup, reconcileListTrashOverlap } from '../goodsSync'
+import { saveItems, softDeleteItems } from '@/utils/db/index'
 import { writePersistedTrash } from '@/stores/goodsPersistence'
 
 function makeItem(id, updatedAt, overrides = {}) {
@@ -25,6 +29,8 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
   beforeEach(() => {
     saveItems.mockReset()
     saveItems.mockResolvedValue(undefined)
+    softDeleteItems.mockReset()
+    softDeleteItems.mockResolvedValue(undefined)
     writePersistedTrash.mockReset()
     writePersistedTrash.mockResolvedValue(undefined)
   })
@@ -80,15 +86,149 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
   })
 
   it('本地已清空回收站的墓碑不会因远端 updatedAt 变化再次导入', async () => {
+    const list = shallowRef([])
     const trashList = shallowRef([])
     const purgedTrashIds = new Set(['gone'])
 
     const imported = await importTrashBackup([
       makeItem('gone', 500, { trashed: true }),
       makeItem('keep', 500, { trashed: true })
-    ], trashList, purgedTrashIds)
+    ], list, trashList, purgedTrashIds)
 
     expect(imported).toBe(1)
     expect(trashList.value.map((item) => item.id)).toEqual(['keep'])
+  })
+})
+
+describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除同步）', () => {
+  beforeEach(() => {
+    saveItems.mockReset()
+    saveItems.mockResolvedValue(undefined)
+    softDeleteItems.mockReset()
+    softDeleteItems.mockResolvedValue(undefined)
+    writePersistedTrash.mockReset()
+    writePersistedTrash.mockResolvedValue(undefined)
+  })
+
+  it('远端删除较新：导入回收站并移除本地活跃行（软删除 SQLite 行）', async () => {
+    const list = shallowRef([makeItem('a', 100)])
+    const trashList = shallowRef([])
+
+    // 另一台设备在 updatedAt=200 删除了该谷子
+    const imported = await importTrashBackup([makeItem('a', 200, { trashed: true })], list, trashList)
+
+    expect(imported).toBe(1)
+    expect(list.value).toEqual([]) // 活跃行已移除
+    expect(trashList.value.map((e) => e.id)).toEqual(['a']) // 进入回收站
+    expect(trashList.value[0].trashed).toBe(true)
+    expect(softDeleteItems).toHaveBeenCalledTimes(1)
+    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
+    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
+  })
+
+  it('本地活跃行较新：远端旧墓碑跳过，不导入也不动活跃行', async () => {
+    const list = shallowRef([makeItem('a', 300)])
+    const trashList = shallowRef([])
+
+    const imported = await importTrashBackup([makeItem('a', 200, { trashed: true })], list, trashList)
+
+    expect(imported).toBe(0)
+    expect(list.value.map((e) => e.id)).toEqual(['a'])
+    expect(trashList.value).toEqual([])
+    expect(softDeleteItems).not.toHaveBeenCalled()
+    expect(writePersistedTrash).not.toHaveBeenCalled()
+  })
+
+  it('时间戳相等：保持本地活跃行，不导入（与 diff 的严格 > 一致）', async () => {
+    const list = shallowRef([makeItem('a', 200)])
+    const trashList = shallowRef([])
+
+    const imported = await importTrashBackup([makeItem('a', 200, { trashed: true })], list, trashList)
+
+    expect(imported).toBe(0)
+    expect(list.value.map((e) => e.id)).toEqual(['a'])
+    expect(trashList.value).toEqual([])
+  })
+
+  it('已在回收站的条目：跳过（现有去重行为不变）', async () => {
+    const list = shallowRef([])
+    const trashList = shallowRef([makeItem('a', 100, { trashed: true })])
+
+    const imported = await importTrashBackup([makeItem('a', 500, { trashed: true })], list, trashList)
+
+    expect(imported).toBe(0)
+    expect(trashList.value).toHaveLength(1)
+    expect(trashList.value[0].updatedAt).toBe(100) // 由 updateTrashBackup 按 LWW 处理
+    expect(softDeleteItems).not.toHaveBeenCalled()
+  })
+
+  it('全新远端回收站条目（不在收藏也不在回收站）：正常导入', async () => {
+    const list = shallowRef([makeItem('b', 100)])
+    const trashList = shallowRef([])
+
+    const imported = await importTrashBackup([makeItem('x', 500, { trashed: true })], list, trashList)
+
+    expect(imported).toBe(1)
+    expect(list.value.map((e) => e.id)).toEqual(['b']) // 不影响其他活跃行
+    expect(trashList.value.map((e) => e.id)).toEqual(['x'])
+    expect(softDeleteItems).not.toHaveBeenCalled()
+  })
+})
+
+describe('reconcileListTrashOverlap 收藏/回收站重叠自愈', () => {
+  beforeEach(() => {
+    saveItems.mockReset()
+    saveItems.mockResolvedValue(undefined)
+    softDeleteItems.mockReset()
+    softDeleteItems.mockResolvedValue(undefined)
+    writePersistedTrash.mockReset()
+    writePersistedTrash.mockResolvedValue(undefined)
+  })
+
+  it('回收站条目较新：移除活跃行并软删除 SQLite 行', async () => {
+    const list = shallowRef([makeItem('a', 100)])
+    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
+
+    await reconcileListTrashOverlap(list, trashList)
+
+    expect(list.value).toEqual([])
+    expect(trashList.value.map((e) => e.id)).toEqual(['a'])
+    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
+    expect(writePersistedTrash).not.toHaveBeenCalled()
+  })
+
+  it('活跃行较新：丢弃过期回收站条目', async () => {
+    const list = shallowRef([makeItem('a', 300)])
+    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
+
+    await reconcileListTrashOverlap(list, trashList)
+
+    expect(list.value.map((e) => e.id)).toEqual(['a'])
+    expect(trashList.value).toEqual([])
+    expect(softDeleteItems).not.toHaveBeenCalled()
+    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
+  })
+
+  it('时间戳相等：回收站胜出（与 resolveGoodsTrashMaps 一致）', async () => {
+    const list = shallowRef([makeItem('a', 200)])
+    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
+
+    await reconcileListTrashOverlap(list, trashList)
+
+    expect(list.value).toEqual([])
+    expect(trashList.value.map((e) => e.id)).toEqual(['a'])
+    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
+  })
+
+  it('无重叠：不产生任何写入', async () => {
+    const list = shallowRef([makeItem('a', 100)])
+    const trashList = shallowRef([makeItem('b', 200, { trashed: true })])
+
+    await reconcileListTrashOverlap(list, trashList)
+
+    expect(list.value.map((e) => e.id)).toEqual(['a'])
+    expect(trashList.value.map((e) => e.id)).toEqual(['b'])
+    expect(softDeleteItems).not.toHaveBeenCalled()
+    expect(writePersistedTrash).not.toHaveBeenCalled()
   })
 })
