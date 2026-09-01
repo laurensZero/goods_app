@@ -38,6 +38,7 @@ import {
   updateGoodsBackup as _updateGoodsBackup,
   importTrashBackup as _importTrashBackup,
   updateTrashBackup as _updateTrashBackup,
+  reconcileListTrashOverlap as _reconcileListTrashOverlap,
   markImagesAsRemote as _markImagesAsRemote
 } from '@/stores/goodsSync'
 import {
@@ -238,6 +239,13 @@ export const useGoodsStore = defineStore('goods', () => {
       purgedTrashIds.value = new Set()
     }
 
+    // 自愈历史脏状态：同 id 同时挂在收藏与回收站（旧版本同步拉取回收站行时未移除本地活跃行遗留）
+    try {
+      await _reconcileListTrashOverlap(list, trashList)
+    } catch (e) {
+      console.error('[goods] init: reconcile list/trash overlap failed:', e)
+    }
+
     isReady.value = true
     void startMigrationsInBackground()
   }
@@ -307,7 +315,7 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   function importTrashBackup(items) {
-    return _importTrashBackup(items, trashList, purgedTrashIds.value)
+    return _importTrashBackup(items, list, trashList, purgedTrashIds.value)
   }
 
   function updateTrashBackup(items, opts) {

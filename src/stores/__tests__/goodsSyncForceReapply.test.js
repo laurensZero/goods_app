@@ -3,7 +3,8 @@ import { shallowRef } from 'vue'
 
 vi.mock('@/utils/db/index', () => ({
   getItems: vi.fn(async () => []),
-  saveItems: vi.fn(async () => {})
+  saveItems: vi.fn(async () => {}),
+  softDeleteItems: vi.fn(async () => {})
 }))
 vi.mock('@/utils/image/localImage', () => ({
   deleteManagedLocalImages: vi.fn(async () => {}),
@@ -12,6 +13,9 @@ vi.mock('@/utils/image/localImage', () => ({
 }))
 vi.mock('@/stores/goodsPersistence', () => ({
   writePersistedTrash: vi.fn(async () => {})
+}))
+vi.mock('@/utils/saleReminder', () => ({
+  cancelSaleReminderNotifications: vi.fn(async () => {})
 }))
 
 import { updateGoodsBackup, updateTrashBackup } from '../goodsSync'

@@ -11,6 +11,16 @@ const BASE64_URL_MIGRATION_KEY = 'goods_base64_url_replaced_v1'
 
 //  Trash persistence
 
+// TODO(重构): 回收站迁移为「同表软删除」模型（对齐 events/recharge/groups）：
+// trashList 的数据源从 Preferences（TRASH_STORAGE_KEY）改为 goods 表自身——
+// 行已带 trashed=1 软删除标记，补 deletedAt 列后按标记分桶读取即可。
+// 当前双轨存储（Preferences 回收站 + SQLite 软删除行）令同步合并必须跨桶按 id
+// 手工对账（goodsSync.js 的 importTrashBackup/importGoodsBackup LWW 守卫、
+// goods.js init 的 reconcileListTrashOverlap 自愈均为其补丁），同表模型可从
+// 结构上消除「同 id 同时挂在收藏与回收站」的不一致。
+// 迁移要点：启动时把 Preferences trashList 回填进 goods 表（trashList 是回收站
+// 展示的权威源，SQLite 软删除行可能缺 deletedAt 等字段）；purgedTrashIds 墓碑
+// 机制保留；回填完成写迁移 flag 后清空 TRASH_STORAGE_KEY。
 function readTrashLocal() {
   try {
     return parseJsonArray(localStorage.getItem(TRASH_STORAGE_KEY))
