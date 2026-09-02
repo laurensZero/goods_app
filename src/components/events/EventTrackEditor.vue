@@ -156,6 +156,7 @@ import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
 import { searchBilibiliVideos } from '@/utils/bilibiliMusic'
+import { mergeNeteaseTrackCovers } from '@/utils/tracks'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
@@ -221,9 +222,14 @@ watch(tracks, async (value) => {
     .map((track) => track.neteaseSongId)
   if (!songIds.length) return
   try {
+    const fetchedCoverMap = await fetchNeteaseSongCoverMap(songIds)
     neteaseCoverMap.value = {
       ...neteaseCoverMap.value,
-      ...await fetchNeteaseSongCoverMap(songIds)
+      ...fetchedCoverMap
+    }
+    const updatedTracks = mergeNeteaseTrackCovers(tracks.value, fetchedCoverMap)
+    if (updatedTracks.some((track, index) => track.coverUrl !== tracks.value[index]?.coverUrl)) {
+      updateTracks(updatedTracks)
     }
   } catch {
     // Keep the placeholder when the cover lookup fails.

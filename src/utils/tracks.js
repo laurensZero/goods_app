@@ -29,3 +29,16 @@ export function normalizeTracks(tracks) {
     }))
     .filter((item) => item.title || item.artist || item.album || item.neteaseSongId || item.qqSongId || item.bilibiliVideoId)
 }
+
+/**
+ * @param {unknown} tracks
+ * @param {Record<string, string>} coverMap
+ * @returns {import('@/types/models').TrackItem[]}
+ */
+export function mergeNeteaseTrackCovers(tracks, coverMap) {
+  return normalizeTracks(tracks).map((track) => {
+    if (track.coverUrl || track.source !== 'netease' || !track.neteaseSongId) return track
+    const coverUrl = String(coverMap?.[track.neteaseSongId] || '').trim()
+    return coverUrl ? { ...track, coverUrl } : track
+  })
+}
