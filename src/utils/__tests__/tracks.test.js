@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeTracks } from '../tracks'
+import { mergeNeteaseTrackCovers, normalizeTracks } from '../tracks'
 
 describe('normalizeTracks', () => {
   it('returns [] for null', () => {
@@ -101,5 +101,23 @@ describe('normalizeTracks', () => {
       { title: 'Song C' }
     ])
     expect(result).toHaveLength(3)
+  })
+})
+
+describe('mergeNeteaseTrackCovers', () => {
+  it('fills missing Netease covers without replacing existing covers', () => {
+    const result = mergeNeteaseTrackCovers([
+      { id: 'netease-1', title: 'Song A', source: 'netease', neteaseSongId: '541750547' },
+      { id: 'netease-2', title: 'Song B', source: 'netease', neteaseSongId: '1982798730', coverUrl: 'https://existing.example/cover.jpg' },
+      { id: 'qq-1', title: 'Song C', source: 'qq', qqSongId: 'qq-song' }
+    ], {
+      '541750547': 'https://netease.example/song-a.jpg',
+      '1982798730': 'https://netease.example/song-b.jpg',
+      'qq-song': 'https://qq.example/song-c.jpg'
+    })
+
+    expect(result[0].coverUrl).toBe('https://netease.example/song-a.jpg')
+    expect(result[1].coverUrl).toBe('https://existing.example/cover.jpg')
+    expect(result[2].coverUrl).toBe('')
   })
 })
