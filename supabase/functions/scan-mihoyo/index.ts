@@ -122,7 +122,8 @@ function formatItemLine(catalog: string, it: Record<string, any>): string {
     const price = Number(it.price) > 0
       ? `+${(Number(it.price) / 100).toFixed(Number(it.price) % 100 === 0 ? 0 : 2)}元`
       : ""
-    return `· ${name} ｜ ${point}积分${price}`
+    const time = it.sale_time ? ` ｜ ${formatBeijing(Number(it.sale_time))} 开售` : ""
+    return `· ${name}${time} ｜ ${point}积分${price}`
   }
   const time = it.sale_time ? ` ｜ ${formatBeijing(Number(it.sale_time))} 开售` : ""
   const price = Number(it.price) > 0
