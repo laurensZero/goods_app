@@ -1,6 +1,6 @@
 // supabase/functions/scan-mihoyo/index.ts
 // 米游铺上新扫描器：轮询米游铺 API → 与轻量去重表 mihoyo_monitor_seen diff →
-// 当轮新出现的 goods_id 聚合为一则消息入 notification_jobs，
+// 当轮新出现的 goods_id 聚合为消息入 notification_jobs（若条数超限则分多条），
 // notify-dispatch（每分钟 cron）负责投递 QQ。
 //
 // 触发方式（两套调度，见 docs/mihoyo-new-arrival-monitor-plan.md）：
@@ -12,10 +12,10 @@
 // 去重：seen 表按 (catalog, shop_code, goods_id) 记录已见，已通知商品不再通知；
 //       TTL 按目录区分——商店「即将上架」7 天（开售后从列表消失，重新出现视为重新上架可再通知），
 //       积分商城 90 天（售罄商品会被列表接口摘下、补货后原样放回，生命周期按月计，短 TTL 会误清）。
-// 通知：每轮每目录聚合一条消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
+// 通知：每轮每目录聚合消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
 //       消息内容按用户自选的店铺集合（user_qq_bindings.mihoyo_shops，空=全不选）过滤——
-//       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息。
-//       事件键 mihoyo:<catalog>:<批次时间> 兜底防重（ON CONFLICT DO NOTHING）。
+//       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息，条数超限则分多条发送。
+//       事件键 mihoyo:<catalog>:<批次时间>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
 //
 // 依赖表：mihoyo_monitor_seen（去重）、notification_jobs（队列）、user_qq_bindings（广播对象）
 // 依赖 secrets：无（service_role 由平台注入）
@@ -41,7 +41,6 @@ const POINT_SHOP_CODES = ["ys", "xqtd", "bh3", "zzz"]
 
 const PAGE_SIZE = 50
 const MAX_EMPTY_PAGES = 5
-const MAX_MESSAGE_ITEMS = 40
 const MAX_MESSAGE_CHARS = 1500
 const SEEN_TTL_DAYS = 7 // 商店目录：商品从列表消失超过 7 天即清理去重记录
 const POINT_SEEN_TTL_DAYS = 90 // 积分目录：售罄摘下→补货放回很常见，TTL 放宽避免误清
@@ -119,7 +118,11 @@ function formatBeijing(unixSec: number): string {
 function formatItemLine(catalog: string, it: Record<string, any>): string {
   const name = String(it.name || "未知商品")
   if (catalog === "point") {
-    return `· ${name} ｜ ${Number(it.point) || 0}积分`
+    const point = Number(it.point) || 0
+    const price = Number(it.price) > 0
+      ? `+${(Number(it.price) / 100).toFixed(Number(it.price) % 100 === 0 ? 0 : 2)}元`
+      : ""
+    return `· ${name} ｜ ${point}积分${price}`
   }
   const time = it.sale_time ? ` ｜ ${formatBeijing(Number(it.sale_time))} 开售` : ""
   const price = Number(it.price) > 0
@@ -128,18 +131,27 @@ function formatItemLine(catalog: string, it: Record<string, any>): string {
   return `· ${name}${time}${price}`
 }
 
-function buildMessage(catalog: string, newItems: Record<string, any>[]): string {
+function buildMessages(catalog: string, newItems: Record<string, any>[]): string[] {
   const label = catalog === "point" ? "积分兑换" : "即将上架"
-  const shown = newItems.slice(0, MAX_MESSAGE_ITEMS)
-  let content = `【米游铺上新】${label}\n${shown.map((it) => formatItemLine(catalog, it)).join("\n")}`
-  const remaining = newItems.length - shown.length
-  if (remaining > 0) content += `\n…还有 ${remaining} 件新品`
-  else if (newItems.length > 1) content += `\n（共 ${newItems.length} 件新品）`
-  if (content.length > MAX_MESSAGE_CHARS) content = content.slice(0, MAX_MESSAGE_CHARS)
-  return content
+  const header = `【米游铺上新】${label}`
+  const lines = newItems.map((it) => formatItemLine(catalog, it))
+  if (lines.length === 0) return []
+  const messages: string[] = []
+  let currentLines = [lines[0]]
+  for (let i = 1; i < lines.length; i++) {
+    const candidate = `${header}\n${currentLines.join("\n")}\n${lines[i]}`
+    if (candidate.length > MAX_MESSAGE_CHARS) {
+      messages.push(`${header}\n${currentLines.join("\n")}`)
+      currentLines = [lines[i]]
+    } else {
+      currentLines.push(lines[i])
+    }
+  }
+  messages.push(`${header}\n${currentLines.join("\n")}`)
+  return messages
 }
 
-// ---------- 入队（广播给所有活跃 QQ 绑定用户，一目录一条消息） ----------
+// ---------- 入队（广播给所有活跃 QQ 绑定用户，一目录可多条消息） ----------
 
 async function enqueueBatch(
   admin: ReturnType<typeof createClient>,
@@ -179,23 +191,26 @@ async function enqueueBatch(
     const filtered = newItems.filter((it) => shops.has(String(it.shop_code)))
     if (!filtered.length) continue
 
-    const content = buildMessage(catalog, filtered)
-    const rows = userIds.map((uid) => ({
-      user_id: uid,
-      channel: "qq",
-      source: "mihoyo",
-      event_key: `mihoyo:${catalog}:${batchKey}`,
-      title: "米游铺上新",
-      content,
-      due_at: new Date().toISOString(),
-      status: "pending",
-    }))
-    const { error } = await admin
-      .from("notification_jobs")
-      .upsert(rows, { onConflict: "user_id,channel,event_key", ignoreDuplicates: true })
-    if (error) throw new Error(`enqueue_failed:${error.message}`)
-    jobs += rows.length
-    notifiedUsers += userIds.length
+    const messages = buildMessages(catalog, filtered)
+    for (let mi = 0; mi < messages.length; mi++) {
+      const content = messages[mi]
+      const rows = userIds.map((uid) => ({
+        user_id: uid,
+        channel: "qq",
+        source: "mihoyo",
+        event_key: `mihoyo:${catalog}:${batchKey}:${mi}`,
+        title: "米游铺上新",
+        content,
+        due_at: new Date().toISOString(),
+        status: "pending",
+      }))
+      const { error } = await admin
+        .from("notification_jobs")
+        .upsert(rows, { onConflict: "user_id,channel,event_key", ignoreDuplicates: true })
+      if (error) throw new Error(`enqueue_failed:${error.message}`)
+      jobs += rows.length
+      notifiedUsers += userIds.length
+    }
   }
   return { users: users.length, notified_users: notifiedUsers, jobs }
 }
