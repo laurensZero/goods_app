@@ -3,23 +3,18 @@ import { shallowRef } from 'vue'
 
 vi.mock('@/utils/db/index', () => ({
   getItems: vi.fn(async () => []),
-  saveItems: vi.fn(async () => {}),
-  softDeleteItems: vi.fn(async () => {})
+  saveItems: vi.fn(async () => {})
 }))
 vi.mock('@/utils/image/localImage', () => ({
   deleteManagedLocalImages: vi.fn(async () => {}),
   isLocalImageUri: vi.fn(() => false)
 }))
-vi.mock('@/stores/goodsPersistence', () => ({
-  writePersistedTrash: vi.fn(async () => {})
-}))
 vi.mock('@/utils/saleReminder', () => ({
   cancelSaleReminderNotifications: vi.fn(async () => {})
 }))
 
-import { importGoodsBackup, importTrashBackup, reconcileListTrashOverlap } from '../goodsSync'
-import { saveItems, softDeleteItems } from '@/utils/db/index'
-import { writePersistedTrash } from '@/stores/goodsPersistence'
+import { importGoodsBackup, importTrashBackup } from '../goodsSync'
+import { saveItems } from '@/utils/db/index'
 
 function makeItem(id, updatedAt, overrides = {}) {
   return { id, name: `item-${id}`, quantity: 1, updatedAt, isWishlist: false, ...overrides }
@@ -29,10 +24,6 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
   beforeEach(() => {
     saveItems.mockReset()
     saveItems.mockResolvedValue(undefined)
-    softDeleteItems.mockReset()
-    softDeleteItems.mockResolvedValue(undefined)
-    writePersistedTrash.mockReset()
-    writePersistedTrash.mockResolvedValue(undefined)
   })
 
   it('本地在回收站且删除时间 >= 远端更新时间：跳过导入，条目保持已删除', async () => {
@@ -58,7 +49,7 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
     expect(list.value.map((e) => e.id)).toEqual(['a'])
     expect(list.value[0].updatedAt).toBe(200)
     expect(trashList.value).toEqual([]) // 从回收站移除
-    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
+    expect(saveItems).toHaveBeenCalledTimes(1)
     expect(saveItems).toHaveBeenCalledTimes(1)
   })
 
@@ -71,7 +62,6 @@ describe('importGoodsBackup 回收站守卫（本地已删除条目不被远端�
     expect(imported).toBe(1)
     expect(list.value.map((e) => e.id)).toEqual(['x'])
     expect(trashList.value).toEqual([])
-    expect(writePersistedTrash).not.toHaveBeenCalled()
   })
 
   it('已存在于 list 的条目：跳过（现有去重行为不变）', async () => {
@@ -104,13 +94,9 @@ describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除
   beforeEach(() => {
     saveItems.mockReset()
     saveItems.mockResolvedValue(undefined)
-    softDeleteItems.mockReset()
-    softDeleteItems.mockResolvedValue(undefined)
-    writePersistedTrash.mockReset()
-    writePersistedTrash.mockResolvedValue(undefined)
   })
 
-  it('远端删除较新：导入回收站并移除本地活跃行（软删除 SQLite 行）', async () => {
+  it('远端删除较新：导入回收站并移除本地活跃行', async () => {
     const list = shallowRef([makeItem('a', 100)])
     const trashList = shallowRef([])
 
@@ -121,9 +107,7 @@ describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除
     expect(list.value).toEqual([]) // 活跃行已移除
     expect(trashList.value.map((e) => e.id)).toEqual(['a']) // 进入回收站
     expect(trashList.value[0].trashed).toBe(true)
-    expect(softDeleteItems).toHaveBeenCalledTimes(1)
-    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
-    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
+    expect(saveItems).toHaveBeenCalledWith([trashList.value[0]])
   })
 
   it('本地活跃行较新：远端旧墓碑跳过，不导入也不动活跃行', async () => {
@@ -135,8 +119,6 @@ describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除
     expect(imported).toBe(0)
     expect(list.value.map((e) => e.id)).toEqual(['a'])
     expect(trashList.value).toEqual([])
-    expect(softDeleteItems).not.toHaveBeenCalled()
-    expect(writePersistedTrash).not.toHaveBeenCalled()
   })
 
   it('时间戳相等：保持本地活跃行，不导入（与 diff 的严格 > 一致）', async () => {
@@ -159,7 +141,6 @@ describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除
     expect(imported).toBe(0)
     expect(trashList.value).toHaveLength(1)
     expect(trashList.value[0].updatedAt).toBe(100) // 由 updateTrashBackup 按 LWW 处理
-    expect(softDeleteItems).not.toHaveBeenCalled()
   })
 
   it('全新远端回收站条目（不在收藏也不在回收站）：正常导入', async () => {
@@ -171,64 +152,6 @@ describe('importTrashBackup 远端回收站行 vs 本地活跃行守卫（删除
     expect(imported).toBe(1)
     expect(list.value.map((e) => e.id)).toEqual(['b']) // 不影响其他活跃行
     expect(trashList.value.map((e) => e.id)).toEqual(['x'])
-    expect(softDeleteItems).not.toHaveBeenCalled()
-  })
-})
-
-describe('reconcileListTrashOverlap 收藏/回收站重叠自愈', () => {
-  beforeEach(() => {
-    saveItems.mockReset()
-    saveItems.mockResolvedValue(undefined)
-    softDeleteItems.mockReset()
-    softDeleteItems.mockResolvedValue(undefined)
-    writePersistedTrash.mockReset()
-    writePersistedTrash.mockResolvedValue(undefined)
-  })
-
-  it('回收站条目较新：移除活跃行并软删除 SQLite 行', async () => {
-    const list = shallowRef([makeItem('a', 100)])
-    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
-
-    await reconcileListTrashOverlap(list, trashList)
-
-    expect(list.value).toEqual([])
-    expect(trashList.value.map((e) => e.id)).toEqual(['a'])
-    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
-    expect(writePersistedTrash).not.toHaveBeenCalled()
-  })
-
-  it('活跃行较新：丢弃过期回收站条目', async () => {
-    const list = shallowRef([makeItem('a', 300)])
-    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
-
-    await reconcileListTrashOverlap(list, trashList)
-
-    expect(list.value.map((e) => e.id)).toEqual(['a'])
-    expect(trashList.value).toEqual([])
-    expect(softDeleteItems).not.toHaveBeenCalled()
-    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
-  })
-
-  it('时间戳相等：回收站胜出（与 resolveGoodsTrashMaps 一致）', async () => {
-    const list = shallowRef([makeItem('a', 200)])
-    const trashList = shallowRef([makeItem('a', 200, { trashed: true })])
-
-    await reconcileListTrashOverlap(list, trashList)
-
-    expect(list.value).toEqual([])
-    expect(trashList.value.map((e) => e.id)).toEqual(['a'])
-    expect(softDeleteItems).toHaveBeenCalledWith(['a'])
-  })
-
-  it('无重叠：不产生任何写入', async () => {
-    const list = shallowRef([makeItem('a', 100)])
-    const trashList = shallowRef([makeItem('b', 200, { trashed: true })])
-
-    await reconcileListTrashOverlap(list, trashList)
-
-    expect(list.value.map((e) => e.id)).toEqual(['a'])
-    expect(trashList.value.map((e) => e.id)).toEqual(['b'])
-    expect(softDeleteItems).not.toHaveBeenCalled()
-    expect(writePersistedTrash).not.toHaveBeenCalled()
+    expect(saveItems).toHaveBeenCalledWith([trashList.value[0]])
   })
 })

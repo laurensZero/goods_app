@@ -5,6 +5,12 @@ import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseCloudImageUri } 
 import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goodsHelpers'
 import { GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET } from '@/services/supabaseAdapter/storage'
 import { readSyncKey } from '@/utils/sync/storage'
+import {
+  readPersistedTrash,
+  removeTrashStorage,
+  readTrashSameTableMigrationFlag,
+  writeTrashSameTableMigrationFlag
+} from '@/stores/goodsPersistence'
 
 const SUPABASE_URL_KEY = 'sync_supabase_url'
 
@@ -35,7 +41,7 @@ function deepEqual(left, right) {
   return false
 }
 
-async function normalizeExistingCharacters(list, trashList, persistTrash) {
+async function normalizeExistingCharacters(list, trashList) {
   const updates = []
   list.value = list.value.map((item) => {
     const normalizedCharacters = normalizeCharacterList(item.characters)
@@ -45,25 +51,26 @@ async function normalizeExistingCharacters(list, trashList, persistTrash) {
     return next
   })
 
-  let trashChanged = false
+  const trashUpdates = []
   trashList.value = trashList.value.map((item) => {
     const normalizedCharacters = normalizeCharacterList(item.characters)
     if (deepEqual(normalizedCharacters, item.characters)) return item
-    trashChanged = true
-    return { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
+    const next = { ...item, characters: normalizedCharacters, updatedAt: Date.now() }
+    trashUpdates.push(next)
+    return next
   })
 
   if (updates.length > 0) {
     triggerRef(list)
     await saveItems(updates)
   }
-  if (trashChanged) {
+  if (trashUpdates.length > 0) {
     triggerRef(trashList)
-    await persistTrash()
+    await saveItems(trashUpdates)
   }
 }
 
-async function normalizeExistingVariants(list, trashList, persistTrash) {
+async function normalizeExistingVariants(list, trashList) {
   const now = Date.now()
   let listChanged = false
   const mergedList = []
@@ -89,12 +96,12 @@ async function normalizeExistingVariants(list, trashList, persistTrash) {
     mergedList.push(next)
   })
 
-  let trashChanged = false
+  const trashUpdates = []
   trashList.value = trashList.value.map((item) => {
     const normalized = normalizeTrashItem(item, item.id)
     if (deepEqual(normalized, item)) return item
     const next = { ...normalized, updatedAt: now }
-    trashChanged = true
+    trashUpdates.push(next)
     return next
   })
 
@@ -106,10 +113,81 @@ async function normalizeExistingVariants(list, trashList, persistTrash) {
       await deleteItems(Array.from(removedIds))
     }
   }
-  if (trashChanged) {
+  if (trashUpdates.length > 0) {
     triggerRef(trashList)
-    await persistTrash()
+    await saveItems(trashUpdates)
   }
+}
+
+/**
+ * 一次性迁移：把 Preferences 里的旧回收站（TRASH_STORAGE_KEY）回填进 goods 表，
+ * trashList 从此以 trashed=1 行为数据源。Preferences trashList 是回收站展示的
+ * 权威源，规则（与被替代的 reconcileListTrashOverlap 一致）：
+ *  - 同 id 已在回收站桶 → 以 Preferences 内容覆盖该行（补齐 deletedAt 等字段）
+ *  - 同 id 在活跃桶 → 按 LWW 裁决：回收站条目不早于活跃行才移入回收站；
+ *    活跃行较新说明条目过期，直接丢弃
+ *  - 两桶都没有 → 作为 trashed=1 行插入
+ * 回填成功后写迁移 flag 并清空 TRASH_STORAGE_KEY；任一步失败则保留现场下次重试。
+ */
+async function migratePreferencesTrashToDb(list, trashList, purgedTrashIds) {
+  if (await readTrashSameTableMigrationFlag()) return 0
+
+  const legacyTrash = await readPersistedTrash()
+  if (!Array.isArray(legacyTrash) || legacyTrash.length === 0) {
+    await writeTrashSameTableMigrationFlag()
+    await removeTrashStorage()
+    return 0
+  }
+
+  const purged = purgedTrashIds instanceof Set
+    ? purgedTrashIds
+    : (purgedTrashIds?.value instanceof Set ? purgedTrashIds.value : new Set())
+  const trashIdSet = new Set(trashList.value.map((item) => item.id))
+  const activeById = new Map(list.value.map((item) => [item.id, item]))
+
+  const rowsToWrite = []
+  const importedTrash = []
+  const overwrittenTrashIds = new Set()
+  const idsToUnlist = new Set()
+
+  for (const raw of legacyTrash) {
+    const id = String(raw?.id || '').trim()
+    if (!id || purged.has(id)) continue
+    // 旧条目可能缺 deletedAt：以删除时刻写入的 updatedAt 兜底
+    const item = normalizeTrashItem({
+      ...raw,
+      trashed: true,
+      deletedAt: raw.deletedAt || (raw.updatedAt ? new Date(raw.updatedAt).toISOString() : '')
+    }, id)
+
+    const activeItem = activeById.get(id)
+    if (activeItem && !trashIdSet.has(id)) {
+      if ((Number(item.updatedAt) || 0) >= (Number(activeItem.updatedAt) || 0)) {
+        idsToUnlist.add(id)
+      } else {
+        continue
+      }
+    }
+
+    rowsToWrite.push(item)
+    if (trashIdSet.has(id)) overwrittenTrashIds.add(id)
+    importedTrash.push(item)
+  }
+
+  if (rowsToWrite.length > 0) {
+    await saveItems(rowsToWrite)
+    trashList.value = [
+      ...importedTrash,
+      ...trashList.value.filter((item) => !overwrittenTrashIds.has(item.id))
+    ]
+    if (idsToUnlist.size > 0) {
+      list.value = list.value.filter((item) => !idsToUnlist.has(item.id))
+    }
+  }
+
+  await writeTrashSameTableMigrationFlag()
+  await removeTrashStorage()
+  return rowsToWrite.length
 }
 
 async function backfillLegacyImages(list) {
@@ -227,5 +305,6 @@ export {
   normalizeExistingVariants,
   backfillLegacyImages,
   replaceBase64WithPublicUrls,
-  replaceEventBase64WithPublicUrls
+  replaceEventBase64WithPublicUrls,
+  migratePreferencesTrashToDb
 }

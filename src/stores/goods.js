@@ -1,13 +1,11 @@
 // @ts-check
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
-import { getItems } from '@/utils/db/index'
+import { getItems, getTrashedItems } from '@/utils/db/index'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
 import { createByIdLookup, createAutoPush } from '@/stores/storeCore'
 import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'
 import {
-  readPersistedTrash,
-  writePersistedTrash,
   readPersistedPurgedTrashIds,
   writePersistedPurgedTrashIds,
   readImagesMigrationFlag,
@@ -23,7 +21,8 @@ import {
   normalizeExistingCharacters,
   normalizeExistingVariants,
   backfillLegacyImages,
-  replaceBase64WithPublicUrls
+  replaceBase64WithPublicUrls,
+  migratePreferencesTrashToDb
 } from '@/stores/goodsMigrations'
 import {
   replaceCategoryName as _replaceCategoryName,
@@ -38,7 +37,6 @@ import {
   updateGoodsBackup as _updateGoodsBackup,
   importTrashBackup as _importTrashBackup,
   updateTrashBackup as _updateTrashBackup,
-  reconcileListTrashOverlap as _reconcileListTrashOverlap,
   markImagesAsRemote as _markImagesAsRemote
 } from '@/stores/goodsSync'
 import {
@@ -112,11 +110,7 @@ export const useGoodsStore = defineStore('goods', () => {
   const { collectionViewList, wishlistViewList } = createFilteredViewLists(viewList)
   const trashViewList = createTrashViewList(trashList)
 
-  //  Persistence
-
-  async function persistTrash() {
-    await writePersistedTrash(trashList.value)
-  }
+  //  Trash tombstones
 
   async function markPermanentlyDeleted(ids = []) {
     const next = new Set(purgedTrashIds.value)
@@ -172,7 +166,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
       if (!charactersMigrated) {
         try {
-          await normalizeExistingCharacters(list, trashList, persistTrash)
+          await normalizeExistingCharacters(list, trashList)
           await writeCharactersMigrationFlag()
         } catch (e) {
           console.warn('[goods] init: characters migration failed:', e)
@@ -181,7 +175,7 @@ export const useGoodsStore = defineStore('goods', () => {
 
       if (!variantsMigrated) {
         try {
-          await normalizeExistingVariants(list, trashList, persistTrash)
+          await normalizeExistingVariants(list, trashList)
           await writeVariantMigrationFlag()
         } catch (e) {
           console.warn('[goods] init: variants migration failed:', e)
@@ -207,7 +201,7 @@ export const useGoodsStore = defineStore('goods', () => {
   async function init() {
     const [itemsResult, trashResult, purgedTrashIdsResult] = await Promise.allSettled([
       getItems(),
-      readPersistedTrash(),
+      getTrashedItems(),
       readPersistedPurgedTrashIds()
     ])
 
@@ -226,9 +220,14 @@ export const useGoodsStore = defineStore('goods', () => {
     }
 
     if (trashResult.status === 'fulfilled') {
-      trashList.value = trashResult.value.map((item) => normalizeTrashItem(item, item.id))
+      // 回收站桶 = goods 表内 trashed=1 行。存量行可能缺 deletedAt（v14 之前的
+      // 软删除只刷新 updatedAt），以 updatedAt 兜底，避免每次启动都现造时间
+      trashList.value = trashResult.value.map((row) => normalizeTrashItem({
+        ...row,
+        deletedAt: row.deletedAt || (row.updatedAt ? new Date(row.updatedAt).toISOString() : '')
+      }, row.id))
     } else {
-      console.error('[goods] init: readPersistedTrash failed, starting with empty trash:', trashResult.reason)
+      console.error('[goods] init: getTrashedItems failed, starting with empty trash:', trashResult.reason)
       trashList.value = []
     }
 
@@ -239,11 +238,12 @@ export const useGoodsStore = defineStore('goods', () => {
       purgedTrashIds.value = new Set()
     }
 
-    // 自愈历史脏状态：同 id 同时挂在收藏与回收站（旧版本同步拉取回收站行时未移除本地活跃行遗留）
+    // 一次性迁移：旧版本的回收站存在 Preferences 里，回填进 goods 表后清空旧键。
+    // 同表分桶后同 id 只可能归属一个桶，无需再对账自愈
     try {
-      await _reconcileListTrashOverlap(list, trashList)
+      await migratePreferencesTrashToDb(list, trashList, purgedTrashIds)
     } catch (e) {
-      console.error('[goods] init: reconcile list/trash overlap failed:', e)
+      console.error('[goods] init: preferences trash backfill failed:', e)
     }
 
     isReady.value = true
@@ -256,9 +256,9 @@ export const useGoodsStore = defineStore('goods', () => {
   function addGoodsBatch(itemsData) { return crud.addGoodsBatch(itemsData, list, autoPushGoods) }
   function updateGoods(id, data) { return crud.updateGoods(id, data, list, autoPushGoods) }
   function updateMultipleGoods(ids, data) { return crud.updateMultipleGoods(ids, data, list, autoPushGoods) }
-  function removeGoods(id) { return crud.removeGoods(id, list, trashList, persistTrash, autoPushGoods) }
-  function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, persistTrash, autoPushGoods) }
-  function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, persistTrash, autoPushGoods) }
+  function removeGoods(id) { return crud.removeGoods(id, list, trashList, autoPushGoods) }
+  function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, autoPushGoods) }
+  function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, autoPushGoods) }
   async function importGoodsBackup(items) {
     const result = await _importGoodsBackup(items, list, trashList)
     await clearPurgedTrashIds((items || []).map((item) => item?.id))
@@ -272,29 +272,29 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   function deleteTrashItem(id) {
-    return crud.deleteTrashItem(id, trashList, persistTrash, autoPushGoods, markPermanentlyDeleted)
+    return crud.deleteTrashItem(id, trashList, autoPushGoods, markPermanentlyDeleted)
   }
   function emptyTrash() {
-    return crud.emptyTrash(trashList, persistTrash, autoPushGoods, markPermanentlyDeleted)
+    return crud.emptyTrash(trashList, autoPushGoods, markPermanentlyDeleted)
   }
   function deleteGoodsPermanently(ids) { return crud.deleteGoodsPermanently(ids, list, autoPushGoods) }
 
   //  Delegated to sub-modules
 
   function replaceCategoryName(oldName, newName) {
-    return _replaceCategoryName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
+    return _replaceCategoryName(oldName, newName, list, trashList, autoPushGoods)
   }
 
   function replaceIpName(oldName, newName) {
-    return _replaceIpName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
+    return _replaceIpName(oldName, newName, list, trashList, autoPushGoods)
   }
 
   function replaceCharacterName(oldName, newName) {
-    return _replaceCharacterName(oldName, newName, list, trashList, persistTrash, autoPushGoods)
+    return _replaceCharacterName(oldName, newName, list, trashList, autoPushGoods)
   }
 
   function syncCharacterIp(name, nextIp, previousIp = '') {
-    return _syncCharacterIp(name, nextIp, previousIp, list, trashList, persistTrash)
+    return _syncCharacterIp(name, nextIp, previousIp, list, trashList)
   }
 
   function replaceStorageLocationPrefix(oldPrefix, newPrefix) {

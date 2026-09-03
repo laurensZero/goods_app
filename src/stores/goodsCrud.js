@@ -1,6 +1,6 @@
 // @ts-check
 import { triggerRef } from 'vue'
-import { addItem, saveItems, deleteItems, softDeleteItems } from '@/utils/db/index'
+import { addItem, saveItems, deleteItems } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import {
   collectManagedLocalImagePathsFromGoodsItem,
@@ -178,41 +178,35 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
 }
 
 /**
+ * 删除入回收站：写 trashed=1 的完整行到 goods 表（同表软删除，单次写入原子完成）。
  * @param {string} id
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
- * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
  */
-export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
+export async function removeGoods(id, list, trashList, onMutate) {
   const item = list.value.find((entry) => entry.id === id)
   if (!item) return
 
   const now = Date.now()
-  // 快照当前状态，回收站持久化失败时用于回滚
-  const prevList = list.value
-  const prevTrash = trashList.value
-  trashList.value = [normalizeTrashItem({
+  const trashedItem = normalizeTrashItem({
     ...item,
     updatedAt: now,
     deletedAt: new Date(now).toISOString()
-  }, item.id), ...prevTrash]
+  }, item.id)
+  // 快照当前状态，落库失败时用于回滚
+  const prevList = list.value
+  const prevTrash = trashList.value
+  trashList.value = [trashedItem, ...prevTrash]
   list.value = prevList.filter((entry) => entry.id !== id)
-  // 先持久化回收站，成功后才执行破坏性的 SQLite 删除，避免存储配额耗尽时数据丢失
-  try {
-    await persistTrash()
-  } catch (e) {
-    trashList.value = prevTrash
-    list.value = prevList
-    console.error('[goods] removeGoods: trash persist failed, aborting delete:', e)
-    throw e
-  }
   try {
     await Promise.all([
-      softDeleteItems([id]),
+      saveItems([trashedItem]),
       cancelSaleReminderNotifications(id, item.saleReminderOffsets)
     ])
   } catch (e) {
+    trashList.value = prevTrash
+    list.value = prevList
     console.error('[goods] removeGoods DB write failed:', e)
     throw e
   }
@@ -223,10 +217,9 @@ export async function removeGoods(id, list, trashList, persistTrash, onMutate) {
  * @param {Set<string>} ids
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
- * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
  */
-export async function removeMultipleGoods(ids, list, trashList, persistTrash, onMutate) {
+export async function removeMultipleGoods(ids, list, trashList, onMutate) {
   const now = Date.now()
   const removedItems = list.value
     .filter((item) => ids.has(item.id))
@@ -238,26 +231,19 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
 
   if (removedItems.length === 0) return
 
-  // 快照当前状态，回收站持久化失败时用于回滚
+  // 快照当前状态，落库失败时用于回滚
   const prevList = list.value
   const prevTrash = trashList.value
   trashList.value = [...removedItems, ...prevTrash]
   list.value = prevList.filter((item) => !ids.has(item.id))
-  // 先持久化回收站，成功后才执行破坏性的 SQLite 删除，避免存储配额耗尽时数据丢失
-  try {
-    await persistTrash()
-  } catch (e) {
-    trashList.value = prevTrash
-    list.value = prevList
-    console.error('[goods] removeMultipleGoods: trash persist failed, aborting delete:', e)
-    throw e
-  }
   try {
     await Promise.all([
-      softDeleteItems(Array.from(ids)),
+      saveItems(removedItems),
       ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
     ])
   } catch (e) {
+    trashList.value = prevTrash
+    list.value = prevList
     console.error('[goods] removeMultipleGoods DB write failed:', e)
     throw e
   }
@@ -268,15 +254,15 @@ export async function removeMultipleGoods(ids, list, trashList, persistTrash, on
  * @param {string} id
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
- * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
  */
-export async function restoreTrashItem(id, list, trashList, persistTrash, onMutate) {
+export async function restoreTrashItem(id, list, trashList, onMutate) {
   const item = trashList.value.find((entry) => entry.id === id)
   if (!item) return null
 
-  // 回收站条目恒 trashed=true，恢复时必须显式清掉，否则 addItem 会写回 trashed=1
-  const restored = normalizeGoodsInput({ ...item, trashed: false, updatedAt: Date.now() }, item.id)
+  // 回收站条目恒 trashed=true，恢复时必须显式清掉，否则写回 goods 表会保持软删除；
+  // deletedAt 一并清空（normalizeGoodsInput 白名单不含该字段，落库时写空串）
+  const restored = normalizeGoodsInput({ ...item, trashed: false, deletedAt: '', updatedAt: Date.now() }, item.id)
   if (list.value.some((entry) => entry.id === restored.id)) {
     restored.id = String(Date.now())
   }
@@ -285,10 +271,7 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
   triggerRef(list)
   trashList.value = trashList.value.filter((entry) => entry.id !== id)
   try {
-    await Promise.all([
-      addItem(restored),
-      persistTrash()
-    ])
+    await addItem(restored)
   } catch (e) {
     console.error('[goods] restoreTrashItem DB write failed:', e)
     throw e
@@ -299,31 +282,28 @@ export async function restoreTrashItem(id, list, trashList, persistTrash, onMuta
 }
 
 /**
+ * 回收站永久删除：物理 DELETE goods 表里的软删除行。
  * @param {string} id
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
- * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
  * @param {(ids: string[]) => Promise<void>} [onPermanentlyDeleted]
  */
-export async function deleteTrashItem(id, trashList, persistTrash, onMutate, onPermanentlyDeleted) {
+export async function deleteTrashItem(id, trashList, onMutate, onPermanentlyDeleted) {
   const existing = trashList.value.find((entry) => entry.id === id)
   const next = trashList.value.filter((entry) => entry.id !== id)
   if (next.length === trashList.value.length) return
 
-  // 快照当前状态，持久化失败时回滚，避免内存与存储不一致
+  // 快照当前状态，失败时回滚，避免内存与存储不一致
   const prevTrash = trashList.value
   trashList.value = next
   try {
-    await persistTrash()
     await onPermanentlyDeleted?.([id])
   } catch (e) {
     trashList.value = prevTrash
-    await persistTrash().catch(() => {})
-    console.error('[goods] deleteTrashItem: trash persist failed, aborting delete:', e)
+    console.error('[goods] deleteTrashItem: tombstone persist failed, aborting delete:', e)
     throw e
   }
   try {
-    // 回收站永久删除：同步物理删除 goods 表里的软删除行（removeGoods 只标记 trashed=1）
     await Promise.all([
       deleteItems([id]),
       cancelSaleReminderNotifications(id, existing?.saleReminderOffsets),
@@ -337,12 +317,12 @@ export async function deleteTrashItem(id, trashList, persistTrash, onMutate, onP
 }
 
 /**
+ * 清空回收站：把所有 trashed=1 行物理 DELETE 出 goods 表。
  * @param {import('vue').ShallowRef<import('@/types/models').TrashGoodsItem[]>} trashList
- * @param {() => Promise<void>} persistTrash
  * @param {() => void} [onMutate]
  * @param {(ids: string[]) => Promise<void>} [onPermanentlyDeleted]
  */
-export async function emptyTrash(trashList, persistTrash, onMutate, onPermanentlyDeleted) {
+export async function emptyTrash(trashList, onMutate, onPermanentlyDeleted) {
   if (trashList.value.length === 0) return
   const removedItems = [...trashList.value]
   const removedPaths = new Set()
@@ -351,25 +331,21 @@ export async function emptyTrash(trashList, persistTrash, onMutate, onPermanentl
       removedPaths.add(path)
     }
   }
-  trashList.value = []
-  // 先持久化，失败时恢复快照并中止，本地图片不会被误删
   try {
-    await persistTrash()
     await onPermanentlyDeleted?.(removedItems.map((item) => item.id))
   } catch (e) {
-    trashList.value = removedItems
-    await persistTrash().catch(() => {})
-    console.error('[goods] emptyTrash: trash persist failed, aborting delete:', e)
+    console.error('[goods] emptyTrash: tombstone persist failed, aborting delete:', e)
     throw e
   }
+  trashList.value = []
   try {
-    // 清空回收站：同步物理删除 goods 表里所有软删除行（removeGoods 只标记 trashed=1）
     await Promise.all([
       deleteItems(removedItems.map((item) => item.id)),
       ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
     ])
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {
+    trashList.value = removedItems
     console.error('[goods] emptyTrash DB write failed:', e)
     throw e
   }
