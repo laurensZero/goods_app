@@ -344,6 +344,10 @@ export function createSyncOrchestrator({
     let existingManifest = null
     try {
       const uid = typeof userIdRef === 'function' ? userIdRef() : ''
+      // 防止未登录用户查询导致 PostgreSQL "invalid input syntax for type uuid" 错误
+      if (!uid || typeof uid !== 'string' || uid.trim() === '') {
+        throw new Error('QUICK_PUSH_MISSING_USER_ID')
+      }
       const { data, error } = await db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
       if (error) throw error
       if (data && data.length > 0) existingManifest = data[0]
