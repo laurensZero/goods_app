@@ -8,7 +8,6 @@ import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHAS
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from './syncPushPipeline'
 import { flushDbWrites, saveItems, saveEvents, saveGroups, saveGroupItems, saveRechargeRecords } from '@/utils/db'
-import { writePersistedTrash } from '@/stores/goodsPersistence'
 import { PULL_CLOCK_OVERLAP_MS } from '@/constants/syncConstants'
 
 // 增量拉取的 since 回退一个重叠窗口，吸收设备间时钟偏移（行内 updated_at 为客户端时间）；
@@ -806,7 +805,7 @@ export function createSyncOrchestrator({
     const changedGroupItems = bump(stores.goodsGroupStore.groupItemList, buildRemoteTsMap(remoteData?.groupItems, remoteData?.groupItemsTrash))
 
     if (changedGoods.length > 0) await saveItems(changedGoods)
-    if (changedTrash.length > 0) await writePersistedTrash(stores.goodsStore.trashList)
+    if (changedTrash.length > 0) await saveItems(changedTrash)
     if (changedRecharge.length > 0) await saveRechargeRecords(changedRecharge)
     if (changedEvents.length > 0) await saveEvents(changedEvents)
     if (changedGroups.length > 0) await saveGroups(changedGroups)

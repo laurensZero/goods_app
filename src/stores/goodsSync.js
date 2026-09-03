@@ -1,4 +1,4 @@
-import { getItems, saveItems, softDeleteItems } from '@/utils/db/index'
+import { getItems, saveItems } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
 import { cancelSaleReminderNotifications } from '@/utils/saleReminder'
@@ -11,14 +11,9 @@ import {
   restoreImportedGoodsItem,
   diffRemovedManagedImagePaths
 } from '@/stores/goodsHelpers'
-import { writePersistedTrash } from '@/stores/goodsPersistence'
 import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
-
-async function persistTrash(trashList) {
-  await writePersistedTrash(trashList.value)
-}
 
 async function addMultipleGoods(items, list) {
   const now = Date.now()
@@ -106,14 +101,15 @@ async function importGoodsBackup(items, list, trashList) {
     }, item.id))
   )
 
-  list.value = [...newItems, ...list.value]
-
   if (idsToUnTrash.length > 0) {
     const untrashSet = new Set(idsToUnTrash)
     trashList.value = trashList.value.filter((item) => !untrashSet.has(item.id))
-    await persistTrash(trashList)
   }
 
+  list.value = [...newItems, ...list.value]
+
+  // 恢复的行 INSERT OR REPLACE 会把 trashed 翻回 0（normalizeGoodsInput 输出 trashed=false），
+  // 同表软删除下恢复与导入是同一次写入
   await saveItems(newItems)
   return newItems.length
 }
@@ -171,8 +167,8 @@ async function importTrashBackup(items, list, trashList, purgedTrashIds = null) 
   const activeIdMap = new Map((list?.value || []).map((item) => [item.id, item]))
 
   // 关键守卫（与 importGoodsBackup 的反向守卫对称）：远端回收站行命中本地活跃行时
-  // 按 LWW 裁决——远端删除较新才把活跃行移入回收站并软删除 SQLite 行；本地较新说明
-  // 远端墓碑是旧快照，既不导入也不动活跃行。缺了这步同一谷子会同时挂在收藏和回收站
+  // 按 LWW 裁决——远端删除较新才把活跃行移入回收站（整行覆盖为远端 trashed=1 内容）；
+  // 本地较新说明远端墓碑是旧快照，既不导入也不动活跃行
   const importableItems = []
   const idsToTrashLocally = []
   const reminderOffsetsById = new Map()
@@ -207,31 +203,20 @@ async function importTrashBackup(items, list, trashList, purgedTrashIds = null) 
 
   if (newItems.length === 0) return 0
 
+  // 同表软删除：墓碑行以 trashed=1 整行写入 goods 表。命中活跃行的 id 也走同一写入
+  // （INSERT OR REPLACE 翻转 trashed），不再有「Preferences 挂回收站 + SQLite 留活跃行」
+  // 的跨桶中间态
+  await saveItems(newItems)
+
   const prevList = list?.value
-  const prevTrash = trashList.value
   if (idsToTrashLocally.length > 0 && prevList) {
     const removeSet = new Set(idsToTrashLocally)
     list.value = prevList.filter((item) => !removeSet.has(item.id))
   }
-  trashList.value = [...newItems, ...prevTrash]
-  try {
-    await persistTrash(trashList)
-  } catch (e) {
-    trashList.value = prevTrash
-    if (prevList) list.value = prevList
-    console.error('[goodsSync] importTrashBackup: trash persist failed, aborting:', e)
-    throw e
-  }
-  if (idsToTrashLocally.length > 0) {
-    try {
-      await softDeleteItems(idsToTrashLocally)
-    } catch (e) {
-      console.error('[goodsSync] importTrashBackup: softDeleteItems failed:', e)
-      throw e
-    }
-    for (const id of idsToTrashLocally) {
-      void cancelSaleReminderNotifications(id, reminderOffsetsById.get(id)).catch(() => {})
-    }
+  trashList.value = [...newItems, ...trashList.value]
+
+  for (const id of idsToTrashLocally) {
+    void cancelSaleReminderNotifications(id, reminderOffsetsById.get(id)).catch(() => {})
   }
   return newItems.length
 }
@@ -276,59 +261,9 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forc
 
   if (updatedItems.length > 0) {
     triggerRef(trashList)
-    await persistTrash(trashList)
+    await saveItems(updatedItems)
   }
   return updatedItems.length
-}
-
-/**
- * 自愈「同 id 同时存在于收藏与回收站」的脏状态（旧版本同步拉取回收站行时未移除
- * 本地活跃行所遗留）。按 resolveGoodsTrashMaps 同款规则裁决：时间戳相等时回收站胜出。
- * 只修正本地持久化（软删除 SQLite 行 / 丢弃过期回收站条目），不触发推送。
- */
-async function reconcileListTrashOverlap(list, trashList) {
-  const activeItems = list?.value || []
-  const trashItems = trashList?.value || []
-  if (activeItems.length === 0 || trashItems.length === 0) return
-
-  const trashById = new Map(trashItems.map((item) => [item.id, item]))
-  const offsetsById = new Map()
-  const idsToSoftDelete = []
-  const staleTrashIds = []
-  for (const activeItem of activeItems) {
-    const trashItem = trashById.get(activeItem.id)
-    if (!trashItem) continue
-    if ((Number(trashItem.updatedAt) || 0) >= (Number(activeItem.updatedAt) || 0)) {
-      idsToSoftDelete.push(activeItem.id)
-      offsetsById.set(activeItem.id, activeItem.saleReminderOffsets)
-    } else {
-      staleTrashIds.push(activeItem.id)
-    }
-  }
-  if (idsToSoftDelete.length === 0 && staleTrashIds.length === 0) return
-
-  const prevList = list.value
-  const prevTrash = trashList.value
-  const removeSet = new Set(idsToSoftDelete)
-  const staleSet = new Set(staleTrashIds)
-  list.value = prevList.filter((item) => !removeSet.has(item.id))
-  trashList.value = staleTrashIds.length > 0
-    ? prevTrash.filter((item) => !staleSet.has(item.id))
-    : prevTrash
-  try {
-    await Promise.all([
-      idsToSoftDelete.length > 0 ? softDeleteItems(idsToSoftDelete) : null,
-      staleTrashIds.length > 0 ? persistTrash(trashList) : null
-    ].filter(Boolean))
-  } catch (e) {
-    list.value = prevList
-    trashList.value = prevTrash
-    console.error('[goodsSync] reconcileListTrashOverlap failed:', e)
-    return
-  }
-  for (const id of idsToSoftDelete) {
-    void cancelSaleReminderNotifications(id, offsetsById.get(id)).catch(() => {})
-  }
 }
 
 /**
@@ -450,7 +385,6 @@ export {
   updateGoodsBackup,
   importTrashBackup,
   updateTrashBackup,
-  reconcileListTrashOverlap,
   markImagesAsRemote,
   cleanupBase64Images
 }

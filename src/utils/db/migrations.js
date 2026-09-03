@@ -240,4 +240,16 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 14,
+    description: 'Add goods.deletedAt column (trash bucket lives in goods table)',
+    up: async (db) => {
+      // 回收站同表软删除：deletedAt 记录删除时刻（ISO 字符串，回收站按它排序）。
+      // 存量 trashed=1 行该列为空串，展示层回退为条目 updatedAt
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('deletedAt')) {
+        await db.run("ALTER TABLE goods ADD COLUMN deletedAt TEXT DEFAULT ''")
+      }
+    }
+  },
 ]

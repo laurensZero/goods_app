@@ -2,7 +2,7 @@ import { saveItems } from '@/utils/db/index'
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeCharacterList } from '@/stores/goodsHelpers'
 
-async function replaceCategoryName(oldName, newName, list, trashList, persistTrash, triggerSync) {
+async function replaceCategoryName(oldName, newName, list, trashList, triggerSync) {
   const previous = String(oldName || '').trim()
   const next = String(newName || '').trim()
   if (!previous || !next || previous === next) return
@@ -28,17 +28,19 @@ async function replaceCategoryName(oldName, newName, list, trashList, persistTra
 
   if (!listChanged && !trashChanged) return
 
-  const updatedItems = list.value.filter(item => item.category === next)
+  const updatedItems = [
+    ...list.value.filter(item => item.category === next),
+    ...trashList.value.filter(item => item.category === next)
+  ]
 
   await Promise.all([
-    listChanged ? saveItems(updatedItems) : Promise.resolve(),
-    trashChanged ? persistTrash() : Promise.resolve()
+    updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve()
   ])
 
   if (typeof triggerSync === 'function') triggerSync(changedIds)
 }
 
-async function replaceIpName(oldName, newName, list, trashList, persistTrash, triggerSync) {
+async function replaceIpName(oldName, newName, list, trashList, triggerSync) {
   const previous = String(oldName || '').trim()
   const next = String(newName || '').trim()
   if (!previous || !next || previous === next) return
@@ -64,17 +66,19 @@ async function replaceIpName(oldName, newName, list, trashList, persistTrash, tr
 
   if (!listChanged && !trashChanged) return
 
-  const updatedItems = list.value.filter(item => item.ip === next)
+  const updatedItems = [
+    ...list.value.filter(item => item.ip === next),
+    ...trashList.value.filter(item => item.ip === next)
+  ]
 
   await Promise.all([
-    listChanged ? saveItems(updatedItems) : Promise.resolve(),
-    trashChanged ? persistTrash() : Promise.resolve()
+    updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve()
   ])
 
   if (typeof triggerSync === 'function') triggerSync(changedIds)
 }
 
-async function replaceCharacterName(oldName, newName, list, trashList, persistTrash, triggerSync) {
+async function replaceCharacterName(oldName, newName, list, trashList, triggerSync) {
   const previous = normalizeCharacterName(oldName)
   const next = normalizeCharacterName(newName)
   if (!previous || !next || previous === next) return
@@ -112,17 +116,19 @@ async function replaceCharacterName(oldName, newName, list, trashList, persistTr
 
   if (!listChanged && !trashChanged) return
 
-  const updatedItems = list.value.filter(item => item.characters?.includes(next))
+  const updatedItems = [
+    ...list.value.filter(item => item.characters?.includes(next)),
+    ...trashList.value.filter(item => item.characters?.includes(next))
+  ]
 
   await Promise.all([
-    listChanged ? saveItems(updatedItems) : Promise.resolve(),
-    trashChanged ? persistTrash() : Promise.resolve()
+    updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve()
   ])
 
   if (typeof triggerSync === 'function') triggerSync(changedIds)
 }
 
-async function syncCharacterIp(name, nextIp, previousIp, list, trashList, persistTrash) {
+async function syncCharacterIp(name, nextIp, previousIp, list, trashList) {
   const characterName = normalizeCharacterName(name)
   const currentIp = String(previousIp || '').trim()
   const targetIp = String(nextIp || '').trim()
@@ -150,14 +156,21 @@ async function syncCharacterIp(name, nextIp, previousIp, list, trashList, persis
     return { ...item, ip: targetIp, updatedAt: now }
   })
 
-  const updatedItems = list.value.filter(item => {
-    if (!item.characters?.includes(characterName)) return false
-    return item.ip === targetIp
-  })
+  if (!listChanged && !trashChanged) return
+
+  const updatedItems = [
+    ...list.value.filter(item => {
+      if (!item.characters?.includes(characterName)) return false
+      return item.ip === targetIp
+    }),
+    ...trashList.value.filter(item => {
+      if (!item.characters?.includes(characterName)) return false
+      return item.ip === targetIp
+    })
+  ]
 
   await Promise.all([
-    listChanged ? saveItems(updatedItems) : Promise.resolve(),
-    trashChanged ? persistTrash() : Promise.resolve()
+    updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve()
   ])
 }
 

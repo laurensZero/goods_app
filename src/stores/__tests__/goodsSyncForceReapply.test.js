@@ -4,15 +4,11 @@ import { shallowRef } from 'vue'
 vi.mock('@/utils/db/index', () => ({
   getItems: vi.fn(async () => []),
   saveItems: vi.fn(async () => {}),
-  softDeleteItems: vi.fn(async () => {})
 }))
 vi.mock('@/utils/image/localImage', () => ({
   deleteManagedLocalImages: vi.fn(async () => {}),
   isLocalImageUri: vi.fn(() => false),
   collectManagedLocalImagePathsFromGoodsItem: vi.fn(() => new Set())
-}))
-vi.mock('@/stores/goodsPersistence', () => ({
-  writePersistedTrash: vi.fn(async () => {})
 }))
 vi.mock('@/utils/saleReminder', () => ({
   cancelSaleReminderNotifications: vi.fn(async () => {})
@@ -20,7 +16,6 @@ vi.mock('@/utils/saleReminder', () => ({
 
 import { updateGoodsBackup, updateTrashBackup } from '../goodsSync'
 import { saveItems } from '@/utils/db/index'
-import { writePersistedTrash } from '@/stores/goodsPersistence'
 
 function makeItem(id, updatedAt, overrides = {}) {
   return { id, name: `item-${id}`, quantity: 1, updatedAt, isWishlist: false, ...overrides }
@@ -30,8 +25,6 @@ describe('updateGoodsBackup forceReapply（同步格式版本升级回填）', (
   beforeEach(() => {
     saveItems.mockReset()
     saveItems.mockResolvedValue(undefined)
-    writePersistedTrash.mockReset()
-    writePersistedTrash.mockResolvedValue(undefined)
   })
 
   it('时间戳相等时不应用远端行（默认行为不变）', async () => {
@@ -75,6 +68,6 @@ describe('updateGoodsBackup forceReapply（同步格式版本升级回填）', (
 
     expect(updated).toBe(1)
     expect(trashList.value[0].name).toBe('remote')
-    expect(writePersistedTrash).toHaveBeenCalledTimes(1)
+    expect(saveItems).toHaveBeenCalledWith([trashList.value[0]])
   })
 })
