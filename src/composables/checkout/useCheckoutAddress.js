@@ -26,6 +26,7 @@ export function useCheckoutAddress() {
       }
     } catch (e) {
       error.value = e.message || '获取地址失败'
+      throw e
     } finally {
       loading.value = false
     }
