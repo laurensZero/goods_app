@@ -170,7 +170,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance || !authStore.isLoggedIn"
             @click="handleSync"
           >
             <span class="entry-icon sync-icon">
@@ -195,7 +195,7 @@
           <button
             type="button"
             class="entry-card"
-            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance"
+            :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance || !authStore.isLoggedIn"
             @click="handlePull"
           >
             <span class="entry-icon pull-icon">
@@ -821,6 +821,10 @@ function buildPushResultParts(result) {
 
 async function handleSync() {
   if (syncStore.isSyncing) return
+  if (!authStore.isLoggedIn) {
+    showToast(t('sync.error.loginRequired'))
+    return
+  }
 
   try {
     const result = await syncStore.sync()
@@ -878,6 +882,10 @@ async function handleSync() {
 
 async function handlePull() {
   if (syncStore.isSyncing) return
+  if (!authStore.isLoggedIn) {
+    showToast(t('sync.error.loginRequired'))
+    return
+  }
 
   try {
     const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0

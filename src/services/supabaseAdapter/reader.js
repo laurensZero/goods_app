@@ -44,6 +44,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
   async function readPresets() {
     const db = getDb()
     const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    // 防止未登录用户查询导致 PostgreSQL "invalid input syntax for type uuid" 错误
+    if (!uid || typeof uid !== 'string' || uid.trim() === '') return null
     const { data } = await withRetry(() =>
       db.from('sync_presets').select('*').eq('user_id', uid).limit(1)
     )
@@ -62,6 +64,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
   async function readManifest() {
     const db = getDb()
     const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    // 防止未登录用户查询导致 PostgreSQL "invalid input syntax for type uuid" 错误
+    if (!uid || typeof uid !== 'string' || uid.trim() === '') return null
     const { data, error } = await withRetry(() =>
       db.from('sync_manifest').select('*').eq('user_id', uid).limit(1)
     )
