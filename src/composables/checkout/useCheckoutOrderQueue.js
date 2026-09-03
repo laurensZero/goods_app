@@ -4,10 +4,6 @@ import { preCreateOrder, createOrder, fetchGoodsDetailForCheckout, fetchMihoyoSe
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
 const CLOCK_CACHE_TTL = 60 * 1000
-// 时钟刷新周期：队列存在时每 ~30s 重新校准一次偏移
-const CLOCK_REFRESH_INTERVAL_MS = 30 * 1000
-// 开抢前冻结窗口：距开抢 ≤10s 不再刷新时钟，避免校时抖动/网络占用影响开抢时机
-const CLOCK_FREEZE_BEFORE_MS = 10 * 1000
 const RETRY_DELAY = 500
 // 缺货等回流的重试间隔：商品售罄后库存会陆续回补，间隔拉长以降低对服务器压力
 const REBACK_DELAY = 3000
@@ -211,12 +207,6 @@ function enqueueOrder(payload) {
   queue.value = [...queue.value, entry]
   persistQueue()
   startQueueWatcher()
-  // 入队即刻校准时钟：开抢前几分钟窗口内由 maybeRefreshClock 周期刷新，T0 前 10s 冻结
-  if (entry.snapshot.cookie) {
-    void syncServerClock(entry.snapshot.cookie, true).catch((error) => {
-      console.warn('[checkoutQueue] initial clock sync failed', error?.message)
-    })
-  }
   void processQueue()
   return entry
 }
@@ -241,11 +231,6 @@ function retryQueuedOrder(id) {
   next.nextAttemptAt = Math.max(now + 1000, Number(next.scheduledAt) || now)
   persistQueue()
   startQueueWatcher()
-  if (next.snapshot?.cookie) {
-    void syncServerClock(next.snapshot.cookie, true).catch((error) => {
-      console.warn('[checkoutQueue] initial clock sync failed', error?.message)
-    })
-  }
   void processQueue()
   return true
 }
@@ -294,7 +279,7 @@ function isDuplicateOrderError(error) {
   const message = String(error?.message || error || '')
   if (!message) return false
   // 注意：不能命中鉴权类词（如「登录已过期」），避免误判
-  return DUPLICATE_ORDER_RE.test(message) && !/cookie|token|login|auth|鉴权|认证/i.test(message)
+  return DUPLICATE_ORDER_RE.test(message) && !/cookie|token|login|auth|401|403|鉴权|认证/i.test(message)
 }
 
 // 缺货检测：通过商品详情接口确认所选 SKU 是否缺货。
@@ -338,7 +323,7 @@ async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = ()
     } catch (error) {
       if (isCancelled()) throw createQueueCancelledError()
       const message = String(error?.message || '预创建订单失败')
-      const retriable = !/cookie|token|login|auth|过期|失效|鉴权|认证/i.test(message)
+      const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
@@ -361,7 +346,7 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
         return { duplicate: true, message: String(error?.message || '订单已存在') }
       }
       const message = String(error?.message || '创建订单失败')
-      const retriable = !/cookie|token|login|auth|过期|失效|鉴权|认证/i.test(message)
+      const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
@@ -439,18 +424,17 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
 
 async function executeQueuedOrder(entry) {
   if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
-  // 开抢时机判断绝不阻塞于时钟同步：
-  //   - 偏移已校准 → 直接用 getServerNow() 判断；TTL 过期且距开抢 >10s 时后台刷新供后续重试
-  //   - 从未校准（offset 为 0）→ 后台尝试同步但不等待，用本地时间开火，靠重试兜住开售点
-  //   - 距开抢 ≤10s 冻结校时：使用已冻结的偏移，避免校时抖动/网络占用影响开抢时机
-  const nowForClock = Date.now()
-  const msToFire = Number(entry.nextAttemptAt || entry.scheduledAt || 0) - nowForClock
-  if (msToFire > CLOCK_FREEZE_BEFORE_MS) {
-    if (clockOffsetMs.value === 0 || nowForClock - clockSyncedAt.value > CLOCK_CACHE_TTL) {
+  // 开抢时机判断不阻塞于时钟同步：
+  //   - 已有已知偏移 → 立即用 getServerNow() 判断；若 TTL 过期，仅后台异步刷新供后续重试，不拖慢本次开抢
+  //   - 从未同步过（offset 为 0）→ 才等待一次同步，避免用未校准的本地时间
+  if (clockOffsetMs.value !== 0) {
+    if (Date.now() - clockSyncedAt.value > CLOCK_CACHE_TTL) {
       void syncServerClock(entry.snapshot.cookie, true).catch((error) => {
         console.warn('[checkoutQueue] background clock refresh failed', error?.message)
       })
     }
+  } else {
+    await syncServerClock(entry.snapshot.cookie)
   }
 
   const serverNow = getServerNow()
@@ -501,7 +485,7 @@ async function executeQueuedOrder(entry) {
   //   缺货(out)         → 等回流慢节奏，3 秒后重试
   //   有货/无法确认      → 按原节奏继续抢（0.5s±0.2s 抖动）——有货仍失败多是限流/服务端瞬时故障，更该继续
   //   仅鉴权类错误       → 标 failed，等待用户重新登录/处理，不无限重试
-  const authError = /cookie|token|login|auth|过期|失效|鉴权|认证/i.test(String(result.error?.message || ''))
+  const authError = /cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(String(result.error?.message || ''))
   if (!authError) {
     const stockStatus = await stockCheck
     entry.status = 'pending'
@@ -520,33 +504,6 @@ async function executeQueuedOrder(entry) {
   entry.status = 'failed'
   persistQueue()
   return { ok: false, retriable: false, error: result.error }
-}
-
-// 队列存在期间周期校准时钟：距最近一个待下单项开抢 >10s 时每 ~30s 刷新一次，
-// 进入最后 10s 冻结窗口即停止，保证开抢瞬间用的是稳定偏移。
-function getEarliestPendingScheduledAt() {
-  let min = Infinity
-  for (const item of queue.value) {
-    if (item.status !== 'pending') continue
-    const t = Number(item.scheduledAt) || Number(item.nextAttemptAt) || 0
-    if (t && t < min) min = t
-  }
-  return min === Infinity ? 0 : min
-}
-
-function maybeRefreshClock() {
-  if (!queue.value.length) return
-  const now = Date.now()
-  const earliest = getEarliestPendingScheduledAt()
-  // 最后 10s 冻结：不再刷新，避免校时抖动占用开抢瞬间的网络/CPU
-  if (earliest && earliest - now <= CLOCK_FREEZE_BEFORE_MS) return
-  // 已有偏移且未超过刷新周期则不重复请求
-  if (clockOffsetMs.value !== 0 && now - clockSyncedAt.value <= CLOCK_REFRESH_INTERVAL_MS) return
-  const pending = queue.value.find((item) => item.status === 'pending' && item.snapshot?.cookie)
-  if (!pending) return
-  void syncServerClock(pending.snapshot.cookie, true).catch((error) => {
-    console.warn('[checkoutQueue] clock refresh failed', error?.message)
-  })
 }
 
 async function processQueue() {
@@ -575,7 +532,6 @@ function startQueueWatcher() {
   if (!canUseStorage() || queueWatcherId) return
   queueWatcherId = window.setInterval(() => {
     pruneExpiredSuccess()
-    maybeRefreshClock()
     void processQueue()
   }, WATCH_INTERVAL)
 
@@ -584,13 +540,11 @@ function startQueueWatcher() {
 }
 
 function onQueueFocus() {
-  maybeRefreshClock()
   void processQueue()
 }
 
 function onQueueVisibilityChange() {
   if (document.visibilityState === 'visible') {
-    maybeRefreshClock()
     void processQueue()
   }
 }
