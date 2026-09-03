@@ -576,26 +576,6 @@
             </div>
           </div>
 
-          <!-- 米游铺有货监控 -->
-          <div class="account-manage-section">
-            <h3 class="account-manage-section__title">{{ t('mihoyoStock.title') }}</h3>
-            <div class="account-manage-item">
-              <div class="account-manage-item__info">
-                <span class="account-manage-item__provider">Mihoyo Stock</span>
-                <span class="account-manage-item__email">
-                  {{ t('mihoyoStock.monitored') }} · {{ monitorStore.count }}
-                </span>
-              </div>
-              <button
-                type="button"
-                class="login-sheet__button login-sheet__button--secondary-sm"
-                @click="openStockMonitor"
-              >
-                {{ t('mihoyoStock.manage') }}
-              </button>
-            </div>
-          </div>
-
           <!-- Link New Provider -->
           <div class="account-manage-section">
             <h3 class="account-manage-section__title">{{ t('my.linkProvider') }}</h3>
@@ -858,7 +838,6 @@ import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useFeaturePermission } from '@/composables/permission/useFeaturePermission'
 import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
-import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
 
 defineOptions({ name: 'MyView' })
 
@@ -876,7 +855,6 @@ const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
 const qqStore = useQQBindingStore()
-const monitorStore = useMihoyoStockMonitorStore()
 const pageBodyRef = ref(null)
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
@@ -1105,14 +1083,6 @@ const checkoutQueueSummary = computed(() => {
 
 function openCheckoutQueue() {
   runWithRouteTransition(() => router.push({ path: '/checkout', query: { queue: '1' } }), { direction: 'forward' })
-}
-
-// 米游铺有货监控列表（平板设置分屏时在右区域显示，否则走独立页面）
-function openStockMonitor() {
-  const target = window.innerWidth >= 1200
-    ? { path: '/manage/settings', query: { section: 'mihoyoStockMonitor' } }
-    : '/manage/mihoyo-stock-monitor'
-  runWithRouteTransition(() => router.push(target), { direction: 'forward' })
 }
 
 function openSync() {
