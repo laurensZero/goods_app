@@ -782,10 +782,10 @@ async function handleCookieNext() {
     return
   }
   cookie.value = activeCookie
-  await persistCookieAfterSuccess()
   loading.value = true
   try {
     await address.loadAddresses(cookie.value)
+    await persistCookieAfterSuccess()
     nextStep()
   } catch (e) {
     if (isMihoyoCookieExpiredError(e)) {
