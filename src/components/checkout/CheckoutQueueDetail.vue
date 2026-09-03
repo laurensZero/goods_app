@@ -50,6 +50,16 @@
         </div>
       </div>
 
+      <div v-if="activeQueueDetail.logs?.length" class="queue-detail__logs">
+        <p class="queue-detail__section-title">{{ $t('checkout.queueLogTitle') }}</p>
+        <div v-for="log in activeQueueDetail.logs" :key="`${log.type}-${log.at}`" class="queue-detail__log">
+          <span class="queue-detail__log-time">{{ formatQueueLogTime(log.at) }}</span>
+          <span class="queue-detail__log-message">
+            {{ $t(`checkout.queueLog.${log.type}`) }}<template v-if="log.message">：{{ log.message }}</template>
+          </span>
+        </div>
+      </div>
+
       <div class="queue-detail__actions">
         <button v-if="activeQueueDetail.status === 'failed'" type="button" class="queue-detail__btn" @click="retryQueuedOrder(activeQueueDetail.id); $emit('update:show', false)">
           {{ $t('checkout.queueRetry') }}
@@ -71,6 +81,7 @@ defineProps({
   isTabletViewport: { type: Boolean, default: false },
   activeQueueDetail: { type: Object, default: null },
   formatQueueTime: { type: Function, required: true },
+  formatQueueLogTime: { type: Function, required: true },
   formatFen: { type: Function, required: true },
   queueStatusText: { type: Function, required: true },
   retryQueuedOrder: { type: Function, required: true },
@@ -160,6 +171,36 @@ defineEmits(['update:show'])
 
 .queue-detail__error {
   color: #c74444;
+}
+
+.queue-detail__logs {
+  padding-top: 4px;
+}
+
+.queue-detail__section-title {
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.queue-detail__log {
+  display: flex;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.queue-detail__log-time {
+  flex-shrink: 0;
+  color: var(--app-text-tertiary);
+}
+
+.queue-detail__log-message {
+  min-width: 0;
+  color: var(--app-text);
+  word-break: break-all;
 }
 
 .queue-detail__actions {

@@ -250,6 +250,7 @@
       :is-tablet-viewport="isTabletViewport"
       :active-queue-detail="activeQueueDetail"
       :format-queue-time="formatQueueTime"
+      :format-queue-log-time="formatQueueLogTime"
       :format-fen="formatFen"
       :queue-status-text="queueStatusText"
       :retry-queued-order="retryQueuedOrder"
@@ -596,6 +597,14 @@ function formatSaleTime(ts) {
 function formatQueueTime(ts) {
   if (!ts) return ''
   return formatDate(new Date(ts), 'YYYY-MM-DD HH:mm')
+}
+
+function formatQueueLogTime(ts) {
+  if (!ts) return ''
+  const date = new Date(ts)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (value, length = 2) => String(value).padStart(length, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`
 }
 
 const showQueueDetail = ref(false)

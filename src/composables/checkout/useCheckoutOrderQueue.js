@@ -3,16 +3,16 @@ import { preCreateOrder, createOrder, fetchGoodsDetailForCheckout, fetchMihoyoSe
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
-const CLOCK_CACHE_TTL = 60 * 1000
 const RETRY_DELAY = 500
+const PRE_CREATE_RETRY_DELAY = 100
 // 缺货等回流的重试间隔：商品售罄后库存会陆续回补，间隔拉长以降低对服务器压力
 const REBACK_DELAY = 3000
 // 成功订单保留时长：供用户查看结果，超时后自动清除
 const SUCCESS_RETENTION_MS = 24 * 60 * 60 * 1000
-// 提前量：时钟偏移已做 RTT 中点 + 秒中点校准，这里只需补偿提交请求自身的网络时延，
-// 让下单请求尽量在开售瞬间到达（提前到未开售时由重试兜底）
-const FIRE_LEAD_MS = 800
-const WATCH_INTERVAL = 250
+// 抢购窗口前先尝试预创建；若服务端尚未放行，预创建会快速重试。
+const FIRE_LEAD_MS = 600
+// 高频轮询只负责兜底，实际到点由精确唤醒定时器触发，减少客户端调度延迟。
+const WATCH_INTERVAL = 100
 
 const queue = ref([])
 const hydrated = ref(false)
@@ -20,10 +20,12 @@ const processing = ref(false)
 const clockOffsetMs = ref(0)
 const clockSyncedAt = ref(0)
 const clockSyncSource = ref('')
-// 米游铺时钟相对 UTC 的偏差均值：用于把边缘 UTC 换算成米游铺时钟
-let mihoyoDeltaMean = 0
+let clockSyncPromise = null
+let clockBaseWallMs = 0
+let clockBasePerfMs = 0
 
 let queueWatcherId = 0
+let queueWakeTimerId = 0
 const cancelledQueueIds = new Set()
 // 抢购成功的事件回调（供业务层订阅，如 QQ 提醒）。成功时刻触发一次，天然排除历史遗留项。
 let checkoutSuccessHandler = null
@@ -74,6 +76,13 @@ function normalizeQueueItem(item) {
     status: ['pending', 'running', 'success', 'failed'].includes(item?.status) ? item.status : 'pending',
     lastError: String(item?.lastError || ''),
     completedAt: Number(item?.completedAt) || 0,
+    logs: Array.isArray(item?.logs)
+      ? item.logs.map((log) => ({
+        type: String(log?.type || ''),
+        at: Number(log?.at) || 0,
+        message: String(log?.message || ''),
+      })).filter((log) => log.type && log.at)
+      : [],
     result: item?.result
       ? {
         orderNo: String(item.result.orderNo || ''),
@@ -121,71 +130,91 @@ function ensureHydrated() {
   if (!hydrated.value) loadQueue()
 }
 
+function appendQueueLog(entry, type, message = '') {
+  if (!entry) return
+  const logs = Array.isArray(entry.logs) ? entry.logs : []
+  const at = clockSyncedAt.value ? getServerNow() : Date.now()
+  entry.logs = [...logs, { type, at, message: String(message || '') }].slice(-30)
+  persistQueue()
+}
+
+function getCountdownMarker(remainingMs) {
+  const seconds = Math.ceil(Math.max(0, remainingMs) / 1000)
+  if (seconds <= 0) return 0
+  if (seconds <= 5) return seconds
+  if (seconds <= 30) return Math.ceil(seconds / 10) * 10
+  return Math.ceil(seconds / 60) * 60
+}
+
+function maybeLogCountdown(entry) {
+  if (!entry || entry.status !== 'pending') return
+  const remainingMs = Number(entry.nextAttemptAt || 0) - getServerNow()
+  const marker = getCountdownMarker(remainingMs)
+  if (!marker) return
+  const alreadyLogged = (entry.logs || []).some(
+    (log) => log.type === 'countdown' && log.message === String(marker),
+  )
+  if (!alreadyLogged) appendQueueLog(entry, 'countdown', String(marker))
+}
+
 function getServerNow() {
+  if (clockBaseWallMs && typeof performance !== 'undefined') {
+    return clockBaseWallMs + (performance.now() - clockBasePerfMs)
+  }
   return Date.now() + Number(clockOffsetMs.value || 0)
 }
 
 async function syncServerClock(cookie, force = false) {
-  const shouldRefresh = force || !clockSyncedAt.value || (Date.now() - clockSyncedAt.value) > CLOCK_CACHE_TTL
-  if (!cookie || !shouldRefresh) return getServerNow()
+  if (!cookie || (!force && clockSyncedAt.value)) return getServerNow()
+  if (clockSyncPromise) return clockSyncPromise
 
   const record = (source, offsetMs) => {
-    if (offsetMs === null || offsetMs === undefined || Number.isNaN(offsetMs)) return null
+    if (!Number.isFinite(Number(offsetMs))) return null
     clockOffsetMs.value = Number(offsetMs)
     clockSyncedAt.value = Date.now()
     clockSyncSource.value = source
+    clockBaseWallMs = Date.now() + clockOffsetMs.value
+    clockBasePerfMs = typeof performance !== 'undefined' ? performance.now() : 0
     return Number(offsetMs)
   }
 
-  // 双锚互相校验：
-  //   1. 边缘函数（毫秒级 NTP，单次即准）做主参考，给出 offset_edge
-  //   2. 米游铺 Date 头（+500ms 秒中点补偿，多采样平均）测 offset_mihoyo
-  //   3. delta = offset_mihoyo − offset_edge = 「米游铺时钟 − 边缘时钟」，逐次累积平均；
-  //      用它把边缘的毫秒级时间换算回米游铺时钟域（与 sale_time 同一时钟，偏移互相抵消）
-  //   若任一层不可用，退到另一层；都不可用则保留上次已知偏移。绝不因时钟同步失败阻塞下单。
-
-  let edgeOffset = null
-  let mihoyoOffset = null
-
-  // 两个时钟源并行请求，总时延受最慢者约束（edge 5s / mihoyo 8s），互不阻塞
-  const [edgeResult, mihoyoResult] = await Promise.allSettled([
-    fetchEdgeServerTime(),
-    fetchMihoyoServerTime(cookie),
-  ])
-
-  if (edgeResult.status === 'fulfilled') {
-    edgeOffset = Number(edgeResult.value.offsetMs)
-    if (Number.isFinite(edgeOffset)) record('edge', edgeOffset)
-  } else {
-    console.warn('[checkoutQueue] edge clock unavailable', edgeResult.reason?.message)
-  }
-
-  if (mihoyoResult.status === 'fulfilled') {
-    mihoyoOffset = Number(mihoyoResult.value.offsetMs)
-    if (Number.isFinite(mihoyoOffset)) record('mihoyo', mihoyoOffset)
-  } else {
-    console.warn('[checkoutQueue] mihoyo clock unavailable', mihoyoResult.reason?.message)
-  }
-
-  // 双源都拿到时：累积 delta，用「边缘毫秒时间 + delta 均值」得到米游铺时钟域时间
-  if (Number.isFinite(edgeOffset) && Number.isFinite(mihoyoOffset)) {
-    const delta = mihoyoOffset - edgeOffset
-    mihoyoDeltaMean = mihoyoDeltaMean === 0 ? delta : mihoyoDeltaMean * 0.7 + delta * 0.3
-    const combined = edgeOffset + mihoyoDeltaMean
-    if (Number.isFinite(combined)) {
-      clockOffsetMs.value = combined
-      clockSyncedAt.value = Date.now()
-      clockSyncSource.value = 'edge+mihoyo'
+  clockSyncPromise = (async () => {
+    let edgeOffset = null
+    try {
+      const edge = await fetchEdgeServerTime()
+      edgeOffset = Number(edge.offsetMs)
+      record('edge-ntp', edgeOffset)
+    } catch (error) {
+      console.warn('[checkoutQueue] edge clock unavailable', error?.message)
     }
-  }
 
-  return getServerNow()
+    // 米游铺 Date 只有秒级精度，仅用于校验，不覆盖主校时结果，也不阻塞开抢调度。
+    void fetchMihoyoServerTime(cookie).then((mihoyo) => {
+      if (Number.isFinite(edgeOffset)) {
+        console.info('[checkoutQueue] mihoyo clock check', {
+          differenceMs: Math.round(Number(mihoyo.offsetMs) - edgeOffset),
+          uncertaintyMs: 500,
+        })
+      }
+    }).catch((error) => {
+      console.warn('[checkoutQueue] mihoyo clock check unavailable', error?.message)
+    })
+
+    return getServerNow()
+  })()
+
+  try {
+    return await clockSyncPromise
+  } finally {
+    clockSyncPromise = null
+  }
 }
 
 function createQueueEntry({ scheduledAt, displayAt, retryCount, concurrency = 1, snapshot, summary }) {
+  const createdAt = Date.now()
   return normalizeQueueItem({
     id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    createdAt: Date.now(),
+    createdAt,
     scheduledAt,
     displayAt: displayAt || scheduledAt,
     nextAttemptAt: scheduledAt,
@@ -193,6 +222,7 @@ function createQueueEntry({ scheduledAt, displayAt, retryCount, concurrency = 1,
     maxAttempts: retryCount === Infinity ? Infinity : Math.max(1, Number(retryCount) || 1),
     status: 'pending',
     lastError: '',
+    logs: [{ type: 'queue-added', at: createdAt }],
     snapshot: {
       ...snapshot,
       concurrency: clampConcurrency(concurrency),
@@ -207,6 +237,23 @@ function enqueueOrder(payload) {
   queue.value = [...queue.value, entry]
   persistQueue()
   startQueueWatcher()
+  // 按参考项目的方式：入队后立即完成一次校时，开抢时只使用已固定的结果。
+  if (entry.snapshot.cookie) {
+    appendQueueLog(entry, 'clock-sync-start')
+    void syncServerClock(entry.snapshot.cookie, true)
+      .then(() => appendQueueLog(
+        entry,
+        'clock-sync-done',
+        `${clockSyncSource.value}，偏移 ${Math.round(Number(clockOffsetMs.value) || 0)}ms`,
+      ))
+      .catch((error) => {
+        appendQueueLog(entry, 'clock-sync-failed', error?.message)
+        console.warn('[checkoutQueue] initial clock sync failed', error?.message)
+      })
+  } else {
+    appendQueueLog(entry, 'clock-sync-skipped', '未提供 Cookie')
+  }
+  scheduleQueueWake()
   void processQueue()
   return entry
 }
@@ -231,6 +278,16 @@ function retryQueuedOrder(id) {
   next.nextAttemptAt = Math.max(now + 1000, Number(next.scheduledAt) || now)
   persistQueue()
   startQueueWatcher()
+  if (next.snapshot?.cookie) {
+    appendQueueLog(next, 'clock-sync-start')
+    void syncServerClock(next.snapshot.cookie, true)
+      .then(() => appendQueueLog(next, 'clock-sync-done', clockSyncSource.value))
+      .catch((error) => {
+        appendQueueLog(next, 'clock-sync-failed', error?.message)
+        console.warn('[checkoutQueue] retry clock sync failed', error?.message)
+      })
+  }
+  scheduleQueueWake()
   void processQueue()
   return true
 }
@@ -260,6 +317,10 @@ function sleep(ms) {
 // 固定 0.5s 重试，附加 ±0.2s 随机抖动，避免多线程同时发请求
 function getRetryDelay() {
   return RETRY_DELAY + (Math.random() * 400 - 200)
+}
+
+function getPreCreateRetryDelay() {
+  return PRE_CREATE_RETRY_DELAY
 }
 
 function buildOrderPayload(entry) {
@@ -314,10 +375,11 @@ async function isGoodsOutOfStock(cookie, items) {
 }
 
 // 阶段一：预创建拿 code（可重试）。返回 { code, totalFee, orderPoints, shopOrders, respGifts }
-async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = () => false) {
+async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = () => false, entry = null) {
   let attempt = 0
   for (;;) {
     if (isCancelled()) throw createQueueCancelledError()
+    appendQueueLog(entry, 'pre-create-start', `第 ${attempt + 1} 次`)
     try {
       return await preCreateOrder(cookie, payload)
     } catch (error) {
@@ -325,19 +387,21 @@ async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = ()
       const message = String(error?.message || '预创建订单失败')
       const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
+      appendQueueLog(entry, retriable && (maxAttempts === Infinity || attempt < maxAttempts) ? 'retry' : 'request-failed', `预创建第 ${attempt} 次失败：${message}`)
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
-      await sleep(getRetryDelay())
+      await sleep(getPreCreateRetryDelay())
     }
   }
 }
 
 // 阶段二：用同一 code 创建订单。code 幂等——重复提交报「已创建/重复」时视为成功。
 // 单个提交单元：按重试次数自行重试，直到成功、重复（=成功）、或耗尽次数
-async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts, isCancelled = () => false) {
+async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts, isCancelled = () => false, entry = null) {
   let attempt = 0
   for (;;) {
     if (isCancelled()) throw createQueueCancelledError()
+    appendQueueLog(entry, 'create-start', `第 ${attempt + 1} 次`)
     try {
       return await createOrder(cookie, { addressId, code, remark, items })
     } catch (error) {
@@ -348,6 +412,7 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
       const message = String(error?.message || '创建订单失败')
       const retriable = !/cookie|token|login|auth|401|403|过期|失效|鉴权|认证/i.test(message)
       attempt += 1
+      appendQueueLog(entry, retriable && (maxAttempts === Infinity || attempt < maxAttempts) ? 'retry' : 'request-failed', `创建第 ${attempt} 次失败：${message}`)
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
       await sleep(getRetryDelay())
@@ -357,14 +422,14 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
 
 // 单个提交单元：preCreate 拿自己的 code → createOrder 串行重试（B站单 token 模式）。
 // 返回 { ...preCreated, ...orderResult }，orderResult 可能是成功或 { duplicate: true }
-async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () => false) {
-  const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts, isCancelled)
+async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () => false, entry = null) {
+  const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts, isCancelled, entry)
   const orderResult = await createOrderWithRetry(cookie, {
     addressId: payload.addressId,
     code: preCreated.code,
     remark: payload.remark,
     items: payload.items,
-  }, maxAttempts, isCancelled)
+  }, maxAttempts, isCancelled, entry)
   return { ...preCreated, ...orderResult }
 }
 
@@ -373,7 +438,7 @@ async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () =>
 //   concurrency>1：并发 n 个独立单元，每个都走「自己的 preCreate → 自己的 createOrder」，
 //                  各自拿独立 code、各自建单 → 可能产生多笔订单（重复下单可接受，目标是抢到）
 // 任一单元真实成功（拿到 order_no）即立即返回；否则等全部结束，有「重复/已存在」也算成功
-async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled = () => false) {
+async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled = () => false, entry = null) {
   return new Promise((resolve) => {
     let settled = false
     let finished = 0
@@ -395,7 +460,7 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
     }
 
     for (let i = 0; i < n; i++) {
-      submitOrderUnit(cookie, payload, maxAttempts, isCancelled)
+      submitOrderUnit(cookie, payload, maxAttempts, isCancelled, entry)
         .then((result) => {
           finished += 1
           if (result.orderNo && !settled) {
@@ -424,16 +489,9 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
 
 async function executeQueuedOrder(entry) {
   if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
-  // 开抢时机判断不阻塞于时钟同步：
-  //   - 已有已知偏移 → 立即用 getServerNow() 判断；若 TTL 过期，仅后台异步刷新供后续重试，不拖慢本次开抢
-  //   - 从未同步过（offset 为 0）→ 才等待一次同步，避免用未校准的本地时间
-  if (clockOffsetMs.value !== 0) {
-    if (Date.now() - clockSyncedAt.value > CLOCK_CACHE_TTL) {
-      void syncServerClock(entry.snapshot.cookie, true).catch((error) => {
-        console.warn('[checkoutQueue] background clock refresh failed', error?.message)
-      })
-    }
-  } else {
+  // 校时在入队时开始；若尚未完成，首次执行前等待它结束。
+  // 校准完成后固定结果，倒计时由 performance.now() 驱动，不再动态改偏移。
+  if (!clockSyncedAt.value) {
     await syncServerClock(entry.snapshot.cookie)
   }
 
@@ -443,6 +501,7 @@ async function executeQueuedOrder(entry) {
 
   entry.status = 'running'
   entry.lastError = ''
+  appendQueueLog(entry, 'submit-start')
   persistQueue()
 
   const n = clampConcurrency(entry.concurrency)
@@ -455,6 +514,7 @@ async function executeQueuedOrder(entry) {
     n,
     entry.maxAttempts,
     () => isQueueEntryCancelled(entry),
+    entry,
   )
 
   if (result.cancelled || isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
@@ -471,6 +531,7 @@ async function executeQueuedOrder(entry) {
       duplicateMessage: String(result.result.message || ''),
     }
     entry.completedAt = getServerNow()
+    appendQueueLog(entry, 'success')
     persistQueue()
     // 抢购成功这一刻通知订阅者（如 QQ 提醒），与「队列里既有」的成功项无关
     try {
@@ -492,9 +553,11 @@ async function executeQueuedOrder(entry) {
     if (stockStatus === 'out') {
       entry.lastError = '商品缺货，等待回流，3 秒后重试'
       entry.nextAttemptAt = getServerNow() + REBACK_DELAY
+      appendQueueLog(entry, 'retry', entry.lastError)
     } else {
       entry.lastError = '下单失败，稍后自动重试'
       entry.nextAttemptAt = getServerNow() + getRetryDelay()
+      appendQueueLog(entry, 'retry', `${entry.lastError}：${result.error?.message || ''}`)
     }
     persistQueue()
     return { ok: false, retriable: true }
@@ -502,6 +565,7 @@ async function executeQueuedOrder(entry) {
 
   entry.lastError = String(result.error?.message || '下单失败')
   entry.status = 'failed'
+  appendQueueLog(entry, 'failed', entry.lastError)
   persistQueue()
   return { ok: false, retriable: false, error: result.error }
 }
@@ -525,13 +589,33 @@ async function processQueue() {
     }
   } finally {
     processing.value = false
+    scheduleQueueWake()
   }
+}
+
+function scheduleQueueWake() {
+  if (typeof window === 'undefined') return
+  if (queueWakeTimerId) clearTimeout(queueWakeTimerId)
+  const next = queue.value
+    .filter((item) => item.status === 'pending')
+    .sort((a, b) => Number(a.nextAttemptAt) - Number(b.nextAttemptAt))[0]
+  if (!next) {
+    queueWakeTimerId = 0
+    return
+  }
+  const delay = Math.max(0, Number(next.nextAttemptAt || 0) - getServerNow() - FIRE_LEAD_MS)
+  queueWakeTimerId = window.setTimeout(() => {
+    queueWakeTimerId = 0
+    void processQueue()
+  }, Math.min(delay, WATCH_INTERVAL))
 }
 
 function startQueueWatcher() {
   if (!canUseStorage() || queueWatcherId) return
   queueWatcherId = window.setInterval(() => {
     pruneExpiredSuccess()
+    for (const entry of queue.value) maybeLogCountdown(entry)
+    scheduleQueueWake()
     void processQueue()
   }, WATCH_INTERVAL)
 
@@ -553,6 +637,8 @@ function stopQueueWatcher() {
   if (!queueWatcherId) return
   clearInterval(queueWatcherId)
   queueWatcherId = 0
+  if (queueWakeTimerId) clearTimeout(queueWakeTimerId)
+  queueWakeTimerId = 0
   window.removeEventListener('focus', onQueueFocus)
   document.removeEventListener('visibilitychange', onQueueVisibilityChange)
 }
