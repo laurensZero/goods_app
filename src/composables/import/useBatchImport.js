@@ -74,7 +74,7 @@ function cloneImages(list) {
   return Array.isArray(list) ? [...list] : []
 }
 
-// 今天的日期（YYYY-MM-DD），日期未填时默认写入
+// 今天的日期（YYYY-MM-DD）
 function todayString() {
   const d = new Date()
   const p = (n) => String(n).padStart(2, '0')
@@ -102,6 +102,9 @@ export function useBatchImport({
   const router = useRouter()
   const goodsStore = useGoodsStore()
   const presets = usePresetsStore()
+
+  // 入队默认日期：收藏模式预填今天；心愿单的「预计入手日期」留空（可选字段，UI 显示「暂未计划」占位）
+  const defaultPurchaseDate = () => (isWishlistMode.value ? '' : todayString())
 
   // ── 共享队列（与有货监控同一套逻辑） ──
   const queueState = useMihoyoGoodsQueue({
@@ -226,7 +229,7 @@ export function useBatchImport({
         image: '',
         images: [],
         price: '',
-        purchaseDate: todayString(),
+        purchaseDate: defaultPurchaseDate(),
         notes: '',
         tags: [],
         characters: [],
@@ -291,7 +294,7 @@ export function useBatchImport({
         image: baseImages[0] || '',
         images: [...(Array.isArray(draft.images) && draft.images.length ? draft.images : baseImages.slice(0, 1))],
         price: priceYuan || (draft.price !== '' && draft.price != null ? String(draft.price) : ''),
-        purchaseDate: todayString(),
+        purchaseDate: defaultPurchaseDate(),
         notes: '',
         tags: [],
         characters: [...(draft.characters || [])],
@@ -526,7 +529,7 @@ export function useBatchImport({
       images,
       price,
       source: '米游铺',
-      purchaseDate: info.purchaseDate || todayString(),
+      purchaseDate: info.purchaseDate || defaultPurchaseDate(),
       notes: info.notes || '',
       tags: cloneImages(info.tags),
       characters,
