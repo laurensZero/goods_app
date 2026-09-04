@@ -5,6 +5,7 @@ import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseCloudImageUri } 
 import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goodsHelpers'
 import { GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET } from '@/services/supabaseAdapter/storage'
 import { readSyncKey } from '@/utils/sync/storage'
+import { aliasCachedImage } from '@/utils/image/cache'
 import {
   readPersistedTrash,
   removeTrashStorage,
@@ -234,7 +235,9 @@ async function replaceBase64WithPublicUrls(list) {
       const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
       if (!cloudFileName) return img
       changed = true
-      return { ...img, uri: toPublicUrl(cloudFileName), storageMode: 'remote' }
+      const publicUrl = toPublicUrl(cloudFileName)
+      aliasCachedImage(uri, publicUrl)
+      return { ...img, uri: publicUrl, storageMode: 'remote' }
     })
     if (!changed) return item
     const next = { ...item, images, updatedAt: Date.now() }
@@ -273,6 +276,7 @@ async function replaceEventBase64WithPublicUrls(eventList) {
       const cloudFileName = String(event?.coverImageData?.cloudFileName || parseCloudImageUri(coverUri) || '').trim()
       if (cloudFileName) {
         nextCoverImage = toPublicUrl(cloudFileName)
+        aliasCachedImage(coverUri, nextCoverImage)
         changed = true
       }
     }
@@ -284,7 +288,9 @@ async function replaceEventBase64WithPublicUrls(eventList) {
         const cloudFileName = String(photo?.cloudFileName || parseCloudImageUri(photoUri) || '').trim()
         if (!cloudFileName) return photo
         changed = true
-        return { ...photo, uri: toPublicUrl(cloudFileName), storageMode: 'remote' }
+        const publicUrl = toPublicUrl(cloudFileName)
+        aliasCachedImage(photoUri, publicUrl)
+        return { ...photo, uri: publicUrl, storageMode: 'remote' }
       })
     }
 

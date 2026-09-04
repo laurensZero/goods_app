@@ -14,6 +14,7 @@ import {
 import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
+import { aliasCachedImage } from '@/utils/image/cache'
 
 async function addMultipleGoods(items, list) {
   const now = Date.now()
@@ -297,9 +298,13 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
             || currentUri.startsWith('data:image/')
             || isLocalImageUri(currentUri)
           )
+          const nextUri = keepLocalUri ? currentUri : (prepared.uri || `cloud-image://${prepared.cloudFileName}`)
+          // 本地图→云图改写会把卡片正在显示的 src 换掉：先把内存位图过户给新 URL，
+          // 否则卡片重载期间 hero 快照拍不到位图，保存后的第一次 hero 动画必失败。
+          aliasCachedImage(currentUri, nextUri)
           images[idx] = {
             ...images[idx],
-            uri: keepLocalUri ? currentUri : (prepared.uri || `cloud-image://${prepared.cloudFileName}`),
+            uri: nextUri,
             storageMode: 'cloud-local',
             cloudFileName: prepared.cloudFileName,
             mimeType: prepared.mimeType || images[idx]?.mimeType || '',
@@ -360,7 +365,9 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
         if (skipFiles && skipFiles.has(cloudFileName)) return img
         if (cloudFiles && !cloudFiles[cloudFileName]) return img
         changed = true
-        return { ...img, uri: backend.getImagePublicUrl(cloudFileName), storageMode: 'remote' }
+        const publicUrl = backend.getImagePublicUrl(cloudFileName)
+        aliasCachedImage(uri, publicUrl)
+        return { ...img, uri: publicUrl, storageMode: 'remote' }
       })
 
       if (!changed) continue

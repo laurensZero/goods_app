@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { isLocalImageUri } from '@/utils/image/localImage'
+import { aliasCachedImage } from '@/utils/image/cache'
 import { createLogger } from '@/utils/logger'
 
 const STORAGE_KEY = 'goods_recharge_records_v1'
@@ -314,6 +315,8 @@ export const useRechargeStore = defineStore('recharge', () => {
       if (!publicUrl) continue
       // Only replace if the current image is a local URI or cloud-image reference
       if (isLocalImageUri(record.image) || record.image.startsWith('cloud-image://')) {
+        // 本地图→云图改写：内存位图过户给新 URL，避免图片重载打断 hero 转场
+        aliasCachedImage(record.image, publicUrl)
         records.value[i] = { ...record, image: publicUrl }
         updatedRecords.push(records.value[i])
       }
