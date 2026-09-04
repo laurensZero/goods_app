@@ -326,6 +326,15 @@ function resolveHeroImageSrc(sourceEl) {
       return { imageSrc: liveSrc, imageOriginalSrc, hasCoverImage }
     }
   }
+  // 图片 URI 刚被同步改写（本地图→云图）时卡片正在换图，<img> 可能还没挂上。
+  // 改写方（aliasCachedImage）会把旧位图过户到新 URL 名下，这里窥视内存层直接
+  // 拿来当 hero 位图，否则保存/同步后的第一次 hero 会因拍不到位图退化为普通转场。
+  // 只接受真正的位图 src：内存层在拉取失败时会存「URL→URL 自身」，那种 src 交给
+  // 覆盖层只会飞一块空色块，维持原有的放弃 hero 降级。
+  const peeked = peekCachedImage(imageOriginalSrc)
+  if (peeked && (peeked.startsWith('blob:') || peeked.startsWith('data:'))) {
+    return { imageSrc: peeked, imageOriginalSrc, hasCoverImage }
+  }
   return { imageSrc: '', imageOriginalSrc, hasCoverImage }
 }
 

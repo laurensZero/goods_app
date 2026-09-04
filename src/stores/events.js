@@ -5,7 +5,7 @@ import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/tracks'
 import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
-import { signalImageCacheRefresh } from '@/utils/image/cache'
+import { aliasCachedImage } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { replaceEventBase64WithPublicUrls } from '@/stores/goodsMigrations'
@@ -451,11 +451,37 @@ export const useEventsStore = defineStore('events', () => {
       const payload = preparedMediaByEventId.get(current?.id)
       if (!payload) continue
 
+      const nextCoverImage = payload.coverImage ?? current.coverImage
+      // 封面/照片 URI 本地→云端改写：先把已加载的内存位图过户给新 URL，卡片
+      // 重渲染时才不会出现无位图的换图窗口（hero 首飞会因此退化为普通转场）。
+      if (nextCoverImage && nextCoverImage !== current.coverImage) {
+        aliasCachedImage(current.coverImage, nextCoverImage)
+      }
+      let nextPhotos = Array.isArray(payload.photos) ? payload.photos : (Array.isArray(current.photos) ? current.photos : [])
+      if (nextPhotos !== current.photos && Array.isArray(current.photos)) {
+        const prevUriByFileName = new Map()
+        for (const photo of current.photos) {
+          const fileName = String(photo?.cloudFileName || '').trim()
+          if (fileName && !prevUriByFileName.has(fileName)) {
+            prevUriByFileName.set(fileName, String(photo?.uri || '').trim())
+          }
+        }
+        nextPhotos = nextPhotos.map((photo) => {
+          const fileName = String(photo?.cloudFileName || '').trim()
+          const nextUri = String(photo?.uri || '').trim()
+          const prevUri = fileName ? prevUriByFileName.get(fileName) : ''
+          if (fileName && prevUri && nextUri && nextUri !== prevUri) {
+            aliasCachedImage(prevUri, nextUri)
+          }
+          return photo
+        })
+      }
+
       const next = {
         ...current,
-        coverImage: payload.coverImage ?? current.coverImage,
+        coverImage: nextCoverImage,
         coverImageData: payload.coverImageData ?? current.coverImageData,
-        photos: Array.isArray(payload.photos) ? payload.photos : (Array.isArray(current.photos) ? current.photos : [])
+        photos: nextPhotos
       }
 
       list.value[index] = next
@@ -465,11 +491,6 @@ export const useEventsStore = defineStore('events', () => {
     if (updatedRecords.length > 0) {
       await saveEvents(updatedRecords)
       triggerRef(list)
-      try {
-        signalImageCacheRefresh('resume')
-      } catch (e) {
-        // ignore
-      }
     }
   }
 

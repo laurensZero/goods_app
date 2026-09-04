@@ -701,6 +701,35 @@ export function peekCachedImage(url) {
   return ''
 }
 
+/**
+ * 把旧 URL 已加载的内存位图"过户"给新 URL（同步、零拷贝：新旧 key 共享同一 object URL）。
+ *
+ * 用途：同步推送完成后，本地图片 URI 会被改写成云端公开 URL（markImagesAsRemote /
+ * markMediaAsRemote / cleanupBase64Images 等），卡片随即用新 URL 重渲染。若内存层没有
+ * 新 URL 的条目，LazyCachedImage 会卸载 <img> 走网络重载，出现一段"无位图"窗口——
+ * hero 快照拍不到位图就会放弃动画，表现为"本地上传图片后保存，第一次 hero 必失败"。
+ * 过户后新 URL 立即同步命中内存层，重渲染无重载窗口，hero 首飞有位图可用。
+ *
+ * 撤销安全性：共享 object URL 与 getCachedImage 给 normalized/raw 双 key 写同一
+ * object URL 的既有模式一致；TTL 定时器撤销前会检查是否仍被其它 key 引用，
+ * 只有 LRU 容量驱逐是无条件 revoke（存量行为，过户只是沿用它）。
+ * @param {string} fromUrl 改写前的 URI（位图应已在内存层）
+ * @param {string} toUrl 改写后的 URI
+ */
+export function aliasCachedImage(fromUrl, toUrl) {
+  if (!fromUrl || !toUrl || fromUrl === toUrl) return
+  if (peekCachedImage(toUrl)) {
+    markImageDecoded(toUrl)
+    return
+  }
+  const existing = peekCachedImage(fromUrl)
+  if (!existing || !existing.startsWith('blob:')) return
+  for (const key of getCacheKeyCandidates(toUrl)) {
+    setMemoryCache(key, existing)
+  }
+  markImageDecoded(toUrl)
+}
+
 function scheduleImageLoadDrain() {
   if (imageLoadDrainScheduled) return
   imageLoadDrainScheduled = true
