@@ -1,4 +1,4 @@
-import { hasRecentlyDecodedImage, markImageDecoded, preloadImages, refreshCachedImage, setImagePreloadPaused } from '@/utils/image/cache'
+import { hasRecentlyDecodedImage, markImageDecoded, peekCachedImage, preloadImages, refreshCachedImage, setImagePreloadPaused } from '@/utils/image/cache'
 
 const FORWARD_DURATION_MS = 390
 const BACK_DURATION_MS = 350
@@ -270,13 +270,11 @@ function lockBackScroll(targetEl, duration = BACK_SCROLL_LOCK_MS) {
   return release
 }
 
-function readImageSource(el) {
-  if (!el) return ''
-  if (String(el.tagName || '').toUpperCase() === 'IMG') {
-    return el.currentSrc || el.src || ''
-  }
-  const img = el.querySelector('img')
-  return img?.currentSrc || img?.src || ''
+// 只有当 <img> 真的把位图加载完成时才把它当作 hero 图源。半加载或已被
+// revoke 的 `blob:` src 会让覆盖层里的 <img> 加载失败，hero 就飞成一块空色块。
+function isImageElementLoaded(img) {
+  if (!img) return false
+  return img.complete && Number(img.naturalWidth) > 0 && Number(img.naturalHeight) > 0
 }
 
 function readOriginalImageSource(el) {
@@ -305,21 +303,30 @@ function readFallbackText(el) {
   return String(fallback?.textContent || '').trim().slice(0, 1)
 }
 
-// Resolve the hero image source. Prefer the element's live `blob:` src (fast,
-// already cached), but after the app resumes from background those blob URLs
-// are often revoked and the <img> src can be empty at tap time. Fall back to
-// the original cover URL (data-original-src) so the hero still renders the real
-// image instead of degrading to a "?" placeholder.
+// Resolve the hero image source.
+// - imageSrc: the bitmap the source element is actually displaying right now.
+//   A `blob:` src can be revoked (memory TTL eviction / resume refresh) while
+//   the <img> still shows its already-decoded pixels — such a src must NOT be
+//   reused for the overlay (it re-fetches and fails), and falling back to the
+//   remote original URL is worse: for large, slow event covers the overlay
+//   <img> cannot finish downloading within the animation, so the hero flies
+//   as an empty block. An empty imageSrc makes the play step skip the hero.
+// - hasCoverImage: whether the source is an image-backed card at all. Truly
+//   coverless cards keep the designed placeholder flight (background + initial).
 function resolveHeroImageSrc(sourceEl) {
-  const immediate = readImageSource(sourceEl)
-  if (immediate) {
-    return { imageSrc: immediate, imageOriginalSrc: readOriginalImageSource(sourceEl) }
+  if (!sourceEl) return { imageSrc: '', imageOriginalSrc: '', hasCoverImage: false }
+  const isSelfImg = String(sourceEl.tagName || '').toUpperCase() === 'IMG'
+  const img = isSelfImg ? sourceEl : sourceEl.querySelector('img')
+  const lazyRoot = sourceEl.querySelector?.('.lazy-image-root') || sourceEl.closest?.('.lazy-image-root') || null
+  const hasCoverImage = !!(img || lazyRoot)
+  const imageOriginalSrc = readOriginalImageSource(sourceEl)
+  if (isImageElementLoaded(img)) {
+    const liveSrc = img.currentSrc || img.src || ''
+    if (liveSrc) {
+      return { imageSrc: liveSrc, imageOriginalSrc, hasCoverImage }
+    }
   }
-  const original = readOriginalImageSource(sourceEl)
-  if (original) {
-    return { imageSrc: original, imageOriginalSrc: original }
-  }
-  return { imageSrc: '', imageOriginalSrc: '' }
+  return { imageSrc: '', imageOriginalSrc, hasCoverImage }
 }
 
 function readBoxShadow(el) {
@@ -442,16 +449,13 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
   clip.style.overflow = 'hidden'
   clip.style.backfaceVisibility = 'hidden'
   clip.style.borderRadius = 'inherit'
-  // When an image is present, keep the clip transparent so that if the
-  // overlay image is still decoding — or fails to load (e.g. a revoked
-  // `blob:` URL after the app resumes from background) — the source
-  // element behind the overlay shows through instead of flashing the
-  // (often dark) media background. This removes the "black placeholder"
-  // flash on the event hero. For goods the source is a light surface, so
-  // this is also strictly better than the previous white flash.
-  clip.style.background = snapshot.imageSrc
-    ? 'transparent'
-    : (snapshot.background || 'var(--app-surface, #fff)')
+  // Always paint the clip with the source element's own background. Mid-flight
+  // there is nothing behind the overlay except the destination page, so a
+  // transparent clip shows through as a random white block whenever the
+  // overlay <img> is still loading or failed to load. With the source surface
+  // color the block looks like the card it departed from until the bitmap
+  // pops in. When the image does paint, it simply covers this background.
+  clip.style.background = snapshot.background || 'var(--app-surface, #fff)'
   node.appendChild(clip)
 
   if (snapshot.imageSrc) {
@@ -471,13 +475,39 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
     // Don't start hidden — on Android the image may be cached but
     // img.complete won't be true on a freshly created element.  A
     // brief partially-decoded frame is less noticeable than the
-    // clip's white background showing through.
+    // clip's background showing through.
     const hideImage = () => {
       img.style.opacity = '0'
       img.style.visibility = 'hidden'
     }
+    const showImage = () => {
+      img.style.opacity = ''
+      img.style.visibility = ''
+      markImageDecoded(img.currentSrc || img.src || snapshot.imageSrc)
+    }
 
-    img.addEventListener('error', hideImage, { once: true })
+    img.addEventListener('load', showImage)
+
+    img.addEventListener('error', () => {
+      hideImage()
+      // The overlay src is genuinely dead — typically a revoked `blob:` URL
+      // that the source card still displays because its own <img> finished
+      // loading before the revocation. Rehydrate a fresh object URL from the
+      // original cover URL and swap it in so the bitmap appears mid-flight
+      // instead of the block flying empty for the whole animation.
+      const originalSrc = snapshot.imageOriginalSrc
+      if (!originalSrc || img.dataset.heroRecovered) return
+      img.dataset.heroRecovered = 'true'
+      const peeked = peekCachedImage(originalSrc)
+      const nextSrcPromise = peeked && peeked !== snapshot.imageSrc
+        ? Promise.resolve(peeked)
+        : refreshCachedImage(originalSrc)
+      nextSrcPromise.then((freshSrc) => {
+        if (!freshSrc || freshSrc === snapshot.imageSrc) return
+        snapshot.imageSrc = freshSrc
+        img.src = freshSrc
+      }).catch(() => {})
+    })
 
     clip.appendChild(img)
   } else {
@@ -524,8 +554,12 @@ function resolveCompensatedRadius(radius, scaleX = 1, scaleY = 1) {
   return `${horizontalRadius}px / ${verticalRadius}px`
 }
 
+// Returns 'ok' | 'error' | 'timeout'. The distinction matters: 'error' means
+// the src is genuinely dead (safe to rehydrate), while 'timeout' means the
+// blob is alive and merely slow to load/decode — revoking it then would break
+// the <img> elements currently displaying it.
 async function waitForImageDecode(src, timeoutMs = 400) {
-  if (!src || typeof window === 'undefined') return false
+  if (!src || typeof window === 'undefined') return 'error'
   try {
     const img = new Image()
     img.decoding = 'async'
@@ -535,31 +569,31 @@ async function waitForImageDecode(src, timeoutMs = 400) {
       if (typeof img.decode === 'function') {
         await img.decode().catch(() => {})
       }
-      return true
+      return 'ok'
     }
 
     return await new Promise((resolve) => {
       let settled = false
-      const onDone = (ok) => {
+      const onDone = (status) => {
         if (settled) return
         settled = true
         clearTimeout(timer)
-        resolve(ok)
+        resolve(status)
       }
       const onLoad = () => {
         if (typeof img.decode === 'function') {
-          img.decode().then(() => onDone(true)).catch(() => onDone(true))
+          img.decode().then(() => onDone('ok')).catch(() => onDone('ok'))
         } else {
-          onDone(true)
+          onDone('ok')
         }
       }
-      const onError = () => onDone(false)
-      const timer = setTimeout(() => onDone(false), Math.max(50, timeoutMs))
+      const onError = () => onDone('error')
+      const timer = setTimeout(() => onDone('timeout'), Math.max(50, timeoutMs))
       img.addEventListener('load', onLoad, { once: true })
       img.addEventListener('error', onError, { once: true })
     })
   } catch (e) {
-    return false
+    return 'error'
   }
 }
 
@@ -610,21 +644,19 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     if (hasRecentlyDecodedImage(snapshot.imageSrc)) {
       sourceImageReady = true
     } else {
-      sourceImageReady = await waitForImageDecode(snapshot.imageSrc, 420)
-      if (sourceImageReady) {
+      const decodeStatus = await waitForImageDecode(snapshot.imageSrc, 420)
+      if (decodeStatus === 'ok') {
         markImageDecoded(snapshot.imageSrc)
-      } else if (snapshot.imageOriginalSrc) {
-        try {
-          const freshSrc = await refreshCachedImage(snapshot.imageOriginalSrc)
-          if (freshSrc && freshSrc !== snapshot.imageSrc) {
-            snapshot.imageSrc = freshSrc
-            const heroImg = node.querySelector('[data-hero-media="image"]')
-            if (heroImg) heroImg.src = freshSrc
-            sourceImageReady = await waitForImageDecode(freshSrc, 350)
-            if (sourceImageReady) markImageDecoded(freshSrc)
-          }
-        } catch {}
+        sourceImageReady = true
       }
+      // 'timeout': the blob is alive and merely slow to load/decode — keep the
+      // target visible and start the animation; the overlay <img> keeps
+      // loading on its own and paints mid-flight. Never refreshCachedImage
+      // here: it would revoke the very blob the list card / detail cover are
+      // displaying, leave a dead src in the DOM, and every later hero for
+      // that card would fly as an empty block. 'error': the src is really
+      // dead — the overlay <img>'s own error handler swaps in a fresh
+      // object URL mid-flight.
     }
   }
 
@@ -859,7 +891,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
-  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+  const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
 
   pendingForwardHero = {
     goodsId: String(goodsId),
@@ -871,6 +903,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc,
     imageOriginalSrc,
+    hasCoverImage,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -896,6 +929,13 @@ export function playGoodsHeroForward(goodsId, targetEl) {
   const ageMs = Date.now() - Number(pendingForwardHero.preparedAt || 0)
   if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
     cleanupAllHeroes()
+    pendingForwardHero = null
+    return
+  }
+
+  // 源卡片带图但位图还没真正显示出来（大图加载慢）：没有可飞的位图，
+  // 飞占位块只会是一块空色块，清掉快照直接走普通转场。
+  if (pendingForwardHero.hasCoverImage && !pendingForwardHero.imageSrc) {
     pendingForwardHero = null
     return
   }
@@ -928,7 +968,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
-  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+  const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
 
   pendingBackHero = {
     goodsId: String(goodsId),
@@ -941,6 +981,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc,
     imageOriginalSrc,
+    hasCoverImage,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -955,6 +996,12 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }
   if (!pendingBackHero) return false
   if (!isPendingBackHeroValid(pendingBackHero, currentPath)) {
     cleanupAllHeroes()
+    return false
+  }
+  // 详情封面带图但位图还没真正显示出来（用户在大图加载完成前就返回）：
+  // 没有可飞的位图，清掉快照直接走普通转场。
+  if (pendingBackHero.hasCoverImage && !pendingBackHero.imageSrc) {
+    pendingBackHero = null
     return false
   }
   if (typeof resolveTargetEl !== 'function') {
@@ -1002,7 +1049,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
-  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+  const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
 
   pendingForwardEventHero = {
     eventId: String(eventId),
@@ -1014,6 +1061,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     radius: readRadius(sourceEl),
     imageSrc,
     imageOriginalSrc,
+    hasCoverImage,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -1038,6 +1086,13 @@ export function playEventHeroForward(eventId, targetEl) {
   const ageMs = Date.now() - Number(pendingForwardEventHero.preparedAt || 0)
   if (ageMs > FORWARD_HERO_PENDING_TTL_MS) {
     cleanupAllHeroes()
+    pendingForwardEventHero = null
+    return
+  }
+
+  // 源卡片带图但位图还没真正显示出来（活动封面大、加载慢）：没有可飞的
+  // 位图，飞占位块只会是一块空色块，清掉快照直接走普通转场。
+  if (pendingForwardEventHero.hasCoverImage && !pendingForwardEventHero.imageSrc) {
     pendingForwardEventHero = null
     return
   }
@@ -1070,7 +1125,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   const rect = readRect(sourceEl)
   if (!rect) return
 
-  const { imageSrc, imageOriginalSrc } = resolveHeroImageSrc(sourceEl)
+  const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
 
   pendingBackEventHero = {
     eventId: String(eventId),
@@ -1083,6 +1138,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     radius: readRadius(sourceEl),
     imageSrc,
     imageOriginalSrc,
+    hasCoverImage,
     fallbackText: readFallbackText(sourceEl),
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
@@ -1097,6 +1153,12 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl, onReady }
   if (!pendingBackEventHero) return false
   if (!isPendingBackHeroValid(pendingBackEventHero, currentPath)) {
     cleanupAllHeroes()
+    return false
+  }
+  // 详情封面带图但位图还没真正显示出来（用户在大图加载完成前就返回）：
+  // 没有可飞的位图，清掉快照直接走普通转场。
+  if (pendingBackEventHero.hasCoverImage && !pendingBackEventHero.imageSrc) {
+    pendingBackEventHero = null
     return false
   }
   if (typeof resolveTargetEl !== 'function') {
