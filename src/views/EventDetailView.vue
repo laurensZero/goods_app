@@ -317,6 +317,9 @@ import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteT
 import { hasPendingEventHeroForward, hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { getCachedImage, preloadImages } from '@/utils/image/cache'
+import { isLocalImageUri } from '@/utils/image/localImage'
+import { getCachedImageThumb, peekImageThumb } from '@/utils/image/thumb'
+import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown } from '@/utils/markdown'
 
 defineOptions({ name: 'EventDetailView' })
@@ -513,11 +516,18 @@ function clearGalleryReadyTimer() {
   galleryReadyTimer = 0
 }
 
-// 等照片进入内存缓存后再揭示画廊（上限 GALLERY_READY_MAX_WAIT_MS），
+// 等照片缩略图就绪后再揭示画廊（上限 GALLERY_READY_MAX_WAIT_MS），
 // 避免网格挂载时缓存未就绪出现整片灰色骨架
 async function revealGalleryWhenPhotosReady(delayMs = 140) {
   clearGalleryReadyTimer()
   galleryReady.value = false
+  // 缩略图内存层没有 TTL：从谷子详情返回这类重挂载场景里全部命中时立即揭示，
+  // 不再等 hero 动画 + 预载竞速——那是给首次加载未命中用的；否则明明有缓存，
+  // 照片区也会重播一遍 ✦ 占位 + 骨架，看起来像"重新加载"。
+  if (eventPhotoUris.value.every((uri) => peekImageThumb(uri, PHOTO_THUMB_MAX_SIZE))) {
+    galleryReady.value = true
+    return
+  }
   const startedAt = Date.now()
   try {
     await Promise.race([
@@ -665,7 +675,12 @@ function preloadLinkedGoodsImages() {
   }
 }
 
-// 预热照片缩略图缓存并记录 Promise，供 revealGalleryWhenPhotosReady 等待
+// 预热照片缩略图并记录 Promise，供 revealGalleryWhenPhotosReady 等待。
+// 网格显示的是本地缩略图（PHOTO_THUMB_MAX_SIZE），所以门禁与预热都以缩略图为准：
+// - 本地图（capacitor 文件协议 / data URL）绝不能走 getCachedImage——那会把整张
+//   原图 fetch 成 blob 再 base64 复制进 img-cache，进页瞬间制造数 MB 级内存/桥接
+//   抖动还重复占存储；缩略图生成管线会直接用原 URI 解码本地文件。
+// - 远端图照旧预热原图（大图预览与 hero 复用同一次下载），缩略图管线内部复用它。
 function preloadEventPhotos() {
   const uris = eventPhotoUris.value
   if (!uris.length) {
@@ -673,7 +688,12 @@ function preloadEventPhotos() {
     return
   }
   eventPhotosPreloadPromise = Promise.all(
-    uris.map((uri) => getCachedImage(uri, { priority: 'preload' }).catch(() => null))
+    uris.map((uri) => {
+      if (!isLocalImageUri(uri)) {
+        void getCachedImage(uri, { priority: 'preload' }).catch(() => null)
+      }
+      return getCachedImageThumb(uri, { maxSize: PHOTO_THUMB_MAX_SIZE }).catch(() => null)
+    })
   ).then(() => {})
 }
 

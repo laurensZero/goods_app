@@ -35,6 +35,12 @@
   </div>
 </template>
 
+<script>
+// 网格项 136~156px，×3x DPR 后 480px 足够清晰。
+// 导出供 EventDetailView 等调用方对齐同一尺寸做缩略图预热与缓存命中判断。
+export const PHOTO_THUMB_MAX_SIZE = 480
+</script>
+
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -49,10 +55,9 @@ const props = defineProps({
 
 defineEmits(['preview'])
 
-// 网格项 136~156px，×3x DPR 后 480px 足够清晰。
 // 缩略图由本地解码原图降采样生成并持久缓存（utils/image/thumb），
 // 原图留给点开大图预览时再解码；生成失败时自动回退原图。
-const THUMB_MAX_SIZE = 480
+const THUMB_MAX_SIZE = PHOTO_THUMB_MAX_SIZE
 
 const scrollRef = ref(null)
 const thumbWidthPct = ref(0)
