@@ -281,5 +281,10 @@
   "sync.error.maintenanceMode": "系统维护中，同步功能暂时不可用",
   "sync.error.maintenanceModeStatus": "维护模式",
   "sync.maintenance.title": "系统维护中",
-  "sync.maintenance.defaultMessage": "同步功能暂时不可用，请稍后再试"
+  "sync.maintenance.defaultMessage": "同步功能暂时不可用，请稍后再试",
+  "sync.maintenance.refresh": "刷新状态",
+  "sync.maintenance.refreshing": "刷新中…",
+  "sync.maintenance.refreshFailed": "状态刷新失败，请稍后重试",
+  "sync.maintenance.refreshStillActive": "维护仍在进行中",
+  "sync.maintenance.refreshCleared": "维护已结束，同步功能已恢复"
 }

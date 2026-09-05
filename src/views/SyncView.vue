@@ -16,6 +16,19 @@
           <span class="maintenance-banner__title">{{ t('sync.maintenance.title') }}</span>
           <span class="maintenance-banner__message">{{ maintenanceBanner }}</span>
         </div>
+        <button
+          type="button"
+          class="maintenance-banner__refresh"
+          :disabled="maintenanceRefreshing"
+          @click="handleRefreshMaintenance"
+        >
+          <svg :class="{ 'maintenance-banner__refresh-icon--spinning': maintenanceRefreshing }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
+          </svg>
+          <span>{{ maintenanceRefreshing ? t('sync.maintenance.refreshing') : t('sync.maintenance.refresh') }}</span>
+        </button>
       </div>
     </Transition>
 
@@ -558,6 +571,30 @@ const syncBlockedByMaintenance = computed(() => {
   const blocks = mode.blocks || []
   return blocks.includes('sync_all')
 })
+
+// 维护状态刷新（横幅按钮）：直查 sync_manifest，不触发完整同步
+const maintenanceRefreshing = ref(false)
+
+async function handleRefreshMaintenance() {
+  if (maintenanceRefreshing.value) return
+  if (!authStore.isLoggedIn) {
+    showToast(t('sync.error.loginRequired'))
+    return
+  }
+  maintenanceRefreshing.value = true
+  try {
+    const result = await syncStore.refreshMaintenanceMode()
+    if (!result?.ok) {
+      showToast(t('sync.maintenance.refreshFailed'))
+      return
+    }
+    showToast(result.enabled
+      ? t('sync.maintenance.refreshStillActive')
+      : t('sync.maintenance.refreshCleared'))
+  } finally {
+    maintenanceRefreshing.value = false
+  }
+}
 
 const cloudInfo = ref(null)
 const pullConflictData = ref({})
@@ -1136,6 +1173,42 @@ onMounted(async () => {
 .theme-dark .maintenance-banner__icon { color: #fbbf24; }
 .theme-dark .maintenance-banner__title { color: #fcd34d; }
 .theme-dark .maintenance-banner__message { color: #fde68a; }
+
+/* 刷新维护状态按钮 */
+.maintenance-banner__refresh {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(217, 119, 6, 0.45);
+  background: rgba(255, 255, 255, 0.65);
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+.maintenance-banner__refresh:active { transform: scale(0.96); }
+.maintenance-banner__refresh:disabled { opacity: 0.6; cursor: default; }
+.maintenance-banner__refresh svg { width: 14px; height: 14px; }
+
+.maintenance-banner__refresh-icon--spinning {
+  animation: maintenance-refresh-spin 1s linear infinite;
+}
+
+@keyframes maintenance-refresh-spin {
+  to { transform: rotate(360deg); }
+}
+
+.theme-dark .maintenance-banner__refresh {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(251, 191, 36, 0.4);
+  color: #fcd34d;
+}
 
 .sync-notice {
   margin: 12px 16px 0;
