@@ -33,7 +33,7 @@ function getTimelineSourceDates(item) {
   return Array.from({ length: quantityNumber }, (_, index) => explicitDates[index] || fallbackDate)
 }
 
-function buildTimelineEntries(goodsList) {
+function buildTimelineEntries(goodsList, sortDirection = 'desc') {
   const entries = []
 
   const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
@@ -127,6 +127,36 @@ function buildTimelineEntries(goodsList) {
     entries.push(...monthEntries)
   }
 
+  // 跨月拆分条目（同一商品逐份日期分布在多个月份）会继承商品在列表中的全局排位，
+  // 该排位由商品级 acquiredAt 决定，和拆分条目自身的日期无关——例如 8-22 首购、
+  // 9-5 补货的商品，其 9 月条目会按 8-22 排在该月 9-3 商品之后。
+  // 因此同月份内的条目需按条目自身日期重排；只回填到同月份原有的槽位上，
+  // 月份块之间的先后顺序（沿用 displayList 首次出现顺序）与无日期条目位置保持不变。
+  const monthSlotMap = new Map()
+  entries.forEach((entry, index) => {
+    if (!entry.timelineYearMonth) return
+    let slots = monthSlotMap.get(entry.timelineYearMonth)
+    if (!slots) {
+      slots = []
+      monthSlotMap.set(entry.timelineYearMonth, slots)
+    }
+    slots.push(index)
+  })
+
+  if (monthSlotMap.size > 0) {
+    const directionFactor = sortDirection === 'asc' ? 1 : -1
+    const sortedEntries = [...entries]
+    for (const slots of monthSlotMap.values()) {
+      const monthEntries = slots
+        .map((slotIndex) => entries[slotIndex])
+        .sort((a, b) => ((Number(a.timelineSortTime) || 0) - (Number(b.timelineSortTime) || 0)) * directionFactor)
+      slots.forEach((slotIndex, i) => {
+        sortedEntries[slotIndex] = monthEntries[i]
+      })
+    }
+    return sortedEntries
+  }
+
   return entries
 }
 
@@ -142,8 +172,9 @@ export function useHomeTimeline({
   const timelineEntries = computed(() => {
     if (displayDensity.value !== 'timeline') return []
     // displayList already contains the normal collection page's filtering,
-    // grouping, and sorting result. Keep that order here.
-    return buildTimelineEntries(displayList.value)
+    // grouping, and sorting result. Keep that order here for the month
+    // sequence; entries within one month are re-ordered by their own date.
+    return buildTimelineEntries(displayList.value, sortDirection.value)
   })
 
   // Flat month list — single source of truth for month ordering
