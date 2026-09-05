@@ -5,6 +5,7 @@
  */
 
 import { Filesystem, Directory } from '@capacitor/filesystem'
+import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 const CACHE_NAME = 'img-cache-v1'
@@ -171,6 +172,20 @@ function isNative() {
   } catch {
     return false
   }
+}
+
+/**
+ * 文件型 URI（capacitor:// / file: / _capacitor_file_ 转换地址）。
+ * 这类地址 <img>/fetch 可由 WebView 网络栈直读本地文件，无需进入缓存管线——
+ * 原生端缓存命中要走 Filesystem base64 回读 + data: 解码，多 MB 原图会在
+ * 冷启动入场时制造百毫秒级主线程长任务（实测 232ms）。
+ */
+export function isFileBackedUri(url) {
+  const s = String(url || '').trim()
+  if (!s) return false
+  return s.startsWith('file:')
+    || s.startsWith('capacitor:')
+    || s.includes('/_capacitor_file_/')
 }
 
 const supportsCacheAPI = typeof caches !== 'undefined'
@@ -451,6 +466,13 @@ async function putToCacheAPI(url, responseClone) {
 
 // --- Layer 3: Capacitor Filesystem (原生端持久化) ---
 /**
+ * 缓存命中返回可直接用于 <img> 的文件 URI（WebView 网络栈离主线程直读文件）。
+ * 旧实现 readFile 取回 base64 字符串再 data: 解码成 blob——多 MB 原图会在
+ * 冷启动入场时制造 200-300ms 级主线程长任务。
+ *
+ * 注意必须先用 stat 验证文件存在：getUri 只做路径拼接不做存在性检查，
+ * 若跳过 stat，未缓存过的图也会"假命中"出一个指向虚无的文件 URI，
+ * <img> 404 且坏条目驻留内存缓存，导致所有图片永远走不到网络下载。
  * @param {string} url
  * @returns {Promise<string|null>}
  */
@@ -460,14 +482,16 @@ async function getFromCapacitorFS(url) {
     for (const key of getCacheKeyCandidates(url)) {
       const filename = urlToFilename(key)
       try {
-        const result = await Filesystem.readFile({
+        const { size } = await Filesystem.stat({
           path: `${CAP_FOLDER}/${filename}`,
           directory: CAP_DIR
         })
-        const response = await fetch(`data:application/octet-stream;base64,${result.data}`)
-        const blob = await response.blob()
-        touchNativeCacheEntry(filename, blob.size)
-        return URL.createObjectURL(blob)
+        const { uri } = await Filesystem.getUri({
+          path: `${CAP_FOLDER}/${filename}`,
+          directory: CAP_DIR
+        })
+        touchNativeCacheEntry(filename, Number(size) || null)
+        return Capacitor.convertFileSrc(uri)
       } catch {
         continue
       }
@@ -539,6 +563,13 @@ export async function getCachedImage(url, options = {}) {
   if (!url) return ''
 
   const normalizedUrl = normalizeCacheUrl(url)
+
+  // 文件型 URI 直接返回原地址：WebView 直读本地文件（离主线程），且原文件本来
+  // 就在磁盘上，复制进 img-cache 再 base64 读回是纯开销（还会放大冷启动入场阻塞）
+  if (isFileBackedUri(normalizedUrl || url)) {
+    return normalizedUrl || url
+  }
+
   const cacheKeys = getCacheKeyCandidates(normalizedUrl || url)
   const cacheKey = cacheKeys[0] || normalizedUrl || url
   const priority = options?.priority === 'preload' ? 'preload' : 'viewport'
@@ -723,11 +754,17 @@ export function aliasCachedImage(fromUrl, toUrl) {
     return
   }
   const existing = peekCachedImage(fromUrl)
-  if (!existing || !existing.startsWith('blob:')) return
-  for (const key of getCacheKeyCandidates(toUrl)) {
-    setMemoryCache(key, existing)
+  if (existing && existing.startsWith('blob:')) {
+    for (const key of getCacheKeyCandidates(toUrl)) {
+      setMemoryCache(key, existing)
+    }
+    markImageDecoded(toUrl)
+    return
   }
-  markImageDecoded(toUrl)
+  // 文件型 URI 改为直读文件后不再进内存缓存，本地图→云图改写时没有位图可过户。
+  // 退化为立即预热云端图：卡片换图与 hero 首飞的位图空窗从"重渲染后才发起下载"
+  // 提前到"改写瞬间"，其余语义不变。
+  preloadImages([toUrl])
 }
 
 function scheduleImageLoadDrain() {

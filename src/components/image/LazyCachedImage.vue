@@ -39,7 +39,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCachedImage, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
 
 defineOptions({ inheritAttrs: false })
@@ -308,6 +308,16 @@ onMounted(() => {
       hasLoadError.value = false
       isImageLoading.value = false
       resetSkeletonVisibility()
+      return
+    }
+
+    // 文件型 URI 不会被 revoke，src 恒定有效——resume 刷新对它是纯开销
+    if (isFileBackedUri(props.src)) {
+      if (!resolvedSrc.value) {
+        resolvedSrc.value = props.src
+      }
+      hasLoadError.value = false
+      isImageLoading.value = false
       return
     }
 

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@capacitor/filesystem', () => ({
   Filesystem: {
     readFile: vi.fn(),
+    stat: vi.fn(),
     writeFile: vi.fn(),
     readdir: vi.fn(),
     deleteFile: vi.fn(),
@@ -42,13 +43,20 @@ describe('utils/image/cache aliasCachedImage', () => {
     vi.unstubAllGlobals()
   })
 
-  it('把旧 URL 的内存位图过户给新 URL（共享同一 object URL）', async () => {
+  it('文件型 URI 直接返回原地址，不进缓存管线', async () => {
     const localUrl = 'http://localhost/_capacitor_file_/user-images/1000_abcd.jpg'
-    const blobUrl = await getCachedImage(localUrl)
+    await expect(getCachedImage(localUrl)).resolves.toBe(localUrl)
+    const capacitorUri = 'capacitor://localhost/_capacitor_file_/data/user-images/1000_abcd.jpg'
+    await expect(getCachedImage(capacitorUri)).resolves.toBe(capacitorUri)
+  })
+
+  it('把旧 URL 的内存位图过户给新 URL（共享同一 object URL）', async () => {
+    const dataUrl = 'data:image/jpeg;base64,AAAA'
+    const blobUrl = await getCachedImage(dataUrl)
     expect(blobUrl.startsWith('blob:')).toBe(true)
 
     const cloudUrl = 'https://example.supabase.co/storage/v1/object/public/goods-images/goods-image__1000__x.jpg'
-    aliasCachedImage(localUrl, cloudUrl)
+    aliasCachedImage(dataUrl, cloudUrl)
 
     // 新 URL 同步命中内存层，拿到的是同一份位图
     expect(peekCachedImage(cloudUrl)).toBe(blobUrl)
