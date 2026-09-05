@@ -353,6 +353,7 @@
   "checkout.qqNotifyTitle": "定时抢购成功",
   "checkout.qqNotifyBodyGreeting": "【定时抢购成功】",
   "checkout.qqNotifyAmount": "金额",
+  "checkout.qqNotifyPoints": "消耗 {points} 积分",
   "checkout.qqNotifyBody": "请尽快到米游铺 App 完成付款，超时订单可能被取消。",
   "checkout.qqNotifySent": "已发送 QQ 提醒",
   "checkout.qqNotifyFailed": "QQ 提醒发送失败",

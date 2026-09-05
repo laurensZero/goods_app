@@ -1083,6 +1083,21 @@ export const useSyncStore = defineStore('sync', () => {
     clearSyncLogs()
   }
 
+  // 手动刷新维护模式状态：直查 sync_manifest（readManifest 内部已带重试），不触发完整同步。
+  // 读到 null（管理员已解除维护）时同样清除缓存，避免横幅滞留。
+  async function refreshMaintenanceMode() {
+    try {
+      const backend = getCurrentBackend()
+      if (!backend?.readManifest) return { ok: false }
+      const manifest = await backend.readManifest()
+      maintenanceMode.value = manifest?.maintenanceMode || null
+      return { ok: true, enabled: !!maintenanceMode.value?.enabled }
+    } catch (error) {
+      console.warn('[sync] refresh maintenance mode failed:', error)
+      return { ok: false, error }
+    }
+  }
+
   return {
     lastSyncedAt, eventLastSyncedAt, deviceId,
     isInitialized, isSyncing, isPulling, syncStatus, syncLogs, lastError, syncPhase, syncCause, syncSuggestion, syncNotice, conflictData, syncSource,
@@ -1096,6 +1111,7 @@ export const useSyncStore = defineStore('sync', () => {
     syncPaused, setSyncPaused,
     restoreImageFromCloud,
     maintenanceMode,
+    refreshMaintenanceMode,
     reportHeartbeat
   }
 })

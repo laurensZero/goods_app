@@ -281,5 +281,10 @@
   "sync.error.maintenanceMode": "시스템 유지보수 중입니다. 동기화 기능은 일시적으로 사용할 수 없습니다.",
   "sync.error.maintenanceModeStatus": "유지보수 모드",
   "sync.maintenance.title": "시스템 유지보수 중",
-  "sync.maintenance.defaultMessage": "동기화 기능은 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요."
+  "sync.maintenance.defaultMessage": "동기화 기능은 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+  "sync.maintenance.refresh": "상태 새로고침",
+  "sync.maintenance.refreshing": "새로고침 중…",
+  "sync.maintenance.refreshFailed": "상태 새로고침에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  "sync.maintenance.refreshStillActive": "유지보수가 아직 진행 중입니다.",
+  "sync.maintenance.refreshCleared": "유지보수가 종료되어 동기화 기능이 복구되었습니다."
 }

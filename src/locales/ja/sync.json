@@ -281,5 +281,10 @@
   "sync.error.maintenanceMode": "システムメンテナンス中です。同期機能は一時的に利用できません。",
   "sync.error.maintenanceModeStatus": "メンテナンスモード",
   "sync.maintenance.title": "システムメンテナンス中",
-  "sync.maintenance.defaultMessage": "同期機能は一時的に利用できません。しばらくしてからお試しください。"
+  "sync.maintenance.defaultMessage": "同期機能は一時的に利用できません。しばらくしてからお試しください。",
+  "sync.maintenance.refresh": "状態を更新",
+  "sync.maintenance.refreshing": "更新中…",
+  "sync.maintenance.refreshFailed": "状態の更新に失敗しました。しばらくしてからもう一度お試しください。",
+  "sync.maintenance.refreshStillActive": "メンテナンスはまだ進行中です。",
+  "sync.maintenance.refreshCleared": "メンテナンスは終了しました。同期機能が復旧しました。"
 }

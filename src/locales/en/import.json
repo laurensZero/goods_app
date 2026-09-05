@@ -353,6 +353,7 @@
   "checkout.qqNotifyTitle": "Scheduled purchase succeeded",
   "checkout.qqNotifyBodyGreeting": "[Scheduled purchase succeeded]",
   "checkout.qqNotifyAmount": "Amount",
+  "checkout.qqNotifyPoints": "{points} points spent",
   "checkout.qqNotifyBody": "Please complete payment in the Mihoyo Gift app before the order expires.",
   "checkout.qqNotifySent": "QQ reminder sent",
   "checkout.qqNotifyFailed": "Failed to send QQ reminder",

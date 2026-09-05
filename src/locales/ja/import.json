@@ -353,6 +353,7 @@
   "checkout.qqNotifyTitle": "定期購入成功",
   "checkout.qqNotifyBodyGreeting": "【定期購入成功】",
   "checkout.qqNotifyAmount": "金額",
+  "checkout.qqNotifyPoints": "{points} ポイント消費",
   "checkout.qqNotifyBody": "お早めに米游舗アプリでお支払いください。期限切れの注文はキャンセルされる場合があります。",
   "checkout.qqNotifySent": "QQリマインダーを送信しました",
   "checkout.qqNotifyFailed": "QQリマインダーの送信に失敗しました",

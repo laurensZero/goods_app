@@ -353,6 +353,7 @@
   "checkout.qqNotifyTitle": "정기 구매 성공",
   "checkout.qqNotifyBodyGreeting": "【정기 구매 성공】",
   "checkout.qqNotifyAmount": "금액",
+  "checkout.qqNotifyPoints": "{points} 포인트 소모",
   "checkout.qqNotifyBody": "빠른 시일 내에 미호요 상점 앱에서 결제를 완료하세요. 시간 초과 주문은 취소될 수 있습니다.",
   "checkout.qqNotifySent": "QQ 알림을 보냈습니다",
   "checkout.qqNotifyFailed": "QQ 알림 전송에 실패했습니다",
