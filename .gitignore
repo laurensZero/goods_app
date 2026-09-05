@@ -25,3 +25,7 @@ scripts/supabase-image-backup.sh
 supabase-update.sql
 supabase-migration-*.sql
 scripts/mihoyo-checkout.mjs
+
+.local-bench/
+.profile/
+.bench/
