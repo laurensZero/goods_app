@@ -822,10 +822,6 @@ function handleGoodsNext() {
     goToStep(STEPS.findIndex((step) => step.key === 'review'))
     return
   }
-  if (isPointOrder.value && totalPointCost.value > pointBalance.value) {
-    setError(t('checkout.notEnoughPoints'))
-    return
-  }
   nextStep()
   claimCoupons()
 }
@@ -882,6 +878,7 @@ function handleCheckoutSuccess(entry) {
   if (!qqBinding.isBound || !qqBinding.checkoutNotify) return
   const orderNo = entry.result?.orderNo || ''
   const amount = entry.result?.amount || 0
+  const orderPoints = Number(entry.result?.orderPoints) || 0
   const productName = entry.result?.productName || ''
   const goodsText = entry.summary?.goodsText || ''
   const title = t('checkout.qqNotifyTitle')
@@ -889,6 +886,8 @@ function handleCheckoutSuccess(entry) {
     `${t('checkout.qqNotifyBodyGreeting')}${goodsText || t('checkout.order')}`,
     ...(orderNo ? [t('checkout.orderNo') + '：' + orderNo] : []),
     ...(productName ? [productName] : []),
+    // order_points > 0 即积分兑换订单（普通订单该字段恒为 0/缺省）
+    ...(orderPoints ? [t('checkout.qqNotifyPoints', { points: orderPoints })] : []),
     ...(amount ? [t('checkout.qqNotifyAmount') + '：' + (amount / 100).toFixed(2)] : []),
     t('checkout.qqNotifyBody'),
   ]

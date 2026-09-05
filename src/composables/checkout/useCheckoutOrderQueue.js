@@ -87,6 +87,7 @@ function normalizeQueueItem(item) {
       ? {
         orderNo: String(item.result.orderNo || ''),
         amount: Number(item.result.amount) || 0,
+        orderPoints: Number(item.result.orderPoints) || 0,
         productName: String(item.result.productName || ''),
         duplicate: Boolean(item.result.duplicate),
         duplicateMessage: String(item.result.duplicateMessage || ''),
@@ -525,6 +526,7 @@ async function executeQueuedOrder(entry) {
     entry.result = {
       orderNo: String(result.result.orderNo || ''),
       amount: Number(result.result.amount) || 0,
+      orderPoints: Number(result.result.orderPoints) || 0,
       productName: String(result.result.productName || ''),
       // 复用 code 收到「订单已存在/重复」→ 订单已建但无订单号，标记 duplicate 供 UI 提示
       duplicate: Boolean(result.result.duplicate),
