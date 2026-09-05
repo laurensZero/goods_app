@@ -100,6 +100,7 @@
                                 :src="form.coverImage"
                                 :alt="t('events.addEdit.eventCover')"
                                 :lazy="false"
+                                :thumb-max-size="PHOTO_THUMB_MAX_SIZE"
                                 :image-attrs="{ class: 'media-picker__preview-img' }"
                               />
                               <span v-else>{{ t('events.addEdit.eventCover') }}</span>
@@ -341,6 +342,7 @@
                                 v-if="goods.coverImage"
                                 :src="goods.coverImage"
                                 :alt="goods.name"
+                                :thumb-max-size="PHOTO_THUMB_MAX_SIZE"
                                 class="linked-goods__thumb"
                               />
                               <div v-else class="linked-goods__thumb linked-goods__thumb--empty">{{ goods.name?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
@@ -383,6 +385,7 @@
                               <LazyCachedImage
                                 :src="photo.uri"
                                 :alt="photo.caption || `${t('events.addEdit.eventPhotosLabel')} ${index + 1}`"
+                                :thumb-max-size="PHOTO_THUMB_MAX_SIZE"
                                 :image-attrs="{ class: 'photo-upload__img' }"
                               />
                               <button type="button" class="photo-upload__remove" @click="removePhoto(index)">×</button>
@@ -484,6 +487,7 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import FormTabNav from '@/components/goods/FormTabNav.vue'
 import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
