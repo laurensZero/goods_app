@@ -59,7 +59,7 @@
         v-if="!item.isWishlist && isPending"
         :class="['pending-badge', { 'pending-badge--compact': density === 'compact' }]"
       >
-        {{ primaryStatus }}
+        {{ pendingBadgeText }}
       </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
     </div>
@@ -119,7 +119,8 @@ import {
   hasCollectStatusMatch,
   resolvePrimaryCollectStatus,
   areAllCopiesExited,
-  formatCollectStatusSummary
+  formatCollectStatusSummary,
+  formatPendingStatusSummary
 } from '@/utils/goods/status'
 
 const { t } = useI18n()
@@ -310,6 +311,7 @@ function getStatusShort(status) {
 }
 
 const primaryStatus = computed(() => props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item))
+const pendingBadgeText = computed(() => formatPendingStatusSummary(props.item))
 const isPending = computed(() => props.item._isPending ?? (!props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮'])))
 const isExited = computed(() => props.item._isExited ?? areAllCopiesExited(props.item))
 
