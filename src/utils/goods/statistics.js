@@ -26,36 +26,68 @@ function getItemDatesAndPrices(item) {
   const unitPrices = Array.isArray(item.unitActualPriceCNYList)
     ? item.unitActualPriceCNYList
     : (Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : [])
+  const rawUnitPrices = Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : []
 
   // 运费与预算口径一致:按份数摊到每份消费上
   const shipping = Number(item.shippingFee) || 0
   const shippingPerUnit = shipping / Math.max(1, qty)
+  // 预算口径一致:实际价为 0 也按 0 计入(免费/白得的不算原价),未填实际价才按原价×数量
+  const totalAmount = (item.actualPrice !== '' && item.actualPrice != null)
+    ? (Number(item.actualPriceCNYNumber ?? item.actualPrice) || 0)
+    : (Number(item.officialPriceCNYNumber ?? item.price) || 0) * qty
 
-  if (unitDates.length > 0 && unitPrices.length > 0) {
-    const len = Math.min(unitDates.length, unitPrices.length)
-    const pairs = []
-    for (let i = 0; i < len; i++) {
-      const d = safeDate(unitDates[i])
-      if (!d) continue
-      const price = Number(unitPrices[i] || 0)
-      pairs.push({ date: d, price: price + shippingPerUnit })
+  // 逐份日期(跨月补货)各自计入对应日期,而不是整体挂在商品级购入日期上。
+  // 已填的逐件价按实计入;空缺份数分摊"总价 − 已填部分"的余额,保证商品总花费
+  // 不变——空缺不等于免费,显式填 0 的份数仍按 0 计。
+  if (unitDates.length > 0) {
+    const unitCount = Math.max(qty, unitDates.length)
+    const resolved = []
+    let filledSum = 0
+    let holeCount = 0
+    for (let i = 0; i < unitCount; i++) {
+      // 尾部/中间缺省的逐份日期回落到商品级购入日期
+      const d = safeDate(unitDates[i] || item.acquiredAt)
+      if (!d) {
+        resolved.push(null)
+        continue
+      }
+      const rawPrice = rawUnitPrices[i]
+      const hasUnitPrice = rawPrice !== '' && rawPrice != null && Number.isFinite(Number(rawPrice))
+      if (hasUnitPrice) {
+        const price = Number.isFinite(Number(unitPrices[i])) ? Number(unitPrices[i]) : (Number(rawPrice) || 0)
+        filledSum += price
+        resolved.push({ date: d, price })
+      } else {
+        holeCount += 1
+        resolved.push({ date: d, price: null })
+      }
     }
-    return pairs
+    const perUnitShare = holeCount > 0 ? Math.max(0, (totalAmount - filledSum) / holeCount) : 0
+    return resolved
+      .filter(Boolean)
+      .map(({ date, price }) => ({ date, price: (price ?? perUnitShare) + shippingPerUnit }))
   }
 
   const d = safeDate(item.acquiredAt)
   if (!d) return []
-  // 预算口径一致:实际价为 0 也按 0 计入(免费/白得的不算原价),未填实际价才按原价×数量
-  const amount = (item.actualPrice !== '' && item.actualPrice != null)
-    ? (Number(item.actualPriceCNYNumber ?? item.actualPrice) || 0)
-    : (Number(item.officialPriceCNYNumber ?? item.price) || 0) * qty
-  return [{ date: d, price: amount + shipping }]
+  return [{ date: d, price: totalAmount + shipping }]
 }
 
 export function getItemSpendEntries(item) {
   if (item?.isWishlist) return []
   if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return []
   return getItemDatesAndPrices(item)
+}
+
+export function calcPeriodSpend(goodsList, dateMatcher) {
+  if (!Array.isArray(goodsList)) return 0
+  let total = 0
+  for (const item of goodsList) {
+    for (const { date, price } of getItemSpendEntries(item)) {
+      if (dateMatcher(date)) total += price
+    }
+  }
+  return total
 }
 
 // ─── Heatmap ───
