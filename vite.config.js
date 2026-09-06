@@ -146,18 +146,17 @@ export default defineConfig({
     chunkSizeWarningLimit: 700,
     rollupOptions: {
       output: {
-          manualChunks: {
-            'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
-            'ui-library': ['vant'],
-            'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@awesome/capacitor-file-picker'],
-            'sqlite-native': ['@capacitor-community/sqlite'],
-            'sql-wasm': ['sql.js'],
-            'chart-engine': ['echarts'],
-            'fabric-engine': ['fabric'],
-            'cutout-engine': ['@imgly/background-removal'],
-            'sync-engine': ['@supabase/supabase-js'],
-            'pinyin-engine': ['pinyin-pro']
-          }
+        manualChunks: {
+          'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
+          'ui-library': ['vant'],
+          'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@capawesome/capacitor-file-picker'],
+          'db-engine': ['@capacitor-community/sqlite', 'sql.js'],
+          'chart-engine': ['echarts'],
+          'fabric-engine': ['fabric'],
+          'cutout-engine': ['@imgly/background-removal'],
+          'sync-engine': ['@supabase/supabase-js'],
+          'pinyin-engine': ['pinyin-pro']
+        }
       }
     }
   }
