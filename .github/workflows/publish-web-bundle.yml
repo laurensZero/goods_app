@@ -258,9 +258,6 @@ jobs:
           VITE_AMAP_SECURITY_CODE: ${{ secrets.VITE_AMAP_SECURITY_CODE }}
         run: npm run build
 
-      # TODO: 改为增量发布 — 逐个上传 dist 文件到 Supabase Storage + 生成 manifest.json
-      # 参考: npx @capgo/cli bundle upload --delta
-      # 客户端 webUpdateStore.js 使用 CapacitorUpdater.download({ manifest }) 下载增量
       - name: Create bundle archive
         if: steps.version.outputs.rollback != 'true'
         id: bundle
@@ -278,10 +275,9 @@ jobs:
           echo "Storage path: ${STORAGE_PATH}"
 
           cd dist
-          # 排除 Android 不需要的大型 WASM（从 CDN 按需下载）:
-          #   - sql-wasm*  : sql.js SQLite WASM（仅 Web 端，Android 用原生 SQLite）
-          #   - ort-wasm*  : onnxruntime-web WASM（抠图从 staticimgly.com CDN 下载）
-          zip -r "../${BUNDLE_NAME}" . -x "*sql-wasm*" -x "*ort-wasm*"
+          # 排除 sql-wasm 相关文件（Android 不需要 sql.js / sql-wasm.wasm）
+          # 打包后体积可从 ~8MB 降到 ~3-4MB
+          zip -r "../${BUNDLE_NAME}" . -x "assets/sql-wasm*"
           cd ..
 
           SHA256=$(sha256sum "${BUNDLE_NAME}" | awk '{print $1}')
