@@ -2,10 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { nextTick, watchEffect } from 'vue'
 
-const { runChatCompletionMock } = vi.hoisted(() => ({ runChatCompletionMock: vi.fn() }))
+const { runChatCompletionMock, generateChatTitleMock } = vi.hoisted(() => ({
+  runChatCompletionMock: vi.fn(),
+  generateChatTitleMock: vi.fn()
+}))
 
 vi.mock('@/services/ai/chatClient', () => ({
   runChatCompletion: runChatCompletionMock,
+  // 默认让起名失败（保持截断标题），需要验证 AI 命名的用例里单独覆盖
+  generateChatTitle: generateChatTitleMock,
   DEFAULT_AI_CONFIG: { baseUrl: 'https://api.openai.com/v1', model: 'gpt-4o-mini', apiKey: '' }
 }))
 
@@ -31,6 +36,8 @@ beforeEach(() => {
     steps: [],
     convo: [...messages, { role: 'assistant', content: '好的' }]
   }))
+  generateChatTitleMock.mockReset()
+  generateChatTitleMock.mockRejectedValue(new Error('AI 未返回有效标题'))
 })
 
 describe('aiChat store', () => {
@@ -200,5 +207,59 @@ describe('aiChat store', () => {
     const messages = runChatCompletionMock.mock.calls[1][0].messages
     expect(messages.filter((/** @type {any} */ m) => m.role === 'user').map((/** @type {any} */ m) => m.content))
       .toEqual(['第二问'])
+  })
+
+  it('首轮回复后调用 AI 给会话起名，且只命名一次', async () => {
+    generateChatTitleMock.mockResolvedValue('游戏充值统计')
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    await store.send('这个月充了多少钱')
+    await store.send('那上个月呢')
+    await new Promise((resolve) => setTimeout(resolve)) // 等异步命名落地
+
+    expect(generateChatTitleMock).toHaveBeenCalledTimes(1)
+    expect(generateChatTitleMock.mock.calls[0][1]).toContain('这个月充了多少钱')
+    expect(generateChatTitleMock.mock.calls[0][2]).toContain('好的')
+    expect(store.sessions[0].title).toBe('游戏充值统计')
+    expect(store.sessions[0].titleSource).toBe('ai')
+  })
+
+  it('手动重命名后 AI 不再覆盖标题，并随持久化保存', async () => {
+    generateChatTitleMock.mockResolvedValue('AI 想起的名字')
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    await store.send('帮我记一笔')
+    const id = store.activeSessionId
+    expect(store.renameSession(id, '我的充值账本')).toBe(true)
+    await store.send('再记一笔')
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(store.sessions[0].title).toBe('我的充值账本')
+    expect(store.sessions[0].titleSource).toBe('custom')
+
+    await new Promise((resolve) => setTimeout(resolve, 450))
+    const saved = JSON.parse(localStorage.getItem('goods_ai_chat_sessions'))
+    expect(saved.sessions[0].title).toBe('我的充值账本')
+    expect(saved.sessions[0].titleSource).toBe('custom')
+  })
+
+  it('起名失败时静默保留首条消息截断标题', async () => {
+    generateChatTitleMock.mockRejectedValue(new Error('HTTP 500'))
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    await store.send('起名失败兜底')
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(store.sessions[0].title).toBe('起名失败兜底')
+    expect(store.sessions[0].titleSource).toBe('')
+  })
+
+  it('renameSession 拒绝空标题与不存在的会话', async () => {
+    const store = useAiChatStore()
+    expect(store.renameSession(store.activeSessionId, '   ')).toBe(false)
+    expect(store.renameSession('nope', '标题')).toBe(false)
   })
 })

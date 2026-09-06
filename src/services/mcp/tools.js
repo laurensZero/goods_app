@@ -374,9 +374,104 @@ export function createMcpToolHandlers(dbApi, money = {}) {
           otherExpenses: otherExpenses.slice(0, 8).map((e) => ({ name: e?.name, amount: e?.amount })),
           linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
           photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
+          tracksCount: Array.isArray(event.tracks) ? event.tracks.length : 0,
           description: truncate(event.description)
         }
       })
+    }
+  }
+
+  /**
+   * 演出曲单：演出基本信息 + 曲目概况/明细（含在线音源关联与可播状态）。
+   * 默认只给 tracksSummary 概况——用户没问歌单时模型不应该罗列曲目，
+   * 所以明细（含 trackId）只在传 includeTracks: true 时返回。
+   * @param {Record<string, any>} args
+   */
+  async function eventTracks(args) {
+    const events = await getEvents()
+    const eventId = asText(args.eventId).trim()
+    const query = asText(args.query).trim().toLowerCase()
+    const includeTracks = args.includeTracks === true
+    if (eventId && query) throw new Error('eventId 与 query 二选一，不要同时传')
+    const limit = Math.min(Math.max(asInt(args.limit) || 10, 1), 50)
+    const offset = Math.max(asInt(args.offset), 0)
+
+    let candidates = events.filter((event) => !event.deleted)
+    if (eventId) {
+      candidates = candidates.filter((event) => event.id === eventId)
+      if (candidates.length === 0) throw new Error(`未找到 id 为 ${eventId} 的演出（可能已被删除）`)
+    }
+
+    /** @param {any} track */
+    function trackView(track) {
+      const neteaseSongId = asText(track?.neteaseSongId).trim()
+      const qqSongId = asText(track?.qqSongId).trim()
+      const bilibiliVideoId = asText(track?.bilibiliVideoId).trim()
+      const playable = Boolean(neteaseSongId || qqSongId || bilibiliVideoId)
+      return {
+        id: asText(track?.id).trim(),
+        title: asText(track?.title).trim(),
+        artist: asText(track?.artist).trim(),
+        album: asText(track?.album).trim(),
+        durationMs: Math.max(0, Number(track?.durationMs) || 0),
+        source: asText(track?.source).trim() || 'manual',
+        playable,
+        ...(playable ? {} : { note: '仅手动录入、未关联在线音源，无法直接播放' })
+      }
+    }
+
+    const matched = []
+    for (const event of candidates) {
+      const tracks = Array.isArray(event.tracks) ? event.tracks : []
+      if (!eventId && tracks.length === 0) continue
+      let visibleTracks = tracks
+      if (query) {
+        // 演出名命中 → 返回整场曲单；否则按歌名/歌手过滤曲目
+        const nameHit = asText(event.name).toLowerCase().includes(query)
+        if (!nameHit) {
+          visibleTracks = tracks.filter((track) => (
+            asText(track?.title).toLowerCase().includes(query) ||
+            asText(track?.artist).toLowerCase().includes(query)
+          ))
+        }
+        if (visibleTracks.length === 0) continue
+      }
+      const view = visibleTracks.map(trackView)
+      const playableCount = view.filter((track) => track.playable).length
+      matched.push({
+        id: event.id,
+        name: event.name,
+        type: event.type,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        city: event.city,
+        location: event.location,
+        seatInfo: event.seatInfo,
+        ticketPrice: event.ticketPrice,
+        ticketType: event.ticketType,
+        tags: Array.isArray(event.tags) ? event.tags : [],
+        description: truncate(event.description),
+        photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
+        linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
+        tracksSummary: {
+          total: view.length,
+          playable: playableCount,
+          manualOnly: view.length - playableCount
+        },
+        ...(includeTracks ? { tracks: view } : {})
+      })
+    }
+
+    const page = matched.slice(offset, offset + limit)
+    return {
+      total: matched.length,
+      offset,
+      limit,
+      hasMore: offset + page.length < matched.length,
+      hint: includeTracks
+        ? '播放用 music_play（传 eventId + trackId）；playable 为 false 的曲目无法播放'
+        : '默认只返回曲单概况；用户要完整歌单、找具体歌或要播放时，再传 includeTracks: true 获取曲目明细（含 trackId）',
+      events: page
     }
   }
 
@@ -715,6 +810,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     wishlist_overview: wishlistOverview,
     sale_ledger: saleLedger,
     events_list: eventsList,
+    event_tracks: eventTracks,
     recharge_summary: rechargeSummary
   }
 }

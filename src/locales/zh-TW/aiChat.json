@@ -32,5 +32,7 @@
   "aiChat.deleteSession": "刪除這條記錄",
   "aiChat.deleted": "已刪除",
   "aiChat.emptySessions": "還沒有歷史對話",
+  "aiChat.rename": "重新命名",
+  "aiChat.renameSuccess": "已重新命名",
   "aiChat.messagesCount": "{count} 條訊息"
 }

@@ -32,6 +32,18 @@ const NOTIFY_KEYS = new Set([
 
 const APPEARANCE_VALUES = new Set(['system', 'light', 'dark'])
 
+/**
+ * 兼容列表状态形状：真实 pinia store 实例上 shallowRef 已解包为数组，
+ * 单测假实现可能是 { value: [...] } 的 ref 形状——两者都兼容。
+ * @param {unknown} value store.list / store.trashList 的原始值
+ * @returns {any[]}
+ */
+function listOf(value) {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(/** @type {any} */ (value)?.value)) return /** @type {any} */ (value).value
+  return []
+}
+
 /** 预设清单条目可能是字符串或 {name} 对象，统一转名称 */
 function presetName(entry) {
   return String(entry?.name ?? entry ?? '').trim()
@@ -104,8 +116,8 @@ function sanitizeWritable(args, options = {}) {
  * @property {(id: string, data: any) => Promise<any>} updateGoods
  * @property {(id: string) => Promise<void>} removeGoods
  * @property {(id: string) => Promise<any>} restoreTrashItem
- * @property {{ value: any[] }} list
- * @property {{ value: any[] }} trashList
+ * @property {any} list 条目列表（真实 store 解包为数组，单测可为 ref 形状）
+ * @property {any} trashList 回收站列表（同上）
  */
 
 /**
@@ -114,10 +126,12 @@ function sanitizeWritable(args, options = {}) {
  *  presetsStore?: any,
  *  themeStore?: any,
  *  notifyStore?: any,
- *  rechargeStore?: any
+ *  rechargeStore?: any,
+ *  eventsStore?: any,
+ *  mediaPlayerStore?: any
  * }} params
  */
-export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStore, notifyStore, rechargeStore }) {
+export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStore, notifyStore, rechargeStore, eventsStore, mediaPlayerStore }) {
   return {
     /**
      * @param {Record<string, any>} args
@@ -149,7 +163,7 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
       const { id, ...rest } = args || {}
       const targetId = String(id || '').trim()
       if (!targetId) throw new Error('id 必填')
-      if (!goodsStore.list.value.some((item) => item?.id === targetId)) {
+      if (!listOf(goodsStore.list).some((item) => item?.id === targetId)) {
         throw new Error(`未找到 id 为 ${targetId} 的条目（回收站中的条目请先用 goods_restore 恢复）`)
       }
       const data = sanitizeWritable(rest)
@@ -166,7 +180,7 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
     async goods_delete(args) {
       const targetId = String(args?.id || '').trim()
       if (!targetId) throw new Error('id 必填')
-      if (!goodsStore.list.value.some((item) => item?.id === targetId)) {
+      if (!listOf(goodsStore.list).some((item) => item?.id === targetId)) {
         throw new Error(`未找到 id 为 ${targetId} 的条目`)
       }
       await goodsStore.removeGoods(targetId)
@@ -179,7 +193,7 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
     async goods_restore(args) {
       const targetId = String(args?.id || '').trim()
       if (!targetId) throw new Error('id 必填')
-      if (!goodsStore.trashList.value.some((item) => item?.id === targetId)) {
+      if (!listOf(goodsStore.trashList).some((item) => item?.id === targetId)) {
         throw new Error(`回收站中未找到 id 为 ${targetId} 的条目`)
       }
       await goodsStore.restoreTrashItem(targetId)
@@ -193,7 +207,7 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
     async goods_sell(args) {
       const targetId = String(args?.id || '').trim()
       if (!targetId) throw new Error('id 必填')
-      if (!goodsStore.list.value.some((item) => item?.id === targetId)) {
+      if (!listOf(goodsStore.list).some((item) => item?.id === targetId)) {
         throw new Error(`未找到 id 为 ${targetId} 的条目（回收站中的条目请先恢复）`)
       }
       const status = String(args?.status || '已出').trim()
@@ -366,6 +380,49 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
       }
       notifyStore.updateSettings(patch)
       return { ok: true, applied: patch }
+    },
+
+    /**
+     * 拉起播放：在应用内播放演出曲单中的曲目（悬浮播放器 + 原生通知栏）。
+     * 队列 = 该演出完整曲单，播完/手动切歌都在曲单内自动续播。
+     * @param {Record<string, any>} args
+     */
+    async music_play(args) {
+      if (!eventsStore || !mediaPlayerStore) throw new Error('音乐播放模块不可用')
+      const eventId = String(args?.eventId || '').trim()
+      const trackId = String(args?.trackId || '').trim()
+      if (!eventId) throw new Error('eventId 必填（先从 event_tracks 结果里取）')
+      if (!trackId) throw new Error('trackId 必填（先从 event_tracks 结果里取）')
+
+      const events = Array.isArray(eventsStore.activeList) ? eventsStore.activeList : []
+      const event = events.find((item) => item?.id === eventId)
+      if (!event) throw new Error(`未找到 id 为 ${eventId} 的演出`)
+      const tracks = Array.isArray(event.tracks) ? event.tracks : []
+      const track = tracks.find((item) => String(item?.id || '').trim() === trackId)
+      if (!track) throw new Error(`演出「${event.name || eventId}」下未找到 id 为 ${trackId} 的曲目`)
+
+      const hasSongId = Boolean(
+        String(track.neteaseSongId || '').trim() ||
+        String(track.qqSongId || '').trim() ||
+        String(track.bilibiliVideoId || '').trim()
+      )
+      if (!hasSongId) {
+        throw new Error(`《${track.title || '未命名曲目'}》仅手动录入、未关联在线音源，无法直接播放；请在演出详情页的曲目编辑中为它导入音源`)
+      }
+
+      try {
+        await mediaPlayerStore.playTrack(track, tracks)
+      } catch (e) {
+        throw new Error(`拉起播放失败：${e instanceof Error ? e.message : String(e)}`)
+      }
+      return {
+        ok: true,
+        eventId,
+        event: event.name,
+        playing: { trackId, title: track.title, artist: track.artist, source: track.source },
+        queueSize: tracks.length,
+        note: '已在应用内开始播放，队列 = 该演出曲单'
+      }
     }
   }
 }

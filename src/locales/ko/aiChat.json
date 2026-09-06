@@ -32,5 +32,7 @@
   "aiChat.deleteSession": "이 기록 삭제",
   "aiChat.deleted": "삭제됨",
   "aiChat.emptySessions": "아직 대화가 없습니다",
+  "aiChat.rename": "이름 변경",
+  "aiChat.renameSuccess": "이름을 변경했습니다",
   "aiChat.messagesCount": "{count}개 메시지"
 }

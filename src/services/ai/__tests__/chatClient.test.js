@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { runChatCompletion, toOpenAiTools, normalizeBaseUrl, AiRequestError } from '../chatClient'
+import { runChatCompletion, generateChatTitle, toOpenAiTools, normalizeBaseUrl, AiRequestError } from '../chatClient'
 
 const platform = vi.hoisted(() => ({ native: true }))
 
@@ -197,5 +197,32 @@ describe('chatClient', () => {
     // 收尾请求不带 tools 参数
     const lastPayload = CapacitorHttp.request.mock.calls[6][0].data
     expect(lastPayload.tools).toBeUndefined()
+  })
+
+  describe('generateChatTitle', () => {
+    it('轻量补全生成标题并清理引号/换行，不带 tools 参数', async () => {
+      CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+        choices: [{ message: { content: '「游戏充值统计」\n' } }]
+      }))
+
+      const title = await generateChatTitle(CONFIG, '这个月充了多少钱', '一共 678 元')
+
+      expect(title).toBe('游戏充值统计')
+      const payload = CapacitorHttp.request.mock.calls[0][0]
+      expect(payload.url).toBe('https://api.example.com/v1/chat/completions')
+      expect(payload.data.messages[0].role).toBe('system')
+      expect(payload.data.messages[1].content).toContain('这个月充了多少钱')
+      expect(payload.data.tools).toBeUndefined()
+      expect(payload.data.temperature).toBe(0.3)
+    })
+
+    it('空回复与缺配置分别抛错', async () => {
+      CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+        choices: [{ message: { content: '   ' } }]
+      }))
+      await expect(generateChatTitle(CONFIG, 'hi', 'hello')).rejects.toThrow('有效标题')
+
+      await expect(generateChatTitle({ baseUrl: '', model: 'm', apiKey: 'k' }, 'hi', '')).rejects.toThrow('接口地址')
+    })
   })
 })

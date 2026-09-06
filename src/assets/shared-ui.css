@@ -193,3 +193,12 @@
 .page-entry > :nth-child(n + 3) {
   animation-delay: 0.15s;
 }
+
+/* 固定定位浮层（toast / 悬浮按钮）不参与进场动画：它们依赖自身
+   translateX(-50%) 水平居中，page-fade-up 的 transform 会覆盖它，
+   导致 toast 每次出现都先停在偏右位置再滑回居中（观感为「从右滑入」）。
+   toast 出现时机在进场动画结束后，交给组件自身的 toast-fade 过渡即可 */
+.page-entry > .toast,
+.page-entry > .float-footer {
+  animation: none;
+}
