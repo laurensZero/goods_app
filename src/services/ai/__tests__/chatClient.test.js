@@ -226,6 +226,24 @@ describe('chatClient', () => {
     expect(result.reasoning).toBe('')
   })
 
+  it('content 为空但思维链含完整回答时，思维链顶上当正文', async () => {
+    // 部分模型会把整段回答写进思维链而 content 留空
+    CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+      choices: [{ message: { role: 'assistant', content: '', reasoning_content: '搜到 32 件千夏相关谷子，按状态分：已收藏约 12 件…' } }]
+    }))
+    const result = await runChatCompletion({ config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR })
+    expect(result.content).toContain('32 件千夏相关谷子')
+    expect(result.reasoning).toBe('')
+  })
+
+  it('content 与思维链都为空时报错而非静默', async () => {
+    CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+      choices: [{ message: { role: 'assistant', content: '' } }]
+    }))
+    await expect(runChatCompletion({ config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR }))
+      .rejects.toThrow('空回复')
+  })
+
   describe('流式（onDelta 提供 SSE 请求）', () => {
     const originalFetch = globalThis.fetch
 

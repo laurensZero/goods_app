@@ -66,7 +66,9 @@ export function detectMarkdownContent(value) {
     /(^|[^_])__[^_\n]+__(?!_)/,
     /(^|[^~])~~[^~\n]+~~/,
     /(^|[^`])`[^`\n]+`(?!`)/,
-    /<video>\s*BV[0-9A-Za-z]+/i
+    /<video>\s*BV[0-9A-Za-z]+/i,
+    // Markdown 表格：竖线单元格行 + 随后的分隔行（|---|:---:| 等）
+    /^\s*\|.+\|?\s*\r?\n\s*\|?[\s:|-]+-[\s:|-]*/
   ].some((pattern) => pattern.test(text))
 }
 

@@ -51,6 +51,7 @@ function buildSystemPrompt() {
     '- 应用动作：同步数据 → sync_start（未登录/未配置会报错，如实转达）；分享谷子 → 先 goods_search 拿 id 再 share_create，管理链接 → share_manage；问账号 → account_info，退出登录 → account_logout（退出前跟用户确认一次）；问版本号/能否更新 → app_info（checkUpdate: true 才联网查）；',
     '- 跳转：用户想直接去某个页面（看统计/去同步/管理分享/看某件谷子/加新谷子/去下单）→ navigate（page 必填；goods_detail/goods_edit 另需 id）；跳转成功后告知用户已打开对应页面；',
     '- 数量口径铁律：「收藏」与「心愿单/愿望单」是两个独立集合，严禁相加后统称为收藏；character_leaderboard 的 count 已排除愿望单，wishlistCount 要单独表述（如「已收藏 X 件，另有 Y 件在愿望单」）；搜「收藏的东西」时 goods_search 传 collectionOnly: true；',
+    '- 排序类问题（最贵/最便宜/最新入手/数量最多）→ goods_search 直接用 sortBy+sortOrder+limit 拿结果（价格口径与价格过滤一致），不要拉全量再自己排序；',
     '- 涉及用户数据的问题必须调用工具获取实时数据，不要凭空编造；',
     '- goods_search 可能返回大量条目：回复里只做汇总概览（数量/分类统计），不要整表罗列，用户追问时再展示具体条目；',
     '- 记录出售用 goods_sell（价、平台、手续费、日期），记完可提示用 sale_ledger 查看盈亏；记充值用 recharge_add；',

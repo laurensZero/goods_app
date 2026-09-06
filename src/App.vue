@@ -20,6 +20,7 @@
     <AppUpdateDialog />
 
     <ClipboardDialog />
+    <AiAssistantPopup v-model:show="aiAssistantVisible" />
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
     <AppToast :message="globalToastMsg" />
     <SurveyPopupDialog ref="surveyPopupRef" />
@@ -50,6 +51,9 @@ import { useGoodsStore } from '@/stores/goods'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
+import { usePullDownGesture } from '@/composables/usePullDownGesture'
+import { Haptics } from '@capacitor/haptics'
+import AiAssistantPopup from '@/components/app/AiAssistantPopup.vue'
 
 const route = useRoute()
 const { t } = useI18n()
@@ -102,6 +106,21 @@ useDeepLinks({
       subText: displayName,
       duration: 4000
     })
+  }
+})
+
+// 任意页面顶部大幅下拉并停顿 → 弹出 AI 助手（手机自顶部滑入，平板居中；
+// 已在 AI 聊天页或弹窗已打开时不触发）
+const aiAssistantVisible = ref(false)
+usePullDownGesture({
+  enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value,
+  onTrigger: () => {
+    try {
+      void Haptics.vibrate({ duration: 120 })
+    } catch {
+      // 触觉反馈不可用时静默跳过
+    }
+    aiAssistantVisible.value = true
   }
 })
 useAppStartup()

@@ -142,6 +142,24 @@ describe('mcp tool handlers', () => {
     expect(result.items[0].tracksSummary).toEqual({ total: 2, playable: 1, manualOnly: 1 })
   })
 
+  it('goods_search sortBy/sortOrder 排序（价格口径实付优先回退标价）', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const expensive = await handlers.goods_search({ sortBy: 'price', sortOrder: 'desc', limit: 3 })
+    // g3 愿望单标价 599 > g2 未填实付回退标价 50 > g1 实付 25
+    expect(expensive.items.map((/** @type {any} */ i) => i.id)).toEqual(['g3', 'g2', 'g1'])
+
+    const cheapest = await handlers.goods_search({ collectionOnly: true, sortBy: 'price', sortOrder: 'asc' })
+    expect(cheapest.items.map((/** @type {any} */ i) => i.id)).toEqual(['g1', 'g2'])
+
+    const byAcquired = await handlers.goods_search({ collectionOnly: true, sortBy: 'acquiredAt', sortOrder: 'asc' })
+    expect(byAcquired.items.map((/** @type {any} */ i) => i.id)).toEqual(['g2', 'g1'])
+
+    // 非法排序字段回落 updatedAt（默认）
+    const fallback = await handlers.goods_search({ sortBy: 'hack' })
+    expect(fallback.items.map((/** @type {any} */ i) => i.id)).toEqual(['g3', 'g2', 'g1'])
+  })
+
   it('goods_detail 返回 CD/专辑曲目明细（含可播状态）', async () => {
     const handlers = createMcpToolHandlers(createFakeDb())
 

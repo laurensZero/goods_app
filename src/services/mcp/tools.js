@@ -181,6 +181,19 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
 
+    const SORT_FIELDS = new Set(['updatedAt', 'acquiredAt', 'price', 'actualPrice', 'quantity'])
+    const sortBy = SORT_FIELDS.has(asText(args.sortBy).trim()) ? asText(args.sortBy).trim() : 'updatedAt'
+    const sortOrder = asText(args.sortOrder).trim() === 'asc' ? 'asc' : 'desc'
+    // 排序价格口径与 priceMin/priceMax 一致：实付价优先，缺省回退标价
+    const sortPriceOf = (/** @type {any} */ item) => parseMoney(item.actualPrice) || parseMoney(item.price)
+    const sortValueOf = (/** @type {any} */ item) => {
+      if (sortBy === 'price' || sortBy === 'actualPrice') return sortPriceOf(item)
+      if (sortBy === 'quantity') return Number(item.quantity) || 1
+      if (sortBy === 'acquiredAt') return asText(item.acquiredAt).trim()
+      return Number(item.updatedAt) || 0
+    }
+    const sortDirection = sortOrder === 'asc' ? 1 : -1
+
     const acquiredAfter = asText(args.acquiredAfter).trim()
     const acquiredBefore = asText(args.acquiredBefore).trim()
     if (acquiredAfter && !DATE_LIKE_PATTERN.test(acquiredAfter)) throw new Error('acquiredAfter 需为 YYYY-MM-DD')
@@ -222,7 +235,14 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
       return true
     })
 
-    const sorted = matched.sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0))
+    const sorted = matched.sort((a, b) => {
+      const av = sortValueOf(a)
+      const bv = sortValueOf(b)
+      if (typeof av === 'string' || typeof bv === 'string') {
+        return String(av).localeCompare(String(bv)) * sortDirection
+      }
+      return (Number(av) - Number(bv)) * sortDirection
+    })
     const page = sorted.slice(offset, offset + limit)
 
     return {
