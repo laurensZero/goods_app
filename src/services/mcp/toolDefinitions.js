@@ -20,7 +20,9 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '典型用法：了解收藏构成用 collection_overview；找具体物品用 goods_search（先粗后细，配合 limit/offset 分页）；',
   '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
   '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
-  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary。',
+  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
+  'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
+  '吃谷预算用 budget_overview 看超支情况、budget_set 修改；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
 
@@ -131,14 +133,15 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'music_play',
-    description: '播放演出/演唱会的某首曲目：在应用内拉起悬浮播放器开始播放（队列 = 该演出完整曲单）。eventId 与 trackId 必须来自 event_tracks 的返回；仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
+    description: '在应用内拉起播放某首曲目（悬浮播放器 + 原生通知栏，队列 = 所属完整曲单）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
     inputSchema: {
       type: 'object',
       properties: {
-        eventId: { type: 'string', description: '演出 id，来自 event_tracks' },
-        trackId: { type: 'string', description: '曲目 id，来自 event_tracks' }
+        eventId: { type: 'string', description: '演出 id（播放演出曲单里的歌），与 goodsId 二选一' },
+        goodsId: { type: 'string', description: '谷子条目 id（播放 CD/专辑里的歌），与 eventId 二选一' },
+        trackId: { type: 'string', description: '曲目 id，来自 event_tracks 或 goods_detail 的曲目明细' }
       },
-      required: ['eventId', 'trackId']
+      required: ['trackId']
     }
   },
   {
@@ -200,6 +203,77 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         vibration: { type: 'boolean', description: '震动反馈' }
       }
     }
+  },
+  {
+    name: 'budget_set',
+    description: '设置吃谷预算（与「我的-吃谷预算」同一存储，改完统计页预算线立即生效）。monthly=月度预算，yearly=年度预算；传 0 表示清除该预算。设置前建议先用 budget_overview 看现状。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        monthly: { type: 'number', minimum: 0, description: '月度预算金额（0 = 清除）' },
+        yearly: { type: 'number', minimum: 0, description: '年度预算金额（0 = 清除）' }
+      }
+    }
+  },
+  {
+    name: 'sync_start',
+    description: '发起一次云同步（等同「同步」页的手动同步按钮）。需要已登录且已配置同步后端；同步进行中重复调用会返回 syncing 状态。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'share_create',
+    description: '发起分享：把一组谷子生成分享链接（URL+分享码）。同一组商品（名称相同）已分享过时会更新原链接为最新数据并重新启用。分享内容不含存放位置/标签等隐私字段。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        goodsIds: { type: 'array', items: { type: 'string' }, description: '要分享的谷子 id 列表（1-20 件），来自 goods_search' }
+      },
+      required: ['goodsIds']
+    }
+  },
+  {
+    name: 'share_manage',
+    description: '分享管理：列出我的全部分享链接（action=list）、启用/禁用（toggle）、删除（delete）。需要登录。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['list', 'toggle', 'delete'], description: '操作类型，默认 list' },
+        shareId: { type: 'string', description: '分享 id（toggle/delete 必填，来自 list）' },
+        disabled: { type: 'boolean', description: 'toggle 时：true=禁用（默认），false=启用' }
+      }
+    }
+  },
+  {
+    name: 'account_info',
+    description: '查看当前登录账号信息：是否登录、邮箱、昵称。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'account_logout',
+    description: '退出登录当前账号。仅在用户明确要求时调用。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'navigate',
+    description: '页面跳转：让应用直接打开某个页面（聊天里的一键跳转）。goods_detail/goods_edit 需要 id（来自 goods_search）；其余页面直接给 page。跳转后聊天页会被离开。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit' },
+        id: { type: 'string', description: '谷子 id（仅 goods_detail/goods_edit 需要）' }
+      },
+      required: ['page']
+    }
+  },
+  {
+    name: 'app_info',
+    description: '应用信息：平台、当前版本号；传 checkUpdate: true 时联网检查是否有新版本（返回 hasUpdate/latestVersion/forceUpdate）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checkUpdate: { type: 'boolean', description: '是否联网检查更新' }
+      }
+    }
   }
 ]
 
@@ -222,6 +296,7 @@ export const MCP_TOOL_DEFINITIONS = [
         storageLocation: { type: 'string', description: '按存放位置精确过滤' },
         wishlistOnly: { type: 'boolean', description: '为 true 时只返回愿望单条目' },
         collectionOnly: { type: 'boolean', description: '为 true 时排除愿望单条目（只返回已收藏）。回答「收藏了什么」类问题应传 true，避免混入心愿单' },
+        hasTracks: { type: 'boolean', description: '为 true 时只返回带曲目列表的条目（CD/专辑等）。回答「我有哪些 CD/专辑」类问题使用；每条结果的 tracksSummary 给出曲目概况，明细拿 id 调 goods_detail' },
         acquiredAfter: { type: 'string', description: '只返回入手日期不早于该值的条目，格式 YYYY-MM-DD（含当天）' },
         acquiredBefore: { type: 'string', description: '只返回入手日期不晚于该值的条目，格式 YYYY-MM-DD（含当天）' },
         priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
@@ -233,7 +308,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'goods_detail',
-    description: '按 id 获取单个谷子的完整信息：多件拆分（每件入手日期/价格/角色/收集状态）、出售信息、状态时间线等。回收站中的条目也能查到。',
+    description: '按 id 获取单个谷子的完整信息：多件拆分（每件入手日期/价格/角色/收集状态）、出售信息、状态时间线等；CD/专辑条目额外返回专辑曲目明细（tracks，含可播状态与 trackId，可供 music_play / music_lyrics 使用）。回收站中的条目也能查到。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -313,12 +388,46 @@ export const MCP_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'music_lyrics',
+    description: '查询某首曲目的歌词（网易云/QQ 直连歌曲 ID，B 站曲目按标题跨源匹配）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。返回带时间轴的歌词行与纯文本。回答「这首歌的歌词/词是什么」类问题使用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        eventId: { type: 'string', description: '演出 id（查演出曲单里的歌），与 goodsId 二选一' },
+        goodsId: { type: 'string', description: '谷子条目 id（查 CD/专辑里的歌），与 eventId 二选一' },
+        trackId: { type: 'string', description: '曲目 id，来自 event_tracks 或 goods_detail 的曲目明细' }
+      },
+      required: ['trackId']
+    }
+  },
+  {
+    name: 'budget_overview',
+    description: '吃谷预算总览：当前月度/年度预算（0=未设置）、本月/今年已花费与进度（剩余/百分比/是否超支）、今年逐月花费与超支标记、历年花费与超支标记。回答「这个月预算还剩多少」「哪个月/哪年超了」类问题必须使用本工具，花费口径与预算设置页一致。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
     name: 'recharge_summary',
-    description: '游戏充值记录汇总：总金额、按游戏/年份分布、最近充值明细。',
+    description: '游戏充值记录汇总：总金额、按游戏/充值项目/年份分布、最近充值明细。总览类问题使用；查某个具体项目（如「空月祝福买了几张」）或精确检索记录请用 recharge_search。',
     inputSchema: {
       type: 'object',
       properties: {
         year: { type: 'integer', description: '只统计某一年（按充值时间前缀匹配），如 2025' }
+      }
+    }
+  },
+  {
+    name: 'recharge_search',
+    description: '按条件检索游戏充值记录并聚合：总额、笔数、按充值项目细分（byItem，含每项 total/count）、按月分布、命中记录明细。回答「空月祝福一共买了几张」「原神去年充了多少」「648 花了多少钱」类问题必须用本工具。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        game: { type: 'string', description: '按游戏名过滤（包含匹配，不区分大小写），如 原神' },
+        itemName: { type: 'string', description: '按充值项目名过滤（包含匹配），如 空月祝福/月卡/648' },
+        query: { type: 'string', description: '关键词，同时匹配游戏名/项目名/备注' },
+        year: { type: 'integer', description: '只看某一年（按充值时间前缀匹配）' },
+        month: { type: 'integer', minimum: 1, maximum: 12, description: '只看某月（1-12），需与 year 搭配' },
+        limit: { type: 'integer', minimum: 1, maximum: 200, default: 50, description: '返回记录条数上限' },
+        offset: { type: 'integer', minimum: 0, default: 0 }
       }
     }
   }
