@@ -18,9 +18,10 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '这是「谷子收纳」应用的 MCP 服务，用于查询用户的动漫/游戏周边（谷子）收藏数据。',
   '数据为只读快照：收到请求时应用页面的本地 SQLite 会实时执行查询。',
   '典型用法：了解收藏构成用 collection_overview；找具体物品用 goods_search（先粗后细，配合 limit/offset 分页）；',
-  '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；看手办/票务等活动的花费背景用 events_list；',
-  '查游戏充值情况用 recharge_summary；回答花费/月度消费用 spending_summary。',
-  '金额字段为用户手填的字符串，可能为空或含非数字字符；collection_overview 与 spending_summary 中的花费为估算值。'
+  '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
+  '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
+  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；游戏充值用 recharge_summary。',
+  '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
 
 /**
@@ -96,6 +97,55 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
       },
       required: ['id']
     }
+  },
+  {
+    name: 'settings_overview',
+    description: '查看应用当前设置：主题外观、通知开关、预设清单（分类/IP/角色/收纳位置的完整名称列表）。修改任何设置前先用本工具了解现状。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'presets_manage',
+    description: '管理预设：新增/删除/重命名分类、IP、角色；新增收纳位置（支持 "父级/子级" 路径形式，如 "A 柜/第二层"）。删除分类/IP/角色会同时从谷子条目上移除该标注；重命名会级联更新所有相关谷子。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        entity: { type: 'string', enum: ['category', 'ip', 'character', 'storage_location'], description: '要操作的预设类型' },
+        action: { type: 'string', enum: ['add', 'remove', 'rename'], description: '操作类型（storage_location 仅支持 add）' },
+        name: { type: 'string', description: '预设名称' },
+        newName: { type: 'string', description: 'rename 时的新名称' },
+        ip: { type: 'string', description: 'entity=character 且 action=add 时可选，角色所属 IP' }
+      },
+      required: ['entity', 'action', 'name']
+    }
+  },
+  {
+    name: 'theme_set',
+    description: '切换应用主题外观偏好（跟随系统/浅色/深色）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        appearance: { type: 'string', enum: ['system', 'light', 'dark'], description: '目标外观' }
+      },
+      required: ['appearance']
+    }
+  },
+  {
+    name: 'notify_settings_set',
+    description: '修改通知设置：只传入需要修改的字段，未传字段保持不变。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean', description: '通知总开关' },
+        saleReminder: { type: 'boolean', description: '开售提醒' },
+        birthdayEgg: { type: 'boolean', description: '角色生日彩蛋' },
+        syncSuccess: { type: 'boolean', description: '同步成功通知' },
+        syncError: { type: 'boolean', description: '同步失败通知' },
+        updateAvailable: { type: 'boolean', description: '更新可用通知' },
+        position: { type: 'string', enum: ['top-right', 'top-center', 'top-left'], description: '通知显示位置' },
+        duration: { type: 'integer', minimum: 2000, maximum: 15000, description: '自动关闭时长（毫秒）' },
+        vibration: { type: 'boolean', description: '震动反馈' }
+      }
+    }
   }
 ]
 
@@ -145,6 +195,36 @@ export const MCP_TOOL_DEFINITIONS = [
       type: 'object',
       properties: {
         year: { type: 'integer', description: '只统计某一年（按日期前缀匹配），如 2026；不传则统计全部年份' }
+      }
+    }
+  },
+  {
+    name: 'character_leaderboard',
+    description: '角色维度统计：每个角色的持有条目数、数量、估算花费、已出件数与愿望单件数，按条目数倒序。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: { type: 'integer', minimum: 1, maximum: 50, default: 15, description: '返回条数上限' }
+      }
+    }
+  },
+  {
+    name: 'storage_locations',
+    description: '收纳位置分布：每个存放位置的条目数、数量、估算花费与示例条目，未填写位置的归为「未收纳」。回答「东西都放在哪/某个柜子放了什么」类问题使用；查某位置的具体条目可配合 goods_search 的 storageLocation 参数。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'wishlist_overview',
+    description: '愿望单概览：条目数、按币种的期望花费合计（标价×数量）、IP 与类别分布 Top5、最近加入的条目。回答「我还想买什么/愿望单要花多少钱」类问题使用。',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'sale_ledger',
+    description: '出谷账本：已售回血总额（成交价-手续费）、挂牌中金额、总盈亏（成交价-手续费-入手成本），及最近成交与在售挂牌明细。回答「卖了多少/回血多少/盈亏」类问题使用。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        year: { type: 'integer', description: '只统计某一年（按成交日期前缀匹配），如 2026；不传则统计全部' }
       }
     }
   },

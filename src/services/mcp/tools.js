@@ -9,6 +9,7 @@
 
 import { MCP_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
+import { buildSaleLedger, buildSaleSummary, extractSaleEntries } from '../../utils/goods/saleStats'
 
 /**
  * @typedef {Object} McpDbApi
@@ -391,11 +392,196 @@ export function createMcpToolHandlers(dbApi) {
     }
   }
 
+  /**
+   * 角色维度统计：条目数/数量/估算花费/已出件数/愿望单件数。
+   * 一条目关联多个角色时按件计入每个角色（与收藏页角色筛选口径一致）。
+   * @param {Record<string, any>} args
+   */
+  async function characterLeaderboard(args) {
+    const items = await getItems()
+    const limit = Math.min(Math.max(asInt(args.limit) || 15, 1), 50)
+
+    /** @type {Map<string, { count: number, quantity: number, wishlistCount: number, soldCount: number, spendByCurrency: Map<string, number> }>} */
+    const stats = new Map()
+    const ensure = (/** @type {string} */ key) => {
+      const entry = stats.get(key) || {
+        count: 0, quantity: 0, wishlistCount: 0, soldCount: 0,
+        spendByCurrency: new Map()
+      }
+      stats.set(key, entry)
+      return entry
+    }
+
+    for (const item of items) {
+      const characters = Array.isArray(item.characters) && item.characters.length > 0
+        ? item.characters
+        : ['（未标注角色）']
+      const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
+      const spend = estimateItemSpend(item)
+      const soldEntries = extractSaleEntries(item).sold
+      const soldUnits = soldEntries.reduce((sum, record) => sum + record.count, 0)
+
+      for (const character of characters) {
+        const key = asText(character).trim() || '（未标注角色）'
+        const entry = ensure(key)
+        entry.count += 1
+        entry.quantity += Number(item.quantity) || 1
+        if (item.isWishlist) entry.wishlistCount += 1
+        entry.soldCount += soldUnits
+        entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spend)
+      }
+    }
+
+    const rows = [...stats.entries()]
+      .sort((a, b) => b[1].count - a[1].count || b[1].quantity - a[1].quantity)
+      .slice(0, limit)
+      .map(([name, entry]) => ({
+        character: name,
+        count: entry.count,
+        quantity: entry.quantity,
+        wishlistCount: entry.wishlistCount,
+        soldCount: entry.soldCount,
+        spend: [...entry.spendByCurrency.entries()].map(([currency, amount]) => ({ currency, amount: Math.round(amount * 100) / 100 }))
+      }))
+
+    return { total: stats.size, limit, characters: rows }
+  }
+
+  /**
+   * 收纳位置分布（不含愿望单条目）。
+   * @param {Record<string, any>} _args
+   */
+  async function storageLocations(_args) {
+    const items = await getItems()
+    /** @type {Map<string, { count: number, quantity: number, spend: number, samples: string[] }>} */
+    const stats = new Map()
+    for (const item of items) {
+      if (item.isWishlist) continue
+      const location = asText(item.storageLocation).trim() || '（未收纳）'
+      const entry = stats.get(location) || { count: 0, quantity: 0, spend: 0, samples: [] }
+      entry.count += 1
+      entry.quantity += Number(item.quantity) || 1
+      entry.spend += estimateItemSpend(item)
+      if (entry.samples.length < 5 && item.name) entry.samples.push(item.name)
+      stats.set(location, entry)
+    }
+
+    const locations = [...stats.entries()]
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([location, entry]) => ({
+        location,
+        count: entry.count,
+        quantity: entry.quantity,
+        spend: Math.round(entry.spend * 100) / 100,
+        samples: entry.samples
+      }))
+    return { total: locations.length, locations }
+  }
+
+  /**
+   * 愿望单概览：数量/期望花费/分布/最近加入。
+   * @param {Record<string, any>} _args
+   */
+  async function wishlistOverview(_args) {
+    const items = await getItems()
+    const wishlist = items.filter((item) => item.isWishlist)
+
+    /** @type {Map<string, number>} */
+    const expectedByCurrency = new Map()
+    for (const item of wishlist) {
+      const currency = asText(item.currency || 'CNY').trim() || 'CNY'
+      const expected = parseMoney(item.price) * (Number(item.quantity) || 1)
+      expectedByCurrency.set(currency, (expectedByCurrency.get(currency) || 0) + expected)
+    }
+
+    /**
+     * @param {(item: any) => string} pick
+     */
+    function topDistribution(pick) {
+      /** @type {Map<string, number>} */
+      const stats = new Map()
+      for (const item of wishlist) {
+        const key = asText(pick(item)).trim() || '（未填写）'
+        stats.set(key, (stats.get(key) || 0) + 1)
+      }
+      return [...stats.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }))
+    }
+
+    const recent = [...wishlist]
+      .sort((a, b) => (Number(b.updatedAt) || 0) - (Number(a.updatedAt) || 0))
+      .slice(0, 10)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip,
+        category: item.category,
+        price: item.price,
+        currency: asText(item.currency || 'CNY').trim() || 'CNY',
+        quantity: Number(item.quantity) || 1
+      }))
+
+    return {
+      total: wishlist.length,
+      expectedSpend: [...expectedByCurrency.entries()].map(([currency, amount]) => ({
+        currency,
+        amount: Math.round(amount * 100) / 100,
+        note: '期望值：标价×数量，未含折扣'
+      })),
+      byIp: topDistribution((item) => item.ip),
+      byCategory: topDistribution((item) => item.category),
+      recent
+    }
+  }
+
+  /**
+   * 出谷账本：复用 utils/goods/saleStats 的口径（整条 + 逐件）。
+   * @param {Record<string, any>} args
+   */
+  async function saleLedger(args) {
+    const items = await getItems()
+    const yearPrefix = asInt(args.year) > 0 ? String(asInt(args.year)) : ''
+    const summary = buildSaleSummary(items)
+    const { soldRows, listingRows } = buildSaleLedger(items)
+
+    const soldFiltered = soldRows.filter((row) => !yearPrefix || asText(row.at).startsWith(yearPrefix))
+    const recentSold = soldFiltered.slice(0, 15).map((row) => ({
+      id: row.item.id,
+      name: row.item.name,
+      date: row.at,
+      platform: row.platform,
+      price: row.price,
+      fee: row.fee,
+      profit: row.profit,
+      count: row.count,
+      hasPrice: row.hasPrice
+    }))
+    const listing = listingRows
+      .filter((row) => row.hasPrice)
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 5)
+      .map((row) => ({ id: row.item.id, name: row.item.name, price: row.price, count: row.count }))
+
+    return {
+      year: yearPrefix || null,
+      summary,
+      soldCount: soldFiltered.reduce((sum, row) => sum + row.count, 0),
+      recentSold,
+      listing
+    }
+  }
+
   return {
     goods_search: goodsSearch,
     goods_detail: goodsDetail,
     collection_overview: collectionOverview,
     spending_summary: spendingSummary,
+    character_leaderboard: characterLeaderboard,
+    storage_locations: storageLocations,
+    wishlist_overview: wishlistOverview,
+    sale_ledger: saleLedger,
     events_list: eventsList,
     recharge_summary: rechargeSummary
   }

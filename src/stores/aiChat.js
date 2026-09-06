@@ -1,6 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useGoodsStore } from './goods'
+import { usePresetsStore } from './presets'
+import { useThemeStore } from './theme'
+import { useNotifySettingsStore } from './notifySettings'
 import * as db from '@/utils/db'
 import { createMcpToolHandlers } from '@/services/mcp/tools'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
@@ -22,10 +25,12 @@ function buildSystemPrompt() {
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   return [
     `你是「谷子收纳」应用内置的 AI 助手，帮用户管理动漫/游戏周边（谷子）收藏。今天是 ${today}。`,
-    '只读工具：goods_search（搜索）、goods_detail（详情）、collection_overview（收藏总览）、spending_summary（按月/年消费汇总）、events_list（展览活动）、recharge_summary（充值汇总）；',
-    '可写工具：goods_add（新增）、goods_update（部分更新）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）。',
+    '只读工具：goods_search（搜索）、goods_detail（详情）、collection_overview（收藏总览）、spending_summary（按月/年消费汇总）、character_leaderboard（角色统计排行）、storage_locations（收纳位置分布）、wishlist_overview（愿望单与预算）、sale_ledger（出谷回血与盈亏）、events_list（展览活动）、recharge_summary（充值汇总）；',
+    '可写工具：goods_add（新增）、goods_update（部分更新）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）；',
+    '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
+    '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
     '- 问收藏构成/总量/分布 → collection_overview；找具体物品 → goods_search；单件详情 → goods_detail；',
     '- 涉及用户数据的问题必须调用工具获取实时数据，不要凭空编造；',
     '- goods_search 可能返回大量条目：回复里只做汇总概览（数量/分类统计），不要整表罗列，用户追问时再展示具体条目；',
@@ -114,7 +119,12 @@ export const useAiChatStore = defineStore('aiChat', () => {
     if (!executorCache) {
       const goodsStore = useGoodsStore()
       const readHandlers = createMcpToolHandlers(db)
-      const writeHandlers = createMcpWriteToolHandlers({ goodsStore })
+      const writeHandlers = createMcpWriteToolHandlers({
+        goodsStore,
+        presetsStore: usePresetsStore(),
+        themeStore: useThemeStore(),
+        notifyStore: useNotifySettingsStore()
+      })
       executorCache = { ...readHandlers, ...writeHandlers }
     }
     return (name, args) => {
