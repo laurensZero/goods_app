@@ -199,6 +199,129 @@ describe('chatClient', () => {
     expect(lastPayload.tools).toBeUndefined()
   })
 
+  it('捕获思维链：reasoning_content/reasoning 随结果返回，多轮按序拼接', async () => {
+    // 第 1 轮：DeepSeek 风格 reasoning_content + 工具调用
+    CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+      choices: [{
+        message: {
+          role: 'assistant', content: null, reasoning_content: '先查一下收藏',
+          tool_calls: [{ id: 'c1', function: { name: 'goods_search', arguments: '{}' } }]
+        }
+      }]
+    }))
+    EXECUTOR.mockResolvedValueOnce({ items: [] })
+    // 第 2 轮：OpenRouter 风格 reasoning + 纯文本
+    CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+      choices: [{ message: { role: 'assistant', content: '你没有相关收藏', reasoning: '结果为空' } }]
+    }))
+
+    const result = await runChatCompletion({ config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR })
+    expect(result.content).toBe('你没有相关收藏')
+    expect(result.reasoning).toBe('先查一下收藏\n\n结果为空')
+  })
+
+  it('无思维链时 reasoning 为空字符串', async () => {
+    CapacitorHttp.request.mockResolvedValueOnce(completion('普通回答'))
+    const result = await runChatCompletion({ config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR })
+    expect(result.reasoning).toBe('')
+  })
+
+  describe('流式（onDelta 提供 SSE 请求）', () => {
+    const originalFetch = globalThis.fetch
+
+    /** 构造可分块读取的 SSE 响应 */
+    function sseFetch(chunksList) {
+      const encoder = new TextEncoder()
+      let callIndex = 0
+      return vi.fn(async () => {
+        const chunks = chunksList[Math.min(callIndex, chunksList.length - 1)]
+        callIndex += 1
+        let chunkIndex = 0
+        return {
+          ok: true,
+          status: 200,
+          body: {
+            getReader: () => ({
+              read: async () => (chunkIndex < chunks.length
+                ? { done: false, value: encoder.encode(chunks[chunkIndex++]) }
+                : { done: true, value: undefined })
+            })
+          }
+        }
+      })
+    }
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch
+    })
+
+    it('增量实时回调，reasoning/content 正确聚合', async () => {
+      globalThis.fetch = sseFetch([[
+        'data: {"choices":[{"delta":{"reasoning_content":"先想"}}]}\n\n',
+        'data: {"choices":[{"delta":{"reasoning_content":"一下"}}]}\n\ndata: {"choices":[{"delta":{"content":"答案"}}]}\n\n',
+        'data: [DONE]\n\n'
+      ]])
+
+      /** @type {string[]} */
+      const deltas = []
+      const result = await runChatCompletion({
+        config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR,
+        onDelta: (/** @type {any} */ d) => {
+          if (d.reasoning) deltas.push(d.reasoning)
+          if (d.content) deltas.push(d.content)
+        }
+      })
+
+      expect(deltas).toEqual(['先想', '一下', '答案'])
+      expect(result.content).toBe('答案')
+      expect(result.reasoning).toBe('先想一下')
+      expect(CapacitorHttp.request).not.toHaveBeenCalled()
+    })
+
+    it('流式 tool_calls 增量聚合后执行工具，末轮给纯文本', async () => {
+      globalThis.fetch = sseFetch([
+        [
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c9","function":{"name":"goods_"}}]}}]}\n\n',
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"name":"search","arguments":"{\\"a\\":"}}]}}]}\n\n',
+          'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"1}"}}]}}]}\n\ndata: [DONE]\n\n'
+        ],
+        ['data: {"choices":[{"delta":{"content":"最终答案"}}]}\n\ndata: [DONE]\n\n']
+      ])
+      EXECUTOR.mockResolvedValueOnce({ items: [] })
+
+      const result = await runChatCompletion({
+        config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR, onDelta: () => {}
+      })
+
+      expect(EXECUTOR).toHaveBeenCalledWith('goods_search', { a: 1 })
+      expect(result.content).toBe('最终答案')
+    })
+
+    it('流式传输失败回退非流式并发出 reset', async () => {
+      globalThis.fetch = vi.fn(async () => { throw new TypeError('Failed to fetch') })
+      CapacitorHttp.request.mockResolvedValueOnce(completion('回退答案'))
+
+      /** @type {any[]} */
+      const deltas = []
+      const result = await runChatCompletion({
+        config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR,
+        onDelta: (/** @type {any} */ d) => deltas.push(d)
+      })
+
+      expect(result.content).toBe('回退答案')
+      expect(deltas).toContainEqual({ reset: true })
+    })
+
+    it('流式收到 HTTP 401 直接抛错（不重复回退请求）', async () => {
+      globalThis.fetch = vi.fn(async () => ({ ok: false, status: 401, text: async () => 'unauthorized' }))
+
+      await expect(runChatCompletion({
+        config: CONFIG, messages: [], tools: TOOLS, executor: EXECUTOR, onDelta: () => {}
+      })).rejects.toThrow('HTTP 401')
+      expect(CapacitorHttp.request).not.toHaveBeenCalled()
+    })
+  })
+
   describe('generateChatTitle', () => {
     it('轻量补全生成标题并清理引号/换行，payload 只含 model+messages（兼容严格网关）', async () => {
       CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {

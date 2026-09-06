@@ -56,6 +56,24 @@
             </svg>
           </div>
           <div :class="['chat-bubble', { 'chat-bubble--error': Boolean(msg.error) }]">
+            <button
+              v-if="msg.role === 'assistant' && msg.reasoning"
+              :class="['chat-think-toggle', { 'chat-think-toggle--open': isThinkOpen(msg) }]"
+              type="button"
+              :aria-expanded="isThinkOpen(msg)"
+              @click="toggleReasoning(msg)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+              {{ isThinkStreaming(msg) ? t('aiChat.thinking') : t('aiChat.reasoning') }}
+            </button>
+            <div
+              v-if="msg.role === 'assistant' && msg.reasoning && isThinkOpen(msg)"
+              class="chat-think"
+            >
+              <p class="chat-think__text">{{ msg.reasoning }}</p>
+            </div>
             <div v-if="msg.role === 'assistant' && msg.steps.length" class="chat-steps">
               <div v-for="(step, stepIndex) in msg.steps" :key="stepIndex" class="chat-step">
                 <svg
@@ -86,9 +104,13 @@
               class="chat-markdown note-body--markdown"
               v-html="getRenderedMarkdown(msg)"
             />
+            <!-- TODO: 谷子图片/活动照片点击放大——复用活动详情同款查看器。
+                 photo-preview 查看器（双击缩放/滑动切换/左右箭头）目前内联在
+                 EventDetailView.vue（photo-preview 区块，含配套 CSS），工作量大暂搁置；
+                 需抽成共享组件后，在这里对 markdown 里的 <img> 做点击代理打开。 -->
             <p v-else-if="msg.content" class="chat-text">{{ msg.content }}</p>
             <div
-              v-if="msg.role === 'assistant' && msg.pending && !msg.content && msg.steps.length === 0"
+              v-if="msg.role === 'assistant' && msg.pending && !msg.content && msg.steps.length === 0 && !msg.reasoning"
               class="chat-typing"
               role="status"
               :aria-label="t('aiChat.thinking')"
@@ -297,6 +319,23 @@ const editingSessionId = ref('')
 const renameDraft = ref('')
 const renameInputRef = ref(null)
 
+// 思维链折叠：默认收起；消息还在生成（pending）且有思维链流出时自动展开实时展示，
+// 用户手动开合的意图优先于自动行为（回答完成后恢复默认收起）
+const manualThinkState = reactive(new Map())
+/** @param {any} msg */
+function isThinkOpen(msg) {
+  if (manualThinkState.has(msg.id)) return Boolean(manualThinkState.get(msg.id))
+  return Boolean(msg.pending && msg.reasoning)
+}
+/** @param {any} msg */
+function isThinkStreaming(msg) {
+  return Boolean(msg.pending && msg.reasoning && !manualThinkState.has(msg.id))
+}
+/** @param {any} msg */
+function toggleReasoning(msg) {
+  manualThinkState.set(msg.id, !isThinkOpen(msg))
+}
+
 // 手机端：已有对话内容时收起 hero 卡片，把纵向空间让给消息区（桌面端保持展示）
 const heroCollapsed = computed(() => aiChat.messages.length > 0)
 
@@ -408,12 +447,12 @@ if (import.meta.env.DEV) {
   }, (summary) => console.debug(`[ai-chat:view] ${summary}`), { immediate: true })
 }
 
-// 新消息 / 工具步骤 / 内容更新时滚到底部
+// 新消息 / 工具步骤 / 内容（含流式思维链）更新时滚到底部
 const scrollSignal = computed(() => {
   const list = aiChat.messages
   if (list.length === 0) return 0
   const last = list[list.length - 1]
-  return list.length * 1000 + last.steps.length * 10 + last.content.length
+  return list.length * 1000 + last.steps.length * 10 + last.content.length + (last.reasoning?.length || 0)
 })
 
 watch(scrollSignal, () => {
@@ -839,6 +878,50 @@ function removeSession(id) {
 .chat-typing span:nth-child(2) { animation-delay: 0.15s; }
 .chat-typing span:nth-child(3) { animation-delay: 0.3s; }
 
+/* 思维链折叠块（默认收起，点击展开） */
+.chat-think-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+  color: var(--app-text-tertiary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.chat-think-toggle svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.2s ease;
+}
+
+.chat-think-toggle--open svg {
+  transform: rotate(180deg);
+}
+
+.chat-think {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  border-left: 3px solid color-mix(in srgb, var(--app-text) 14%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-text) 4%, transparent);
+}
+
+.chat-think__text {
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  color: var(--app-text-tertiary);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 /* 工具步骤胶囊 */
 .chat-steps {
   display: flex;
@@ -958,6 +1041,20 @@ function removeSession(id) {
   background: transparent;
   font-size: 12px;
   line-height: 1.55;
+}
+
+/* AI 嵌入的谷子图片/活动照片按缩略图展示，避免撑大气泡 */
+.chat-markdown :deep(img) {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(150px, 60%);
+  max-height: 150px;
+  margin: 6px 0;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  /* 点击放大暂未实现（见模板 TODO），先给视觉提示 */
+  cursor: zoom-in;
 }
 
 .chat-markdown :deep(hr) {

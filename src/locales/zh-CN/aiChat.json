@@ -32,6 +32,7 @@
   "aiChat.deleteSession": "删除这条记录",
   "aiChat.deleted": "已删除",
   "aiChat.emptySessions": "还没有历史对话",
+  "aiChat.reasoning": "思维链",
   "aiChat.rename": "重命名",
   "aiChat.renameSuccess": "已重命名",
   "aiChat.messagesCount": "{count} 条消息"

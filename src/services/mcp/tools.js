@@ -482,7 +482,15 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
         ticketType: event.ticketType,
         tags: Array.isArray(event.tags) ? event.tags : [],
         description: truncate(event.description),
-        photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
+        photosCount: trackListOf(event.photos).length,
+        // 照片 uri 为 WebView/远程可直接展示的地址，AI 可用 ![描述](uri) 嵌进回复
+        photos: trackListOf(event.photos)
+          .slice(0, 12)
+          .map((photo) => ({
+            uri: asText(typeof photo === 'string' ? photo : photo?.uri).trim(),
+            caption: asText(typeof photo === 'string' ? '' : photo?.caption).trim()
+          }))
+          .filter((photo) => photo.uri),
         linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
         tracksSummary: trackSummary(view),
         ...(includeTracks ? { tracks: view } : {})

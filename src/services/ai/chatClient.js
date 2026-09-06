@@ -11,6 +11,8 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 
 const HTTP_TIMEOUT_MS = 120000
+/** 流式看门狗：数据持续到达证明链路存活，总时长上限放宽到 5 分钟 */
+const STREAM_TIMEOUT_MS = 300000
 export const MAX_TOOL_ROUNDS = 6
 
 export const DEFAULT_AI_CONFIG = Object.freeze({
@@ -102,16 +104,9 @@ async function postJsonNative(url, headers, body) {
 
 async function postJsonWeb(url, headers, body) {
   // 浏览器直连常被 CORS 拦截：dev 下经 Vite 中间件 /ai-proxy 转发到目标地址
-  let requestUrl = url
+  const { requestUrl, headers: proxyHeaders } = toProxyRequest(url, headers)
   /** @type {Record<string, string>} */
-  const requestHeaders = { 'Content-Type': 'application/json', ...headers }
-  if (import.meta.env.DEV) {
-    const base = url.replace(/\/chat\/completions$/, '')
-    if (base !== url) {
-      requestUrl = `${window.location.origin}/ai-proxy/chat/completions`
-      requestHeaders['x-ai-target'] = base
-    }
-  }
+  const requestHeaders = { 'Content-Type': 'application/json', ...proxyHeaders }
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
@@ -159,6 +154,125 @@ function postJson(url, headers, body) {
 }
 
 /**
+ * dev 下经 Vite 中间件 /ai-proxy 转发（WebView 直连常被 CORS 拦截）。
+ * @param {string} url
+ * @param {Record<string, string>} headers
+ * @returns {{ requestUrl: string, headers: Record<string, string> }}
+ */
+function toProxyRequest(url, headers) {
+  if (import.meta.env.DEV) {
+    const base = url.replace(/\/chat\/completions$/, '')
+    if (base !== url) {
+      return {
+        requestUrl: `${window.location.origin}/ai-proxy/chat/completions`,
+        headers: { ...headers, 'x-ai-target': base }
+      }
+    }
+  }
+  return { requestUrl: url, headers }
+}
+
+/**
+ * 流式执行一轮对话补全（SSE），增量实时通过 onDelta 抛给调用方渲染。
+ * WebView fetch 直连需要端点允许 CORS；传输类失败（CORS/网络/不支持流式）
+ * 由调用方回退非流式，HTTP 4xx/5xx 原样抛 AiRequestError（避免双重请求）。
+ * @param {string} url
+ * @param {Record<string, string>} headers
+ * @param {unknown} body
+ * @param {(delta: { reasoning?: string, content?: string, reset?: boolean }) => void} [onDelta]
+ * @returns {Promise<{ content: string, reasoning: string, toolCalls: Array<Record<string, any>> }>}
+ */
+async function streamChatRound(url, headers, body, onDelta) {
+  if (typeof fetch !== 'function' || typeof window === 'undefined') {
+    throw new Error('当前环境不支持流式请求')
+  }
+  const { requestUrl, headers: requestHeaders } = toProxyRequest(url, headers)
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...requestHeaders },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+    if (!response.ok) {
+      const text = await response.text()
+      throw new AiRequestError(response.status, extractErrorDetail(text))
+    }
+    if (!response.body || typeof response.body.getReader !== 'function') {
+      throw new Error('响应不可读（不支持流式）')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let content = ''
+    let reasoning = ''
+    /** @type {Array<Record<string, any>>} */
+    const toolCalls = []
+    let sawData = false
+
+    /** @param {string} rawLine */
+    const handleLine = (rawLine) => {
+      const line = rawLine.trim()
+      if (!line.startsWith('data:')) return
+      const data = line.slice(5).trim()
+      if (!data || data === '[DONE]') return
+      sawData = true
+      /** @type {any} */
+      let json
+      try {
+        json = JSON.parse(data)
+      } catch {
+        return
+      }
+      const delta = json?.choices?.[0]?.delta
+      if (!delta) return
+      const reasoningDelta = String(delta.reasoning_content ?? delta.reasoning ?? '')
+      const contentDelta = String(delta.content ?? '')
+      if (reasoningDelta) {
+        reasoning += reasoningDelta
+        onDelta?.({ reasoning: reasoningDelta })
+      }
+      if (contentDelta) {
+        content += contentDelta
+        onDelta?.({ content: contentDelta })
+      }
+      for (const call of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
+        const index = Math.max(0, Number(call?.index) || 0)
+        const existing = toolCalls[index] || (toolCalls[index] = { id: '', type: 'function', function: { name: '', arguments: '' } })
+        if (call?.id) existing.id = String(call.id)
+        if (call?.function?.name) existing.function.name += String(call.function.name)
+        if (call?.function?.arguments) existing.function.arguments += String(call.function.arguments)
+      }
+    }
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      let newlineIndex = buffer.indexOf('\n')
+      while (newlineIndex >= 0) {
+        handleLine(buffer.slice(0, newlineIndex))
+        buffer = buffer.slice(newlineIndex + 1)
+        newlineIndex = buffer.indexOf('\n')
+      }
+    }
+    if (buffer.trim()) handleLine(buffer)
+
+    if (!sawData && !content && !reasoning && toolCalls.length === 0) {
+      throw new Error('流式响应为空')
+    }
+
+    return { content, reasoning, toolCalls: toolCalls.filter(Boolean) }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
  * MCP 工具定义 → OpenAI tools 参数
  * @param {Array<{ name: string, description: string, inputSchema: Record<string, unknown> }>} definitions
  */
@@ -180,16 +294,19 @@ export function toOpenAiTools(definitions) {
  * @property {Array<{ name: string, description: string, inputSchema: Record<string, unknown> >}} tools
  * @property {(name: string, args: Record<string, any>) => Promise<unknown>} executor
  * @property {(step: { name: string, args: Record<string, any>, ok: boolean, error?: string }) => void} [onStep]
+ * @property {(delta: { reasoning?: string, content?: string, reset?: boolean }) => void} [onDelta]
+ *   流式增量回调（reasoning/content 为增量片段，reset 表示放弃已流出的部分并回退非流式）；
+ *   提供时优先走 SSE 流式，传输失败自动回退
  * @property {number} [maxToolRounds]
  */
 
 /**
  * 执行一次「可能含多轮工具调用」的完整对话请求。
  * @param {RunChatOptions} options
- * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>> }>}
+ * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>>, reasoning: string }>}
  */
 export async function runChatCompletion(options) {
-  const { config, messages, tools, executor, onStep, maxToolRounds = MAX_TOOL_ROUNDS } = options
+  const { config, messages, tools, executor, onStep, onDelta, maxToolRounds = MAX_TOOL_ROUNDS } = options
   const baseUrl = normalizeBaseUrl(config.baseUrl)
   if (!baseUrl) throw new Error('未配置 AI 接口地址')
   if (!config.model) throw new Error('未配置模型名称')
@@ -203,6 +320,8 @@ export async function runChatCompletion(options) {
   const convo = [...messages]
   /** @type {Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>} */
   const steps = []
+  /** @type {string[]} 各轮思维链（reasoning_content / reasoning），非流式下随最终消息一起返回 */
+  const reasoningParts = []
 
   for (let round = 0; round <= maxToolRounds; round++) {
     const finalRound = round === maxToolRounds
@@ -210,17 +329,37 @@ export async function runChatCompletion(options) {
       ? { model: config.model, messages: [...convo] }
       : { model: config.model, messages: [...convo], tools: toolsPayload }
 
-    const data = await postJson(url, headers, payload)
-    const choice = data?.choices?.[0]?.message
-    if (!choice || typeof choice !== 'object') {
-      throw new Error('AI 响应格式异常：缺少 choices[0].message')
+    /** @type {Record<string, unknown> | null} */
+    let choice = null
+    if (onDelta) {
+      try {
+        const streamed = await streamChatRound(url, headers, { ...payload, stream: true }, onDelta)
+        // 流式路径手工拼 message：不回传 reasoning 字段（部分端点拒绝回显）
+        choice = { role: 'assistant', content: streamed.content }
+        if (streamed.toolCalls.length > 0) choice.tool_calls = streamed.toolCalls
+        if (streamed.reasoning) reasoningParts.push(streamed.reasoning)
+      } catch (error) {
+        if (error instanceof AiRequestError) throw error
+        // CORS/网络/环境不支持流式 → 丢弃已流出片段，回退非流式
+        onDelta?.({ reset: true })
+      }
+    }
+
+    if (!choice) {
+      const data = await postJson(url, headers, payload)
+      choice = data?.choices?.[0]?.message
+      if (!choice || typeof choice !== 'object') {
+        throw new Error('AI 响应格式异常：缺少 choices[0].message')
+      }
+      const roundReasoning = String(choice.reasoning_content ?? choice.reasoning ?? '').trim()
+      if (roundReasoning) reasoningParts.push(roundReasoning)
     }
     convo.push(choice)
 
     /** @type {Array<any>} */
     const toolCalls = Array.isArray(choice.tool_calls) ? choice.tool_calls : []
     if (toolCalls.length === 0) {
-      return { content: String(choice.content || ''), steps, convo }
+      return { content: String(choice.content || ''), steps, convo, reasoning: reasoningParts.join('\n\n') }
     }
 
     for (const call of toolCalls) {

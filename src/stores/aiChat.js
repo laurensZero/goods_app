@@ -45,7 +45,7 @@ function buildSystemPrompt() {
     '- CD/专辑谷子：问有哪些 CD/专辑、某张专辑收了什么歌 → goods_search 传 hasTracks: true 找条目（结果带 tracksSummary 概况），曲目明细在 goods_detail 的 tracks 里；播放专辑里的歌用 music_play（goodsId+trackId）；',
     '- 歌词：用户要歌词/问某首歌的词 → music_lyrics（eventId 或 goodsId + trackId，曲目明细来自 event_tracks 或 goods_detail），回复时给出歌词文本；没歌词时如实说明（可能是纯音乐）；',
     '- 充值统计：问某个项目/游戏的具体充值（如「空月祝福一共买了几张」「原神去年充了多少」）→ recharge_search（按 game/itemName/year 过滤并用 byItem/byMonth 回答），不要只靠 recharge_summary 的总览猜；总览/按年分布 → recharge_summary；',
-    '- 图片：用户想看某件谷子的图/在回复里展示图片时 → goods_detail 返回的 images 数组里有可直接展示的 uri，用 ![描述](uri) 嵌入回复（最多 2-3 张，coverUrl 是主图）；',
+    '- 图片：用户想看某件谷子的图/在回复里展示图片时 → goods_detail 返回的 images 数组里有可直接展示的 uri，用 ![描述](uri) 嵌入回复（最多 2-3 张，coverUrl 是主图）；看演出/活动的现场照片 → event_tracks 的 photos，同样用 ![描述](uri) 嵌入；',
     '- 预算：「这个月/今年预算还剩多少」「哪个月/哪年超了」→ budget_overview（0=未设置）；用户要改预算 → budget_set（monthly/yearly，0=清除），改完可建议去统计页看预算线与超支标红；',
     '- 应用动作：同步数据 → sync_start（未登录/未配置会报错，如实转达）；分享谷子 → 先 goods_search 拿 id 再 share_create，管理链接 → share_manage；问账号 → account_info，退出登录 → account_logout（退出前跟用户确认一次）；问版本号/能否更新 → app_info（checkUpdate: true 才联网查）；',
     '- 跳转：用户想直接去某个页面（看统计/去同步/管理分享/看某件谷子/加新谷子/去下单）→ navigate（page 必填；goods_detail/goods_edit 另需 id）；跳转成功后告知用户已打开对应页面；',
@@ -65,6 +65,8 @@ const LEGACY_HISTORY_KEY = 'goods_ai_chat_history'
 const MAX_SESSIONS = 30
 /** 每个会话持久化的 UI 消息上限（原始对话在 trimConvo 已限长） */
 const MAX_PERSISTED_MESSAGES = 200
+/** 单条消息持久化的思维链长度上限（防止推理模型长思考撑爆 localStorage） */
+const MAX_PERSISTED_REASONING = 6000
 const HISTORY_PERSIST_DELAY_MS = 300
 
 let sessionSeq = 0
@@ -86,7 +88,11 @@ function createSessionRecord() {
 function sanitizeSession(session) {
   const messages = (Array.isArray(session?.messages) ? session.messages : [])
     .filter((m) => m && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'))
-    .map((m) => ({ ...m, steps: Array.isArray(m.steps) ? m.steps : [] }))
+    .map((m) => ({
+      ...m,
+      steps: Array.isArray(m.steps) ? m.steps : [],
+      reasoning: typeof m.reasoning === 'string' ? m.reasoning.slice(0, MAX_PERSISTED_REASONING) : ''
+    }))
   const convo = Array.isArray(session?.convo) ? session.convo.filter((m) => m && typeof m.role === 'string') : []
   sessionSeq += 1
   return {
@@ -167,6 +173,7 @@ function trimConvo(convo) {
  * @property {'user' | 'assistant'} role
  * @property {string} content
  * @property {Array<{ name: string, args: Record<string, any>, ok: boolean | null, error?: string }>} steps
+ * @property {string} [reasoning] 模型思维链（reasoning_content / reasoning），折叠展示
  * @property {boolean} [pending]
  * @property {string} [error]
  */
@@ -391,7 +398,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     /** @type {ChatMessage} */
     // 必须 reactive：后续通过闭包引用改 content/steps/pending，
     // 普通对象的赋值绕过 Proxy 不会触发视图更新（页面停在「思考中」）
-    const assistant = reactive({ id: uid(), role: 'assistant', content: '', steps: [], pending: true })
+    const assistant = reactive({ id: uid(), role: 'assistant', content: '', steps: [], reasoning: '', pending: true })
     messages.value.push(assistant)
     sending.value = true
     lastError.value = ''
@@ -401,6 +408,16 @@ export const useAiChatStore = defineStore('aiChat', () => {
         config: config.value,
         messages: rawConvo,
         tools: [...MCP_TOOL_DEFINITIONS, ...MCP_WRITE_TOOL_DEFINITIONS],
+        // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
+        onDelta: (delta) => {
+          if (delta.reset) {
+            assistant.content = ''
+            assistant.reasoning = ''
+            return
+          }
+          if (delta.reasoning) assistant.reasoning += delta.reasoning
+          if (delta.content) assistant.content += delta.content
+        },
         executor: async (name, args) => {
           /** @type {ChatMessage['steps'][number]} */
           const step = reactive({ name, args, ok: null })
@@ -416,8 +433,9 @@ export const useAiChatStore = defineStore('aiChat', () => {
           }
         }
       })
-      devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length })
+      devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length, reasoningLen: result.reasoning?.length || 0 })
       assistant.content = result.content
+      assistant.reasoning = result.reasoning || ''
       assistant.pending = false
       rawConvo = trimConvo(result.convo)
       // 立即回写到会话对象：切走再切回时上下文才不丢（不能只靠防抖持久化）
