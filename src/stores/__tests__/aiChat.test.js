@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick, watchEffect } from 'vue'
 
 const { runChatCompletionMock } = vi.hoisted(() => ({ runChatCompletionMock: vi.fn() }))
 
@@ -71,6 +72,122 @@ describe('aiChat store', () => {
     expect(runChatCompletionMock).not.toHaveBeenCalled()
     expect(store.lastError).toBe('no-config')
     expect(store.messages).toHaveLength(0)
+  })
+
+  it('助手回复写入必须触发视图响应（回归：闭包原始对象赋值绕过 Proxy 不更新 UI）', async () => {
+    /** @type {(value: any) => void} */
+    let resolveRun
+    runChatCompletionMock.mockImplementation(async ({ messages }) => {
+      await new Promise((resolve) => { resolveRun = resolve })
+      return { content: 'done', steps: [], convo: [...messages, { role: 'assistant', content: 'done' }] }
+    })
+
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    const sendPromise = store.send('问题')
+    await new Promise((resolve) => setTimeout(resolve)) // 等 messages 推送完成
+
+    let runs = 0
+    const stop = watchEffect(() => {
+      runs += 1
+      void store.messages.at(-1)?.content
+    })
+    const runsWhilePending = runs
+    expect(store.messages.at(-1)?.pending).toBe(true)
+
+    resolveRun()
+    await sendPromise
+    await nextTick()
+
+    expect(runs).toBeGreaterThan(runsWhilePending)
+    expect(store.messages.at(-1)?.content).toBe('done')
+    expect(store.messages.at(-1)?.pending).toBe(false)
+    stop()
+  })
+
+  it('会话持久化到 localStorage，新实例（模拟刷新）恢复', async () => {
+    runChatCompletionMock.mockImplementation(async ({ messages }) => ({
+      content: 'done',
+      steps: [],
+      convo: [...messages, { role: 'assistant', content: 'done' }]
+    }))
+
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+    await store.send('记住我')
+    await new Promise((resolve) => setTimeout(resolve, 450)) // 等防抖持久化落盘
+
+    const saved = JSON.parse(localStorage.getItem('goods_ai_chat_sessions'))
+    expect(saved.sessions).toHaveLength(1)
+    expect(saved.sessions[0].messages.at(-1).content).toBe('done')
+    expect(saved.sessions[0].title).toBe('记住我')
+    expect(saved.activeId).toBe(store.activeSessionId)
+
+    // 模拟刷新：新建 pinia + store 实例
+    setActivePinia(createPinia())
+    const reloaded = useAiChatStore()
+    expect(reloaded.messages.at(-1).content).toBe('done')
+    expect(reloaded.sessions).toHaveLength(1)
+
+    // 恢复后的对话继续可用：上下文包含历史用户消息
+    await reloaded.send('第二问')
+    const secondCall = runChatCompletionMock.mock.calls.at(-1)[0]
+    expect(
+      secondCall.messages.filter((/** @type {any} */ m) => m.role === 'user').map((/** @type {any} */ m) => m.content)
+    ).toEqual(['记住我', '第二问'])
+  })
+
+  it('多会话：新建/切换/删除，各会话上下文独立', async () => {
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    await store.send('第一场对话')
+    const firstId = store.activeSessionId
+    const firstMessageCount = store.messages.length
+
+    store.newSession()
+    expect(store.activeSessionId).not.toBe(firstId)
+    expect(store.messages).toHaveLength(0)
+
+    await store.send('第二场对话')
+    const secondId = store.activeSessionId
+    expect(secondId).not.toBe(firstId)
+
+    // 切回第一场：历史消息与上下文都在
+    expect(store.switchSession(firstId)).toBe(true)
+    expect(store.messages).toHaveLength(firstMessageCount)
+    await store.send('回到第一场继续')
+    let call = runChatCompletionMock.mock.calls.at(-1)[0]
+    expect(call.messages.filter((/** @type {any} */ m) => m.role === 'user').map((/** @type {any} */ m) => m.content))
+      .toEqual(['第一场对话', '回到第一场继续'])
+
+    // 删除当前会话 → 自动落到剩余会话
+    store.deleteSession(firstId)
+    expect(store.activeSessionId).toBe(secondId)
+    expect(store.sessions).toHaveLength(1)
+
+    // 切换到不存在的会话返回 false
+    expect(store.switchSession('nope')).toBe(false)
+  })
+
+  it('旧版单会话数据（goods_ai_chat_history）自动迁移为会话', async () => {
+    localStorage.setItem('goods_ai_chat_history', JSON.stringify({
+      messages: [
+        { id: 'm1', role: 'user', content: '旧消息' },
+        { id: 'm2', role: 'assistant', content: '旧回复', steps: [] }
+      ],
+      convo: [
+        { role: 'user', content: '旧消息' },
+        { role: 'assistant', content: '旧回复' }
+      ]
+    }))
+
+    setActivePinia(createPinia())
+    const store = useAiChatStore()
+    expect(store.sessions).toHaveLength(1)
+    expect(store.messages.at(-1).content).toBe('旧回复')
+    expect(localStorage.getItem('goods_ai_chat_sessions')).toBeNull() // 未落盘前不写新 key
   })
 
   it('clearMessages 重置 UI 列表与模型对话', async () => {

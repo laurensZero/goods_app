@@ -53,31 +53,51 @@ function extractErrorDetail(data) {
   }
 }
 
+/** @param {string} text 尝试 JSON.parse，失败则原样返回 */
+function tryParseJson(text) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
 /**
- * POST JSON 并解析响应。原生走 CapacitorHttp（不受 WebView CORS 限制，
- * 返回 {status,data}）；Web 走 fetch（CapacitorHttp 在 Web 上未实现）。
+ * POST JSON 并解析响应。原生走 CapacitorHttp.request（不受 WebView CORS 限制，
+ * 返回 {status,data}）；Web 走 fetch（CapacitorHttp 在 Web 上无 fetch 方法）。
  * @param {string} url
  * @param {Record<string, string>} headers
  * @param {unknown} body
  * @returns {Promise<any>}
  */
 async function postJsonNative(url, headers, body) {
-  const response = await CapacitorHttp.fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers },
-    data: body,
-    connectTimeout: HTTP_TIMEOUT_MS,
-    readTimeout: HTTP_TIMEOUT_MS
-  })
-  // 原生实现返回 { status, data, headers }
-  const status = /** @type {any} */ (response)?.status
-  const data = /** @type {any} */ (response)?.data
-  if (typeof status === 'number') {
+  // readTimeout 在 Android 上每收到一段数据就会重置，LLM 慢速滴流可能拖过上限，
+  // 因此再套一层 Promise.race 看门狗保证总时长有界（与 mihoyo/request.js 同策略）
+  let timeoutId
+  try {
+    const response = await Promise.race([
+      CapacitorHttp.request({
+        url,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        data: body,
+        connectTimeout: HTTP_TIMEOUT_MS,
+        readTimeout: HTTP_TIMEOUT_MS
+      }),
+      new Promise((_, reject) => {
+        timeoutId = setTimeout(
+          () => reject(new Error(`AI 请求超时（${HTTP_TIMEOUT_MS / 1000}s）`)),
+          HTTP_TIMEOUT_MS
+        )
+      })
+    ])
+    const status = Number(response?.status || 0)
+    const data = typeof response?.data === 'string' ? tryParseJson(response.data) : response?.data
     if (status >= 400) throw new AiRequestError(status, extractErrorDetail(data))
     return data
+  } finally {
+    clearTimeout(timeoutId)
   }
-  // 兜底：拿不到结构化形状时按 Response 处理
-  return parseWebResponse(/** @type {any} */ (response))
 }
 
 async function postJsonWeb(url, headers, body) {

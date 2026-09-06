@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { useGoodsStore } from './goods'
 import { usePresetsStore } from './presets'
 import { useThemeStore } from './theme'
@@ -38,6 +38,71 @@ function buildSystemPrompt() {
     '- 金额是用户手填的字符串，可能为空或含非数字字符；',
     '- 用用户的语言回答，简洁自然。'
   ].join('\n')
+}
+
+const SESSIONS_STORAGE_KEY = 'goods_ai_chat_sessions'
+const LEGACY_HISTORY_KEY = 'goods_ai_chat_history'
+/** 最多保留的会话数（超出按最近更新淘汰） */
+const MAX_SESSIONS = 30
+/** 每个会话持久化的 UI 消息上限（原始对话在 trimConvo 已限长） */
+const MAX_PERSISTED_MESSAGES = 200
+const HISTORY_PERSIST_DELAY_MS = 300
+
+let sessionSeq = 0
+function createSessionRecord() {
+  sessionSeq += 1
+  return {
+    id: `sess-${Date.now()}-${sessionSeq}`,
+    title: '',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    messages: [],
+    convo: []
+  }
+}
+
+/** 清洗会话数据（兼容损坏/缺字段） */
+function sanitizeSession(session) {
+  const messages = (Array.isArray(session?.messages) ? session.messages : [])
+    .filter((m) => m && typeof m.content === 'string' && (m.role === 'user' || m.role === 'assistant'))
+    .map((m) => ({ ...m, steps: Array.isArray(m.steps) ? m.steps : [] }))
+  const convo = Array.isArray(session?.convo) ? session.convo.filter((m) => m && typeof m.role === 'string') : []
+  sessionSeq += 1
+  return {
+    id: String(session?.id || `sess-${Date.now()}-${sessionSeq}`),
+    title: String(session?.title || ''),
+    createdAt: Number(session?.createdAt) || Date.now(),
+    updatedAt: Number(session?.updatedAt) || Date.now(),
+    messages,
+    convo
+  }
+}
+
+/** 读取会话列表；兼容旧版单会话格式（goods_ai_chat_history） */
+function loadSessions() {
+  try {
+    const raw = localStorage.getItem(SESSIONS_STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed?.sessions) && parsed.sessions.length > 0) {
+        const sessions = parsed.sessions.slice(0, MAX_SESSIONS).map(sanitizeSession)
+        const activeId = sessions.some((s) => s.id === parsed.activeId) ? parsed.activeId : sessions[0].id
+        return { sessions, activeId }
+      }
+    }
+    const legacyRaw = localStorage.getItem(LEGACY_HISTORY_KEY)
+    if (legacyRaw) {
+      const legacy = sanitizeSession(JSON.parse(legacyRaw))
+      localStorage.removeItem(LEGACY_HISTORY_KEY)
+      if (legacy.messages.length > 0) {
+        legacy.title = String(legacy.messages[0]?.content || '').slice(0, 20)
+        return { sessions: [legacy], activeId: legacy.id }
+      }
+    }
+  } catch (e) {
+    console.warn('[ai-chat] failed to load sessions:', e)
+  }
+  return null
 }
 
 let uidCounter = 0
@@ -86,14 +151,106 @@ function trimConvo(convo) {
 
 export const useAiChatStore = defineStore('aiChat', () => {
   const config = ref(loadConfig())
+  const loadedSessions = loadSessions()
+  /** @type {import('vue').Ref<any[]>} */
+  const sessions = ref(loadedSessions?.sessions || [])
+  const activeSessionId = ref(loadedSessions?.activeId || '')
   /** @type {import('vue').Ref<ChatMessage[]>} */
   const messages = ref([])
   const sending = ref(false)
   /** UI 提示用错误标记：no-config | request | '' */
   const lastError = ref('')
 
-  /** 原始 OpenAI 消息数组（含 tool 消息），会话内延续上下文 */
-  let rawConvo = [{ role: 'system', content: buildSystemPrompt() }]
+  /** 原始 OpenAI 消息数组（含 tool 消息），随会话切换；系统提示词始终用最新版 */
+  let rawConvo = []
+
+  function buildFreshConvo() {
+    return [{ role: 'system', content: buildSystemPrompt() }]
+  }
+
+  function activeSession() {
+    return sessions.value.find((s) => s.id === activeSessionId.value) || null
+  }
+
+  /** 激活会话：messages 指向该会话的消息数组（保持同一引用），并重建模型上下文 */
+  function activateSession(session) {
+    activeSessionId.value = session.id
+    messages.value = session.messages
+    rawConvo = [
+      { role: 'system', content: buildSystemPrompt() },
+      ...session.convo.filter((m) => m.role !== 'system')
+    ]
+    lastError.value = ''
+  }
+
+  if (sessions.value.length === 0) {
+    sessions.value = [createSessionRecord()]
+  }
+  activateSession(sessions.value.find((s) => s.id === activeSessionId.value) || sessions.value[0])
+
+  let persistTimer = null
+  function persistSessionsNow() {
+    const session = activeSession()
+    if (session) session.updatedAt = Date.now()
+    try {
+      let list = sessions.value
+      if (list.length > MAX_SESSIONS) {
+        list = [...list].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, MAX_SESSIONS)
+        sessions.value = list
+        if (!list.some((s) => s.id === activeSessionId.value)) activateSession(list[0])
+      }
+      localStorage.setItem(SESSIONS_STORAGE_KEY, JSON.stringify({
+        sessions: list.map((s) => ({
+          ...s,
+          messages: s.messages.slice(-MAX_PERSISTED_MESSAGES)
+        })),
+        activeId: activeSessionId.value
+      }))
+    } catch (e) {
+      console.warn('[ai-chat] failed to persist sessions:', e)
+    }
+  }
+
+  function schedulePersist() {
+    if (persistTimer !== null) clearTimeout(persistTimer)
+    persistTimer = setTimeout(() => {
+      persistTimer = null
+      persistSessionsNow()
+    }, HISTORY_PERSIST_DELAY_MS)
+  }
+
+  watch(messages, schedulePersist, { deep: true })
+
+  function newSession() {
+    const session = createSessionRecord()
+    sessions.value = [session, ...sessions.value]
+    activateSession(session)
+    persistSessionsNow()
+  }
+
+  function switchSession(id) {
+    if (id === activeSessionId.value) return false
+    const target = sessions.value.find((s) => s.id === id)
+    if (!target) return false
+    activateSession(target)
+    persistSessionsNow()
+    return true
+  }
+
+  function deleteSession(id) {
+    sessions.value = sessions.value.filter((s) => s.id !== id)
+    if (activeSessionId.value === id) {
+      if (sessions.value.length === 0) sessions.value = [createSessionRecord()]
+      activateSession(sessions.value[0])
+    }
+    persistSessionsNow()
+  }
+
+  // 排查日志：dev 控制台可见，观察消息从「工具完成 → 回复写入 → 视图感知」的全链路
+  function devLog(event, payload) {
+    if (import.meta.env.DEV) console.debug(`[ai-chat] ${event}`, payload ?? '')
+    log.info(event, payload)
+  }
 
   function saveConfig() {
     try {
@@ -109,9 +266,16 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   function clearMessages() {
-    messages.value = []
-    rawConvo = [{ role: 'system', content: buildSystemPrompt() }]
+    // splice 保持数组引用（session.messages 与 messages.value 同源）
+    messages.value.splice(0, messages.value.length)
+    const session = activeSession()
+    if (session) {
+      session.convo = []
+      session.updatedAt = Date.now()
+    }
+    rawConvo = buildFreshConvo()
     lastError.value = ''
+    persistSessionsNow()
   }
 
   let executorCache = null
@@ -146,12 +310,17 @@ export const useAiChatStore = defineStore('aiChat', () => {
       return
     }
 
+    devLog('send:start', { contentLen: content.length, convoLen: rawConvo.length })
     messages.value.push({ id: uid(), role: 'user', content, steps: [] })
     // 用户消息必须同时进入模型对话（此前只进 UI 列表，模型看不到新问题，
     // 会基于旧上下文自说自话）
     rawConvo = [...rawConvo, { role: 'user', content }]
+    const currentSession = activeSession()
+    if (currentSession && !currentSession.title) currentSession.title = content.slice(0, 30)
     /** @type {ChatMessage} */
-    const assistant = { id: uid(), role: 'assistant', content: '', steps: [], pending: true }
+    // 必须 reactive：后续通过闭包引用改 content/steps/pending，
+    // 普通对象的赋值绕过 Proxy 不会触发视图更新（页面停在「思考中」）
+    const assistant = reactive({ id: uid(), role: 'assistant', content: '', steps: [], pending: true })
     messages.value.push(assistant)
     sending.value = true
     lastError.value = ''
@@ -163,7 +332,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
         tools: [...MCP_TOOL_DEFINITIONS, ...MCP_WRITE_TOOL_DEFINITIONS],
         executor: async (name, args) => {
           /** @type {ChatMessage['steps'][number]} */
-          const step = { name, args, ok: null }
+          const step = reactive({ name, args, ok: null })
           assistant.steps.push(step)
           try {
             const result = await getExecutor()(name, args)
@@ -176,19 +345,28 @@ export const useAiChatStore = defineStore('aiChat', () => {
           }
         }
       })
+      devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length })
       assistant.content = result.content
       assistant.pending = false
       rawConvo = trimConvo(result.convo)
-      log.info('chat:done', { steps: result.steps.length })
+      // 立即回写到会话对象：切走再切回时上下文才不丢（不能只靠防抖持久化）
+      const doneSession = activeSession()
+      if (doneSession) doneSession.convo = rawConvo
+      devLog('reply:applied', { pending: assistant.pending, contentLen: assistant.content.length })
     } catch (e) {
       assistant.pending = false
       assistant.error = e instanceof Error ? e.message : String(e)
       lastError.value = 'request'
-      log.error('chat:failed', e)
+      devLog('reply:failed', { error: assistant.error })
     } finally {
       sending.value = false
     }
   }
 
-  return { config, messages, sending, lastError, updateConfig, clearMessages, send }
+  return {
+    config, messages, sending, lastError,
+    sessions, activeSessionId,
+    updateConfig, clearMessages, send,
+    newSession, switchSession, deleteSession
+  }
 })

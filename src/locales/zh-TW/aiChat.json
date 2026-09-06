@@ -19,5 +19,11 @@
   "aiChat.cleared": "已清空",
   "aiChat.errorNoConfig": "請先填寫介面位址、模型名稱和 API Key",
   "aiChat.apiKeyHint": "設定僅儲存在本機，用於直接呼叫你填寫的 OpenAI 相容介面（/chat/completions）。",
-  "aiChat.writeNotice": "AI 可以執行新增、修改、移入回收站（可復原）等資料操作，請留意它的改動。"
+  "aiChat.writeNotice": "AI 可以執行新增、修改、移入回收站（可復原）等資料操作，請留意它的改動。",
+  "aiChat.history": "歷史對話",
+  "aiChat.newChat": "新建對話",
+  "aiChat.deleteSession": "刪除這條記錄",
+  "aiChat.deleted": "已刪除",
+  "aiChat.emptySessions": "還沒有歷史對話",
+  "aiChat.messagesCount": "{count} 條訊息"
 }
