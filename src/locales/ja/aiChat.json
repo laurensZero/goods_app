@@ -32,5 +32,7 @@
   "aiChat.deleteSession": "この履歴を削除",
   "aiChat.deleted": "削除しました",
   "aiChat.emptySessions": "履歴はまだありません",
+  "aiChat.rename": "名前を変更",
+  "aiChat.renameSuccess": "変更しました",
   "aiChat.messagesCount": "{count} 件のメッセージ"
 }

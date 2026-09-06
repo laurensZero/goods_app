@@ -3,7 +3,7 @@
     <NavBar :title="t('nav.aiChat')" show-back />
 
     <main class="page-body page-entry">
-      <section class="hero-section">
+      <section :class="['hero-section', { 'hero-section--collapsed': heroCollapsed }]">
         <article class="hero-card">
           <div class="hero-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -98,8 +98,9 @@
             <p v-if="msg.error" class="chat-error">{{ msg.error }}</p>
           </div>
         </div>
+        <!-- 锚点必须在滚动容器 .chat-area 内部，scrollIntoView 才能滚动消息区 -->
+        <div key="chat-anchor" ref="bottomAnchorRef" class="chat-anchor" />
       </TransitionGroup>
-      <div ref="bottomAnchorRef" class="chat-anchor" />
 
       <div class="chat-inputbar">
         <button
@@ -220,13 +221,34 @@
             @click="selectSession(session.id)"
           >
             <div class="history-item__main">
-              <p class="history-item__title">{{ session.title || t('aiChat.newChat') }}</p>
+              <input
+                v-if="editingSessionId === session.id"
+                ref="renameInputRef"
+                v-model="renameDraft"
+                class="history-item__rename-input"
+                type="text"
+                maxlength="50"
+                @keydown.enter.prevent="confirmRename(session.id)"
+                @keydown.esc.prevent="cancelRename"
+                @blur="confirmRename(session.id)"
+              />
+              <p v-else class="history-item__title">{{ session.title || t('aiChat.newChat') }}</p>
               <p class="history-item__meta">
                 {{ formatSessionTime(session.updatedAt) }} · {{ t('aiChat.messagesCount', { count: session.messages.length }) }}
               </p>
             </div>
             <button
-              class="history-item__delete"
+              class="history-item__action"
+              type="button"
+              :aria-label="t('aiChat.rename')"
+              @click.stop="startRename(session)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5L2 22l1.5-5.5L17 3z" />
+              </svg>
+            </button>
+            <button
+              class="history-item__action history-item__action--danger"
               type="button"
               :aria-label="t('aiChat.deleteSession')"
               @click.stop="removeSession(session.id)"
@@ -270,6 +292,14 @@ const showSettings = ref(false)
 const showHistory = ref(false)
 const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '' })
 
+// 会话重命名（内联编辑，同一时间只有一个条目处于编辑态）
+const editingSessionId = ref('')
+const renameDraft = ref('')
+const renameInputRef = ref(null)
+
+// 手机端：已有对话内容时收起 hero 卡片，把纵向空间让给消息区（桌面端保持展示）
+const heroCollapsed = computed(() => aiChat.messages.length > 0)
+
 // 平板（≥900px）弹窗居中展示，手机为底部弹层（与 ManageView 的 picker-popup 约定一致）
 const windowWidth = ref(window.innerWidth)
 const isTabletViewport = computed(() => windowWidth.value >= 900)
@@ -288,12 +318,26 @@ function handleEnterKey(event) {
   event.preventDefault()
   send()
 }
+/** 滚动到消息区底部（锚点在 .chat-area 内，scrollIntoView 生效） */
+function scrollToBottom(behavior = 'auto') {
+  bottomAnchorRef.value?.scrollIntoView({ block: 'end', behavior })
+}
+
+let bottomFallbackTimer = 0
 onMounted(() => {
   window.addEventListener('resize', handleResize, { passive: true })
-  // 从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息
-  nextTick(() => bottomAnchorRef.value?.scrollIntoView({ block: 'end' }))
+  // 从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息。
+  // 助手消息的 Markdown 是异步渲染的，首滚后稍等再补一次，兜底长内容变高
+  nextTick(() => scrollToBottom())
+  bottomFallbackTimer = window.setTimeout(() => scrollToBottom(), 400)
 })
-onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (bottomFallbackTimer) {
+    clearTimeout(bottomFallbackTimer)
+    bottomFallbackTimer = 0
+  }
+})
 
 // 示例问题池：空状态每次出现（进入页面 / 新建对话 / 清空）随机轮换 3 条
 const examplePool = computed(() => [
@@ -373,9 +417,7 @@ const scrollSignal = computed(() => {
 })
 
 watch(scrollSignal, () => {
-  nextTick(() => {
-    bottomAnchorRef.value?.scrollIntoView({ block: 'end', behavior: 'smooth' })
-  })
+  nextTick(() => scrollToBottom('smooth'))
 })
 
 function autoGrow() {
@@ -447,12 +489,32 @@ function startNewChat() {
 function selectSession(id) {
   if (aiChat.switchSession(id)) {
     showHistory.value = false
-    nextTick(() => bottomAnchorRef.value?.scrollIntoView({ block: 'end' }))
+    nextTick(() => scrollToBottom())
   }
+}
+
+function startRename(session) {
+  editingSessionId.value = session.id
+  renameDraft.value = session.title || ''
+  nextTick(() => renameInputRef.value?.focus())
+}
+
+function confirmRename(id) {
+  // Enter 先 confirm 再触发 blur、或 Esc 取消后 input 卸载带出的 blur，都用它挡掉
+  if (editingSessionId.value !== id) return
+  editingSessionId.value = ''
+  const next = renameDraft.value.trim()
+  if (next && aiChat.renameSession(id, next)) showToast(t('aiChat.renameSuccess'))
+}
+
+function cancelRename() {
+  editingSessionId.value = ''
+  renameDraft.value = ''
 }
 
 function removeSession(id) {
   aiChat.deleteSession(id)
+  if (editingSessionId.value === id) cancelRename()
   showToast(t('aiChat.deleted'))
 }
 </script>
@@ -477,6 +539,25 @@ function removeSession(id) {
   padding: 0 var(--page-padding);
   margin-top: var(--section-gap);
   animation: page-fade-up 0.4s ease backwards;
+  /* 折叠用：高度变化走过渡，overflow 裁掉收起中的内容 */
+  max-height: 420px;
+  overflow: hidden;
+  transition:
+    max-height 0.35s ease,
+    margin-top 0.35s ease,
+    opacity 0.3s ease,
+    transform 0.35s ease;
+}
+
+/* 手机端（<900px）已有对话内容时收起 hero，为消息区让出纵向空间 */
+@media (max-width: 899px) {
+  .hero-section--collapsed {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
+    transform: translateY(-12px);
+    pointer-events: none;
+  }
 }
 
 .hero-card {
@@ -1254,7 +1335,7 @@ function removeSession(id) {
   font-size: 12px;
 }
 
-.history-item__delete {
+.history-item__action {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -1269,18 +1350,36 @@ function removeSession(id) {
   transition: all 0.2s ease;
 }
 
-.history-item__delete:active {
+.history-item__action:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: var(--app-text);
+}
+
+.history-item__action--danger:active {
   background: rgba(255, 59, 48, 0.12);
   color: #ff3b30;
 }
 
-.history-item__delete svg {
+.history-item__action svg {
   width: 16px;
   height: 16px;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.history-item__rename-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid rgba(52, 199, 89, 0.5);
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
 }
 
 .history-empty {

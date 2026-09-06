@@ -77,6 +77,17 @@ describe('mcp write tool handlers', () => {
     })
   })
 
+  it('goods_update 兼容真实 store 的解包数组 list（回归：pinia shallowRef 解包后 list.value 为 undefined）', async () => {
+    const store = createFakeStore()
+    // 真实 pinia store 实例上 list 是解包后的数组，而非 { value: [...] }
+    store.list = [{ id: 'g1', name: '已有条目' }]
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+
+    const result = await handlers.goods_update({ id: 'g1', note: '补个备注' })
+    expect(result).toEqual({ ok: true, id: 'g1' })
+    await expect(handlers.goods_update({ id: 'nope', note: 'x' })).rejects.toThrow('未找到')
+  })
+
   it('goods_add 缺少 name 时报错', async () => {
     const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
     await expect(handlers.goods_add({ category: '吧唧' })).rejects.toThrow('name 必填')
@@ -246,5 +257,59 @@ describe('mcp write tool handlers', () => {
     expect(notifyStore.updateSettings).toHaveBeenCalledWith({ saleReminder: false, duration: 8000 })
 
     await expect(handlers.notify_settings_set({})).rejects.toThrow('没有可修改的字段')
+  })
+
+  describe('music_play', () => {
+    const TRACKS = [
+      { id: 't1', title: 'Melt', artist: '初音未来', source: 'netease', neteaseSongId: 'n1', qqSongId: '', bilibiliVideoId: '' },
+      { id: 't2', title: '手写曲', artist: '', source: 'manual', neteaseSongId: '', qqSongId: '', bilibiliVideoId: '' }
+    ]
+    const EVENTS = [{ id: 'e1', name: 'CP 春季展', tracks: TRACKS }]
+
+    function createFakeMusicStores() {
+      return {
+        eventsStore: { activeList: EVENTS },
+        mediaPlayerStore: { playTrack: vi.fn(async () => {}) }
+      }
+    }
+
+    it('按 eventId+trackId 拉起播放，队列为整场曲单', async () => {
+      const { eventsStore, mediaPlayerStore } = createFakeMusicStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore, mediaPlayerStore })
+
+      const result = await handlers.music_play({ eventId: 'e1', trackId: 't1' })
+      expect(result.ok).toBe(true)
+      expect(result.playing).toMatchObject({ trackId: 't1', title: 'Melt' })
+      expect(mediaPlayerStore.playTrack).toHaveBeenCalledWith(TRACKS[0], TRACKS)
+      expect(result.queueSize).toBe(2)
+    })
+
+    it('未关联音源的曲目与未知演出/曲目报错', async () => {
+      const { eventsStore, mediaPlayerStore } = createFakeMusicStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore, mediaPlayerStore })
+
+      await expect(handlers.music_play({ eventId: 'e1', trackId: 't2' })).rejects.toThrow('未关联在线音源')
+      await expect(handlers.music_play({ eventId: 'nope', trackId: 't1' })).rejects.toThrow('未找到')
+      await expect(handlers.music_play({ eventId: 'e1', trackId: 'nope' })).rejects.toThrow('未找到')
+      expect(mediaPlayerStore.playTrack).not.toHaveBeenCalled()
+    })
+
+    it('playTrack 抛错（如版权限制）时转译为可读错误', async () => {
+      const { eventsStore, mediaPlayerStore } = createFakeMusicStores()
+      mediaPlayerStore.playTrack.mockRejectedValue(new Error('URL 解析失败'))
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore, mediaPlayerStore })
+
+      await expect(handlers.music_play({ eventId: 'e1', trackId: 't1' })).rejects.toThrow('拉起播放失败：URL 解析失败')
+    })
+
+    it('缺模块或缺参数给出引导性错误', async () => {
+      const { eventsStore, mediaPlayerStore } = createFakeMusicStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
+      await expect(handlers.music_play({ eventId: 'e1', trackId: 't1' })).rejects.toThrow('音乐播放模块不可用')
+
+      const okHandlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore, mediaPlayerStore })
+      await expect(okHandlers.music_play({ trackId: 't1' })).rejects.toThrow('eventId 必填')
+      await expect(okHandlers.music_play({ eventId: 'e1' })).rejects.toThrow('trackId 必填')
+    })
   })
 })

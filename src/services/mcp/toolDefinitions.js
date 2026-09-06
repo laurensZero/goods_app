@@ -20,7 +20,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '典型用法：了解收藏构成用 collection_overview；找具体物品用 goods_search（先粗后细，配合 limit/offset 分页）；',
   '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
   '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
-  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；游戏充值用 recharge_summary。',
+  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
 
@@ -127,6 +127,18 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         note: { type: 'string', description: '备注' }
       },
       required: ['game', 'amount']
+    }
+  },
+  {
+    name: 'music_play',
+    description: '播放演出/演唱会的某首曲目：在应用内拉起悬浮播放器开始播放（队列 = 该演出完整曲单）。eventId 与 trackId 必须来自 event_tracks 的返回；仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        eventId: { type: 'string', description: '演出 id，来自 event_tracks' },
+        trackId: { type: 'string', description: '曲目 id，来自 event_tracks' }
+      },
+      required: ['eventId', 'trackId']
     }
   },
   {
@@ -277,11 +289,25 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_list',
-    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计（ticketPrice + 逐日票 + 其他开支，原币种未折算）、关联谷子数量，按开始日期倒序。回答「这次漫展花了多少」类问题使用。',
+    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计（ticketPrice + 逐日票 + 其他开支，原币种未折算）、关联谷子数量，按开始日期倒序。回答「这次漫展花了多少」类问题使用；查某场演出/演唱会唱了哪些歌请改用 event_tracks。',
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
+        offset: { type: 'integer', minimum: 0, default: 0 }
+      }
+    }
+  },
+  {
+    name: 'event_tracks',
+    description: '查询演出/演唱会的曲单与演出基本信息（城市/场馆/座位/票档/描述等）。默认只返回 tracksSummary 曲目概况（总数/可播数/仅手动数），不返回曲目明细——用户没明确要歌单时用一句话概括即可，禁止罗列具体曲目；用户要完整歌单、找某首歌或想播放时才传 includeTracks: true。要播放时拿 eventId + trackId 调 music_play。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        eventId: { type: 'string', description: '演出 id，来自 events_list；传了 eventId 就只返回这一场（即使曲单为空）' },
+        query: { type: 'string', description: '关键词：优先匹配演出名（命中返回整场曲单概况），否则匹配曲目歌名/歌手。与 eventId 二选一' },
+        includeTracks: { type: 'boolean', default: false, description: '为 true 时返回具体曲目明细（含 trackId，供展示歌单或播放）；缺省只给 tracksSummary 概况' },
+        limit: { type: 'integer', minimum: 1, maximum: 50, default: 10, description: '返回演出场数上限' },
         offset: { type: 'integer', minimum: 0, default: 0 }
       }
     }

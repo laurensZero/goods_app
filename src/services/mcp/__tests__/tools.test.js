@@ -45,7 +45,11 @@ function createFakeDb() {
       id: 'e1', name: 'CP 春季展', type: '漫展', startDate: '2025-05-01', endDate: '2025-05-02',
       city: '上海', location: '世博展览馆', ticketPrice: '80', ticketType: '单日票', seatInfo: '',
       tags: ['线下'], linkedGoodsIds: ['g1'], photos: ['p1'], description: '两天都去了',
-      deleted: false
+      deleted: false,
+      tracks: [
+        { id: 't1', title: 'Melt', artist: '初音未来', album: 'Secret', durationMs: 250000, source: 'netease', neteaseSongId: 'n1', qqSongId: '', bilibiliVideoId: '' },
+        { id: 't2', title: '手写曲', artist: '', album: '', durationMs: 0, source: 'manual', neteaseSongId: '', qqSongId: '', bilibiliVideoId: '' }
+      ]
     },
     { id: 'e2', name: '已删活动', type: '', startDate: '', endDate: '', city: '', location: '', ticketPrice: '', ticketType: '', seatInfo: '', tags: [], linkedGoodsIds: [], photos: [], description: '', deleted: true }
   ]
@@ -354,6 +358,68 @@ describe('mcp tool handlers', () => {
       { name: '来回高铁', amount: '300' },
       { name: '住宿', amount: '250' }
     ])
+  })
+
+  it('event_tracks 默认只给曲目概况与演出基本信息，过滤无曲单/已删活动', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.event_tracks({})
+    expect(result.total).toBe(1)
+    expect(result.events[0].id).toBe('e1')
+    // 基础信息要够 AI 介绍演出用
+    expect(result.events[0]).toMatchObject({
+      name: 'CP 春季展',
+      city: '上海',
+      location: '世博展览馆',
+      ticketPrice: '80',
+      ticketType: '单日票'
+    })
+    // 默认不返回曲目明细，只有概况
+    expect(result.events[0].tracks).toBeUndefined()
+    expect(result.events[0].tracksSummary).toEqual({ total: 2, playable: 1, manualOnly: 1 })
+    expect(result.hint).toContain('includeTracks')
+  })
+
+  it('event_tracks 传 includeTracks: true 才返回曲目明细并标注可播状态', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.event_tracks({ eventId: 'e1', includeTracks: true })
+    expect(result.events).toHaveLength(1)
+    expect(result.events[0].tracks).toHaveLength(2)
+    expect(result.events[0].tracks[0]).toMatchObject({
+      id: 't1', title: 'Melt', source: 'netease', playable: true
+    })
+    expect(result.events[0].tracks[1]).toMatchObject({
+      id: 't2', title: '手写曲', source: 'manual', playable: false
+    })
+    expect(result.events[0].tracks[1].note).toContain('未关联在线音源')
+  })
+
+  it('event_tracks 支持 eventId 精确查询与歌名/演出名关键词', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const byId = await handlers.event_tracks({ eventId: 'e1' })
+    expect(byId.events).toHaveLength(1)
+    expect(byId.events[0].tracksSummary.total).toBe(2)
+
+    // 不存在的 eventId 明确报错（而非空结果）
+    await expect(handlers.event_tracks({ eventId: 'nope' })).rejects.toThrow('未找到')
+
+    // 歌名命中 → 概况只统计匹配曲目
+    const byTitle = await handlers.event_tracks({ query: 'melt' })
+    expect(byTitle.total).toBe(1)
+    expect(byTitle.events[0].tracksSummary).toEqual({ total: 1, playable: 1, manualOnly: 0 })
+
+    // 演出名命中 → 整场曲单概况
+    const byName = await handlers.event_tracks({ query: '春季展' })
+    expect(byName.events[0].tracksSummary.total).toBe(2)
+
+    // 关键词无命中 → 空列表
+    const none = await handlers.event_tracks({ query: '不存在的歌' })
+    expect(none.total).toBe(0)
+    expect(none.events).toEqual([])
+
+    await expect(handlers.event_tracks({ eventId: 'e1', query: 'x' })).rejects.toThrow('二选一')
   })
 
   it('createMcpServer 写入门禁：关闭时写工具不展示且调用被拒', async () => {

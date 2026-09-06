@@ -21,6 +21,8 @@ import { usePresetsStore } from '@/stores/presets'
 import { useThemeStore } from '@/stores/theme'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { useRechargeStore } from '@/stores/recharge'
+import { useEventsStore } from '@/stores/events'
+import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import * as db from '@/utils/db'
 
 const log = createLogger('mcp-native')
@@ -47,7 +49,9 @@ function buildWriteHandlers() {
     presetsStore: usePresetsStore(),
     themeStore: useThemeStore(),
     notifyStore: useNotifySettingsStore(),
-    rechargeStore: useRechargeStore()
+    rechargeStore: useRechargeStore(),
+    eventsStore: useEventsStore(),
+    mediaPlayerStore: useMediaPlayerStore()
   })
 }
 

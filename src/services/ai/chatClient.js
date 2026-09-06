@@ -261,3 +261,47 @@ export async function runChatCompletion(options) {
   // 理论到不了这里（最后一轮不带 tools 必然返回文本或抛错）
   throw new Error('工具调用轮数超限')
 }
+
+/** 会话标题最长保留字符数（超出截断，CJK 12 字 ≈ 12 chars，留余量给英日文） */
+const TITLE_MAX_CHARS = 24
+
+/**
+ * 用一次轻量补全为会话生成简短标题（不带工具，低 temperature）。
+ * 失败由调用方兜底（保留首条消息截断标题），本函数只负责把文案收拾干净。
+ * @param {{ baseUrl: string, model: string, apiKey: string }} config
+ * @param {string} userText 首条用户消息
+ * @param {string} replyText 首条助手回复（摘要用）
+ * @returns {Promise<string>}
+ */
+export async function generateChatTitle(config, userText, replyText) {
+  const baseUrl = normalizeBaseUrl(config.baseUrl)
+  if (!baseUrl) throw new Error('未配置 AI 接口地址')
+  if (!config.model) throw new Error('未配置模型名称')
+  if (!config.apiKey) throw new Error('未配置 API Key')
+
+  const data = await postJson(`${baseUrl}/chat/completions`, { Authorization: `Bearer ${config.apiKey}` }, {
+    model: config.model,
+    messages: [
+      {
+        role: 'system',
+        content: '你是聊天会话的命名器。根据对话内容起一个简短标题概括主题，不超过12个字。只输出标题文本本身：不要引号、句末标点、任何前缀（如「标题：」）或解释。'
+      },
+      {
+        role: 'user',
+        content: `用户消息：${String(userText || '').slice(0, 500)}\n助手回复摘要：${String(replyText || '').slice(0, 300)}`
+      }
+    ],
+    temperature: 0.3,
+    max_tokens: 32
+  })
+
+  const raw = String(data?.choices?.[0]?.message?.content || '').trim()
+  // 只取第一行非空文本，剥掉首尾配对引号
+  const title = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .find(Boolean) || ''
+  const cleaned = title.replace(/^["'“”「『]+|["'“”」』。.]+$/g, '').trim()
+  if (!cleaned) throw new Error('AI 未返回有效标题')
+  return cleaned.slice(0, TITLE_MAX_CHARS)
+}
