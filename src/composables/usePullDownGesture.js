@@ -24,7 +24,7 @@ import { hasOverlays } from '@/composables/useDialogBackButton'
 export function usePullDownGesture(options = {}) {
   const {
     thresholdPx = 150,
-    holdMs = 380,
+    holdMs = 10,
     maxHorizontalPx = 60,
     moveGracePx = 12,
     enabled = () => true,
@@ -129,17 +129,18 @@ export function usePullDownGesture(options = {}) {
 
   onMounted(() => {
     // 从不 preventDefault，页面滚动行为不受影响
-    window.addEventListener('touchstart', onTouchStart, { passive: true })
-    window.addEventListener('touchmove', onTouchMove, { passive: true })
-    window.addEventListener('touchend', onTouchEnd, { passive: true })
-    window.addEventListener('touchcancel', onTouchEnd, { passive: true })
+    // 使用捕获阶段，避免商品卡片等局部触摸处理器 stopPropagation 后截断全局手势。
+    window.addEventListener('touchstart', onTouchStart, { passive: true, capture: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true, capture: true })
+    window.addEventListener('touchend', onTouchEnd, { passive: true, capture: true })
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true, capture: true })
   })
 
   onBeforeUnmount(() => {
     clearHoldTimer()
-    window.removeEventListener('touchstart', onTouchStart)
-    window.removeEventListener('touchmove', onTouchMove)
-    window.removeEventListener('touchend', onTouchEnd)
-    window.removeEventListener('touchcancel', onTouchEnd)
+    window.removeEventListener('touchstart', onTouchStart, { capture: true })
+    window.removeEventListener('touchmove', onTouchMove, { capture: true })
+    window.removeEventListener('touchend', onTouchEnd, { capture: true })
+    window.removeEventListener('touchcancel', onTouchEnd, { capture: true })
   })
 }

@@ -1005,6 +1005,7 @@ function removeSession(id) {
   flex: 1;
   min-width: 0;
   resize: none;
+  overflow-y: hidden;
   padding: 11px 15px;
   border: 1px solid var(--app-border);
   border-radius: 21px;
@@ -1016,6 +1017,10 @@ function removeSession(id) {
   outline: none;
   box-shadow: var(--app-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-input::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-input:focus {
