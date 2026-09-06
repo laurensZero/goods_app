@@ -149,7 +149,7 @@ export default defineConfig({
           manualChunks: {
             'vue-vendor': ['vue', 'vue-router', 'pinia', 'vue-i18n'],
             'ui-library': ['vant'],
-            'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@capawesome/capacitor-file-picker'],
+            'mobile-core': ['@capacitor/core', '@capacitor/app', '@capacitor/filesystem', '@capacitor/preferences', '@capgo/capacitor-updater', '@awesome/capacitor-file-picker'],
             'sqlite-native': ['@capacitor-community/sqlite'],
             'sql-wasm': ['sql.js'],
             'chart-engine': ['echarts'],
