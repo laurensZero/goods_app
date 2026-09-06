@@ -69,6 +69,8 @@ dependencies {
     implementation "androidx.media:media:1.7.0"
     implementation "androidx.media3:media3-exoplayer:1.5.1"
     implementation "androidx.media3:media3-datasource:1.5.1"
+    // MCP 内置 HTTP 服务（单 jar、无传递依赖）
+    implementation "org.nanohttpd:nanohttpd:2.3.1"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"

@@ -26,6 +26,8 @@ import zhTrash from './zh-CN/trash.json'
 import zhMy from './zh-CN/my.json'
 import zhGoodsGroup from './zh-CN/goodsGroup.json'
 import zhNotify from './zh-CN/notify.json'
+import zhAiChat from './zh-CN/aiChat.json'
+import zhMcp from './zh-CN/mcp.json'
 import zhSurvey from './zh-CN/survey.json'
 import zhSale from './zh-CN/sale.json'
 import zhBirthday from './zh-CN/birthday.json'
@@ -51,6 +53,8 @@ import enTrash from './en/trash.json'
 import enMy from './en/my.json'
 import enGoodsGroup from './en/goodsGroup.json'
 import enNotify from './en/notify.json'
+import enAiChat from './en/aiChat.json'
+import enMcp from './en/mcp.json'
 import enSurvey from './en/survey.json'
 import enSale from './en/sale.json'
 import enBirthday from './en/birthday.json'
@@ -76,6 +80,8 @@ import jaTrash from './ja/trash.json'
 import jaMy from './ja/my.json'
 import jaGoodsGroup from './ja/goodsGroup.json'
 import jaNotify from './ja/notify.json'
+import jaAiChat from './ja/aiChat.json'
+import jaMcp from './ja/mcp.json'
 import jaSurvey from './ja/survey.json'
 import jaSale from './ja/sale.json'
 import jaBirthday from './ja/birthday.json'
@@ -101,6 +107,8 @@ import koTrash from './ko/trash.json'
 import koMy from './ko/my.json'
 import koGoodsGroup from './ko/goodsGroup.json'
 import koNotify from './ko/notify.json'
+import koAiChat from './ko/aiChat.json'
+import koMcp from './ko/mcp.json'
 import koSurvey from './ko/survey.json'
 import koSale from './ko/sale.json'
 import koBirthday from './ko/birthday.json'
@@ -126,6 +134,8 @@ import zhTWTrash from './zh-TW/trash.json'
 import zhTWMy from './zh-TW/my.json'
 import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
 import zhTWNotify from './zh-TW/notify.json'
+import zhTWAiChat from './zh-TW/aiChat.json'
+import zhTWMcp from './zh-TW/mcp.json'
 import zhTWSurvey from './zh-TW/survey.json'
 import zhTWSale from './zh-TW/sale.json'
 import zhTWBirthday from './zh-TW/birthday.json'
@@ -174,6 +184,8 @@ const zhCNMessages = {
   ...zhGoodsGroup,
   ...zhNotify,
   ...zhSale,
+  ...zhMcp,
+  ...zhAiChat,
   survey: zhSurvey,
   birthday: zhBirthday
 }
@@ -201,6 +213,8 @@ const enMessages = {
   ...enGoodsGroup,
   ...enNotify,
   ...enSale,
+  ...enMcp,
+  ...enAiChat,
   survey: enSurvey,
   birthday: enBirthday
 }
@@ -228,6 +242,8 @@ const jaMessages = {
   ...jaGoodsGroup,
   ...jaNotify,
   ...jaSale,
+  ...jaMcp,
+  ...jaAiChat,
   survey: jaSurvey,
   birthday: jaBirthday
 }
@@ -255,6 +271,8 @@ const koMessages = {
   ...koGoodsGroup,
   ...koNotify,
   ...koSale,
+  ...koMcp,
+  ...koAiChat,
   survey: koSurvey,
   birthday: koBirthday
 }
@@ -282,6 +300,8 @@ const zhTWMessages = {
   ...zhTWGoodsGroup,
   ...zhTWNotify,
   ...zhTWSale,
+  ...zhTWMcp,
+  ...zhTWAiChat,
   survey: zhTWSurvey,
   birthday: zhTWBirthday
 }

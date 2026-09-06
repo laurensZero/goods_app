@@ -202,6 +202,7 @@
   "events.tracks.collectionPlaceholder": "Paste NetEase / QQ Music playlist or album link",
   "events.tracks.cover": "Track cover",
   "events.tracks.delete": "Delete",
+    "events.tracks.dragHandle": "Drag to reorder",
   "events.tracks.duration": "Duration",
   "events.tracks.durationPlaceholder": "e.g. 04:36",
   "events.tracks.import": "Import",

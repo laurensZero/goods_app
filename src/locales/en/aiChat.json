@@ -1,0 +1,23 @@
+{
+  "aiChat.description": "Connect your own AI via an OpenAI-compatible API to query, summarize, organize and even modify your collection.",
+  "aiChat.entryMeta": "Built-in AI chat wired to your collection data",
+  "aiChat.inputPlaceholder": "Ask about your collection…",
+  "aiChat.send": "Send",
+  "aiChat.settingsTitle": "AI Service Settings",
+  "aiChat.baseUrl": "API base URL",
+  "aiChat.model": "Model name",
+  "aiChat.apiKey": "API Key",
+  "aiChat.save": "Save",
+  "aiChat.saved": "Saved",
+  "aiChat.thinking": "Thinking…",
+  "aiChat.emptyTitle": "Chat with your collection",
+  "aiChat.emptyHint": "Try asking:",
+  "aiChat.example1": "How much did I spend this month?",
+  "aiChat.example2": "Where are my Genshin goods stored?",
+  "aiChat.example3": "Add a Hatsune Miku badge, 30 CNY",
+  "aiChat.clearChat": "Clear conversation",
+  "aiChat.cleared": "Cleared",
+  "aiChat.errorNoConfig": "Fill in the base URL, model name and API key first",
+  "aiChat.apiKeyHint": "The config is stored on this device only and used to call the OpenAI-compatible endpoint you provide (/chat/completions).",
+  "aiChat.writeNotice": "The AI can add, update or trash (recoverable) items — keep an eye on its changes."
+}

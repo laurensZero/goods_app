@@ -265,6 +265,14 @@ async function bootstrap() {
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
 
+  // MCP 服务：dev 由 Vite dev server 提供入口（页面桥接）；
+  // 原生端由 McpServer 插件（NanoHTTPD）提供入口（转发回页面协议层）
+  if (import.meta.env.DEV) {
+    import('./services/mcp/bridgeClient').then(({ initMcpBridge }) => initMcpBridge()).catch(() => {})
+  } else if (Capacitor.isNativePlatform()) {
+    import('./services/mcp/nativeServer').then(({ initMcpNativeServer }) => initMcpNativeServer()).catch(() => {})
+  }
+
   // 非阻塞式初始化问卷（不影响启动性能）
   surveyStore.loadSurveys().catch(() => {})
 }
