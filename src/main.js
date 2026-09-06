@@ -4,8 +4,6 @@ import { createApp } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { Preferences } from '@capacitor/preferences'
-// TODO: capacitor.config.json 需加 CapacitorUpdater.apiKey + defaultChannel（Capgo Cloud）
-// 当前 autoUpdate: false，增量更新需配 apiKey 后才能用 @capgo/cli upload --delta
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
 import App from './App.vue'
