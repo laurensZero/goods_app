@@ -295,11 +295,37 @@ onMounted(() => {
 })
 onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
-const examples = computed(() => [
+// 示例问题池：空状态每次出现（进入页面 / 新建对话 / 清空）随机轮换 3 条
+const examplePool = computed(() => [
   t('aiChat.example1'),
   t('aiChat.example2'),
-  t('aiChat.example3')
+  t('aiChat.example3'),
+  t('aiChat.example4'),
+  t('aiChat.example5'),
+  t('aiChat.example6'),
+  t('aiChat.example7'),
+  t('aiChat.example8'),
+  t('aiChat.example9'),
+  t('aiChat.example10')
 ])
+const exampleRound = ref(0)
+watch(
+  () => aiChat.messages.length === 0,
+  (isEmpty) => {
+    if (isEmpty) exampleRound.value += 1
+  },
+  { immediate: true }
+)
+
+const examples = computed(() => {
+  exampleRound.value // 依赖轮次：空状态每次出现重新抽取
+  const pool = [...examplePool.value]
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  return pool.slice(0, 3)
+})
 
 // ── 助手消息 Markdown 渲染缓存（v-html 内容需异步生成） ──
 /** @type {Record<string, string>} */

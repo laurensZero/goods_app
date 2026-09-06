@@ -65,12 +65,23 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'goods_update',
-    description: '按 id 部分更新谷子：只传需要修改的字段，未传字段保持不变。仅限未入回收站的条目。',
+    description: '按 id 部分更新谷子：只传需要修改的字段，未传字段保持不变。支持基本信息、收藏状态（collectStatus，如 已拥有/在售/已出/待发货）、出售信息（sellPrice/sellPlatform/sellFee/sellDate）与逐件字段（unit* 列表需传完整数组，会整体替换）。仅限未入回收站的条目；成交流程建议用 goods_sell。',
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: '条目 id，来自 goods_search' },
         name: { type: 'string', description: '名称' },
+        collectStatus: { type: 'string', description: '收集状态，如 已拥有/在售/已出/待发货/已赠出/丢失' },
+        sellPrice: { type: 'string', description: '整条成交价（字符串数字；collectStatus 为 已出/在售 时有意义）' },
+        sellPlatform: { type: 'string', description: '出售/挂牌平台' },
+        sellFee: { type: 'string', description: '手续费' },
+        sellDate: { type: 'string', description: '成交日期 YYYY-MM-DD' },
+        saleAt: { type: 'string', description: '开售日期 YYYY-MM-DD' },
+        unitAcquiredAtList: { type: 'array', items: { type: 'string' }, description: '逐件入手日期（YYYY-MM-DD），整体替换' },
+        unitActualPriceList: { type: 'array', items: { type: 'string' }, description: '逐件实付价，整体替换' },
+        unitCharacterList: { type: 'array', items: { type: 'string' }, description: '逐件角色，整体替换' },
+        unitCollectStatusList: { type: 'array', items: { type: 'string' }, description: '逐件收集状态，整体替换' },
+        unitSaleInfoList: { type: 'array', description: '逐件出售信息（{price,platform,fee,date}），整体替换', items: { type: 'object' } },
         ...GOODS_MUTABLE_FIELDS
       },
       required: ['id']
@@ -85,6 +96,37 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         id: { type: 'string', description: '条目 id' }
       },
       required: ['id']
+    }
+  },
+  {
+    name: 'goods_sell',
+    description: '记录谷子出售/挂牌：默认置为「已出」并写入成交价、平台、手续费、日期（成本与盈亏由 sale_ledger 自动核算）；传 status="在售" 则记为挂牌中。多件拆分出售请改用 goods_update 的 unitCollectStatusList + unitSaleInfoList。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '条目 id，来自 goods_search' },
+        price: { type: 'number', description: '成交价/挂牌价' },
+        platform: { type: 'string', description: '平台，如 闲鱼/微店' },
+        fee: { type: 'number', description: '手续费' },
+        date: { type: 'string', description: '成交日期 YYYY-MM-DD，缺省为今天' },
+        status: { type: 'string', enum: ['已出', '在售'], description: '默认 已出（成交）' }
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'recharge_add',
+    description: '记一笔游戏充值。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        game: { type: 'string', description: '游戏名' },
+        amount: { type: 'number', description: '充值金额' },
+        itemName: { type: 'string', description: '项目名，如 648 源石 / 月卡' },
+        chargedAt: { type: 'string', description: '充值日期 YYYY-MM-DD，缺省为今天' },
+        note: { type: 'string', description: '备注' }
+      },
+      required: ['game', 'amount']
     }
   },
   {
@@ -167,6 +209,11 @@ export const MCP_TOOL_DEFINITIONS = [
         character: { type: 'string', description: '按角色名过滤（匹配角色列表中的成员，不区分大小写）' },
         storageLocation: { type: 'string', description: '按存放位置精确过滤' },
         wishlistOnly: { type: 'boolean', description: '为 true 时只返回愿望单条目' },
+        collectionOnly: { type: 'boolean', description: '为 true 时排除愿望单条目（只返回已收藏）。回答「收藏了什么」类问题应传 true，避免混入心愿单' },
+        acquiredAfter: { type: 'string', description: '只返回入手日期不早于该值的条目，格式 YYYY-MM-DD（含当天）' },
+        acquiredBefore: { type: 'string', description: '只返回入手日期不晚于该值的条目，格式 YYYY-MM-DD（含当天）' },
+        priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
+        priceMax: { type: 'number', description: '价格上限（口径同 priceMin）' },
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: '返回条数上限' },
         offset: { type: 'integer', minimum: 0, default: 0, description: '分页偏移' }
       }
@@ -200,7 +247,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'character_leaderboard',
-    description: '角色维度统计：每个角色的已收藏条目数（count，不含愿望单）、数量、估算花费、已出件数，愿望单件数单列在 wishlistCount，按 count 倒序。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用。',
+    description: '角色维度统计。字段口径（必须严格遵守）：count=已收藏条目数（不含愿望单）；wishlistCount=愿望单条目数，与 count 并列，禁止相加；quantity=已收藏件数；spend 只计已收藏。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用；表述时必须区分「已收藏」和「在愿望单」。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -230,7 +277,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_list',
-    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务价格与关联谷子数量，按开始日期倒序。',
+    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计（ticketPrice + 逐日票 + 其他开支，原币种未折算）、关联谷子数量，按开始日期倒序。回答「这次漫展花了多少」类问题使用。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -250,3 +297,11 @@ export const MCP_TOOL_DEFINITIONS = [
     }
   }
 ]
+
+/** 外部 MCP 开启写入开关后可用的完整工具集 */
+export const MCP_ALL_TOOL_DEFINITIONS = [...MCP_TOOL_DEFINITIONS, ...MCP_WRITE_TOOL_DEFINITIONS]
+
+/** @param {boolean} allowWrites */
+export function getToolDefinitions(allowWrites) {
+  return allowWrites ? MCP_ALL_TOOL_DEFINITIONS : MCP_TOOL_DEFINITIONS
+}

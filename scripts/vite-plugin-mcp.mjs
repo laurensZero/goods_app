@@ -22,7 +22,7 @@
  */
 
 import { WebSocketServer, WebSocket } from 'ws'
-import { MCP_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from '../src/services/mcp/toolDefinitions.js'
+import { getToolDefinitions, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from '../src/services/mcp/toolDefinitions.js'
 import { createMcpRequestHandler, McpUnknownToolError } from '../src/services/mcp/protocol.js'
 
 const DEFAULT_TOKEN = '<goods-dev-token></goods-dev-token>'
@@ -77,10 +77,12 @@ function isAuthorized(header, expectedToken) {
 
 /**
  * @param {string} [envToken]
+ * @param {boolean} [allowWrites] 外部 MCP 写入开关（GOODS_MCP_ALLOW_WRITES=1）
  * @returns {import('vite').Plugin}
  */
-export function mcpDevServerPlugin(envToken) {
+export function mcpDevServerPlugin(envToken, allowWrites = false) {
   const token = envToken || DEFAULT_TOKEN
+  const toolDefinitions = getToolDefinitions(Boolean(allowWrites))
   /** @type {Set<import('ws').WebSocket>} */
   const pageSockets = new Set()
   /** @type {Map<number, { resolve: (value: unknown) => void, reject: (error: Error) => void, timer: NodeJS.Timeout }>} */
@@ -112,9 +114,9 @@ export function mcpDevServerPlugin(envToken) {
   const mcpHandler = createMcpRequestHandler({
     serverInfo: MCP_SERVER_INFO,
     instructions: MCP_SERVER_INSTRUCTIONS,
-    listTools: () => MCP_TOOL_DEFINITIONS,
+    listTools: () => toolDefinitions,
     callTool: (name, args) => {
-      if (!MCP_TOOL_DEFINITIONS.some((tool) => tool.name === name)) {
+      if (!toolDefinitions.some((tool) => tool.name === name)) {
         throw new McpUnknownToolError(name)
       }
       return forwardToolCall(name, args)
@@ -255,7 +257,7 @@ export function mcpDevServerPlugin(envToken) {
 
         server.config.logger.info(
           `[mcp] MCP dev 服务已就绪：POST http://localhost:${server.config.server.port || 5173}${MCP_PATH} ` +
-          `（Bearer token: ${token}，可用 GOODS_MCP_TOKEN 环境变量覆盖）`
+          `（Bearer token: ${token}，可用 GOODS_MCP_TOKEN 环境变量覆盖；外部写入：${allowWrites ? '开启' : '关闭（GOODS_MCP_ALLOW_WRITES=1 开启）'}）`
         )
       }
     }

@@ -27,5 +27,7 @@
   "mcp.port": "サーバーポート",
   "mcp.portHint": "変更するとサービスは自動で再起動され、外部 AI クライアントはこのポートで接続します",
   "mcp.statusRunningNative": "内蔵 HTTP サービスが実行中。AI クライアントから呼び出せます",
-  "mcp.statusWaitingNative": "サービス未起動"
+  "mcp.statusWaitingNative": "サービス未起動",
+  "mcp.allowWrites": "外部書き込みを許可",
+  "mcp.allowWritesDesc": "有効にすると、外部 AI クライアントがデータの追加・修正・削除や一部設定の変更を行えます。オフのときは読み取り専用。PC の開発サーバーは GOODS_MCP_ALLOW_WRITES=1 で起動してください"
 }

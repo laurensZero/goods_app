@@ -58,6 +58,29 @@
               </label>
             </div>
 
+            <div class="settings-item">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--write">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('mcp.allowWrites') }}</span>
+                  <span class="settings-item__desc">{{ t('mcp.allowWritesDesc') }}</span>
+                </div>
+              </div>
+              <label class="toggle-switch" :aria-label="t('mcp.allowWrites')">
+                <input
+                  :checked="settings.allowExternalWrites"
+                  type="checkbox"
+                  @change="saveSetting('allowExternalWrites', $event.target.checked)"
+                />
+                <span class="toggle-slider" />
+              </label>
+            </div>
+
             <div v-if="isNative" class="settings-item">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--url">
@@ -705,6 +728,11 @@ onMounted(async () => {
 
 .port-input:focus {
   border-color: color-mix(in srgb, var(--app-text) 35%, transparent);
+}
+
+.settings-item__icon--write {
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
 }
 
 .value-hint {
