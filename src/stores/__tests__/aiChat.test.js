@@ -267,6 +267,38 @@ describe('aiChat store', () => {
     expect(store.sessions[0].titleSource).toBe('')
   })
 
+  it('助手消息挂载思维链并随持久化保留，流式增量先实时写入', async () => {
+    runChatCompletionMock.mockImplementation(async ({ messages, onDelta }) => {
+      // 模拟流式：思维链先到并停留，再流正文，最后返回最终结果
+      onDelta?.({ reasoning: '流式推理' })
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      onDelta?.({ content: '流式正文' })
+      return {
+        content: '答',
+        reasoning: '推理内容',
+        steps: [],
+        convo: [...messages, { role: 'assistant', content: '答' }]
+      }
+    })
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    const sendPromise = store.send('问题')
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    // 流式中段：思维链实时可见，正文还没到
+    expect(store.messages.at(-1).reasoning).toBe('流式推理')
+    expect(store.messages.at(-1).content).toBe('')
+    await sendPromise
+
+    // 最终以结果为准整体覆盖
+    expect(store.messages.at(-1).reasoning).toBe('推理内容')
+    expect(store.messages.at(-1).content).toBe('答')
+
+    await new Promise((resolve) => setTimeout(resolve, 450))
+    const saved = JSON.parse(localStorage.getItem('goods_ai_chat_sessions'))
+    expect(saved.sessions[0].messages.at(-1).reasoning).toBe('推理内容')
+  })
+
   it('renameSession 拒绝空标题与不存在的会话', async () => {
     const store = useAiChatStore()
     expect(store.renameSession(store.activeSessionId, '   ')).toBe(false)

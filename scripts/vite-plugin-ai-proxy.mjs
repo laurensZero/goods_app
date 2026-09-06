@@ -6,9 +6,11 @@
  * dev 阶段聊天请求改走 `/ai-proxy/chat/completions`，由 dev server 转发到
  * `x-ai-target` 头指定的目标地址，与服务端等价地绕开 CORS。
  *
- * 与 bilibili-media 代理同级别的开发辅助：仅监听本机 dev server，
- * 生产/原生端不经过此路径（原生走 CapacitorHttp 直连）。
+ * 响应按流式透传（SSE chunk 到一段转发一段），支持聊天界面的实时思维链；
+ * 仅监听本机 dev server，生产/原生端不经过此路径（原生走 CapacitorHttp 直连）。
  */
+
+import { Readable } from 'node:stream'
 
 const MAX_BODY_BYTES = 4 * 1024 * 1024
 
@@ -59,12 +61,20 @@ export function aiProxyPlugin() {
           if (req.headers.authorization) headers.Authorization = String(req.headers.authorization)
 
           const upstream = await fetch(upstreamUrl, { method: 'POST', headers, body })
-          const text = await upstream.text()
           res.statusCode = upstream.status
           res.setHeader('Content-Type', upstream.headers.get('content-type') || 'application/json; charset=utf-8')
-          res.end(text)
+          res.setHeader('Cache-Control', 'no-cache')
+          // SSE 需要关掉缓冲并按块透传，不能先聚合再返回
+          res.setHeader('X-Accel-Buffering', 'no')
+          if (upstream.body) {
+            Readable.fromWeb(/** @type {any} */ (upstream.body)).pipe(res)
+          } else {
+            res.end(await upstream.text())
+          }
         } catch (error) {
-          res.statusCode = 502
+          if (!res.headersSent) {
+            res.statusCode = 502
+          }
           res.end(JSON.stringify({
             error: { message: `AI 代理请求失败：${error instanceof Error ? error.message : String(error)}` }
           }))

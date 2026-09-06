@@ -51,7 +51,7 @@ function createFakeDb() {
     {
       id: 'e1', name: 'CP 春季展', type: '漫展', startDate: '2025-05-01', endDate: '2025-05-02',
       city: '上海', location: '世博展览馆', ticketPrice: '80', ticketType: '单日票', seatInfo: '',
-      tags: ['线下'], linkedGoodsIds: ['g1'], photos: ['p1'], description: '两天都去了',
+      tags: ['线下'], linkedGoodsIds: ['g1'], photos: ['p1', { uri: 'https://img.example/stage.jpg', caption: '舞台' }], description: '两天都去了',
       deleted: false,
       tracks: [
         { id: 't1', title: 'Melt', artist: '初音未来', album: 'Secret', durationMs: 250000, source: 'netease', neteaseSongId: 'n1', qqSongId: '', bilibiliVideoId: '' },
@@ -216,7 +216,7 @@ describe('mcp tool handlers', () => {
       id: 'e1',
       name: 'CP 春季展',
       linkedGoodsCount: 1,
-      photosCount: 1
+      photosCount: 2
     })
   })
 
@@ -495,6 +495,11 @@ describe('mcp tool handlers', () => {
       ticketPrice: '80',
       ticketType: '单日票'
     })
+    // 现场照片：uri 可直接展示（字符串/对象两种存法都兼容）
+    expect(result.events[0].photos).toEqual([
+      { uri: 'p1', caption: '' },
+      { uri: 'https://img.example/stage.jpg', caption: '舞台' }
+    ])
     // 默认不返回曲目明细，只有概况
     expect(result.events[0].tracks).toBeUndefined()
     expect(result.events[0].tracksSummary).toEqual({ total: 2, playable: 1, manualOnly: 1 })

@@ -32,6 +32,7 @@
   "aiChat.deleteSession": "Delete this conversation",
   "aiChat.deleted": "Deleted",
   "aiChat.emptySessions": "No conversations yet",
+  "aiChat.reasoning": "Reasoning",
   "aiChat.rename": "Rename",
   "aiChat.renameSuccess": "Renamed",
   "aiChat.messagesCount": "{count} messages"

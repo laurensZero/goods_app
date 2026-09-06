@@ -375,7 +375,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'event_tracks',
-    description: '查询演出/演唱会的曲单与演出基本信息（城市/场馆/座位/票档/描述等）。默认只返回 tracksSummary 曲目概况（总数/可播数/仅手动数），不返回曲目明细——用户没明确要歌单时用一句话概括即可，禁止罗列具体曲目；用户要完整歌单、找某首歌或想播放时才传 includeTracks: true。要播放时拿 eventId + trackId 调 music_play。',
+    description: '查询演出/演唱会的曲单与演出基本信息（城市/场馆/座位/票档/描述等），并返回现场照片（photos，uri 可直接展示）。默认只返回 tracksSummary 曲目概况（总数/可播数/仅手动数），不返回曲目明细——用户没明确要歌单时用一句话概括即可，禁止罗列具体曲目；用户要完整歌单、找某首歌或想播放时才传 includeTracks: true。要播放时拿 eventId + trackId 调 music_play。',
     inputSchema: {
       type: 'object',
       properties: {
