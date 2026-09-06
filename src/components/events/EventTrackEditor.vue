@@ -92,10 +92,39 @@
         </div>
       </div>
 
-      <div v-if="tracks.length" class="track-editor__list">
-          <article v-for="({ track, sourceIndex }) in displayTracks" :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${sourceIndex}`" class="track-editor__item">
+      <div v-if="tracks.length" ref="trackListRef" class="track-editor__list" :class="{ 'track-editor__list--dragging': drag.active }">
+          <article
+            v-for="({ track, sourceIndex, displayIndex }) in displayTracks"
+            :key="track.id || `${track.neteaseSongId || track.qqSongId || track.bilibiliVideoId || 'manual'}_${sourceIndex}`"
+            class="track-editor__item"
+            :class="{ 'track-editor__item--dragging': isItemDragging(displayIndex) }"
+            :style="itemDragStyle(displayIndex)"
+            data-track-item
+          >
           <div class="track-editor__item-head">
-            <span class="track-editor__item-index">#{{ sourceIndex + 1 }}</span>
+            <div class="track-editor__item-lead">
+              <button
+                v-if="tracks.length > 1"
+                type="button"
+                class="track-editor__drag"
+                :aria-label="t('events.tracks.dragHandle')"
+                :title="t('events.tracks.dragHandle')"
+                @pointerdown="onDragPointerDown($event, displayIndex)"
+                @pointermove="onDragPointerMove"
+                @pointerup="onDragPointerUp"
+                @pointercancel="onDragPointerCancel"
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+                  <circle cx="4.5" cy="2.5" r="1.4" />
+                  <circle cx="9.5" cy="2.5" r="1.4" />
+                  <circle cx="4.5" cy="7" r="1.4" />
+                  <circle cx="9.5" cy="7" r="1.4" />
+                  <circle cx="4.5" cy="11.5" r="1.4" />
+                  <circle cx="9.5" cy="11.5" r="1.4" />
+                </svg>
+              </button>
+              <span class="track-editor__item-index">#{{ sourceIndex + 1 }}</span>
+            </div>
             <div class="track-editor__badges">
               <span v-if="track.source === 'netease'" class="track-editor__badge track-editor__badge--netease">{{ t('events.tracks.netease') }}</span>
               <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
@@ -151,7 +180,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
@@ -194,7 +223,171 @@ const searchResultListRef = ref(null)
 const neteaseCoverMap = ref({})
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
-const displayTracks = computed(() => tracks.value.map((track, sourceIndex) => ({ track, sourceIndex })).reverse())
+const displayTracks = computed(() => tracks.value
+  .map((track, sourceIndex) => ({ track, sourceIndex }))
+  .reverse()
+  .map((item, displayIndex) => ({ ...item, displayIndex })))
+
+const trackListRef = ref(null)
+const drag = reactive({
+  active: false,
+  pointerId: null,
+  index: -1,
+  targetIndex: -1,
+  startY: 0,
+  lastClientY: 0,
+  offset: 0,
+  rectTop: 0,
+  itemHeight: 0,
+  gap: 10,
+  rects: [],
+  scrollEl: null,
+  startScrollY: 0
+})
+let autoScrollRafId = 0
+
+function isItemDragging(index) {
+  return drag.active && drag.index === index
+}
+
+function itemDragStyle(index) {
+  if (!drag.active) return null
+  if (index === drag.index) return { transform: `translateY(${drag.offset}px)` }
+  const step = drag.itemHeight + drag.gap
+  let shift = 0
+  if (index > drag.index && index <= drag.targetIndex) shift = -step
+  else if (index < drag.index && index >= drag.targetIndex) shift = step
+  return shift ? { transform: `translateY(${shift}px)` } : null
+}
+
+function currentScrollTop() {
+  return drag.scrollEl ? drag.scrollEl.scrollTop : window.scrollY
+}
+
+function findScrollParent(el) {
+  let node = el?.parentElement || null
+  while (node) {
+    const overflowY = getComputedStyle(node).overflowY
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node
+    node = node.parentElement
+  }
+  return null
+}
+
+function onDragPointerDown(event, index) {
+  if (event.button != null && event.button !== 0) return
+  if (drag.active) return
+  const listEl = trackListRef.value
+  const itemEls = listEl ? Array.from(listEl.querySelectorAll('[data-track-item]')) : []
+  if (itemEls.length < 2) return
+  const rects = itemEls.map((el) => el.getBoundingClientRect())
+  const gap = rects.length > 1 ? Math.max(0, rects[1].top - (rects[0].top + rects[0].height)) : 10
+
+  drag.active = true
+  drag.pointerId = event.pointerId
+  drag.index = index
+  drag.targetIndex = index
+  drag.startY = event.clientY
+  drag.lastClientY = event.clientY
+  drag.offset = 0
+  drag.rectTop = rects[index].top
+  drag.itemHeight = rects[index].height
+  drag.gap = gap
+  drag.rects = rects
+  drag.scrollEl = findScrollParent(listEl)
+  drag.startScrollY = currentScrollTop()
+
+  try {
+    event.currentTarget.setPointerCapture(event.pointerId)
+  } catch {
+    resetDragState()
+    return
+  }
+  event.preventDefault()
+}
+
+function onDragPointerMove(event) {
+  if (!drag.active || event.pointerId !== drag.pointerId) return
+  updateDragGeometry(event.clientY)
+  ensureAutoScroll()
+}
+
+function onDragPointerUp(event) {
+  if (!drag.active || event.pointerId !== drag.pointerId) return
+  const { index, targetIndex } = drag
+  resetDragState()
+  // Drag state tracks visual (reversed) positions; map back to array order.
+  const count = tracks.value.length
+  if (index !== targetIndex) moveTrack(count - 1 - index, count - 1 - targetIndex)
+}
+
+function onDragPointerCancel(event) {
+  if (!drag.active || event.pointerId !== drag.pointerId) return
+  resetDragState()
+}
+
+function updateDragGeometry(clientY) {
+  drag.lastClientY = clientY
+  const scrollDelta = currentScrollTop() - drag.startScrollY
+  drag.offset = clientY - drag.startY + scrollDelta
+  const center = drag.rectTop + drag.offset + drag.itemHeight / 2
+  let target = drag.index
+  drag.rects.forEach((rect, i) => {
+    if (i === drag.index) return
+    const mid = rect.top + rect.height / 2 - scrollDelta
+    if (i < drag.index && center < mid) target = Math.min(target, i)
+    else if (i > drag.index && center > mid) target = Math.max(target, i)
+  })
+  drag.targetIndex = target
+}
+
+function ensureAutoScroll() {
+  if (autoScrollRafId) return
+  autoScrollRafId = requestAnimationFrame(() => {
+    autoScrollRafId = 0
+    if (!drag.active) return
+    const delta = computeAutoScrollDelta()
+    if (!delta) return
+    if (drag.scrollEl) drag.scrollEl.scrollTop += delta
+    else window.scrollBy(0, delta)
+    updateDragGeometry(drag.lastClientY)
+    ensureAutoScroll()
+  })
+}
+
+function computeAutoScrollDelta() {
+  const edge = 72
+  if (drag.lastClientY < edge) return -Math.min(22, Math.ceil((edge - drag.lastClientY) / 3))
+  const viewportBottom = window.innerHeight - edge
+  if (drag.lastClientY > viewportBottom) return Math.min(22, Math.ceil((drag.lastClientY - viewportBottom) / 3))
+  return 0
+}
+
+function resetDragState() {
+  drag.active = false
+  drag.pointerId = null
+  drag.index = -1
+  drag.targetIndex = -1
+  drag.offset = 0
+  drag.rects = []
+  drag.scrollEl = null
+  if (autoScrollRafId) {
+    cancelAnimationFrame(autoScrollRafId)
+    autoScrollRafId = 0
+  }
+}
+
+function moveTrack(from, to) {
+  const next = [...tracks.value]
+  const [moved] = next.splice(from, 1)
+  if (!moved) return
+  next.splice(to, 0, moved)
+  updateTracks(next)
+}
+
+onBeforeUnmount(() => {
+  if (autoScrollRafId) cancelAnimationFrame(autoScrollRafId)
+})
 
 const trackCoverUrl = (track) => {
   if (track?.coverUrl) return track.coverUrl
@@ -680,6 +873,48 @@ async function importPlaylist() {
 
 .track-editor__item {
   padding: 14px;
+  transition: transform 180ms ease;
+}
+
+.track-editor__item--dragging {
+  position: relative;
+  z-index: 2;
+  transition: none;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+  will-change: transform;
+}
+
+.track-editor__list--dragging {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.track-editor__item-lead {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.track-editor__drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.track-editor__drag:active {
+  cursor: grabbing;
 }
 
 .track-editor__item-head {
