@@ -27,5 +27,7 @@
   "mcp.port": "Server port",
   "mcp.portHint": "The service restarts automatically after a change; external AI clients connect through this port",
   "mcp.statusRunningNative": "Built-in HTTP service is running; AI clients can call tools",
-  "mcp.statusWaitingNative": "Service not started"
+  "mcp.statusWaitingNative": "Service not started",
+  "mcp.allowWrites": "Allow external writes",
+  "mcp.allowWritesDesc": "When enabled, external AI clients can add/modify/delete data and change some settings; read-only when off. Start the desktop dev server with GOODS_MCP_ALLOW_WRITES=1 to apply"
 }

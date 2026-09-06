@@ -14,7 +14,12 @@
 const WRITABLE_FIELDS = new Set([
   'name', 'category', 'ip', 'characters', 'tags', 'variant', 'storageLocation',
   'price', 'actualPrice', 'currency', 'actualPriceCurrency', 'quantity',
-  'acquiredAt', 'isWishlist', 'note'
+  'acquiredAt', 'isWishlist', 'note',
+  // 收藏状态与出售信息
+  'collectStatus', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'saleAt',
+  // 逐件字段（整体替换，需传完整数组）
+  'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList',
+  'unitCollectStatusList', 'unitSaleInfoList'
 ])
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
@@ -79,6 +84,17 @@ function sanitizeWritable(args, options = {}) {
   if (data.tags !== undefined && !Array.isArray(data.tags)) {
     throw new Error('tags 需为字符串数组')
   }
+  for (const unitKey of ['unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'unitSaleInfoList']) {
+    if (data[unitKey] !== undefined && !Array.isArray(data[unitKey])) {
+      throw new Error(`${unitKey} 需为数组（整体替换，请传完整列表）`)
+    }
+  }
+  if (data.sellDate !== undefined && data.sellDate !== '' && !DATE_PATTERN.test(String(data.sellDate))) {
+    throw new Error('sellDate 需为 YYYY-MM-DD 格式')
+  }
+  if (data.saleAt !== undefined && data.saleAt !== '' && !DATE_PATTERN.test(String(data.saleAt))) {
+    throw new Error('saleAt 需为 YYYY-MM-DD 格式')
+  }
   return data
 }
 
@@ -97,10 +113,11 @@ function sanitizeWritable(args, options = {}) {
  *  goodsStore: GoodsStoreLike,
  *  presetsStore?: any,
  *  themeStore?: any,
- *  notifyStore?: any
+ *  notifyStore?: any,
+ *  rechargeStore?: any
  * }} params
  */
-export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStore, notifyStore }) {
+export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStore, notifyStore, rechargeStore }) {
   return {
     /**
      * @param {Record<string, any>} args
@@ -167,6 +184,69 @@ export function createMcpWriteToolHandlers({ goodsStore, presetsStore, themeStor
       }
       await goodsStore.restoreTrashItem(targetId)
       return { ok: true, id: targetId }
+    },
+
+    /**
+     * 记录出售/挂牌：整条级别（多件拆分走 goods_update 的逐件字段）。
+     * @param {Record<string, any>} args
+     */
+    async goods_sell(args) {
+      const targetId = String(args?.id || '').trim()
+      if (!targetId) throw new Error('id 必填')
+      if (!goodsStore.list.value.some((item) => item?.id === targetId)) {
+        throw new Error(`未找到 id 为 ${targetId} 的条目（回收站中的条目请先恢复）`)
+      }
+      const status = String(args?.status || '已出').trim()
+      if (!['已出', '在售'].includes(status)) {
+        throw new Error('status 需为 已出/在售')
+      }
+      const date = String(args?.date || '').trim() || new Date().toISOString().slice(0, 10)
+      if (!DATE_PATTERN.test(date)) throw new Error('date 需为 YYYY-MM-DD 格式')
+
+      /** @type {Record<string, any>} */
+      const data = { collectStatus: status, sellDate: date }
+      for (const [key, argKey] of [['sellPrice', 'price'], ['sellPlatform', 'platform'], ['sellFee', 'fee']]) {
+        const value = args?.[argKey]
+        if (value !== undefined) data[key] = String(value)
+      }
+      await goodsStore.updateGoods(targetId, data)
+      const price = Number(data.sellPrice) || 0
+      const fee = Number(data.sellFee) || 0
+      return {
+        ok: true,
+        id: targetId,
+        status,
+        price,
+        fee,
+        date: data.sellDate,
+        note: status === '已出'
+          ? '已记为成交；回血与盈亏可在 sale_ledger 查看'
+          : '已记为挂牌中'
+      }
+    },
+
+    /**
+     * 记一笔游戏充值。
+     * @param {Record<string, any>} args
+     */
+    async recharge_add(args) {
+      if (!rechargeStore) throw new Error('充值模块不可用')
+      const game = String(args?.game || '').trim()
+      const amount = Number(args?.amount)
+      if (!game) throw new Error('game 必填')
+      if (!Number.isFinite(amount) || amount <= 0) throw new Error('amount 需为大于 0 的数字')
+      const chargedAt = String(args?.chargedAt || '').trim() || new Date().toISOString().slice(0, 10)
+      if (!DATE_PATTERN.test(chargedAt)) throw new Error('chargedAt 需为 YYYY-MM-DD 格式')
+
+      const record = await rechargeStore.addRecord({
+        game,
+        itemName: String(args?.itemName || ''),
+        amount,
+        chargedAt,
+        note: String(args?.note || '')
+      })
+      if (!record) throw new Error('充值记录未通过校验（金额或日期不合法）')
+      return { ok: true, id: record.id, game: record.game, amount: Number(record.amount) || 0, chargedAt: record.chargedAt }
     },
 
     /**

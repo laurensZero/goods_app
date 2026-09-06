@@ -97,6 +97,11 @@ describe('mcp tool handlers', () => {
 
     const wishlist = await handlers.goods_search({ wishlistOnly: true })
     expect(wishlist.items.map((/** @type {any} */ i) => i.id)).toEqual(['g3'])
+
+    const collectionOnly = await handlers.goods_search({ collectionOnly: true })
+    expect(collectionOnly.items.map((/** @type {any} */ i) => i.id).sort()).toEqual(['g1', 'g2']) // 排除愿望单 g3
+    const both = await handlers.goods_search({})
+    expect(both.total).toBe(3) // 缺省混合返回
   })
 
   it('goods_detail 返回完整字段，回收站条目也可查', async () => {
@@ -280,12 +285,14 @@ describe('mcp tool handlers', () => {
       soldCount: 1,
       listingCount: 1
     })
-    expect(result.soldCount).toBe(1)
+    expect(result.summary.soldCount).toBe(1)
     expect(result.recentSold[0]).toMatchObject({ name: '旧吧唧', price: 30, fee: 2, profit: 8, hasPrice: true })
     expect(result.listing[0]).toMatchObject({ name: '在售立牌', price: 80 })
 
+    // 年份过滤后 summary 同步过滤（回归：此前 summary 恒为全量数字）
     const y2025 = await createMcpToolHandlers(db).sale_ledger({ year: 2025 })
-    expect(y2025.soldCount).toBe(0)
+    expect(y2025.soldCount).toBeUndefined()
+    expect(y2025.summary).toMatchObject({ recoveredTotal: 0, profitTotal: 0, soldCount: 0 })
     expect(y2025.recentSold).toHaveLength(0)
   })
 
@@ -299,6 +306,75 @@ describe('mcp tool handlers', () => {
     // 注册的工具数量与定义一致
     const list = await server.handleRaw(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list' }))
     expect(list.body.result.tools).toHaveLength(MCP_TOOL_DEFINITIONS.length)
+  })
+
+  it('goods_search 支持入手日期与价格区间过滤', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      { id: 'r1', name: '六月的谷子', isWishlist: false, acquiredAt: '2026-06-15', actualPrice: '200', price: '', currency: 'CNY', updatedAt: 1 },
+      { id: 'r2', name: '一月的手办', isWishlist: false, acquiredAt: '2026-01-05', actualPrice: '', price: '600', currency: 'CNY', updatedAt: 2 },
+      { id: 'r3', name: '没填日期和价格', isWishlist: false, acquiredAt: '', actualPrice: '', price: '', currency: 'CNY', updatedAt: 3 }
+    ])
+    const handlers = createMcpToolHandlers(db)
+
+    const june = await handlers.goods_search({ acquiredAfter: '2026-06-01', acquiredBefore: '2026-06-30' })
+    expect(june.items.map((/** @type {any} */ i) => i.id)).toEqual(['r1'])
+
+    const expensive = await handlers.goods_search({ priceMin: 100 })
+    // 命中 r1/r2；结果按更新时间倒序
+    expect(expensive.items.map((/** @type {any} */ i) => i.id)).toEqual(['r2', 'r1']) // 实付价优先，r2 回退标价 600
+
+    const cheap = await handlers.goods_search({ priceMax: 100 })
+    expect(cheap.items.map((/** @type {any} */ i) => i.id)).toEqual(['r3']) // 未填价格按 0
+
+    await expect(handlers.goods_search({ acquiredAfter: '2026/06/01' })).rejects.toThrow('acquiredAfter')
+    await expect(handlers.goods_search({ priceMin: 'abc' })).rejects.toThrow('priceMin')
+  })
+
+  it('events_list 输出活动花费汇总（票价+逐日票+其他开支）', async () => {
+    const db = createFakeDb()
+    db.getEvents = vi.fn(async () => [
+      {
+        id: 'e1', name: 'CP 展', type: '漫展', startDate: '2026-08-01', endDate: '2026-08-02',
+        city: '上海', location: '展馆', ticketPrice: '80', ticketType: '单日票', seatInfo: '',
+        dayTicketList: [{ price: '80', ticketType: '单日票' }, { price: '100', ticketType: '内场票' }],
+        otherExpenses: [{ id: 'o1', name: '来回高铁', amount: '300' }, { id: 'o2', name: '住宿', amount: '250' }],
+        tags: [], linkedGoodsIds: [], photos: [], description: '', deleted: false
+      }
+    ])
+
+    const result = await createMcpToolHandlers(db).events_list({})
+    expect(result.events[0].expenseSummary).toEqual({
+      ticket: 80,
+      dayTicketsTotal: 180,
+      otherTotal: 550,
+      total: 810
+    })
+    expect(result.events[0].otherExpenses).toEqual([
+      { name: '来回高铁', amount: '300' },
+      { name: '住宿', amount: '250' }
+    ])
+  })
+
+  it('createMcpServer 写入门禁：关闭时写工具不展示且调用被拒', async () => {
+    const db = createFakeDb()
+
+    const closed = createMcpServer({ dbApi: db })
+    const closedList = await closed.handleRaw(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }))
+    const closedNames = closedList.body.result.tools.map((/** @type {any} */ t) => t.name)
+    expect(closedNames).not.toContain('goods_add')
+
+    const closedCall = await closed.handleRaw(JSON.stringify({
+      jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'goods_add', arguments: { name: 'x' } }
+    }))
+    expect(closedCall.body.result.isError).toBe(true)
+    expect(closedCall.body.result.content[0].text).toContain('外部 MCP 写入未开启')
+
+    const open = createMcpServer({ dbApi: db, allowWriteTools: true })
+    const openList = await open.handleRaw(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/list' }))
+    const openNames = openList.body.result.tools.map((/** @type {any} */ t) => t.name)
+    expect(openNames).toContain('goods_add')
+    expect(openNames).toContain('goods_sell')
   })
 
   it('collection_overview 多币种分别累计', async () => {

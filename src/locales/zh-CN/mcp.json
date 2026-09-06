@@ -27,5 +27,7 @@
   "mcp.port": "服务端口",
   "mcp.portHint": "修改后自动重启服务，外部 AI 客户端通过该端口访问",
   "mcp.statusRunningNative": "内置 HTTP 服务运行中，AI 客户端可以调用",
-  "mcp.statusWaitingNative": "服务未启动"
+  "mcp.statusWaitingNative": "服务未启动",
+  "mcp.allowWrites": "允许外部写入",
+  "mcp.allowWritesDesc": "开启后，外部 AI 客户端可新增/修改/删除数据并修改部分设置；关闭时外部只读。电脑端开发服务器需以 GOODS_MCP_ALLOW_WRITES=1 启动"
 }

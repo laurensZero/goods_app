@@ -27,5 +27,7 @@
   "mcp.port": "서버 포트",
   "mcp.portHint": "변경하면 서비스가 자동으로 재시작되며, 외부 AI 클라이언트는 이 포트로 접속합니다",
   "mcp.statusRunningNative": "내장 HTTP 서비스 실행 중, AI 클라이언트 호출 가능",
-  "mcp.statusWaitingNative": "서비스 미시작"
+  "mcp.statusWaitingNative": "서비스 미시작",
+  "mcp.allowWrites": "외부 쓰기 허용",
+  "mcp.allowWritesDesc": "켜면 외부 AI 클라이언트가 데이터를 추가/수정/삭제하고 일부 설정을 변경할 수 있습니다. 끄면 읽기 전용. PC 개발 서버는 GOODS_MCP_ALLOW_WRITES=1 로 실행해야 적용됩니다"
 }

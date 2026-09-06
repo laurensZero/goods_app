@@ -96,6 +96,21 @@ describe('mcp write tool handlers', () => {
     expect(result).toEqual({ ok: true, id: 'g1' })
     expect(store.updateGoods).toHaveBeenCalledWith('g1', { note: '补个备注', storageLocation: 'A 柜' })
 
+    // 出售信息与逐件字段在白名单内（整体替换）
+    await handlers.goods_update({
+      id: 'g1',
+      collectStatus: '在售',
+      sellPrice: '45',
+      unitCollectStatusList: ['在售', '已拥有']
+    })
+    expect(store.updateGoods).toHaveBeenCalledWith('g1', {
+      collectStatus: '在售',
+      sellPrice: '45',
+      unitCollectStatusList: ['在售', '已拥有']
+    })
+    await expect(handlers.goods_update({ id: 'g1', unitSaleInfoList: 'not-array' })).rejects.toThrow('unitSaleInfoList')
+    await expect(handlers.goods_update({ id: 'g1', sellDate: '2026/1/1' })).rejects.toThrow('sellDate')
+
     await expect(handlers.goods_update({ id: 'nope', note: 'x' })).rejects.toThrow('未找到')
     await expect(handlers.goods_update({ id: 'g1' })).rejects.toThrow('没有可更新的字段')
     await expect(handlers.goods_update({ note: 'x' })).rejects.toThrow('id 必填')
@@ -110,6 +125,51 @@ describe('mcp write tool handlers', () => {
     expect(store.removeGoods).toHaveBeenCalledWith('g1')
 
     await expect(handlers.goods_delete({ id: 'nope' })).rejects.toThrow('未找到')
+  })
+
+  it('goods_sell 记录成交并写入出售信息', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+
+    const result = await handlers.goods_sell({
+      id: 'g1', price: 30, platform: '闲鱼', fee: 2, date: '2026-09-06'
+    })
+    expect(result.ok).toBe(true)
+    expect(result).toMatchObject({ id: 'g1', status: '已出', price: 30, fee: 2 })
+    expect(store.updateGoods).toHaveBeenCalledWith('g1', {
+      collectStatus: '已出',
+      sellPrice: '30',
+      sellPlatform: '闲鱼',
+      sellFee: '2',
+      sellDate: '2026-09-06'
+    })
+
+    // 挂牌模式 + 缺省日期落到今天
+    const listing = await handlers.goods_sell({ id: 'g1', price: 25, status: '在售' })
+    expect(listing.status).toBe('在售')
+    expect(listing.date).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+
+    await expect(handlers.goods_sell({ id: 'nope' })).rejects.toThrow('未找到')
+    await expect(handlers.goods_sell({ id: 'g1', status: '丢回收站' })).rejects.toThrow('status')
+    await expect(handlers.goods_sell({ id: 'g1', date: '2026/09/06' })).rejects.toThrow('date')
+  })
+
+  it('recharge_add 走充值 store 并校验金额/日期', async () => {
+    const store = createFakeStore()
+    const rechargeStore = {
+      addRecord: vi.fn(async (data) => ({ id: 'r-new', ...data }))
+    }
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, rechargeStore })
+
+    const result = await handlers.recharge_add({ game: '原神', amount: 648, itemName: '648 源石' })
+    expect(result.ok).toBe(true)
+    expect(result.amount).toBe(648)
+    const data = rechargeStore.addRecord.mock.calls[0][0]
+    expect(data.chargedAt).toMatch(/^\d{4}-\d{2}-\d{2}$/) // 缺省今天
+
+    await expect(handlers.recharge_add({ game: '原神', amount: 0 })).rejects.toThrow('amount')
+    await expect(handlers.recharge_add({ amount: 100 })).rejects.toThrow('game')
+    await expect(handlers.recharge_add({ game: 'x', amount: 10, chargedAt: 'bad' })).rejects.toThrow('chargedAt')
   })
 
   it('goods_restore 只允许恢复回收站条目', async () => {

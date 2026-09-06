@@ -10,11 +10,17 @@
  */
 
 import { Capacitor, registerPlugin } from '@capacitor/core'
-import { reactive, watch } from 'vue'
+import { reactive } from 'vue'
 import { createLogger } from '@/utils/logger'
 import { useMcpSettingsStore, generateMcpToken, MCP_DEFAULT_PORT } from '@/stores/mcpSettings'
 import { createMcpServer } from './tools'
 import { createMoneyEnrichers } from './moneyContext'
+import { createMcpWriteToolHandlers } from './writeTools'
+import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
+import { useThemeStore } from '@/stores/theme'
+import { useNotifySettingsStore } from '@/stores/notifySettings'
+import { useRechargeStore } from '@/stores/recharge'
 import * as db from '@/utils/db'
 
 const log = createLogger('mcp-native')
@@ -34,10 +40,27 @@ let listenerRegistered = false
 let mcpHandler = null
 let restartTimer = null
 
+/** 构建写工具 handlers（依赖 store 实例，仅在页面侧调用） */
+function buildWriteHandlers() {
+  return createMcpWriteToolHandlers({
+    goodsStore: useGoodsStore(),
+    presetsStore: usePresetsStore(),
+    themeStore: useThemeStore(),
+    notifyStore: useNotifySettingsStore(),
+    rechargeStore: useRechargeStore()
+  })
+}
+
 /** @returns {Promise<{ status: number, body: Record<string, unknown> | null }>} */
 function handleRawRequest(rawBody) {
   if (!mcpHandler) {
-    mcpHandler = createMcpServer({ dbApi: db, money: createMoneyEnrichers() })
+    const { allowExternalWrites } = useMcpSettingsStore().settings
+    mcpHandler = createMcpServer({
+      dbApi: db,
+      money: createMoneyEnrichers(),
+      allowWriteTools: Boolean(allowExternalWrites),
+      writeHandlers: allowExternalWrites ? buildWriteHandlers() : undefined
+    })
   }
   return mcpHandler.handleRaw(rawBody)
 }
@@ -111,6 +134,8 @@ export function initMcpNativeServer() {
   if (settingsStore.settings.enabled) void start()
 
   settingsStore.$subscribe(() => {
+    // 外部写入开关变化时重建协议服务（工具清单与门禁随之更新）
+    mcpHandler = null
     const { enabled } = settingsStore.settings
     if (restartTimer !== null) {
       clearTimeout(restartTimer)

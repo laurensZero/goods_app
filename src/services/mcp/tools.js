@@ -7,9 +7,9 @@
  * 「全量读取 + 内存处理」的既有模式一致。
  */
 
-import { MCP_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from './toolDefinitions'
+import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, getToolDefinitions } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
-import { buildSaleLedger, buildSaleSummary, extractSaleEntries } from '../../utils/goods/saleStats'
+import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats'
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 
 /**
@@ -141,6 +141,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     const character = asText(args.character).trim().toLowerCase()
     const storageLocation = asText(args.storageLocation).trim()
     const wishlistOnly = args.wishlistOnly === true
+    const collectionOnly = args.collectionOnly === true
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
 
@@ -156,6 +157,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
 
     const matched = items.filter((item) => {
       if (wishlistOnly && !item.isWishlist) return false
+      if (collectionOnly && item.isWishlist) return false
       const acquiredDate = asText(item.acquiredAt).trim()
       if (acquiredAfter && (!acquiredDate || acquiredDate < acquiredAfter)) return false
       if (acquiredBefore && (!acquiredDate || acquiredDate > acquiredBefore)) return false
@@ -345,22 +347,36 @@ export function createMcpToolHandlers(dbApi, money = {}) {
       offset,
       limit,
       hasMore: offset + page.length < active.length,
-      events: page.map((event) => ({
-        id: event.id,
-        name: event.name,
-        type: event.type,
-        startDate: event.startDate,
-        endDate: event.endDate,
-        city: event.city,
-        location: event.location,
-        ticketPrice: event.ticketPrice,
-        ticketType: event.ticketType,
-        seatInfo: event.seatInfo,
-        tags: Array.isArray(event.tags) ? event.tags : [],
-        linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
-        photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
-        description: truncate(event.description)
-      }))
+      events: page.map((event) => {
+        const dayTickets = Array.isArray(event.dayTicketList) ? event.dayTicketList : []
+        const otherExpenses = Array.isArray(event.otherExpenses) ? event.otherExpenses : []
+        const dayTicketsTotal = dayTickets.reduce((sum, d) => sum + parseMoney(d?.price), 0)
+        const otherTotal = otherExpenses.reduce((sum, e) => sum + parseMoney(e?.amount), 0)
+        return {
+          id: event.id,
+          name: event.name,
+          type: event.type,
+          startDate: event.startDate,
+          endDate: event.endDate,
+          city: event.city,
+          location: event.location,
+          ticketPrice: event.ticketPrice,
+          ticketType: event.ticketType,
+          seatInfo: event.seatInfo,
+          tags: Array.isArray(event.tags) ? event.tags : [],
+          expenseSummary: {
+            ticket: parseMoney(event.ticketPrice),
+            dayTicketsTotal: roundMoney(dayTicketsTotal),
+            otherTotal: roundMoney(otherTotal),
+            total: roundMoney(parseMoney(event.ticketPrice) + dayTicketsTotal + otherTotal)
+          },
+          dayTicketList: dayTickets.slice(0, 10).map((d) => ({ price: d?.price, ticketType: d?.ticketType })),
+          otherExpenses: otherExpenses.slice(0, 8).map((e) => ({ name: e?.name, amount: e?.amount })),
+          linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
+          photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
+          description: truncate(event.description)
+        }
+      })
     }
   }
 
@@ -705,16 +721,33 @@ export function createMcpToolHandlers(dbApi, money = {}) {
 
 /**
  * 组装页面侧（以及未来 Android 原生桥）使用的完整 MCP 服务端。
- * @param {{ dbApi: McpDbApi, money?: object }} params
+ * @param {{
+ *   dbApi: McpDbApi,
+ *   money?: object,
+ *   allowWriteTools?: boolean,
+ *   writeHandlers?: Record<string, (args: Record<string, any>) => Promise<unknown>>
+ * }} params
+ *   allowWriteTools 开启且提供 writeHandlers（依赖 store 实例，由调用方注入）时，
+ *   写工具才会注册并可被外部调用。
  */
-export function createMcpServer({ dbApi, money = {} }) {
-  const handlers = createMcpToolHandlers(dbApi, money)
+export function createMcpServer({ dbApi, money = {}, allowWriteTools = false, writeHandlers = null }) {
+  const readHandlers = createMcpToolHandlers(dbApi, money)
+  const handlers = (allowWriteTools && writeHandlers)
+    ? { ...readHandlers, ...writeHandlers }
+    : readHandlers
   return createMcpRequestHandler({
     serverInfo: MCP_SERVER_INFO,
     instructions: MCP_SERVER_INSTRUCTIONS,
-    listTools: () => MCP_TOOL_DEFINITIONS,
+    // 工具清单随外部写入开关变化；关闭时写工具既不展示也不可调用
+    listTools: () => getToolDefinitions(allowWriteTools),
     callTool: async (name, args) => {
-      const handler = /** @type {Record<string, (args: Record<string, any>) => Promise<unknown>>} */ (handlers)[name]
+      // 门禁先于 handler 查找：已知的写工具在未开启时返回明确引导信息；
+      // 完全未知的名字（拼写错误等）仍走 Unknown tool
+      const isWriteTool = MCP_WRITE_TOOL_DEFINITIONS.some((tool) => tool.name === name)
+      if (isWriteTool && !allowWriteTools) {
+        throw new Error('外部 MCP 写入未开启：请在应用的 AI 服务 (MCP) 设置中允许外部写入')
+      }
+      const handler = handlers[name]
       if (!handler) throw new McpUnknownToolError(name)
       return handler(args)
     }

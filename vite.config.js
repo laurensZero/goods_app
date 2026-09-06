@@ -12,7 +12,7 @@ export default defineConfig({
   plugins: [
     vue(),
     // MCP dev 服务：AI 客户端经 HTTP 调用 App 收藏数据（token 说明见 scripts/vite-plugin-mcp.mjs）
-    mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN),
+    mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN, process.env.GOODS_MCP_ALLOW_WRITES === '1'),
     // AI 聊天开发代理：浏览器经 /ai-proxy 转发到用户配置的 OpenAI 兼容端点，绕开 CORS
     aiProxyPlugin(),
     VueI18nPlugin({

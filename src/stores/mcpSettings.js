@@ -12,7 +12,9 @@ const DEFAULT_SETTINGS = {
   // 原生端 HTTP 监听端口
   port: MCP_DEFAULT_PORT,
   // 原生端访问令牌；首次启用时自动生成并持久化
-  token: ''
+  token: '',
+  // 允许外部 MCP 客户端（电脑端 AI）执行写入工具；默认只读
+  allowExternalWrites: false
 }
 
 function readSavedSettings() {
