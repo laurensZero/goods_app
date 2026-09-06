@@ -15,6 +15,7 @@ import { Capacitor } from '@capacitor/core'
 import { buildSharePayload, generateShareId } from '../../utils/share/goods'
 import { buildShareUrl } from '../../config/share'
 import { createShare, findMatchingShare, updateShare, toggleShareDisabled, deleteShare, listUserShares } from '../shareService'
+import { addUserMemory, removeUserMemory } from '../../utils/ai/userMemory'
 
 /** goods_add / goods_update 允许透传给 store 的字段白名单 */
 const WRITABLE_FIELDS = new Set([
@@ -649,6 +650,35 @@ export function createMcpWriteToolHandlers({
       }
       await router.push({ name: routeName })
       return { ok: true, page, note: '已跳转' }
+    },
+
+    /**
+     * 用户长期记忆：保存/删除用户明确表达的长期偏好与习惯。
+     * 「该不该记」由系统提示词规则约束（只记长期偏好，收藏数据等可查信息禁止入记忆），
+     * 这里做硬性兜底：去重、单条限长、条数上限（满了淘汰最旧）。
+     * @param {Record<string, any>} args
+     */
+    async memory_save(args) {
+      const action = String(args?.action || 'add').trim()
+      const text = String(args?.text || '')
+      if (action === 'add') {
+        const result = addUserMemory(text)
+        return {
+          ok: true,
+          action: 'add',
+          text: result.entry.text,
+          deduped: result.deduped,
+          total: result.total,
+          note: result.deduped ? '该记忆已存在，已刷新时间' : '已记住（用户可随时要求忘记）'
+        }
+      }
+      if (action === 'remove') {
+        if (!removeUserMemory(text)) {
+          throw new Error('没有找到这条记忆（text 需与已保存的完全一致，可从系统提示词的记忆清单里复制）')
+        }
+        return { ok: true, action: 'remove', note: '已忘记这条记忆' }
+      }
+      throw new Error('action 需为 add/remove')
     },
 
     /**

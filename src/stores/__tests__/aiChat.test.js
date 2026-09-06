@@ -299,6 +299,20 @@ describe('aiChat store', () => {
     expect(saved.sessions[0].messages.at(-1).reasoning).toBe('推理内容')
   })
 
+  it('系统提示词注入用户记忆，发送时按最新构建', async () => {
+    localStorage.setItem('goods_ai_chat_memory_v1', JSON.stringify([
+      { id: 'm1', text: '用户只收吧唧', createdAt: 1, updatedAt: 1 }
+    ]))
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    await store.send('我该补什么货')
+
+    const firstCall = runChatCompletionMock.mock.calls[0][0]
+    expect(firstCall.messages[0].role).toBe('system')
+    expect(firstCall.messages[0].content).toContain('用户只收吧唧')
+  })
+
   it('renameSession 拒绝空标题与不存在的会话', async () => {
     const store = useAiChatStore()
     expect(store.renameSession(store.activeSessionId, '   ')).toBe(false)

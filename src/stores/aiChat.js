@@ -11,6 +11,7 @@ import { useAuthStore } from './auth'
 import { useSyncStore } from './sync'
 import { useAppUpdateStore } from './appUpdate'
 import { readBudgetSettings, writeBudgetSettings } from '@/utils/goods/budget'
+import { loadUserMemories } from '@/utils/ai/userMemory'
 import router from '@/router'
 import * as db from '@/utils/db'
 import { createMcpToolHandlers } from '@/services/mcp/tools'
@@ -32,10 +33,10 @@ const MAX_CONVO_MESSAGES = 80
 function buildSystemPrompt() {
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  return [
+  const lines = [
     `你是「谷子收纳」应用内置的 AI 助手，帮用户管理动漫/游戏周边（谷子）收藏。今天是 ${today}。`,
     '只读工具：goods_search（搜索，hasTracks: true 可筛带曲目列表的 CD/专辑）、goods_detail（详情，含图片 uri 与 CD/专辑曲目明细）、collection_overview（收藏总览）、spending_summary（按月/年消费汇总）、character_leaderboard（角色统计排行）、storage_locations（收纳位置分布）、wishlist_overview（愿望单与预算）、sale_ledger（出谷回血与盈亏）、events_list（展览活动）、event_tracks（演出/演唱会曲单）、music_lyrics（查曲目歌词）、recharge_summary（充值总览）、recharge_search（充值按项目/游戏精确统计）、budget_overview（吃谷预算与超支）；',
-    '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）；',
+    '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）、memory_save（记住/忘记用户长期偏好）；',
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
@@ -55,8 +56,17 @@ function buildSystemPrompt() {
     '- 记录出售用 goods_sell（价、平台、手续费、日期），记完可提示用 sale_ledger 查看盈亏；记充值用 recharge_add；',
     '- 新增/修改/删除等操作只做用户明确要求的事，批量或不可逆操作前先和用户确认；',
     '- 金额是用户手填的字符串，可能为空或含非数字字符；',
+    '- 记忆（memory_save）判定铁律：只记用户明确表达的、长期有效的偏好/习惯（称呼、口味偏好如「只收吧唧」、预算习惯等），写成一条简短的第三人称陈述；收藏数据本身能通过工具查到，禁止存成记忆；一次性任务指令、本轮对话内容不存；拿不准是不是长期偏好就先问用户一句；保存后在回复里顺带告知已记住，用户要求忘记时用 remove（text 需与已存文本完全一致）；',
     '- 用用户的语言回答，简洁自然。'
-  ].join('\n')
+  ]
+  const memories = loadUserMemories()
+  if (memories.length > 0) {
+    lines.push('已记住的用户偏好（长期有效，回答时可参考；与工具查到的实时数据冲突时以实时数据为准）：')
+    for (const memory of memories) {
+      lines.push(`- ${memory.text}`)
+    }
+  }
+  return lines.join('\n')
 }
 
 const SESSIONS_STORAGE_KEY = 'goods_ai_chat_sessions'
@@ -389,6 +399,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
     }
 
     devLog('send:start', { contentLen: content.length, convoLen: rawConvo.length })
+    // system 消息按最新构建（当天日期/记忆清单），本轮新增的记忆立即生效
+    rawConvo[0] = { role: 'system', content: buildSystemPrompt() }
     messages.value.push({ id: uid(), role: 'user', content, steps: [] })
     // 用户消息必须同时进入模型对话（此前只进 UI 列表，模型看不到新问题，
     // 会基于旧上下文自说自话）

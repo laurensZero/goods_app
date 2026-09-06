@@ -266,6 +266,18 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'memory_save',
+    description: '用户长期记忆：记住/忘记用户的长期偏好与习惯（称呼、收藏口味、预算习惯等）。判定铁律：只记用户明确表达的、长期有效的偏好；收藏数据本身（数量/位置/价格等）能通过其他工具查到，禁止存成记忆；一次性任务、本轮对话内容不存；拿不准就先问用户一句。保存后在回复里告知用户。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['add', 'remove'], description: 'add=记住（默认），remove=忘记' },
+        text: { type: 'string', description: '一条简短的第三人称记忆（如「用户只收吧唧类谷子」）；remove 时需与已保存文本完全一致' }
+      },
+      required: ['text']
+    }
+  },
+  {
     name: 'app_info',
     description: '应用信息：平台、当前版本号；传 checkUpdate: true 时联网检查是否有新版本（返回 hasUpdate/latestVersion/forceUpdate）。',
     inputSchema: {

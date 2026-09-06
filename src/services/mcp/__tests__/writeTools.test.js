@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createMcpWriteToolHandlers } from '../writeTools'
 
 const shareMocks = vi.hoisted(() => ({
@@ -506,6 +506,39 @@ describe('mcp write tool handlers', () => {
       const checked = await handlers.app_info({ checkUpdate: true })
       expect(checked.update).toMatchObject({ checked: true, hasUpdate: true, latestVersion: '1.3.0' })
       expect(stores.appUpdateStore.checkForUpdates).toHaveBeenCalled()
+    })
+  })
+
+  describe('memory_save', () => {
+    beforeEach(() => {
+      localStorage.clear()
+    })
+
+    it('add 记住并去重', async () => {
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
+
+      const first = await handlers.memory_save({ text: '用户只收吧唧' })
+      expect(first).toMatchObject({ ok: true, action: 'add', deduped: false, total: 1 })
+
+      const again = await handlers.memory_save({ text: '用户只收吧唧' })
+      expect(again.deduped).toBe(true)
+      expect(again.total).toBe(1)
+    })
+
+    it('remove 需与已存文本完全一致', async () => {
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
+      await handlers.memory_save({ text: '讨厌剧透' })
+
+      await expect(handlers.memory_save({ action: 'remove', text: '讨厌剧透吧' })).rejects.toThrow('没有找到')
+      const removed = await handlers.memory_save({ action: 'remove', text: '讨厌剧透' })
+      expect(removed.ok).toBe(true)
+      await expect(handlers.memory_save({ action: 'remove', text: '讨厌剧透' })).rejects.toThrow('没有找到')
+    })
+
+    it('空文本与非法 action 报错', async () => {
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
+      await expect(handlers.memory_save({ text: '   ' })).rejects.toThrow('不能为空')
+      await expect(handlers.memory_save({ text: 'x', action: 'nope' })).rejects.toThrow('action')
     })
   })
 })
