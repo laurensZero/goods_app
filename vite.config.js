@@ -3,14 +3,37 @@ import vue from '@vitejs/plugin-vue'
 import VueI18nPlugin from '@intlify/unplugin-vue-i18n/vite'
 import Components from 'unplugin-vue-components/vite'
 import { VantResolver } from 'unplugin-vue-components/resolvers'
+import { readdir, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import { mcpDevServerPlugin } from './scripts/vite-plugin-mcp.mjs'
 import { aiProxyPlugin } from './scripts/vite-plugin-ai-proxy.mjs'
+
+function removeBundledCutoutWasm() {
+  let outputDir = ''
+  return {
+    name: 'remove-bundled-cutout-wasm',
+    enforce: 'post',
+    configResolved(config) {
+      outputDir = config.build.outDir
+    },
+    async closeBundle() {
+      const assetDir = join(outputDir, 'assets')
+      const fileNames = await readdir(assetDir).catch(() => [])
+      await Promise.all(
+        fileNames
+          .filter((fileName) => /^ort-wasm-.*\.wasm$/.test(fileName))
+          .map((fileName) => unlink(join(assetDir, fileName)).catch(() => undefined))
+      )
+    }
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
+    removeBundledCutoutWasm(),
     // MCP dev 服务：AI 客户端经 HTTP 调用 App 收藏数据（token 说明见 scripts/vite-plugin-mcp.mjs）
     mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN, process.env.GOODS_MCP_ALLOW_WRITES === '1'),
     // AI 聊天开发代理：浏览器经 /ai-proxy 转发到用户配置的 OpenAI 兼容端点，绕开 CORS

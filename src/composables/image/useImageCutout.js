@@ -760,13 +760,10 @@ export function useImageCutout() {
 
         const preloadConfig = {
           model: 'isnet',
+          publicPath: localPublicPath || IMGLY_BASE_URL,
           fetchArgs: {
             cache: 'force-cache'
           }
-        }
-
-        if (localPublicPath) {
-          preloadConfig.publicPath = localPublicPath
         }
 
         const { preload } = await getImgly()
@@ -812,6 +809,7 @@ export function useImageCutout() {
 
     const removeConfig = {
       model: 'isnet',
+      publicPath: localPublicPath || IMGLY_BASE_URL,
       fetchArgs: {
         cache: 'force-cache'
       },
@@ -830,10 +828,6 @@ export function useImageCutout() {
         quality: 1,
         type: 'mask'
       }
-    }
-
-    if (localPublicPath) {
-      removeConfig.publicPath = localPublicPath
     }
 
     const { segmentForeground } = await getImgly()
@@ -890,6 +884,7 @@ export function useImageCutout() {
     const localPublicPath = await prepareLocalCutoutAssets().catch(() => '')
     const applyConfig = {
       model: 'isnet',
+      publicPath: localPublicPath || IMGLY_BASE_URL,
       fetchArgs: {
         cache: 'force-cache'
       },
@@ -897,10 +892,6 @@ export function useImageCutout() {
         format: 'image/png',
         quality: 1
       }
-    }
-
-    if (localPublicPath) {
-      applyConfig.publicPath = localPublicPath
     }
 
     const { applySegmentationMask } = await getImgly()
@@ -946,6 +937,7 @@ export function useImageCutout() {
 
         const removeConfig = {
           model: 'isnet',
+          publicPath: localPublicPath || IMGLY_BASE_URL,
           fetchArgs: {
             cache: 'force-cache'
           },
@@ -964,10 +956,6 @@ export function useImageCutout() {
             quality: 1,
             type: 'mask'
           }
-        }
-
-        if (localPublicPath) {
-          removeConfig.publicPath = localPublicPath
         }
 
         const { segmentForeground, applySegmentationMask } = await getImgly()
