@@ -332,6 +332,9 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     return activeCheckPromise
   }
 
+  // TODO: 改用 CapacitorUpdater.download({ manifest }) 下载增量更新
+  // manifest 由发布流程生成（逐个文件上传 + checksum），服务端返回 manifest 数组
+  // 参考: https://capgo.app/docs/live-updates/differentials/
   async function downloadAndPrepareUpdate() {
     await init()
     if (!supported.value) {
