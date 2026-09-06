@@ -19,5 +19,11 @@
   "aiChat.cleared": "クリアしました",
   "aiChat.errorNoConfig": "先にベース URL・モデル名・API Key を入力してください",
   "aiChat.apiKeyHint": "設定はこの端末にのみ保存され、入力した OpenAI 互換エンドポイント（/chat/completions）の呼び出しに使われます。",
-  "aiChat.writeNotice": "AI は追加・更新・ゴミ箱移動（復元可能）などのデータ操作を行えます。変更内容にご注意ください。"
+  "aiChat.writeNotice": "AI は追加・更新・ゴミ箱移動（復元可能）などのデータ操作を行えます。変更内容にご注意ください。",
+  "aiChat.history": "履歴",
+  "aiChat.newChat": "新しいチャット",
+  "aiChat.deleteSession": "この履歴を削除",
+  "aiChat.deleted": "削除しました",
+  "aiChat.emptySessions": "履歴はまだありません",
+  "aiChat.messagesCount": "{count} 件のメッセージ"
 }

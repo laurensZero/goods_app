@@ -19,5 +19,11 @@
   "aiChat.cleared": "Cleared",
   "aiChat.errorNoConfig": "Fill in the base URL, model name and API key first",
   "aiChat.apiKeyHint": "The config is stored on this device only and used to call the OpenAI-compatible endpoint you provide (/chat/completions).",
-  "aiChat.writeNotice": "The AI can add, update or trash (recoverable) items — keep an eye on its changes."
+  "aiChat.writeNotice": "The AI can add, update or trash (recoverable) items — keep an eye on its changes.",
+  "aiChat.history": "History",
+  "aiChat.newChat": "New chat",
+  "aiChat.deleteSession": "Delete this conversation",
+  "aiChat.deleted": "Deleted",
+  "aiChat.emptySessions": "No conversations yet",
+  "aiChat.messagesCount": "{count} messages"
 }

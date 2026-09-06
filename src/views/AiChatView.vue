@@ -1,15 +1,6 @@
 <template>
   <div class="page ai-chat-page">
-    <NavBar :title="t('nav.aiChat')" show-back>
-      <template #right>
-        <button class="nav-icon-btn" type="button" :aria-label="t('aiChat.settingsTitle')" @click="openSettings">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
-          </svg>
-        </button>
-      </template>
-    </NavBar>
+    <NavBar :title="t('nav.aiChat')" show-back />
 
     <main class="page-body">
       <section class="hero-section">
@@ -114,6 +105,18 @@
         <button
           class="chat-settings-btn"
           type="button"
+          :aria-label="t('aiChat.history')"
+          @click="openHistory"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8" />
+            <path d="M3 3v5h5" />
+            <path d="M12 7v5l3 2" />
+          </svg>
+        </button>
+        <button
+          class="chat-settings-btn"
+          type="button"
           :aria-label="t('aiChat.settingsTitle')"
           @click="openSettings"
         >
@@ -185,6 +188,59 @@
         <p class="ai-settings-body__hint">{{ t('aiChat.writeNotice') }}</p>
       </div>
     </Popup>
+
+    <Popup
+      v-model:show="showHistory"
+      :position="popupPosition"
+      :round="!isTabletViewport"
+      teleport="body"
+      transition="sheet-pop"
+      :class="['ai-history-popup', { 'ai-history-popup--center': isTabletViewport }]"
+    >
+      <div class="ai-history-body">
+        <div class="popup-handle" />
+        <h3 class="ai-history-body__title">{{ t('aiChat.history') }}</h3>
+
+        <button class="history-new" type="button" @click="startNewChat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+          {{ t('aiChat.newChat') }}
+        </button>
+
+        <div class="history-list">
+          <div
+            v-for="session in aiChat.sessions"
+            :key="session.id"
+            :class="['history-item', { 'history-item--active': session.id === aiChat.activeSessionId }]"
+            role="button"
+            tabindex="0"
+            @click="selectSession(session.id)"
+          >
+            <div class="history-item__main">
+              <p class="history-item__title">{{ session.title || t('aiChat.newChat') }}</p>
+              <p class="history-item__meta">
+                {{ formatSessionTime(session.updatedAt) }} · {{ t('aiChat.messagesCount', { count: session.messages.length }) }}
+              </p>
+            </div>
+            <button
+              class="history-item__delete"
+              type="button"
+              :aria-label="t('aiChat.deleteSession')"
+              @click.stop="removeSession(session.id)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18" />
+                <path d="M8 6V4h8v2" />
+                <path d="M19 6l-1 14H6L5 6" />
+              </svg>
+            </button>
+          </div>
+          <p v-if="aiChat.sessions.length === 0" class="history-empty">{{ t('aiChat.emptySessions') }}</p>
+        </div>
+      </div>
+    </Popup>
   </div>
 </template>
 
@@ -210,6 +266,7 @@ const inputText = ref('')
 const inputRef = ref(null)
 const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
+const showHistory = ref(false)
 const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '' })
 
 // 平板（≥900px）弹窗居中展示，手机为底部弹层（与 ManageView 的 picker-popup 约定一致）
@@ -217,7 +274,11 @@ const windowWidth = ref(window.innerWidth)
 const isTabletViewport = computed(() => windowWidth.value >= 900)
 const popupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 function handleResize() { windowWidth.value = window.innerWidth }
-onMounted(() => window.addEventListener('resize', handleResize, { passive: true }))
+onMounted(() => {
+  window.addEventListener('resize', handleResize, { passive: true })
+  // 从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息
+  nextTick(() => bottomAnchorRef.value?.scrollIntoView({ block: 'end' }))
+})
 onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
 const examples = computed(() => [
@@ -245,12 +306,22 @@ watch(() => aiChat.messages, async (list) => {
       }
     }
     markdownCache[`${msg.id}:src`] = msg.content
+    if (import.meta.env.DEV) console.debug(`[ai-chat:view] markdown ready: ${msg.id}`)
   }
 }, { deep: true, immediate: true })
 
 /** @param {any} msg */
 function getRenderedMarkdown(msg) {
   return markdownCache[`${msg.id}:html`] || ''
+}
+
+// 排查探针：视图是否感知到 store 消息变化（dev 控制台 [ai-chat:view]）
+if (import.meta.env.DEV) {
+  watch(() => {
+    const list = aiChat.messages
+    const last = list[list.length - 1]
+    return last ? `${list.length}条; 末条 pending=${last.pending} contentLen=${last.content.length} steps=${last.steps.length}` : '空'
+  }, (summary) => console.debug(`[ai-chat:view] ${summary}`), { immediate: true })
 }
 
 // 新消息 / 工具步骤 / 内容更新时滚到底部
@@ -316,6 +387,33 @@ function clearChat() {
   aiChat.clearMessages()
   showSettings.value = false
   showToast(t('aiChat.cleared'))
+}
+
+function openHistory() {
+  showHistory.value = true
+}
+
+function formatSessionTime(timestamp) {
+  const d = new Date(Number(timestamp) || Date.now())
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+function startNewChat() {
+  aiChat.newSession()
+  showHistory.value = false
+}
+
+function selectSession(id) {
+  if (aiChat.switchSession(id)) {
+    showHistory.value = false
+    nextTick(() => bottomAnchorRef.value?.scrollIntoView({ block: 'end' }))
+  }
+}
+
+function removeSession(id) {
+  aiChat.deleteSession(id)
+  showToast(t('aiChat.deleted'))
 }
 </script>
 
@@ -988,6 +1086,167 @@ function clearChat() {
   color: var(--app-text-tertiary);
   font-size: 12px;
   line-height: 1.55;
+}
+
+/* ── History popup（与设置弹层同一套视觉约定） ── */
+.ai-history-popup {
+  overflow: hidden;
+}
+
+:global(.ai-history-popup.van-popup),
+:global(.ai-history-popup.van-popup--bottom) {
+  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+}
+
+:global(.ai-history-popup--center.van-popup--center) {
+  width: min(520px, calc(100vw - 40px));
+  border-radius: 28px !important;
+  overflow: hidden;
+  box-shadow:
+    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.ai-history-body {
+  width: 100%;
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  color: var(--app-text);
+  background: transparent;
+}
+
+:global(.ai-history-popup--center.van-popup--center) .ai-history-body {
+  padding: 22px;
+}
+
+.ai-history-body__title {
+  margin: 0 0 12px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.history-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 14px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.history-new:active {
+  transform: scale(0.98);
+}
+
+.history-new svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 60%, transparent);
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.history-item:active {
+  transform: scale(0.98);
+}
+
+.history-item--active {
+  border-color: rgba(52, 199, 89, 0.5);
+  background: rgba(52, 199, 89, 0.08);
+}
+
+.history-item__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-item__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item__meta {
+  margin: 3px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+}
+
+.history-item__delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.history-item__delete:active {
+  background: rgba(255, 59, 48, 0.12);
+  color: #ff3b30;
+}
+
+.history-item__delete svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.history-empty {
+  margin: 8px 0;
+  text-align: center;
+  color: var(--app-text-tertiary);
+  font-size: 13px;
 }
 
 /* ── Keyframes ── */
