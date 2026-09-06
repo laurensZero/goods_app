@@ -313,6 +313,8 @@ export const MCP_TOOL_DEFINITIONS = [
         acquiredBefore: { type: 'string', description: '只返回入手日期不晚于该值的条目，格式 YYYY-MM-DD（含当天）' },
         priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
         priceMax: { type: 'number', description: '价格上限（口径同 priceMin）' },
+        sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；price/actualPrice 口径与价格过滤一致（实付价优先，缺省回退标价，不乘数量）。「最贵/最便宜/最新入手」类问题必须用排序参数直接拿结果，不要拉全量自己排' },
+        sortOrder: { type: 'string', enum: ['desc', 'asc'], default: 'desc', description: '排序方向' },
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: '返回条数上限' },
         offset: { type: 'integer', minimum: 0, default: 0, description: '分页偏移' }
       }

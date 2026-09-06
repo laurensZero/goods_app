@@ -359,7 +359,17 @@ export async function runChatCompletion(options) {
     /** @type {Array<any>} */
     const toolCalls = Array.isArray(choice.tool_calls) ? choice.tool_calls : []
     if (toolCalls.length === 0) {
-      return { content: String(choice.content || ''), steps, convo, reasoning: reasoningParts.join('\n\n') }
+      const content = String(choice.content || '')
+      const reasoning = reasoningParts.join('\n\n')
+      // 部分模型/网关会把完整回答写进思维链而 content 为空——直接返回会让用户
+      // 看到一条没有正文的空消息（观感即「卡住了」）。此时把思维链顶上当正文。
+      if (!content.trim() && reasoning.trim()) {
+        return { content: reasoning, steps, convo, reasoning: '' }
+      }
+      if (!content.trim()) {
+        throw new Error('AI 返回了空回复，请重试')
+      }
+      return { content, steps, convo, reasoning }
     }
 
     for (const call of toolCalls) {
