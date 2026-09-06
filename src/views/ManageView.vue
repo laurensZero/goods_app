@@ -1,6 +1,6 @@
 <template>
   <div class="page manage-page">
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <NavBar :title="t('manage.title')" show-back />
 
       <section v-if="isDesktopSettingsViewport" class="settings-workspace">
@@ -930,10 +930,16 @@ onBeforeRouteLeave((to) => {
   display: none;
 }
 
-/* AI 聊天嵌入：撑满右面板高度让输入栏吸底，去掉渐变底带与控件投影 */
+/* AI 聊天嵌入：面板高度定死（height 而非 min-height），消息区内部滚动、输入栏常驻 */
 .settings-embedded--ai-chat {
+  height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.settings-embedded--ai-chat :deep(.ai-chat-page) {
+  height: auto;
+  min-height: 0;
 }
 
 .settings-embedded--ai-chat :deep(.ai-chat-page),

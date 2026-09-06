@@ -119,9 +119,10 @@ describe('mcp tool handlers', () => {
     const handlers = createMcpToolHandlers(createFakeDb())
     const overview = await handlers.collection_overview()
 
-    // 活跃非愿望单：g1、g2
-    expect(overview.totalItems).toBe(2)
+    // 活跃非愿望单：g1、g2；g3 为愿望单
+    expect(overview.collectionCount).toBe(2)
     expect(overview.wishlistCount).toBe(1)
+    expect(overview.grandTotal).toBe(3)
     // g1 有逐件价格 → 25+26=51；g2 无实付价按 0 计
     const cny = overview.estimatedSpend.find((/** @type {any} */ s) => s.currency === 'CNY')
     expect(cny.amount).toBe(51)
@@ -161,10 +162,10 @@ describe('mcp tool handlers', () => {
     expect(y2024.count).toBe(1)
   })
 
-  it('spending_summary 按月汇总谷子消费与充值，支持年份过滤', async () => {
+  it('spending_summary 按月汇总谷子消费与充值（官方逐件口径），支持年份过滤', async () => {
     const db = createFakeDb()
     db.getItems = vi.fn(async () => [
-      { id: 'a1', name: 'x', isWishlist: false, acquiredAt: '2026-01-10', unitActualPriceList: ['25', '26'], actualPrice: '', actualPriceCurrency: 'CNY', currency: 'CNY', quantity: 1, updatedAt: 1 },
+      { id: 'a1', name: 'x', isWishlist: false, acquiredAt: '2026-01-10', unitActualPriceList: ['25', '26'], unitAcquiredAtList: ['2026-01-10', '2026-01-10'], actualPrice: '', actualPriceCurrency: 'CNY', currency: 'CNY', quantity: 2, updatedAt: 1 },
       { id: 'a2', name: 'y', isWishlist: false, acquiredAt: '2026-01-20', unitActualPriceList: [], actualPrice: '40', actualPriceCurrency: 'CNY', currency: 'CNY', quantity: 2, updatedAt: 2 },
       { id: 'a3', name: 'z', isWishlist: false, acquiredAt: '2025-12-05', unitActualPriceList: [], actualPrice: '99', actualPriceCurrency: 'CNY', currency: 'CNY', quantity: 1, updatedAt: 3 },
       { id: 'a4', name: 'wish', isWishlist: true, acquiredAt: '2026-01-01', unitActualPriceList: [], actualPrice: '999', actualPriceCurrency: 'CNY', currency: 'CNY', quantity: 1, updatedAt: 4 }
@@ -178,11 +179,12 @@ describe('mcp tool handlers', () => {
     const handlers = createMcpToolHandlers(db)
     const result = await handlers.spending_summary({})
 
-    const cny = result.goods.find((/** @type {any} */ g) => g.currency === 'CNY')
-    expect(cny.total).toBe(230) // 25+26 + 40×2 + 99（未过滤年份，含 2025-12）
-    expect(cny.byMonth).toEqual([
+    // 官方逐件口径：25 + 26（逐件）+ 40（整条实付价）+ 99；愿望单不计入
+    expect(result.goods.total).toBe(190)
+    expect(result.goods.currency).toBe('（混合，未折算）')
+    expect(result.goods.byMonth).toEqual([
       { month: '2025-12', amount: 99, count: 1 },
-      { month: '2026-01', amount: 131, count: 2 } // 51 + 80
+      { month: '2026-01', amount: 91, count: 3 } // 25 + 26 + 40
     ])
     expect(result.recharge.total).toBe(358)
     expect(result.recharge.byMonth).toEqual([
@@ -191,27 +193,28 @@ describe('mcp tool handlers', () => {
     ])
 
     const y2025 = await handlers.spending_summary({ year: 2025 })
-    expect(y2025.goods[0].total).toBe(99)
+    expect(y2025.goods.total).toBe(99)
     expect(y2025.recharge.total).toBe(0)
   })
 
   it('character_leaderboard 按角色聚合条目数/花费，多角色条目计入每个角色', async () => {
     const db = createFakeDb()
     db.getItems = vi.fn(async () => [
-      { id: 'a', name: 'x', isWishlist: false, characters: ['纳西妲', '芙宁娜'], quantity: 1, unitActualPriceList: ['50'], actualPrice: '', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 1 },
-      { id: 'b', name: 'y', isWishlist: false, characters: ['纳西妲'], quantity: 2, unitActualPriceList: [], actualPrice: '30', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 2 },
+      { id: 'a', name: 'x', isWishlist: false, characters: ['纳西妲', '芙宁娜'], quantity: 1, unitActualPriceList: ['50'], unitAcquiredAtList: ['2025-07-01'], actualPrice: '', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 1 },
+      { id: 'b', name: 'y', isWishlist: false, characters: ['纳西妲'], quantity: 2, unitActualPriceList: [], actualPrice: '30', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', acquiredAt: '2025-08-01', updatedAt: 2 },
       { id: 'c', name: 'wish', isWishlist: true, characters: ['芙宁娜'], quantity: 1, unitActualPriceList: [], actualPrice: '', price: '199', currency: 'CNY', collectStatus: '未入手', updatedAt: 3 },
       { id: 'd', name: 'none', isWishlist: false, characters: [], quantity: 1, unitActualPriceList: [], actualPrice: '10', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 4 }
     ])
 
     const result = await createMcpToolHandlers(db).character_leaderboard({})
     expect(result.total).toBe(3)
-    // 纳西妲：2 条；芙宁娜：2 条（含愿望单）
+    // 纳西妲：已收藏 2 条；芙宁娜：已收藏 1 条 + 愿望单 1 条
     const nahida = result.characters.find((/** @type {any} */ c) => c.character === '纳西妲')
     const funina = result.characters.find((/** @type {any} */ c) => c.character === '芙宁娜')
     expect(nahida).toMatchObject({ count: 2, quantity: 3, wishlistCount: 0, soldCount: 0 })
-    expect(nahida.spend[0]).toEqual({ currency: 'CNY', amount: 110 }) // 50 + 30×2
-    expect(funina).toMatchObject({ count: 2, wishlistCount: 1 })
+    expect(nahida.spend[0]).toEqual({ currency: 'CNY', amount: 80 }) // 50（逐件）+ 30（整条实付价）
+    expect(funina).toMatchObject({ count: 1, wishlistCount: 1 })
+    expect(funina.spend[0].amount).toBe(50) // 只计已收藏条目 x 的 50，愿望单条目计 0
     // 无角色条目归入占位桶
     expect(result.characters.at(-1).character).toBe('（未标注角色）')
   })

@@ -18,6 +18,7 @@ import { reactive } from 'vue'
 import { createLogger } from '@/utils/logger'
 import { useMcpSettingsStore } from '@/stores/mcpSettings'
 import { createMcpToolHandlers } from './tools'
+import { createMoneyEnrichers } from './moneyContext'
 import * as db from '@/utils/db'
 
 const log = createLogger('mcp-bridge')
@@ -132,7 +133,7 @@ function openSocket(token) {
  */
 async function handleCall(message) {
   if (!toolHandlers) {
-    toolHandlers = /** @type {any} */ (createMcpToolHandlers(db))
+    toolHandlers = /** @type {any} */ (createMcpToolHandlers(db, createMoneyEnrichers()))
   }
   const reply = { type: 'result', id: message.id }
   try {

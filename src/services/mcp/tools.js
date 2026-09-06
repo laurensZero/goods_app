@@ -10,6 +10,7 @@
 import { MCP_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
 import { buildSaleLedger, buildSaleSummary, extractSaleEntries } from '../../utils/goods/saleStats'
+import { getItemSpendEntries } from '../../utils/goods/statistics'
 
 /**
  * @typedef {Object} McpDbApi
@@ -93,12 +94,41 @@ function goodsListItem(item) {
   }
 }
 
+const DATE_LIKE_PATTERN = /^\d{4}-\d{2}(-\d{2})?$/
+
+/** 与 statistics.js 一致的金额取整 */
+function roundMoney(value) {
+  const n = Number(value)
+  return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
+}
+
+/** 首页总金额口径的状态排除项（已出/已赠出/丢失不计入） */
+const HOME_EXCLUDED_STATUSES = new Set(['已赠出', '已出', '丢失'])
+
 /**
  * 构造工具名 → 执行函数的映射。
+ *
  * @param {McpDbApi} dbApi
+ * @param {{
+ *   enrichItems?: (items: any[]) => any[] | Promise<any[]>,
+ *   convertToCNY?: (amount: number, currency: string) => number
+ * }} [money]
+ *   官方计费口径注入（见 moneyContext.js）：enrichItems 补齐 CNY 折算字段，
+ *   convertToCNY 做币种换算。缺省时回退到原始字段的粗略估算（仅单测使用）。
  */
-export function createMcpToolHandlers(dbApi) {
+export function createMcpToolHandlers(dbApi, money = {}) {
   const { getItems, getTrashedItems, getEvents, getRechargeRecords } = dbApi
+  const { enrichItems = null, convertToCNY = null } = money
+
+  async function loadEnrichedItems() {
+    const items = await getItems()
+    return enrichItems ? await enrichItems(items) : items
+  }
+
+  /** 单件花费 = 逐件带日期条目之和（官方消费趋势口径，已排除愿望单/已出/已赠出/丢失） */
+  function itemSpendCNY(item) {
+    return getItemSpendEntries(item).reduce((sum, entry) => sum + entry.price, 0)
+  }
 
   /**
    * @param {Record<string, any>} args
@@ -114,8 +144,27 @@ export function createMcpToolHandlers(dbApi) {
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
 
+    const acquiredAfter = asText(args.acquiredAfter).trim()
+    const acquiredBefore = asText(args.acquiredBefore).trim()
+    if (acquiredAfter && !DATE_LIKE_PATTERN.test(acquiredAfter)) throw new Error('acquiredAfter 需为 YYYY-MM-DD')
+    if (acquiredBefore && !DATE_LIKE_PATTERN.test(acquiredBefore)) throw new Error('acquiredBefore 需为 YYYY-MM-DD')
+    const hasPriceRange = args.priceMin !== undefined || args.priceMax !== undefined
+    const priceMin = hasPriceRange && args.priceMin !== undefined ? Number(args.priceMin) : null
+    const priceMax = hasPriceRange && args.priceMax !== undefined ? Number(args.priceMax) : null
+    if (priceMin !== null && !Number.isFinite(priceMin)) throw new Error('priceMin 需为数字')
+    if (priceMax !== null && !Number.isFinite(priceMax)) throw new Error('priceMax 需为数字')
+
     const matched = items.filter((item) => {
       if (wishlistOnly && !item.isWishlist) return false
+      const acquiredDate = asText(item.acquiredAt).trim()
+      if (acquiredAfter && (!acquiredDate || acquiredDate < acquiredAfter)) return false
+      if (acquiredBefore && (!acquiredDate || acquiredDate > acquiredBefore)) return false
+      if (hasPriceRange) {
+        // 条目价格口径：实付价优先，缺省回退标价（不乘数量）
+        const price = parseMoney(item.actualPrice) || parseMoney(item.price)
+        if (priceMin !== null && price < priceMin) return false
+        if (priceMax !== null && price > priceMax) return false
+      }
       if (category && asText(item.category).trim() !== category) return false
       if (ip && asText(item.ip).trim() !== ip) return false
       if (storageLocation && asText(item.storageLocation).trim() !== storageLocation) return false
@@ -178,7 +227,7 @@ export function createMcpToolHandlers(dbApi) {
   }
 
   async function collectionOverview() {
-    const items = await getItems()
+    const items = await loadEnrichedItems()
     const collection = items.filter((item) => !item.isWishlist)
     const wishlist = items.filter((item) => item.isWishlist)
 
@@ -187,6 +236,38 @@ export function createMcpToolHandlers(dbApi) {
     for (const item of collection) {
       const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
       spendByCurrency.set(currency, (spendByCurrency.get(currency) || 0) + estimateItemSpend(item))
+    }
+
+    // 首页总金额口径：折算 CNY、排除已出/已赠出/丢失、手动总价谷子组只计一次组总价
+    let collectionTotalCNY = null
+    if (convertToCNY && dbApi.getGroups && dbApi.getGroupItems) {
+      try {
+        const [groups, groupItems] = await Promise.all([dbApi.getGroups(), dbApi.getGroupItems()])
+        const manualGroups = groups.filter((g) => !g.deleted && g.summaryMode === 'manual')
+        /** @type {Set<string>} */
+        const manualMemberIds = new Set()
+        if (manualGroups.length > 0) {
+          const manualIds = new Set(manualGroups.map((g) => g.id))
+          for (const groupItem of groupItems) {
+            if (!groupItem.deleted && manualIds.has(groupItem.groupId)) {
+              manualMemberIds.add(groupItem.goodsId)
+            }
+          }
+        }
+        let groupTotalsCNY = 0
+        for (const group of manualGroups) {
+          groupTotalsCNY += convertToCNY(Number(group.totalAmount) || 0, group.currency || 'CNY')
+        }
+        let itemsTotal = 0
+        for (const item of collection) {
+          if (manualMemberIds.has(item.id)) continue
+          if (HOME_EXCLUDED_STATUSES.has(asText(item.collectStatus).trim())) continue
+          itemsTotal += Number(item.totalValueNumber) || 0
+        }
+        collectionTotalCNY = roundMoney(itemsTotal + groupTotalsCNY)
+      } catch {
+        // 组数据异常时退化为逐件估算
+      }
     }
 
     /**
@@ -221,17 +302,25 @@ export function createMcpToolHandlers(dbApi) {
     }
     acquiredDates.sort()
 
-    const totalQuantity = collection.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
+    const collectionQuantity = collection.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
 
     return {
-      totalItems: collection.length,
-      totalQuantity,
+      // 字段名必须无歧义：collectionCount 是「非愿望单」条目数，grandTotal 才是全部
+      grandTotal: items.length,
+      collectionCount: collection.length,
+      collectionQuantity,
       wishlistCount: wishlist.length,
-      estimatedSpend: [...spendByCurrency.entries()].map(([currency, amount]) => ({
-        currency,
-        amount: Math.round(amount * 100) / 100,
-        note: '估算值：优先按逐件价格求和，否则按 实付价×数量'
-      })),
+      estimatedSpend: collectionTotalCNY !== null
+        ? [{
+            currency: 'CNY',
+            amount: collectionTotalCNY,
+            note: '与首页总金额同口径：实付价+邮费（缺省回退标价×数量+邮费）、非 CNY 已折算、已出/已赠出/丢失不计、手动总价谷子组只计一次组总价'
+          }]
+        : [...spendByCurrency.entries()].map(([currency, amount]) => ({
+            currency,
+            amount: roundMoney(amount),
+            note: '估算值：优先按逐件价格求和，否则按 实付价×数量'
+          })),
       byCategory: topDistribution((item) => item.category),
       byIp: topDistribution((item) => item.ip),
       byAcquiredYear: [...byYear.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([year, count]) => ({ year, count })),
@@ -331,25 +420,23 @@ export function createMcpToolHandlers(dbApi) {
   async function spendingSummary(args) {
     const year = asInt(args.year)
     const yearPrefix = year > 0 ? String(year) : ''
-    const [items, records] = await Promise.all([getItems(), getRechargeRecords()])
+    const [items, records] = await Promise.all([loadEnrichedItems(), getRechargeRecords()])
 
-    /** @type {Map<string, { total: number, months: Map<string, { amount: number, count: number }> }>} */
-    const goodsByCurrency = new Map()
+    // 官方消费趋势口径：逐件带日期条目（运费均摊、跨月补货各自归月、
+    // 愿望单与 已出/已赠出/丢失 不计入），统一折算 CNY
+    /** @type {Map<string, { amount: number, count: number }>} */
+    const goodsMonths = new Map()
+    let goodsTotal = 0
     for (const item of items) {
-      if (item.isWishlist) continue
-      const date = asText(item.acquiredAt).trim()
-      if (!/^\d{4}-\d{2}/.test(date)) continue
-      if (yearPrefix && !date.startsWith(yearPrefix)) continue
-      const month = date.slice(0, 7)
-      const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
-      const bucket = goodsByCurrency.get(currency) || { total: 0, months: new Map() }
-      const amount = estimateItemSpend(item)
-      bucket.total += amount
-      const monthBucket = bucket.months.get(month) || { amount: 0, count: 0 }
-      monthBucket.amount += amount
-      monthBucket.count += 1
-      bucket.months.set(month, monthBucket)
-      goodsByCurrency.set(currency, bucket)
+      for (const { date, price } of getItemSpendEntries(item)) {
+        const month = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        if (yearPrefix && !month.startsWith(yearPrefix)) continue
+        const bucket = goodsMonths.get(month) || { amount: 0, count: 0 }
+        bucket.amount += price
+        bucket.count += 1
+        goodsMonths.set(month, bucket)
+        goodsTotal += price
+      }
     }
 
     const rechargeFiltered = records.filter((record) => {
@@ -369,26 +456,26 @@ export function createMcpToolHandlers(dbApi) {
       rechargeMonths.set(month, bucket)
     }
 
-    const round2 = (/** @type {number} */ n) => Math.round(n * 100) / 100
     const monthsToArray = (/** @type {Map<string, { amount: number, count: number }>} */ months) => (
       [...months.entries()]
         .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([month, m]) => ({ month, amount: round2(m.amount), count: m.count }))
+        .map(([month, m]) => ({ month, amount: roundMoney(m.amount), count: m.count }))
     )
 
     return {
       year: year > 0 ? year : null,
-      goods: [...goodsByCurrency.entries()].map(([currency, bucket]) => ({
-        currency,
-        total: round2(bucket.total),
-        byMonth: monthsToArray(bucket.months)
-      })),
+      goods: {
+        currency: convertToCNY ? 'CNY' : '（混合，未折算）',
+        total: roundMoney(goodsTotal),
+        byMonth: monthsToArray(goodsMonths)
+      },
       recharge: {
-        total: round2(rechargeTotal),
+        total: roundMoney(rechargeTotal),
         count: rechargeFiltered.length,
         byMonth: monthsToArray(rechargeMonths)
       },
-      note: '谷子金额为估算值（优先按逐件价格求和，否则实付价×数量），按入手日期归月；充值按充值时间归月。当月消费 = 月份前缀匹配当月。'
+      note: '谷子金额为官方消费趋势口径（实付价+运费均摊，缺省回退标价，逐件按入手日期归月；愿望单与 已出/已赠出/丢失 不计入' +
+        (convertToCNY ? '，非 CNY 已折算' : '') + '）；充值按充值时间归月。'
     }
   }
 
@@ -417,16 +504,19 @@ export function createMcpToolHandlers(dbApi) {
         ? item.characters
         : ['（未标注角色）']
       const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
-      const spend = estimateItemSpend(item)
-      const soldEntries = extractSaleEntries(item).sold
-      const soldUnits = soldEntries.reduce((sum, record) => sum + record.count, 0)
+      // 花费=官方消费趋势口径（逐件带日期，愿望单/已出等不计）；愿望单单列 wishlistCount
+      const spend = item.isWishlist ? 0 : itemSpendCNY(item)
+      const soldUnits = item.isWishlist ? 0 : extractSaleEntries(item).sold.reduce((sum, record) => sum + record.count, 0)
 
       for (const character of characters) {
         const key = asText(character).trim() || '（未标注角色）'
         const entry = ensure(key)
-        entry.count += 1
-        entry.quantity += Number(item.quantity) || 1
-        if (item.isWishlist) entry.wishlistCount += 1
+        if (!item.isWishlist) {
+          entry.count += 1
+          entry.quantity += Number(item.quantity) || 1
+        } else {
+          entry.wishlistCount += 1
+        }
         entry.soldCount += soldUnits
         entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spend)
       }
@@ -543,10 +633,37 @@ export function createMcpToolHandlers(dbApi) {
   async function saleLedger(args) {
     const items = await getItems()
     const yearPrefix = asInt(args.year) > 0 ? String(asInt(args.year)) : ''
-    const summary = buildSaleSummary(items)
     const { soldRows, listingRows } = buildSaleLedger(items)
 
     const soldFiltered = soldRows.filter((row) => !yearPrefix || asText(row.at).startsWith(yearPrefix))
+    const listingFiltered = listingRows.filter((row) => !yearPrefix || asText(row.at).startsWith(yearPrefix))
+
+    // 汇总必须基于过滤后的行：指定年份时回血/盈亏只统计当年（与列表一致）
+    let recoveredTotal = 0
+    let profitTotal = 0
+    let soldCount = 0
+    for (const row of soldFiltered) {
+      soldCount += row.count
+      if (row.hasPrice) {
+        recoveredTotal += row.price - row.fee
+        profitTotal += row.profit
+      }
+    }
+    let listingTotal = 0
+    let listingCount = 0
+    for (const row of listingFiltered) {
+      listingCount += row.count
+      if (row.hasPrice) listingTotal += row.price
+    }
+    const summary = {
+      recoveredTotal: roundMoney(recoveredTotal),
+      listingTotal: roundMoney(listingTotal),
+      profitTotal: roundMoney(profitTotal),
+      soldCount,
+      listingCount,
+      hasAny: soldFiltered.length > 0 || listingFiltered.length > 0
+    }
+
     const recentSold = soldFiltered.slice(0, 15).map((row) => ({
       id: row.item.id,
       name: row.item.name,
@@ -567,7 +684,6 @@ export function createMcpToolHandlers(dbApi) {
     return {
       year: yearPrefix || null,
       summary,
-      soldCount: soldFiltered.reduce((sum, row) => sum + row.count, 0),
       recentSold,
       listing
     }
@@ -589,10 +705,10 @@ export function createMcpToolHandlers(dbApi) {
 
 /**
  * 组装页面侧（以及未来 Android 原生桥）使用的完整 MCP 服务端。
- * @param {{ dbApi: McpDbApi }} params
+ * @param {{ dbApi: McpDbApi, money?: object }} params
  */
-export function createMcpServer({ dbApi }) {
-  const handlers = createMcpToolHandlers(dbApi)
+export function createMcpServer({ dbApi, money = {} }) {
+  const handlers = createMcpToolHandlers(dbApi, money)
   return createMcpRequestHandler({
     serverInfo: MCP_SERVER_INFO,
     instructions: MCP_SERVER_INSTRUCTIONS,

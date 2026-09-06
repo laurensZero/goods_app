@@ -12,7 +12,7 @@
       </template>
     </NavBar>
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <Transition name="panel-fade">
         <div v-if="showInput" class="input-card">
           <input

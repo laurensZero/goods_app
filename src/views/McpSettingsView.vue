@@ -2,7 +2,7 @@
   <div class="page mcp-settings-page">
     <NavBar :title="t('nav.mcpService')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section class="hero-section">
         <article class="hero-card">
           <div class="hero-icon">
@@ -459,18 +459,9 @@ onMounted(async () => {
   line-height: 1.6;
 }
 
-/* Settings Sections */
+/* Settings Sections（进入动画统一由全局 .page-entry 处理） */
 .settings-section {
   margin-top: 16px;
-  animation: mcp-fade-up 0.4s ease backwards 0.07s;
-}
-
-.hero-section {
-  animation: mcp-fade-up 0.4s ease backwards;
-}
-
-.mcp-extra .settings-section + .settings-section {
-  animation-delay: 0.15s;
 }
 
 /* 服务开关切换时，连接信息与工具卡片展开过渡 */
@@ -483,13 +474,6 @@ onMounted(async () => {
 .fade-slide-leave-to {
   opacity: 0;
   transform: translateY(-8px);
-}
-
-@keyframes mcp-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
 }
 
 .settings-card {

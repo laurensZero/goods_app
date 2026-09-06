@@ -185,7 +185,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'collection_overview',
-    description: '收藏总览统计：总数/愿望单数、按币种估算的花费、类别与 IP 分布 Top10、按入手年份分布、入手时间跨度。回答「我收藏了什么、花了多少」类问题时优先使用。',
+    description: '收藏总览统计。字段口径：collectionCount=已收藏条目数（非愿望单）；wishlistCount=愿望单条目数；grandTotal=两者合计。两者相加才等于 grandTotal，不要用 grandTotal 减 wishlistCount 推算收藏数。花费估算/类别与 IP 分布/年份分布均只统计已收藏部分。回答「我收藏了什么、花了多少」类问题时优先使用。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
@@ -200,7 +200,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'character_leaderboard',
-    description: '角色维度统计：每个角色的持有条目数、数量、估算花费、已出件数与愿望单件数，按条目数倒序。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用。',
+    description: '角色维度统计：每个角色的已收藏条目数（count，不含愿望单）、数量、估算花费、已出件数，愿望单件数单列在 wishlistCount，按 count 倒序。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用。',
     inputSchema: {
       type: 'object',
       properties: {

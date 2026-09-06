@@ -6,6 +6,7 @@ import { useThemeStore } from './theme'
 import { useNotifySettingsStore } from './notifySettings'
 import * as db from '@/utils/db'
 import { createMcpToolHandlers } from '@/services/mcp/tools'
+import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
@@ -282,7 +283,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
   function getExecutor() {
     if (!executorCache) {
       const goodsStore = useGoodsStore()
-      const readHandlers = createMcpToolHandlers(db)
+      const readHandlers = createMcpToolHandlers(db, createMoneyEnrichers())
       const writeHandlers = createMcpWriteToolHandlers({
         goodsStore,
         presetsStore: usePresetsStore(),

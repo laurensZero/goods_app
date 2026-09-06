@@ -2,7 +2,7 @@
   <div class="page ai-chat-page">
     <NavBar :title="t('nav.aiChat')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section class="hero-section">
         <article class="hero-card">
           <div class="hero-icon">
@@ -133,6 +133,7 @@
           :placeholder="t('aiChat.inputPlaceholder')"
           :disabled="aiChat.sending"
           @input="autoGrow"
+          @keydown.enter="handleEnterKey"
         />
         <button
           class="chat-send"
@@ -274,6 +275,19 @@ const windowWidth = ref(window.innerWidth)
 const isTabletViewport = computed(() => windowWidth.value >= 900)
 const popupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 function handleResize() { windowWidth.value = window.innerWidth }
+
+// 桌面端回车发送；触屏设备保留换行。Shift+Enter 始终换行
+const isTouchDevice = window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches ?? false
+
+/**
+ * @param {KeyboardEvent} event
+ */
+function handleEnterKey(event) {
+  // isComposing：中文等输入法选词的回车确认，不能当成发送
+  if (event.shiftKey || event.isComposing || event.keyCode === 229 || isTouchDevice) return
+  event.preventDefault()
+  send()
+}
 onMounted(() => {
   window.addEventListener('resize', handleResize, { passive: true })
   // 从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息
@@ -419,13 +433,14 @@ function removeSession(id) {
 
 <style scoped>
 .ai-chat-page {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
 
 .page-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   padding-bottom: 0;
@@ -435,7 +450,7 @@ function removeSession(id) {
 .hero-section {
   padding: 0 var(--page-padding);
   margin-top: var(--section-gap);
-  animation: chat-fade-up 0.4s ease backwards;
+  animation: page-fade-up 0.4s ease backwards;
 }
 
 .hero-card {
@@ -510,17 +525,20 @@ function removeSession(id) {
 /* ── Chat area ── */
 /* 空状态：整组内容垂直居中（输入框跟随其下，构成居中构图）；
    有消息后：消息区自然高度从顶部排列，输入框由 margin-top:auto 吸到底部 */
+/* 消息区独立滚动：输入框永远固定在页面底部，不会被对话顶走 */
 .chat-area {
   flex: 1;
+  min-height: 0;
   justify-content: center;
   padding: 16px var(--page-padding) 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .chat-area--filled {
-  flex: 0 0 auto;
   justify-content: flex-start;
 }
 
@@ -536,7 +554,7 @@ function removeSession(id) {
   gap: 8px;
   margin-top: 10px;
   text-align: center;
-  animation: chat-fade-up 0.45s ease backwards 0.08s;
+  animation: page-fade-up 0.45s ease backwards 0.08s;
 }
 
 .chat-empty__icon {
@@ -592,7 +610,7 @@ function removeSession(id) {
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
-  animation: chat-fade-up 0.4s ease backwards;
+  animation: page-fade-up 0.4s ease backwards;
 }
 
 .chat-example:nth-child(1) { animation-delay: 0.12s; }
@@ -865,14 +883,11 @@ function removeSession(id) {
 
 /* ── Input bar ── */
 .chat-inputbar {
-  position: sticky;
-  bottom: 0;
-  margin-top: auto;
+  flex-shrink: 0;
   display: flex;
   align-items: flex-end;
   gap: 8px;
   padding: 10px var(--page-padding) max(12px, env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--app-bg) 72%, transparent);
 }
 
 .chat-settings-btn {
@@ -1249,14 +1264,7 @@ function removeSession(id) {
   font-size: 13px;
 }
 
-/* ── Keyframes ── */
-@keyframes chat-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
+/* ── Keyframes（进入动画统一由全局 .page-entry / page-fade-up 处理） ── */
 @keyframes chat-bounce {
   0%, 60%, 100% {
     transform: translateY(0);
@@ -1277,7 +1285,19 @@ function removeSession(id) {
   }
 }
 
-/* Responsive */
+/* Responsive（高度分层与 base.css 的 app-wrapper 容器对齐） */
+@media (min-width: 520px) {
+  .ai-chat-page {
+    height: calc(100dvh - 48px);
+  }
+}
+
+@media (min-width: 900px) {
+  .ai-chat-page {
+    height: 100dvh;
+  }
+}
+
 @media (max-width: 767px) {
   .hero-title {
     font-size: 22px;

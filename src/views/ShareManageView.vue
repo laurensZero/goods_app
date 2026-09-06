@@ -2,7 +2,7 @@
   <div class="page share-manage-page">
     <NavBar :title="t('manage.shareManage')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section class="share-hero">
         <div class="share-hero__copy">
           <p class="share-hero__label">Share Center</p>

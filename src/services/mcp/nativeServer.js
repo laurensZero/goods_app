@@ -14,6 +14,7 @@ import { reactive, watch } from 'vue'
 import { createLogger } from '@/utils/logger'
 import { useMcpSettingsStore, generateMcpToken, MCP_DEFAULT_PORT } from '@/stores/mcpSettings'
 import { createMcpServer } from './tools'
+import { createMoneyEnrichers } from './moneyContext'
 import * as db from '@/utils/db'
 
 const log = createLogger('mcp-native')
@@ -36,7 +37,7 @@ let restartTimer = null
 /** @returns {Promise<{ status: number, body: Record<string, unknown> | null }>} */
 function handleRawRequest(rawBody) {
   if (!mcpHandler) {
-    mcpHandler = createMcpServer({ dbApi: db })
+    mcpHandler = createMcpServer({ dbApi: db, money: createMoneyEnrichers() })
   }
   return mcpHandler.handleRaw(rawBody)
 }

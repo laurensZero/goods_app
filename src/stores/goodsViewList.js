@@ -27,7 +27,7 @@ import {
  * @param {object} item
  * @param {object} exchangeRate
  */
-function computePriceFields(item, exchangeRate) {
+export function computePriceFields(item, exchangeRate) {
   const quantityNumber = parseQuantity(item.quantity)
   const officialPriceNumber = parseNumericPrice(item.price)
   const actualPriceNumber = parseNumericPrice(item.actualPrice)
