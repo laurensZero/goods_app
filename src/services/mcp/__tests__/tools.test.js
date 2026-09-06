@@ -2,6 +2,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { createMcpToolHandlers, createMcpServer } from '../tools'
 import { MCP_TOOL_DEFINITIONS } from '../toolDefinitions'
 
+const { fetchTrackLyricsMock } = vi.hoisted(() => ({ fetchTrackLyricsMock: vi.fn() }))
+vi.mock('@/utils/trackLyrics', () => ({ fetchTrackLyrics: fetchTrackLyricsMock }))
+
 /** 内存假 db：固定数据集，覆盖单位价、多币种、愿望单、回收站等分支 */
 function createFakeDb() {
   const items = [
@@ -13,7 +16,11 @@ function createFakeDb() {
       unitActualPriceList: ['25', '26'], unitAcquiredAtList: ['2025-07-01', '2025-07-01'],
       unitCharacterList: ['初音未来', '初音未来'], unitCollectStatusList: ['已拥有', '已拥有'],
       acquiredAt: '2025-07-01', saleAt: '', note: '夏活限定', updatedAt: 100,
-      trashed: false, images: ['a.png'], statusTimeline: [{ date: '2025-07-01', text: '下单' }]
+      trashed: false, images: ['a.png'], statusTimeline: [{ date: '2025-07-01', text: '下单' }],
+      tracks: [
+        { id: 'at1', title: '专辑曲 A', artist: '初音未来', album: 'X', durationMs: 200000, source: 'netease', neteaseSongId: 'n1', qqSongId: '', bilibiliVideoId: '' },
+        { id: 'at2', title: '专辑曲 B', artist: '', album: '', durationMs: 0, source: 'manual', neteaseSongId: '', qqSongId: '', bilibiliVideoId: '' }
+      ]
     },
     {
       id: 'g2', name: '明日方舟 立牌', category: '立牌', ip: '明日方舟', goodsId: 'HG-001',
@@ -115,6 +122,9 @@ describe('mcp tool handlers', () => {
     expect(detail.name).toBe('初音未来 吧唧')
     expect(detail.unitActualPriceList).toEqual(['25', '26'])
     expect(detail.imagesCount).toBe(1)
+    // 图片返回可直接展示的 uri（主图为 coverUrl），AI 可用 ![](uri) 嵌入回复
+    expect(detail.coverUrl).toBe('a.png')
+    expect(detail.images[0]).toMatchObject({ uri: 'a.png', isPrimary: true })
     expect(detail.trashed).toBe(false)
 
     const trashed = await handlers.goods_detail({ id: 'g4' })
@@ -122,6 +132,59 @@ describe('mcp tool handlers', () => {
     expect(trashed.note).toBe('')
 
     await expect(handlers.goods_detail({ id: 'nope' })).rejects.toThrow('未找到')
+  })
+
+  it('goods_search hasTracks 筛选带曲目条目并输出 tracksSummary', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.goods_search({ hasTracks: true })
+    expect(result.items.map((/** @type {any} */ i) => i.id)).toEqual(['g1'])
+    expect(result.items[0].tracksSummary).toEqual({ total: 2, playable: 1, manualOnly: 1 })
+  })
+
+  it('goods_detail 返回 CD/专辑曲目明细（含可播状态）', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const detail = await handlers.goods_detail({ id: 'g1' })
+    expect(detail.tracks).toHaveLength(2)
+    expect(detail.tracks[0]).toMatchObject({ id: 'at1', title: '专辑曲 A', source: 'netease', playable: true })
+    expect(detail.tracks[1]).toMatchObject({ id: 'at2', source: 'manual', playable: false })
+
+    // 无曲目条目输出空数组
+    const plain = await handlers.goods_detail({ id: 'g2' })
+    expect(plain.tracks).toEqual([])
+  })
+
+  it('music_lyrics 返回演出曲目歌词（结构化行 + 纯文本）', async () => {
+    fetchTrackLyricsMock.mockResolvedValue({
+      lines: [{ timeMs: 1000, text: '第一句' }, { timeMs: 5000, text: '第二句' }],
+      source: 'netease',
+      matched: false
+    })
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.music_lyrics({ eventId: 'e1', trackId: 't1' })
+    expect(result.lyricSource).toBe('netease')
+    expect(result.matched).toBe(false)
+    expect(result.linesCount).toBe(2)
+    expect(result.text).toBe('第一句\n第二句')
+    expect(result.lines[0]).toEqual({ timeMs: 1000, text: '第一句' })
+    expect(fetchTrackLyricsMock).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }))
+  })
+
+  it('music_lyrics 支持 CD/专辑谷子并做参数/音源校验', async () => {
+    fetchTrackLyricsMock.mockResolvedValue({ lines: [{ timeMs: 0, text: '词' }], source: 'qq', matched: true })
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.music_lyrics({ goodsId: 'g1', trackId: 'at1' })
+    expect(result.from).toBe('初音未来 吧唧')
+    expect(result.goodsId).toBe('g1')
+
+    await expect(handlers.music_lyrics({ eventId: 'e1', trackId: 't2' })).rejects.toThrow('未关联在线音源')
+    await expect(handlers.music_lyrics({ trackId: 't1' })).rejects.toThrow('eventId')
+    await expect(handlers.music_lyrics({ eventId: 'e1', goodsId: 'g1', trackId: 't1' })).rejects.toThrow('二选一')
+    await expect(handlers.music_lyrics({ eventId: 'nope', trackId: 't1' })).rejects.toThrow('未找到')
+    await expect(handlers.music_lyrics({ eventId: 'e1', trackId: 'nope' })).rejects.toThrow('未找到')
   })
 
   it('collection_overview 汇总数量/估算花费/分布', async () => {
@@ -166,9 +229,67 @@ describe('mcp tool handlers', () => {
     expect(all.byGame[0]).toEqual({ name: '明日方舟', total: 648, count: 1 })
     expect(all.recent[0].game).toBe('明日方舟')
 
+    // 按充值项目细分（游戏·项目）
+    expect(all.byItem[0]).toEqual({ name: '明日方舟·648 源石', total: 648, count: 1 })
+    expect(all.byItem[1]).toEqual({ name: '初音速报·月卡', total: 30, count: 1 })
+
     const y2024 = await handlers.recharge_summary({ year: 2024 })
     expect(y2024.totalAmount).toBe(30)
     expect(y2024.count).toBe(1)
+  })
+
+  it('recharge_search 按游戏/项目/年份过滤并聚合 byItem/byMonth', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const byGame = await handlers.recharge_search({ game: '明日方舟' })
+    expect(byGame.count).toBe(1)
+    expect(byGame.totalAmount).toBe(648)
+    expect(byGame.byItem[0]).toMatchObject({ item: '648 源石', game: '明日方舟', total: 648, count: 1 })
+    expect(byGame.byMonth[0]).toEqual({ month: '2025-01', total: 648, count: 1 })
+    expect(byGame.records[0].itemName).toBe('648 源石')
+
+    const byItem = await handlers.recharge_search({ itemName: '月卡' })
+    expect(byItem.count).toBe(1)
+    expect(byItem.totalAmount).toBe(30)
+
+    const byYear = await handlers.recharge_search({ year: 2024 })
+    expect(byYear.count).toBe(1)
+    // 已删记录不参与
+    const deleted = await handlers.recharge_search({ query: '已删' })
+    expect(deleted.count).toBe(0)
+
+    await expect(handlers.recharge_search({ month: 3 })).rejects.toThrow('month 需与 year')
+    await expect(handlers.recharge_search({ year: 2025, month: 13 })).rejects.toThrow('1-12')
+  })
+
+  it('budget_overview 输出预算进度与逐月/逐年超支标记（官方逐件口径）', async () => {
+    const budgetApi = { read: vi.fn(async () => ({ monthly: 40, yearly: 45 })) }
+    const handlers = createMcpToolHandlers(createFakeDb(), {}, budgetApi)
+
+    const result = await handlers.budget_overview()
+    expect(budgetApi.read).toHaveBeenCalled()
+    expect(result.budget).toMatchObject({ monthly: 40, yearly: 45 })
+
+    // byMonth 只覆盖当前年份的 12 个月
+    expect(result.byMonth).toHaveLength(12)
+    expect(result.byMonth.every((/** @type {any} */ m) => m.month.startsWith(result.current.year))).toBe(true)
+
+    // 年度口径：g1 51 @2025、g2 未填实付回退标价 50 @2024，均超年度预算 45；g3 愿望单不计
+    expect(result.byYear.find((/** @type {any} */ y) => y.year === '2025')).toMatchObject({ spent: 51, budget: 45, overBudget: true })
+    expect(result.byYear.find((/** @type {any} */ y) => y.year === '2024')).toMatchObject({ spent: 50, budget: 45, overBudget: true })
+
+    // 当前周期进度结构
+    expect(result.current.month).toMatch(/^\d{4}-\d{2}$/)
+    expect(result.current.year).toMatch(/^\d{4}$/)
+    expect(result.current.monthProgress).toMatchObject({ budget: 40, hasBudget: true })
+    expect(result.current.yearProgress.hasBudget).toBe(true)
+  })
+
+  it('budget_overview 未注入预算读取时视为未设置', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+    const result = await handlers.budget_overview()
+    expect(result.budget).toMatchObject({ monthly: 0, yearly: 0 })
+    expect(result.current.monthProgress.hasBudget).toBe(false)
   })
 
   it('spending_summary 按月汇总谷子消费与充值（官方逐件口径），支持年份过滤', async () => {

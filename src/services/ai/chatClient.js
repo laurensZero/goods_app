@@ -265,9 +265,26 @@ export async function runChatCompletion(options) {
 /** 会话标题最长保留字符数（超出截断，CJK 12 字 ≈ 12 chars，留余量给英日文） */
 const TITLE_MAX_CHARS = 24
 
+/** 收拾模型输出成单行干净标题：剥推理段/前缀符号/配对引号 */
+function cleanTitleText(raw) {
+  const noThink = String(raw || '')
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think>[\s\S]*$/i, '')
+  const firstLine = noThink.split('\n').map((line) => line.trim()).find(Boolean) || ''
+  return firstLine
+    .replace(/^[#>*\-\s`]+/, '')
+    .replace(/^(?:标题|题目|主题|name|title)\s*[:：]\s*/i, '')
+    .replace(/^["'“”「『]+|["'“”」』。.]+$/g, '')
+    .trim()
+    .slice(0, TITLE_MAX_CHARS)
+}
+
 /**
- * 用一次轻量补全为会话生成简短标题（不带工具，低 temperature）。
- * 失败由调用方兜底（保留首条消息截断标题），本函数只负责把文案收拾干净。
+ * 用一次轻量补全为会话生成简短标题（不带工具，fire-and-forget 场景）。
+ * payload 刻意保持最小（只有 model + messages）：temperature/max_tokens 会被
+ * 部分 OpenAI 兼容网关直接拒绝（o 系/gpt-5 只收 max_completion_tokens 且禁自定义
+ * temperature），推理模型还会把 tiny max_tokens 整个烧在思考上返回空内容——
+ * 这正是命名静默失败的根因。失败由调用方兜底（保留首条消息截断标题）。
  * @param {{ baseUrl: string, model: string, apiKey: string }} config
  * @param {string} userText 首条用户消息
  * @param {string} replyText 首条助手回复（摘要用）
@@ -290,18 +307,10 @@ export async function generateChatTitle(config, userText, replyText) {
         role: 'user',
         content: `用户消息：${String(userText || '').slice(0, 500)}\n助手回复摘要：${String(replyText || '').slice(0, 300)}`
       }
-    ],
-    temperature: 0.3,
-    max_tokens: 32
+    ]
   })
 
-  const raw = String(data?.choices?.[0]?.message?.content || '').trim()
-  // 只取第一行非空文本，剥掉首尾配对引号
-  const title = raw
-    .split('\n')
-    .map((line) => line.trim())
-    .find(Boolean) || ''
-  const cleaned = title.replace(/^["'“”「『]+|["'“”」』。.]+$/g, '').trim()
+  const cleaned = cleanTitleText(data?.choices?.[0]?.message?.content)
   if (!cleaned) throw new Error('AI 未返回有效标题')
-  return cleaned.slice(0, TITLE_MAX_CHARS)
+  return cleaned
 }

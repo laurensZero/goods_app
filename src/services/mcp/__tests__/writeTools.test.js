@@ -1,6 +1,32 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createMcpWriteToolHandlers } from '../writeTools'
 
+const shareMocks = vi.hoisted(() => ({
+  createShare: vi.fn(),
+  findMatchingShare: vi.fn(),
+  updateShare: vi.fn(),
+  toggleShareDisabled: vi.fn(),
+  deleteShare: vi.fn(),
+  listUserShares: vi.fn(),
+  buildSharePayload: vi.fn(),
+  generateShareId: vi.fn(),
+  buildShareUrl: vi.fn()
+}))
+
+vi.mock('@/services/shareService', () => ({
+  createShare: shareMocks.createShare,
+  findMatchingShare: shareMocks.findMatchingShare,
+  updateShare: shareMocks.updateShare,
+  toggleShareDisabled: shareMocks.toggleShareDisabled,
+  deleteShare: shareMocks.deleteShare,
+  listUserShares: shareMocks.listUserShares
+}))
+vi.mock('@/utils/share/goods', () => ({
+  buildSharePayload: shareMocks.buildSharePayload,
+  generateShareId: shareMocks.generateShareId
+}))
+vi.mock('@/config/share', () => ({ buildShareUrl: shareMocks.buildShareUrl }))
+
 function createFakeStore() {
   return {
     list: { value: [{ id: 'g1', name: '已有条目' }] },
@@ -308,8 +334,178 @@ describe('mcp write tool handlers', () => {
       await expect(handlers.music_play({ eventId: 'e1', trackId: 't1' })).rejects.toThrow('音乐播放模块不可用')
 
       const okHandlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore, mediaPlayerStore })
-      await expect(okHandlers.music_play({ trackId: 't1' })).rejects.toThrow('eventId 必填')
+      await expect(okHandlers.music_play({ trackId: 't1' })).rejects.toThrow('eventId（演出曲单）或 goodsId（CD/专辑谷子）必填')
       await expect(okHandlers.music_play({ eventId: 'e1' })).rejects.toThrow('trackId 必填')
+    })
+
+    it('music_play 支持 goodsId 播放 CD/专辑谷子曲目', async () => {
+      const store = createFakeStore()
+      const albumTrack = { id: 'a1', title: '专辑曲 A', source: 'netease', neteaseSongId: 'n1', qqSongId: '', bilibiliVideoId: '' }
+      // 真实 store 形状（shallowRef 已解包为数组）
+      store.list = [{ id: 'cd1', name: '初音专辑', tracks: [albumTrack] }]
+      const { eventsStore, mediaPlayerStore } = createFakeMusicStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: store, eventsStore, mediaPlayerStore })
+
+      const result = await handlers.music_play({ goodsId: 'cd1', trackId: 'a1' })
+      expect(result.ok).toBe(true)
+      expect(result.from).toBe('goods')
+      expect(result.name).toBe('初音专辑')
+      expect(result.playing).toMatchObject({ trackId: 'a1', title: '专辑曲 A' })
+      expect(mediaPlayerStore.playTrack).toHaveBeenCalledWith(albumTrack, [albumTrack])
+
+      await expect(handlers.music_play({ eventId: 'e1', goodsId: 'cd1', trackId: 'a1' })).rejects.toThrow('二选一')
+      await expect(handlers.music_play({ goodsId: 'nope', trackId: 'a1' })).rejects.toThrow('未找到')
+    })
+  })
+
+  describe('应用动作工具', () => {
+    /** @returns {any} */
+    function createFakeActionStores() {
+      return {
+        authStore: {
+          isLoggedIn: true,
+          user: { id: 'u1' },
+          userEmail: 'a@b.c',
+          userDisplayName: '谷友',
+          logout: vi.fn(async () => {})
+        },
+        syncStore: {
+          isConfigured: true,
+          isSyncing: false,
+          lastSyncedAt: '2026-09-01T00:00:00Z',
+          deviceId: 'dev1',
+          sync: vi.fn(async () => ({ action: 'synced' })),
+          autoPushGoods: vi.fn()
+        },
+        appUpdateStore: {
+          currentVersion: '1.2.0',
+          hasUpdate: true,
+          latestVersion: '1.3.0',
+          isForceUpdate: false,
+          checkForUpdates: vi.fn(async () => ({ status: 'ok' }))
+        },
+        budgetApi: { write: vi.fn(async () => ({ monthly: 0, yearly: 0 })) },
+        router: { push: vi.fn(async () => {}) }
+      }
+    }
+
+    it('budget_set 校验并写入预算，随后触发同步推送', async () => {
+      const stores = createFakeActionStores()
+      stores.budgetApi.write.mockResolvedValue({ monthly: 200, yearly: 2400 })
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
+
+      const result = await handlers.budget_set({ monthly: 200 })
+      expect(stores.budgetApi.write).toHaveBeenCalledWith({ monthly: 200 })
+      expect(result.budget).toEqual({ monthly: 200, yearly: 2400 })
+      expect(stores.syncStore.autoPushGoods).toHaveBeenCalledWith('budget')
+
+      await expect(handlers.budget_set({})).rejects.toThrow('没有可修改的字段')
+      await expect(handlers.budget_set({ monthly: -5 })).rejects.toThrow('monthly')
+    })
+
+    it('sync_start 校验登录/配置并发起同步', async () => {
+      const stores = createFakeActionStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
+
+      const result = await handlers.sync_start()
+      expect(stores.syncStore.sync).toHaveBeenCalled()
+      expect(result.status).toBe('done')
+      expect(result.lastSyncedAt).toBe('2026-09-01T00:00:00Z')
+
+      const loggedOut = createFakeActionStores()
+      loggedOut.authStore.isLoggedIn = false
+      const h2 = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...loggedOut })
+      await expect(h2.sync_start()).rejects.toThrow('请先登录')
+
+      const syncing = createFakeActionStores()
+      syncing.syncStore.isSyncing = true
+      const h3 = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...syncing })
+      expect((await h3.sync_start()).status).toBe('syncing')
+    })
+
+    it('share_create 复用同组分享并返回链接', async () => {
+      shareMocks.buildSharePayload.mockResolvedValue({ goods: [{ name: '初音 吧唧' }] })
+      shareMocks.findMatchingShare.mockResolvedValue({ shareId: 'ABC123', disabled: true })
+      shareMocks.buildShareUrl.mockReturnValue('https://share.example/?s=ABC123')
+
+      const store = createFakeStore()
+      store.list = [{ id: 'g1', name: '初音 吧唧' }]
+      const stores = createFakeActionStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: store, ...stores })
+
+      const result = await handlers.share_create({ goodsIds: ['g1'] })
+      expect(result).toMatchObject({ ok: true, shareId: 'ABC123', reused: true, url: 'https://share.example/?s=ABC123' })
+      expect(shareMocks.updateShare).toHaveBeenCalledWith('ABC123', { goods: [{ name: '初音 吧唧' }] })
+      expect(shareMocks.toggleShareDisabled).toHaveBeenCalledWith('ABC123', false)
+
+      await expect(handlers.share_create({ goodsIds: [] })).rejects.toThrow('goodsIds 必填')
+      await expect(handlers.share_create({ goodsIds: ['nope'] })).rejects.toThrow('未找到这些条目')
+
+      const loggedOut = createFakeActionStores()
+      loggedOut.authStore.isLoggedIn = false
+      const h2 = createMcpWriteToolHandlers({ goodsStore: store, ...loggedOut })
+      await expect(h2.share_create({ goodsIds: ['g1'] })).rejects.toThrow('请先登录')
+    })
+
+    it('share_manage 支持 list/toggle/delete', async () => {
+      shareMocks.listUserShares.mockResolvedValue([
+        { share_id: 'ABC123', payload: { goods: [{ name: 'x' }] }, created_at: '2026-01-01', disabled: false }
+      ])
+      const stores = createFakeActionStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
+
+      const list = await handlers.share_manage({ action: 'list' })
+      expect(list.total).toBe(1)
+      expect(list.shares[0]).toMatchObject({ shareId: 'ABC123', goodsCount: 1, disabled: false })
+
+      const toggled = await handlers.share_manage({ action: 'toggle', shareId: 'ABC123' })
+      expect(toggled.disabled).toBe(true)
+      expect(shareMocks.toggleShareDisabled).toHaveBeenLastCalledWith('ABC123', true)
+
+      const enabled = await handlers.share_manage({ action: 'toggle', shareId: 'ABC123', disabled: false })
+      expect(enabled.disabled).toBe(false)
+
+      const removed = await handlers.share_manage({ action: 'delete', shareId: 'ABC123' })
+      expect(removed.ok).toBe(true)
+      expect(shareMocks.deleteShare).toHaveBeenCalledWith('ABC123')
+
+      await expect(handlers.share_manage({ action: 'toggle' })).rejects.toThrow('shareId 必填')
+      await expect(handlers.share_manage({ action: 'nope' })).rejects.toThrow('action')
+    })
+
+    it('navigate 映射路由并要求详情页 id', async () => {
+      const stores = createFakeActionStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
+
+      const result = await handlers.navigate({ page: 'statistics' })
+      expect(stores.router.push).toHaveBeenCalledWith({ name: 'character-leaderboard' })
+      expect(result.ok).toBe(true)
+
+      await handlers.navigate({ page: 'goods_detail', id: 'g1' })
+      expect(stores.router.push).toHaveBeenLastCalledWith({ name: 'detail', params: { id: 'g1' } })
+
+      await expect(handlers.navigate({ page: 'goods_detail' })).rejects.toThrow('需要 id')
+      await expect(handlers.navigate({ page: 'nope' })).rejects.toThrow('未知页面')
+    })
+
+    it('account_info/account_logout 与 app_info', async () => {
+      const stores = createFakeActionStores()
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
+
+      const info = await handlers.account_info()
+      expect(info).toMatchObject({ isLoggedIn: true, email: 'a@b.c', displayName: '谷友' })
+
+      const loggedOut = await handlers.account_logout()
+      expect(loggedOut.ok).toBe(true)
+      expect(stores.authStore.logout).toHaveBeenCalled()
+
+      const appInfo = await handlers.app_info({})
+      expect(appInfo).toMatchObject({ platform: 'web', currentVersion: '1.2.0' })
+      expect(appInfo.update.checked).toBe(false)
+
+      const checked = await handlers.app_info({ checkUpdate: true })
+      expect(checked.update).toMatchObject({ checked: true, hasUpdate: true, latestVersion: '1.3.0' })
+      expect(stores.appUpdateStore.checkForUpdates).toHaveBeenCalled()
     })
   })
 })

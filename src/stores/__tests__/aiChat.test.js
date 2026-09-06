@@ -22,6 +22,16 @@ vi.mock('@/utils/db', () => ({
   getRechargeRecords: vi.fn()
 }))
 vi.mock('../goods', () => ({ useGoodsStore: vi.fn() }))
+// 应用动作工具依赖的 store：保持轻量假实现
+vi.mock('../auth', () => ({
+  useAuthStore: vi.fn(() => ({ isLoggedIn: false, user: null, userEmail: '', userDisplayName: '', logout: vi.fn() }))
+}))
+vi.mock('../sync', () => ({
+  useSyncStore: vi.fn(() => ({ autoPushGoods: vi.fn(), sync: vi.fn(), isConfigured: true, isSyncing: false, lastSyncedAt: '', deviceId: '' }))
+}))
+vi.mock('../appUpdate', () => ({
+  useAppUpdateStore: vi.fn(() => ({ currentVersion: '0.0.0', hasUpdate: false, latestVersion: '', isForceUpdate: false, checkForUpdates: vi.fn() }))
+}))
 
 import { useAiChatStore } from '../aiChat'
 

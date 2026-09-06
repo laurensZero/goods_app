@@ -11,6 +11,8 @@ import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, g
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
 import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats'
 import { getItemSpendEntries } from '../../utils/goods/statistics'
+import { fetchTrackLyrics } from '../../utils/trackLyrics'
+import { normalizeGoodsImageList } from '../../utils/goods/images'
 
 /**
  * @typedef {Object} McpDbApi
@@ -89,6 +91,8 @@ function goodsListItem(item) {
     currency: item.actualPriceCurrency || item.currency || 'CNY',
     acquiredAt: item.acquiredAt,
     saleAt: item.saleAt,
+    // CD/专辑等带曲目列表的条目给概况；明细走 goods_detail
+    tracksSummary: trackSummary(trackListOf(item.tracks).map(trackView)),
     note: truncate(item.note),
     updatedAt: Number(item.updatedAt) || 0
   }
@@ -102,6 +106,35 @@ function roundMoney(value) {
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
 }
 
+/** @param {unknown} value */
+function trackListOf(value) {
+  return Array.isArray(value) ? value : []
+}
+
+/** 曲目 → MCP 输出（含在线音源可播状态） */
+function trackView(track) {
+  const neteaseSongId = asText(track?.neteaseSongId).trim()
+  const qqSongId = asText(track?.qqSongId).trim()
+  const bilibiliVideoId = asText(track?.bilibiliVideoId).trim()
+  const playable = Boolean(neteaseSongId || qqSongId || bilibiliVideoId)
+  return {
+    id: asText(track?.id).trim(),
+    title: asText(track?.title).trim(),
+    artist: asText(track?.artist).trim(),
+    album: asText(track?.album).trim(),
+    durationMs: Math.max(0, Number(track?.durationMs) || 0),
+    source: asText(track?.source).trim() || 'manual',
+    playable,
+    ...(playable ? {} : { note: '仅手动录入、未关联在线音源，无法直接播放' })
+  }
+}
+
+/** 曲目视图 → 概况统计 */
+function trackSummary(view) {
+  const playable = view.filter((track) => track.playable).length
+  return { total: view.length, playable, manualOnly: view.length - playable }
+}
+
 /** 首页总金额口径的状态排除项（已出/已赠出/丢失不计入） */
 const HOME_EXCLUDED_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
@@ -110,13 +143,15 @@ const HOME_EXCLUDED_STATUSES = new Set(['已赠出', '已出', '丢失'])
  *
  * @param {McpDbApi} dbApi
  * @param {{
- *   enrichItems?: (items: any[]) => any[] | Promise<any[]>,
+ *   enrichItems?: (items: any[]) => any[],
  *   convertToCNY?: (amount: number, currency: string) => number
  * }} [money]
  *   官方计费口径注入（见 moneyContext.js）：enrichItems 补齐 CNY 折算字段，
  *   convertToCNY 做币种换算。缺省时回退到原始字段的粗略估算（仅单测使用）。
+ * @param {{ read?: () => Promise<{ monthly: number, yearly: number }> }} [budgetApi]
+ *   吃谷预算读取注入（见 utils/goods/budget.js）；缺省视为未设置预算。
  */
-export function createMcpToolHandlers(dbApi, money = {}) {
+export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
   const { getItems, getTrashedItems, getEvents, getRechargeRecords } = dbApi
   const { enrichItems = null, convertToCNY = null } = money
 
@@ -142,6 +177,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     const storageLocation = asText(args.storageLocation).trim()
     const wishlistOnly = args.wishlistOnly === true
     const collectionOnly = args.collectionOnly === true
+    const hasTracks = args.hasTracks === true
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
 
@@ -158,6 +194,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     const matched = items.filter((item) => {
       if (wishlistOnly && !item.isWishlist) return false
       if (collectionOnly && item.isWishlist) return false
+      if (hasTracks && trackListOf(item.tracks).length === 0) return false
       const acquiredDate = asText(item.acquiredAt).trim()
       if (acquiredAfter && (!acquiredDate || acquiredDate < acquiredAfter)) return false
       if (acquiredBefore && (!acquiredDate || acquiredDate > acquiredBefore)) return false
@@ -198,7 +235,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
   }
 
   /**
-   * @param {Record<string, any>} args
+   * @param {any} item
    */
   async function goodsDetail(args) {
     const id = asText(args.id).trim()
@@ -208,6 +245,15 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     if (!item) throw new Error(`未找到 id 为 ${id} 的条目（可能已被彻底删除）`)
 
     const statusTimeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
+    // 图片 uri 本身就是 WebView/远程可直接展示的地址，AI 可用 ![描述](uri) 嵌进回复
+    const images = normalizeGoodsImageList(item.images)
+      .slice(0, 12)
+      .map((image) => ({
+        uri: image.uri,
+        label: image.label,
+        kind: image.kind,
+        isPrimary: image.isPrimary
+      }))
     return {
       ...goodsListItem(item),
       trashed: Boolean(item.trashed),
@@ -222,7 +268,11 @@ export function createMcpToolHandlers(dbApi, money = {}) {
       unitCharacterList: Array.isArray(item.unitCharacterList) ? item.unitCharacterList : [],
       unitCollectStatusList: Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : [],
       unitSaleInfoList: Array.isArray(item.unitSaleInfoList) ? item.unitSaleInfoList : [],
-      imagesCount: Array.isArray(item.images) ? item.images.length : 0,
+      // CD/专辑谷子的专辑曲目明细（trackId 供 music_play / music_lyrics 使用）
+      tracks: trackListOf(item.tracks).map(trackView),
+      images,
+      coverUrl: images.find((image) => image.isPrimary)?.uri || images[0]?.uri || '',
+      imagesCount: images.length,
       statusTimeline: statusTimeline.slice(-TIMELINE_MAX_ENTRIES),
       note: item.note
     }
@@ -402,27 +452,9 @@ export function createMcpToolHandlers(dbApi, money = {}) {
       if (candidates.length === 0) throw new Error(`未找到 id 为 ${eventId} 的演出（可能已被删除）`)
     }
 
-    /** @param {any} track */
-    function trackView(track) {
-      const neteaseSongId = asText(track?.neteaseSongId).trim()
-      const qqSongId = asText(track?.qqSongId).trim()
-      const bilibiliVideoId = asText(track?.bilibiliVideoId).trim()
-      const playable = Boolean(neteaseSongId || qqSongId || bilibiliVideoId)
-      return {
-        id: asText(track?.id).trim(),
-        title: asText(track?.title).trim(),
-        artist: asText(track?.artist).trim(),
-        album: asText(track?.album).trim(),
-        durationMs: Math.max(0, Number(track?.durationMs) || 0),
-        source: asText(track?.source).trim() || 'manual',
-        playable,
-        ...(playable ? {} : { note: '仅手动录入、未关联在线音源，无法直接播放' })
-      }
-    }
-
     const matched = []
     for (const event of candidates) {
-      const tracks = Array.isArray(event.tracks) ? event.tracks : []
+      const tracks = trackListOf(event.tracks)
       if (!eventId && tracks.length === 0) continue
       let visibleTracks = tracks
       if (query) {
@@ -437,7 +469,6 @@ export function createMcpToolHandlers(dbApi, money = {}) {
         if (visibleTracks.length === 0) continue
       }
       const view = visibleTracks.map(trackView)
-      const playableCount = view.filter((track) => track.playable).length
       matched.push({
         id: event.id,
         name: event.name,
@@ -453,11 +484,7 @@ export function createMcpToolHandlers(dbApi, money = {}) {
         description: truncate(event.description),
         photosCount: Array.isArray(event.photos) ? event.photos.length : 0,
         linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
-        tracksSummary: {
-          total: view.length,
-          playable: playableCount,
-          manualOnly: view.length - playableCount
-        },
+        tracksSummary: trackSummary(view),
         ...(includeTracks ? { tracks: view } : {})
       })
     }
@@ -472,6 +499,72 @@ export function createMcpToolHandlers(dbApi, money = {}) {
         ? '播放用 music_play（传 eventId + trackId）；playable 为 false 的曲目无法播放'
         : '默认只返回曲单概况；用户要完整歌单、找具体歌或要播放时，再传 includeTracks: true 获取曲目明细（含 trackId）',
       events: page
+    }
+  }
+
+  /** 歌词行数上限：普通歌 ~100 行，超长串烧截断防止响应膨胀 */
+  const LYRICS_MAX_LINES = 400
+
+  /**
+   * 歌词查询：按演出曲单或 CD/专辑谷子里的曲目 id 拉取歌词。
+   * 网易云/QQ 直连歌曲 ID；B 站曲目按标题跨源匹配。
+   * @param {Record<string, any>} args
+   */
+  async function musicLyrics(args) {
+    const trackId = asText(args.trackId).trim()
+    if (!trackId) throw new Error('trackId 必填（来自 event_tracks 或 goods_detail 的曲目明细）')
+    const eventId = asText(args.eventId).trim()
+    const goodsId = asText(args.goodsId).trim()
+    if (eventId && goodsId) throw new Error('eventId 与 goodsId 二选一，不要同时传')
+    if (!eventId && !goodsId) throw new Error('eventId（演出曲单）或 goodsId（CD/专辑谷子）必填')
+
+    let track = null
+    let containerName = ''
+    if (eventId) {
+      const event = (await getEvents()).find((item) => !item.deleted && item.id === eventId)
+      if (!event) throw new Error(`未找到 id 为 ${eventId} 的演出`)
+      containerName = event.name
+      track = trackListOf(event.tracks).find((item) => asText(item?.id).trim() === trackId)
+    } else {
+      const item = (await getItems()).find((entry) => entry.id === goodsId)
+      if (!item) throw new Error(`未找到 id 为 ${goodsId} 的谷子条目`)
+      containerName = item.name
+      track = trackListOf(item.tracks).find((entry) => asText(entry?.id).trim() === trackId)
+    }
+    if (!track) throw new Error(`「${containerName}」下未找到 id 为 ${trackId} 的曲目`)
+
+    const hasPlayableSource = Boolean(
+      asText(track?.neteaseSongId).trim() ||
+      asText(track?.qqSongId).trim() ||
+      asText(track?.bilibiliVideoId).trim() ||
+      (asText(track?.lyricSource).trim() && asText(track?.lyricSongId).trim())
+    )
+    if (!hasPlayableSource) {
+      throw new Error(`《${asText(track?.title).trim() || '未命名曲目'}》未关联在线音源，无法读取歌词；请在详情页的曲目编辑中为它导入音源`)
+    }
+
+    const result = await fetchTrackLyrics(track)
+    if (!result) {
+      throw new Error(`《${asText(track?.title).trim() || '未命名曲目'}》未关联在线音源，无法读取歌词`)
+    }
+    const lines = result.lines.slice(0, LYRICS_MAX_LINES).map((line) => ({
+      timeMs: Math.max(0, Number(line?.timeMs) || 0),
+      text: asText(line?.text)
+    }))
+    return {
+      track: {
+        id: trackId,
+        title: asText(track?.title).trim(),
+        artist: asText(track?.artist).trim()
+      },
+      ...(eventId ? { eventId } : { goodsId }),
+      from: containerName,
+      lyricSource: result.source,
+      matched: result.matched,
+      linesCount: lines.length,
+      lines,
+      text: lines.map((line) => line.text).join('\n'),
+      note: lines.length ? '' : '该音源没有可用歌词（可能是纯音乐或未收录歌词）'
     }
   }
 
@@ -508,13 +601,101 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     const sorted = filtered.sort((a, b) => asText(b.chargedAt).localeCompare(asText(a.chargedAt)))
     const total = filtered.reduce((sum, record) => sum + (Number(record.amount) || 0), 0)
 
+    // 按充值项目细分（如 空月祝福/月卡/648）：回答「某项目买了几次」类问题
+    const byItem = groupSum((record) => {
+      const game = asText(record.game).trim()
+      const item = asText(record.itemName).trim()
+      return item ? (game ? `${game}·${item}` : item) : ''
+    }).slice(0, 15)
+
     return {
       year: year > 0 ? year : null,
       totalAmount: Math.round(total * 100) / 100,
       count: filtered.length,
       byGame: groupSum((record) => record.game),
+      byItem,
       byYear: groupSum((record) => asText(record.chargedAt).slice(0, 4)),
       recent: sorted.slice(0, 10).map((record) => ({
+        game: record.game,
+        itemName: record.itemName,
+        amount: Number(record.amount) || 0,
+        chargedAt: record.chargedAt,
+        note: truncate(record.note)
+      }))
+    }
+  }
+
+  /**
+   * 充值记录检索：按游戏/项目/关键词过滤并聚合（总数、笔数、按项目、按月）。
+   * @param {Record<string, any>} args
+   */
+  async function rechargeSearch(args) {
+    const records = await getRechargeRecords()
+    const game = asText(args.game).trim().toLowerCase()
+    const itemName = asText(args.itemName).trim().toLowerCase()
+    const query = asText(args.query).trim().toLowerCase()
+    const year = asInt(args.year)
+    const month = asInt(args.month)
+    if (month > 0 && year <= 0) throw new Error('month 需与 year 搭配使用')
+    if (month > 12) throw new Error('month 需为 1-12')
+    const limit = Math.min(Math.max(asInt(args.limit) || 50, 1), 200)
+    const offset = Math.max(asInt(args.offset), 0)
+
+    const matched = records.filter((record) => {
+      if (record.deleted) return false
+      const recordGame = asText(record.game).toLowerCase()
+      const recordItem = asText(record.itemName).toLowerCase()
+      if (game && !recordGame.includes(game)) return false
+      if (itemName && !recordItem.includes(itemName)) return false
+      if (query && !(recordGame.includes(query) || recordItem.includes(query) || asText(record.note).toLowerCase().includes(query))) return false
+      const chargedAt = asText(record.chargedAt)
+      if (year > 0 && !chargedAt.startsWith(String(year))) return false
+      if (month > 0 && !chargedAt.startsWith(`${year}-${String(month).padStart(2, '0')}`)) return false
+      return true
+    })
+
+    const totalAmount = matched.reduce((sum, record) => sum + (Number(record.amount) || 0), 0)
+
+    /** @type {Map<string, { item: string, game: string, total: number, count: number }>} */
+    const itemStats = new Map()
+    for (const record of matched) {
+      const item = asText(record.itemName).trim() || '（未填写）'
+      const recordGame = asText(record.game).trim()
+      const key = recordGame ? `${recordGame}·${item}` : item
+      const entry = itemStats.get(key) || { item, game: recordGame, total: 0, count: 0 }
+      entry.total += Number(record.amount) || 0
+      entry.count += 1
+      itemStats.set(key, entry)
+    }
+    const byItem = [...itemStats.values()]
+      .sort((a, b) => b.count - a.count || b.total - a.total)
+      .map((entry) => ({ item: entry.item, game: entry.game, total: Math.round(entry.total * 100) / 100, count: entry.count }))
+
+    /** @type {Map<string, { total: number, count: number }>} */
+    const monthStats = new Map()
+    for (const record of matched) {
+      const monthKey = asText(record.chargedAt).slice(0, 7) || '（未知）'
+      const entry = monthStats.get(monthKey) || { total: 0, count: 0 }
+      entry.total += Number(record.amount) || 0
+      entry.count += 1
+      monthStats.set(monthKey, entry)
+    }
+    const byMonth = [...monthStats.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([monthKey, stat]) => ({ month: monthKey, total: Math.round(stat.total * 100) / 100, count: stat.count }))
+
+    const sorted = matched.sort((a, b) => asText(b.chargedAt).localeCompare(asText(a.chargedAt)))
+    const page = sorted.slice(offset, offset + limit)
+
+    return {
+      totalAmount: Math.round(totalAmount * 100) / 100,
+      count: matched.length,
+      offset,
+      limit,
+      hasMore: offset + page.length < matched.length,
+      byItem: byItem.slice(0, 20),
+      byMonth,
+      records: page.map((record) => ({
         game: record.game,
         itemName: record.itemName,
         amount: Number(record.amount) || 0,
@@ -800,6 +981,68 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     }
   }
 
+  /**
+   * 吃谷预算总览：当前预算、本月/今年进度、按月/按年花费与超支标记。
+   * 花费口径与「我的-吃谷预算」一致（官方逐件口径）。
+   */
+  async function budgetOverview() {
+    const [items, budgets] = await Promise.all([
+      loadEnrichedItems(),
+      budgetApi && typeof budgetApi.read === 'function'
+        ? budgetApi.read()
+        : Promise.resolve({ monthly: 0, yearly: 0 })
+    ])
+    const monthlyBudget = Math.max(0, Number(budgets?.monthly) || 0)
+    const yearlyBudget = Math.max(0, Number(budgets?.yearly) || 0)
+
+    /** @type {Map<string, number>} */
+    const monthSpend = new Map()
+    /** @type {Map<string, number>} */
+    const yearSpend = new Map()
+    for (const item of items) {
+      for (const { date, price } of getItemSpendEntries(item)) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+        monthSpend.set(monthKey, (monthSpend.get(monthKey) || 0) + price)
+        yearSpend.set(String(date.getFullYear()), (yearSpend.get(String(date.getFullYear())) || 0) + price)
+      }
+    }
+
+    const now = new Date()
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const currentYearKey = String(now.getFullYear())
+
+    /** @param {number} spent @param {number} budget */
+    function progress(spent, budget) {
+      return {
+        budget,
+        spent: roundMoney(spent),
+        remaining: budget > 0 ? roundMoney(budget - spent) : 0,
+        percent: budget > 0 ? Math.round((spent / budget) * 1000) / 10 : 0,
+        isOver: budget > 0 && spent > budget,
+        hasBudget: budget > 0
+      }
+    }
+
+    return {
+      budget: { monthly: monthlyBudget, yearly: yearlyBudget, note: '0 表示未设置' },
+      current: {
+        month: currentMonthKey,
+        monthProgress: progress(monthSpend.get(currentMonthKey) || 0, monthlyBudget),
+        year: currentYearKey,
+        yearProgress: progress(yearSpend.get(currentYearKey) || 0, yearlyBudget)
+      },
+      byMonth: Array.from({ length: 12 }, (_, index) => {
+        const key = `${now.getFullYear()}-${String(index + 1).padStart(2, '0')}`
+        const spent = monthSpend.get(key) || 0
+        return { month: key, spent: roundMoney(spent), budget: monthlyBudget, overBudget: monthlyBudget > 0 && spent > monthlyBudget }
+      }),
+      byYear: [...yearSpend.entries()]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([year, spent]) => ({ year, spent: roundMoney(spent), budget: yearlyBudget, overBudget: yearlyBudget > 0 && spent > yearlyBudget })),
+      hint: '回答「这个月/今年预算还剩多少」「哪个月/哪年超了」看 current 与 overBudget；用户要改预算用 budget_set（0 = 清除）'
+    }
+  }
+
   return {
     goods_search: goodsSearch,
     goods_detail: goodsDetail,
@@ -811,7 +1054,10 @@ export function createMcpToolHandlers(dbApi, money = {}) {
     sale_ledger: saleLedger,
     events_list: eventsList,
     event_tracks: eventTracks,
-    recharge_summary: rechargeSummary
+    music_lyrics: musicLyrics,
+    recharge_summary: rechargeSummary,
+    recharge_search: rechargeSearch,
+    budget_overview: budgetOverview
   }
 }
 
@@ -820,14 +1066,15 @@ export function createMcpToolHandlers(dbApi, money = {}) {
  * @param {{
  *   dbApi: McpDbApi,
  *   money?: object,
+ *   budgetApi?: { read?: () => Promise<{ monthly: number, yearly: number }> },
  *   allowWriteTools?: boolean,
  *   writeHandlers?: Record<string, (args: Record<string, any>) => Promise<unknown>>
  * }} params
  *   allowWriteTools 开启且提供 writeHandlers（依赖 store 实例，由调用方注入）时，
  *   写工具才会注册并可被外部调用。
  */
-export function createMcpServer({ dbApi, money = {}, allowWriteTools = false, writeHandlers = null }) {
-  const readHandlers = createMcpToolHandlers(dbApi, money)
+export function createMcpServer({ dbApi, money = {}, budgetApi = null, allowWriteTools = false, writeHandlers = null }) {
+  const readHandlers = createMcpToolHandlers(dbApi, money, budgetApi)
   const handlers = (allowWriteTools && writeHandlers)
     ? { ...readHandlers, ...writeHandlers }
     : readHandlers

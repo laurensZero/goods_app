@@ -200,7 +200,7 @@ describe('chatClient', () => {
   })
 
   describe('generateChatTitle', () => {
-    it('轻量补全生成标题并清理引号/换行，不带 tools 参数', async () => {
+    it('轻量补全生成标题并清理引号/换行，payload 只含 model+messages（兼容严格网关）', async () => {
       CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
         choices: [{ message: { content: '「游戏充值统计」\n' } }]
       }))
@@ -213,7 +213,21 @@ describe('chatClient', () => {
       expect(payload.data.messages[0].role).toBe('system')
       expect(payload.data.messages[1].content).toContain('这个月充了多少钱')
       expect(payload.data.tools).toBeUndefined()
-      expect(payload.data.temperature).toBe(0.3)
+      // temperature/max_tokens 不随请求发送：o 系/gpt-5 会 400，推理模型会烧光 max_tokens 返回空
+      expect(payload.data.temperature).toBeUndefined()
+      expect(payload.data.max_tokens).toBeUndefined()
+    })
+
+    it('兼容推理模型输出：剥掉 think 段与「标题：」前缀', async () => {
+      CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+        choices: [{ message: { content: '<think>用户想问充值…</think>标题：游戏充值统计' } }]
+      }))
+      expect(await generateChatTitle(CONFIG, '充值', '678 元')).toBe('游戏充值统计')
+
+      CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+        choices: [{ message: { content: '<think>未闭合的思考段…' } }]
+      }))
+      await expect(generateChatTitle(CONFIG, '充值', '678 元')).rejects.toThrow('有效标题')
     })
 
     it('空回复与缺配置分别抛错', async () => {

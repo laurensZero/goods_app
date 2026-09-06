@@ -23,6 +23,11 @@ import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { useRechargeStore } from '@/stores/recharge'
 import { useEventsStore } from '@/stores/events'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
+import { useAuthStore } from '@/stores/auth'
+import { useSyncStore } from '@/stores/sync'
+import { useAppUpdateStore } from '@/stores/appUpdate'
+import { readBudgetSettings, writeBudgetSettings } from '@/utils/goods/budget'
+import router from '@/router'
 import * as db from '@/utils/db'
 
 const log = createLogger('mcp-native')
@@ -51,7 +56,12 @@ function buildWriteHandlers() {
     notifyStore: useNotifySettingsStore(),
     rechargeStore: useRechargeStore(),
     eventsStore: useEventsStore(),
-    mediaPlayerStore: useMediaPlayerStore()
+    mediaPlayerStore: useMediaPlayerStore(),
+    authStore: useAuthStore(),
+    syncStore: useSyncStore(),
+    appUpdateStore: useAppUpdateStore(),
+    budgetApi: { read: readBudgetSettings, write: writeBudgetSettings },
+    router
   })
 }
 
@@ -62,6 +72,7 @@ function handleRawRequest(rawBody) {
     mcpHandler = createMcpServer({
       dbApi: db,
       money: createMoneyEnrichers(),
+      budgetApi: { read: readBudgetSettings },
       allowWriteTools: Boolean(allowExternalWrites),
       writeHandlers: allowExternalWrites ? buildWriteHandlers() : undefined
     })
