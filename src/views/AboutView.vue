@@ -2,7 +2,7 @@
   <div class="page about-page">
     <NavBar :title="t('about.title')" show-back />
 
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <section class="hero-section">
         <article class="hero-card">
           <img class="app-icon" :src="appIconSrc" :alt="t('about.appIcon')" />

@@ -2,7 +2,7 @@
   <div class="page theme-page">
     <NavBar :key="`${themeStore.themeId}-${themeStore.appliedAppearance}`" :title="t('theme.title')" show-back />
 
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Theme & Appearance</p>

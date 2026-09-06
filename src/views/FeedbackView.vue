@@ -2,7 +2,7 @@
   <div class="page fb-page">
     <NavBar :title="t('about.feedback')" show-back />
 
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <!-- Hero -->
       <section class="hero-section">
         <article class="hero-card">

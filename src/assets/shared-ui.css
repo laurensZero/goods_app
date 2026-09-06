@@ -169,3 +169,27 @@
   z-index: var(--float-footer-z, var(--z-float, 40));
   pointer-events: none;
 }
+
+/* ── Page Entry Animation ── */
+
+/* 设置页统一进入动画（与 MCP / AI 页一致）：内容块淡入上移并按块错峰。
+   在页面 <main class="page-body"> 上追加 .page-entry 启用；
+   reduced-motion 由 base.css 的全局 kill-switch 覆盖 */
+@keyframes page-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.page-entry > * {
+  animation: page-fade-up 0.4s ease backwards;
+}
+
+.page-entry > :nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.page-entry > :nth-child(n + 3) {
+  animation-delay: 0.15s;
+}

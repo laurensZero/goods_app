@@ -39,7 +39,7 @@
       </div>
     </Transition>
 
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <section class="hero-section hero-section--sync">
         <article class="hero-card">
           <div class="hero-head">

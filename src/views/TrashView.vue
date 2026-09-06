@@ -2,7 +2,7 @@
   <div class="page trash-page">
     <NavBar :title="t('common.trash')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Trash Bin</p>

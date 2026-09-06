@@ -2,7 +2,7 @@
   <div class="page monitor-page" :class="{ 'monitor-page--tablet': isTabletViewport }">
     <NavBar :title="t('nav.mihoyoStockMonitor')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section v-if="!authStore.isLoggedIn" class="state-card state-card--empty">
         <span class="state-card__icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -2,7 +2,7 @@
   <div class="page locations-page">
     <NavBar :title="t('manage.storageLocations')" show-back />
 
-    <main class="page-body">
+    <main class="page-body page-entry">
       <section class="hero-section">
         <div class="hero-copy">
           <p class="hero-label">Storage Presets</p>

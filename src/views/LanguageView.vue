@@ -2,7 +2,7 @@
   <div class="page language-page">
     <NavBar :title="t('manage.language')" show-back />
 
-    <main ref="pageBodyRef" class="page-body">
+    <main ref="pageBodyRef" class="page-body page-entry">
       <section class="hero-section">
         <article class="hero-card">
           <div class="hero-icon">
