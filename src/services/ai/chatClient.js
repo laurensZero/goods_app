@@ -1,0 +1,243 @@
+// @ts-check
+/**
+ * OpenAI 兼容聊天客户端（非流式 + 工具调用循环）
+ *
+ * - 通过 CapacitorHttp 发请求：走原生网络栈，不受 WebView CORS 限制，
+ *   用户可填任意 OpenAI 兼容端点（one-api / 本地 LLM 网关 / 官方 API）。
+ * - 工具循环：带 tools 请求 → 执行 tool_calls → 结果以 role:tool 回填 →
+ *   重复，直到模型给出纯文本；轮数用尽后做一次不带 tools 的收尾请求强制回答。
+ */
+
+import { Capacitor, CapacitorHttp } from '@capacitor/core'
+
+const HTTP_TIMEOUT_MS = 120000
+export const MAX_TOOL_ROUNDS = 6
+
+export const DEFAULT_AI_CONFIG = Object.freeze({
+  baseUrl: 'https://api.openai.com/v1',
+  model: 'gpt-4o-mini',
+  apiKey: ''
+})
+
+/** HTTP/服务端错误，带状态码与原始响应文本便于排障 */
+export class AiRequestError extends Error {
+  /**
+   * @param {number} status
+   * @param {string} detail
+   */
+  constructor(status, detail) {
+    super(`AI 请求失败（HTTP ${status}）：${detail}`)
+    this.name = 'AiRequestError'
+    this.status = status
+    this.detail = detail
+  }
+}
+
+/** @param {string} url */
+export function normalizeBaseUrl(url) {
+  return String(url || '').trim().replace(/\/+$/, '')
+}
+
+/**
+ * 从常见错误响应里提取可读信息（OpenAI 风格 {error:{message}} 或纯文本）。
+ * @param {unknown} data
+ */
+function extractErrorDetail(data) {
+  if (typeof data === 'string') return data.slice(0, 300) || '(空响应)'
+  const message = data?.error?.message || data?.message
+  if (typeof message === 'string') return message
+  try {
+    return JSON.stringify(data).slice(0, 300)
+  } catch {
+    return '(无法解析的响应)'
+  }
+}
+
+/**
+ * POST JSON 并解析响应。原生走 CapacitorHttp（不受 WebView CORS 限制，
+ * 返回 {status,data}）；Web 走 fetch（CapacitorHttp 在 Web 上未实现）。
+ * @param {string} url
+ * @param {Record<string, string>} headers
+ * @param {unknown} body
+ * @returns {Promise<any>}
+ */
+async function postJsonNative(url, headers, body) {
+  const response = await CapacitorHttp.fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    data: body,
+    connectTimeout: HTTP_TIMEOUT_MS,
+    readTimeout: HTTP_TIMEOUT_MS
+  })
+  // 原生实现返回 { status, data, headers }
+  const status = /** @type {any} */ (response)?.status
+  const data = /** @type {any} */ (response)?.data
+  if (typeof status === 'number') {
+    if (status >= 400) throw new AiRequestError(status, extractErrorDetail(data))
+    return data
+  }
+  // 兜底：拿不到结构化形状时按 Response 处理
+  return parseWebResponse(/** @type {any} */ (response))
+}
+
+async function postJsonWeb(url, headers, body) {
+  // 浏览器直连常被 CORS 拦截：dev 下经 Vite 中间件 /ai-proxy 转发到目标地址
+  let requestUrl = url
+  /** @type {Record<string, string>} */
+  const requestHeaders = { 'Content-Type': 'application/json', ...headers }
+  if (import.meta.env.DEV) {
+    const base = url.replace(/\/chat\/completions$/, '')
+    if (base !== url) {
+      requestUrl = `${window.location.origin}/ai-proxy/chat/completions`
+      requestHeaders['x-ai-target'] = base
+    }
+  }
+
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
+  try {
+    const response = await fetch(requestUrl, {
+      method: 'POST',
+      headers: requestHeaders,
+      body: JSON.stringify(body),
+      signal: controller.signal
+    })
+    return await parseWebResponse(response)
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError') {
+      throw new Error(`AI 请求超时（${HTTP_TIMEOUT_MS / 1000}s）`)
+    }
+    if (e instanceof TypeError) {
+      throw new Error('网络请求失败：请检查接口地址是否可达（或 dev server 的 /ai-proxy 是否可用）')
+    }
+    throw e
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+/**
+ * 解析标准 Response 形状（Web fetch）。
+ * @param {Response} response
+ * @returns {Promise<any>}
+ */
+async function parseWebResponse(response) {
+  const text = await response.text()
+  if (!response.ok) throw new AiRequestError(response.status, extractErrorDetail(text))
+  try {
+    return JSON.parse(text)
+  } catch {
+    return text
+  }
+}
+
+/** 按运行平台选择传输：原生 CapacitorHttp 直连；Web 走 fetch（dev 经 /ai-proxy） */
+function postJson(url, headers, body) {
+  return Capacitor.isNativePlatform()
+    ? postJsonNative(url, headers, body)
+    : postJsonWeb(url, headers, body)
+}
+
+/**
+ * MCP 工具定义 → OpenAI tools 参数
+ * @param {Array<{ name: string, description: string, inputSchema: Record<string, unknown> }>} definitions
+ */
+export function toOpenAiTools(definitions) {
+  return definitions.map((def) => ({
+    type: 'function',
+    function: {
+      name: def.name,
+      description: def.description,
+      parameters: def.inputSchema
+    }
+  }))
+}
+
+/**
+ * @typedef {Object} RunChatOptions
+ * @property {{ baseUrl: string, model: string, apiKey: string }} config
+ * @property {Array<Record<string, unknown>>} messages 已含 system 的 OpenAI 消息数组
+ * @property {Array<{ name: string, description: string, inputSchema: Record<string, unknown> >}} tools
+ * @property {(name: string, args: Record<string, any>) => Promise<unknown>} executor
+ * @property {(step: { name: string, args: Record<string, any>, ok: boolean, error?: string }) => void} [onStep]
+ * @property {number} [maxToolRounds]
+ */
+
+/**
+ * 执行一次「可能含多轮工具调用」的完整对话请求。
+ * @param {RunChatOptions} options
+ * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>> }>}
+ */
+export async function runChatCompletion(options) {
+  const { config, messages, tools, executor, onStep, maxToolRounds = MAX_TOOL_ROUNDS } = options
+  const baseUrl = normalizeBaseUrl(config.baseUrl)
+  if (!baseUrl) throw new Error('未配置 AI 接口地址')
+  if (!config.model) throw new Error('未配置模型名称')
+  if (!config.apiKey) throw new Error('未配置 API Key')
+
+  const url = `${baseUrl}/chat/completions`
+  const headers = { Authorization: `Bearer ${config.apiKey}` }
+  const toolsPayload = toOpenAiTools(tools)
+
+  /** @type {Array<Record<string, unknown>>} */
+  const convo = [...messages]
+  /** @type {Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>} */
+  const steps = []
+
+  for (let round = 0; round <= maxToolRounds; round++) {
+    const finalRound = round === maxToolRounds
+    const payload = finalRound
+      ? { model: config.model, messages: [...convo] }
+      : { model: config.model, messages: [...convo], tools: toolsPayload }
+
+    const data = await postJson(url, headers, payload)
+    const choice = data?.choices?.[0]?.message
+    if (!choice || typeof choice !== 'object') {
+      throw new Error('AI 响应格式异常：缺少 choices[0].message')
+    }
+    convo.push(choice)
+
+    /** @type {Array<any>} */
+    const toolCalls = Array.isArray(choice.tool_calls) ? choice.tool_calls : []
+    if (toolCalls.length === 0) {
+      return { content: String(choice.content || ''), steps, convo }
+    }
+
+    for (const call of toolCalls) {
+      const name = String(call?.function?.name || '')
+      /** @type {Record<string, any>} */
+      let args = {}
+      try {
+        args = call?.function?.arguments ? JSON.parse(call.function.arguments) : {}
+      } catch {
+        args = {}
+      }
+
+      let ok = true
+      /** @type {string | undefined} */
+      let errorText
+      let resultPayload
+      try {
+        if (!name) throw new Error('工具名为空')
+        resultPayload = await executor(name, args)
+      } catch (e) {
+        ok = false
+        errorText = e instanceof Error ? e.message : String(e)
+        resultPayload = { error: errorText }
+      }
+
+      const step = { name, args, ok, error: errorText }
+      steps.push(step)
+      onStep?.(step)
+
+      convo.push({
+        role: 'tool',
+        tool_call_id: String(call?.id || ''),
+        content: JSON.stringify(resultPayload ?? null)
+      })
+    }
+  }
+
+  // 理论到不了这里（最后一轮不带 tools 必然返回文本或抛错）
+  throw new Error('工具调用轮数超限')
+}

@@ -202,6 +202,7 @@
   "events.tracks.collectionPlaceholder": "粘贴网易云 / QQ 音乐歌单或专辑链接",
   "events.tracks.cover": "曲目封面",
   "events.tracks.delete": "删除",
+    "events.tracks.dragHandle": "拖动调整顺序",
   "events.tracks.duration": "时长",
   "events.tracks.durationPlaceholder": "如 04:36",
   "events.tracks.import": "导入",

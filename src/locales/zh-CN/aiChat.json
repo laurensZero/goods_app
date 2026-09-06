@@ -1,0 +1,23 @@
+{
+  "aiChat.description": "通过 OpenAI 兼容接口连接你自己的 AI，查询、统计、整理甚至修改收藏数据。",
+  "aiChat.entryMeta": "内置 AI 聊天窗口，直连你的收藏数据",
+  "aiChat.inputPlaceholder": "问问你的收藏…",
+  "aiChat.send": "发送",
+  "aiChat.settingsTitle": "AI 服务设置",
+  "aiChat.baseUrl": "接口地址",
+  "aiChat.model": "模型名称",
+  "aiChat.apiKey": "API Key",
+  "aiChat.save": "保存",
+  "aiChat.saved": "已保存",
+  "aiChat.thinking": "思考中…",
+  "aiChat.emptyTitle": "和 AI 聊聊你的收藏",
+  "aiChat.emptyHint": "可以这样问：",
+  "aiChat.example1": "我这个月花了多少钱？",
+  "aiChat.example2": "原神的谷子都放在哪些收纳位置？",
+  "aiChat.example3": "帮我加一个初音未来的吧唧，30 元",
+  "aiChat.clearChat": "清空对话",
+  "aiChat.cleared": "已清空",
+  "aiChat.errorNoConfig": "请先填写接口地址、模型名称和 API Key",
+  "aiChat.apiKeyHint": "配置仅保存在本机，用于直接调用你填写的 OpenAI 兼容接口（/chat/completions）。",
+  "aiChat.writeNotice": "AI 可以执行新增、修改、移入回收站（可恢复）等数据操作，请留意它的改动。"
+}

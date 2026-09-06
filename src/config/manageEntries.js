@@ -198,6 +198,30 @@ export function useManageEntries() {
       stats: []
     },
     {
+      key: 'mcp', group: 'app', title: t('nav.mcpService'), kicker: 'MCP',
+      meta: t('mcp.entryMeta'),
+      detail: t('mcp.entryMeta'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'mcp-icon',
+      iconPaths: ['M12 2v4', 'M12 18v4', 'M2 12h4', 'M18 12h4', 'M12 15a3 3 0 1 0 0-6a3 3 0 0 0 0 6Z'],
+      path: '/manage/mcp',
+      stats: []
+    },
+    {
+      key: 'aiChat', group: 'app', title: t('nav.aiChat'), kicker: 'AI Chat',
+      meta: t('aiChat.entryMeta'),
+      detail: t('aiChat.entryMeta'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'ai-chat-icon',
+      iconPaths: ['M21 11.5a8.38 8.38 0 0 1-.9 3.8a8.5 8.5 0 0 1-7.6 4.7a8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8a8.5 8.5 0 0 1 4.7-7.6a8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z'],
+      path: '/manage/ai-chat',
+      stats: []
+    },
+    {
       key: 'feedback', group: 'app', title: t('about.feedback'), kicker: 'Feedback',
       meta: t('about.feedbackInAppDesc'),
       detail: t('about.feedbackInAppDesc'),

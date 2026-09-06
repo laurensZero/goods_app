@@ -202,6 +202,7 @@
   "events.tracks.collectionPlaceholder": "粘贴網易雲 / QQ 音樂歌單或专輯鏈接",
   "events.tracks.cover": "曲目封面",
   "events.tracks.delete": "刪除",
+    "events.tracks.dragHandle": "拖曳調整順序",
   "events.tracks.duration": "时長",
   "events.tracks.durationPlaceholder": "如 04:36",
   "events.tracks.import": "导入",

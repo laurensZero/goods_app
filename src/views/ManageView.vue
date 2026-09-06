@@ -106,8 +106,9 @@
               {
                 'settings-embedded--about': activeManageContentKey === 'about',
                 'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'feedback', 'surveys', 'mihoyoStockMonitor'].includes(activeManageContentKey),
-                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey)
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor'].includes(activeManageContentKey),
+                'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey),
+                'settings-embedded--ai-chat': activeManageContentKey === 'aiChat'
               }
             ]"
           >
@@ -246,6 +247,8 @@ const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySett
 const FeedbackView = defineAsyncComponent(() => import('@/views/FeedbackView.vue'))
 const SurveyListView = defineAsyncComponent(() => import('@/views/SurveyListView.vue'))
 const MihoyoStockMonitorView = defineAsyncComponent(() => import('@/views/MihoyoStockMonitorView.vue'))
+const McpSettingsView = defineAsyncComponent(() => import('@/views/McpSettingsView.vue'))
+const AiChatView = defineAsyncComponent(() => import('@/views/AiChatView.vue'))
 
 defineOptions({ name: 'ManageView' })
 
@@ -316,7 +319,7 @@ const manageComponentMap = {
   categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView, feedback: FeedbackView, surveys: SurveyListView,
+  notifications: NotifySettingsView, mcp: McpSettingsView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
   mihoyoStockMonitor: MihoyoStockMonitorView
 }
 
@@ -590,6 +593,8 @@ onBeforeRouteLeave((to) => {
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
 .notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
+.mcp-icon { background: rgba(138, 122, 255, 0.14); color: #8a7aff; }
+.ai-chat-icon { background: rgba(52, 199, 89, 0.12); color: #34c759; }
 .mihoyo-icon { background: rgba(90, 200, 250, 0.12); color: #38bdf8; }
 .feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .survey-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
@@ -923,6 +928,32 @@ onBeforeRouteLeave((to) => {
 
 .settings-embedded--about :deep(.nav-bar) {
   display: none;
+}
+
+/* AI 聊天嵌入：撑满右面板高度让输入栏吸底，去掉渐变底带与控件投影 */
+.settings-embedded--ai-chat {
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-embedded--ai-chat :deep(.ai-chat-page),
+.settings-embedded--ai-chat :deep(.page-body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 有消息后输入框吸底：底边留出舒适边距，不贴面板边缘 */
+.settings-embedded--ai-chat :deep(.chat-inputbar) {
+  background: transparent;
+  padding-bottom: 22px;
+}
+
+.settings-embedded--ai-chat :deep(.chat-input),
+.settings-embedded--ai-chat :deep(.chat-settings-btn),
+.settings-embedded--ai-chat :deep(.chat-send) {
+  box-shadow: none;
 }
 
 .settings-sidebar::-webkit-scrollbar,

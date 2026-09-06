@@ -233,6 +233,15 @@ body .note-body--markdown * {
   user-select: text;
 }
 
+/* AI 聊天气泡：对话内容可长按选中复制（容器整体放行，覆盖上面的全局屏蔽） */
+body .chat-bubble,
+body .chat-bubble * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+}
+
 body {
   overflow-x: hidden;
 }

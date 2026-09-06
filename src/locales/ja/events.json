@@ -202,6 +202,7 @@
   "events.tracks.collectionPlaceholder": "NetEase／QQ Musicのプレイリストまたはアルバムリンクを貼り付け",
   "events.tracks.cover": "トラックカバー",
   "events.tracks.delete": "削除",
+    "events.tracks.dragHandle": "ドラッグで並べ替え",
   "events.tracks.duration": "再生時間",
   "events.tracks.durationPlaceholder": "例：04:36",
   "events.tracks.import": "インポート",

@@ -66,6 +66,18 @@ export default [
     meta: { titleKey: 'nav.notificationSettings' }
   },
   {
+    path: '/manage/mcp',
+    name: 'manage-mcp',
+    component: () => import('@/views/McpSettingsView.vue'),
+    meta: { titleKey: 'nav.mcpService' }
+  },
+  {
+    path: '/manage/ai-chat',
+    name: 'manage-ai-chat',
+    component: () => import('@/views/AiChatView.vue'),
+    meta: { titleKey: 'nav.aiChat' }
+  },
+  {
     path: '/manage/mihoyo-stock-monitor',
     name: 'mihoyo-stock-monitor',
     component: () => import('@/views/MihoyoStockMonitorView.vue'),

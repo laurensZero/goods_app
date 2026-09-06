@@ -1,0 +1,23 @@
+{
+  "aiChat.description": "OpenAI 互換 API で自分の AI につなぎ、コレクションの照会・集計・整理・修正まで任せられます。",
+  "aiChat.entryMeta": "コレクションデータに直結した内蔵 AI チャット",
+  "aiChat.inputPlaceholder": "コレクションについて聞く…",
+  "aiChat.send": "送信",
+  "aiChat.settingsTitle": "AI サービス設定",
+  "aiChat.baseUrl": "API ベース URL",
+  "aiChat.model": "モデル名",
+  "aiChat.apiKey": "API Key",
+  "aiChat.save": "保存",
+  "aiChat.saved": "保存しました",
+  "aiChat.thinking": "思考中…",
+  "aiChat.emptyTitle": "AI とコレクションについて話そう",
+  "aiChat.emptyHint": "例：",
+  "aiChat.example1": "今月いくら使った？",
+  "aiChat.example2": "原神のグッズはどの収納場所にある？",
+  "aiChat.example3": "初音ミクのバッジを 30 元で追加して",
+  "aiChat.clearChat": "会話をクリア",
+  "aiChat.cleared": "クリアしました",
+  "aiChat.errorNoConfig": "先にベース URL・モデル名・API Key を入力してください",
+  "aiChat.apiKeyHint": "設定はこの端末にのみ保存され、入力した OpenAI 互換エンドポイント（/chat/completions）の呼び出しに使われます。",
+  "aiChat.writeNotice": "AI は追加・更新・ゴミ箱移動（復元可能）などのデータ操作を行えます。変更内容にご注意ください。"
+}

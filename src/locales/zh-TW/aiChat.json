@@ -1,0 +1,23 @@
+{
+  "aiChat.description": "透過 OpenAI 相容介面連接你自己的 AI，查詢、統計、整理甚至修改收藏資料。",
+  "aiChat.entryMeta": "內建 AI 聊天視窗，直連你的收藏資料",
+  "aiChat.inputPlaceholder": "問問你的收藏…",
+  "aiChat.send": "傳送",
+  "aiChat.settingsTitle": "AI 服務設定",
+  "aiChat.baseUrl": "介面位址",
+  "aiChat.model": "模型名稱",
+  "aiChat.apiKey": "API Key",
+  "aiChat.save": "儲存",
+  "aiChat.saved": "已儲存",
+  "aiChat.thinking": "思考中…",
+  "aiChat.emptyTitle": "和 AI 聊聊你的收藏",
+  "aiChat.emptyHint": "可以這樣問：",
+  "aiChat.example1": "我這個月花了多少錢？",
+  "aiChat.example2": "原神的穀子都放在哪些收納位置？",
+  "aiChat.example3": "幫我加一個初音未來的吧唧，30 元",
+  "aiChat.clearChat": "清空對話",
+  "aiChat.cleared": "已清空",
+  "aiChat.errorNoConfig": "請先填寫介面位址、模型名稱和 API Key",
+  "aiChat.apiKeyHint": "設定僅儲存在本機，用於直接呼叫你填寫的 OpenAI 相容介面（/chat/completions）。",
+  "aiChat.writeNotice": "AI 可以執行新增、修改、移入回收站（可復原）等資料操作，請留意它的改動。"
+}

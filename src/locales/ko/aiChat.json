@@ -1,0 +1,23 @@
+{
+  "aiChat.description": "OpenAI 호환 API로 자신만의 AI를 연결해 컬렉션 조회, 통계, 정리, 수정까지 맡겨보세요.",
+  "aiChat.entryMeta": "컬렉션 데이터에 직결된 내장 AI 채팅",
+  "aiChat.inputPlaceholder": "컬렉션에 대해 물어보세요…",
+  "aiChat.send": "보내기",
+  "aiChat.settingsTitle": "AI 서비스 설정",
+  "aiChat.baseUrl": "API 주소",
+  "aiChat.model": "모델 이름",
+  "aiChat.apiKey": "API Key",
+  "aiChat.save": "저장",
+  "aiChat.saved": "저장됨",
+  "aiChat.thinking": "생각 중…",
+  "aiChat.emptyTitle": "AI와 컬렉션에 대해 대화해 보세요",
+  "aiChat.emptyHint": "이렇게 물어보세요:",
+  "aiChat.example1": "이번 달에 얼마 썼어?",
+  "aiChat.example2": "원신 굿즈는 어디에 보관돼 있어?",
+  "aiChat.example3": "하츠네 미쿠 뱃지 30위안으로 추가해 줘",
+  "aiChat.clearChat": "대화 지우기",
+  "aiChat.cleared": "지웠습니다",
+  "aiChat.errorNoConfig": "먼저 API 주소, 모델 이름, API Key를 입력하세요",
+  "aiChat.apiKeyHint": "설정은 이 기기에만 저장되며, 입력한 OpenAI 호환 엔드포인트(/chat/completions) 호출에 사용됩니다.",
+  "aiChat.writeNotice": "AI가 추가, 수정, 휴지통 이동(복구 가능) 등 데이터 작업을 할 수 있습니다. 변경 내용에 유의하세요."
+}
