@@ -146,13 +146,13 @@ public class McpServerPlugin extends Plugin {
                 authorization.trim().getBytes(StandardCharsets.UTF_8));
     }
 
-    private void addCorsHeaders(Response response) {
+    private void addCorsHeaders(NanoHTTPD.Response response) {
         response.addHeader("Access-Control-Allow-Origin", "*");
         response.addHeader("Access-Control-Expose-Headers", "mcp-session-id, mcp-protocol-version");
     }
 
-    private Response jsonResponse(Response.Status status, String json) {
-        Response response = newFixedLengthResponse(status, "application/json", json);
+    private NanoHTTPD.Response jsonResponse(NanoHTTPD.Response.Status status, String json) {
+        NanoHTTPD.Response response = NanoHTTPD.newFixedLengthResponse(status, "application/json", json);
         addCorsHeaders(response);
         return response;
     }
