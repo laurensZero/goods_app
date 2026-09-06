@@ -275,7 +275,9 @@ jobs:
           echo "Storage path: ${STORAGE_PATH}"
 
           cd dist
-          zip -r "../${BUNDLE_NAME}" .
+          # 排除 sql-wasm 相关文件（Android 不需要 sql.js / sql-wasm.wasm）
+          # 打包后体积可从 ~8MB 降到 ~3-4MB
+          zip -r "../${BUNDLE_NAME}" . -x "assets/sql-wasm*"
           cd ..
 
           SHA256=$(sha256sum "${BUNDLE_NAME}" | awk '{print $1}')
