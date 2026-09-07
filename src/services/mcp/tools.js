@@ -70,9 +70,35 @@ function estimateItemSpend(item) {
 }
 
 /**
+ * 解析条目的有效价格（标价优先，实付价回退）。
  * @param {any} item
+ * @returns {number}
  */
-function goodsListItem(item) {
+function effectivePrice(item) {
+  return parseMoney(item.actualPrice) || parseMoney(item.price)
+}
+
+/**
+ * @param {any} item
+ * @param {(amount: number, currency: string) => number} [convert]
+ */
+function goodsListItem(item, convert = null) {
+  const actualCurrency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
+  const officialCurrency = asText(item.currency || 'CNY').trim() || 'CNY'
+  // 花费折算：非愿望单用官方逐件口径（getItemSpendEntries 已含运费均摊与状态排除，
+  // 折算字段存在时价格已是 CNY）；愿望单按 标价×数量 期望值折算
+  let spendCNY = null
+  let priceCNY = null
+  if (convert) {
+    const qty = Number(item.quantity) || 1
+    if (item.isWishlist) {
+      spendCNY = roundMoney(convert(parseMoney(item.price) * qty, officialCurrency))
+      priceCNY = spendCNY
+    } else {
+      spendCNY = roundMoney(getItemSpendEntries(item).reduce((sum, entry) => sum + entry.price, 0))
+      priceCNY = roundMoney(convert(effectivePrice(item), actualCurrency))
+    }
+  }
   return {
     id: item.id,
     name: item.name,
@@ -87,10 +113,18 @@ function goodsListItem(item) {
     collectStatus: item.collectStatus,
     quantity: Number(item.quantity) || 1,
     price: item.price,
+    currency: officialCurrency,
     actualPrice: item.actualPrice,
-    currency: item.actualPriceCurrency || item.currency || 'CNY',
-    acquiredAt: item.acquiredAt,
-    saleAt: item.saleAt,
+    actualPriceCurrency: actualCurrency,
+    acquiredAt: asText(item.acquiredAt).trim(),
+    saleAt: asText(item.saleAt).trim(),
+    shippingFee: asInt(item.shippingFee),
+    sellPrice: item.sellPrice,
+    sellPlatform: item.sellPlatform,
+    sellFee: item.sellFee,
+    sellDate: item.sellDate,
+    ...(spendCNY !== null ? { spendCNY } : {}),
+    ...(priceCNY !== null ? { priceCNY } : {}),
     // CD/专辑等带曲目列表的条目给概况；明细走 goods_detail
     tracksSummary: trackSummary(trackListOf(item.tracks).map(trackView)),
     note: truncate(item.note),
@@ -181,15 +215,17 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
 
-    const SORT_FIELDS = new Set(['updatedAt', 'acquiredAt', 'price', 'actualPrice', 'quantity'])
+    const SORT_FIELDS = new Set(['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'])
     const sortBy = SORT_FIELDS.has(asText(args.sortBy).trim()) ? asText(args.sortBy).trim() : 'updatedAt'
     const sortOrder = asText(args.sortOrder).trim() === 'asc' ? 'asc' : 'desc'
     // 排序价格口径与 priceMin/priceMax 一致：实付价优先，缺省回退标价
-    const sortPriceOf = (/** @type {any} */ item) => parseMoney(item.actualPrice) || parseMoney(item.price)
+    // 折算可用时按 CNY 折算值排序，解决跨币种混排不准的问题
+    const sortPriceOf = (/** @type {any} */ item) => (convertToCNY ? (item.priceCNY ?? effectivePrice(item)) : (parseMoney(item.actualPrice) || parseMoney(item.price)))
     const sortValueOf = (/** @type {any} */ item) => {
       if (sortBy === 'price' || sortBy === 'actualPrice') return sortPriceOf(item)
       if (sortBy === 'quantity') return Number(item.quantity) || 1
       if (sortBy === 'acquiredAt') return asText(item.acquiredAt).trim()
+      if (sortBy === 'saleAt') return asText(item.saleAt).trim()
       return Number(item.updatedAt) || 0
     }
     const sortDirection = sortOrder === 'asc' ? 1 : -1
@@ -250,7 +286,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
       offset,
       limit,
       hasMore: offset + page.length < matched.length,
-      items: page.map(goodsListItem)
+      items: page.map((item) => goodsListItem(item, convertToCNY))
     }
   }
 
@@ -275,14 +311,9 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
         isPrimary: image.isPrimary
       }))
     return {
-      ...goodsListItem(item),
+      ...goodsListItem(item, convertToCNY),
       trashed: Boolean(item.trashed),
       points: item.points,
-      shippingFee: item.shippingFee,
-      sellPrice: item.sellPrice,
-      sellPlatform: item.sellPlatform,
-      sellFee: item.sellFee,
-      sellDate: item.sellDate,
       unitAcquiredAtList: Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : [],
       unitActualPriceList: Array.isArray(item.unitActualPriceList) ? item.unitActualPriceList : [],
       unitCharacterList: Array.isArray(item.unitCharacterList) ? item.unitCharacterList : [],
@@ -889,20 +920,45 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
   }
 
   /**
-   * 愿望单概览：数量/期望花费/分布/最近加入。
+   * 愿望单概览：数量/期望花费/分布/最近加入/最贵条目。
    * @param {Record<string, any>} _args
    */
   async function wishlistOverview(_args) {
     const items = await getItems()
     const wishlist = items.filter((item) => item.isWishlist)
 
+    const withExpected = wishlist.map((item) => {
+      const currency = asText(item.currency || 'CNY').trim() || 'CNY'
+      const quantity = Number(item.quantity) || 1
+      const expected = parseMoney(item.price) * quantity
+      const expectedCNY = convertToCNY ? roundMoney(convertToCNY(expected, currency)) : null
+      return { item, currency, quantity, expected, expectedCNY }
+    })
+
     /** @type {Map<string, number>} */
     const expectedByCurrency = new Map()
-    for (const item of wishlist) {
-      const currency = asText(item.currency || 'CNY').trim() || 'CNY'
-      const expected = parseMoney(item.price) * (Number(item.quantity) || 1)
-      expectedByCurrency.set(currency, (expectedByCurrency.get(currency) || 0) + expected)
+    for (const row of withExpected) {
+      expectedByCurrency.set(row.currency, (expectedByCurrency.get(row.currency) || 0) + row.expected)
     }
+
+    // 最贵的几件：有汇率折算时按 CNY 排（跨币种可比），否则只能按原币数值近似
+    const mostExpensive = [...withExpected]
+      .sort((a, b) => (b.expectedCNY ?? b.expected) - (a.expectedCNY ?? a.expected))
+      .slice(0, 5)
+      .map(({ item, currency, quantity, expected, expectedCNY }) => ({
+        id: item.id,
+        name: item.name,
+        ip: item.ip,
+        category: item.category,
+        currency,
+        price: item.price,
+        quantity,
+        expected: roundMoney(expected),
+        ...(expectedCNY !== null ? { expectedCNY } : {})
+      }))
+    const expectedSpendCNY = convertToCNY
+      ? roundMoney(withExpected.reduce((sum, row) => sum + (row.expectedCNY ?? 0), 0))
+      : null
 
     /**
      * @param {(item: any) => string} pick
@@ -938,8 +994,10 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
       expectedSpend: [...expectedByCurrency.entries()].map(([currency, amount]) => ({
         currency,
         amount: Math.round(amount * 100) / 100,
-        note: '期望值：标价×数量，未含折扣'
+        note: '期望值：标价×数量，未含折扣；不同币种分开列出，禁止跨币种相加'
       })),
+      expectedSpendCNY,
+      mostExpensive,
       byIp: topDistribution((item) => item.ip),
       byCategory: topDistribution((item) => item.category),
       recent
