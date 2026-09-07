@@ -209,27 +209,63 @@ describe('mcp write tool handlers', () => {
     await expect(handlers.recharge_add({ game: 'x', amount: 10, chargedAt: 'bad' })).rejects.toThrow('chargedAt')
   })
 
-  it('goods_restore 只允许恢复回收站条目', async () => {
-    const store = createFakeStore()
-    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+it('recharge_delete 删除充值记录', async () => {
+     const store = createFakeStore()
+     const rechargeStore = {
+       addRecord: vi.fn(async (data) => ({ id: 'r-new', ...data })),
+       deleteRecord: vi.fn(async (id) => true)
+     }
+     const handlers = createMcpWriteToolHandlers({ goodsStore: store, rechargeStore })
 
-    expect((await handlers.goods_restore({ id: 't1' })).ok).toBe(true)
-    await expect(handlers.goods_restore({ id: 'g1' })).rejects.toThrow('回收站中未找到')
-  })
+     const result = await handlers.recharge_delete({ id: 'r1' })
+     expect(result.ok).toBe(true)
+     expect(result.id).toBe('r1')
+     expect(rechargeStore.deleteRecord).toHaveBeenCalledWith('r1')
 
-  it('settings_overview 返回主题/通知/预设清单', async () => {
-    const store = createFakeStore()
-    const { presetsStore, themeStore, notifyStore } = createFakeSettingsStores()
-    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore, themeStore, notifyStore })
+     // 记录不存在时报错
+     rechargeStore.deleteRecord = vi.fn(async (id) => false)
+     await expect(handlers.recharge_delete({ id: 'nope' })).rejects.toThrow('未找到')
+     await expect(handlers.recharge_delete({})).rejects.toThrow('id 必填')
+   })
 
-    const overview = await handlers.settings_overview()
-    expect(overview.theme).toEqual({ appearancePreference: 'system' })
-    expect(overview.notifications.enabled).toBe(true)
-    expect(overview.presets.categories).toEqual(['吧唧', '立牌'])
-    expect(overview.presets.storageLocations).toEqual(['A 柜'])
-  })
+   it('goods_restore 只允许恢复回收站条目', async () => {
+     const store = createFakeStore()
+     const handlers = createMcpWriteToolHandlers({ goodsStore: store })
 
-  it('presets_manage 支持分类增删与级联改名', async () => {
+     expect((await handlers.goods_restore({ id: 't1' })).ok).toBe(true)
+     await expect(handlers.goods_restore({ id: 'g1' })).rejects.toThrow('回收站中未找到')
+   })
+
+it('settings_overview 返回主题/通知/预设清单', async () => {
+     const store = createFakeStore()
+     const { presetsStore, themeStore, notifyStore } = createFakeSettingsStores()
+     const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore, themeStore, notifyStore })
+
+     const overview = await handlers.settings_overview()
+     expect(overview.theme).toEqual({ appearancePreference: 'system' })
+     expect(overview.notifications.enabled).toBe(true)
+     expect(overview.presets.categories).toEqual(['吧唧', '立牌'])
+     expect(overview.presets.storageLocations).toEqual(['A 柜'])
+   })
+
+   it('events_delete 删除活动', async () => {
+     const store = createFakeStore()
+     const eventsStore = {
+       list: [{ id: 'e1', name: 'CP 春季展', deleted: false }, { id: 'e2', name: '已删活动', deleted: true }],
+       removeEventRecord: vi.fn(async () => {})
+     }
+     const handlers = createMcpWriteToolHandlers({ goodsStore: store, eventsStore })
+
+     const result = await handlers.events_delete({ id: 'e1' })
+     expect(result.ok).toBe(true)
+     expect(eventsStore.removeEventRecord).toHaveBeenCalledWith('e1')
+
+     // 活动不存在时报错
+     await expect(handlers.events_delete({ id: 'nope' })).rejects.toThrow('未找到')
+     await expect(handlers.events_delete({})).rejects.toThrow('id 必填')
+   })
+
+   it('presets_manage 支持分类增删与级联改名', async () => {
     const store = createFakeStore()
     const { presetsStore } = createFakeSettingsStores()
     const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
@@ -384,8 +420,23 @@ describe('mcp write tool handlers', () => {
           isForceUpdate: false,
           checkForUpdates: vi.fn(async () => ({ status: 'ok' }))
         },
+        webUpdateStore: {
+          supported: true,
+          currentVersion: '2026.09.01',
+          hasUpdate: true,
+          latestVersion: '2026.09.07',
+          isForceUpdate: true,
+          checkForUpdates: vi.fn(async () => ({ status: 'ok' }))
+        },
         budgetApi: { write: vi.fn(async () => ({ monthly: 0, yearly: 0 })) },
-        router: { push: vi.fn(async () => {}) }
+        router: { push: vi.fn(async () => {}) },
+        rechargeStore: {
+          deleteRecord: vi.fn(async (id) => true)
+        },
+        eventsStore: {
+          list: [{ id: 'e1', name: 'CP 春季展', deleted: false }],
+          removeEventRecord: vi.fn(async () => {})
+        }
       }
     }
 
@@ -500,12 +551,24 @@ describe('mcp write tool handlers', () => {
       expect(stores.authStore.logout).toHaveBeenCalled()
 
       const appInfo = await handlers.app_info({})
-      expect(appInfo).toMatchObject({ platform: 'web', currentVersion: '1.2.0' })
+      expect(appInfo).toMatchObject({
+        platform: 'web',
+        currentVersion: '1.2.0',
+        appVersion: '1.2.0',
+        bundleVersion: '2026.09.01'
+      })
       expect(appInfo.update.checked).toBe(false)
 
       const checked = await handlers.app_info({ checkUpdate: true })
-      expect(checked.update).toMatchObject({ checked: true, hasUpdate: true, latestVersion: '1.3.0' })
+      expect(checked.update).toMatchObject({
+        checked: true,
+        hasUpdate: true,
+        latestVersion: '1.3.0',
+        app: { currentVersion: '1.2.0', latestVersion: '1.3.0', hasUpdate: true },
+        bundle: { checked: true, currentVersion: '2026.09.01', latestVersion: '2026.09.07', hasUpdate: true, forceUpdate: true }
+      })
       expect(stores.appUpdateStore.checkForUpdates).toHaveBeenCalled()
+      expect(stores.webUpdateStore.checkForUpdates).toHaveBeenCalled()
     })
   })
 

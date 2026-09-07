@@ -132,6 +132,17 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'recharge_delete',
+    description: '删除一笔充值记录（软删除）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '充值记录 id，来自 recharge_search 或 recharge_summary' }
+      },
+      required: ['id']
+    }
+  },
+  {
     name: 'music_play',
     description: '在应用内拉起播放某首曲目（悬浮播放器 + 原生通知栏，队列 = 所属完整曲单）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
     inputSchema: {
@@ -279,7 +290,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'app_info',
-    description: '应用信息：平台、当前版本号；传 checkUpdate: true 时联网检查是否有新版本（返回 hasUpdate/latestVersion/forceUpdate）。',
+    description: '应用信息：平台、Android 安装包版本（appVersion）和资源 Bundle 版本（bundleVersion）；传 checkUpdate: true 时分别检查两者更新，返回 app/bundle 各自的当前版本、最新版本、hasUpdate 和 forceUpdate。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -386,6 +397,17 @@ export const MCP_TOOL_DEFINITIONS = [
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
         offset: { type: 'integer', minimum: 0, default: 0 }
       }
+    }
+  },
+  {
+    name: 'events_delete',
+    description: '删除一场活动（软删除）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '活动 id，来自 events_list' }
+      },
+      required: ['id']
     }
   },
   {
