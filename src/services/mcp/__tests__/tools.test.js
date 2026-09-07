@@ -401,6 +401,26 @@ describe('mcp tool handlers', () => {
     expect(jpy.amount).toBe(500)
     expect(result.byIp[0]).toEqual({ name: '初音未来', count: 2 })
     expect(result.recent[0].id).toBe('w3') // updatedAt 最新
+
+    // 无折算注入：不产出 CNY 字段，mostExpensive 按原币数值近似排序
+    expect(result.expectedSpendCNY).toBeNull()
+    expect(result.mostExpensive.map((/** @type {any} */ m) => m.id)).toEqual(['w1', 'w3', 'w2'])
+  })
+
+  it('wishlist_overview 支持 CNY 折算：总额与 mostExpensive 跨币种可比', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      { id: 'w1', name: '手办', isWishlist: true, ip: '初音未来', category: '手办', price: '599', currency: 'CNY', quantity: 1, updatedAt: 10 },
+      { id: 'w2', name: '吧唧', isWishlist: true, ip: '初音未来', category: '吧唧', price: '30', currency: 'CNY', quantity: 2, updatedAt: 20 },
+      { id: 'w3', name: '挂件', isWishlist: true, ip: '原神', category: '挂件', price: '500', currency: 'JPY', quantity: 1, updatedAt: 30 }
+    ])
+    // 1 JPY = 0.05 CNY
+    const handlers = createMcpToolHandlers(db, { convertToCNY: (/** @type {number} */ amount, /** @type {string} */ currency) => (currency === 'JPY' ? amount * 0.05 : amount) })
+
+    const result = await handlers.wishlist_overview({})
+    expect(result.expectedSpendCNY).toBe(684) // 599 + 60 + 25
+    expect(result.mostExpensive.map((/** @type {any} */ m) => m.id)).toEqual(['w1', 'w2', 'w3'])
+    expect(result.mostExpensive[2]).toMatchObject({ id: 'w3', currency: 'JPY', expected: 500, expectedCNY: 25 })
   })
 
   it('sale_ledger 复用 saleStats 口径：回血=成交价-手续费，盈亏计入成本', async () => {

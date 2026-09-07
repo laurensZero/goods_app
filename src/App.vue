@@ -52,7 +52,6 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 import { usePullDownGesture } from '@/composables/usePullDownGesture'
-import { Haptics } from '@capacitor/haptics'
 import AiAssistantPopup from '@/components/app/AiAssistantPopup.vue'
 
 const route = useRoute()
@@ -115,11 +114,6 @@ const aiAssistantVisible = ref(false)
 usePullDownGesture({
   enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value,
   onTrigger: () => {
-    try {
-      void Haptics.vibrate({ duration: 120 })
-    } catch {
-      // 触觉反馈不可用时静默跳过
-    }
     aiAssistantVisible.value = true
   }
 })

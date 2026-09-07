@@ -293,11 +293,12 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
 export const MCP_TOOL_DEFINITIONS = [
   {
     name: 'goods_search',
-    description: [
-      '搜索谷子收藏条目（默认同时包含已拥有与愿望单，按更新时间倒序）。',
-      '支持关键词模糊匹配（名称/IP/角色/标签/类别/款式/存放位置/备注）与多维度精确过滤。',
-      '返回精简字段列表；需要完整信息（多件拆分、出售信息、状态时间线等）时拿 id 调 goods_detail。'
-    ].join(''),
+      description: [
+        '搜索谷子收藏条目（默认同时包含已拥有与愿望单，按更新时间倒序）。',
+        '支持关键词模糊匹配（名称/IP/角色/标签/类别/款式/存放位置/备注）与多维度精确过滤。',
+        '返回精简字段列表；需要完整信息（多件拆分、出售信息、状态时间线等）时拿 id 调 goods_detail。',
+        '字段含 currency/actualPriceCurrency（币种）、shippingFee（邮费）、acquiredAt/saleAt（日期）、priceCNY（折算 CNY，仅当汇率可用时）。'
+      ].join(''),
     inputSchema: {
       type: 'object',
       properties: {
@@ -313,7 +314,7 @@ export const MCP_TOOL_DEFINITIONS = [
         acquiredBefore: { type: 'string', description: '只返回入手日期不晚于该值的条目，格式 YYYY-MM-DD（含当天）' },
         priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
         priceMax: { type: 'number', description: '价格上限（口径同 priceMin）' },
-        sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；price/actualPrice 口径与价格过滤一致（实付价优先，缺省回退标价，不乘数量）。「最贵/最便宜/最新入手」类问题必须用排序参数直接拿结果，不要拉全量自己排' },
+        sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；price/actualPrice 口径与价格过滤一致（实付价优先，缺省回退标价，不乘数量）。折算可用时按 CNY 折算值排序，解决跨币种混排不准的问题。「最贵/最便宜/最新入手」类问题必须用排序参数直接拿结果，不要拉全量自己排' },
         sortOrder: { type: 'string', enum: ['desc', 'asc'], default: 'desc', description: '排序方向' },
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: '返回条数上限' },
         offset: { type: 'integer', minimum: 0, default: 0, description: '分页偏移' }
@@ -363,7 +364,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'wishlist_overview',
-    description: '愿望单概览：条目数、按币种的期望花费合计（标价×数量）、IP 与类别分布 Top5、最近加入的条目。回答「我还想买什么/愿望单要花多少钱」类问题使用。',
+    description: '愿望单概览：条目数、按币种的期望花费合计（标价×数量，不同币种分开列，禁止跨币种相加，展示时必须带各自币种）、折算 CNY 总额（expectedSpendCNY）、最贵的 5 件（mostExpensive，含 expectedCNY 折算，回答「愿望单最贵的是哪几件」直接用它）、IP 与类别分布 Top5、最近加入的条目。回答「我还想买什么/愿望单要花多少钱」类问题使用。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
