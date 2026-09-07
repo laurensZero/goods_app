@@ -158,6 +158,7 @@ function sanitizeWritable(args, options = {}) {
  *  authStore?: any,
  *  syncStore?: any,
  *  appUpdateStore?: any,
+ *  webUpdateStore?: any,
  *  budgetApi?: { write?: (patch: { monthly?: number, yearly?: number }) => Promise<{ monthly: number, yearly: number }> },
  *  router?: any
  * }} params
@@ -173,6 +174,7 @@ export function createMcpWriteToolHandlers({
   authStore,
   syncStore,
   appUpdateStore,
+  webUpdateStore,
   budgetApi,
   router
 }) {
@@ -283,29 +285,42 @@ export function createMcpWriteToolHandlers({
       }
     },
 
-    /**
-     * 记一笔游戏充值。
-     * @param {Record<string, any>} args
-     */
-    async recharge_add(args) {
-      if (!rechargeStore) throw new Error('充值模块不可用')
-      const game = String(args?.game || '').trim()
-      const amount = Number(args?.amount)
-      if (!game) throw new Error('game 必填')
-      if (!Number.isFinite(amount) || amount <= 0) throw new Error('amount 需为大于 0 的数字')
-      const chargedAt = String(args?.chargedAt || '').trim() || new Date().toISOString().slice(0, 10)
-      if (!DATE_PATTERN.test(chargedAt)) throw new Error('chargedAt 需为 YYYY-MM-DD 格式')
+/**
+      * 记一笔游戏充值。
+      * @param {Record<string, any>} args
+      */
+     async recharge_add(args) {
+       if (!rechargeStore) throw new Error('充值模块不可用')
+       const game = String(args?.game || '').trim()
+       const amount = Number(args?.amount)
+       if (!game) throw new Error('game 必填')
+       if (!Number.isFinite(amount) || amount <= 0) throw new Error('amount 需为大于 0 的数字')
+       const chargedAt = String(args?.chargedAt || '').trim() || new Date().toISOString().slice(0, 10)
+       if (!DATE_PATTERN.test(chargedAt)) throw new Error('chargedAt 需为 YYYY-MM-DD 格式')
 
-      const record = await rechargeStore.addRecord({
-        game,
-        itemName: String(args?.itemName || ''),
-        amount,
-        chargedAt,
-        note: String(args?.note || '')
-      })
-      if (!record) throw new Error('充值记录未通过校验（金额或日期不合法）')
-      return { ok: true, id: record.id, game: record.game, amount: Number(record.amount) || 0, chargedAt: record.chargedAt }
-    },
+       const record = await rechargeStore.addRecord({
+         game,
+         itemName: String(args?.itemName || ''),
+         amount,
+         chargedAt,
+         note: String(args?.note || '')
+       })
+       if (!record) throw new Error('充值记录未通过校验（金额或日期不合法）')
+       return { ok: true, id: record.id, game: record.game, amount: Number(record.amount) || 0, chargedAt: record.chargedAt }
+     },
+
+     /**
+      * 删除一笔充值记录（软删除）。
+      * @param {Record<string, any>} args
+      */
+     async recharge_delete(args) {
+       if (!rechargeStore) throw new Error('充值模块不可用')
+       const id = String(args?.id || '').trim()
+       if (!id) throw new Error('id 必填')
+       const ok = await rechargeStore.deleteRecord(id)
+       if (!ok) throw new Error(`未找到 id 为 ${id} 的充值记录`)
+       return { ok: true, id, note: '已删除该充值记录' }
+     },
 
     /**
      * 查看应用设置与预设清单（修改前的现状参考）。
@@ -681,31 +696,77 @@ export function createMcpWriteToolHandlers({
       throw new Error('action 需为 add/remove')
     },
 
-    /**
-     * 应用信息与更新检查（checkUpdate: true 才联网检查）。
-     * @param {Record<string, any>} args
-     */
-    async app_info(args) {
+/**
+      * 删除一场活动（软删除）。
+      * @param {Record<string, any>} args
+      */
+     async events_delete(args) {
+       if (!eventsStore) throw new Error('活动模块不可用')
+       const id = String(args?.id || '').trim()
+       if (!id) throw new Error('id 必填')
+       if (!listOf(eventsStore.list).some((item) => item?.id === id)) {
+         throw new Error(`未找到 id 为 ${id} 的活动`)
+       }
+       await eventsStore.removeEventRecord(id)
+       return { ok: true, id, note: '已删除该活动（可在回收站恢复）' }
+     },
+
+     /**
+      * 应用信息与更新检查（checkUpdate: true 才联网检查）。
+      * @param {Record<string, any>} args
+      */
+     async app_info(args) {
       if (!appUpdateStore) throw new Error('更新模块不可用')
       /** @type {Record<string, any>} */
       const info = {
         platform: Capacitor.getPlatform(),
-        currentVersion: appUpdateStore.currentVersion || ''
+        currentVersion: appUpdateStore.currentVersion || '',
+        appVersion: appUpdateStore.currentVersion || '',
+        bundleVersion: webUpdateStore?.currentVersion || ''
       }
       if (args?.checkUpdate === true) {
         const result = await appUpdateStore.checkForUpdates({ source: 'mcp' })
+        const bundleUpdate = webUpdateStore?.supported
+          ? await webUpdateStore.checkForUpdates({ source: 'mcp' })
+          : null
         info.update = {
           checked: true,
           status: result?.status || '',
           hasUpdate: Boolean(appUpdateStore.hasUpdate),
           latestVersion: appUpdateStore.latestVersion || '',
-          forceUpdate: Boolean(appUpdateStore.isForceUpdate)
+          forceUpdate: Boolean(appUpdateStore.isForceUpdate),
+          app: {
+            hasUpdate: Boolean(appUpdateStore.hasUpdate),
+            currentVersion: appUpdateStore.currentVersion || '',
+            latestVersion: appUpdateStore.latestVersion || '',
+            forceUpdate: Boolean(appUpdateStore.isForceUpdate)
+          },
+          bundle: {
+            checked: Boolean(bundleUpdate),
+            hasUpdate: Boolean(webUpdateStore?.hasUpdate),
+            currentVersion: webUpdateStore?.currentVersion || '',
+            latestVersion: webUpdateStore?.latestVersion || '',
+            forceUpdate: Boolean(webUpdateStore?.isForceUpdate)
+          }
         }
       } else {
         info.update = {
           checked: false,
           hasUpdate: Boolean(appUpdateStore.hasUpdate),
-          latestVersion: appUpdateStore.latestVersion || ''
+          latestVersion: appUpdateStore.latestVersion || '',
+          app: {
+            hasUpdate: Boolean(appUpdateStore.hasUpdate),
+            currentVersion: appUpdateStore.currentVersion || '',
+            latestVersion: appUpdateStore.latestVersion || '',
+            forceUpdate: Boolean(appUpdateStore.isForceUpdate)
+          },
+          bundle: {
+            checked: false,
+            hasUpdate: Boolean(webUpdateStore?.hasUpdate),
+            currentVersion: webUpdateStore?.currentVersion || '',
+            latestVersion: webUpdateStore?.latestVersion || '',
+            forceUpdate: Boolean(webUpdateStore?.isForceUpdate)
+          }
         }
       }
       return info

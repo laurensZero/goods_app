@@ -26,6 +26,7 @@ import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncStore } from '@/stores/sync'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useWebUpdateStore } from '@/stores/webUpdate'
 import { readBudgetSettings, writeBudgetSettings } from '@/utils/goods/budget'
 import router from '@/router'
 import * as db from '@/utils/db'
@@ -60,6 +61,7 @@ function buildWriteHandlers() {
     authStore: useAuthStore(),
     syncStore: useSyncStore(),
     appUpdateStore: useAppUpdateStore(),
+    webUpdateStore: useWebUpdateStore(),
     budgetApi: { read: readBudgetSettings, write: writeBudgetSettings },
     router
   })
