@@ -6,7 +6,10 @@
     :class="['ai-assistant-popup', { 'ai-assistant-popup--center': isTabletViewport }]"
     @update:show="onUpdateShow"
   >
-    <div class="ai-assistant-body">
+    <div 
+      class="ai-assistant-body"
+      :class="{ 'ai-assistant-body--tablet': isTabletViewport }"
+    >
       <header class="ai-assistant-head">
         <span class="ai-assistant-head__title">{{ t('nav.aiChat') }}</span>
         <button class="ai-assistant-head__close" type="button" :aria-label="t('common.close')" @click="close">
@@ -70,11 +73,17 @@ defineExpose({ close })
 .ai-assistant-body {
   display: flex;
   flex-direction: column;
-  /* 手机顶部滑入：几乎全屏高度 */
+  /* 手机顶部滑入:几乎全屏高度 */
   height: min(88dvh, 840px);
   color: var(--app-text);
   background: transparent;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* 平板/居中弹窗:外层 .ai-assistant-popup--center 已经限死了高度(min(78dvh,720px)),
+   这里改成 100% 贴合该高度,避免 88dvh 撑出更大尺寸被 overflow:hidden 裁掉输入框 */
+.ai-assistant-body--tablet {
+  height: 100%;
 }
 
 .ai-assistant-head {
