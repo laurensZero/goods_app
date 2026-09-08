@@ -35,5 +35,6 @@
   "aiChat.reasoning": "사고 과정",
   "aiChat.rename": "이름 변경",
   "aiChat.renameSuccess": "이름을 변경했습니다",
-  "aiChat.messagesCount": "{count}개 메시지"
+  "aiChat.messagesCount": "{count}개 메시지",
+  "aiChat.jumpFailed": "이동에 실패했습니다"
 }
