@@ -528,13 +528,19 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
       const stores = createFakeActionStores()
       const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), ...stores })
 
+      // 测试无 id 页面（statistics → app://statistics）
       const result = await handlers.navigate({ page: 'statistics' })
-      expect(stores.router.push).toHaveBeenCalledWith({ name: 'character-leaderboard' })
       expect(result.ok).toBe(true)
+      expect(result.buttonLink).toBe('app://statistics')
+      expect(result.page).toBe('statistics')
 
-      await handlers.navigate({ page: 'goods_detail', id: 'g1' })
-      expect(stores.router.push).toHaveBeenLastCalledWith({ name: 'detail', params: { id: 'g1' } })
+      // 测试需 id 页面（goods_detail → app://goods_detail/g1）
+      const detailResult = await handlers.navigate({ page: 'goods_detail', id: 'g1' })
+      expect(detailResult.ok).toBe(true)
+      expect(detailResult.buttonLink).toBe('app://goods_detail/g1')
+      expect(detailResult.page).toBe('goods_detail')
 
+      // 测试缺少 id 时报错
       await expect(handlers.navigate({ page: 'goods_detail' })).rejects.toThrow('需要 id')
       await expect(handlers.navigate({ page: 'nope' })).rejects.toThrow('未知页面')
     })
