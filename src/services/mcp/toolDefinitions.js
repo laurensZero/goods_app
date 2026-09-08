@@ -266,12 +266,12 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'navigate',
-    description: '页面跳转：让应用直接打开某个页面（聊天里的一键跳转）。goods_detail/goods_edit 需要 id（来自 goods_search）；其余页面直接给 page。跳转后聊天页会被离开。',
+    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。',
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit' },
-        id: { type: 'string', description: '谷子 id（仅 goods_detail/goods_edit 需要）' }
+        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit/event_detail/event_edit' },
+        id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id）' }
       },
       required: ['page']
     }

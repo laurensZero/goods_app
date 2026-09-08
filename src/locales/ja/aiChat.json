@@ -35,5 +35,6 @@
   "aiChat.reasoning": "思考プロセス",
   "aiChat.rename": "名前を変更",
   "aiChat.renameSuccess": "変更しました",
-  "aiChat.messagesCount": "{count} 件のメッセージ"
+  "aiChat.messagesCount": "{count} 件のメッセージ",
+  "aiChat.jumpFailed": "ジャンプに失敗しました"
 }

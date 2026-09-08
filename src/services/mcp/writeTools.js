@@ -37,24 +37,8 @@ const NOTIFY_KEYS = new Set([
   'updateAvailable', 'position', 'duration', 'vibration'
 ])
 
-/** navigate 支持的页面 → 路由名映射 */
-const NAVIGATE_PAGES = {
-  home: 'home',
-  recharge: 'recharge',
-  wishlist: 'wishlist',
-  my: 'manage',
-  events: 'events',
-  statistics: 'character-leaderboard',
-  trash: 'trash',
-  sync: 'manage-sync',
-  shares: 'manage-shares',
-  settings: 'manage-settings',
-  notifications: 'manage-notifications',
-  about: 'manage-about',
-  ai_service: 'manage-mcp',
-  goods_add: 'add',
-  checkout: 'checkout'
-}
+// navigate 支持的页面 → 路由名映射（与 app:// 跳转按钮共用，见 utils/ai/jumpLinks.js）
+import { NAVIGATE_PAGES, NAVIGATE_PAGES_WITH_ID } from '../../utils/ai/jumpLinks'
 
 const APPEARANCE_VALUES = new Set(['system', 'light', 'dark'])
 
@@ -647,24 +631,28 @@ export function createMcpWriteToolHandlers({
     },
 
     /**
-     * 页面跳转：从聊天里一键跳到对应页面。
+     * 页面跳转：构造跳转按钮链接供 AI 嵌入回复（不自动跳转，用户点击按钮才跳）。
      * @param {Record<string, any>} args
      */
     async navigate(args) {
-      if (!router || typeof router.push !== 'function') throw new Error('路由不可用')
       const page = String(args?.page || '').trim()
       const id = String(args?.id || '').trim()
-      if (page === 'goods_detail' || page === 'goods_edit') {
-        if (!id) throw new Error(`${page} 需要 id（来自 goods_search）`)
-        await router.push({ name: page === 'goods_detail' ? 'detail' : 'edit', params: { id } })
-        return { ok: true, page, id, note: '已跳转' }
+      const link = page in NAVIGATE_PAGES_WITH_ID
+        ? `app://${page}/${encodeURIComponent(id)}`
+        : `app://${page}`
+      // 校验页面合法性，非法页面直接报错（不返回可用的死链按钮）
+      if (!(page in NAVIGATE_PAGES_WITH_ID) && !(page in NAVIGATE_PAGES)) {
+        throw new Error(`未知页面 ${page}；可选：${Object.keys(NAVIGATE_PAGES).join('、')}、${Object.keys(NAVIGATE_PAGES_WITH_ID).join('、')}（需 id）`)
       }
-      const routeName = NAVIGATE_PAGES[page]
-      if (!routeName) {
-        throw new Error(`未知页面 ${page}；可选：${Object.keys(NAVIGATE_PAGES).join('、')}、goods_detail、goods_edit`)
+      if (page in NAVIGATE_PAGES_WITH_ID && !id) {
+        throw new Error(`${page} 需要 id（谷子来自 goods_search/goods_detail，活动来自 events_list）`)
       }
-      await router.push({ name: routeName })
-      return { ok: true, page, note: '已跳转' }
+      return {
+        ok: true,
+        page,
+        buttonLink: link,
+        note: '不要自动跳转；用这个链接在回复末尾输出跳转按钮，如 [按钮文字](buttonLink)，用户点击才会跳'
+      }
     },
 
     /**

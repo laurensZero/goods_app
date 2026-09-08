@@ -84,6 +84,7 @@
           <div
             v-if="msg.content && getRenderedMarkdown(msg)"
             class="chat-markdown note-body--markdown"
+            @click="onMarkdownClick"
             v-html="getRenderedMarkdown(msg)"
           />
           <!-- TODO: 谷子图片/活动照片点击放大——复用活动详情同款查看器。
@@ -277,12 +278,14 @@
 // 聊天状态全部在 useAiChatStore，两个宿主看到同一份对话。
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { Popup } from 'vant'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useAiChatStore } from '@/stores/aiChat'
 import { normalizeBaseUrl } from '@/services/ai/chatClient'
-import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
+import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
+import { parseJumpHref } from '@/utils/ai/jumpLinks'
 
 defineOptions({ name: 'AiChatPanel' })
 
@@ -391,6 +394,8 @@ const examples = computed(() => {
 })
 
 // ── 助手消息 Markdown 渲染缓存（v-html 内容需异步生成） ──
+/** 聊天内嵌照片的缩略图最长边；点击看原图走详情页，聊天里只做预览 */
+const AI_CHAT_THUMB_SIZE = 480
 /** @type {Record<string, string>} */
 const markdownCache = reactive({})
 
@@ -403,7 +408,7 @@ watch(() => aiChat.messages, async (list) => {
       markdownCache[cacheKey] = ''
     } else {
       try {
-        markdownCache[cacheKey] = await renderMarkdown(msg.content)
+        markdownCache[cacheKey] = await renderMarkdownWithThumbs(msg.content, { maxSize: AI_CHAT_THUMB_SIZE })
       } catch {
         markdownCache[cacheKey] = ''
       }
@@ -425,6 +430,23 @@ function getRenderedMarkdown(msg) {
  */
 function getMessageText(msg) {
   return String(msg.content || '').replace(/^\s+/, '')
+}
+
+// ── app:// 跳转按钮：事件委托拦截，用户点击才跳 ──
+const router = useRouter()
+
+/**
+ * @param {MouseEvent} event
+ */
+function onMarkdownClick(event) {
+  const anchor = /** @type {Element | null} */ (event.target instanceof Element ? event.target.closest('a') : null)
+  if (!anchor) return
+  const target = parseJumpHref(anchor.getAttribute('href') || '')
+  if (!target) return
+  event.preventDefault()
+  router.push(target).catch(() => {
+    showToast(t('aiChat.jumpFailed'))
+  })
 }
 
 // 新消息 / 工具步骤 / 内容（含流式思维链）更新时滚到底部
@@ -885,6 +907,29 @@ function removeSession(id) {
 .chat-markdown :deep(a) {
   color: var(--app-chip-accent-text, #2070c0);
   word-break: break-all;
+}
+
+/* app:// 跳转按钮：胶囊样式，与其他链接区分 */
+.chat-markdown :deep(a.chat-jump-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 6px 2px 0;
+  padding: 5px 14px;
+  border: 1px solid var(--app-chip-accent-border, var(--app-border));
+  border-radius: 999px;
+  background: var(--app-chip-accent-bg, transparent);
+  color: var(--app-chip-accent-text, #2070c0);
+  font-size: 13px;
+  line-height: 1.3;
+  word-break: keep-all;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.chat-markdown :deep(a.chat-jump-btn:active) {
+  opacity: 0.6;
 }
 
 .chat-markdown :deep(strong) {

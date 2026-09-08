@@ -1,4 +1,6 @@
 import DOMPurify from 'dompurify'
+import { JUMP_HREF_PREFIX } from './ai/jumpLinks'
+import { getCachedImageThumb } from './image/thumb'
 
 const BILI_TOKEN_RE = /<video>\s*(BV[0-9A-Za-z]+(?:\?[^\n<]*)?)\s*<\/video>/gi
 const BILI_TOKEN_PREFIX = '@@BILIEMBED'
@@ -104,6 +106,17 @@ async function getMarkdownIt() {
     }
   })
   mdInstance.use(mkTask, { enabled: true })
+
+  // app:// 跳转按钮：AI 约定协议链接渲染成按钮样式，点击由 AiChatPanel 拦截跳转
+  const defaultLinkOpen = mdInstance.renderer.rules.link_open || ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options))
+  mdInstance.renderer.rules.link_open = (tokens, idx, options, env, self) => {
+    const href = String(tokens[idx]?.attrGet('href') || '')
+    if (href.startsWith(JUMP_HREF_PREFIX)) {
+      tokens[idx].attrJoin('class', 'chat-jump-btn')
+      tokens[idx].attrSet('data-jump', '1')
+    }
+    return defaultLinkOpen(tokens, idx, options, env, self)
+  }
   return mdInstance
 }
 
@@ -117,6 +130,33 @@ export async function renderMarkdown(value) {
   })
   return DOMPurify.sanitize(rendered, {
     ADD_TAGS: ['iframe'],
-    ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling', 'framespacing', 'border', 'sandbox']
+    ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling', 'framespacing', 'border', 'sandbox', 'data-jump'],
+    // 默认白名单只放行 http/https/mailto 等，这里加上 app:// 跳转协议
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|app):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
   })
+}
+/**
+ * 渲染 markdown 并把正文里的图片（AI 贴的活动照片/谷子图等）换成本地缩略图，
+ * 避免聊天里一次性解码多张几 MB 的原图。缩略图走 utils/image/thumb 的
+ * 缓存管道（内存 -> 持久层 -> 现场生成），生成失败时保留原图地址。
+ * 仅聊天面板使用；其他 markdown 场景仍用 renderMarkdown。
+ * @param {string} value
+ * @param {{ maxSize?: number }} [options]
+ * @returns {Promise<string>}
+ */
+export async function renderMarkdownWithThumbs(value, options = {}) {
+  const html = await renderMarkdown(value)
+  if (!html.includes('<img')) return html
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const images = Array.from(doc.querySelectorAll('img[src]'))
+  if (images.length === 0) return html
+  await Promise.all(images.map(async (img) => {
+    const src = img.getAttribute('src') || ''
+    if (!src) return
+    try {
+      const thumb = await getCachedImageThumb(src, options)
+      if (thumb) img.setAttribute('src', thumb)
+    } catch { /* 保留原图地址 */ }
+  }))
+  return doc.body.innerHTML
 }

@@ -35,5 +35,6 @@
   "aiChat.reasoning": "Reasoning",
   "aiChat.rename": "Rename",
   "aiChat.renameSuccess": "Renamed",
-  "aiChat.messagesCount": "{count} messages"
+  "aiChat.messagesCount": "{count} messages",
+  "aiChat.jumpFailed": "Jump failed: page not found"
 }

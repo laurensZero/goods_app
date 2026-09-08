@@ -35,5 +35,6 @@
   "aiChat.reasoning": "思维链",
   "aiChat.rename": "重命名",
   "aiChat.renameSuccess": "已重命名",
-  "aiChat.messagesCount": "{count} 条消息"
+  "aiChat.messagesCount": "{count} 条消息",
+  "aiChat.jumpFailed": "跳转失败，页面不存在"
 }
