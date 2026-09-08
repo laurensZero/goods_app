@@ -35,5 +35,6 @@
   "aiChat.reasoning": "思維鏈",
   "aiChat.rename": "重新命名",
   "aiChat.renameSuccess": "已重新命名",
-  "aiChat.messagesCount": "{count} 條訊息"
+  "aiChat.messagesCount": "{count} 條訊息",
+  "aiChat.jumpFailed": "跳轉失敗，頁面不存在"
 }
