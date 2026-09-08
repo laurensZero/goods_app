@@ -10,6 +10,7 @@ import { useMediaPlayerStore } from './mediaPlayer'
 import { useAuthStore } from './auth'
 import { useSyncStore } from './sync'
 import { useAppUpdateStore } from './appUpdate'
+import { useWebUpdateStore } from './webUpdate'
 import { readBudgetSettings, writeBudgetSettings } from '@/utils/goods/budget'
 import { loadUserMemories } from '@/utils/ai/userMemory'
 import router from '@/router'
@@ -378,6 +379,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
         authStore: useAuthStore(),
         syncStore: useSyncStore(),
         appUpdateStore: useAppUpdateStore(),
+        webUpdateStore: useWebUpdateStore(),
         budgetApi: { read: readBudgetSettings, write: writeBudgetSettings },
         router
       })
