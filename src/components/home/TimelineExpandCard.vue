@@ -47,6 +47,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { getTimelineDisplayTotal } from '@/composables/home/useHomeTimeline'
 
 const { t } = useI18n()
 
@@ -66,13 +67,7 @@ const totalPrice = computed(() => {
     return hasPriceValue(props.item.price) ? formatPrice(props.item.price) : '—'
   }
 
-  const quantity = Math.max(1, Number(props.item.quantity) || 1)
-  const shipping = Number(props.item.shippingFee) || 0
-  const base = props.item.actualPrice !== '' && props.item.actualPrice != null
-    ? (Number(props.item.actualPrice) || 0)
-    : (hasPriceValue(props.item.price) ? Number(props.item.price) || 0 : 0)
-  const total = (base * quantity) + shipping
-  return formatPrice(total)
+  return formatPrice(getTimelineDisplayTotal(props.item))
 })
 
 function hasPriceValue(value) {
