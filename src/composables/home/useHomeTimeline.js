@@ -33,6 +33,20 @@ function getTimelineSourceDates(item) {
   return Array.from({ length: quantityNumber }, (_, index) => explicitDates[index] || fallbackDate)
 }
 
+export function getTimelineDisplayTotal(item) {
+  const timelineTotal = Number(item?.totalValueNumber)
+  if (item?.timelineYearMonth && Number.isFinite(timelineTotal)) {
+    return timelineTotal
+  }
+
+  const quantity = Math.max(1, Number(item?.quantity) || 1)
+  const shipping = Number(item?.shippingFee) || 0
+  const base = item?.actualPrice !== '' && item?.actualPrice != null
+    ? (Number(item.actualPrice) || 0)
+    : (item?.price !== '' && item?.price != null ? Number(item.price) || 0 : 0)
+  return (base * quantity) + shipping
+}
+
 function buildTimelineEntries(goodsList, sortDirection = 'desc') {
   const entries = []
 
@@ -41,7 +55,9 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
     const collectionTotalNumber = Number(item?.totalValueNumber) || 0
-    const perUnitShareNumber = quantityNumber > 0 ? collectionTotalNumber / quantityNumber : collectionTotalNumber
+    const shippingFeeNumber = Number(item?.shippingFee) || 0
+    const collectionGoodsTotalNumber = collectionTotalNumber - shippingFeeNumber
+    const perUnitShareNumber = quantityNumber > 0 ? collectionGoodsTotalNumber / quantityNumber : collectionGoodsTotalNumber
 
     // Build per-copy statuses aligned with dates
     const unitStatuses = Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList : []
@@ -88,6 +104,11 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
       monthMap.get(yearMonth).push(pair)
     }
 
+    const latestTimelineDate = dates.reduce((latest, date) => (
+      parseTimelineDateTimestamp(date) > parseTimelineDateTimestamp(latest) ? date : latest
+    ), '')
+    const shippingYearMonth = latestTimelineDate.slice(0, 7)
+
     const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthPairs], index) => {
       const id = monthMap.size === 1 ? item.id : `${item.id}::${yearMonth}`
       const monthDates = monthPairs.map((p) => p.date)
@@ -96,7 +117,8 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         return timestamp > latest.timestamp ? { value: normalizeTimelineDate(pair.date), timestamp } : latest
       }, { value: '', timestamp: 0 })
       const acquiredAt = latestDate.value || normalizeTimelineDate(item.acquiredAt)
-      const monthTotal = perUnitShareNumber * monthDates.length
+      const monthTotal = (perUnitShareNumber * monthDates.length)
+        + (yearMonth === shippingYearMonth ? shippingFeeNumber : 0)
 
       // Per-copy status graying: only exclude if ALL copies in this month group have exited statuses
       let monthIsExcluded = false

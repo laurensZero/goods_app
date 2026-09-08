@@ -63,6 +63,7 @@ import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { getTimelineDisplayTotal } from '@/composables/home/useHomeTimeline'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -81,18 +82,8 @@ const displayCharacters = computed(() => {
 const totalPrice = computed(() => {
   const item = props.item
   if (!item) return ''
-  const quantity = Math.max(1, Number(item.quantity) || 1)
-  const shipping = Number(item.shippingFee) || 0
-  const base = item.actualPrice !== '' && item.actualPrice != null
-    ? (Number(item.actualPrice) || 0)
-    : (hasPriceValue(item.price) ? Number(item.price) || 0 : 0)
-  const total = (base * quantity) + shipping
-  return formatPrice(total)
+  return formatPrice(getTimelineDisplayTotal(item))
 })
-
-function hasPriceValue(value) {
-  return value !== '' && value != null
-}
 
 const displayAcquiredAtText = computed(() => {
   const item = props.item

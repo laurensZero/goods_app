@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { ref } from 'vue'
-import { useHomeTimeline } from '../useHomeTimeline'
+import { getTimelineDisplayTotal, useHomeTimeline } from '../useHomeTimeline'
 
 function setupTimeline(displayList, { sortDirection = 'desc' } = {}) {
   return useHomeTimeline({
@@ -38,6 +38,29 @@ const normalGoods = {
 }
 
 describe('useHomeTimeline', () => {
+  it('uses the month-allocated total so shipping is not repeated across months', () => {
+    const item = {
+      id: 'shipping-later-month',
+      quantity: 14,
+      acquiredAt: '2026-08-22',
+      unitAcquiredAtList: [
+        ...Array.from({ length: 11 }, () => '2026-08-22'),
+        ...Array.from({ length: 3 }, () => '2026-09-05')
+      ],
+      totalValueNumber: 150,
+      shippingFee: 10,
+      collectStatus: '已拥有'
+    }
+    const timeline = setupTimeline([item])
+    const months = timeline.allTimelineMonthList.value
+    const august = months.find((month) => month.yearMonth === '2026-08').items[0]
+    const september = months.find((month) => month.yearMonth === '2026-09').items[0]
+
+    expect(august.totalValueNumber).toBe(110)
+    expect(september.totalValueNumber).toBe(40)
+    expect(getTimelineDisplayTotal(august) + getTimelineDisplayTotal(september)).toBe(150)
+  })
+
   it('orders a split-month restock entry by its own date within the month (desc)', () => {
     // displayList 按商品级 acquiredAt desc：9-3 的商品在前，8-22 首购的商品在后
     const timeline = setupTimeline([normalGoods, restockedGoods], { sortDirection: 'desc' })
