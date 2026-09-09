@@ -10,6 +10,7 @@ import { formatDate } from '@/utils/format'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { Capacitor } from '@capacitor/core'
 import { Haptics } from '@capacitor/haptics'
+import i18n from '@/locales'
 
 const NOTIFY_DURATION = 6000
 
@@ -153,7 +154,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     push({
       goodsId: item.id,
       iconType: 'bell',
-      text: isAtSaleTime ? `${name} 开售了` : `${name} ${offsetText}开售`,
+      text: isAtSaleTime ? `${name} 开售了` : `${name} ${offsetText}`,
       subText: isAtSaleTime ? '现在到开售时间了' : `开售时间：${formatSaleTime(item.saleAt)}`,
       saleAt: isAtSaleTime ? '' : item.saleAt,
       actions: isAtSaleTime
@@ -445,9 +446,9 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
 
 function formatOffsetText(minutes) {
   if (!Number.isFinite(minutes) || minutes <= 0) return ''
-  if (minutes % 1440 === 0) return `提前 ${minutes / 1440} 天`
-  if (minutes % 60 === 0) return `提前 ${minutes / 60} 小时`
-  return `提前 ${minutes} 分钟`
+  if (minutes % 1440 === 0) return i18n.global.t('goods.notification.reminderBeforeDays', { count: minutes / 1440 })
+  if (minutes % 60 === 0) return i18n.global.t('goods.notification.reminderBeforeHours', { count: minutes / 60 })
+  return i18n.global.t('goods.notification.reminderBeforeMinutes', { count: minutes })
 }
 
 function formatSaleTime(value) {

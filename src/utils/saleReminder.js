@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import router from '@/router'
+import i18n from '@/locales'
 
 let Calendar = null
 let calendarLoadFailed = false
@@ -94,10 +95,10 @@ export function formatSaleAtDisplay(value) {
 
 export function formatReminderOffset(offsetMinutes) {
   const minutes = Number(offsetMinutes)
-  if (!Number.isFinite(minutes) || minutes <= 0) return '开售时'
-  if (minutes % 1440 === 0) return `提前 ${minutes / 1440} 天`
-  if (minutes % 60 === 0) return `提前 ${minutes / 60} 小时`
-  return `提前 ${minutes} 分钟`
+  if (!Number.isFinite(minutes) || minutes <= 0) return i18n.global.t('goods.editor.reminderAtSale')
+  if (minutes % 1440 === 0) return i18n.global.t('goods.notification.reminderBeforeDays', { count: minutes / 1440 })
+  if (minutes % 60 === 0) return i18n.global.t('goods.notification.reminderBeforeHours', { count: minutes / 60 })
+  return i18n.global.t('goods.notification.reminderBeforeMinutes', { count: minutes })
 }
 
 export function getSaleReminderNotificationId(goodsId, offsetMinutes = 0) {
@@ -225,7 +226,7 @@ export function buildSaleReminderNotifications(item) {
       const triggerAt = new Date(saleTimeMs - (offset * 60000))
       if (triggerAt.getTime() <= Date.now() + NOTIFICATION_MARGIN_MS) return null
       const offsetText = formatReminderOffset(offset)
-      const title = offset > 0 ? `${titleName} ${offsetText}开售` : `${titleName} 开售了`
+      const title = offset > 0 ? `${titleName} ${offsetText}` : `${titleName} 开售了`
       return {
         id: getSaleReminderNotificationId(item.id, offset),
         title,

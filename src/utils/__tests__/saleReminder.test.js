@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import i18n from '@/locales'
 import {
   buildSaleReminderNotifications,
   formatReminderOffset,
@@ -8,6 +9,10 @@ import {
   normalizeSaleAt,
   normalizeSaleReminderOffsets
 } from '../saleReminder'
+
+beforeAll(() => {
+  i18n.global.locale.value = 'zh-CN'
+})
 
 describe('saleReminder', () => {
   beforeEach(() => {
@@ -69,9 +74,9 @@ describe('saleReminder', () => {
 
   it('formats display labels', () => {
     expect(formatSaleAtDisplay('2026-06-18T20:00')).toBe('2026-06-18 20:00')
-    expect(formatReminderOffset(1440)).toBe('提前 1 天')
-    expect(formatReminderOffset(60)).toBe('提前 1 小时')
-    expect(formatReminderOffset(10)).toBe('提前 10 分钟')
+    expect(formatReminderOffset(1440)).toBe('还有 1 天')
+    expect(formatReminderOffset(60)).toBe('还有 1 h 就要开售')
+    expect(formatReminderOffset(10)).toBe('还有 10 分钟')
     expect(formatReminderOffset(0)).toBe('开售时')
   })
 })
