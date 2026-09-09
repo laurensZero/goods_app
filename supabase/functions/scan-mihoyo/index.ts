@@ -152,6 +152,21 @@ function buildMessages(catalog: string, newItems: Record<string, any>[]): string
   return messages
 }
 
+async function makeBatchKey(catalog: string, newItems: Record<string, any>[]): Promise<string> {
+  const itemKeys = newItems
+    .map((it) => `${it.shop_code}:${it.goods_id}`)
+    .sort()
+    .join("|")
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(`${catalog}|${itemKeys}`),
+  )
+  const hash = Array.from(new Uint8Array(digest))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("")
+  return `${catalog}:${hash}`
+}
+
 // ---------- 入队（广播给所有活跃 QQ 绑定用户，一目录可多条消息） ----------
 
 async function enqueueBatch(
@@ -259,17 +274,34 @@ async function scanCatalog(
           .eq("shop_code", shopCode)
           .eq("goods_id", goodsId)
       } else {
-        await admin
+        // 并发扫描时只让成功插入 seen 的调用认领该商品；冲突行不能再进入通知。
+        const { data: claimed, error: insertError } = await admin
           .from("mihoyo_monitor_seen")
-          .insert({
-            catalog,
-            shop_code: shopCode,
-            goods_id: goodsId,
-            first_seen_at: nowIso,
-            last_seen_at: nowIso,
-          })
-        // 附上 shop_code，后续按用户自选店铺过滤用
-        newItems.push({ ...it, shop_code: shopCode })
+          .insert(
+            {
+              catalog,
+              shop_code: shopCode,
+              goods_id: goodsId,
+              first_seen_at: nowIso,
+              last_seen_at: nowIso,
+            },
+            { onConflict: "catalog,shop_code,goods_id", ignoreDuplicates: true },
+          )
+          .select("goods_id")
+          .maybeSingle()
+        if (insertError && insertError.code !== "23505") throw insertError
+
+        if (claimed) {
+          // 附上 shop_code，后续按用户自选店铺过滤用
+          newItems.push({ ...it, shop_code: shopCode })
+        } else {
+          await admin
+            .from("mihoyo_monitor_seen")
+            .update({ last_seen_at: nowIso })
+            .eq("catalog", catalog)
+            .eq("shop_code", shopCode)
+            .eq("goods_id", goodsId)
+        }
       }
     }
   }
@@ -286,8 +318,8 @@ async function scanCatalog(
 
   let enqueued = { users: 0, jobs: 0 }
   if (newItems.length > 0) {
-    // 批次键 = 北京时刻到分钟，同一分钟内的重复触发被 notification_jobs UNIQUE 兜底拦截
-    const batchKey = new Date(Date.now() + 8 * 3600_000).toISOString().replace(/[-:T]/g, "").slice(0, 12)
+    // 按实际认领的商品集合生成键；重复扫描去重，不同并发子集分别入队，避免丢商品。
+    const batchKey = await makeBatchKey(catalog, newItems)
     enqueued = await enqueueBatch(admin, catalog, newItems, batchKey)
   }
 
