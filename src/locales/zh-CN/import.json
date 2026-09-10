@@ -326,6 +326,7 @@
   "checkout.queueLog.clock-sync-failed": "时间校准失败",
   "checkout.queueLog.clock-sync-skipped": "跳过时间校准",
   "checkout.queueLog.submit-start": "开始提交订单",
+  "checkout.queueLog.prewarm": "连接预热",
   "checkout.queueLog.pre-create-start": "开始预创建订单",
   "checkout.queueLog.create-start": "开始创建订单",
   "checkout.queueLog.retry": "准备重试",

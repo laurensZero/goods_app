@@ -11,6 +11,11 @@ const REBACK_DELAY = 3000
 const SUCCESS_RETENTION_MS = 24 * 60 * 60 * 1000
 // 抢购窗口前先尝试预创建；若服务端尚未放行，预创建会快速重试。
 const FIRE_LEAD_MS = 600
+// 开抢前预热 TLS/TCP 连接（只做轻量 GET，不拿 code）
+const PREWARM_LEAD_MS = 3000
+// 并发单元错峰间隔基数 + 随机抖动，避免齐射撞同一限流窗
+const STAGGER_BASE_MS = 40
+const STAGGER_JITTER_MS = 25
 // 高频轮询只负责兜底，实际到点由精确唤醒定时器触发，减少客户端调度延迟。
 const WATCH_INTERVAL = 100
 
@@ -30,6 +35,10 @@ let clockBasePerfMs = 0
 let queueWatcherId = 0
 let queueWakeTimerId = 0
 const cancelledQueueIds = new Set()
+// 开抢前预热过连接的任务 id → 上次预热时刻（允许临近 T0 再预热一次）
+const prewarmedIds = new Map()
+// 抢购窗口保持屏幕唤醒，避免息屏后 JS 定时器被冻
+let screenWakeLock = null
 // 抢购成功的事件回调（供业务层订阅，如 QQ 提醒）。成功时刻触发一次，天然排除历史遗留项。
 let checkoutSuccessHandler = null
 
@@ -134,12 +143,14 @@ function ensureHydrated() {
   if (!hydrated.value) loadQueue()
 }
 
-function appendQueueLog(entry, type, message = '') {
+function appendQueueLog(entry, type, message = '', { persist = true } = {}) {
   if (!entry) return
   const logs = Array.isArray(entry.logs) ? entry.logs : []
   const at = clockSyncedAt.value ? getServerNow() : Date.now()
   entry.logs = [...logs, { type, at, message: String(message || '') }].slice(-30)
-  persistQueue()
+  // 开枪热路径（预创建/创建重试）不落盘，避免 localStorage I/O 拖慢事件循环
+  const hotLog = type === 'pre-create-start' || type === 'create-start' || type === 'retry'
+  if (persist && !hotLog) persistQueue()
 }
 
 function getCountdownMarker(remainingMs) {
@@ -268,6 +279,8 @@ function enqueueOrder(payload) {
   queue.value = [...queue.value, entry]
   persistQueue()
   startQueueWatcher()
+  // 抢购窗口保持屏幕唤醒
+  void acquireScreenWakeLock()
   // 按参考项目的方式：入队后立即完成一次校时，开抢时只使用已固定的结果。
   if (entry.snapshot.cookie) {
     appendQueueLog(entry, 'clock-sync-start')
@@ -281,6 +294,8 @@ function enqueueOrder(payload) {
         appendQueueLog(entry, 'clock-sync-failed', error?.message)
         console.warn('[checkoutQueue] initial clock sync failed', error?.message)
       })
+    // 立刻尝试预热（入队通常已在开售前）
+    void prewarmOrderConnection(entry)
   } else {
     appendQueueLog(entry, 'clock-sync-skipped', '未提供 Cookie')
   }
@@ -327,6 +342,8 @@ function clearQueue() {
   ensureHydrated()
   for (const item of queue.value) cancelledQueueIds.add(String(item.id))
   queue.value = []
+  prewarmedIds.clear()
+  releaseScreenWakeLock()
   persistQueue()
 }
 
@@ -343,6 +360,65 @@ function createQueueCancelledError() {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function acquireScreenWakeLock() {
+  if (screenWakeLock || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
+  try {
+    screenWakeLock = await navigator.wakeLock.request('screen')
+    screenWakeLock.addEventListener('release', () => {
+      screenWakeLock = null
+    })
+  } catch (error) {
+    console.warn('[checkoutQueue] wake lock unavailable', error?.message)
+  }
+}
+
+function releaseScreenWakeLock() {
+  try {
+    screenWakeLock?.release()
+  } catch {
+    // ignore
+  }
+  screenWakeLock = null
+}
+
+function hasPendingTimedOrder() {
+  return queue.value.some(
+    (item) => item.status === 'pending' && Number(item.nextAttemptAt) > Date.now(),
+  )
+}
+
+// T0 前轻量预热：只打商品详情，让 TLS/TCP 进连接池；未开售不尝试 preCreate（拿不到 code）
+// 间隔 PREWARM_MIN_INTERVAL_MS 才允许再预热，避免临近开售时连接已闲置断开
+const PREWARM_MIN_INTERVAL_MS = 45000
+
+async function prewarmOrderConnection(entry) {
+  const id = String(entry?.id || '')
+  if (!id || isQueueEntryCancelled(entry)) return
+  const last = Number(prewarmedIds.get(id) || 0)
+  if (last && Date.now() - last < PREWARM_MIN_INTERVAL_MS) return
+  const item = entry?.snapshot?.items?.[0]
+  if (!item?.goodsId || !entry?.snapshot?.cookie) return
+  prewarmedIds.set(id, Date.now())
+  try {
+    await fetchGoodsDetailForCheckout(item.goodsId, entry.snapshot.cookie)
+    appendQueueLog(entry, 'prewarm', '连接已预热', { persist: false })
+  } catch (error) {
+    // 预热失败不阻断开抢；下一轮 watcher 可再试
+    prewarmedIds.delete(id)
+    console.warn('[checkoutQueue] prewarm failed', error?.message)
+  }
+}
+
+function maybePrewarmPending() {
+  for (const entry of queue.value) {
+    if (entry.status !== 'pending') continue
+    const remaining = Number(entry.nextAttemptAt || 0) - getServerNow()
+    if (remaining > 50 && remaining <= PREWARM_LEAD_MS) {
+      void prewarmOrderConnection(entry)
+    }
+  }
 }
 
 // 固定 0.5s 重试，附加 ±0.2s 随机抖动，避免多线程同时发请求
@@ -468,6 +544,7 @@ async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () =>
 //   concurrency=1：单个单元，preCreate 一次拿单 code → createOrder 串行重试（与 B站一致）
 //   concurrency>1：并发 n 个独立单元，每个都走「自己的 preCreate → 自己的 createOrder」，
 //                  各自拿独立 code、各自建单 → 可能产生多笔订单（重复下单可接受，目标是抢到）
+//                  单元之间按 40–65ms 错峰，降低齐射撞同一限流窗的概率
 // 任一单元真实成功（拿到 order_no）即立即返回；否则等全部结束，有「重复/已存在」也算成功
 async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled = () => false, entry = null) {
   return new Promise((resolve) => {
@@ -491,29 +568,34 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
     }
 
     for (let i = 0; i < n; i++) {
-      submitOrderUnit(cookie, payload, maxAttempts, isCancelled, entry)
-        .then((result) => {
-          finished += 1
-          if (result.orderNo && !settled) {
-            settled = true
-            resolve({ ok: true, result })
-            return
-          }
-          if (result.duplicate && !duplicate) {
-            duplicate = result
-          }
-          finish()
-        })
-        .catch((error) => {
-          if (error?.queueCancelled && !settled) {
-            settled = true
-            resolve({ ok: false, cancelled: true, error })
-            return
-          }
-          lastError = error
-          finished += 1
-          finish()
-        })
+      const staggerMs = i === 0 ? 0 : i * STAGGER_BASE_MS + Math.random() * STAGGER_JITTER_MS
+      const start = () => {
+        submitOrderUnit(cookie, payload, maxAttempts, isCancelled, entry)
+          .then((result) => {
+            finished += 1
+            if (result.orderNo && !settled) {
+              settled = true
+              resolve({ ok: true, result })
+              return
+            }
+            if (result.duplicate && !duplicate) {
+              duplicate = result
+            }
+            finish()
+          })
+          .catch((error) => {
+            if (error?.queueCancelled && !settled) {
+              settled = true
+              resolve({ ok: false, cancelled: true, error })
+              return
+            }
+            lastError = error
+            finished += 1
+            finish()
+          })
+      }
+      if (staggerMs <= 0) start()
+      else setTimeout(start, staggerMs)
     }
   })
 }
@@ -533,9 +615,11 @@ async function executeQueuedOrder(entry) {
   if (serverNow < entry.nextAttemptAt - FIRE_LEAD_MS) return false
   if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
 
+  // lagMs：相对计划开售时间的偏移。负数=领先开枪，正数=晚于 T0（用于诊断 112ms 类现象）
+  const lagMs = Math.round(serverNow - Number(entry.nextAttemptAt || 0))
   entry.status = 'running'
   entry.lastError = ''
-  appendQueueLog(entry, 'submit-start')
+  appendQueueLog(entry, 'submit-start', `相对开售 ${lagMs >= 0 ? '+' : ''}${lagMs}ms（领先 ${FIRE_LEAD_MS}ms）`)
   persistQueue()
 
   const n = clampConcurrency(entry.concurrency)
@@ -568,6 +652,8 @@ async function executeQueuedOrder(entry) {
     entry.completedAt = getServerNow()
     appendQueueLog(entry, 'success')
     persistQueue()
+    // 队列内已无待执行定时单则释放唤醒锁
+    if (!hasPendingTimedOrder()) releaseScreenWakeLock()
     // 抢购成功这一刻通知订阅者（如 QQ 提醒），与「队列里既有」的成功项无关
     try {
       checkoutSuccessHandler?.(entry)
@@ -602,6 +688,7 @@ async function executeQueuedOrder(entry) {
   entry.status = 'failed'
   appendQueueLog(entry, 'failed', entry.lastError)
   persistQueue()
+  if (!hasPendingTimedOrder()) releaseScreenWakeLock()
   return { ok: false, retriable: false, error: result.error }
 }
 
@@ -650,6 +737,7 @@ function startQueueWatcher() {
   queueWatcherId = window.setInterval(() => {
     pruneExpiredSuccess()
     for (const entry of queue.value) maybeLogCountdown(entry)
+    maybePrewarmPending()
     scheduleQueueWake()
     void processQueue()
   }, WATCH_INTERVAL)

@@ -326,6 +326,7 @@
   "checkout.queueLog.clock-sync-failed": "시간 동기화 실패",
   "checkout.queueLog.clock-sync-skipped": "시간 동기화 건너뜀",
   "checkout.queueLog.submit-start": "주문 제출 시작",
+  "checkout.queueLog.prewarm": "연결 프리웜",
   "checkout.queueLog.pre-create-start": "주문 사전 생성 시작",
   "checkout.queueLog.create-start": "주문 생성 시작",
   "checkout.queueLog.retry": "재시도 준비",

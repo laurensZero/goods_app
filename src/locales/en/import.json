@@ -326,6 +326,7 @@
   "checkout.queueLog.clock-sync-failed": "Clock synchronization failed",
   "checkout.queueLog.clock-sync-skipped": "Clock synchronization skipped",
   "checkout.queueLog.submit-start": "Order submission started",
+  "checkout.queueLog.prewarm": "Connection prewarm",
   "checkout.queueLog.pre-create-start": "Pre-create order started",
   "checkout.queueLog.create-start": "Create order started",
   "checkout.queueLog.retry": "Preparing to retry",

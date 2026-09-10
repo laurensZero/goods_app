@@ -326,6 +326,7 @@
   "checkout.queueLog.clock-sync-failed": "時刻同期に失敗",
   "checkout.queueLog.clock-sync-skipped": "時刻同期をスキップ",
   "checkout.queueLog.submit-start": "注文送信を開始",
+  "checkout.queueLog.prewarm": "接続のプリウォーム",
   "checkout.queueLog.pre-create-start": "注文の事前作成を開始",
   "checkout.queueLog.create-start": "注文作成を開始",
   "checkout.queueLog.retry": "再試行を準備中",
