@@ -1,5 +1,34 @@
 <template>
   <div class="ai-chat-panel">
+    <!-- 顶栏：历史/设置挪出输入区，手机端给输入框更多宽度（参考 DeepSeek） -->
+    <header class="chat-topbar">
+      <button
+        class="chat-topbar__btn"
+        type="button"
+        :aria-label="t('aiChat.history')"
+        @click="openHistory"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8" />
+          <path d="M3 3v5h5" />
+          <path d="M12 7v5l3 2" />
+        </svg>
+      </button>
+      <div class="chat-topbar__actions">
+        <button
+          class="chat-topbar__btn"
+          type="button"
+          :aria-label="t('aiChat.settingsTitle')"
+          @click="openSettings"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
     <TransitionGroup
       name="chat-msg"
       tag="div"
@@ -117,84 +146,63 @@
       <div key="chat-anchor" ref="bottomAnchorRef" class="chat-anchor" />
     </TransitionGroup>
 
-    <div v-if="aiChat.attachments.length" class="chat-attach-tray">
-      <div v-for="att in aiChat.attachments" :key="att.id" class="chat-attach-tray__item">
-        <img class="chat-attach-tray__img" :src="att.uri" alt="" />
+    <!-- 输入卡片：候选图嵌在卡片内，下方一行 = 附加 + 输入 + 发送 -->
+    <div class="chat-compose">
+      <div v-if="aiChat.attachments.length" class="chat-compose__attachments">
+        <div v-for="att in aiChat.attachments" :key="att.id" class="chat-compose__thumb">
+          <img class="chat-compose__thumb-img" :src="att.uri" alt="" />
+          <button
+            class="chat-compose__thumb-remove"
+            type="button"
+            :aria-label="t('aiChat.removeAttachment')"
+            @click="aiChat.removeAttachment(att.id)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="chat-compose__row">
         <button
-          class="chat-attach-tray__remove"
+          class="chat-compose__attach"
           type="button"
-          :aria-label="t('aiChat.removeAttachment')"
-          @click="aiChat.removeAttachment(att.id)"
+          :aria-label="t('aiChat.attachImage')"
+          :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
+          @click="pickAttachments"
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+        <textarea
+          ref="inputRef"
+          v-model="inputText"
+          class="chat-compose__input"
+          rows="1"
+          :placeholder="t('aiChat.inputPlaceholder')"
+          :disabled="aiChat.sending"
+          @input="autoGrow"
+          @keydown.enter="handleEnterKey"
+        />
+        <button
+          class="chat-compose__send"
+          type="button"
+          :disabled="aiChat.sending || !inputText.trim()"
+          :aria-label="t('aiChat.send')"
+          @click="send"
+        >
+          <svg v-if="!aiChat.sending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 19V5" />
+            <path d="M5 12l7-7 7 7" />
+          </svg>
+          <svg v-else class="chat-compose__spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         </button>
       </div>
-    </div>
-
-    <div class="chat-inputbar">
-      <button
-        class="chat-settings-btn"
-        type="button"
-        :aria-label="t('aiChat.history')"
-        @click="openHistory"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8" />
-          <path d="M3 3v5h5" />
-          <path d="M12 7v5l3 2" />
-        </svg>
-      </button>
-      <button
-        class="chat-settings-btn"
-        type="button"
-        :aria-label="t('aiChat.attachImage')"
-        :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
-        @click="pickAttachments"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3" />
-          <circle cx="9" cy="9" r="1.6" />
-          <path d="M21 15l-4.5-4.5L7 20" />
-        </svg>
-      </button>
-      <button
-        class="chat-settings-btn"
-        type="button"
-        :aria-label="t('aiChat.settingsTitle')"
-        @click="openSettings"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34a1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" />
-        </svg>
-      </button>
-      <textarea
-        ref="inputRef"
-        v-model="inputText"
-        class="chat-input"
-        rows="1"
-        :placeholder="t('aiChat.inputPlaceholder')"
-        :disabled="aiChat.sending"
-        @input="autoGrow"
-        @keydown.enter="handleEnterKey"
-      />
-      <button
-        class="chat-send"
-        type="button"
-        :disabled="aiChat.sending || !inputText.trim()"
-        :aria-label="t('aiChat.send')"
-        @click="send"
-      >
-        <svg v-if="!aiChat.sending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 2L11 13" />
-          <path d="M22 2l-7 20-4-9-9-4 20-7z" />
-        </svg>
-        <svg v-else class="chat-send__spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-        </svg>
-      </button>
     </div>
 
     <AppToast :message="toastMsg" />
@@ -1158,158 +1166,211 @@ function removeSession(id) {
   border-color: color-mix(in srgb, var(--app-surface) 35%, transparent);
 }
 
-.chat-attach-tray {
+/* ── Top bar（历史/设置） ── */
+.chat-topbar {
   flex-shrink: 0;
   display: flex;
-  gap: 8px;
-  padding: 0 var(--page-padding) 6px;
-  overflow-x: auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--page-padding) 0;
 }
 
-.chat-attach-tray__item {
-  position: relative;
-  flex-shrink: 0;
-  width: 56px;
-  height: 56px;
+.chat-topbar__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
-.chat-attach-tray__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid var(--app-border);
-  background: var(--app-surface);
-}
-
-.chat-attach-tray__remove {
-  position: absolute;
-  top: -6px;
-  right: -6px;
+.chat-topbar__btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.chat-topbar__btn:active {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-topbar__btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Compose card（参考 DeepSeek：圆角卡片 + 内嵌附件 + 一行操作） ── */
+.chat-compose {
+  flex-shrink: 0;
+  margin: 8px var(--page-padding) max(12px, env(safe-area-inset-bottom));
+  padding: 6px 6px 6px 4px;
+  border: 1px solid var(--app-border);
+  border-radius: 22px;
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.chat-compose:focus-within {
+  border-color: rgba(52, 199, 89, 0.5);
+  box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.1);
+}
+
+.chat-compose__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 6px 8px 40px;
+}
+
+.chat-compose__thumb {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+}
+
+.chat-compose__thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--app-border);
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-compose__thumb-remove {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
   border: none;
   border-radius: 50%;
   background: var(--app-text);
   color: var(--app-surface);
   cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.16);
 }
 
-.chat-attach-tray__remove svg {
-  width: 12px;
-  height: 12px;
+.chat-compose__thumb-remove svg {
+  width: 10px;
+  height: 10px;
 }
 
-/* ── Input bar ── */
-.chat-inputbar {
-  flex-shrink: 0;
+.chat-compose__row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
-  padding: 10px var(--page-padding) max(12px, env(safe-area-inset-bottom));
+  gap: 2px;
+  min-height: 44px;
 }
 
-.chat-settings-btn {
+.chat-compose__attach {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--app-border);
+  width: 40px;
+  height: 40px;
+  margin: 0 0 2px 2px;
+  border: none;
   border-radius: 50%;
-  background: var(--app-surface);
+  background: transparent;
   color: var(--app-text-secondary);
   cursor: pointer;
-  box-shadow: var(--app-shadow);
-  transition: transform 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
 
-.chat-settings-btn:active {
-  transform: scale(0.9) rotate(-30deg);
+.chat-compose__attach:not(:disabled):active {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+  color: var(--app-text);
 }
 
-.chat-settings-btn svg {
-  width: 18px;
-  height: 18px;
+.chat-compose__attach:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.chat-compose__attach svg {
+  width: 20px;
+  height: 20px;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.chat-input {
+.chat-compose__input {
   flex: 1;
   min-width: 0;
   resize: none;
   overflow-y: hidden;
-  padding: 11px 15px;
-  border: 1px solid var(--app-border);
-  border-radius: 21px;
-  background: var(--app-surface);
+  max-height: 120px;
+  padding: 10px 6px;
+  border: none;
+  background: transparent;
   color: var(--app-text);
-  font-size: 14.5px;
-  line-height: 1.5;
+  font-size: 15px;
+  line-height: 1.45;
   font-family: inherit;
   outline: none;
-  box-shadow: var(--app-shadow);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
-.chat-input::-webkit-scrollbar {
+.chat-compose__input::-webkit-scrollbar {
   display: none;
 }
 
-.chat-input:focus {
-  border-color: rgba(52, 199, 89, 0.55);
-  box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.12);
+.chat-compose__input:disabled {
+  opacity: 0.55;
 }
 
-.chat-input:disabled {
-  opacity: 0.6;
-}
-
-.chat-send {
+.chat-compose__send {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 42px;
-  height: 42px;
+  width: 36px;
+  height: 36px;
+  margin: 0 2px 3px 0;
   border: none;
   border-radius: 50%;
-  background: linear-gradient(135deg, #34c759 0%, #28a745 100%);
+  background: #141416;
   color: #fff;
   cursor: pointer;
-  box-shadow: 0 3px 10px rgba(52, 199, 89, 0.35);
-  transition: transform 0.15s ease, opacity 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, opacity 0.2s ease, background-color 0.2s ease;
 }
 
-.chat-send:not(:disabled):active {
-  transform: scale(0.9);
-  box-shadow: 0 2px 6px rgba(52, 199, 89, 0.3);
+.chat-compose__send:not(:disabled):active {
+  transform: scale(0.92);
 }
 
-.chat-send:disabled {
-  opacity: 0.35;
+.chat-compose__send:disabled {
+  opacity: 0.28;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-.chat-send svg {
+.chat-compose__send svg {
   width: 18px;
   height: 18px;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 2.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.chat-send__spinner {
+.chat-compose__spinner {
   animation: spin 0.7s linear infinite;
 }
 
