@@ -83,6 +83,7 @@ function buildSystemPrompt() {
     '- 新增/修改/删除等操作只做用户明确要求的事，批量或不可逆操作前先和用户确认；',
     '- 金额是用户手填的字符串，可能为空或含非数字字符；',
     '- 记忆（memory_save）判定铁律：只记用户明确表达的、长期有效的偏好/习惯（称呼、口味偏好如「只收吧唧」、预算习惯等），写成一条简短的第三人称陈述；收藏数据本身能通过工具查到，禁止存成记忆；一次性任务指令、本轮对话内容不存；拿不准是不是长期偏好就先问用户一句；保存后在回复里顺带告知已记住，用户要求忘记时用 remove（text 需与已存文本完全一致）；',
+    '- 圈内用语铁律：解释二次元/谷圈黑话时，拿不准的词不要编词源、不要假装权威定义（尤其禁止「X 是 Y 的缩写」这种干净词源）；不确定就说「圈内一般用来指…，各地用法可能有差别」，或反问用户怎么理解。纠正用户时语气平等，禁止「你是不是刚入坑」「这太正常了」这类说教；用户说得对就直接认可，说得偏就平实补充，不要居高临下。',
     '- 用用户的语言回答，简洁自然。'
   ]
   const memories = loadUserMemories()
@@ -270,6 +271,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
   const sending = ref(false)
   /** UI 提示用错误标记：no-config | request | '' */
   const lastError = ref('')
+  /**
+   * 排队中的用户消息：AI 回复期间继续输入时入队，当前轮结束后自动发出。
+   * @type {import('vue').Ref<Array<{ id: string, content: string, attachments: ChatAttachment[] }>>}
+   */
+  const sendQueue = ref([])
+  /** 当前轮的中断控制器（用户点停止生成） */
+  let currentAbort = null
   /** 待发送的视觉附件：随下一条用户消息进入会话；不自动触发 vision_analyze */
   /** @type {import('vue').Ref<ChatAttachment[]>} */
   const attachments = ref([])
@@ -640,18 +648,70 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   /**
-   * 发送一条用户消息并跑完整工具循环；过程中的工具调用实时写入 assistant.steps。
+   * 发送一条用户消息。AI 正在回复时入队，当前轮结束后自动发出。
    * @param {string} text
+   * @returns {Promise<'sent'|'queued'|'rejected'>}
    */
   async function send(text) {
     const content = String(text || '').trim()
-    if (!content || sending.value) return
+    if (!content) return 'rejected'
     if (!config.value.baseUrl || !config.value.model || !config.value.apiKey) {
       lastError.value = 'no-config'
-      return
+      return 'rejected'
     }
-
     const pendingAttachments = attachments.value.map((a) => ({ ...a }))
+    attachments.value = []
+    if (sending.value) {
+      sendQueue.value.push({
+        id: `q-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        content,
+        attachments: pendingAttachments
+      })
+      devLog('send:queued', { queueLen: sendQueue.value.length, contentLen: content.length })
+      return 'queued'
+    }
+    await runTurn(content, pendingAttachments)
+    return 'sent'
+  }
+
+  /**
+   * 停止当前生成：中断网络请求，保留已流出的部分。
+   */
+  function stopStreaming() {
+    if (!sending.value) return
+    if (currentAbort) {
+      currentAbort.abort()
+      devLog('send:stop')
+    }
+  }
+
+  /**
+   * 立即发送队列中的某条：丢弃它之前的所有排队项，打断当前生成，
+   * 当前轮 finally 的 drainQueue 会优先把它发出去。
+   * @param {string} id
+   */
+  function sendQueuedNow(id) {
+    const idx = sendQueue.value.findIndex((item) => item.id === id)
+    if (idx < 0) return
+    sendQueue.value = sendQueue.value.slice(idx)
+    devLog('send:queued-now', { id, remaining: sendQueue.value.length })
+    stopStreaming()
+  }
+
+  /** 当前轮结束后：取队列下一条继续发送 */
+  function drainQueue() {
+    if (sending.value || sendQueue.value.length === 0) return
+    const next = sendQueue.value.shift()
+    if (!next) return
+    void runTurn(next.content, next.attachments)
+  }
+
+  /**
+   * 执行一轮完整对话（用户消息 → 工具循环 → 助手回复）。
+   * @param {string} content 已 trim 的用户文本
+   * @param {ChatAttachment[]} pendingAttachments
+   */
+  async function runTurn(content, pendingAttachments) {
     activeSendAttachments = pendingAttachments
     const modelText = withAttachmentMarkers(content, pendingAttachments)
 
@@ -673,8 +733,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     // 会基于旧上下文自说自话）。附件只以序号标记注入，不塞图片本体；
     // 视觉分析由模型在用户明确要求时调用 vision_analyze 完成。
     rawConvo = [...rawConvo, { role: 'user', content: modelText }]
-    // 待发区清空；工具循环期间由 activeSendAttachments 供 vision_analyze 取图
-    attachments.value = []
+    // 待发区已清空（send 入队/发出时处理）；工具循环期间由 activeSendAttachments 供 vision_analyze 取图
     for (const att of pendingAttachments) {
       attachmentRegistry.set(att.id, att)
     }
@@ -687,6 +746,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     messages.value.push(assistant)
     sending.value = true
     lastError.value = ''
+    currentAbort = new AbortController()
     /** 本轮写操作的撤回条目（成功后挂到 assistant.undoJournal） */
     const turnUndoEntries = []
 
@@ -701,6 +761,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
           ...ATTACHMENT_TOOL_DEFINITIONS,
           ...TABLE_TOOL_DEFINITIONS
         ],
+        signal: currentAbort.signal,
         // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
         onDelta: (delta) => {
           if (delta.reset) {
@@ -748,13 +809,24 @@ export const useAiChatStore = defineStore('aiChat', () => {
       }
       devLog('reply:applied', { pending: assistant.pending, contentLen: assistant.content.length })
     } catch (e) {
+      const aborted = currentAbort?.signal?.aborted
       assistant.pending = false
-      assistant.error = e instanceof Error ? e.message : String(e)
-      lastError.value = 'request'
-      devLog('reply:failed', { error: assistant.error })
+      if (aborted) {
+        // 用户主动停止：保留已流出内容，不标错误
+        assistant.content = assistant.content || assistant.reasoning || ''
+        assistant.reasoning = assistant.reasoning && assistant.content !== assistant.reasoning ? assistant.reasoning : ''
+        devLog('reply:stopped', { contentLen: assistant.content.length })
+      } else {
+        assistant.error = e instanceof Error ? e.message : String(e)
+        lastError.value = 'request'
+        devLog('reply:failed', { error: assistant.error })
+      }
     } finally {
       sending.value = false
       activeSendAttachments = []
+      currentAbort = null
+      // 有排队消息则继续发出
+      drainQueue()
     }
   }
 
@@ -791,9 +863,9 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   return {
-    config, messages, sending, lastError,
+    config, messages, sending, lastError, sendQueue,
     sessions, activeSessionId, attachments,
-    updateConfig, clearMessages, send, undoWrite,
+    updateConfig, clearMessages, send, stopStreaming, sendQueuedNow, undoWrite,
     addAttachments, removeAttachment, clearAttachments,
     newSession, switchSession, deleteSession, renameSession
   }

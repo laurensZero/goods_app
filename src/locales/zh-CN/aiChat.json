@@ -2,7 +2,12 @@
   "aiChat.description": "通过 OpenAI 兼容接口连接你自己的 AI，查询、统计、整理甚至修改收藏数据。",
   "aiChat.entryMeta": "内置 AI 聊天窗口，直连你的收藏数据",
   "aiChat.inputPlaceholder": "问问你的收藏…",
+  "aiChat.inputPlaceholderQueued": "回复中，可继续输入排队…",
   "aiChat.send": "发送",
+  "aiChat.stopGeneration": "停止生成",
+  "aiChat.queued": "已加入队列，当前回复结束后自动发送",
+  "aiChat.queueCount": "队列中 {count} 条",
+  "aiChat.sendQueuedNow": "立即发送（打断当前回复）",
   "aiChat.settingsTitle": "AI 服务设置",
   "aiChat.baseUrl": "接口地址",
   "aiChat.model": "模型名称",
@@ -54,5 +59,6 @@
   "aiChat.undoSuccess": "已撤回本轮修改",
   "aiChat.undoFailed": "撤回失败，部分数据可能已改动",
   "aiChat.undoSending": "AI 回复中，稍后再撤回",
-  "aiChat.undoDone": "本轮修改已撤回"
+  "aiChat.undoDone": "本轮修改已撤回",
+  "aiChat.jumpToBottom": "回到底部"
 }

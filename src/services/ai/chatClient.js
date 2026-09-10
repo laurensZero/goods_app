@@ -104,7 +104,7 @@ async function postJsonNative(url, headers, body) {
   }
 }
 
-async function postJsonWeb(url, headers, body) {
+async function postJsonWeb(url, headers, body, externalSignal) {
   // 浏览器直连常被 CORS 拦截：dev 下经 Vite 中间件 /ai-proxy 转发到目标地址
   const { requestUrl, headers: proxyHeaders } = toProxyRequest(url, headers)
   /** @type {Record<string, string>} */
@@ -112,6 +112,11 @@ async function postJsonWeb(url, headers, body) {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+  }
   try {
     const response = await fetch(requestUrl, {
       method: 'POST',
@@ -122,6 +127,7 @@ async function postJsonWeb(url, headers, body) {
     return await parseWebResponse(response)
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
+      if (externalSignal?.aborted) throw new DOMException('已停止生成', 'AbortError')
       throw new Error(`AI 请求超时（${HTTP_TIMEOUT_MS / 1000}s）`)
     }
     if (e instanceof TypeError) {
@@ -130,6 +136,7 @@ async function postJsonWeb(url, headers, body) {
     throw e
   } finally {
     clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -148,11 +155,17 @@ async function parseWebResponse(response) {
   }
 }
 
-/** 按运行平台选择传输：原生 CapacitorHttp 直连；Web 走 fetch（dev 经 /ai-proxy） */
-function postJson(url, headers, body) {
+/**
+ * 按运行平台选择传输：原生 CapacitorHttp 直连；Web 走 fetch（dev 经 /ai-proxy）
+ * @param {string} url
+ * @param {Record<string, string>} headers
+ * @param {unknown} body
+ * @param {AbortSignal} [signal]
+ */
+function postJson(url, headers, body, signal) {
   return Capacitor.isNativePlatform()
     ? postJsonNative(url, headers, body)
-    : postJsonWeb(url, headers, body)
+    : postJsonWeb(url, headers, body, signal)
 }
 
 /**
@@ -182,9 +195,10 @@ function toProxyRequest(url, headers) {
  * @param {Record<string, string>} headers
  * @param {unknown} body
  * @param {(delta: { reasoning?: string, content?: string, reset?: boolean }) => void} [onDelta]
+ * @param {AbortSignal} [externalSignal] 外部打断信号（用户点停止）
  * @returns {Promise<{ content: string, reasoning: string, toolCalls: Array<Record<string, any>> }>}
  */
-async function streamChatRound(url, headers, body, onDelta) {
+async function streamChatRound(url, headers, body, onDelta, externalSignal) {
   if (typeof fetch !== 'function' || typeof window === 'undefined') {
     throw new Error('当前环境不支持流式请求')
   }
@@ -192,6 +206,11 @@ async function streamChatRound(url, headers, body, onDelta) {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), STREAM_TIMEOUT_MS)
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+  }
   try {
     const response = await fetch(requestUrl, {
       method: 'POST',
@@ -269,8 +288,14 @@ async function streamChatRound(url, headers, body, onDelta) {
     }
 
     return { content, reasoning, toolCalls: toolCalls.filter(Boolean) }
+  } catch (e) {
+    if (e instanceof Error && e.name === 'AbortError' && externalSignal?.aborted) {
+      throw new DOMException('已停止生成', 'AbortError')
+    }
+    throw e
   } finally {
     clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -300,6 +325,7 @@ export function toOpenAiTools(definitions) {
  *   流式增量回调（reasoning/content 为增量片段，reset 表示放弃已流出的部分并回退非流式）；
  *   提供时优先走 SSE 流式，传输失败自动回退
  * @property {number} [maxToolRounds]
+ * @property {AbortSignal} [signal] 外部打断信号（用户点停止生成）
  */
 
 /**
@@ -308,7 +334,7 @@ export function toOpenAiTools(definitions) {
  * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>>, reasoning: string }>}
  */
 export async function runChatCompletion(options) {
-  const { config, messages, tools, executor, onStep, onDelta, maxToolRounds = MAX_TOOL_ROUNDS } = options
+  const { config, messages, tools, executor, onStep, onDelta, maxToolRounds = MAX_TOOL_ROUNDS, signal } = options
   const baseUrl = normalizeBaseUrl(config.baseUrl)
   if (!baseUrl) throw new Error('未配置 AI 接口地址')
   if (!config.model) throw new Error('未配置模型名称')
@@ -326,6 +352,7 @@ export async function runChatCompletion(options) {
   const reasoningParts = []
 
   for (let round = 0; round <= maxToolRounds; round++) {
+    if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
     const finalRound = round === maxToolRounds
     const payload = finalRound
       ? { model: config.model, messages: [...convo] }
@@ -335,12 +362,14 @@ export async function runChatCompletion(options) {
     let choice = null
     if (onDelta) {
       try {
-        const streamed = await streamChatRound(url, headers, { ...payload, stream: true }, onDelta)
+        const streamed = await streamChatRound(url, headers, { ...payload, stream: true }, onDelta, signal)
         // 流式路径手工拼 message：不回传 reasoning 字段（部分端点拒绝回显）
         choice = { role: 'assistant', content: streamed.content }
         if (streamed.toolCalls.length > 0) choice.tool_calls = streamed.toolCalls
         if (streamed.reasoning) reasoningParts.push(streamed.reasoning)
       } catch (error) {
+        // 用户主动打断：原样抛出，不回退非流式
+        if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
         if (error instanceof AiRequestError) throw error
         // CORS/网络/环境不支持流式 → 丢弃已流出片段，回退非流式
         onDelta?.({ reset: true })
@@ -348,7 +377,7 @@ export async function runChatCompletion(options) {
     }
 
     if (!choice) {
-      const data = await postJson(url, headers, payload)
+      const data = await postJson(url, headers, payload, signal)
       choice = data?.choices?.[0]?.message
       if (!choice || typeof choice !== 'object') {
         throw new Error('AI 响应格式异常：缺少 choices[0].message')

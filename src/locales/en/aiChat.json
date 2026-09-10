@@ -2,7 +2,12 @@
   "aiChat.description": "Connect your own AI via an OpenAI-compatible API to query, summarize, organize and even modify your collection.",
   "aiChat.entryMeta": "Built-in AI chat wired to your collection data",
   "aiChat.inputPlaceholder": "Ask about your collection…",
+  "aiChat.inputPlaceholderQueued": "Replying — keep typing to queue…",
   "aiChat.send": "Send",
+  "aiChat.stopGeneration": "Stop generating",
+  "aiChat.queued": "Queued — will send after this reply",
+  "aiChat.queueCount": "{count} queued",
+  "aiChat.sendQueuedNow": "Send now (interrupt current reply)",
   "aiChat.settingsTitle": "AI Service Settings",
   "aiChat.baseUrl": "API base URL",
   "aiChat.model": "Model name",
@@ -54,5 +59,6 @@
   "aiChat.undoSuccess": "Undid this turn's changes",
   "aiChat.undoFailed": "Undo failed; some data may still be changed",
   "aiChat.undoSending": "AI is still replying — try undo later",
-  "aiChat.undoDone": "Changes from this turn were undone"
+  "aiChat.undoDone": "Changes from this turn were undone",
+  "aiChat.jumpToBottom": "Jump to bottom"
 }
