@@ -22,6 +22,11 @@ import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
+import {
+  createUndoTrackingExecutor,
+  applyUndoEntries,
+  sanitizeUndoJournal
+} from '@/services/ai/writeUndo'
 import { VISION_TOOL_DEFINITIONS, createVisionToolHandlers } from '@/services/ai/visionTools'
 import { ATTACHMENT_TOOL_DEFINITIONS, createAttachmentToolHandlers } from '@/services/ai/attachmentTools'
 import { TABLE_TOOL_DEFINITIONS, createTableToolHandlers } from '@/services/ai/tableImportTools'
@@ -44,7 +49,7 @@ function buildSystemPrompt() {
   const lines = [
     `你是「谷子收纳」应用内置的 AI 助手，帮用户管理动漫/游戏周边（谷子）收藏。今天是 ${today}。`,
     '只读工具：goods_search（搜索，hasTracks: true 可筛带曲目列表的 CD/专辑）、goods_detail（详情，含图片 uri 与 CD/专辑曲目明细）、collection_overview（收藏总览）、spending_summary（按月/年消费汇总）、character_leaderboard（角色统计排行）、storage_locations（收纳位置分布）、wishlist_overview（愿望单与预算）、sale_ledger（出谷回血与盈亏）、events_list（展览活动）、event_tracks（演出/演唱会曲单）、music_lyrics（查曲目歌词）、recharge_summary（充值总览）、recharge_search（充值按项目/游戏精确统计）、budget_overview（吃谷预算与超支）；',
-    '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）、memory_save（记住/忘记用户长期偏好）；',
+    '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、recharge_update（部分更新充值）、recharge_delete（删充值）、events_add（新增活动）、events_update（部分更新活动）、events_delete（删除活动）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）、memory_save（记住/忘记用户长期偏好）；',
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
     '表格工具：table_dryrun（解析 xlsx/csv/zip 附件；官方格式返回 mode=official 快速路径，非官方 mode=structure 看结构 / mode=dryrun 带映射预演，均不写库）、table_commit（官方直接标准导入，非官方按映射批量写入；需 dryRunConfirmed: true）；',
@@ -155,7 +160,8 @@ function sanitizeSession(session) {
       ...m,
       steps: Array.isArray(m.steps) ? m.steps : [],
       reasoning: typeof m.reasoning === 'string' ? m.reasoning.slice(0, MAX_PERSISTED_REASONING) : '',
-      attachments: sanitizeAttachments(m.attachments)
+      attachments: sanitizeAttachments(m.attachments),
+      undoJournal: sanitizeUndoJournal(m.undoJournal) || undefined
     }))
   const convo = Array.isArray(session?.convo) ? session.convo.filter((m) => m && typeof m.role === 'string') : []
   sessionSeq += 1
@@ -250,6 +256,7 @@ function trimConvo(convo) {
  * @property {boolean} [pending]
  * @property {string} [error]
  * @property {ChatAttachment[]} [attachments] 用户消息附带的图片（仅展示；视觉分析须用户点名）
+ * @property {{ entries: Array<Record<string, any>>, undone: boolean }} [undoJournal] 本回合写操作撤回日志
  */
 
 export const useAiChatStore = defineStore('aiChat', () => {
@@ -544,6 +551,19 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   let executorCache = null
+  /** 本轮 send 的撤回依赖（store 实例），在 getExecutor 时创建缓存 */
+  let undoDeps = null
+  function ensureStores() {
+    if (!undoDeps) {
+      undoDeps = {
+        goodsStore: useGoodsStore(),
+        rechargeStore: useRechargeStore(),
+        eventsStore: useEventsStore()
+      }
+    }
+    return undoDeps
+  }
+
   function getExecutor() {
     if (!executorCache) {
       const goodsStore = useGoodsStore()
@@ -667,6 +687,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
     messages.value.push(assistant)
     sending.value = true
     lastError.value = ''
+    /** 本轮写操作的撤回条目（成功后挂到 assistant.undoJournal） */
+    const turnUndoEntries = []
 
     try {
       const result = await runChatCompletion({
@@ -689,25 +711,33 @@ export const useAiChatStore = defineStore('aiChat', () => {
           if (delta.reasoning) assistant.reasoning += delta.reasoning
           if (delta.content) assistant.content += delta.content
         },
-        executor: async (name, args) => {
-          /** @type {ChatMessage['steps'][number]} */
-          const step = reactive({ name, args, ok: null })
-          assistant.steps.push(step)
-          try {
-            const result = await getExecutor()(name, args)
-            step.ok = true
-            return result
-          } catch (e) {
-            step.ok = false
-            step.error = e instanceof Error ? e.message : String(e)
-            throw e
-          }
-        }
+        executor: createUndoTrackingExecutor(
+          async (name, args) => {
+            /** @type {ChatMessage['steps'][number]} */
+            const step = reactive({ name, args, ok: null })
+            assistant.steps.push(step)
+            try {
+              const result = await getExecutor()(name, args)
+              step.ok = true
+              return result
+            } catch (e) {
+              step.ok = false
+              step.error = e instanceof Error ? e.message : String(e)
+              throw e
+            }
+          },
+          // lazy：仅写工具真正执行时才拉起 recharge/events store，避免纯聊天路径加载 DB 模块
+          () => ensureStores(),
+          turnUndoEntries
+        )
       })
       devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length, reasoningLen: result.reasoning?.length || 0 })
       assistant.content = result.content
       assistant.reasoning = result.reasoning || ''
       assistant.pending = false
+      if (turnUndoEntries.length > 0) {
+        assistant.undoJournal = { entries: turnUndoEntries, undone: false }
+      }
       rawConvo = trimConvo(result.convo)
       // 立即回写到会话对象：切走再切回时上下文才不丢（不能只靠防抖持久化）
       const doneSession = activeSession()
@@ -728,10 +758,42 @@ export const useAiChatStore = defineStore('aiChat', () => {
     }
   }
 
+  /**
+   * 撤回某条助手消息里的全部写操作（按逆序）。
+   * @param {string} messageId
+   * @returns {Promise<{ ok: boolean, undone?: number, error?: string }>}
+   */
+  async function undoWrite(messageId) {
+    const msg = messages.value.find((m) => m.id === messageId && m.role === 'assistant')
+    if (!msg) return { ok: false, error: 'message-not-found' }
+    const journal = msg.undoJournal
+    if (!journal || journal.undone || !Array.isArray(journal.entries) || journal.entries.length === 0) {
+      return { ok: false, error: 'nothing-to-undo' }
+    }
+    if (sending.value) return { ok: false, error: 'sending' }
+    try {
+      const result = await applyUndoEntries(journal.entries, ensureStores())
+      // 只要有条目成功就标记整轮已撤回（部分失败的错误信息仍返回给 UI 提示）
+      if (result.undone > 0) {
+        journal.undone = true
+        persistSessionsNow()
+      }
+      if (!result.ok) {
+        return { ok: false, undone: result.undone, error: result.errors.join('；') || 'undo-partial' }
+      }
+      devLog('undo:done', { messageId, undone: result.undone })
+      return { ok: true, undone: result.undone }
+    } catch (e) {
+      const error = e instanceof Error ? e.message : String(e)
+      devLog('undo:failed', { messageId, error })
+      return { ok: false, error }
+    }
+  }
+
   return {
     config, messages, sending, lastError,
     sessions, activeSessionId, attachments,
-    updateConfig, clearMessages, send,
+    updateConfig, clearMessages, send, undoWrite,
     addAttachments, removeAttachment, clearAttachments,
     newSession, switchSession, deleteSession, renameSession
   }

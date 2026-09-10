@@ -77,6 +77,8 @@ defineExpose({ close })
   height: min(88dvh, 840px);
   color: var(--app-text);
   background: transparent;
+  /* 顶部给状态栏/刘海留安全区，底部给手势条留安全区 */
+  padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -84,6 +86,8 @@ defineExpose({ close })
    这里改成 100% 贴合该高度,避免 88dvh 撑出更大尺寸被 overflow:hidden 裁掉输入框 */
 .ai-assistant-body--tablet {
   height: 100%;
+  /* 居中弹窗不贴顶，不需要状态栏安全区 */
+  padding-top: 0;
 }
 
 .ai-assistant-head {

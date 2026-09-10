@@ -48,5 +48,11 @@
   "aiChat.attachTable": "Import table",
   "aiChat.attachTableFailed": "Failed to read table file, try again",
   "aiChat.attachTableUnsupported": "Only .csv / .xlsx / .xlsm / .tsv / .zip are supported",
-  "aiChat.attachTableTooLarge": "Table file must be under {size}"
+  "aiChat.attachTableTooLarge": "Table file must be under {size}",
+  "aiChat.undoWrite": "Undo this turn",
+  "aiChat.undoing": "Undoing…",
+  "aiChat.undoSuccess": "Undid this turn's changes",
+  "aiChat.undoFailed": "Undo failed; some data may still be changed",
+  "aiChat.undoSending": "AI is still replying — try undo later",
+  "aiChat.undoDone": "Changes from this turn were undone"
 }

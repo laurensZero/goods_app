@@ -48,5 +48,11 @@
   "aiChat.attachTable": "表をインポート",
   "aiChat.attachTableFailed": "表ファイルの読み込みに失敗しました。再試行してください",
   "aiChat.attachTableUnsupported": ".csv / .xlsx / .xlsm / .tsv / .zip のみ対応しています",
-  "aiChat.attachTableTooLarge": "表ファイルは {size} 以下にしてください"
+  "aiChat.attachTableTooLarge": "表ファイルは {size} 以下にしてください",
+  "aiChat.undoWrite": "この回の変更を取り消す",
+  "aiChat.undoing": "取り消し中…",
+  "aiChat.undoSuccess": "この回の変更を取り消しました",
+  "aiChat.undoFailed": "取り消しに失敗しました。一部のデータが変更されている可能性があります",
+  "aiChat.undoSending": "AI が返答中です。しばらくしてから取り消してください",
+  "aiChat.undoDone": "この回の変更は取り消されました"
 }

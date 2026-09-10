@@ -148,6 +148,20 @@
             <span /><span /><span />
           </div>
           <p v-if="msg.error" class="chat-error">{{ msg.error }}</p>
+          <button
+            v-if="msg.role === 'assistant' && canUndo(msg)"
+            class="chat-undo"
+            type="button"
+            :disabled="undoingId === msg.id || aiChat.sending"
+            @click="onUndoWrite(msg)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 14 4 9l5-5" />
+              <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+            </svg>
+            {{ undoingId === msg.id ? t('aiChat.undoing') : t('aiChat.undoWrite') }}
+          </button>
+          <p v-else-if="msg.role === 'assistant' && isUndone(msg)" class="chat-undo-done">{{ t('aiChat.undoDone') }}</p>
         </div>
       </div>
       <!-- 锚点必须在滚动容器 .chat-area 内部，scrollIntoView 才能滚动消息区 -->
@@ -416,6 +430,33 @@ const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel
 const maxAttachments = MAX_ATTACHMENTS
 const attachMenuOpen = ref(false)
 const tableFileInputRef = ref(null)
+/** 正在撤回中的消息 id */
+const undoingId = ref('')
+
+/** 该消息是否还有可撤回的写操作 */
+function canUndo(msg) {
+  if (msg.pending) return false
+  const journal = msg.undoJournal
+  if (!journal || journal.undone) return false
+  return Array.isArray(journal.entries) && journal.entries.length > 0
+}
+
+function isUndone(msg) {
+  return Boolean(msg.undoJournal?.undone)
+}
+
+async function onUndoWrite(msg) {
+  if (!canUndo(msg) || undoingId.value) return
+  undoingId.value = msg.id
+  try {
+    const result = await aiChat.undoWrite(msg.id)
+    if (result.ok) showToast(t('aiChat.undoSuccess'))
+    else if (result.error === 'sending') showToast(t('aiChat.undoSending'))
+    else showToast(t('aiChat.undoFailed'))
+  } finally {
+    undoingId.value = ''
+  }
+}
 
 // 会话重命名（内联编辑，同一时间只有一个条目处于编辑态）
 const editingSessionId = ref('')
@@ -1022,6 +1063,45 @@ function removeSession(id) {
   color: #ff3b30;
   font-size: 13px;
   line-height: 1.5;
+}
+
+/* 本轮写操作一键撤回 */
+.chat-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-undo:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.chat-undo:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-undo svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.chat-undo-done {
+  margin: 8px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
 }
 
 /* 打字中三点动画 */

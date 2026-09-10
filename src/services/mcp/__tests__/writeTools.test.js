@@ -228,6 +228,30 @@ it('recharge_delete 删除充值记录', async () => {
      await expect(handlers.recharge_delete({})).rejects.toThrow('id 必填')
    })
 
+   it('recharge_update 部分更新充值记录', async () => {
+     const store = createFakeStore()
+     const existing = { id: 'r1', game: '原神', amount: 648, itemName: '648 源石', chargedAt: '2026-01-01', note: '', deleted: false }
+     const rechargeStore = {
+       list: [existing],
+       updateRecord: vi.fn(async () => true)
+     }
+     const handlers = createMcpWriteToolHandlers({ goodsStore: store, rechargeStore })
+
+     const result = await handlers.recharge_update({ id: 'r1', amount: 328, itemName: '328 源石' })
+     expect(result.ok).toBe(true)
+     expect(rechargeStore.updateRecord).toHaveBeenCalledWith('r1', expect.objectContaining({
+       id: 'r1',
+       game: '原神',
+       amount: 328,
+       itemName: '328 源石'
+     }))
+
+     await expect(handlers.recharge_update({ id: 'nope', amount: 1 })).rejects.toThrow('未找到')
+     await expect(handlers.recharge_update({ id: 'r1' })).rejects.toThrow('没有可更新的字段')
+     await expect(handlers.recharge_update({ id: 'r1', amount: -1 })).rejects.toThrow('amount')
+     await expect(handlers.recharge_update({})).rejects.toThrow('id 必填')
+   })
+
    it('goods_restore 只允许恢复回收站条目', async () => {
      const store = createFakeStore()
      const handlers = createMcpWriteToolHandlers({ goodsStore: store })
