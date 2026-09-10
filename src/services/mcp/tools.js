@@ -227,10 +227,36 @@ const HOME_EXCLUDED_STATUSES = new Set(['已赠出', '已出', '丢失'])
  *   convertToCNY 做币种换算。缺省时回退到原始字段的粗略估算（仅单测使用）。
  * @param {{ read?: () => Promise<{ monthly: number, yearly: number }> }} [budgetApi]
  *   吃谷预算读取注入（见 utils/goods/budget.js）；缺省视为未设置预算。
+ * @param {{ resolveDisplayUri?: (uri: string) => Promise<string> | string }} [imageOptions]
+ *   图片展示 URI 解析：cloud-image:// → 公开可访问 URL，避免把内部引用丢给模型。
  */
-export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
+export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, imageOptions = null) {
   const { getItems, getTrashedItems, getEvents, getRechargeRecords } = dbApi
   const { enrichItems = null, convertToCNY = null } = money
+  const resolveDisplayUri = typeof imageOptions?.resolveDisplayUri === 'function'
+    ? imageOptions.resolveDisplayUri
+    : null
+
+  /**
+   * 工具结果里的图片 URI 必须是模型可直接嵌入 markdown 的地址：
+   * - cloud-image:// 交给 resolveDisplayUri 换成公开 URL（失败则保持原样）
+   * - data:/http(s)/本地 WebView 路径原样返回
+   * @param {string} uri
+   */
+  async function toDisplayImageUri(uri) {
+    const value = asText(uri).trim()
+    if (!value || !resolveDisplayUri) return value
+    const isCloudRef = value.startsWith('cloud-image://') || value.startsWith('gist-image://')
+    if (!isCloudRef && (value.startsWith('data:') || value.startsWith('http://') || value.startsWith('https://'))) {
+      return value
+    }
+    try {
+      const resolved = await resolveDisplayUri(value)
+      return asText(resolved).trim() || value
+    } catch {
+      return value
+    }
+  }
 
   async function loadEnrichedItems() {
     const items = await getItems()
@@ -343,15 +369,17 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
     if (!item) throw new Error(`未找到 id 为 ${id} 的条目（可能已被彻底删除）`)
 
     const statusTimeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
-    // 图片 uri 本身就是 WebView/远程可直接展示的地址，AI 可用 ![描述](uri) 嵌进回复
-    const images = normalizeGoodsImageList(item.images)
-      .slice(0, 12)
-      .map((image) => ({
-        uri: image.uri,
-        label: image.label,
-        kind: image.kind,
-        isPrimary: image.isPrimary
-      }))
+    // 图片 uri 解析成 WebView/远程可直接展示的地址，AI 用 ![描述](uri) 嵌进回复
+    const images = (await Promise.all(
+      normalizeGoodsImageList(item.images)
+        .slice(0, 12)
+        .map(async (image) => ({
+          uri: await toDisplayImageUri(image.uri),
+          label: image.label,
+          kind: image.kind,
+          isPrimary: image.isPrimary
+        }))
+    )).filter((image) => image.uri)
     return {
       ...goodsListItem(item, convertToCNY),
       trashed: Boolean(item.trashed),
@@ -576,14 +604,16 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
         tags: Array.isArray(event.tags) ? event.tags : [],
         description: truncate(event.description),
         photosCount: trackListOf(event.photos).length,
-        // 照片 uri 为 WebView/远程可直接展示的地址，AI 可用 ![描述](uri) 嵌进回复
-        photos: trackListOf(event.photos)
-          .slice(0, 12)
-          .map((photo) => ({
-            uri: asText(typeof photo === 'string' ? photo : photo?.uri).trim(),
-            caption: asText(typeof photo === 'string' ? '' : photo?.caption).trim()
-          }))
-          .filter((photo) => photo.uri),
+        // 照片 uri 解析成可直接展示的地址；cloud-image:// 在此换成公开 URL，
+        // 避免模型把内部引用「脑补」成错误的 Supabase 链接
+        photos: (await Promise.all(
+          trackListOf(event.photos)
+            .slice(0, 12)
+            .map(async (photo) => ({
+              uri: await toDisplayImageUri(typeof photo === 'string' ? photo : photo?.uri),
+              caption: asText(typeof photo === 'string' ? '' : photo?.caption).trim()
+            }))
+        )).filter((photo) => photo.uri),
         linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
         tracksSummary: trackSummary(view),
         ...(includeTracks ? { tracks: view } : {})

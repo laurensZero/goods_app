@@ -668,4 +668,43 @@ describe('mcp tool handlers', () => {
     expect(byCurrency.JPY).toBe(10)
     expect(byCurrency.CNY).toBe(40)
   })
+
+  it('event_photos / goods images 的 cloud-image:// 经 resolveDisplayUri 换成公开 URL', async () => {
+    const db = createFakeDb()
+    const baseItems = await db.getItems()
+    db.getItems = vi.fn(async () => [{
+      ...baseItems[0],
+      images: [{ id: 'i1', uri: 'cloud-image://goods-image__g1__i1__1.jpg', isPrimary: true }]
+    }])
+    const events = await db.getEvents()
+    events[0].photos = [{ uri: 'cloud-image://event-photo__e1__p2__1.jpg', caption: '舞台' }]
+
+    const handlers = createMcpToolHandlers(db, {}, null, {
+      resolveDisplayUri: async (uri) => {
+        if (uri.startsWith('cloud-image://')) {
+          return `https://cdn.example/${uri.slice('cloud-image://'.length)}`
+        }
+        return uri
+      }
+    })
+
+    const goods = await handlers.goods_detail({ id: 'g1' })
+    expect(goods.images[0].uri).toBe('https://cdn.example/goods-image__g1__i1__1.jpg')
+
+    const tracks = await handlers.event_tracks({ eventId: 'e1' })
+    expect(tracks.events[0].photos[0].uri).toBe('https://cdn.example/event-photo__e1__p2__1.jpg')
+  })
+
+  it('已存储的完整公开 URL 原样返回，不二次改写', async () => {
+    const publicUrl = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/event-photos/uid/event-photo__1__photo_1__1.jpg'
+    const db = createFakeDb()
+    const events = await db.getEvents()
+    events[0].photos = [{ uri: publicUrl, caption: '' }]
+    const resolveDisplayUri = vi.fn(async (uri) => `https://rewritten.example/${uri}`)
+
+    const handlers = createMcpToolHandlers(db, {}, null, { resolveDisplayUri })
+    const tracks = await handlers.event_tracks({ eventId: 'e1' })
+    expect(tracks.events[0].photos[0].uri).toBe(publicUrl)
+    expect(resolveDisplayUri).not.toHaveBeenCalled()
+  })
 })

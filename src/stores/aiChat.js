@@ -15,6 +15,7 @@ import { readBudgetSettings, writeBudgetSettings } from '@/utils/goods/budget'
 import { loadUserMemories } from '@/utils/ai/userMemory'
 import router from '@/router'
 import * as db from '@/utils/db'
+import { parseCloudImageUri } from '@/utils/goods/images'
 import { createMcpToolHandlers } from '@/services/mcp/tools'
 import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
@@ -55,6 +56,7 @@ function buildSystemPrompt() {
     '- 充值统计：问某个项目/游戏的具体充值（如「空月祝福一共买了几张」「原神去年充了多少」）→ recharge_search（按 game/itemName/year 过滤并用 byItem/byMonth 回答），不要只靠 recharge_summary 的总览猜；总览/按年分布 → recharge_summary；',
     '- 图片：用户想看某件谷子的图/在回复里展示图片时 → goods_detail 返回的 images 数组里有可直接展示的 uri，用 ![描述](uri) 嵌入回复（最多 2-3 张，coverUrl 是主图）；看演出/活动的现场照片 → event_tracks 的 photos，同样用 ![描述](uri) 嵌入；',
     '- 图片 URL 铁律：嵌入回复的图片/照片 URL 必须从工具结果里逐字符原样复制，严禁凭记忆重写、拼接或编造——URL 里任何一段文件名写错都会变成打不开的死链；',
+    '- 禁止自行拼接 Supabase/Storage 公开链接（不要用项目域名、userId、文件名拼 URL）。uri 只能原样使用；若 uri 不是 http://、https://、data: 开头（例如 cloud-image:// 或本地路径），不要改写成完整外链，可直接把工具返回的 uri 放进 ![描述](uri)，或说明「请在应用内查看本机图片」；',
     '- 视觉（vision_analyze）铁律：用户消息末尾的「[附件图片: n|att:…]」只表示随消息附带了图片，绝不自动分析；只有用户明确要求查看/识别/描述/分析图片内容（如「帮我看看这张」「图上是什么角色」「识别一下包装文字」）时才调用 vision_analyze。用户只发图不说话、或问的是收藏统计/记账等问题时禁止调用。image 参数：附件图填序号（"1"、"2"…）或标记里的 att:<id>；也可以填 goods_detail/event_tracks 返回的图片 uri、http(s) 链接或 cloud-image:// 链接。question 用用户的具体问题，没有则留空由模型客观描述。vision_analyze 报错/空回复时如实告知用户「当前视觉模型无法分析这张图」，并建议在设置中更换支持图片输入的视觉模型，不要连续空转重试。',
     '- 附件应用（attachment_apply）：用户要求把聊天里上传的图片设为谷子图/活动封面/活动照片（如「把这张加到吧唧上」「设为这次漫展的封面」「加一张现场照片」）→ attachment_apply，不需要 vision_analyze。target=goods_image（id 来自 goods_search，kind 默认 primary 设主图）、event_cover / event_photo（id 来自 events_list）。先确认目标条目 id 再写入；写完后在回复里说明已挂到哪条。',
     '- 预算：「这个月/今年预算还剩多少」「哪个月/哪年超了」→ budget_overview（0=未设置）；用户要改预算 → budget_set（monthly/yearly，0=清除），改完可建议去统计页看预算线与超支标红；',
@@ -495,7 +497,20 @@ export const useAiChatStore = defineStore('aiChat', () => {
   function getExecutor() {
     if (!executorCache) {
       const goodsStore = useGoodsStore()
-      const readHandlers = createMcpToolHandlers(db, createMoneyEnrichers())
+      const readHandlers = createMcpToolHandlers(db, createMoneyEnrichers(), null, {
+        // cloud-image:// → 公开可访问 URL（先热缓存解析真实存储路径，避免拼出 404）
+        resolveDisplayUri: async (uri) => {
+          const value = String(uri || '').trim()
+          if (!value) return value
+          if (value.startsWith('cloud-image://') || value.startsWith('gist-image://')) {
+            const fileName = parseCloudImageUri(value)
+            if (!fileName) return value
+            const publicUrl = await useSyncStore().getPublicImageURL(fileName)
+            return publicUrl || value
+          }
+          return value
+        }
+      })
       const writeHandlers = createMcpWriteToolHandlers({
         goodsStore,
         presetsStore: usePresetsStore(),
