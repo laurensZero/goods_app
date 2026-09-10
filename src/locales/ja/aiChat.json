@@ -8,6 +8,8 @@
   "aiChat.queued": "キューに追加しました。この返答の後に送信されます",
   "aiChat.queueCount": "キュー {count} 件",
   "aiChat.sendQueuedNow": "今すぐ送信（この返答を中断）",
+  "aiChat.askManualPlaceholder": "または回答を入力…",
+  "aiChat.askManualSend": "回答を送信",
   "aiChat.settingsTitle": "AI サービス設定",
   "aiChat.baseUrl": "API ベース URL",
   "aiChat.model": "モデル名",

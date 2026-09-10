@@ -8,6 +8,8 @@
   "aiChat.queued": "대기열에 추가되었습니다. 이번 답변 후 전송됩니다",
   "aiChat.queueCount": "대기열 {count}개",
   "aiChat.sendQueuedNow": "지금 보내기 (현재 답변 중단)",
+  "aiChat.askManualPlaceholder": "또는 답을 입력…",
+  "aiChat.askManualSend": "답변 제출",
   "aiChat.settingsTitle": "AI 서비스 설정",
   "aiChat.baseUrl": "API 주소",
   "aiChat.model": "모델 이름",

@@ -13,6 +13,9 @@ import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
+import { searchNeteaseSongs } from '../../utils/neteaseMusic'
+import { searchQQSongs } from '../../utils/qqMusic'
+import { searchBilibiliVideos } from '../../utils/bilibiliMusic'
 
 /**
  * @typedef {Object} McpDbApi
@@ -700,6 +703,79 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
   }
 
   /**
+   * 在线搜歌：网易云 / QQ / Bilibili 三源可选，返回统一 track 形状。
+   * 供 event_tracks_manage add 时取 neteaseSongId / qqSongId / bilibiliVideoId。
+   * @param {Record<string, any>} args
+   */
+  async function musicSearch(args) {
+    const keyword = asText(args.keyword).trim()
+    if (!keyword) throw new Error('keyword 必填')
+    const source = asText(args.source).trim() || 'all'
+    const limit = Math.min(20, Math.max(1, asInt(args.limit) || 8))
+
+    /** @type {Array<{ source: string, items: any[] }>} */
+    const results = []
+    const errors = []
+
+    const safeSearch = async (name, fn) => {
+      try {
+        const items = await fn()
+        results.push({ source: name, items })
+      } catch (e) {
+        errors.push({ source: name, error: e instanceof Error ? e.message : String(e) })
+      }
+    }
+
+    if (source === 'all' || source === 'netease') {
+      await safeSearch('netease', async () => {
+        const songs = await searchNeteaseSongs(keyword, limit)
+        return songs.slice(0, limit).map(viewMusicSearchHit)
+      })
+    }
+    if (source === 'all' || source === 'qq') {
+      await safeSearch('qq', async () => {
+        const songs = await searchQQSongs(keyword, limit)
+        return songs.slice(0, limit).map(viewMusicSearchHit)
+      })
+    }
+    if (source === 'all' || source === 'bilibili') {
+      await safeSearch('bilibili', async () => {
+        const videos = await searchBilibiliVideos(keyword, limit)
+        return videos.slice(0, limit).map(viewMusicSearchHit)
+      })
+    }
+
+    const total = results.reduce((sum, group) => sum + group.items.length, 0)
+    if (total === 0 && errors.length > 0) {
+      throw new Error(`搜索失败：${errors.map((e) => `${e.source}: ${e.error}`).join('；')}`)
+    }
+    return {
+      keyword,
+      requestedSource: source,
+      total,
+      sources: results,
+      ...(errors.length ? { partialErrors: errors } : {}),
+      hint: '挑一首与用户意图匹配的，把对应 songId/videoId 填入 event_tracks_manage 的 tracks 数组；拿不准选哪首时先问用户。'
+    }
+  }
+
+  /**
+   * @param {Record<string, any>} track
+   */
+  function viewMusicSearchHit(track) {
+    return {
+      title: asText(track?.title).trim(),
+      artist: asText(track?.artist).trim(),
+      album: asText(track?.album).trim(),
+      durationMs: Math.max(0, Number(track?.durationMs) || 0),
+      source: asText(track?.source).trim(),
+      ...(asText(track?.neteaseSongId).trim() ? { neteaseSongId: asText(track?.neteaseSongId).trim() } : {}),
+      ...(asText(track?.qqSongId).trim() ? { qqSongId: asText(track?.qqSongId).trim() } : {}),
+      ...(asText(track?.bilibiliVideoId).trim() ? { bilibiliVideoId: asText(track?.bilibiliVideoId).trim() } : {})
+    }
+  }
+
+  /**
    * @param {Record<string, any>} args
    */
   async function rechargeSummary(args) {
@@ -1213,6 +1289,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     events_list: eventsList,
     event_tracks: eventTracks,
     music_lyrics: musicLyrics,
+    music_search: musicSearch,
     recharge_summary: rechargeSummary,
     recharge_search: rechargeSearch,
     budget_overview: budgetOverview

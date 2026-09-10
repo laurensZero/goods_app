@@ -8,6 +8,8 @@
   "aiChat.queued": "Queued — will send after this reply",
   "aiChat.queueCount": "{count} queued",
   "aiChat.sendQueuedNow": "Send now (interrupt current reply)",
+  "aiChat.askManualPlaceholder": "Or type your answer…",
+  "aiChat.askManualSend": "Submit answer",
   "aiChat.settingsTitle": "AI Service Settings",
   "aiChat.baseUrl": "API base URL",
   "aiChat.model": "Model name",

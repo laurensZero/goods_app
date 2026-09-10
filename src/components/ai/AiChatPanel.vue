@@ -139,8 +139,44 @@
             v-html="getRenderedMarkdown(msg)"
           />
           <p v-else-if="msg.content" class="chat-text">{{ getMessageText(msg) }}</p>
+          <!-- ask_user：选项一行一个，也可手动输入答案 -->
+          <div v-if="msg.role === 'assistant' && msg.pendingAsk" class="chat-ask">
+            <p class="chat-ask__question">{{ msg.pendingAsk.question }}</p>
+            <div v-if="msg.pendingAsk.options?.length" class="chat-ask__options">
+              <button
+                v-for="option in msg.pendingAsk.options"
+                :key="option"
+                type="button"
+                class="chat-ask__option"
+                @click="aiChat.answerAskUser(option)"
+              >
+                {{ option }}
+              </button>
+            </div>
+            <div class="chat-ask__manual">
+              <input
+                v-model="askDraft"
+                class="chat-ask__input"
+                type="text"
+                :placeholder="t('aiChat.askManualPlaceholder')"
+                @keydown.enter="submitAskManual(msg)"
+              />
+              <button
+                type="button"
+                class="chat-ask__manual-send"
+                :disabled="!askDraft.trim()"
+                :aria-label="t('aiChat.askManualSend')"
+                @click="submitAskManual(msg)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M5 12h14" />
+                  <path d="M13 6l6 6-6 6" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div
-            v-if="msg.role === 'assistant' && msg.pending && !msg.content && msg.steps.length === 0 && !msg.reasoning"
+            v-if="msg.role === 'assistant' && msg.pending && !msg.content && msg.steps.length === 0 && !msg.reasoning && !msg.pendingAsk"
             class="chat-typing"
             role="status"
             :aria-label="t('aiChat.thinking')"
@@ -794,6 +830,16 @@ function sendQueuedNow(id) {
   aiChat.sendQueuedNow(id)
 }
 
+/** ask_user 手动输入草稿 */
+const askDraft = ref('')
+/** @param {any} msg */
+function submitAskManual(msg) {
+  const text = askDraft.value.trim()
+  if (!text || !msg?.pendingAsk) return
+  askDraft.value = ''
+  aiChat.answerAskUser(text)
+}
+
 /**
  * 从相册选图：仅挂到待发附件区，不自动触发视觉分析。
  * 用户明确要求「看看这张」后，模型才会调用 vision_analyze。
@@ -1256,6 +1302,105 @@ function removeSession(id) {
 
 .chat-typing span:nth-child(2) { animation-delay: 0.15s; }
 .chat-typing span:nth-child(3) { animation-delay: 0.3s; }
+
+/* ── ask_user 提问：选项一行一个 + 手动输入 ── */
+.chat-ask {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--app-border);
+}
+
+.chat-ask__question {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  line-height: 1.45;
+}
+
+.chat-ask__options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-ask__option {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.chat-ask__option:hover {
+  border-color: color-mix(in srgb, var(--app-text) 30%, transparent);
+}
+
+.chat-ask__option:active {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-ask__manual {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.chat-ask__input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.chat-ask__input:focus {
+  border-color: color-mix(in srgb, var(--app-text) 40%, transparent);
+}
+
+.chat-ask__input::placeholder {
+  color: var(--app-text-tertiary);
+}
+
+.chat-ask__manual-send {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: 50%;
+  background: #141416;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.chat-ask__manual-send:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.chat-ask__manual-send:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.chat-ask__manual-send svg {
+  width: 16px;
+  height: 16px;
+}
 
 /* 思维链折叠块（默认收起，点击展开） */
 .chat-think-toggle {

@@ -797,6 +797,74 @@ export function createMcpWriteToolHandlers({
      },
 
      /**
+      * 管理演出曲单：add 追加 / remove 删除单曲。
+      * @param {Record<string, any>} args
+      */
+     async event_tracks_manage(args) {
+       if (!eventsStore) throw new Error('活动模块不可用')
+       const action = String(args?.action || '').trim()
+       if (!['add', 'remove'].includes(action)) throw new Error('action 需为 add/remove')
+       const eventId = String(args?.eventId || '').trim()
+       if (!eventId) throw new Error('eventId 必填')
+       const existing = listOf(eventsStore.list).find((item) => item?.id === eventId && !item?.deleted)
+       if (!existing) throw new Error(`未找到 id 为 ${eventId} 的活动`)
+       const currentTracks = Array.isArray(existing.tracks) ? [...existing.tracks] : []
+
+       if (action === 'add') {
+         const input = Array.isArray(args?.tracks) ? args.tracks : []
+         if (input.length === 0) throw new Error('tracks 需为非空数组')
+         const newTracks = input.map((raw, i) => {
+           const title = String(raw?.title || '').trim()
+           if (!title) throw new Error(`第 ${i + 1} 首缺少 title（歌名）`)
+           const source = String(raw?.source || '').trim()
+             || (raw?.neteaseSongId ? 'netease' : raw?.qqSongId ? 'qq' : raw?.bilibiliVideoId ? 'bilibili' : 'manual')
+           return {
+             id: `track_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 6)}`,
+             title,
+             artist: String(raw?.artist || '').trim(),
+             album: String(raw?.album || '').trim(),
+             coverUrl: String(raw?.coverUrl || '').trim(),
+             durationMs: Math.max(0, Number(raw?.durationMs) || 0),
+             source,
+             neteaseSongId: String(raw?.neteaseSongId || '').trim(),
+             qqSongId: String(raw?.qqSongId || '').trim(),
+             bilibiliVideoId: String(raw?.bilibiliVideoId || '').trim(),
+             lyricSource: String(raw?.lyricSource || '').trim(),
+             lyricSongId: String(raw?.lyricSongId || '').trim()
+           }
+         })
+         const nextTracks = [...currentTracks, ...newTracks]
+         await eventsStore.updateEventRecord(eventId, { ...existing, tracks: nextTracks, id: eventId })
+         return {
+           ok: true,
+           action: 'add',
+           eventId,
+           added: newTracks.length,
+           totalTracks: nextTracks.length,
+           addedTracks: newTracks.map((t) => ({ id: t.id, title: t.title, source: t.source })),
+           ...(newTracks.some((t) => t.source === 'manual')
+             ? { hint: '部分曲目为手动录入（source=manual），应用内无法在线播放；若要可播放请先 music_search 再带 songId 追加。' }
+             : {})
+         }
+       }
+
+       // remove
+       const trackId = String(args?.trackId || '').trim()
+       if (!trackId) throw new Error('trackId 必填（来自 event_tracks 的曲目明细）')
+       const idx = currentTracks.findIndex((t) => String(t?.id || '').trim() === trackId)
+       if (idx < 0) throw new Error(`曲单里未找到 id 为 ${trackId} 的曲目`)
+       const [removed] = currentTracks.splice(idx, 1)
+       await eventsStore.updateEventRecord(eventId, { ...existing, tracks: currentTracks, id: eventId })
+       return {
+         ok: true,
+         action: 'remove',
+         eventId,
+         removed: { id: removed?.id, title: removed?.title },
+         totalTracks: currentTracks.length
+       }
+     },
+
+     /**
       * 应用信息与更新检查（checkUpdate: true 才联网检查）。
       * @param {Record<string, any>} args
       */

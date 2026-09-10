@@ -418,6 +418,79 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
     })
   })
 
+  describe('event_tracks_manage', () => {
+    function createFakeEventsStore(initial = []) {
+      const list = [...initial]
+      return {
+        list,
+        updateEventRecord: vi.fn(async (id, data) => {
+          const idx = list.findIndex((e) => e.id === id)
+          if (idx >= 0) list[idx] = { ...list[idx], ...data }
+          return id
+        })
+      }
+    }
+
+    it('add：追加曲目并写入 songId，返回新增列表', async () => {
+      const eventsStore = createFakeEventsStore([
+        { id: 'e1', name: '演唱会', tracks: [{ id: 't0', title: '开场曲' }] }
+      ])
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore })
+
+      const result = await handlers.event_tracks_manage({
+        action: 'add',
+        eventId: 'e1',
+        tracks: [
+          { title: 'Melt', artist: '初音未来', source: 'netease', neteaseSongId: 'n123' },
+          { title: '手写曲' }
+        ]
+      })
+
+      expect(result.ok).toBe(true)
+      expect(result.added).toBe(2)
+      expect(result.totalTracks).toBe(3)
+      expect(result.addedTracks[0]).toMatchObject({ title: 'Melt', source: 'netease' })
+      expect(result.addedTracks[1]).toMatchObject({ title: '手写曲', source: 'manual' })
+      expect(result.hint).toContain('manual')
+
+      const saved = eventsStore.updateEventRecord.mock.calls[0][1]
+      expect(saved.tracks).toHaveLength(3)
+      expect(saved.tracks[1]).toMatchObject({ title: 'Melt', neteaseSongId: 'n123', source: 'netease' })
+    })
+
+    it('add：缺 title / 空数组 / 未知活动时报错', async () => {
+      const eventsStore = createFakeEventsStore([{ id: 'e1', name: '演唱会', tracks: [] }])
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore })
+
+      await expect(handlers.event_tracks_manage({ action: 'add', eventId: 'e1', tracks: [] })).rejects.toThrow('非空数组')
+      await expect(handlers.event_tracks_manage({ action: 'add', eventId: 'e1', tracks: [{ artist: 'x' }] })).rejects.toThrow('title')
+      await expect(handlers.event_tracks_manage({ action: 'add', eventId: 'nope', tracks: [{ title: 'a' }] })).rejects.toThrow('未找到')
+      expect(eventsStore.updateEventRecord).not.toHaveBeenCalled()
+    })
+
+    it('remove：按 trackId 删除单曲', async () => {
+      const eventsStore = createFakeEventsStore([
+        { id: 'e1', name: '演唱会', tracks: [{ id: 't1', title: 'A' }, { id: 't2', title: 'B' }] }
+      ])
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore })
+
+      const result = await handlers.event_tracks_manage({ action: 'remove', eventId: 'e1', trackId: 't1' })
+      expect(result.ok).toBe(true)
+      expect(result.removed).toMatchObject({ id: 't1', title: 'A' })
+      expect(result.totalTracks).toBe(1)
+      expect(eventsStore.updateEventRecord.mock.calls[0][1].tracks).toHaveLength(1)
+
+      await expect(handlers.event_tracks_manage({ action: 'remove', eventId: 'e1', trackId: 'nope' })).rejects.toThrow('未找到')
+      await expect(handlers.event_tracks_manage({ action: 'remove', eventId: 'e1' })).rejects.toThrow('trackId')
+    })
+
+    it('action 非法时校验', async () => {
+      const eventsStore = createFakeEventsStore([{ id: 'e1', tracks: [] }])
+      const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore(), eventsStore })
+      await expect(handlers.event_tracks_manage({ action: 'clear', eventId: 'e1' })).rejects.toThrow('add/remove')
+    })
+  })
+
   describe('应用动作工具', () => {
     /** @returns {any} */
     function createFakeActionStores() {
