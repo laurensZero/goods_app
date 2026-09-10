@@ -131,10 +131,15 @@ export function createAttachmentToolHandlers({ getAttachments, resolveSource, go
     const list = listOf(eventsStore.list)
     const event = list.find((entry) => String(entry?.id || '') === id)
     if (!event) throw new Error(`未找到 id 为 ${id} 的活动`)
+    if (!image.uri) throw new Error('附件没有可写入的图片地址（请用 att:<id> 引用聊天附件）')
     const caption = String(args?.caption || '').trim()
-    const photo = caption
-      ? { id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, uri: image.uri, caption }
-      : image.uri
+    // 始终写对象：详情页/预览只认 photo.uri，裸字符串会静默不显示
+    const photo = {
+      id: `photo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      uri: image.uri,
+      caption
+    }
+    if (image.localPath) photo.localPath = image.localPath
     const photos = Array.isArray(event.photos) ? [...event.photos, photo] : [photo]
     await eventsStore.updateEventRecord(id, { photos })
     return { ok: true, target: 'event_photo', id, photoCount: photos.length }

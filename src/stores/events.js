@@ -194,16 +194,24 @@ export const useEventsStore = defineStore('events', () => {
     if (index === -1) return null
 
     const previous = list.value[index]
+    const hasOwn = (/** @type {string} */ key) => Object.prototype.hasOwnProperty.call(data || {}, key)
     const normalizedData = {
-      ...data,
-      tracks: normalizeTracks(data?.tracks),
-      otherExpenses: normalizeOtherExpenses(data?.otherExpenses)
+      ...data
     }
+    // 部分更新（如 attachment_apply 只传 photos）不得把未传的数组字段清空
+    if (hasOwn('tracks')) normalizedData.tracks = normalizeTracks(data?.tracks)
+    if (hasOwn('otherExpenses')) normalizedData.otherExpenses = normalizeOtherExpenses(data?.otherExpenses)
     const nextStartDate = String(normalizedData.startDate ?? previous.startDate ?? '').trim()
     const nextEndDate = String(normalizedData.endDate ?? previous.endDate ?? '').trim()
-    normalizedData.dayTicketList = normalizeDayTicketList(data?.dayTicketList, nextStartDate, nextEndDate)
-    const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, nextStartDate, nextEndDate)
-    if (dayTicketTotal) normalizedData.ticketPrice = dayTicketTotal
+    if (hasOwn('dayTicketList') || hasOwn('startDate') || hasOwn('endDate')) {
+      normalizedData.dayTicketList = normalizeDayTicketList(
+        hasOwn('dayTicketList') ? data?.dayTicketList : previous.dayTicketList,
+        nextStartDate,
+        nextEndDate
+      )
+      const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, nextStartDate, nextEndDate)
+      if (dayTicketTotal) normalizedData.ticketPrice = dayTicketTotal
+    }
 
     // The cloud filename belongs to the specific cover image.  The event
     // editor only submits coverImage, so retain the metadata for an

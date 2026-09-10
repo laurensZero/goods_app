@@ -4,16 +4,16 @@
       <div class="photo-grid">
         <button
           v-for="(photo, index) in photos"
-          :key="(photo.cloudFileName || photo.id) || index"
+          :key="photoKey(photo, index)"
           type="button"
           class="photo-grid__item"
           @click="$emit('preview', index)"
         >
           <LazyCachedImage
-            v-if="photo.uri && !suspend"
-            :src="photo.uri"
+            v-if="photoUri(photo) && !suspend"
+            :src="photoUri(photo)"
             :thumb-max-size="THUMB_MAX_SIZE"
-            :alt="photo.caption || t('events.photoAlt', { index: index + 1 })"
+            :alt="photoAlt(photo) || t('events.photoAlt', { index: index + 1 })"
             root-margin="120px 0px"
             loading="lazy"
             decoding="async"
@@ -58,6 +58,20 @@ defineEmits(['preview'])
 // 缩略图由本地解码原图降采样生成并持久缓存（utils/image/thumb），
 // 原图留给点开大图预览时再解码；生成失败时自动回退原图。
 const THUMB_MAX_SIZE = PHOTO_THUMB_MAX_SIZE
+
+/** 兼容历史数据：photos 项可能是裸 URI 字符串或对象 */
+function photoUri(photo) {
+  return typeof photo === 'string' ? photo : (photo?.uri || '')
+}
+
+function photoAlt(photo) {
+  return typeof photo === 'string' ? '' : (photo?.caption || '')
+}
+
+function photoKey(photo, index) {
+  if (typeof photo === 'string') return photo || index
+  return photo?.cloudFileName || photo?.id || index
+}
 
 const scrollRef = ref(null)
 const thumbWidthPct = ref(0)

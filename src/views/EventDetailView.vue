@@ -702,7 +702,9 @@ watch(trackSectionExpanded, (value) => {
 
 function openPhotoPreview(index) {
   const photos = event.value?.photos || []
-  if (!photos[index]?.uri) return
+  const photo = photos[index]
+  const uri = typeof photo === 'string' ? photo : photo?.uri
+  if (!uri) return
   previewPhotoIndex.value = index
 }
 

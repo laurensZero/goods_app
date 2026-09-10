@@ -57,7 +57,12 @@ function buildSystemPrompt(options = {}) {
     '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
     '表格工具：table_dryrun（解析 xlsx/csv/zip 附件；官方格式返回 mode=official 快速路径，非官方 mode=structure 看结构 / mode=dryrun 带映射预演，均不写库）、table_commit（官方直接标准导入，非官方按映射批量写入；需 dryRunConfirmed: true）；',
     ...(hasWebSearch
-      ? ['联网工具：web_search（Tavily 搜索）；仅在需要训练数据之外或有时效性的信息时调用（新番播出、谷子发售/再版、市价行情、冷门作品设定、近期活动），常识性术语不要搜；结果含 title/url/content，回答时附 1-2 个最相关来源链接；']
+      ? [
+        '联网工具：web_search（Tavily 搜索）；仅在需要训练数据之外或有时效性的信息时调用（新番播出、谷子发售/再版、市价行情、冷门作品设定、近期活动），常识性术语不要搜。' +
+        '配额铁律：同一轮回复最多调用 1 次 web_search，最多不超过 2 次；禁止为同一问题连续多轮搜索、禁止拆成多个关键词反复搜。' +
+        '第一次搜索就把关键词写全（作品中文名+年份/类型等），拿到结果后直接整理回答；结果不够就说明局限，不要重搜。' +
+        '结果含 title/url/content，回答时附 1-2 个最相关来源链接。'
+      ]
       : []),
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
@@ -72,7 +77,7 @@ function buildSystemPrompt(options = {}) {
     '- 图片 URL 铁律：嵌入回复的图片/照片 URL 必须从工具结果里逐字符原样复制，严禁凭记忆重写、拼接或编造——URL 里任何一段文件名写错都会变成打不开的死链；',
     '- 禁止自行拼接 Supabase/Storage 公开链接（不要用项目域名、userId、文件名拼 URL）。uri 只能原样使用；若 uri 不是 http://、https://、data: 开头（例如 cloud-image:// 或本地路径），不要改写成完整外链，可直接把工具返回的 uri 放进 ![描述](uri)，或说明「请在应用内查看本机图片」；',
     '- 视觉（vision_analyze）铁律：用户消息末尾的「[附件图片: n|att:…]」只表示随消息附带了图片，绝不自动分析；只有用户明确要求查看/识别/描述/分析图片内容（如「帮我看看这张」「图上是什么角色」「识别一下包装文字」）时才调用 vision_analyze。用户只发图不说话、或问的是收藏统计/记账等问题时禁止调用。image 参数：附件图填序号（"1"、"2"…）或标记里的 att:<id>；也可以填 goods_detail/event_tracks 返回的图片 uri、http(s) 链接或 cloud-image:// 链接。question 用用户的具体问题，没有则留空由模型客观描述。vision_analyze 报错/空回复时如实告知用户「当前视觉模型无法分析这张图」，并建议在设置中更换支持图片输入的视觉模型，不要连续空转重试。',
-    '- 附件应用（attachment_apply）：用户要求把聊天里上传的图片设为谷子图/活动封面/活动照片（如「把这张加到吧唧上」「设为这次漫展的封面」「加一张现场照片」）→ attachment_apply，不需要 vision_analyze。target=goods_image（id 来自 goods_search，kind 默认 primary 设主图）、event_cover / event_photo（id 来自 events_list）。先确认目标条目 id 再写入；写完后在回复里说明已挂到哪条。',
+    '- 附件应用（attachment_apply）：用户要求把聊天里上传的图片设为谷子图/活动封面/活动照片（如「把这张加到吧唧上」「设为这次漫展的封面」「加一张现场照片」）→ attachment_apply，不需要 vision_analyze。target=goods_image（id 来自 goods_search，kind 默认 primary 设主图）、event_cover / event_photo（id 来自 events_list）。image 优先用消息标记里的 att:<id>（本轮附件也可用序号 "1"；历史附件只能用 att:<id>）。先确认目标条目 id 再写入；写完后在回复里说明已挂到哪条。',
     '- 表格导入铁律：用户消息末尾的「[附件表格: n|att:…]」表示随消息附带了表格附件（xlsx/csv/zip），绝不自动分析或导入；只有用户明确要求导入表格数据时才调用 table_dryrun。' +
       ' 若 table_dryrun 返回 mode=official（应用官方导出格式，按表头识别，覆盖谷子/活动/充值/预设等）：这是快速路径——无需字段映射、无需逐列询问，只需向用户简要说明将导入的条数与类型，用户同意后直接 table_commit（dryRunConfirmed: true，可不传 mapping）。' +
       ' 若 mode=structure（非官方）：必须分步——① 提出字段映射提案，任何含义模糊、可能对应多个字段、或值格式异常的列必须先问用户，问清楚才继续 → ② table_dryrun（带 mapping）预演 → ③ 把有效条数、问题行与前几条预览展示给用户 → ④ 用户明确同意后才 table_commit（dryRunConfirmed: true）。禁止跳过询问直接导入非官方表格；禁止在用户未确认时 commit。表格附件用序号（"1"）或 att:<id> 引用。',
@@ -521,7 +526,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
       const index = Number(raw) - 1
       const list = listAttachments()
       const hit = list[index]
-      if (!hit) throw new Error(`附件 #${raw} 不存在（当前共 ${list.length} 张）`)
+      if (!hit) {
+        // 附件可能来自历史消息（本轮 activeSendAttachments 为空）：回退注册表按序号
+        const registryList = [...attachmentRegistry.values()]
+        const fallback = registryList[index]
+        if (fallback?.uri || fallback?.localPath) return fallback
+        throw new Error(`附件 #${raw} 不存在（当前共 ${list.length} 张）。请改用消息标记里的 att:<id> 格式`)
+      }
       return hit
     }
     return { uri: raw }
