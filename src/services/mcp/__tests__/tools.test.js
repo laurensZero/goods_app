@@ -494,6 +494,56 @@ describe('mcp tool handlers', () => {
     await expect(handlers.goods_search({ priceMin: 'abc' })).rejects.toThrow('priceMin')
   })
 
+  it('goods_search 按逐件入手日期命中跨月多件补货', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      {
+        id: 'x1', name: '跨月补货吧唧', isWishlist: false,
+        acquiredAt: '2026-08-22', unitAcquiredAtList: ['2026-08-22', '2026-09-05'],
+        quantity: 2, price: '', actualPrice: '30', currency: 'CNY', updatedAt: 1
+      },
+      {
+        id: 'x2', name: '仅上月入手', isWishlist: false,
+        acquiredAt: '2026-08-10', unitAcquiredAtList: ['2026-08-10', '2026-08-12'],
+        quantity: 2, price: '', actualPrice: '40', currency: 'CNY', updatedAt: 2
+      },
+      {
+        id: 'x3', name: '仅本月入手', isWishlist: false,
+        acquiredAt: '2026-09-01', unitAcquiredAtList: [],
+        quantity: 1, price: '', actualPrice: '50', currency: 'CNY', updatedAt: 3
+      }
+    ])
+    const handlers = createMcpToolHandlers(db)
+
+    // 「这个月买的」：跨月条目因 9-5 那件也应命中，并带回逐件日期
+    const september = await handlers.goods_search({
+      collectionOnly: true,
+      acquiredAfter: '2026-09-01',
+      acquiredBefore: '2026-09-30',
+      sortBy: 'updatedAt'
+    })
+    expect(september.items.map((/** @type {any} */ i) => i.id)).toEqual(['x3', 'x1'])
+    const crossMonth = september.items.find((/** @type {any} */ i) => i.id === 'x1')
+    expect(crossMonth.unitAcquiredAtList).toEqual(['2026-08-22', '2026-09-05'])
+
+    // 上月查询：x1 因 8-22 也应命中，x3 不应出现
+    const august = await handlers.goods_search({
+      collectionOnly: true,
+      acquiredAfter: '2026-08-01',
+      acquiredBefore: '2026-08-31'
+    })
+    expect(august.items.map((/** @type {any} */ i) => i.id).sort()).toEqual(['x1', 'x2'])
+
+    // 排序「最新入手」按逐件最晚日期：x1 的 9-5 应排在仅 8 月的 x2 前面
+    const byLatest = await handlers.goods_search({
+      collectionOnly: true,
+      sortBy: 'acquiredAt',
+      sortOrder: 'desc',
+      limit: 10
+    })
+    expect(byLatest.items.map((/** @type {any} */ i) => i.id)).toEqual(['x1', 'x3', 'x2'])
+  })
+
   it('events_list 输出活动花费汇总（票价+逐日票+其他开支）', async () => {
     const db = createFakeDb()
     db.getEvents = vi.fn(async () => [

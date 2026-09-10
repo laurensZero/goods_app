@@ -133,6 +133,12 @@ defineExpose({ close })
   -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
+/* 手机 top 弹窗：底部两角圆角，避免直角贴底 */
+:global(.ai-assistant-popup.van-popup--top) {
+  border-radius: 0 0 24px 24px !important;
+  overflow: hidden;
+}
+
 :global(.ai-assistant-popup--center.van-popup--center) {
   width: min(520px, calc(100vw - 40px));
   height: min(78dvh, 720px);

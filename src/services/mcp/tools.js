@@ -117,6 +117,10 @@ function goodsListItem(item, convert = null) {
     actualPrice: item.actualPrice,
     actualPriceCurrency: actualCurrency,
     acquiredAt: asText(item.acquiredAt).trim(),
+    // 多件跨月补货：带上逐件入手日期，AI 才能说清「上月买的 X 件 + 本月又买 Y 件」
+    ...(Array.isArray(item.unitAcquiredAtList) && item.unitAcquiredAtList.length > 0
+      ? { unitAcquiredAtList: item.unitAcquiredAtList.map((/** @type {unknown} */ d) => asText(d).trim()) }
+      : {}),
     saleAt: asText(item.saleAt).trim(),
     shippingFee: asInt(item.shippingFee),
     sellPrice: item.sellPrice,
@@ -133,6 +137,45 @@ function goodsListItem(item, convert = null) {
 }
 
 const DATE_LIKE_PATTERN = /^\d{4}-\d{2}(-\d{2})?$/
+
+/**
+ * 展开条目的逐件入手日期（与首页时间线/消费统计同口径）。
+ * 多件跨月补货时，unitAcquiredAtList 按份数对齐；缺省份数回落到商品级 acquiredAt。
+ * @param {any} item
+ * @returns {string[]}
+ */
+function getUnitAcquiredDates(item) {
+  const quantity = Math.max(1, Number(item?.quantity) || 1)
+  const acquiredAt = asText(item?.acquiredAt).trim()
+  const explicit = Array.isArray(item?.unitAcquiredAtList)
+    ? item.unitAcquiredAtList.map((value) => asText(value).trim()).filter(Boolean)
+    : []
+  if (explicit.length === 0) return acquiredAt ? [acquiredAt] : []
+  const fallback = acquiredAt || explicit[0]
+  return Array.from({ length: quantity }, (_, index) => explicit[index] || fallback)
+}
+
+/**
+ * 任一件入手日期落入 [after, before] 即命中。
+ * 只看商品级 acquiredAt 会漏掉「上月首购 + 本月补货」的跨月条目。
+ * @param {any} item
+ * @param {string} after
+ * @param {string} before
+ */
+function matchesAcquiredDateRange(item, after, before) {
+  if (!after && !before) return true
+  return getUnitAcquiredDates(item).some((date) => {
+    if (!date) return false
+    if (after && date < after) return false
+    if (before && date > before) return false
+    return true
+  })
+}
+
+/** 排序用「最新入手」日期：取逐件日期中最晚的一件，跨月补货也能排到正确位置 */
+function latestAcquiredDate(item) {
+  return getUnitAcquiredDates(item).reduce((latest, date) => (date > latest ? date : latest), '')
+}
 
 /** 与 statistics.js 一致的金额取整 */
 function roundMoney(value) {
@@ -224,7 +267,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
     const sortValueOf = (/** @type {any} */ item) => {
       if (sortBy === 'price' || sortBy === 'actualPrice') return sortPriceOf(item)
       if (sortBy === 'quantity') return Number(item.quantity) || 1
-      if (sortBy === 'acquiredAt') return asText(item.acquiredAt).trim()
+      if (sortBy === 'acquiredAt') return latestAcquiredDate(item)
       if (sortBy === 'saleAt') return asText(item.saleAt).trim()
       return Number(item.updatedAt) || 0
     }
@@ -244,9 +287,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null) {
       if (wishlistOnly && !item.isWishlist) return false
       if (collectionOnly && item.isWishlist) return false
       if (hasTracks && trackListOf(item.tracks).length === 0) return false
-      const acquiredDate = asText(item.acquiredAt).trim()
-      if (acquiredAfter && (!acquiredDate || acquiredDate < acquiredAfter)) return false
-      if (acquiredBefore && (!acquiredDate || acquiredDate > acquiredBefore)) return false
+      // 日期过滤按逐件入手日期命中：跨月多件（上月首购 + 本月补货）也能被「本月入手」查到
+      if (!matchesAcquiredDateRange(item, acquiredAfter, acquiredBefore)) return false
       if (hasPriceRange) {
         // 条目价格口径：实付价优先，缺省回退标价（不乘数量）
         const price = parseMoney(item.actualPrice) || parseMoney(item.price)

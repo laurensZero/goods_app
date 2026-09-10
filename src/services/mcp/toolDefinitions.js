@@ -308,7 +308,7 @@ export const MCP_TOOL_DEFINITIONS = [
         '搜索谷子收藏条目（默认同时包含已拥有与愿望单，按更新时间倒序）。',
         '支持关键词模糊匹配（名称/IP/角色/标签/类别/款式/存放位置/备注）与多维度精确过滤。',
         '返回精简字段列表；需要完整信息（多件拆分、出售信息、状态时间线等）时拿 id 调 goods_detail。',
-        '字段含 currency/actualPriceCurrency（币种）、shippingFee（邮费）、acquiredAt/saleAt（日期）、priceCNY（折算 CNY，仅当汇率可用时）。'
+        '字段含 currency/actualPriceCurrency（币种）、shippingFee（邮费）、acquiredAt/saleAt（日期）、unitAcquiredAtList（多件逐件入手日期，有拆分时返回）、priceCNY（折算 CNY，仅当汇率可用时）。'
       ].join(''),
     inputSchema: {
       type: 'object',
@@ -321,8 +321,8 @@ export const MCP_TOOL_DEFINITIONS = [
         wishlistOnly: { type: 'boolean', description: '为 true 时只返回愿望单条目' },
         collectionOnly: { type: 'boolean', description: '为 true 时排除愿望单条目（只返回已收藏）。回答「收藏了什么」类问题应传 true，避免混入心愿单' },
         hasTracks: { type: 'boolean', description: '为 true 时只返回带曲目列表的条目（CD/专辑等）。回答「我有哪些 CD/专辑」类问题使用；每条结果的 tracksSummary 给出曲目概况，明细拿 id 调 goods_detail' },
-        acquiredAfter: { type: 'string', description: '只返回入手日期不早于该值的条目，格式 YYYY-MM-DD（含当天）' },
-        acquiredBefore: { type: 'string', description: '只返回入手日期不晚于该值的条目，格式 YYYY-MM-DD（含当天）' },
+        acquiredAfter: { type: 'string', description: '只返回「任一件入手日期」不早于该值的条目，格式 YYYY-MM-DD（含当天）。多件跨月补货按 unitAcquiredAtList 逐件判断，不只是商品级 acquiredAt' },
+        acquiredBefore: { type: 'string', description: '只返回「任一件入手日期」不晚于该值的条目，格式 YYYY-MM-DD（含当天）。多件跨月补货按 unitAcquiredAtList 逐件判断，不只是商品级 acquiredAt' },
         priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
         priceMax: { type: 'number', description: '价格上限（口径同 priceMin）' },
         sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；price/actualPrice 口径与价格过滤一致（实付价优先，缺省回退标价，不乘数量）。折算可用时按 CNY 折算值排序，解决跨币种混排不准的问题。「最贵/最便宜/最新入手」类问题必须用排序参数直接拿结果，不要拉全量自己排' },
