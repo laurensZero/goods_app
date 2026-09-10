@@ -317,6 +317,32 @@ export const useSyncStore = defineStore('sync', () => {
     } catch { return null }
   }
 
+  /**
+   * 云端文件名 → 可展示公开 URL。
+   * 先刷新存储列表缓存，避免 resolveStoragePath 冷缓存时误把根目录旧文件
+   * 拼进用户目录，生成 404 死链（AI 嵌图 / 同步水化都依赖它）。
+   * @param {string} cloudFileName
+   * @returns {Promise<string>} 空字符串表示无法解析
+   */
+  async function getPublicImageURL(cloudFileName) {
+    const name = String(cloudFileName || '').trim()
+    if (!name) return ''
+    const resolvedBackend = activeBackend
+    if (!resolvedBackend?.getImagePublicUrl) return ''
+    try {
+      if (typeof resolvedBackend.getExistingImageCloud === 'function') {
+        await resolvedBackend.getExistingImageCloud()
+      }
+    } catch {
+      // 缓存失败仍尝试生成：新上传默认走用户目录，多数场景仍正确
+    }
+    try {
+      return String(resolvedBackend.getImagePublicUrl(name) || '').trim()
+    } catch {
+      return ''
+    }
+  }
+
   // ── Helpers ──
 
   async function buildPresetsData() {
@@ -1110,6 +1136,7 @@ export const useSyncStore = defineStore('sync', () => {
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
     syncPaused, setSyncPaused,
     restoreImageFromCloud,
+    getPublicImageURL,
     maintenanceMode,
     refreshMaintenanceMode,
     reportHeartbeat
