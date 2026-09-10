@@ -160,6 +160,7 @@
           :timer-target-time="timerTargetTime"
           :formatted-timer-target="formattedTimerTarget"
           :remaining-text="remainingText"
+          :clock-source-text="clockSourceText"
           :retry-count="retryCount"
           :concurrency="concurrency"
           :max-concurrency="maxConcurrency"
@@ -443,6 +444,32 @@ const setTargetTime = timer.setTargetTime
 const setTimerEnabled = timer.setEnabled
 const timerStartWatching = timer.startWatching
 const timerStopWatching = timer.stopWatching
+
+/* ── 授时信息展示 ── */
+const clockSourceText = computed(() => {
+  const raw = String(orderQueue.clockSyncSource.value || '')
+  if (!raw) return ''
+  let label = raw
+  if (raw.startsWith('native-ntp')) {
+    const host = raw.split(':')[1]?.replace(/\(.*\)$/, '') || ''
+    label = host
+      ? `${t('checkout.timeSourceNative')} (${host})`
+      : t('checkout.timeSourceNative')
+  } else if (raw.startsWith('edge-ntp')) {
+    label = t('checkout.timeSourceEdge')
+  } else if (raw.startsWith('local-fallback')) {
+    label = t('checkout.timeSourceLocal')
+  }
+  const parts = [label]
+  const rtt = raw.match(/rtt=(\d+)ms/i)
+  if (rtt) parts.push(`RTT ${rtt[1]}ms`)
+  if (orderQueue.domainSyncedAt.value) {
+    const delta = Math.round(Number(orderQueue.domainDeltaMs.value) || 0)
+    const sign = delta > 0 ? '+' : ''
+    parts.push(`${t('checkout.timeSourceDelta')} ${sign}${delta}ms`)
+  }
+  return parts.join(' · ')
+})
 
 /* ── Step 页头 ── */
 const displayStepKeys = computed(() => isPointOrder.value
@@ -763,9 +790,9 @@ watch(() => currentStep.value.key, (key) => {
 // 定时下单：仅在「提交步骤 + 定时开启 + 已设时间」时启动倒计时展示
 watch([timerEnabled, timerTargetTime, () => currentStep.value.key], ([enabled, target, key]) => {
   if (enabled && target && key === 'submit') {
-    // 刷新服务器时钟偏移，确保自动预填时间的倒计时与服务器同步
-    if (!timerManuallySet.value) {
-      void syncServerClock(cookie.value)
+    // 定时开启时拉一次校时（非强制），让时间源/域差能提前展示；自动预填与手动时间都受益
+    if (cookie.value) {
+      void syncServerClock(cookie.value, false)
     }
     timerStartWatching(() => {})
   } else {
