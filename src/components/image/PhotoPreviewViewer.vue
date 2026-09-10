@@ -93,6 +93,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { getCachedImage } from '@/utils/image/cache'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
   /** @type {import('vue').PropType<Array<{ uri: string, caption?: string } | string>>} */
@@ -134,6 +135,9 @@ const normalizedPhotos = computed(() => (Array.isArray(props.photos) ? props.pho
   .filter((item) => item.uri))
 
 const isOpen = computed(() => (show.value || index.value >= 0) && !!normalizedPhotos.value[index.value]?.uri)
+
+// 注册进全局 overlay 栈：Android 返回键关闭，且 usePullDownGesture 的 hasOverlays() 会屏蔽下拉唤起 AI
+useDialogBackButton(() => close(), isOpen)
 
 const currentPhoto = computed(() => normalizedPhotos.value[index.value] || null)
 const prevPhoto = computed(() => (index.value > 0 ? normalizedPhotos.value[index.value - 1] || null : null))

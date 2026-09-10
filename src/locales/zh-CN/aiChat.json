@@ -8,6 +8,8 @@
   "aiChat.queued": "已加入队列，当前回复结束后自动发送",
   "aiChat.queueCount": "队列中 {count} 条",
   "aiChat.sendQueuedNow": "立即发送（打断当前回复）",
+  "aiChat.askManualPlaceholder": "或输入你的回答…",
+  "aiChat.askManualSend": "提交回答",
   "aiChat.settingsTitle": "AI 服务设置",
   "aiChat.baseUrl": "接口地址",
   "aiChat.model": "模型名称",

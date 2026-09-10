@@ -215,6 +215,40 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'event_tracks_manage',
+    description:
+      '管理演出/演唱会的曲单：action=add 追加曲目、action=remove 删除单曲。' +
+      'eventId 来自 events_list / event_tracks。add 时 tracks 为数组，每首至少填 title（歌名），可选 artist/album/source/neteaseSongId/qqSongId/bilibiliVideoId/durationMs。' +
+      'remove 时 trackId 来自 event_tracks（includeTracks: true）的曲目明细。只增删不覆盖整单。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['add', 'remove'], description: 'add=追加曲目；remove=删除单曲' },
+        eventId: { type: 'string', description: '活动 id，来自 events_list / event_tracks' },
+        tracks: {
+          type: 'array',
+          description: '仅 action=add：要追加的曲目数组。每首 { title, artist?, album?, source?, neteaseSongId?, qqSongId?, bilibiliVideoId?, durationMs? }',
+          items: {
+            type: 'object',
+            properties: {
+              title: { type: 'string', description: '歌名（必填）' },
+              artist: { type: 'string', description: '歌手' },
+              album: { type: 'string', description: '专辑名' },
+              source: { type: 'string', enum: ['netease', 'qq', 'bilibili', 'manual'], description: '音源，默认 manual（仅手动录入，不可在线播放）' },
+              neteaseSongId: { type: 'string', description: '网易云歌曲 id（source=netease 时提供，可在线播放）' },
+              qqSongId: { type: 'string', description: 'QQ 音乐歌曲 id（source=qq 时提供）' },
+              bilibiliVideoId: { type: 'string', description: 'B 站视频 id（source=bilibili 时提供）' },
+              durationMs: { type: 'number', description: '时长（毫秒）' }
+            },
+            required: ['title']
+          }
+        },
+        trackId: { type: 'string', description: '仅 action=remove：要删除的曲目 id' }
+      },
+      required: ['action', 'eventId']
+    }
+  },
+  {
     name: 'music_play',
     description: '在应用内拉起播放某首曲目（悬浮播放器 + 原生通知栏，队列 = 所属完整曲单）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
     inputSchema: {
@@ -330,6 +364,27 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     name: 'account_info',
     description: '查看当前登录账号信息：是否登录、邮箱、昵称。',
     inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'ask_user',
+    description:
+      '向用户提问并等待选择。调用后界面会出现问题和选项按钮，用户点击某项后工具才返回所选文本。' +
+      '适用于：字段映射拿不准、导入前确认、多候选选一首歌等——代替长篇文字追问，让用户点一下即可。' +
+      'options 为 2-6 个简短选项；用户选中的文本会作为工具返回值（string）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: { type: 'string', description: '要问用户的问题（简洁明确）' },
+        options: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          maxItems: 6,
+          description: '2-6 个选项文本，用户点击后原样返回'
+        }
+      },
+      required: ['question', 'options']
+    }
   },
   {
     name: 'account_logout',
@@ -496,6 +551,27 @@ export const MCP_TOOL_DEFINITIONS = [
         trackId: { type: 'string', description: '曲目 id，来自 event_tracks 或 goods_detail 的曲目明细' }
       },
       required: ['trackId']
+    }
+  },
+  {
+    name: 'music_search',
+    description:
+      '在线搜索歌曲（网易云 / QQ 音乐 / Bilibili）。返回歌名、歌手、时长与各源歌曲 id，' +
+      '供 event_tracks_manage add 时填入 neteaseSongId / qqSongId / bilibiliVideoId（这样曲目才能在线播放）。' +
+      '用户要求给活动加歌、找歌时先用本工具搜，再向用户确认选哪首，然后 event_tracks_manage。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        keyword: { type: 'string', description: '搜索关键词：歌名，可加歌手名提高准确度，如「melt 宫野真守」' },
+        source: {
+          type: 'string',
+          enum: ['netease', 'qq', 'bilibili', 'all'],
+          default: 'all',
+          description: '搜索来源；缺省 all=三源并搜，合并返回'
+        },
+        limit: { type: 'integer', minimum: 1, maximum: 20, default: 8, description: '每源返回条数上限' }
+      },
+      required: ['keyword']
     }
   },
   {

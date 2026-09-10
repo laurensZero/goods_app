@@ -2,8 +2,16 @@ import { describe, it, expect, vi } from 'vitest'
 import { createMcpToolHandlers, createMcpServer } from '../tools'
 import { MCP_TOOL_DEFINITIONS } from '../toolDefinitions'
 
-const { fetchTrackLyricsMock } = vi.hoisted(() => ({ fetchTrackLyricsMock: vi.fn() }))
+const { fetchTrackLyricsMock, searchNeteaseMock, searchQQMock, searchBiliMock } = vi.hoisted(() => ({
+  fetchTrackLyricsMock: vi.fn(),
+  searchNeteaseMock: vi.fn(),
+  searchQQMock: vi.fn(),
+  searchBiliMock: vi.fn()
+}))
 vi.mock('@/utils/trackLyrics', () => ({ fetchTrackLyrics: fetchTrackLyricsMock }))
+vi.mock('@/utils/neteaseMusic', () => ({ searchNeteaseSongs: searchNeteaseMock }))
+vi.mock('@/utils/qqMusic', () => ({ searchQQSongs: searchQQMock }))
+vi.mock('@/utils/bilibiliMusic', () => ({ searchBilibiliVideos: searchBiliMock }))
 
 /** 内存假 db：固定数据集，覆盖单位价、多币种、愿望单、回收站等分支 */
 function createFakeDb() {
@@ -203,6 +211,40 @@ describe('mcp tool handlers', () => {
     await expect(handlers.music_lyrics({ eventId: 'e1', goodsId: 'g1', trackId: 't1' })).rejects.toThrow('二选一')
     await expect(handlers.music_lyrics({ eventId: 'nope', trackId: 't1' })).rejects.toThrow('未找到')
     await expect(handlers.music_lyrics({ eventId: 'e1', trackId: 'nope' })).rejects.toThrow('未找到')
+  })
+
+  it('music_search 三源并搜并返回 songId 供加曲单', async () => {
+    searchNeteaseMock.mockResolvedValue([
+      { title: 'Melt', artist: '宫野真守', album: '', durationMs: 250000, source: 'netease', neteaseSongId: 'n99', qqSongId: '', bilibiliVideoId: '' }
+    ])
+    searchQQMock.mockResolvedValue([
+      { title: 'Melt', artist: '宫野真守', album: '', durationMs: 250000, source: 'qq', qqSongId: 'qqmid1', neteaseSongId: '', bilibiliVideoId: '' }
+    ])
+    searchBiliMock.mockResolvedValue([
+      { title: '【MV】Melt', artist: ' uploader', album: 'Bilibili', durationMs: 252000, source: 'bilibili', bilibiliVideoId: 'BV1xx', neteaseSongId: '', qqSongId: '' }
+    ])
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const result = await handlers.music_search({ keyword: 'melt 宫野真守', limit: 5 })
+    expect(result.total).toBe(3)
+    expect(result.sources.map((/** @type {any} */ s) => s.source)).toEqual(['netease', 'qq', 'bilibili'])
+    expect(result.sources[0].items[0]).toMatchObject({ title: 'Melt', neteaseSongId: 'n99' })
+    expect(result.sources[1].items[0]).toMatchObject({ qqSongId: 'qqmid1' })
+    expect(result.sources[2].items[0]).toMatchObject({ bilibiliVideoId: 'BV1xx' })
+  })
+
+  it('music_search 单源过滤与空 keyword 校验', async () => {
+    searchNeteaseMock.mockClear().mockResolvedValue([])
+    searchQQMock.mockClear().mockResolvedValue([])
+    searchBiliMock.mockClear().mockResolvedValue([])
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    await expect(handlers.music_search({ keyword: '  ' })).rejects.toThrow('keyword')
+    const only = await handlers.music_search({ keyword: 'melt', source: 'netease' })
+    expect(only.sources).toHaveLength(1)
+    expect(only.sources[0].source).toBe('netease')
+    expect(searchQQMock).not.toHaveBeenCalled()
+    expect(searchBiliMock).not.toHaveBeenCalled()
   })
 
   it('collection_overview 汇总数量/估算花费/分布', async () => {
