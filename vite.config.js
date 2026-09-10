@@ -8,6 +8,7 @@ import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import { mcpDevServerPlugin } from './scripts/vite-plugin-mcp.mjs'
 import { aiProxyPlugin } from './scripts/vite-plugin-ai-proxy.mjs'
+import { ntpBridgePlugin } from './scripts/vite-plugin-ntp-bridge.mjs'
 
 function removeBundledCutoutWasm() {
   let outputDir = ''
@@ -38,6 +39,8 @@ export default defineConfig({
     mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN, process.env.GOODS_MCP_ALLOW_WRITES === '1'),
     // AI 聊天开发代理：浏览器经 /ai-proxy 转发到用户配置的 OpenAI 兼容端点，绕开 CORS
     aiProxyPlugin(),
+    // Dev 本地 SNTP 桥：浏览器请求 /dev-ntp 时才去打阿里云 UDP NTP（按需，不常驻探测）
+    ntpBridgePlugin(),
     VueI18nPlugin({
       include: fileURLToPath(new URL('./src/locales/**/*.json', import.meta.url))
     }),
