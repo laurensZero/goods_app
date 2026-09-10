@@ -56,6 +56,49 @@
             <div class="settings-action-panel__inline-export" style="margin-top: 24px;">
               <div class="export-picker__head">
                 <div>
+                  <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
+                  <h3 class="export-picker__title">{{ exportFormat === 'csv' ? t('manage.exportFormatCsvMeta') : t('manage.exportFormatJsonMeta') }}</h3>
+                </div>
+              </div>
+              <div class="export-picker__options" role="radiogroup" :aria-label="t('manage.exportFormat')">
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="exportFormat === 'csv'"
+                  :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'csv' }]"
+                  @click="setExportFormat('csv')"
+                >
+                  <div class="export-picker__option-body">
+                    <span class="export-picker__option-name">{{ t('manage.exportFormatCsv') }}</span>
+                    <span class="export-picker__option-desc">{{ t('manage.exportFormatCsvDesc') }}</span>
+                  </div>
+                  <span class="export-picker__check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  :aria-checked="exportFormat === 'json'"
+                  :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'json' }]"
+                  @click="setExportFormat('json')"
+                >
+                  <div class="export-picker__option-body">
+                    <span class="export-picker__option-name">{{ t('manage.exportFormatJson') }}</span>
+                    <span class="export-picker__option-desc">{{ t('manage.exportFormatJsonDesc') }}</span>
+                  </div>
+                  <span class="export-picker__check" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M20 6L9 17l-5-5" />
+                    </svg>
+                  </span>
+                </button>
+              </div>
+
+              <div class="export-picker__head" style="margin-top: 18px;">
+                <div>
                   <p class="export-picker__label">{{ t('manage.exportCustom') }}</p>
                   <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
                 </div>
@@ -85,7 +128,7 @@
               </div>
               <div class="export-picker__actions" style="margin-top: 16px;">
                 <button class="export-picker__action" type="button" @click="confirmExportSelection" style="width: 100%;">
-                  {{ t('manage.exportStart') }}
+                  {{ exportFormat === 'csv' ? t('manage.exportStartCsv') : t('manage.exportStartJson') }}
                 </button>
               </div>
             </div>
@@ -173,6 +216,49 @@
           <div class="export-picker__handle" />
           <div class="export-picker__head">
             <div>
+              <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
+              <h3 class="export-picker__title">{{ exportFormat === 'csv' ? t('manage.exportFormatCsvMeta') : t('manage.exportFormatJsonMeta') }}</h3>
+            </div>
+          </div>
+          <div class="export-picker__options" role="radiogroup" :aria-label="t('manage.exportFormat')">
+            <button
+              type="button"
+              role="radio"
+              :aria-checked="exportFormat === 'csv'"
+              :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'csv' }]"
+              @click="setExportFormat('csv')"
+            >
+              <div class="export-picker__option-body">
+                <span class="export-picker__option-name">{{ t('manage.exportFormatCsv') }}</span>
+                <span class="export-picker__option-desc">{{ t('manage.exportFormatCsvDesc') }}</span>
+              </div>
+              <span class="export-picker__check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              :aria-checked="exportFormat === 'json'"
+              :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'json' }]"
+              @click="setExportFormat('json')"
+            >
+              <div class="export-picker__option-body">
+                <span class="export-picker__option-name">{{ t('manage.exportFormatJson') }}</span>
+                <span class="export-picker__option-desc">{{ t('manage.exportFormatJsonDesc') }}</span>
+              </div>
+              <span class="export-picker__check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path d="M20 6L9 17l-5-5" />
+                </svg>
+              </span>
+            </button>
+          </div>
+
+          <div class="export-picker__head" style="margin-top: 18px;">
+            <div>
               <p class="export-picker__label">{{ t('manage.exportContent') }}</p>
               <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
             </div>
@@ -204,13 +290,13 @@
               {{ t('common.cancel') }}
             </button>
             <button class="export-picker__action" type="button" @click="confirmExportSelection">
-              {{ t('manage.exportStart') }}
+              {{ exportFormat === 'csv' ? t('manage.exportStartCsv') : t('manage.exportStartJson') }}
             </button>
           </div>
         </div>
       </Popup>
 
-      <input ref="importFileRef" type="file" accept=".json" hidden @change="handleImport" />
+      <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.zip" hidden @change="handleImport" />
 
       <AppToast :message="toastMsg" />
     </main>
@@ -266,8 +352,8 @@ async function ensureEventsReady() {}
 const { manageEntries, manageEntryGroups, exportSummaryText } = useManageEntries()
 
 const {
-  importFileRef, showExportPicker, exportSelection, allExportSectionsSelected,
-  openExportPicker, closeExportPicker, toggleExportSection, toggleExportAll,
+  importFileRef, showExportPicker, exportSelection, exportFormat, allExportSectionsSelected,
+  openExportPicker, closeExportPicker, setExportFormat, toggleExportSection, toggleExportAll,
   startExportLongPress, cancelExportLongPress,
   handleExportClick, confirmExportSelection,
   triggerImport, handleImport,

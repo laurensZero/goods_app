@@ -71,15 +71,23 @@
             v-if="msg.role === 'user' && msg.attachments?.length"
             class="chat-attach-list"
           >
-            <img
-              v-for="(att, attIndex) in msg.attachments"
-              :key="att.id"
-              class="chat-attach-thumb"
-              :src="att.uri"
-              alt=""
-              loading="lazy"
-              @click="previewImageList(msg.attachments, attIndex)"
-            />
+            <template v-for="(att, attIndex) in msg.attachments" :key="att.id">
+              <div v-if="att.type === 'table'" class="chat-attach-table-chip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <path d="M14 2v6h6" />
+                </svg>
+                <span>{{ att.filename || 'table' }}</span>
+              </div>
+              <img
+                v-else
+                class="chat-attach-thumb"
+                :src="att.uri"
+                alt=""
+                loading="lazy"
+                @click="previewImageList(msg.attachments, attIndex)"
+              />
+            </template>
           </div>
           <button
             v-if="msg.role === 'assistant' && msg.reasoning"
@@ -150,7 +158,19 @@
     <div class="chat-compose">
       <div v-if="aiChat.attachments.length" class="chat-compose__attachments">
         <div v-for="att in aiChat.attachments" :key="att.id" class="chat-compose__thumb">
-          <img class="chat-compose__thumb-img" :src="att.uri" alt="" />
+          <template v-if="att.type === 'table'">
+            <div class="chat-compose__thumb-table">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M8 13h8" />
+                <path d="M8 17h8" />
+                <path d="M8 9h2" />
+              </svg>
+              <span class="chat-compose__thumb-table-name">{{ att.filename || 'table' }}</span>
+            </div>
+          </template>
+          <img v-else class="chat-compose__thumb-img" :src="att.uri" alt="" />
           <button
             class="chat-compose__thumb-remove"
             type="button"
@@ -165,18 +185,39 @@
       </div>
 
       <div class="chat-compose__row">
-        <button
-          class="chat-compose__attach"
-          type="button"
-          :aria-label="t('aiChat.attachImage')"
-          :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
-          @click="pickAttachments"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 5v14" />
-            <path d="M5 12h14" />
-          </svg>
-        </button>
+        <div class="chat-compose__attach-wrap">
+          <button
+            class="chat-compose__attach"
+            type="button"
+            :aria-label="t('aiChat.attachImage')"
+            :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
+            @click="toggleAttachMenu"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 5v14" />
+              <path d="M5 12h14" />
+            </svg>
+          </button>
+          <div v-if="attachMenuOpen" class="chat-compose__attach-menu">
+            <button type="button" class="chat-compose__attach-option" @click="pickAttachments">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              {{ t('aiChat.attachImage') }}
+            </button>
+            <button type="button" class="chat-compose__attach-option" @click="pickTableFile">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M8 13h3" />
+                <path d="M8 17h8" />
+              </svg>
+              {{ t('aiChat.attachTable') }}
+            </button>
+          </div>
+        </div>
         <textarea
           ref="inputRef"
           v-model="inputText"
@@ -204,6 +245,14 @@
         </button>
       </div>
     </div>
+
+    <input
+      ref="tableFileInputRef"
+      type="file"
+      class="chat-compose__file-input"
+      accept=".csv,.xlsx,.xlsm,.tsv,.zip"
+      @change="onTableFileChange"
+    />
 
     <AppToast :message="toastMsg" />
 
@@ -345,9 +394,12 @@ import { normalizeBaseUrl } from '@/services/ai/chatClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref } from '@/utils/ai/jumpLinks'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
+import { isTableFilename } from '@/utils/table/parseTable'
 
-/** 单条消息最多附带的图片数（与 store MAX_ATTACHMENTS 对齐） */
+/** 单条消息最多附带的附件数（与 store MAX_ATTACHMENTS 对齐） */
 const MAX_ATTACHMENTS = 3
+/** 表格文件大小上限：8MB（官方 zip 多表包可能稍大） */
+const MAX_TABLE_FILE_BYTES = 8 * 1024 * 1024
 
 defineOptions({ name: 'AiChatPanel' })
 
@@ -362,6 +414,8 @@ const showSettings = ref(false)
 const showHistory = ref(false)
 const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '' })
 const maxAttachments = MAX_ATTACHMENTS
+const attachMenuOpen = ref(false)
+const tableFileInputRef = ref(null)
 
 // 会话重命名（内联编辑，同一时间只有一个条目处于编辑态）
 const editingSessionId = ref('')
@@ -409,8 +463,20 @@ function scrollToBottom(behavior = 'auto') {
 }
 
 let bottomFallbackTimer = 0
+
+/** 附件菜单：点击面板外关闭 */
+function onDocumentPointerDown(event) {
+  if (!attachMenuOpen.value) return
+  const target = event.target instanceof Element ? event.target : null
+  if (!target) return
+  if (!target.closest('.chat-compose__attach-wrap')) {
+    attachMenuOpen.value = false
+  }
+}
+
 onMounted(() => {
   window.addEventListener('resize', handleResize, { passive: true })
+  document.addEventListener('pointerdown', onDocumentPointerDown, { passive: true })
   // 打开面板/从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息。
   // 助手消息的 Markdown 是异步渲染的，首滚后稍等再补一次，兜底长内容变高
   nextTick(() => scrollToBottom())
@@ -418,6 +484,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  document.removeEventListener('pointerdown', onDocumentPointerDown)
   if (bottomFallbackTimer) {
     clearTimeout(bottomFallbackTimer)
     bottomFallbackTimer = 0
@@ -502,9 +569,10 @@ const router = useRouter()
 const previewPhotos = ref([])
 const previewIndex = ref(-1)
 
-/** 打开全屏照片查看（与活动详情同一套缩放/滑动交互） */
+/** 打开全屏照片查看（与活动详情同一套缩放/滑动交互）；表格附件不参与预览 */
 function previewImageList(list, startIndex = 0) {
   const photos = (Array.isArray(list) ? list : [])
+    .filter((item) => !(item && typeof item === 'object' && item.type === 'table'))
     .map((item) => (typeof item === 'string' ? { uri: String(item || '').trim() } : {
       uri: String(item?.uri || '').trim(),
       caption: String(item?.caption || '')
@@ -512,7 +580,13 @@ function previewImageList(list, startIndex = 0) {
     .filter((item) => item.uri)
   if (photos.length === 0) return
   previewPhotos.value = photos
-  previewIndex.value = Math.min(Math.max(0, Number(startIndex) || 0), photos.length - 1)
+  // 原 startIndex 可能指向表格附件，换算到过滤后的图片列表
+  const imageItems = (Array.isArray(list) ? list : [])
+    .filter((item) => !(item && typeof item === 'object' && item.type === 'table') && (typeof item === 'string' ? item : item?.uri))
+  const raw = imageItems[startIndex]
+  const rawUri = typeof raw === 'string' ? raw : String(raw?.uri || '')
+  const mapped = photos.findIndex((p) => p.uri === rawUri)
+  previewIndex.value = mapped >= 0 ? mapped : 0
 }
 
 /**
@@ -602,6 +676,7 @@ function send() {
  * 用户明确要求「看看这张」后，模型才会调用 vision_analyze。
  */
 async function pickAttachments() {
+  attachMenuOpen.value = false
   if (aiChat.sending) return
   if (aiChat.attachments.length >= MAX_ATTACHMENTS) {
     showToast(t('aiChat.attachLimit', { count: MAX_ATTACHMENTS }))
@@ -615,12 +690,65 @@ async function pickAttachments() {
       picked.map((item) => ({
         id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         uri: item.uri,
-        localPath: item.localPath || ''
+        localPath: item.localPath || '',
+        type: 'image'
       }))
     )
   } catch (e) {
     console.warn('[ai-chat:view] pick attachment failed', e)
     showToast(t('aiChat.attachFailed'))
+  }
+}
+
+function toggleAttachMenu() {
+  if (aiChat.sending) return
+  attachMenuOpen.value = !attachMenuOpen.value
+}
+
+function pickTableFile() {
+  attachMenuOpen.value = false
+  if (aiChat.sending) return
+  if (aiChat.attachments.length >= MAX_ATTACHMENTS) {
+    showToast(t('aiChat.attachLimit', { count: MAX_ATTACHMENTS }))
+    return
+  }
+  tableFileInputRef.value?.click()
+}
+
+/**
+ * 读取选中的表格文件，挂到待发附件区。
+ * 内容只进内存 registry（store.addAttachments 的 content），不写 localStorage。
+ * @param {Event} event
+ */
+async function onTableFileChange(event) {
+  const input = /** @type {HTMLInputElement} */ (event.target)
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!isTableFilename(file.name)) {
+    showToast(t('aiChat.attachTableUnsupported'))
+    return
+  }
+  if (file.size > MAX_TABLE_FILE_BYTES) {
+    showToast(t('aiChat.attachTableTooLarge', { size: '8MB' }))
+    return
+  }
+  try {
+    const isText = /\.(csv|tsv)$/i.test(file.name)
+    const content = isText ? await file.text() : await file.arrayBuffer()
+    aiChat.addAttachments([
+      {
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: '',
+        localPath: '',
+        type: 'table',
+        filename: file.name,
+        content
+      }
+    ])
+  } catch (e) {
+    console.warn('[ai-chat:view] read table file failed', e)
+    showToast(t('aiChat.attachTableFailed'))
   }
 }
 
@@ -1239,6 +1367,13 @@ function removeSession(id) {
   flex-shrink: 0;
 }
 
+.chat-compose__thumb:has(.chat-compose__thumb-table) {
+  width: auto;
+  min-width: 52px;
+  max-width: 160px;
+  height: 52px;
+}
+
 .chat-compose__thumb-img {
   width: 100%;
   height: 100%;
@@ -1310,6 +1445,105 @@ function removeSession(id) {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.chat-compose__attach-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.chat-compose__attach-menu {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 148px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--app-surface, #fff);
+  border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.chat-compose__attach-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-compose__attach-option:active {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-compose__attach-option svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--app-text-secondary);
+}
+
+.chat-compose__thumb-table {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 0 8px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+  color: var(--app-text-secondary);
+  overflow: hidden;
+}
+
+.chat-compose__thumb-table svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.chat-compose__thumb-table-name {
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+}
+
+.chat-compose__file-input {
+  display: none;
+}
+
+.chat-attach-table-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 180px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+
+.chat-attach-table-chip svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.chat-attach-table-chip span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-compose__input {

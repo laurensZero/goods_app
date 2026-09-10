@@ -42,7 +42,11 @@
   "aiChat.visionNotice": "附图不会自动识别；只有你明确要求「帮我看看这张图」时才会调用多模态模型。视觉模型需支持图片输入。",
   "aiChat.attachImage": "添加图片",
   "aiChat.attachFailed": "选图失败，请重试",
-  "aiChat.attachLimit": "最多附带 {count} 张图片",
+  "aiChat.attachLimit": "最多附带 {count} 个附件",
   "aiChat.attachNeedText": "请补充一句你想了解的内容（如：帮我看看这张图）",
-  "aiChat.removeAttachment": "移除附件"
+  "aiChat.removeAttachment": "移除附件",
+  "aiChat.attachTable": "导入表格",
+  "aiChat.attachTableFailed": "读取表格失败，请重试",
+  "aiChat.attachTableUnsupported": "仅支持 .csv / .xlsx / .xlsm / .tsv / .zip",
+  "aiChat.attachTableTooLarge": "表格文件不能超过 {size}"
 }
