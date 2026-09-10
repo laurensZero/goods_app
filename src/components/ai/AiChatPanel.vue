@@ -43,12 +43,13 @@
             class="chat-attach-list"
           >
             <img
-              v-for="att in msg.attachments"
+              v-for="(att, attIndex) in msg.attachments"
               :key="att.id"
               class="chat-attach-thumb"
               :src="att.uri"
               alt=""
               loading="lazy"
+              @click="previewImageList(msg.attachments, attIndex)"
             />
           </div>
           <button
@@ -100,10 +101,6 @@
             @click="onMarkdownClick"
             v-html="getRenderedMarkdown(msg)"
           />
-          <!-- TODO: 谷子图片/活动照片点击放大——复用活动详情同款查看器。
-               photo-preview 查看器（双击缩放/滑动切换/左右箭头）目前内联在
-               EventDetailView.vue（photo-preview 区块，含配套 CSS），工作量大暂搁置；
-               需抽成共享组件后，在这里对 markdown 里的 <img> 做点击代理打开。 -->
           <p v-else-if="msg.content" class="chat-text">{{ getMessageText(msg) }}</p>
           <div
             v-if="msg.role === 'assistant' && msg.pending && !msg.content && msg.steps.length === 0 && !msg.reasoning"
@@ -201,6 +198,11 @@
     </div>
 
     <AppToast :message="toastMsg" />
+
+    <PhotoPreviewViewer
+      v-model:index="previewIndex"
+      :photos="previewPhotos"
+    />
 
     <Popup
       v-model:show="showSettings"
@@ -327,6 +329,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } 
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { Popup } from 'vant'
+import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useAiChatStore } from '@/stores/aiChat'
@@ -487,16 +490,56 @@ function getMessageText(msg) {
 // ── app:// 跳转按钮：事件委托拦截，用户点击才跳 ──
 const router = useRouter()
 
+/** 共享照片查看器：照片列表 + 当前索引（-1 关闭） */
+const previewPhotos = ref([])
+const previewIndex = ref(-1)
+
+/** 打开全屏照片查看（与活动详情同一套缩放/滑动交互） */
+function previewImageList(list, startIndex = 0) {
+  const photos = (Array.isArray(list) ? list : [])
+    .map((item) => (typeof item === 'string' ? { uri: String(item || '').trim() } : {
+      uri: String(item?.uri || '').trim(),
+      caption: String(item?.caption || '')
+    }))
+    .filter((item) => item.uri)
+  if (photos.length === 0) return
+  previewPhotos.value = photos
+  previewIndex.value = Math.min(Math.max(0, Number(startIndex) || 0), photos.length - 1)
+}
+
 /**
+ * markdown 区域点击：图片放大预览优先于 app:// 跳转。
+ * 缩略图的 data-full-src 是渲染时写入的原图地址（见 renderMarkdownWithThumbs）。
  * @param {MouseEvent} event
  */
 function onMarkdownClick(event) {
-  const anchor = /** @type {Element | null} */ (event.target instanceof Element ? event.target.closest('a') : null)
-  if (!anchor) return
-  const target = parseJumpHref(anchor.getAttribute('href') || '')
+  const target = event.target instanceof Element ? event.target : null
   if (!target) return
+
+  const img = target.closest('img')
+  if (img) {
+    const root = img.closest('.chat-markdown') || img.parentElement
+    const list = root
+      ? Array.from(root.querySelectorAll('img')).map((el) => (
+        el.getAttribute('data-full-src') || el.getAttribute('src') || ''
+      )).filter(Boolean)
+      : []
+    const full = img.getAttribute('data-full-src') || img.getAttribute('src') || ''
+    const startIndex = list.indexOf(full) >= 0 ? list.indexOf(full) : 0
+    const nextList = list.length > 0 ? list : [full]
+    if (nextList[0]) {
+      event.preventDefault()
+      previewImageList(nextList, startIndex)
+    }
+    return
+  }
+
+  const anchor = target.closest('a')
+  if (!anchor) return
+  const jump = parseJumpHref(anchor.getAttribute('href') || '')
+  if (!jump) return
   event.preventDefault()
-  router.push(target).catch(() => {
+  router.push(jump).catch(() => {
     showToast(t('aiChat.jumpFailed'))
   })
 }
@@ -1062,7 +1105,6 @@ function removeSession(id) {
   margin: 6px 0;
   border: 1px solid var(--app-border);
   border-radius: 10px;
-  /* 点击放大暂未实现（见模板 TODO），先给视觉提示 */
   cursor: zoom-in;
 }
 
@@ -1109,6 +1151,7 @@ function removeSession(id) {
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--app-surface) 30%, transparent);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  cursor: zoom-in;
 }
 
 .chat-msg--user .chat-attach-thumb {

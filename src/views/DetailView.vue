@@ -32,15 +32,22 @@
         <section class="cover-stage">
           <div class="cover-glow" />
           <div ref="coverCardRef" class="cover-card" :style="coverCardStyle">
-            <LazyCachedImage
+            <button
               v-if="activeImage?.uri"
-              :key="coverImageRenderKey"
-              :src="activeImage.uri"
-              :alt="item.name"
-              :lazy="false"
-              resume-decode-validation
-              :class="['cover-img', { 'cover-img--hero-hidden': !coverMediaVisible } ]"
-            />
+              type="button"
+              class="cover-zoom-btn"
+              :aria-label="t('common.aria.preview') || 'preview'"
+              @click="openGoodsPreview()"
+            >
+              <LazyCachedImage
+                :key="coverImageRenderKey"
+                :src="activeImage.uri"
+                :alt="item.name"
+                :lazy="false"
+                resume-decode-validation
+                :class="['cover-img', { 'cover-img--hero-hidden': !coverMediaVisible } ]"
+              />
+            </button>
             <div v-else class="cover-fallback">
               <span class="cover-initial">{{ coverInitial }}</span>
             </div>
@@ -51,7 +58,7 @@
               :key="image.id"
               type="button"
               :class="['cover-gallery__item', { 'cover-gallery__item--active': image.id === activeImageId }]"
-              @click="activeImageId = image.id"
+              @click="openGoodsPreview(galleryImages.filter((img) => img.uri).findIndex((img) => img.id === image.id))"
             >
               <LazyCachedImage
                 :src="image.uri"
@@ -339,6 +346,12 @@
     />
 
     <AppToast :message="toastMsg" />
+
+    <PhotoPreviewViewer
+      v-model:index="goodsPreviewIndex"
+      :photos="goodsPreviewPhotos"
+      @update:index="onGoodsPreviewIndexChange"
+    />
   </div>
 </template>
 
@@ -369,6 +382,7 @@ import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
 import SellGoodsSheet from '@/components/goods/SellGoodsSheet.vue'
 import StatusTimeline from '@/components/goods/StatusTimeline.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
 import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
@@ -575,6 +589,35 @@ const activeImage = computed(() => (
   galleryImages.value.find((image) => image.id === activeImageId.value)
   || getPrimaryGoodsImage(galleryImages.value)
 ))
+
+/** 共享照片查看器：谷子全部图片，支持缩放与左右翻页 */
+const goodsPreviewPhotos = computed(() => galleryImages.value
+  .filter((image) => image.uri)
+  .map((image) => ({
+    uri: image.uri,
+    caption: image.label || getImageKindLabel(image.kind)
+  })))
+const goodsPreviewIndex = ref(-1)
+
+function openGoodsPreview(startIndex) {
+  const photos = goodsPreviewPhotos.value
+  if (photos.length === 0) return
+  let index = Number(startIndex)
+  if (!Number.isFinite(index) || index < 0) {
+    const activeId = activeImageId.value
+    index = Math.max(0, galleryImages.value.findIndex((image) => image.id === activeId && image.uri))
+    if (index < 0) index = 0
+  }
+  index = Math.min(index, photos.length - 1)
+  goodsPreviewIndex.value = index
+  const image = galleryImages.value.filter((img) => img.uri)[index]
+  if (image?.id) activeImageId.value = image.id
+}
+
+function onGoodsPreviewIndexChange(next) {
+  const image = galleryImages.value.filter((img) => img.uri)[next]
+  if (image?.id) activeImageId.value = image.id
+}
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 const variantText = computed(() => getGoodsVariant(item.value))
 function hasActualPriceValue(value) {
@@ -1144,6 +1187,10 @@ function syncCollectionContextForPath(path) {
 
 function handleAndroidBackButton(event) {
   event.preventDefault()
+  if (goodsPreviewIndex.value >= 0) {
+    goodsPreviewIndex.value = -1
+    return
+  }
   handleBackNavigation()
 }
 
@@ -1298,6 +1345,17 @@ function getImageKindLabel(kind) {
   background: linear-gradient(180deg, var(--app-surface-soft), var(--app-surface-muted));
 }
 
+/* 点主图打开全屏查看（与活动照片/AI 聊天共用 PhotoPreviewViewer） */
+.cover-zoom-btn {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+}
+
 .cover-img {
   width: 100%;
   height: 100%;
@@ -1347,6 +1405,7 @@ function getImageKindLabel(kind) {
   overflow: hidden;
   text-align: left;
   transition: transform 0.16s ease;
+  cursor: zoom-in;
 }
 
 .cover-gallery__item--active {

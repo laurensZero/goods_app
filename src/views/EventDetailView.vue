@@ -204,88 +204,10 @@
       </div>
     </Transition>
 
-    <Transition name="photo-preview">
-      <div v-if="previewPhoto" class="photo-preview-overlay">
-        <div
-          ref="previewStageRef"
-          class="photo-preview__stage"
-          @touchstart="onPreviewTouchStart"
-          @touchmove="onPreviewTouchMove"
-          @touchend="onPreviewTouchEnd"
-          @touchcancel="onPreviewTouchEnd"
-          @click="onPreviewStageClick"
-          @dblclick="onPreviewDblClick"
-        >
-          <div class="photo-preview__zoom" :style="previewZoomStyle">
-            <div class="photo-preview__track" :style="photoTrackStyle">
-              <div class="photo-preview__cell">
-                <LazyCachedImage
-                  v-if="prevPhoto"
-                  :key="prevPhoto.uri"
-                  :src="prevPhoto.uri"
-                  :alt="prevPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex })"
-                  :lazy="false"
-                  loading="eager"
-                  fetchpriority="low"
-                  :image-attrs="{ class: 'photo-preview__img' }"
-                />
-              </div>
-              <div class="photo-preview__cell">
-                <LazyCachedImage
-                  v-if="previewPhoto && previewPhoto.uri"
-                  :key="previewPhoto.uri"
-                  :src="previewPhoto.uri"
-                  :alt="previewPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 1 })"
-                  :lazy="false"
-                  loading="eager"
-                  fetchpriority="high"
-                  resume-decode-validation
-                  :image-attrs="{ class: 'photo-preview__img' }"
-                />
-              </div>
-              <div class="photo-preview__cell">
-                <LazyCachedImage
-                  v-if="nextPhoto"
-                  :key="nextPhoto.uri"
-                  :src="nextPhoto.uri"
-                  :alt="nextPhoto.caption || t('events.photoAlt', { index: previewPhotoIndex + 2 })"
-                  :lazy="false"
-                  loading="eager"
-                  fetchpriority="low"
-                  :image-attrs="{ class: 'photo-preview__img' }"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-        <button
-          v-if="canGoPrevPhoto"
-          class="photo-preview__nav photo-preview__nav--prev"
-          type="button"
-          @click.stop="showPrevPhoto"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M15 18L9 12L15 6" />
-          </svg>
-        </button>
-        <button
-          v-if="canGoNextPhoto"
-          class="photo-preview__nav photo-preview__nav--next"
-          type="button"
-          @click.stop="showNextPhoto"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M9 6L15 12L9 18" />
-          </svg>
-        </button>
-        <button class="photo-preview__close" type="button" @click.stop="closePhotoPreview">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M18 6L6 18" />
-            <path d="M6 6L18 18" />
-          </svg>
-        </button>
-      </div>
-    </Transition>
+    <PhotoPreviewViewer
+      v-model:index="previewPhotoIndex"
+      :photos="event?.photos || []"
+    />
   </div>
 
   <div v-else class="page event-detail-page">
@@ -305,7 +227,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
@@ -313,6 +235,7 @@ import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import { clearRouteTransitionFallback, getPendingDetailReturnPath, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { hasPendingEventHeroForward, hasPendingGoodsHeroBack, playEventHeroForward, playGoodsHeroBack, prepareEventHeroBack, prepareGoodsHeroForward, getHeroBackDurationMs } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -348,32 +271,13 @@ let detailEntryScrollLockTimer = 0
 let galleryReadyTimer = 0
 
 const showDeleteDialog = ref(false)
+/** 打开共享照片查看器的索引（-1 关闭）；Android 返回键据此拦截 */
 const previewPhotoIndex = ref(-1)
-const previewStageRef = ref(null)
-const previewZoom = reactive({ scale: 1, x: 0, y: 0 })
-const previewSwipeX = ref(0)
-const pzAnimating = ref(false)
 const trackSectionExpanded = ref(true)
 let removeAndroidBackListener = null
 
-const PREVIEW_MAX_SCALE = 4
-const PREVIEW_DOUBLE_TAP_SCALE = 2.5
-// 双击判定窗口放宽到 350ms（平板双击节奏偏慢；同时也是单击空白延迟关闭的等待时长）
-const PREVIEW_DOUBLE_TAP_GAP_MS = 350
-// 两次点击落点距离阈值放宽（平板手指落点偏差大）
-const PREVIEW_DOUBLE_TAP_DISTANCE_PX = 64
-const PREVIEW_BLANK_TAP_TOLERANCE_PX = 10
-// 未放大时左右滑动切换图片的触发阈值（占屏宽比例）
-const PREVIEW_SWIPE_RATIO = 0.18
 // 画廊揭示最多等照片缓存这么久，超时兜底放行（避免个别图片失败导致画廊永远不出现）
 const GALLERY_READY_MAX_WAIT_MS = 1500
-let pzGesture = null
-let pzStart = null
-let pzTapMoved = false
-let pzLastTap = { time: 0, x: 0, y: 0 }
-let pzLastTouchEndAt = 0
-let pzPendingBlankClose = null
-let pzAnimatingTimer = 0
 let eventPhotosPreloadPromise = Promise.resolve()
 
 function waitForNextFrame() {
@@ -699,7 +603,6 @@ function preloadEventPhotos() {
 
 onMounted(async () => {
   removeAndroidBackListener = addAndroidBackButtonListener(handleAndroidBackButton)
-  window.addEventListener('keydown', handlePreviewKeydown)
   lockDetailEntryScrollLock()
   galleryReady.value = false
   if (!eventsStore.isReady) {
@@ -733,7 +636,6 @@ onBeforeUnmount(() => {
   clearGalleryReadyTimer()
   cancelLinkedGoodsBackHeroRetry()
   closePhotoPreview()
-  window.removeEventListener('keydown', handlePreviewKeydown)
   if (typeof removeAndroidBackListener === 'function') {
     removeAndroidBackListener()
   }
@@ -798,394 +700,14 @@ watch(trackSectionExpanded, (value) => {
   localStorage.setItem(eventTrackKey.value, value ? '1' : '0')
 })
 
-const previewPhoto = computed(() => {
-  const photos = event.value?.photos || []
-  return previewPhotoIndex.value >= 0 ? (photos[previewPhotoIndex.value] || null) : null
-})
-
-const prevPhoto = computed(() => {
-  const photos = event.value?.photos || []
-  const i = previewPhotoIndex.value
-  return i > 0 ? (photos[i - 1] || null) : null
-})
-
-const nextPhoto = computed(() => {
-  const photos = event.value?.photos || []
-  const i = previewPhotoIndex.value
-  return i >= 0 && i < photos.length - 1 ? (photos[i + 1] || null) : null
-})
-
-const previewZoomStyle = computed(() => ({
-  transform: `translate3d(${previewZoom.x}px, ${previewZoom.y}px, 0) scale(${previewZoom.scale})`,
-  transition: pzAnimating.value ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
-}))
-
-// 三图轨道：prev/current/next 各占一屏宽，默认把 current 居中（translateX(-100%)），
-// 拖动时叠加 previewSwipeX 即可同时看到前后图片
-const photoTrackStyle = computed(() => ({
-  transform: `translate3d(calc(-100% + ${previewSwipeX.value}px), 0, 0)`,
-  transition: pzAnimating.value ? 'transform 260ms cubic-bezier(0.22, 1, 0.36, 1)' : 'none'
-}))
-
-function setPreviewZoomAnimating(animate) {
-  if (pzAnimatingTimer) {
-    window.clearTimeout(pzAnimatingTimer)
-    pzAnimatingTimer = 0
-  }
-  pzAnimating.value = !!animate
-  if (animate) {
-    pzAnimatingTimer = window.setTimeout(() => {
-      pzAnimatingTimer = 0
-      pzAnimating.value = false
-    }, 280)
-  }
-}
-
-function resetPreviewZoom(animate = false) {
-  previewZoom.scale = 1
-  previewZoom.x = 0
-  previewZoom.y = 0
-  setPreviewZoomAnimating(animate)
-}
-
-function snapBackPreviewSwipe() {
-  setPreviewZoomAnimating(true)
-  previewSwipeX.value = 0
-}
-
-// 提交滑动切换：先把整条轨道滑到目标位置（前后图自然露出），到位后无动画地把
-// 索引归位并复位位移，因为归位后的「居中图」正是刚才滑入的那张，视觉上无缝衔接
-function commitSwipeSwitch(direction) {
-  const stageW = window.innerWidth
-  setPreviewZoomAnimating(true)
-  previewSwipeX.value = direction * stageW
-  window.setTimeout(() => {
-    previewPhotoIndex.value += direction < 0 ? 1 : -1
-    const photos = event.value?.photos || []
-    const preloadRange = [previewPhotoIndex.value - 2, previewPhotoIndex.value - 1, previewPhotoIndex.value + 1, previewPhotoIndex.value + 2]
-    preloadRange.forEach((i) => {
-      const uri = photos[i]?.uri
-      if (uri) getCachedImage(uri, { priority: 'viewport' })
-    })
-    pzAnimating.value = false
-    previewSwipeX.value = 0
-    window.requestAnimationFrame(() => {
-      pzAnimating.value = false
-    })
-  }, 260)
-}
-
-function clampPreviewScale(value) {
-  return Math.min(PREVIEW_MAX_SCALE, Math.max(1, value))
-}
-
-function previewMaxOffset(scale) {
-  const stageEl = previewStageRef.value
-  const imgs = stageEl?.querySelectorAll('.photo-preview__img') || []
-  const imgEl = imgs[Math.min(1, imgs.length - 1)] || null
-  const stageW = stageEl?.offsetWidth || window.innerWidth
-  const stageH = stageEl?.offsetHeight || window.innerHeight
-  // object-fit: contain 后的实际内容尺寸（未放大前），用于限制拖动范围
-  let contentW = stageW
-  let contentH = stageH
-  const naturalW = imgEl?.naturalWidth || 0
-  const naturalH = imgEl?.naturalHeight || 0
-  if (naturalW > 0 && naturalH > 0) {
-    const fit = Math.min(stageW / naturalW, stageH / naturalH)
-    contentW = naturalW * fit
-    contentH = naturalH * fit
-  }
-  return {
-    x: Math.max(0, (contentW * scale - stageW) / 2),
-    y: Math.max(0, (contentH * scale - stageH) / 2)
-  }
-}
-
-function clampPreviewTranslate(x, y, scale) {
-  const max = previewMaxOffset(scale)
-  return {
-    x: Math.min(max.x, Math.max(-max.x, x)),
-    y: Math.min(max.y, Math.max(-max.y, y))
-  }
-}
-
-function applyPreviewZoom(scale, x, y, animate = false) {
-  const next = clampPreviewTranslate(x, y, scale)
-  previewZoom.scale = scale
-  previewZoom.x = next.x
-  previewZoom.y = next.y
-  setPreviewZoomAnimating(animate)
-}
-
-// 以点击点为不动点切换缩放：v = O + (b - O)*s + t ⇒ t1 = u - (u - t0)*(s1/s0)
-function togglePreviewZoomAt(clientX, clientY) {
-  if (previewZoom.scale > 1) {
-    // 放大状态下双击任意位置都恢复原尺寸（此前要求点在图片内容上，
-    // 点到空白区会没反应）
-    applyPreviewZoom(1, 0, 0, true)
-    return
-  }
-  const ux = clientX - window.innerWidth / 2
-  const uy = clientY - window.innerHeight / 2
-  applyPreviewZoom(
-    PREVIEW_DOUBLE_TAP_SCALE,
-    ux - (ux - previewZoom.x) * PREVIEW_DOUBLE_TAP_SCALE,
-    uy - (uy - previewZoom.y) * PREVIEW_DOUBLE_TAP_SCALE,
-    true
-  )
-}
-
-function getTouchDistance(touches) {
-  const dx = touches[0].clientX - touches[1].clientX
-  const dy = touches[0].clientY - touches[1].clientY
-  return Math.hypot(dx, dy)
-}
-
-// object-fit: contain 后的可见内容盒（含当前缩放/位移），用于判断点击是否落在空白区域
-function isPointOnPreviewImage(clientX, clientY) {
-  const stageEl = previewStageRef.value
-  if (!stageEl) return true
-  const stageW = stageEl.offsetWidth || window.innerWidth
-  const stageH = stageEl.offsetHeight || window.innerHeight
-  // 取当前居中（current）的图片用于命中判断
-  const imgs = stageEl.querySelectorAll('.photo-preview__img')
-  const imgEl = imgs[Math.min(1, imgs.length - 1)] || null
-  const naturalW = imgEl?.naturalWidth || 0
-  const naturalH = imgEl?.naturalHeight || 0
-  let contentW = stageW
-  let contentH = stageH
-  if (naturalW > 0 && naturalH > 0) {
-    const fit = Math.min(stageW / naturalW, stageH / naturalH)
-    contentW = naturalW * fit
-    contentH = naturalH * fit
-  }
-  // 变换以 stage 中心为原点：v = O + (b - O)*s + t
-  const halfW = (contentW * previewZoom.scale) / 2 + PREVIEW_BLANK_TAP_TOLERANCE_PX
-  const halfH = (contentH * previewZoom.scale) / 2 + PREVIEW_BLANK_TAP_TOLERANCE_PX
-  return (
-    clientX >= stageW / 2 - halfW + previewZoom.x &&
-    clientX <= stageW / 2 + halfW + previewZoom.x &&
-    clientY >= stageH / 2 - halfH + previewZoom.y &&
-    clientY <= stageH / 2 + halfH + previewZoom.y
-  )
-}
-
-// 单击空白区关闭预览，但延迟执行：若紧跟双击（放大/缩小）则取消关闭，
-// 避免双击首击落在角落空白时直接退出照片
-function scheduleBlankCloseIfNeeded(clientX, clientY) {
-  if (isPointOnPreviewImage(clientX, clientY)) return
-  if (pzPendingBlankClose) clearTimeout(pzPendingBlankClose)
-  pzPendingBlankClose = setTimeout(() => {
-    pzPendingBlankClose = null
-    closePhotoPreview()
-  }, PREVIEW_DOUBLE_TAP_GAP_MS)
-}
-
-function cancelPendingBlankClose() {
-  if (pzPendingBlankClose) {
-    clearTimeout(pzPendingBlankClose)
-    pzPendingBlankClose = null
-  }
-}
-
-// 触屏产生的合成 click 需要忽略，只响应鼠标点击
-function onPreviewStageClick(event) {
-  if (Date.now() - pzLastTouchEndAt < 700) return
-  if (event.detail > 1) {
-    cancelPendingBlankClose()
-    return
-  }
-  scheduleBlankCloseIfNeeded(event.clientX, event.clientY)
-}
-
-function onPreviewTouchStart(event) {
-  const touches = event.touches
-  if (touches.length >= 2) {
-    pzGesture = 'pinch'
-    pzStart = {
-      distance: getTouchDistance(touches),
-      centerX: (touches[0].clientX + touches[1].clientX) / 2,
-      centerY: (touches[0].clientY + touches[1].clientY) / 2,
-      scale: previewZoom.scale,
-      x: previewZoom.x,
-      y: previewZoom.y
-    }
-    return
-  }
-  pzGesture = 'pan'
-  pzTapMoved = false
-  pzStart = {
-    startX: touches[0].clientX,
-    startY: touches[0].clientY,
-    x: previewZoom.x,
-    y: previewZoom.y
-  }
-}
-
-function onPreviewTouchMove(event) {
-  if (!pzStart) return
-  const touches = event.touches
-  if (pzGesture === 'pinch') {
-    if (touches.length < 2) return
-    event.preventDefault()
-    const nextScale = clampPreviewScale(pzStart.scale * getTouchDistance(touches) / Math.max(1, pzStart.distance))
-    // 保持双指中心下的内容点不动
-    const ux = pzStart.centerX - window.innerWidth / 2
-    const uy = pzStart.centerY - window.innerHeight / 2
-    const ratio = nextScale / Math.max(pzStart.scale, 0.01)
-    pzTapMoved = true
-    applyPreviewZoom(
-      nextScale,
-      ux - (ux - pzStart.x) * ratio,
-      uy - (uy - pzStart.y) * ratio
-    )
-    return
-  }
-  if (previewZoom.scale <= 1) {
-    if (
-      Math.abs(touches[0].clientX - pzStart.startX) > 6 ||
-      Math.abs(touches[0].clientY - pzStart.startY) > 6
-    ) {
-      pzTapMoved = true
-    }
-    // 未放大时，水平方向拖动提供切换图片的视觉反馈
-    const dx = touches[0].clientX - pzStart.startX
-    const dy = touches[0].clientY - pzStart.startY
-    if (Math.abs(dx) > Math.abs(dy)) {
-      // 水平主导时阻止浏览器返回手势/页面滚动抢占滑动
-      event.preventDefault()
-    }
-    previewSwipeX.value = dx
-    return
-  }
-  // 与未放大时相同的死区：手指轻微抖动（平板上尤其常见）不算拖动，
-  // 否则双击恢复会被识别成拖动而没反应；越过死区才把起点重置到当前位置，避免内容跳动
-  const dx = touches[0].clientX - pzStart.startX
-  const dy = touches[0].clientY - pzStart.startY
-  if (!pzTapMoved) {
-    if (Math.hypot(dx, dy) <= 6) {
-      event.preventDefault()
-      return
-    }
-    pzStart.startX = touches[0].clientX
-    pzStart.startY = touches[0].clientY
-    pzStart.x = previewZoom.x
-    pzStart.y = previewZoom.y
-  }
-  event.preventDefault()
-  pzTapMoved = true
-  applyPreviewZoom(
-    previewZoom.scale,
-    pzStart.x + (touches[0].clientX - pzStart.startX),
-    pzStart.y + (touches[0].clientY - pzStart.startY)
-  )
-}
-
-function onPreviewTouchEnd(event) {
-  if (!pzStart) return
-  if (event.touches.length === 0) {
-    pzLastTouchEndAt = Date.now()
-    if (pzGesture === 'pan') {
-      const touch = event.changedTouches[0]
-      const dx = previewSwipeX.value
-      const dy = touch.clientY - pzStart.startY
-      const swipeThreshold = Math.max(40, window.innerWidth * PREVIEW_SWIPE_RATIO)
-      // 未放大时的水平滑动优先判定为切换图片
-      if (Math.abs(dx) > swipeThreshold && Math.abs(dx) > Math.abs(dy)) {
-        if ((dx < 0 && canGoNextPhoto.value) || (dx > 0 && canGoPrevPhoto.value)) {
-          commitSwipeSwitch(dx < 0 ? -1 : 1)
-        } else {
-          snapBackPreviewSwipe()
-        }
-        pzStart = null
-        pzGesture = null
-        return
-      }
-      if (!pzTapMoved) {
-        const now = pzLastTouchEndAt
-        const isNearLastTap = Math.hypot(touch.clientX - pzLastTap.x, touch.clientY - pzLastTap.y) < PREVIEW_DOUBLE_TAP_DISTANCE_PX
-        if (now - pzLastTap.time < PREVIEW_DOUBLE_TAP_GAP_MS && isNearLastTap) {
-          pzLastTap.time = 0
-          cancelPendingBlankClose()
-          togglePreviewZoomAt(touch.clientX, touch.clientY)
-        } else {
-          pzLastTap.time = now
-          pzLastTap.x = touch.clientX
-          pzLastTap.y = touch.clientY
-          scheduleBlankCloseIfNeeded(touch.clientX, touch.clientY)
-        }
-      }
-    }
-    if (previewZoom.scale < 1) {
-      applyPreviewZoom(1, 0, 0, true)
-    }
-    if (previewSwipeX.value !== 0) {
-      snapBackPreviewSwipe()
-    }
-    pzStart = null
-    pzGesture = null
-    return
-  }
-  if (pzGesture === 'pinch' && event.touches.length === 1) {
-    pzGesture = 'pan'
-    pzTapMoved = true
-    pzStart = {
-      startX: event.touches[0].clientX,
-      startY: event.touches[0].clientY,
-      x: previewZoom.x,
-      y: previewZoom.y
-    }
-  }
-}
-
-function onPreviewDblClick(event) {
-  cancelPendingBlankClose()
-  togglePreviewZoomAt(event.clientX, event.clientY)
-}
-
 function openPhotoPreview(index) {
   const photos = event.value?.photos || []
   if (!photos[index]?.uri) return
-  resetPreviewZoom(false)
-  previewSwipeX.value = 0
-  pzLastTap.time = 0
-  cancelPendingBlankClose()
   previewPhotoIndex.value = index
-  const preloadRange = [index - 2, index - 1, index + 1, index + 2]
-  preloadRange.forEach((i) => {
-    const uri = photos[i]?.uri
-    if (uri) getCachedImage(uri, { priority: 'viewport' })
-  })
 }
 
 function closePhotoPreview() {
   previewPhotoIndex.value = -1
-  previewSwipeX.value = 0
-}
-
-const canGoPrevPhoto = computed(() => previewPhotoIndex.value > 0)
-const canGoNextPhoto = computed(() => {
-  const photos = event.value?.photos || []
-  return previewPhotoIndex.value >= 0 && previewPhotoIndex.value < photos.length - 1
-})
-
-function showPrevPhoto() {
-  if (canGoPrevPhoto.value) commitSwipeSwitch(1)
-}
-
-function showNextPhoto() {
-  if (canGoNextPhoto.value) commitSwipeSwitch(-1)
-}
-
-function handlePreviewKeydown(event) {
-  if (previewPhotoIndex.value < 0) return
-  if (event.key === 'Escape') {
-    closePhotoPreview()
-  } else if (event.key === 'ArrowLeft') {
-    showPrevPhoto()
-  } else if (event.key === 'ArrowRight') {
-    showNextPhoto()
-  }
 }
 
 async function handleDelete() {
@@ -1970,164 +1492,6 @@ function tryPlayLinkedGoodsBackHero() {
 .dialog-fade-enter-from,
 .dialog-fade-leave-to {
   opacity: 0;
-}
-
-.photo-preview-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-  background: var(--app-bg);
-  background: color-mix(in srgb, var(--app-bg) 80%, transparent);
-  backdrop-filter: blur(40px) saturate(180%);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-}
-
-.photo-preview__close {
-  position: absolute;
-  top: calc(env(safe-area-inset-top) + 12px);
-  right: 16px;
-  z-index: 10;
-  width: 40px;
-  height: 40px;
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--app-surface) 55%, transparent);
-  color: var(--app-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: background-color 200ms ease, transform 180ms ease, backdrop-filter 200ms ease;
-}
-
-.photo-preview__close:hover {
-  background: color-mix(in srgb, var(--app-surface) 72%, transparent);
-}
-
-.photo-preview__close:active {
-  transform: scale(0.88);
-  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
-}
-
-.photo-preview__close svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 2.2;
-}
-
-.photo-preview__nav {
-  position: absolute;
-  top: 50%;
-  z-index: 10;
-  width: 40px;
-  height: 40px;
-  transform: translateY(-50%);
-  border: none;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--app-surface) 55%, transparent);
-  color: var(--app-text);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  transition: background-color 200ms ease, transform 180ms ease, backdrop-filter 200ms ease;
-}
-
-.photo-preview__nav:hover {
-  background: color-mix(in srgb, var(--app-surface) 72%, transparent);
-}
-
-.photo-preview__nav:active {
-  transform: translateY(-50%) scale(0.88);
-  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
-}
-
-.photo-preview__nav--prev {
-  left: 16px;
-}
-
-.photo-preview__nav--next {
-  right: 16px;
-}
-
-.photo-preview__nav svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  stroke-width: 2.2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.photo-preview__stage {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  touch-action: none;
-}
-
-.photo-preview__zoom {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-}
-
-.photo-preview__track {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-wrap: nowrap;
-  will-change: transform;
-}
-
-.photo-preview__cell {
-  flex: 0 0 100%;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.photo-preview__zoom :deep(.lazy-image-element) {
-  object-fit: contain;
-}
-
-.photo-preview-enter-active {
-  transition: opacity 220ms ease;
-}
-
-.photo-preview-enter-active .photo-preview__stage {
-  transition: transform 260ms var(--motion-ease-emphasis);
-}
-
-.photo-preview-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.photo-preview-leave-active .photo-preview__stage {
-  transition: transform 180ms ease;
-}
-
-.photo-preview-enter-from,
-.photo-preview-leave-to {
-  opacity: 0;
-}
-
-.photo-preview-enter-from .photo-preview__stage {
-  transform: scale(0.92);
-}
-
-.photo-preview-leave-to .photo-preview__stage {
-  transform: scale(0.95);
 }
 
 .empty-wrap {
