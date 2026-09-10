@@ -347,6 +347,10 @@
           <span class="settings-field__label">{{ t('aiChat.apiKey') }}</span>
           <input v-model.trim="settingsDraft.apiKey" type="password" autocomplete="off" spellcheck="false" />
         </label>
+        <label class="settings-field">
+          <span class="settings-field__label">{{ t('aiChat.searchApiKey') }}</span>
+          <input v-model.trim="settingsDraft.searchApiKey" type="password" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.searchApiKeyPlaceholder')" />
+        </label>
 
         <div class="ai-settings-body__actions">
           <button class="settings-clear" type="button" @click="clearChat">{{ t('aiChat.clearChat') }}</button>
@@ -354,6 +358,7 @@
         </div>
 
         <p class="ai-settings-body__hint">{{ t('aiChat.apiKeyHint') }}</p>
+        <p class="ai-settings-body__hint">{{ t('aiChat.searchNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.visionNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.writeNotice') }}</p>
       </div>
@@ -470,7 +475,7 @@ const inputRef = ref(null)
 const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
 const showHistory = ref(false)
-const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '' })
+const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '' })
 const maxAttachments = MAX_ATTACHMENTS
 const attachMenuOpen = ref(false)
 const tableFileInputRef = ref(null)
@@ -873,6 +878,7 @@ function openSettings() {
   settingsDraft.model = aiChat.config.model
   settingsDraft.visionModel = aiChat.config.visionModel || ''
   settingsDraft.apiKey = aiChat.config.apiKey
+  settingsDraft.searchApiKey = aiChat.config.searchApiKey || ''
   showSettings.value = true
 }
 
@@ -881,7 +887,8 @@ function saveSettings() {
     baseUrl: normalizeBaseUrl(settingsDraft.baseUrl),
     model: settingsDraft.model,
     visionModel: settingsDraft.visionModel,
-    apiKey: settingsDraft.apiKey
+    apiKey: settingsDraft.apiKey,
+    searchApiKey: settingsDraft.searchApiKey
   })
   showSettings.value = false
   showToast(t('aiChat.saved'))

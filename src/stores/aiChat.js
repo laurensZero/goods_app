@@ -30,6 +30,7 @@ import {
 import { VISION_TOOL_DEFINITIONS, createVisionToolHandlers } from '@/services/ai/visionTools'
 import { ATTACHMENT_TOOL_DEFINITIONS, createAttachmentToolHandlers } from '@/services/ai/attachmentTools'
 import { TABLE_TOOL_DEFINITIONS, createTableToolHandlers } from '@/services/ai/tableImportTools'
+import { WEB_SEARCH_TOOL_DEFINITIONS, createWebSearchToolHandlers } from '@/services/ai/webSearchTools'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('ai-chat')
@@ -42,8 +43,10 @@ const MAX_ATTACHMENTS = 3
 
 /**
  * 系统提示词：注入当天日期（「这个月」类问题的时间基准）与工具选择规则。
+ * @param {{ hasWebSearch?: boolean }} [options]
  */
-function buildSystemPrompt() {
+function buildSystemPrompt(options = {}) {
+  const { hasWebSearch = false } = options
   const now = new Date()
   const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const lines = [
@@ -53,6 +56,9 @@ function buildSystemPrompt() {
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
     '表格工具：table_dryrun（解析 xlsx/csv/zip 附件；官方格式返回 mode=official 快速路径，非官方 mode=structure 看结构 / mode=dryrun 带映射预演，均不写库）、table_commit（官方直接标准导入，非官方按映射批量写入；需 dryRunConfirmed: true）；',
+    ...(hasWebSearch
+      ? ['联网工具：web_search（Tavily 搜索）；仅在需要训练数据之外或有时效性的信息时调用（新番播出、谷子发售/再版、市价行情、冷门作品设定、近期活动），常识性术语不要搜；结果含 title/url/content，回答时附 1-2 个最相关来源链接；']
+      : []),
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
     '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
@@ -292,7 +298,11 @@ export const useAiChatStore = defineStore('aiChat', () => {
   let rawConvo = []
 
   function buildFreshConvo() {
-    return [{ role: 'system', content: buildSystemPrompt() }]
+    return [{ role: 'system', content: buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() }) }]
+  }
+
+  function hasWebSearchEnabled() {
+    return Boolean(String(config.value?.searchApiKey || '').trim())
   }
 
   function activeSession() {
@@ -304,7 +314,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     activeSessionId.value = session.id
     messages.value = session.messages
     rawConvo = [
-      { role: 'system', content: buildSystemPrompt() },
+      { role: 'system', content: buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() }) },
       ...session.convo.filter((m) => m.role !== 'system')
     ]
     lastError.value = ''
@@ -632,12 +642,16 @@ export const useAiChatStore = defineStore('aiChat', () => {
         goodsGroupStore: useGoodsGroupStore(),
         presetsStore: usePresetsStore()
       })
+      const webSearchHandlers = createWebSearchToolHandlers({
+        getConfig: () => config.value
+      })
       executorCache = {
         ...readHandlers,
         ...writeHandlers,
         ...visionHandlers,
         ...attachmentHandlers,
-        ...tableHandlers
+        ...tableHandlers,
+        ...webSearchHandlers
       }
     }
     return (name, args) => {
@@ -721,7 +735,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
       attachments: pendingAttachments.length
     })
     // system 消息按最新构建（当天日期/记忆清单），本轮新增的记忆立即生效
-    rawConvo[0] = { role: 'system', content: buildSystemPrompt() }
+    rawConvo[0] = { role: 'system', content: buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() }) }
     messages.value.push({
       id: uid(),
       role: 'user',
@@ -759,7 +773,9 @@ export const useAiChatStore = defineStore('aiChat', () => {
           ...MCP_WRITE_TOOL_DEFINITIONS,
           ...VISION_TOOL_DEFINITIONS,
           ...ATTACHMENT_TOOL_DEFINITIONS,
-          ...TABLE_TOOL_DEFINITIONS
+          ...TABLE_TOOL_DEFINITIONS,
+          // 仅配置了搜索 Key 时才暴露，避免模型无谓调用
+          ...(hasWebSearchEnabled() ? WEB_SEARCH_TOOL_DEFINITIONS : [])
         ],
         signal: currentAbort.signal,
         // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
