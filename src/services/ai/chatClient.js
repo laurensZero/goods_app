@@ -16,11 +16,13 @@ const STREAM_TIMEOUT_MS = 300000
 export const MAX_TOOL_ROUNDS = 6
 
 export const DEFAULT_AI_CONFIG = Object.freeze({
-  baseUrl: 'https://api.openai.com/v1',
-  model: 'gpt-4o-mini',
+  baseUrl: '',
+  model: '',
   /** 可选：视觉/多模态模型；留空则复用 model */
   visionModel: '',
-  apiKey: ''
+  apiKey: '',
+  /** 可选：Tavily 搜索 Key（tvly-…）；留空则不启用 web_search */
+  searchApiKey: ''
 })
 
 /** HTTP/服务端错误，带状态码与原始响应文本便于排障 */
