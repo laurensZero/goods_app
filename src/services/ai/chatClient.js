@@ -18,6 +18,8 @@ export const MAX_TOOL_ROUNDS = 6
 export const DEFAULT_AI_CONFIG = Object.freeze({
   baseUrl: 'https://api.openai.com/v1',
   model: 'gpt-4o-mini',
+  /** 可选：视觉/多模态模型；留空则复用 model */
+  visionModel: '',
   apiKey: ''
 })
 

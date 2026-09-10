@@ -36,5 +36,13 @@
   "aiChat.rename": "重新命名",
   "aiChat.renameSuccess": "已重新命名",
   "aiChat.messagesCount": "{count} 條訊息",
-  "aiChat.jumpFailed": "跳轉失敗，頁面不存在"
+  "aiChat.jumpFailed": "跳轉失敗，頁面不存在",
+  "aiChat.visionModel": "視覺模型（選填）",
+  "aiChat.visionModelPlaceholder": "留空則使用主模型",
+  "aiChat.visionNotice": "附圖不會自動辨識；只有你明確要求「幫我看看這張圖」時才會呼叫多模態模型。視覺模型需支援圖片輸入。",
+  "aiChat.attachImage": "新增圖片",
+  "aiChat.attachFailed": "選圖失敗，請重試",
+  "aiChat.attachLimit": "最多附帶 {count} 張圖片",
+  "aiChat.attachNeedText": "請補一句你想了解的內容（例如：幫我看看這張圖）",
+  "aiChat.removeAttachment": "移除附件"
 }

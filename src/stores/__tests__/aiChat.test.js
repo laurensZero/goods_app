@@ -318,4 +318,38 @@ describe('aiChat store', () => {
     expect(store.renameSession(store.activeSessionId, '   ')).toBe(false)
     expect(store.renameSession('nope', '标题')).toBe(false)
   })
+
+  it('附图只进 UI/序号标记，不自动送视觉；发送后挂到用户消息', async () => {
+    const store = useAiChatStore()
+    store.updateConfig({ ...FULL_CONFIG })
+
+    store.addAttachments([{ uri: 'data:image/png;base64,AAA', id: 'att-1' }])
+    expect(store.attachments).toHaveLength(1)
+
+    await store.send('帮我看看这张图')
+
+    const options = runChatCompletionMock.mock.calls[0][0]
+    const lastUser = options.messages.at(-1)
+    expect(lastUser.role).toBe('user')
+    // 不把图片本体塞进模型上下文，只附序号/att 标记
+    expect(lastUser.content).toContain('帮我看看这张图')
+    expect(lastUser.content).toContain('[附件图片: 1|att:att-1]')
+    expect(lastUser.content).not.toContain('data:image/png')
+
+    // UI 消息保留附件预览；待发区清空
+    const userMsg = store.messages.find((m) => m.role === 'user')
+    expect(userMsg.attachments).toEqual([{ id: 'att-1', uri: 'data:image/png;base64,AAA', localPath: '' }])
+    expect(store.attachments).toHaveLength(0)
+  })
+
+  it('附件数量上限为 3', () => {
+    const store = useAiChatStore()
+    store.addAttachments([
+      { uri: 'data:image/png;base64,A' },
+      { uri: 'data:image/png;base64,B' },
+      { uri: 'data:image/png;base64,C' },
+      { uri: 'data:image/png;base64,D' }
+    ])
+    expect(store.attachments).toHaveLength(3)
+  })
 })

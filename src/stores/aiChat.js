@@ -20,6 +20,8 @@ import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
+import { VISION_TOOL_DEFINITIONS, createVisionToolHandlers } from '@/services/ai/visionTools'
+import { ATTACHMENT_TOOL_DEFINITIONS, createAttachmentToolHandlers } from '@/services/ai/attachmentTools'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('ai-chat')
@@ -27,6 +29,8 @@ const log = createLogger('ai-chat')
 const CONFIG_STORAGE_KEY = 'goods_ai_chat_config'
 /** 发送历史时保留的原始消息上限（超出后从最早的完整轮次截断） */
 const MAX_CONVO_MESSAGES = 80
+/** 单条消息最多携带的视觉附件数（控制体积与 token 成本） */
+const MAX_ATTACHMENTS = 3
 
 /**
  * 系统提示词：注入当天日期（「这个月」类问题的时间基准）与工具选择规则。
@@ -39,6 +43,7 @@ function buildSystemPrompt() {
     '只读工具：goods_search（搜索，hasTracks: true 可筛带曲目列表的 CD/专辑）、goods_detail（详情，含图片 uri 与 CD/专辑曲目明细）、collection_overview（收藏总览）、spending_summary（按月/年消费汇总）、character_leaderboard（角色统计排行）、storage_locations（收纳位置分布）、wishlist_overview（愿望单与预算）、sale_ledger（出谷回血与盈亏）、events_list（展览活动）、event_tracks（演出/演唱会曲单）、music_lyrics（查曲目歌词）、recharge_summary（充值总览）、recharge_search（充值按项目/游戏精确统计）、budget_overview（吃谷预算与超支）；',
     '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）、memory_save（记住/忘记用户长期偏好）；',
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
+    '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
     '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
@@ -50,6 +55,8 @@ function buildSystemPrompt() {
     '- 充值统计：问某个项目/游戏的具体充值（如「空月祝福一共买了几张」「原神去年充了多少」）→ recharge_search（按 game/itemName/year 过滤并用 byItem/byMonth 回答），不要只靠 recharge_summary 的总览猜；总览/按年分布 → recharge_summary；',
     '- 图片：用户想看某件谷子的图/在回复里展示图片时 → goods_detail 返回的 images 数组里有可直接展示的 uri，用 ![描述](uri) 嵌入回复（最多 2-3 张，coverUrl 是主图）；看演出/活动的现场照片 → event_tracks 的 photos，同样用 ![描述](uri) 嵌入；',
     '- 图片 URL 铁律：嵌入回复的图片/照片 URL 必须从工具结果里逐字符原样复制，严禁凭记忆重写、拼接或编造——URL 里任何一段文件名写错都会变成打不开的死链；',
+    '- 视觉（vision_analyze）铁律：用户消息末尾的「[附件图片: n|att:…]」只表示随消息附带了图片，绝不自动分析；只有用户明确要求查看/识别/描述/分析图片内容（如「帮我看看这张」「图上是什么角色」「识别一下包装文字」）时才调用 vision_analyze。用户只发图不说话、或问的是收藏统计/记账等问题时禁止调用。image 参数：附件图填序号（"1"、"2"…）或标记里的 att:<id>；也可以填 goods_detail/event_tracks 返回的图片 uri、http(s) 链接或 cloud-image:// 链接。question 用用户的具体问题，没有则留空由模型客观描述。vision_analyze 报错/空回复时如实告知用户「当前视觉模型无法分析这张图」，并建议在设置中更换支持图片输入的视觉模型，不要连续空转重试。',
+    '- 附件应用（attachment_apply）：用户要求把聊天里上传的图片设为谷子图/活动封面/活动照片（如「把这张加到吧唧上」「设为这次漫展的封面」「加一张现场照片」）→ attachment_apply，不需要 vision_analyze。target=goods_image（id 来自 goods_search，kind 默认 primary 设主图）、event_cover / event_photo（id 来自 events_list）。先确认目标条目 id 再写入；写完后在回复里说明已挂到哪条。',
     '- 预算：「这个月/今年预算还剩多少」「哪个月/哪年超了」→ budget_overview（0=未设置）；用户要改预算 → budget_set（monthly/yearly，0=清除），改完可建议去统计页看预算线与超支标红；',
     '- 应用动作：同步数据 → sync_start（未登录/未配置会报错，如实转达）；分享谷子 → 先 goods_search 拿 id 再 share_create，管理链接 → share_manage；问账号 → account_info，退出登录 → account_logout（退出前跟用户确认一次）；问版本号/能否更新 → app_info（checkUpdate: true 才联网查）；',
     '- 跳转：应用绝不自动跳转页面，一律通过跳转按钮让用户自己点。需要跳转链接时 → navigate（page 必填；goods_detail/goods_edit/event_detail/event_edit 另需 id，活动 id 来自 events_list），它返回 buttonLink，你把它嵌成 [按钮文字](buttonLink)；也可以不经 navigate 直接按协议写 app://<page>（带 id 页面为 app://<page>/<id>）；',
@@ -100,6 +107,32 @@ function createSessionRecord() {
   }
 }
 
+/**
+ * 视觉附件清洗：只保留可预览/可解析的字段，防止脏数据进 localStorage。
+ * @param {unknown} list
+ */
+function sanitizeAttachments(list) {
+  if (!Array.isArray(list)) return []
+  return list
+    .slice(0, MAX_ATTACHMENTS)
+    .map((item) => {
+      if (!item) return null
+      if (typeof item === 'string') {
+        const uri = item.trim()
+        return uri ? { id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, uri } : null
+      }
+      const uri = String(item.uri || '').trim()
+      const localPath = String(item.localPath || '').trim()
+      if (!uri && !localPath) return null
+      return {
+        id: String(item.id || `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
+        uri,
+        localPath
+      }
+    })
+    .filter(Boolean)
+}
+
 /** 清洗会话数据（兼容损坏/缺字段） */
 function sanitizeSession(session) {
   const messages = (Array.isArray(session?.messages) ? session.messages : [])
@@ -107,7 +140,8 @@ function sanitizeSession(session) {
     .map((m) => ({
       ...m,
       steps: Array.isArray(m.steps) ? m.steps : [],
-      reasoning: typeof m.reasoning === 'string' ? m.reasoning.slice(0, MAX_PERSISTED_REASONING) : ''
+      reasoning: typeof m.reasoning === 'string' ? m.reasoning.slice(0, MAX_PERSISTED_REASONING) : '',
+      attachments: sanitizeAttachments(m.attachments)
     }))
   const convo = Array.isArray(session?.convo) ? session.convo.filter((m) => m && typeof m.role === 'string') : []
   sessionSeq += 1
@@ -184,6 +218,13 @@ function trimConvo(convo) {
 }
 
 /**
+ * @typedef {Object} ChatAttachment
+ * @property {string} id
+ * @property {string} uri 预览与解析用地址（data:/file/cloud-image/http 等）
+ * @property {string} [localPath] 原生端相对路径（可选，便于回读）
+ */
+
+/**
  * @typedef {Object} ChatMessage
  * @property {string} id
  * @property {'user' | 'assistant'} role
@@ -192,6 +233,7 @@ function trimConvo(convo) {
  * @property {string} [reasoning] 模型思维链（reasoning_content / reasoning），折叠展示
  * @property {boolean} [pending]
  * @property {string} [error]
+ * @property {ChatAttachment[]} [attachments] 用户消息附带的图片（仅展示；视觉分析须用户点名）
  */
 
 export const useAiChatStore = defineStore('aiChat', () => {
@@ -205,6 +247,15 @@ export const useAiChatStore = defineStore('aiChat', () => {
   const sending = ref(false)
   /** UI 提示用错误标记：no-config | request | '' */
   const lastError = ref('')
+  /** 待发送的视觉附件：随下一条用户消息进入会话；不自动触发 vision_analyze */
+  /** @type {import('vue').Ref<ChatAttachment[]>} */
+  const attachments = ref([])
+  /**
+   * 会话内附件注册表：id → 图源，供追问「再看看刚才那张」时
+   * vision_analyze 按 att:<id> 取图（本会话内有效）。
+   * @type {Map<string, ChatAttachment>}
+   */
+  const attachmentRegistry = new Map()
 
   /** 原始 OpenAI 消息数组（含 tool 消息），随会话切换；系统提示词始终用最新版 */
   let rawConvo = []
@@ -226,6 +277,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
       ...session.convo.filter((m) => m.role !== 'system')
     ]
     lastError.value = ''
+    // 重建附件注册表：仅当前会话消息里的附件可被 vision_analyze 按 att:<id> 引用
+    attachmentRegistry.clear()
+    for (const msg of session.messages) {
+      for (const att of sanitizeAttachments(msg.attachments)) {
+        attachmentRegistry.set(att.id, att)
+      }
+    }
   }
 
   if (sessions.value.length === 0) {
@@ -364,6 +422,75 @@ export const useAiChatStore = defineStore('aiChat', () => {
     persistSessionsNow()
   }
 
+  /**
+   * 附件清单注入用户消息文本（不塞 data URL，避免撑爆上下文）。
+   * 序号用于本轮 vision_analyze；att:<id> 供同会话后续追问引用。
+   * @param {string} text
+   * @param {ChatAttachment[]} list
+   */
+  function withAttachmentMarkers(text, list) {
+    if (!list?.length) return text
+    const markers = list
+      .map((att, index) => `[附件图片: ${index + 1}|att:${att.id}]`)
+      .join(' ')
+    return `${text}\n\n${markers}`
+  }
+
+  /** 发送中的附件快照：send 期间 vision_analyze 按序号取图；结束后清空 */
+  let activeSendAttachments = []
+
+  /** 当前可分析附件（优先本轮发送快照，其次待发区） */
+  function listAttachments() {
+    if (activeSendAttachments.length > 0) return activeSendAttachments
+    return attachments.value
+  }
+
+  /**
+   * vision_analyze 取图：序号 → 本轮附件；att:<id> → 注册表；其余当 URI。
+   * @param {string} token
+   */
+  function resolveVisionAttachment(token) {
+    const raw = String(token || '').trim()
+    if (!raw) throw new Error('image 必填')
+    if (raw.startsWith('att:')) {
+      const hit = attachmentRegistry.get(raw.slice(4).trim())
+      if (!hit) throw new Error('附件已不在当前会话中')
+      return hit
+    }
+    if (/^\d+$/.test(raw)) {
+      const index = Number(raw) - 1
+      const list = listAttachments()
+      const hit = list[index]
+      if (!hit) throw new Error(`附件 #${raw} 不存在（当前共 ${list.length} 张）`)
+      return hit
+    }
+    return { uri: raw }
+  }
+
+  /**
+   * 追加视觉附件（上传/选择图片后仅缓存，不触发视觉调用）。
+   * @param {Array<{ uri: string, localPath?: string, id?: string }>} items
+   */
+  function addAttachments(items) {
+    const incoming = sanitizeAttachments(items)
+    if (incoming.length === 0) return attachments.value
+    const room = MAX_ATTACHMENTS - attachments.value.length
+    if (room <= 0) return attachments.value
+    attachments.value = [...attachments.value, ...incoming].slice(0, MAX_ATTACHMENTS)
+    return attachments.value
+  }
+
+  /**
+   * @param {string} id
+   */
+  function removeAttachment(id) {
+    attachments.value = attachments.value.filter((a) => a.id !== id)
+  }
+
+  function clearAttachments() {
+    attachments.value = []
+  }
+
   let executorCache = null
   function getExecutor() {
     if (!executorCache) {
@@ -384,7 +511,30 @@ export const useAiChatStore = defineStore('aiChat', () => {
         budgetApi: { read: readBudgetSettings, write: writeBudgetSettings },
         router
       })
-      executorCache = { ...readHandlers, ...writeHandlers }
+      const visionHandlers = createVisionToolHandlers({
+        getConfig: () => config.value,
+        getAttachments: () => listAttachments(),
+        resolveSource: resolveVisionAttachment,
+        restoreCloud: async (cloudFileName) => {
+          try {
+            return await useSyncStore().restoreImageFromCloud(cloudFileName)
+          } catch {
+            return null
+          }
+        }
+      })
+      const attachmentHandlers = createAttachmentToolHandlers({
+        getAttachments: () => listAttachments(),
+        resolveSource: resolveVisionAttachment,
+        goodsStore,
+        eventsStore: useEventsStore()
+      })
+      executorCache = {
+        ...readHandlers,
+        ...writeHandlers,
+        ...visionHandlers,
+        ...attachmentHandlers
+      }
     }
     return (name, args) => {
       const handler = executorCache[name]
@@ -405,13 +555,33 @@ export const useAiChatStore = defineStore('aiChat', () => {
       return
     }
 
-    devLog('send:start', { contentLen: content.length, convoLen: rawConvo.length })
+    const pendingAttachments = attachments.value.map((a) => ({ ...a }))
+    activeSendAttachments = pendingAttachments
+    const modelText = withAttachmentMarkers(content, pendingAttachments)
+
+    devLog('send:start', {
+      contentLen: content.length,
+      convoLen: rawConvo.length,
+      attachments: pendingAttachments.length
+    })
     // system 消息按最新构建（当天日期/记忆清单），本轮新增的记忆立即生效
     rawConvo[0] = { role: 'system', content: buildSystemPrompt() }
-    messages.value.push({ id: uid(), role: 'user', content, steps: [] })
+    messages.value.push({
+      id: uid(),
+      role: 'user',
+      content,
+      steps: [],
+      attachments: pendingAttachments
+    })
     // 用户消息必须同时进入模型对话（此前只进 UI 列表，模型看不到新问题，
-    // 会基于旧上下文自说自话）
-    rawConvo = [...rawConvo, { role: 'user', content }]
+    // 会基于旧上下文自说自话）。附件只以序号标记注入，不塞图片本体；
+    // 视觉分析由模型在用户明确要求时调用 vision_analyze 完成。
+    rawConvo = [...rawConvo, { role: 'user', content: modelText }]
+    // 待发区清空；工具循环期间由 activeSendAttachments 供 vision_analyze 取图
+    attachments.value = []
+    for (const att of pendingAttachments) {
+      attachmentRegistry.set(att.id, att)
+    }
     const currentSession = activeSession()
     if (currentSession && !currentSession.title) currentSession.title = content.slice(0, 30)
     /** @type {ChatMessage} */
@@ -426,7 +596,12 @@ export const useAiChatStore = defineStore('aiChat', () => {
       const result = await runChatCompletion({
         config: config.value,
         messages: rawConvo,
-        tools: [...MCP_TOOL_DEFINITIONS, ...MCP_WRITE_TOOL_DEFINITIONS],
+        tools: [
+          ...MCP_TOOL_DEFINITIONS,
+          ...MCP_WRITE_TOOL_DEFINITIONS,
+          ...VISION_TOOL_DEFINITIONS,
+          ...ATTACHMENT_TOOL_DEFINITIONS
+        ],
         // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
         onDelta: (delta) => {
           if (delta.reset) {
@@ -472,13 +647,15 @@ export const useAiChatStore = defineStore('aiChat', () => {
       devLog('reply:failed', { error: assistant.error })
     } finally {
       sending.value = false
+      activeSendAttachments = []
     }
   }
 
   return {
     config, messages, sending, lastError,
-    sessions, activeSessionId,
+    sessions, activeSessionId, attachments,
     updateConfig, clearMessages, send,
+    addAttachments, removeAttachment, clearAttachments,
     newSession, switchSession, deleteSession, renameSession
   }
 })

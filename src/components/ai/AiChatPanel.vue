@@ -38,6 +38,19 @@
           </svg>
         </div>
         <div :class="['chat-bubble', { 'chat-bubble--error': Boolean(msg.error) }]">
+          <div
+            v-if="msg.role === 'user' && msg.attachments?.length"
+            class="chat-attach-list"
+          >
+            <img
+              v-for="att in msg.attachments"
+              :key="att.id"
+              class="chat-attach-thumb"
+              :src="att.uri"
+              alt=""
+              loading="lazy"
+            />
+          </div>
           <button
             v-if="msg.role === 'assistant' && msg.reasoning"
             :class="['chat-think-toggle', { 'chat-think-toggle--open': isThinkOpen(msg) }]"
@@ -107,6 +120,22 @@
       <div key="chat-anchor" ref="bottomAnchorRef" class="chat-anchor" />
     </TransitionGroup>
 
+    <div v-if="aiChat.attachments.length" class="chat-attach-tray">
+      <div v-for="att in aiChat.attachments" :key="att.id" class="chat-attach-tray__item">
+        <img class="chat-attach-tray__img" :src="att.uri" alt="" />
+        <button
+          class="chat-attach-tray__remove"
+          type="button"
+          :aria-label="t('aiChat.removeAttachment')"
+          @click="aiChat.removeAttachment(att.id)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
     <div class="chat-inputbar">
       <button
         class="chat-settings-btn"
@@ -118,6 +147,19 @@
           <path d="M3 12a9 9 0 1 0 9-9a9.75 9.75 0 0 0-6.74 2.74L3 8" />
           <path d="M3 3v5h5" />
           <path d="M12 7v5l3 2" />
+        </svg>
+      </button>
+      <button
+        class="chat-settings-btn"
+        type="button"
+        :aria-label="t('aiChat.attachImage')"
+        :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
+        @click="pickAttachments"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3" />
+          <circle cx="9" cy="9" r="1.6" />
+          <path d="M21 15l-4.5-4.5L7 20" />
         </svg>
       </button>
       <button
@@ -181,6 +223,10 @@
           <input v-model.trim="settingsDraft.model" type="text" autocomplete="off" spellcheck="false" />
         </label>
         <label class="settings-field">
+          <span class="settings-field__label">{{ t('aiChat.visionModel') }}</span>
+          <input v-model.trim="settingsDraft.visionModel" type="text" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.visionModelPlaceholder')" />
+        </label>
+        <label class="settings-field">
           <span class="settings-field__label">{{ t('aiChat.apiKey') }}</span>
           <input v-model.trim="settingsDraft.apiKey" type="password" autocomplete="off" spellcheck="false" />
         </label>
@@ -191,6 +237,7 @@
         </div>
 
         <p class="ai-settings-body__hint">{{ t('aiChat.apiKeyHint') }}</p>
+        <p class="ai-settings-body__hint">{{ t('aiChat.visionNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.writeNotice') }}</p>
       </div>
     </Popup>
@@ -286,6 +333,10 @@ import { useAiChatStore } from '@/stores/aiChat'
 import { normalizeBaseUrl } from '@/services/ai/chatClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref } from '@/utils/ai/jumpLinks'
+import { pickLinkedLocalImages } from '@/utils/image/localImage'
+
+/** 单条消息最多附带的图片数（与 store MAX_ATTACHMENTS 对齐） */
+const MAX_ATTACHMENTS = 3
 
 defineOptions({ name: 'AiChatPanel' })
 
@@ -298,7 +349,8 @@ const inputRef = ref(null)
 const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
 const showHistory = ref(false)
-const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '' })
+const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '' })
+const maxAttachments = MAX_ATTACHMENTS
 
 // 会话重命名（内联编辑，同一时间只有一个条目处于编辑态）
 const editingSessionId = ref('')
@@ -478,10 +530,15 @@ function useExample(example) {
 
 function send() {
   const text = inputText.value.trim()
-  if (!text || aiChat.sending) return
+  // 允许「只发附件 + 一句话」；纯附件无文字时引导用户补一句要求
+  if ((!text && aiChat.attachments.length === 0) || aiChat.sending) return
   if (!aiChat.config.baseUrl || !aiChat.config.model || !aiChat.config.apiKey) {
     showToast(t('aiChat.errorNoConfig'))
     openSettings()
+    return
+  }
+  if (!text && aiChat.attachments.length > 0) {
+    showToast(t('aiChat.attachNeedText'))
     return
   }
   aiChat.send(text)
@@ -489,9 +546,37 @@ function send() {
   nextTick(autoGrow)
 }
 
+/**
+ * 从相册选图：仅挂到待发附件区，不自动触发视觉分析。
+ * 用户明确要求「看看这张」后，模型才会调用 vision_analyze。
+ */
+async function pickAttachments() {
+  if (aiChat.sending) return
+  if (aiChat.attachments.length >= MAX_ATTACHMENTS) {
+    showToast(t('aiChat.attachLimit', { count: MAX_ATTACHMENTS }))
+    return
+  }
+  try {
+    const room = MAX_ATTACHMENTS - aiChat.attachments.length
+    const picked = await pickLinkedLocalImages(room)
+    if (!picked?.length) return
+    aiChat.addAttachments(
+      picked.map((item) => ({
+        id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: item.uri,
+        localPath: item.localPath || ''
+      }))
+    )
+  } catch (e) {
+    console.warn('[ai-chat:view] pick attachment failed', e)
+    showToast(t('aiChat.attachFailed'))
+  }
+}
+
 function openSettings() {
   settingsDraft.baseUrl = aiChat.config.baseUrl
   settingsDraft.model = aiChat.config.model
+  settingsDraft.visionModel = aiChat.config.visionModel || ''
   settingsDraft.apiKey = aiChat.config.apiKey
   showSettings.value = true
 }
@@ -500,6 +585,7 @@ function saveSettings() {
   aiChat.updateConfig({
     baseUrl: normalizeBaseUrl(settingsDraft.baseUrl),
     model: settingsDraft.model,
+    visionModel: settingsDraft.visionModel,
     apiKey: settingsDraft.apiKey
   })
   showSettings.value = false
@@ -1006,6 +1092,73 @@ function removeSession(id) {
 .chat-markdown :deep(th) {
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   font-weight: 600;
+}
+
+/* ── Attachments ── */
+.chat-attach-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chat-attach-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--app-surface) 30%, transparent);
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.chat-msg--user .chat-attach-thumb {
+  border-color: color-mix(in srgb, var(--app-surface) 35%, transparent);
+}
+
+.chat-attach-tray {
+  flex-shrink: 0;
+  display: flex;
+  gap: 8px;
+  padding: 0 var(--page-padding) 6px;
+  overflow-x: auto;
+}
+
+.chat-attach-tray__item {
+  position: relative;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+}
+
+.chat-attach-tray__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid var(--app-border);
+  background: var(--app-surface);
+}
+
+.chat-attach-tray__remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-text);
+  color: var(--app-surface);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+
+.chat-attach-tray__remove svg {
+  width: 12px;
+  height: 12px;
 }
 
 /* ── Input bar ── */

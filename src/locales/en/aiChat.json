@@ -36,5 +36,13 @@
   "aiChat.rename": "Rename",
   "aiChat.renameSuccess": "Renamed",
   "aiChat.messagesCount": "{count} messages",
-  "aiChat.jumpFailed": "Jump failed: page not found"
+  "aiChat.jumpFailed": "Jump failed: page not found",
+  "aiChat.visionModel": "Vision model (optional)",
+  "aiChat.visionModelPlaceholder": "Empty = use main model",
+  "aiChat.visionNotice": "Attached images are not analyzed automatically. The vision model is only called when you explicitly ask the assistant to look at a picture. It must support image input.",
+  "aiChat.attachImage": "Add image",
+  "aiChat.attachFailed": "Failed to pick image, try again",
+  "aiChat.attachLimit": "Up to {count} images",
+  "aiChat.attachNeedText": "Add a short request too (e.g. describe this image)",
+  "aiChat.removeAttachment": "Remove attachment"
 }
