@@ -2,7 +2,12 @@
   "aiChat.description": "OpenAI 互換 API で自分の AI につなぎ、コレクションの照会・集計・整理・修正まで任せられます。",
   "aiChat.entryMeta": "コレクションデータに直結した内蔵 AI チャット",
   "aiChat.inputPlaceholder": "コレクションについて聞く…",
+  "aiChat.inputPlaceholderQueued": "返答中 — 入力し続けるとキューに入ります",
   "aiChat.send": "送信",
+  "aiChat.stopGeneration": "生成を停止",
+  "aiChat.queued": "キューに追加しました。この返答の後に送信されます",
+  "aiChat.queueCount": "キュー {count} 件",
+  "aiChat.sendQueuedNow": "今すぐ送信（この返答を中断）",
   "aiChat.settingsTitle": "AI サービス設定",
   "aiChat.baseUrl": "API ベース URL",
   "aiChat.model": "モデル名",
@@ -54,5 +59,6 @@
   "aiChat.undoSuccess": "この回の変更を取り消しました",
   "aiChat.undoFailed": "取り消しに失敗しました。一部のデータが変更されている可能性があります",
   "aiChat.undoSending": "AI が返答中です。しばらくしてから取り消してください",
-  "aiChat.undoDone": "この回の変更は取り消されました"
+  "aiChat.undoDone": "この回の変更は取り消されました",
+  "aiChat.jumpToBottom": "一番下へ"
 }

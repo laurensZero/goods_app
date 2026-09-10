@@ -29,12 +29,12 @@
       </div>
     </header>
 
-    <TransitionGroup
-      name="chat-msg"
-      tag="div"
+    <div
       :class="['chat-area', { 'chat-area--filled': aiChat.messages.length > 0 }]"
+      @scroll.passive="onChatScroll"
     >
-      <div v-if="aiChat.messages.length === 0" key="empty" class="chat-empty">
+      <TransitionGroup name="chat-msg" tag="div" class="chat-messages">
+        <div v-if="aiChat.messages.length === 0" key="empty" class="chat-empty">
         <div class="chat-empty__icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
@@ -164,9 +164,44 @@
           <p v-else-if="msg.role === 'assistant' && isUndone(msg)" class="chat-undo-done">{{ t('aiChat.undoDone') }}</p>
         </div>
       </div>
-      <!-- 锚点必须在滚动容器 .chat-area 内部，scrollIntoView 才能滚动消息区 -->
-      <div key="chat-anchor" ref="bottomAnchorRef" class="chat-anchor" />
-    </TransitionGroup>
+      </TransitionGroup>
+      <!-- 排队中的消息：半透明气泡挂在当前回复下方（仿 Codex），↵ 立即打断并发送 -->
+      <div v-if="aiChat.sendQueue.length > 0" class="chat-queue">
+        <div v-for="item in aiChat.sendQueue" :key="item.id" class="chat-queue__item">
+          <div class="chat-queue__bubble">{{ item.content }}</div>
+          <button
+            class="chat-queue__send"
+            type="button"
+            :aria-label="t('aiChat.sendQueuedNow')"
+            :title="t('aiChat.sendQueuedNow')"
+            @click="sendQueuedNow(item.id)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 10L4 15l5 5" />
+              <path d="M20 4v7a4 4 0 0 1-4 4H4" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- 滚动锚点：必须在消息与队列气泡之后，scrollIntoView 才能把气泡也滚进视口 -->
+      <div ref="bottomAnchorRef" class="chat-anchor" />
+    </div>
+
+    <!-- 回到底部：用户上滑离开底部后出现，点击平滑回底并恢复流式跟随 -->
+    <Transition name="chat-jump">
+      <button
+        v-if="aiChat.messages.length > 0 && !stickToBottom"
+        class="chat-jump-bottom"
+        type="button"
+        :aria-label="t('aiChat.jumpToBottom')"
+        @click="jumpToBottom"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5v14" />
+          <path d="M5 12l7 7 7-7" />
+        </svg>
+      </button>
+    </Transition>
 
     <!-- 输入卡片：候选图嵌在卡片内，下方一行 = 附加 + 输入 + 发送 -->
     <div class="chat-compose">
@@ -204,7 +239,7 @@
             class="chat-compose__attach"
             type="button"
             :aria-label="t('aiChat.attachImage')"
-            :disabled="aiChat.sending || aiChat.attachments.length >= maxAttachments"
+            :disabled="aiChat.attachments.length >= maxAttachments"
             @click="toggleAttachMenu"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -237,24 +272,33 @@
           v-model="inputText"
           class="chat-compose__input"
           rows="1"
-          :placeholder="t('aiChat.inputPlaceholder')"
-          :disabled="aiChat.sending"
+          :placeholder="aiChat.sending ? t('aiChat.inputPlaceholderQueued') : t('aiChat.inputPlaceholder')"
           @input="autoGrow"
           @keydown.enter="handleEnterKey"
         />
+        <!-- 流式生成中：发送键变为停止键；否则正常发送（有内容或有附件时可点） -->
         <button
+          v-if="aiChat.sending"
+          class="chat-compose__send chat-compose__send--stop"
+          type="button"
+          :aria-label="t('aiChat.stopGeneration')"
+          @click="aiChat.stopStreaming()"
+        >
+          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <rect x="7" y="7" width="10" height="10" rx="1.5" />
+          </svg>
+        </button>
+        <button
+          v-else
           class="chat-compose__send"
           type="button"
-          :disabled="aiChat.sending || !inputText.trim()"
+          :disabled="!inputText.trim() && aiChat.attachments.length === 0"
           :aria-label="t('aiChat.send')"
           @click="send"
         >
-          <svg v-if="!aiChat.sending" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 19V5" />
             <path d="M5 12l7-7 7 7" />
-          </svg>
-          <svg v-else class="chat-compose__spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         </button>
       </div>
@@ -432,6 +476,8 @@ const attachMenuOpen = ref(false)
 const tableFileInputRef = ref(null)
 /** 正在撤回中的消息 id */
 const undoingId = ref('')
+/** 是否贴近底部（流式输出时才自动跟随滚动） */
+const stickToBottom = ref(true)
 
 /** 该消息是否还有可撤回的写操作 */
 function canUndo(msg) {
@@ -500,7 +546,29 @@ function handleEnterKey(event) {
 }
 /** 滚动到消息区底部（锚点在 .chat-area 内，scrollIntoView 生效） */
 function scrollToBottom(behavior = 'auto') {
+  stickToBottom.value = true
   bottomAnchorRef.value?.scrollIntoView({ block: 'end', behavior })
+}
+
+/** 距底部多少像素内算「贴近底部」（自动跟随阈值） */
+const BOTTOM_STICK_THRESHOLD = 80
+
+/**
+ * 消息区滚动：判断用户是否主动上滑。
+ * 贴近底部 → stickToBottom=true（流式输出继续跟随）；
+ * 上滑离开底部 → stickToBottom=false（停止跟随，显示回到底部按钮）。
+ * @param {Event} event
+ */
+function onChatScroll(event) {
+  const el = /** @type {HTMLElement | null} */ (event.currentTarget)
+  if (!el) return
+  const distance = el.scrollHeight - el.scrollTop - el.clientHeight
+  stickToBottom.value = distance <= BOTTOM_STICK_THRESHOLD
+}
+
+/** 回到底部按钮点击 */
+function jumpToBottom() {
+  scrollToBottom('smooth')
 }
 
 let bottomFallbackTimer = 0
@@ -667,15 +735,18 @@ function onMarkdownClick(event) {
   })
 }
 
-// 新消息 / 工具步骤 / 内容（含流式思维链）更新时滚到底部
+// 新消息 / 工具步骤 / 内容（含流式思维链）/ 排队气泡更新时滚到底部；
+// 但用户主动上滑阅读历史时停止跟随（stickToBottom=false），避免被拉回底部
 const scrollSignal = computed(() => {
   const list = aiChat.messages
-  if (list.length === 0) return 0
+  const queueLen = aiChat.sendQueue.length
+  if (list.length === 0 && queueLen === 0) return 0
   const last = list[list.length - 1]
-  return list.length * 1000 + last.steps.length * 10 + last.content.length + (last.reasoning?.length || 0)
+  return list.length * 1000 + (last ? last.steps.length * 10 + last.content.length + (last.reasoning?.length || 0) : 0) + queueLen
 })
 
 watch(scrollSignal, () => {
+  if (!stickToBottom.value) return
   nextTick(() => scrollToBottom('smooth'))
 })
 
@@ -697,7 +768,7 @@ function useExample(example) {
 function send() {
   const text = inputText.value.trim()
   // 允许「只发附件 + 一句话」；纯附件无文字时引导用户补一句要求
-  if ((!text && aiChat.attachments.length === 0) || aiChat.sending) return
+  if (!text && aiChat.attachments.length === 0) return
   if (!aiChat.config.baseUrl || !aiChat.config.model || !aiChat.config.apiKey) {
     showToast(t('aiChat.errorNoConfig'))
     openSettings()
@@ -707,9 +778,15 @@ function send() {
     showToast(t('aiChat.attachNeedText'))
     return
   }
-  aiChat.send(text)
   inputText.value = ''
   nextTick(autoGrow)
+  // 排队时不再 toast——气泡本身就是反馈
+  void aiChat.send(text)
+}
+
+/** 排队气泡旁的 ↵：打断当前生成并立即发送该条 */
+function sendQueuedNow(id) {
+  aiChat.sendQueuedNow(id)
 }
 
 /**
@@ -718,7 +795,6 @@ function send() {
  */
 async function pickAttachments() {
   attachMenuOpen.value = false
-  if (aiChat.sending) return
   if (aiChat.attachments.length >= MAX_ATTACHMENTS) {
     showToast(t('aiChat.attachLimit', { count: MAX_ATTACHMENTS }))
     return
@@ -748,7 +824,6 @@ function toggleAttachMenu() {
 
 function pickTableFile() {
   attachMenuOpen.value = false
-  if (aiChat.sending) return
   if (aiChat.attachments.length >= MAX_ATTACHMENTS) {
     showToast(t('aiChat.attachLimit', { count: MAX_ATTACHMENTS }))
     return
@@ -868,6 +943,7 @@ function removeSession(id) {
 
 <style scoped>
 .ai-chat-panel {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -881,21 +957,72 @@ function removeSession(id) {
 .chat-area {
   flex: 1;
   min-height: 0;
-  justify-content: center;
   padding: 16px var(--page-padding) 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+/* 空状态：内容垂直居中；有消息后从顶部排列 */
+.chat-area:not(.chat-area--filled) {
+  justify-content: center;
 }
 
 .chat-area--filled {
   justify-content: flex-start;
 }
 
+/* 消息列表：TransitionGroup 容器，负责消息间距 */
+.chat-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 .chat-anchor {
   height: 1px;
+}
+
+/* ── 回到底部浮动按钮 ── */
+.chat-jump-bottom {
+  position: absolute;
+  right: var(--page-padding);
+  /* 悬在输入卡上方，不挡住发送按钮 */
+  bottom: calc(72px + max(12px, env(safe-area-inset-bottom)));
+  z-index: 15;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--app-border);
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: var(--app-text);
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.chat-jump-bottom:active {
+  transform: scale(0.94);
+}
+
+.chat-jump-bottom svg {
+  width: 20px;
+  height: 20px;
+}
+
+.chat-jump-enter-active,
+.chat-jump-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.chat-jump-enter-from,
+.chat-jump-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 /* 空状态 */
@@ -1684,8 +1811,84 @@ function removeSession(id) {
   stroke-linejoin: round;
 }
 
+/* 流式生成中的停止键：深色底上的白色方块 */
+.chat-compose__send--stop {
+  background: #e5484d;
+}
+
+.chat-compose__send--stop:active {
+  transform: scale(0.92);
+}
+
+.chat-compose__send--stop svg {
+  stroke: none;
+}
+
 .chat-compose__spinner {
   animation: spin 0.7s linear infinite;
+}
+
+/* ── 排队气泡（仿 Codex：半透明挂在回复下方，↵ 立即发送） ── */
+.chat-queue {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 0 4px;
+}
+
+.chat-queue__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(85%, 480px);
+  animation: page-fade-up 0.25s ease backwards;
+}
+
+.chat-queue__bubble {
+  padding: 10px 14px;
+  border-radius: 18px 18px 4px 18px;
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
+  color: var(--app-text);
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  /* 最多 4 行，超出省略 */
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chat-queue__send {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--app-border);
+  border-radius: 50%;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
+}
+
+.chat-queue__send:hover,
+.chat-queue__send:active {
+  opacity: 1;
+  color: var(--app-text);
+  transform: scale(0.94);
+}
+
+.chat-queue__send svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* ── Settings popup（与 ManageView picker-popup 同一套视觉约定） ── */
