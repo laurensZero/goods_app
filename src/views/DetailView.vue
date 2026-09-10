@@ -58,7 +58,7 @@
               :key="image.id"
               type="button"
               :class="['cover-gallery__item', { 'cover-gallery__item--active': image.id === activeImageId }]"
-              @click="openGoodsPreview(galleryImages.filter((img) => img.uri).findIndex((img) => img.id === image.id))"
+              @click="activeImageId = image.id"
             >
               <LazyCachedImage
                 :src="image.uri"

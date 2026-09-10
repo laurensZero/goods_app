@@ -67,6 +67,21 @@ describe('attachmentTools', () => {
     })
   })
 
+  it('event_photo：无 caption 时也写成对象（裸字符串 UI 不显示）', async () => {
+    const eventsStore = makeEventsStore([{ id: 'e1', photos: [] }])
+    const handlers = createAttachmentToolHandlers({
+      getAttachments: () => ATTACHMENTS,
+      eventsStore
+    })
+
+    await handlers.attachment_apply({ target: 'event_photo', id: 'e1', image: '1' })
+    const photos = eventsStore.updateEventRecord.mock.calls[0][1].photos
+    expect(photos).toHaveLength(1)
+    expect(photos[0]).toMatchObject({ uri: 'data:image/png;base64,AAA', caption: '' })
+    expect(typeof photos[0]).toBe('object')
+    expect(photos[0].id).toMatch(/^photo_/)
+  })
+
   it('event_photo：追加照片并保留 caption', async () => {
     const eventsStore = makeEventsStore([{ id: 'e1', photos: ['https://x/old.jpg'] }])
     const handlers = createAttachmentToolHandlers({
