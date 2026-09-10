@@ -359,5 +359,10 @@
   "checkout.qqNotifyFailed": "QQ 提醒發送失敗",
   "checkout.queueEmpty": "目前沒有待執行的訂單",
   "checkout.leaveTitle": "確認退出",
-  "checkout.leaveConfirm": "目前已添加商品但尚未加入訂單佇列，確定要退出嗎？"
+  "checkout.leaveConfirm": "目前已添加商品但尚未加入訂單佇列，確定要退出嗎？",
+  "checkout.timeSource": "時間源",
+  "checkout.timeSourceNative": "本地 NTP",
+  "checkout.timeSourceEdge": "Edge 授時",
+  "checkout.timeSourceLocal": "本地時鐘",
+  "checkout.timeSourceDelta": "域差"
 }

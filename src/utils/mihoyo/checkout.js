@@ -6,6 +6,7 @@ import { mihoyoRequest, mihoyoRequestWithResponse } from '@/utils/mihoyo/request
 import { createLogger } from '@/utils/logger'
 import { compareByPinyin } from '@/utils/pinyin'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { queryNativeNtp, isNativeNtpAvailable } from '@/utils/platform/nativeTime'
 
 const log = createLogger('checkout')
 
@@ -352,39 +353,98 @@ export async function fetchMihoyoServerTime(cookie, sampleCount = 3, timeoutMs =
 }
 
 /**
- * 从 Supabase Edge Function 拉取毫秒级精确时间（服务器在中立云，NTP 同步）。
- * 作为毫秒级主参考，与米游铺 Date 头组合（见 fetchMihoyoServerTime）。
- * 用 RTT 中点校正消掉往返时延：offsetMs = serverTime − (t0+t1)/2。
- * @returns {Promise<{serverTime: number, offsetMs: number}>}
+ * 主毫秒时间源：Android 原生 UDP SNTP 优先，浏览器/PWA 回落 Supabase Edge。
+ * - 原生 NTP：阿里云/腾讯云等国内源，RTT 通常 10–50ms，远优于经中立云 edge 的 HTTP
+ * - Edge：纯 Web 无法发 UDP/123，仍走 HTTPS 云函数
+ * 返回结构与 fetchEdgeServerTime 一致：{ serverTime, offsetMs, rttMs, source }
  */
-export async function fetchEdgeServerTime(timeoutMs = 5000) {
-  const t0 = Date.now()
+export async function fetchPrimaryServerTime(options = {}) {
+  if (isNativeNtpAvailable()) {
+    try {
+      const ntp = await queryNativeNtp({
+        servers: options.ntpServers,
+        attemptsPerServer: Number(options.ntpAttempts) || 2,
+        timeoutMs: Number(options.ntpTimeoutMs) || 2500,
+        primaryDelayThresholdMs: 120,
+      })
+      return {
+        serverTime: Number(ntp.serverTime),
+        offsetMs: Number(ntp.offsetMs),
+        rttMs: Number(ntp.delayMs) || 0,
+        source: String(ntp.source || 'native-ntp'),
+      }
+    } catch (error) {
+      log.warn('primary:ntp:fallback', { message: error?.message })
+    }
+  }
+  const edge = await fetchEdgeServerTime(options.edgeTimeoutMs, options.edgeSampleCount)
+  return { ...edge, source: 'edge-ntp' }
+}
 
-  let timedOut = false
-  const watchdog = new Promise((_, reject) => {
-    setTimeout(() => { timedOut = true; reject(new Error('supabase edge server time timed out')) }, timeoutMs)
-  })
+/**
+ * 从 Supabase Edge Function 拉取毫秒级精确时间（服务器在中立云，NTP 同步）。
+ * 纯 Web 主源；Android 上优先走 fetchPrimaryServerTime 的本地 SNTP。
+ * 对齐 biliTickerBuy 的 NTP 策略：多次采样 → 取低延迟样本的中位数，
+ * 压掉路径不对称与单次 RTT 抖动；首个样本 RTT 已足够小时直接短路。
+ * 用 RTT 中点校正消掉往返时延：offsetMs = serverTime − (t0+t1)/2。
+ * @returns {Promise<{serverTime: number, offsetMs: number, rttMs: number}>}
+ */
+export async function fetchEdgeServerTime(timeoutMs = 5000, sampleCount = 5) {
+  const count = Math.max(1, Math.min(9, Math.floor(Number(sampleCount) || 1)))
+  const samples = []
+  let remaining = timeoutMs
 
-  let result
-  try {
-    result = await Promise.race([
-      getSupabaseClient().functions.invoke('get-server-time', { method: 'GET' }),
-      watchdog,
-    ])
-  } catch (error) {
-    if (timedOut) throw error
-    throw error
+  for (let i = 0; i < count; i++) {
+    const t0 = Date.now()
+    let timedOut = false
+    const watchdog = new Promise((_, reject) => {
+      setTimeout(() => { timedOut = true; reject(new Error('supabase edge server time timed out')) }, Math.max(200, remaining))
+    })
+
+    try {
+      const result = await Promise.race([
+        getSupabaseClient().functions.invoke('get-server-time', { method: 'GET' }),
+        watchdog,
+      ])
+      const t1 = Date.now()
+      const { data, error } = result
+      if (error) throw error
+      const serverTime = Number(data?.serverTime)
+      if (!Number.isFinite(serverTime)) throw new Error('invalid edge server time')
+      const rttMs = t1 - t0
+      const localMidpoint = (t0 + t1) / 2
+      samples.push({ serverTime, rttMs, offsetMs: serverTime - localMidpoint })
+      // 主源已足够快：对齐 biliTickerBuy primary_delay_threshold 思路，不再拉备份
+      if (i === 0 && rttMs <= 120) break
+    } catch (error) {
+      if (timedOut) {
+        if (!samples.length) throw error
+        break
+      }
+      if (!samples.length && i === count - 1) throw error
+    }
+
+    remaining = Math.max(200, timeoutMs - (Date.now() - t0))
+    if (i < count - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 25 + Math.random() * 50))
+    }
   }
 
-  const t1 = Date.now()
-  const { data, error } = result
-  if (error) throw error
-  const serverTime = Number(data?.serverTime)
-  if (!Number.isFinite(serverTime)) throw new Error('invalid edge server time')
-  const localMidpoint = (t0 + t1) / 2
+  if (!samples.length) throw new Error('no valid edge server time sample')
+
+  // 低延迟样本中位数：路径不对称时高 RTT 样本偏置更大，优先信任快样本
+  const lowDelay = [...samples].sort((a, b) => a.rttMs - b.rttMs).slice(0, Math.max(1, Math.min(3, samples.length)))
+  const sortedOffsets = lowDelay.map((s) => s.offsetMs).sort((a, b) => a - b)
+  const mid = Math.floor(sortedOffsets.length / 2)
+  const offsetMs = sortedOffsets.length % 2
+    ? sortedOffsets[mid]
+    : (sortedOffsets[mid - 1] + sortedOffsets[mid]) / 2
+  const best = lowDelay.reduce((a, b) => (a.rttMs <= b.rttMs ? a : b))
+
   return {
-    serverTime,
-    offsetMs: serverTime - localMidpoint,
+    serverTime: Date.now() + offsetMs,
+    offsetMs,
+    rttMs: best.rttMs,
   }
 }
 

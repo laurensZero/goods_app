@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { preCreateOrder, createOrder, fetchGoodsDetailForCheckout, fetchMihoyoServerTime, fetchEdgeServerTime } from '@/utils/mihoyo/checkout'
+import { preCreateOrder, createOrder, fetchGoodsDetailForCheckout, fetchMihoyoServerTime, fetchPrimaryServerTime } from '@/utils/mihoyo/checkout'
 
 const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
@@ -18,7 +18,10 @@ const queue = ref([])
 const hydrated = ref(false)
 const processing = ref(false)
 const clockOffsetMs = ref(0)
+// 米游铺 − 主时间源 时钟域差（sale_time 在米游铺域）。NTP/edge 管毫秒自由跑，本值只修正域偏。
+const domainDeltaMs = ref(0)
 const clockSyncedAt = ref(0)
+const domainSyncedAt = ref(0)
 const clockSyncSource = ref('')
 let clockSyncPromise = null
 let clockBaseWallMs = 0
@@ -159,48 +162,75 @@ function maybeLogCountdown(entry) {
 }
 
 function getServerNow() {
+  // 对齐 biliTickerBuy countdown_now：倒计时/开抢优先落在业务时钟域（米游铺）。
+  // 主源（本地 NTP / edge）仍是毫秒级自由跑基准，domainDelta 只修正「米游铺 − UTC」系统偏。
+  const domainDelta = Number(domainDeltaMs.value || 0)
   if (clockBaseWallMs && typeof performance !== 'undefined') {
-    return clockBaseWallMs + (performance.now() - clockBasePerfMs)
+    return clockBaseWallMs + (performance.now() - clockBasePerfMs) + domainDelta
   }
-  return Date.now() + Number(clockOffsetMs.value || 0)
+  return Date.now() + Number(clockOffsetMs.value || 0) + domainDelta
 }
 
 async function syncServerClock(cookie, force = false) {
-  if (!cookie || (!force && clockSyncedAt.value)) return getServerNow()
+  // edge 已校且非强制时：域名校正有独立 TTL（60s），到期只补米游铺域差，不重打 edge 基准
+  const edgeFresh = clockSyncedAt.value && (Date.now() - clockSyncedAt.value) < 60000
+  const domainFresh = domainSyncedAt.value && (Date.now() - domainSyncedAt.value) < 60000
+  if (!cookie) return getServerNow()
+  if (!force && edgeFresh && domainFresh) return getServerNow()
   if (clockSyncPromise) return clockSyncPromise
 
-  const record = (source, offsetMs) => {
-    if (!Number.isFinite(Number(offsetMs))) return null
-    clockOffsetMs.value = Number(offsetMs)
-    clockSyncedAt.value = Date.now()
-    clockSyncSource.value = source
-    clockBaseWallMs = Date.now() + clockOffsetMs.value
-    clockBasePerfMs = typeof performance !== 'undefined' ? performance.now() : 0
-    return Number(offsetMs)
-  }
-
   clockSyncPromise = (async () => {
-    let edgeOffset = null
-    try {
-      const edge = await fetchEdgeServerTime()
-      edgeOffset = Number(edge.offsetMs)
-      record('edge-ntp', edgeOffset)
-    } catch (error) {
-      console.warn('[checkoutQueue] edge clock unavailable', error?.message)
+    let edgeRttMs = 0
+    // 1) 毫秒主源：Android 本地 UDP SNTP（国内阿里云/腾讯云），浏览器回落 edge HTTP
+    if (force || !edgeFresh || !clockBaseWallMs) {
+      try {
+        const primary = await fetchPrimaryServerTime()
+        clockOffsetMs.value = Number(primary.offsetMs)
+        edgeRttMs = Number(primary.rttMs) || 0
+        clockSyncSource.value = `${primary.source}(rtt=${Math.round(edgeRttMs)}ms)`
+        clockBaseWallMs = Date.now() + clockOffsetMs.value
+        clockBasePerfMs = typeof performance !== 'undefined' ? performance.now() : 0
+      } catch (error) {
+        console.warn('[checkoutQueue] primary clock unavailable', error?.message)
+        // 主源失败时若尚无基准，退回本地时钟，避免 getServerNow 一直 0
+        if (!clockBaseWallMs) {
+          clockOffsetMs.value = 0
+          clockSyncSource.value = 'local-fallback'
+          clockBaseWallMs = Date.now()
+          clockBasePerfMs = typeof performance !== 'undefined' ? performance.now() : 0
+        }
+      }
     }
 
-    // 米游铺 Date 只有秒级精度，仅用于校验，不覆盖主校时结果，也不阻塞开抢调度。
-    void fetchMihoyoServerTime(cookie).then((mihoyo) => {
-      if (Number.isFinite(edgeOffset)) {
-        console.info('[checkoutQueue] mihoyo clock check', {
-          differenceMs: Math.round(Number(mihoyo.offsetMs) - edgeOffset),
-          uncertaintyMs: 500,
-        })
+    // 2) 米游铺 Date 多采样：算域差 delta = 米游铺 − 主源，滤掉秒级截断噪声后加回 getServerNow
+    //    对齐 biliTickerBuy「countdown 用平台 Date 域、NTP 管毫秒」的分层，而不是整段时钟降级到秒级。
+    try {
+      const mihoyo = await fetchMihoyoServerTime(cookie)
+      const mihoyoOffset = Number(mihoyo.offsetMs)
+      if (Number.isFinite(mihoyoOffset) && clockBaseWallMs) {
+        // 与当前主源自由跑瞬时值比，避免域差被 performance 漂移污染
+        const primaryNow = clockBaseWallMs + (typeof performance !== 'undefined' ? performance.now() - clockBasePerfMs : 0)
+        const delta = mihoyoOffset - (primaryNow - Date.now())
+        if (Number.isFinite(delta)) {
+          // 慢滤波：秒级 Date 每次 ±500ms 量化噪声大，新旧加权收敛
+          const prev = Number(domainDeltaMs.value || 0)
+          const alpha = domainSyncedAt.value ? 0.35 : 1
+          domainDeltaMs.value = prev + alpha * (delta - prev)
+          domainSyncedAt.value = Date.now()
+          console.info('[checkoutQueue] mihoyo domain sync', {
+            domainDeltaMs: Math.round(domainDeltaMs.value),
+            sampleMs: Math.round(delta),
+            primaryRttMs: Math.round(edgeRttMs),
+            uncertaintyMs: 500,
+          })
+        }
       }
-    }).catch((error) => {
-      console.warn('[checkoutQueue] mihoyo clock check unavailable', error?.message)
-    })
+    } catch (error) {
+      console.warn('[checkoutQueue] mihoyo domain check unavailable', error?.message)
+    }
 
+    // 整次校时（含域差尝试）结束后才标记 clockSyncedAt，避免 edge 先完成就放行开抢
+    clockSyncedAt.value = Date.now()
     return getServerNow()
   })()
 
@@ -245,7 +275,7 @@ function enqueueOrder(payload) {
       .then(() => appendQueueLog(
         entry,
         'clock-sync-done',
-        `${clockSyncSource.value}，偏移 ${Math.round(Number(clockOffsetMs.value) || 0)}ms`,
+        `${clockSyncSource.value}，域差 ${Math.round(Number(domainDeltaMs.value) || 0)}ms`,
       ))
       .catch((error) => {
         appendQueueLog(entry, 'clock-sync-failed', error?.message)
@@ -490,8 +520,11 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
 
 async function executeQueuedOrder(entry) {
   if (isQueueEntryCancelled(entry)) return { ok: false, cancelled: true }
-  // 校时在入队时开始；若尚未完成，首次执行前等待它结束。
+  // 校时在入队时开始；若仍在跑或尚未完成，首次执行前等待它结束（含米游铺域差）。
   // 校准完成后固定结果，倒计时由 performance.now() 驱动，不再动态改偏移。
+  if (clockSyncPromise) {
+    try { await clockSyncPromise } catch { /* 入队侧已有 catch 日志 */ }
+  }
   if (!clockSyncedAt.value) {
     await syncServerClock(entry.snapshot.cookie)
   }
@@ -677,6 +710,8 @@ export function useCheckoutOrderQueue() {
     syncServerClock,
     getServerNow,
     clockOffsetMs,
+    domainDeltaMs,
+    domainSyncedAt,
     clockSyncSource,
     startQueueWatcher,
     stopQueueWatcher,

@@ -359,5 +359,10 @@
   "checkout.qqNotifyFailed": "QQ 알림 전송에 실패했습니다",
   "checkout.queueEmpty": "현재 대기 중인 주문이 없습니다",
   "checkout.leaveTitle": "나가기 확인",
-  "checkout.leaveConfirm": "상품이 추가되었지만 주문 대기열에 추가되지 않았습니다. 나가시겠습니까?"
+  "checkout.leaveConfirm": "상품이 추가되었지만 주문 대기열에 추가되지 않았습니다. 나가시겠습니까?",
+  "checkout.timeSource": "시간 소스",
+  "checkout.timeSourceNative": "로컬 NTP",
+  "checkout.timeSourceEdge": "Edge 시각",
+  "checkout.timeSourceLocal": "기기 시계",
+  "checkout.timeSourceDelta": "도메인 Δ"
 }

@@ -359,5 +359,10 @@
   "checkout.qqNotifyFailed": "QQ 提醒发送失败",
   "checkout.queueEmpty": "当前没有待执行的订单",
   "checkout.leaveTitle": "确认退出",
-  "checkout.leaveConfirm": "当前已添加商品但尚未加入订单队列，确定要退出吗？"
+  "checkout.leaveConfirm": "当前已添加商品但尚未加入订单队列，确定要退出吗？",
+  "checkout.timeSource": "时间源",
+  "checkout.timeSourceNative": "本地 NTP",
+  "checkout.timeSourceEdge": "Edge 授时",
+  "checkout.timeSourceLocal": "本地时钟",
+  "checkout.timeSourceDelta": "域差"
 }

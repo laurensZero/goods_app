@@ -359,5 +359,10 @@
   "checkout.qqNotifyFailed": "Failed to send QQ reminder",
   "checkout.queueEmpty": "No pending orders right now",
   "checkout.leaveTitle": "Leave checkout?",
-  "checkout.leaveConfirm": "You have added goods but have not added the order to the queue. Leave anyway?"
+  "checkout.leaveConfirm": "You have added goods but have not added the order to the queue. Leave anyway?",
+  "checkout.timeSource": "Time source",
+  "checkout.timeSourceNative": "Local NTP",
+  "checkout.timeSourceEdge": "Edge clock",
+  "checkout.timeSourceLocal": "Device clock",
+  "checkout.timeSourceDelta": "Domain Δ"
 }

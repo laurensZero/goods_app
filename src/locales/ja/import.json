@@ -359,5 +359,10 @@
   "checkout.qqNotifyFailed": "QQリマインダーの送信に失敗しました",
   "checkout.queueEmpty": "現在、保留中の注文はありません",
   "checkout.leaveTitle": "終了の確認",
-  "checkout.leaveConfirm": "商品が追加されていますが、注文キューには追加されていません。終了しますか？"
+  "checkout.leaveConfirm": "商品が追加されていますが、注文キューには追加されていません。終了しますか？",
+  "checkout.timeSource": "時刻ソース",
+  "checkout.timeSourceNative": "ローカル NTP",
+  "checkout.timeSourceEdge": "Edge 時刻",
+  "checkout.timeSourceLocal": "デバイス時計",
+  "checkout.timeSourceDelta": "ドメイン差"
 }

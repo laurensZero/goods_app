@@ -29,6 +29,10 @@
           <p v-if="timerTargetTime" class="timer-countdown">
             {{ $t('checkout.countdown') }}: <strong>{{ remainingText }}</strong>
           </p>
+          <p v-if="clockSourceText" class="clock-source" :title="clockSourceText">
+            <span class="clock-source__label">{{ $t('checkout.timeSource') }}</span>
+            <span class="clock-source__value">{{ clockSourceText }}</span>
+          </p>
           <div class="retry-row">
             <span class="retry-label">{{ $t('checkout.retryCount') }}</span>
             <div class="retry-controls">
@@ -113,6 +117,7 @@ defineProps({
   timerTargetTime: { type: Number, default: 0 },
   formattedTimerTarget: { type: String, default: '' },
   remainingText: { type: String, default: '' },
+  clockSourceText: { type: String, default: '' },
   retryCount: { type: Number, default: 3 },
   concurrency: { type: Number, default: 1 },
   maxConcurrency: { type: Number, default: 5 },
@@ -252,6 +257,25 @@ defineEmits([
 .timer-countdown strong {
   color: #2070c0;
   font-size: 15px;
+}
+
+.clock-source {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  line-height: 1.4;
+}
+
+.clock-source__label {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.clock-source__value {
+  word-break: break-all;
 }
 
 .retry-row {
