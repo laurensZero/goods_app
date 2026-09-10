@@ -48,5 +48,11 @@
   "aiChat.attachTable": "표 가져오기",
   "aiChat.attachTableFailed": "표 파일 읽기에 실패했습니다. 다시 시도해 주세요",
   "aiChat.attachTableUnsupported": ".csv / .xlsx / .xlsm / .tsv / .zip만 지원됩니다",
-  "aiChat.attachTableTooLarge": "표 파일은 {size} 이하여야 합니다"
+  "aiChat.attachTableTooLarge": "표 파일은 {size} 이하여야 합니다",
+  "aiChat.undoWrite": "이번 턴 변경 취소",
+  "aiChat.undoing": "취소 중…",
+  "aiChat.undoSuccess": "이번 턴 변경을 취소했습니다",
+  "aiChat.undoFailed": "취소에 실패했습니다. 일부 데이터가 변경되었을 수 있습니다",
+  "aiChat.undoSending": "AI가 응답 중입니다. 잠시 후 다시 취소해 주세요",
+  "aiChat.undoDone": "이번 턴 변경을 취소했습니다"
 }

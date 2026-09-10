@@ -293,6 +293,39 @@ export function createMcpWriteToolHandlers({
        return { ok: true, id: record.id, game: record.game, amount: Number(record.amount) || 0, chargedAt: record.chargedAt }
      },
 
+    /**
+      * 按 id 部分更新一笔充值记录。
+      * @param {Record<string, any>} args
+      */
+     async recharge_update(args) {
+       if (!rechargeStore) throw new Error('充值模块不可用')
+       const id = String(args?.id || '').trim()
+       if (!id) throw new Error('id 必填')
+       const existing = listOf(rechargeStore.list).find((item) => item?.id === id && !item?.deleted)
+       if (!existing) throw new Error(`未找到 id 为 ${id} 的充值记录`)
+
+       /** @type {Record<string, any>} */
+       const patch = {}
+       if (args?.game !== undefined) patch.game = String(args.game).trim()
+       if (args?.itemName !== undefined) patch.itemName = String(args.itemName)
+       if (args?.note !== undefined) patch.note = String(args.note)
+       if (args?.chargedAt !== undefined) {
+         const chargedAt = String(args.chargedAt).trim()
+         if (chargedAt && !DATE_PATTERN.test(chargedAt)) throw new Error('chargedAt 需为 YYYY-MM-DD 格式')
+         patch.chargedAt = chargedAt
+       }
+       if (args?.amount !== undefined) {
+         const amount = Number(args.amount)
+         if (!Number.isFinite(amount) || amount < 0) throw new Error('amount 需为不小于 0 的数字')
+         patch.amount = amount
+       }
+       if (Object.keys(patch).length === 0) throw new Error('没有可更新的字段')
+
+       const ok = await rechargeStore.updateRecord(id, { ...existing, ...patch, id })
+       if (!ok) throw new Error(`更新充值记录失败：${id}`)
+       return { ok: true, id }
+     },
+
      /**
       * 删除一笔充值记录（软删除）。
       * @param {Record<string, any>} args
@@ -685,6 +718,70 @@ export function createMcpWriteToolHandlers({
     },
 
 /**
+      * 新增一场活动。name 必填。
+      * @param {Record<string, any>} args
+      */
+     async events_add(args) {
+       if (!eventsStore) throw new Error('活动模块不可用')
+       const name = String(args?.name || '').trim()
+       if (!name) throw new Error('name 必填')
+       const record = await eventsStore.addEventRecord({
+         name,
+         type: String(args?.type || ''),
+         startDate: String(args?.startDate || ''),
+         endDate: String(args?.endDate || args?.startDate || ''),
+         city: String(args?.city || ''),
+         location: String(args?.location || ''),
+         ticketPrice: String(args?.ticketPrice || ''),
+         ticketType: String(args?.ticketType || ''),
+         seatInfo: String(args?.seatInfo || ''),
+         description: String(args?.description || ''),
+         linkedGoodsIds: Array.isArray(args?.linkedGoodsIds) ? args.linkedGoodsIds : [],
+         tags: Array.isArray(args?.tags) ? args.tags : []
+       })
+       if (!record?.id) throw new Error('新增活动失败')
+       return {
+         ok: true,
+         id: record.id,
+         item: {
+           id: record.id,
+           name: record.name,
+           type: record.type,
+           startDate: record.startDate,
+           endDate: record.endDate,
+           city: record.city,
+           location: record.location
+         }
+       }
+     },
+
+     /**
+      * 按 id 部分更新活动。
+      * @param {Record<string, any>} args
+      */
+     async events_update(args) {
+       if (!eventsStore) throw new Error('活动模块不可用')
+       const targetId = String(args?.id || '').trim()
+       if (!targetId) throw new Error('id 必填')
+       const existing = listOf(eventsStore.list).find((item) => item?.id === targetId && !item?.deleted)
+       if (!existing) throw new Error(`未找到 id 为 ${targetId} 的活动`)
+
+       /** @type {Record<string, any>} */
+       const patch = {}
+       const keys = [
+         'name', 'type', 'startDate', 'endDate', 'city', 'location',
+         'ticketPrice', 'ticketType', 'seatInfo', 'description',
+         'linkedGoodsIds', 'tags'
+       ]
+       for (const key of keys) {
+         if (args?.[key] !== undefined) patch[key] = args[key]
+       }
+       if (Object.keys(patch).length === 0) throw new Error('没有可更新的字段')
+       await eventsStore.updateEventRecord(targetId, { ...existing, ...patch, id: targetId })
+       return { ok: true, id: targetId }
+     },
+
+     /**
       * 删除一场活动（软删除）。
       * @param {Record<string, any>} args
       */
@@ -692,11 +789,11 @@ export function createMcpWriteToolHandlers({
        if (!eventsStore) throw new Error('活动模块不可用')
        const id = String(args?.id || '').trim()
        if (!id) throw new Error('id 必填')
-       if (!listOf(eventsStore.list).some((item) => item?.id === id)) {
+       if (!listOf(eventsStore.list).some((item) => item?.id === id && !item?.deleted)) {
          throw new Error(`未找到 id 为 ${id} 的活动`)
        }
        await eventsStore.removeEventRecord(id)
-       return { ok: true, id, note: '已删除该活动（可在回收站恢复）' }
+       return { ok: true, id, note: '已删除该活动（可用一键撤回或应用内恢复）' }
      },
 
      /**

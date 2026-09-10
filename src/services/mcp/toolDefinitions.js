@@ -20,7 +20,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '典型用法：了解收藏构成用 collection_overview；找具体物品用 goods_search（先粗后细，配合 limit/offset 分页）；',
   '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
   '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
-  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
+  '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；活动增删改用 events_add/events_update/events_delete；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
   '吃谷预算用 budget_overview 看超支情况、budget_set 修改；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
@@ -132,12 +132,84 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'recharge_update',
+    description: '按 id 部分更新一笔充值记录：只传需要修改的字段，未传字段保持不变。id 来自 recharge_search 或 recharge_summary。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '充值记录 id' },
+        game: { type: 'string', description: '游戏名' },
+        amount: { type: 'number', description: '金额' },
+        itemName: { type: 'string', description: '项目名' },
+        chargedAt: { type: 'string', description: '充值日期 YYYY-MM-DD' },
+        note: { type: 'string', description: '备注' }
+      },
+      required: ['id']
+    }
+  },
+  {
     name: 'recharge_delete',
     description: '删除一笔充值记录（软删除）。',
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'string', description: '充值记录 id，来自 recharge_search 或 recharge_summary' }
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'events_add',
+    description: '新增一场活动/展览（漫展、演唱会等）。name 必填；startDate 建议填写（YYYY-MM-DD）。票务、开支、关联谷子等可选。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: '活动名称' },
+        type: { type: 'string', description: '类型，如 漫展/演唱会' },
+        startDate: { type: 'string', description: '开始日期 YYYY-MM-DD' },
+        endDate: { type: 'string', description: '结束日期 YYYY-MM-DD' },
+        city: { type: 'string', description: '城市' },
+        location: { type: 'string', description: '场地/场馆' },
+        ticketPrice: { type: 'string', description: '票价（字符串数字）' },
+        ticketType: { type: 'string', description: '票种' },
+        seatInfo: { type: 'string', description: '座位信息' },
+        description: { type: 'string', description: '备注/描述' },
+        linkedGoodsIds: { type: 'array', items: { type: 'string' }, description: '关联谷子 id 列表' },
+        tags: { type: 'array', items: { type: 'string' }, description: '标签列表' }
+      },
+      required: ['name']
+    }
+  },
+  {
+    name: 'events_update',
+    description: '按 id 部分更新活动：只传需要修改的字段，未传字段保持不变。id 来自 events_list。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '活动 id，来自 events_list' },
+        name: { type: 'string', description: '活动名称' },
+        type: { type: 'string', description: '类型' },
+        startDate: { type: 'string', description: '开始日期 YYYY-MM-DD' },
+        endDate: { type: 'string', description: '结束日期 YYYY-MM-DD' },
+        city: { type: 'string', description: '城市' },
+        location: { type: 'string', description: '场地/场馆' },
+        ticketPrice: { type: 'string', description: '票价' },
+        ticketType: { type: 'string', description: '票种' },
+        seatInfo: { type: 'string', description: '座位信息' },
+        description: { type: 'string', description: '描述' },
+        linkedGoodsIds: { type: 'array', items: { type: 'string' }, description: '关联谷子 id（整体替换）' },
+        tags: { type: 'array', items: { type: 'string' }, description: '标签（整体替换）' }
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'events_delete',
+    description: '删除一场活动（软删除，可在应用内回收站/恢复逻辑中找回；AI 端也可用一键撤回）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', description: '活动 id，来自 events_list' }
       },
       required: ['id']
     }
@@ -397,17 +469,6 @@ export const MCP_TOOL_DEFINITIONS = [
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
         offset: { type: 'integer', minimum: 0, default: 0 }
       }
-    }
-  },
-  {
-    name: 'events_delete',
-    description: '删除一场活动（软删除）。',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: { type: 'string', description: '活动 id，来自 events_list' }
-      },
-      required: ['id']
     }
   },
   {

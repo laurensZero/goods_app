@@ -48,5 +48,11 @@
   "aiChat.attachTable": "导入表格",
   "aiChat.attachTableFailed": "读取表格失败，请重试",
   "aiChat.attachTableUnsupported": "仅支持 .csv / .xlsx / .xlsm / .tsv / .zip",
-  "aiChat.attachTableTooLarge": "表格文件不能超过 {size}"
+  "aiChat.attachTableTooLarge": "表格文件不能超过 {size}",
+  "aiChat.undoWrite": "撤回本轮修改",
+  "aiChat.undoing": "撤回中…",
+  "aiChat.undoSuccess": "已撤回本轮修改",
+  "aiChat.undoFailed": "撤回失败，部分数据可能已改动",
+  "aiChat.undoSending": "AI 回复中，稍后再撤回",
+  "aiChat.undoDone": "本轮修改已撤回"
 }
