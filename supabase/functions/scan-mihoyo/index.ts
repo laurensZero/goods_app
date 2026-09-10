@@ -5,7 +5,8 @@
 //
 // 触发方式（两套调度，见 docs/mihoyo-new-arrival-monitor-plan.md）：
 //   GET .../scan-mihoyo?catalog=shop    商店「即将上架」(show_sale_type=2) —— 全天每 20 分钟
-//                                          + 北京 12:00-12:05 / 18:00-18:05 每分钟补扫
+//                                          + 北京 12:01-12:05 / 18:01-18:05 每分钟补扫
+//                                          （补扫从 1 分起，避开与常规扫整点双开）
 //   GET .../scan-mihoyo?catalog=point   积分商城（7 店，需手机头）          —— 每小时
 //   GET .../scan-mihoyo?catalog=all     全量（手动/补数据）
 //
@@ -15,7 +16,7 @@
 // 通知：每轮每目录聚合消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
 //       消息内容按用户自选的店铺集合（user_qq_bindings.mihoyo_shops，空=全不选）过滤——
 //       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息，条数超限则分多条发送。
-//       事件键 mihoyo:<catalog>:<批次时间>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
+//       事件键 mihoyo:<catalog>:<批次哈希>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
 //
 // 依赖表：mihoyo_monitor_seen（去重）、notification_jobs（队列）、user_qq_bindings（广播对象）
 // 依赖 secrets：无（service_role 由平台注入）
@@ -275,6 +276,7 @@ async function scanCatalog(
           .eq("goods_id", goodsId)
       } else {
         // 并发扫描时只让成功插入 seen 的调用认领该商品；冲突行不能再进入通知。
+        // cron 已错峰（补扫从 1 分起）降低并发概率，这里兜底防丢/防重。
         const { data: claimed, error: insertError } = await admin
           .from("mihoyo_monitor_seen")
           .insert(
@@ -318,7 +320,7 @@ async function scanCatalog(
 
   let enqueued = { users: 0, jobs: 0 }
   if (newItems.length > 0) {
-    // 按实际认领的商品集合生成键；重复扫描去重，不同并发子集分别入队，避免丢商品。
+    // 按认领集合生成键：正常一轮全部合并；并发子集各入队，不丢商品
     const batchKey = await makeBatchKey(catalog, newItems)
     enqueued = await enqueueBatch(admin, catalog, newItems, batchKey)
   }

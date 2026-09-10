@@ -5,6 +5,10 @@ const STORAGE_KEY = 'checkout-order-queue-v1'
 const CONCURRENCY_MAX = 5
 const RETRY_DELAY = 500
 const PRE_CREATE_RETRY_DELAY = 100
+// 过 T0 后 preCreate 贴脸重试（拿不到 code 时空窗尽量短，压进同秒）
+const PRE_CREATE_HOT_RETRY_MAX = 30
+// create 首败后的快速重试（默认 500ms 会掉到下一秒）
+const CREATE_RETRY_FAST_MS = 140
 // 缺货等回流的重试间隔：商品售罄后库存会陆续回补，间隔拉长以降低对服务器压力
 const REBACK_DELAY = 3000
 // 成功订单保留时长：供用户查看结果，超时后自动清除
@@ -426,8 +430,34 @@ function getRetryDelay() {
   return RETRY_DELAY + (Math.random() * 400 - 200)
 }
 
-function getPreCreateRetryDelay() {
+/**
+ * preCreate 重试间隔：按距 T0 动态收紧。
+ * 目标：服务端放行后的第一次成功 preCreate 尽量落在 T0+0~200ms，create 才有机会进 00s。
+ */
+function getPreCreateRetryDelay(scheduledAt) {
+  const target = Number(scheduledAt) || 0
+  if (!target) return PRE_CREATE_RETRY_DELAY
+  const remaining = target - getServerNow()
+  if (remaining < -150) {
+    // 已过 T0：贴脸，20–30ms
+    return 20 + Math.random() * 10
+  }
+  if (remaining < 250) {
+    // T0±250ms
+    return 25 + Math.random() * PRE_CREATE_HOT_RETRY_MAX
+  }
+  if (remaining < 500) {
+    return 40 + Math.random() * 30
+  }
   return PRE_CREATE_RETRY_DELAY
+}
+
+function getCreateRetryDelay(attempt) {
+  // 开枪后前几次用快重试，避免 500ms 抖动把单推进下一秒
+  if (attempt <= 2) {
+    return CREATE_RETRY_FAST_MS + Math.random() * 60
+  }
+  return getRetryDelay()
 }
 
 function buildOrderPayload(entry) {
@@ -484,9 +514,13 @@ async function isGoodsOutOfStock(cookie, items) {
 // 阶段一：预创建拿 code（可重试）。返回 { code, totalFee, orderPoints, shopOrders, respGifts }
 async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = () => false, entry = null) {
   let attempt = 0
+  const scheduledAt = Number(entry?.nextAttemptAt || entry?.scheduledAt || 0)
   for (;;) {
     if (isCancelled()) throw createQueueCancelledError()
-    appendQueueLog(entry, 'pre-create-start', `第 ${attempt + 1} 次`)
+    const lagMs = scheduledAt ? Math.round(getServerNow() - scheduledAt) : null
+    appendQueueLog(entry, 'pre-create-start', lagMs == null
+      ? `第 ${attempt + 1} 次`
+      : `第 ${attempt + 1} 次 · 相对开售 ${lagMs >= 0 ? '+' : ''}${lagMs}ms`)
     try {
       return await preCreateOrder(cookie, payload)
     } catch (error) {
@@ -497,7 +531,7 @@ async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = ()
       appendQueueLog(entry, retriable && (maxAttempts === Infinity || attempt < maxAttempts) ? 'retry' : 'request-failed', `预创建第 ${attempt} 次失败：${message}`)
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
-      await sleep(getPreCreateRetryDelay())
+      await sleep(getPreCreateRetryDelay(scheduledAt))
     }
   }
 }
@@ -506,9 +540,13 @@ async function preCreateWithRetry(cookie, payload, maxAttempts, isCancelled = ()
 // 单个提交单元：按重试次数自行重试，直到成功、重复（=成功）、或耗尽次数
 async function createOrderWithRetry(cookie, { addressId, code, remark, items }, maxAttempts, isCancelled = () => false, entry = null) {
   let attempt = 0
+  const scheduledAt = Number(entry?.nextAttemptAt || entry?.scheduledAt || 0)
   for (;;) {
     if (isCancelled()) throw createQueueCancelledError()
-    appendQueueLog(entry, 'create-start', `第 ${attempt + 1} 次`)
+    const lagMs = scheduledAt ? Math.round(getServerNow() - scheduledAt) : null
+    appendQueueLog(entry, 'create-start', lagMs == null
+      ? `第 ${attempt + 1} 次`
+      : `第 ${attempt + 1} 次 · 相对开售 ${lagMs >= 0 ? '+' : ''}${lagMs}ms`)
     try {
       return await createOrder(cookie, { addressId, code, remark, items })
     } catch (error) {
@@ -522,7 +560,7 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
       appendQueueLog(entry, retriable && (maxAttempts === Infinity || attempt < maxAttempts) ? 'retry' : 'request-failed', `创建第 ${attempt} 次失败：${message}`)
       if (!retriable) throw error
       if (maxAttempts !== Infinity && attempt >= maxAttempts) throw error
-      await sleep(getRetryDelay())
+      await sleep(getCreateRetryDelay(attempt))
     }
   }
 }

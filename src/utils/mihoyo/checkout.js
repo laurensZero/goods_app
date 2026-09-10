@@ -353,10 +353,11 @@ export async function fetchMihoyoServerTime(cookie, sampleCount = 3, timeoutMs =
 }
 
 /**
- * 主毫秒时间源：Android 原生 UDP SNTP 优先，浏览器/PWA 回落 Supabase Edge。
- * - 原生 NTP：阿里云/腾讯云等国内源，RTT 通常 10–50ms，远优于经中立云 edge 的 HTTP
- * - Edge：纯 Web 无法发 UDP/123，仍走 HTTPS 云函数
- * 返回结构与 fetchEdgeServerTime 一致：{ serverTime, offsetMs, rttMs, source }
+ * 主毫秒时间源：
+ * 1. Android 原生 UDP SNTP（阿里云/腾讯云）
+ * 2. 浏览器 dev：Vite `/dev-ntp`（Node 去打阿里云 UDP，按需）
+ * 3. 生产 Web/PWA：Supabase Edge HTTP
+ * 返回结构：{ serverTime, offsetMs, rttMs, source }
  */
 export async function fetchPrimaryServerTime(options = {}) {
   if (isNativeNtpAvailable()) {
@@ -377,6 +378,32 @@ export async function fetchPrimaryServerTime(options = {}) {
       log.warn('primary:ntp:fallback', { message: error?.message })
     }
   }
+
+  // 仅 dev：与 Vite 同源，中间件按需向阿里云发 UDP SNTP
+  const isDev = Boolean(import.meta.env?.DEV)
+  if (isDev) {
+    try {
+      const t0 = Date.now()
+      const res = await fetch('/dev-ntp', { method: 'GET', cache: 'no-store' })
+      const t1 = Date.now()
+      if (res.ok) {
+        const data = await res.json()
+        const serverTime = Number(data?.serverTime)
+        const offsetMs = Number(data?.offsetMs)
+        if (Number.isFinite(serverTime) && Number.isFinite(offsetMs)) {
+          return {
+            serverTime: Date.now() + offsetMs,
+            offsetMs,
+            rttMs: Number(data?.rttMs) || (t1 - t0),
+            source: String(data?.source || 'dev-ntp'),
+          }
+        }
+      }
+    } catch (error) {
+      log.warn('primary:dev-ntp:fallback', { message: error?.message })
+    }
+  }
+
   const edge = await fetchEdgeServerTime(options.edgeTimeoutMs, options.edgeSampleCount)
   return { ...edge, source: 'edge-ntp' }
 }
