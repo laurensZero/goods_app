@@ -153,9 +153,11 @@ export async function renderMarkdownWithThumbs(value, options = {}) {
   await Promise.all(images.map(async (img) => {
     const src = img.getAttribute('src') || ''
     if (!src) return
+    // 原图地址留给点击放大；缩略图只当列表展示
+    img.setAttribute('data-full-src', src)
     try {
       const thumb = await getCachedImageThumb(src, options)
-      if (thumb) img.setAttribute('src', thumb)
+      if (thumb && thumb !== src) img.setAttribute('src', thumb)
     } catch { /* 保留原图地址 */ }
   }))
   return doc.body.innerHTML
