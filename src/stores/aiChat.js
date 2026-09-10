@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive, ref, watch } from 'vue'
 import { useGoodsStore } from './goods'
+import { useGoodsGroupStore } from './goodsGroup'
 import { usePresetsStore } from './presets'
 import { useThemeStore } from './theme'
 import { useNotifySettingsStore } from './notifySettings'
@@ -23,6 +24,7 @@ import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
 import { VISION_TOOL_DEFINITIONS, createVisionToolHandlers } from '@/services/ai/visionTools'
 import { ATTACHMENT_TOOL_DEFINITIONS, createAttachmentToolHandlers } from '@/services/ai/attachmentTools'
+import { TABLE_TOOL_DEFINITIONS, createTableToolHandlers } from '@/services/ai/tableImportTools'
 import { createLogger } from '@/utils/logger'
 
 const log = createLogger('ai-chat')
@@ -45,6 +47,7 @@ function buildSystemPrompt() {
     '可写工具：goods_add（新增）、goods_update（部分更新，含收藏状态/出售信息/逐件字段）、goods_sell（记录出售或挂牌）、goods_delete（移入回收站，可恢复）、goods_restore（恢复）、recharge_add（记游戏充值）、music_play（拉起播放曲目：eventId+trackId 播演出曲单，goodsId+trackId 播 CD/专辑）、budget_set（设置吃谷预算，0=清除）、sync_start（发起云同步）、share_create（生成谷子分享链接）、share_manage（分享列表/启停/删除）、account_info（账号信息）、account_logout（退出登录，需用户明确要求）、navigate（页面跳转）、app_info（版本号与更新检查）、memory_save（记住/忘记用户长期偏好）；',
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
+    '表格工具：table_dryrun（解析 xlsx/csv/zip 附件；官方格式返回 mode=official 快速路径，非官方 mode=structure 看结构 / mode=dryrun 带映射预演，均不写库）、table_commit（官方直接标准导入，非官方按映射批量写入；需 dryRunConfirmed: true）；',
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
     '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
@@ -59,6 +62,9 @@ function buildSystemPrompt() {
     '- 禁止自行拼接 Supabase/Storage 公开链接（不要用项目域名、userId、文件名拼 URL）。uri 只能原样使用；若 uri 不是 http://、https://、data: 开头（例如 cloud-image:// 或本地路径），不要改写成完整外链，可直接把工具返回的 uri 放进 ![描述](uri)，或说明「请在应用内查看本机图片」；',
     '- 视觉（vision_analyze）铁律：用户消息末尾的「[附件图片: n|att:…]」只表示随消息附带了图片，绝不自动分析；只有用户明确要求查看/识别/描述/分析图片内容（如「帮我看看这张」「图上是什么角色」「识别一下包装文字」）时才调用 vision_analyze。用户只发图不说话、或问的是收藏统计/记账等问题时禁止调用。image 参数：附件图填序号（"1"、"2"…）或标记里的 att:<id>；也可以填 goods_detail/event_tracks 返回的图片 uri、http(s) 链接或 cloud-image:// 链接。question 用用户的具体问题，没有则留空由模型客观描述。vision_analyze 报错/空回复时如实告知用户「当前视觉模型无法分析这张图」，并建议在设置中更换支持图片输入的视觉模型，不要连续空转重试。',
     '- 附件应用（attachment_apply）：用户要求把聊天里上传的图片设为谷子图/活动封面/活动照片（如「把这张加到吧唧上」「设为这次漫展的封面」「加一张现场照片」）→ attachment_apply，不需要 vision_analyze。target=goods_image（id 来自 goods_search，kind 默认 primary 设主图）、event_cover / event_photo（id 来自 events_list）。先确认目标条目 id 再写入；写完后在回复里说明已挂到哪条。',
+    '- 表格导入铁律：用户消息末尾的「[附件表格: n|att:…]」表示随消息附带了表格附件（xlsx/csv/zip），绝不自动分析或导入；只有用户明确要求导入表格数据时才调用 table_dryrun。' +
+      ' 若 table_dryrun 返回 mode=official（应用官方导出格式，按表头识别，覆盖谷子/活动/充值/预设等）：这是快速路径——无需字段映射、无需逐列询问，只需向用户简要说明将导入的条数与类型，用户同意后直接 table_commit（dryRunConfirmed: true，可不传 mapping）。' +
+      ' 若 mode=structure（非官方）：必须分步——① 提出字段映射提案，任何含义模糊、可能对应多个字段、或值格式异常的列必须先问用户，问清楚才继续 → ② table_dryrun（带 mapping）预演 → ③ 把有效条数、问题行与前几条预览展示给用户 → ④ 用户明确同意后才 table_commit（dryRunConfirmed: true）。禁止跳过询问直接导入非官方表格；禁止在用户未确认时 commit。表格附件用序号（"1"）或 att:<id> 引用。',
     '- 预算：「这个月/今年预算还剩多少」「哪个月/哪年超了」→ budget_overview（0=未设置）；用户要改预算 → budget_set（monthly/yearly，0=清除），改完可建议去统计页看预算线与超支标红；',
     '- 应用动作：同步数据 → sync_start（未登录/未配置会报错，如实转达）；分享谷子 → 先 goods_search 拿 id 再 share_create，管理链接 → share_manage；问账号 → account_info，退出登录 → account_logout（退出前跟用户确认一次）；问版本号/能否更新 → app_info（checkUpdate: true 才联网查）；',
     '- 跳转：应用绝不自动跳转页面，一律通过跳转按钮让用户自己点。需要跳转链接时 → navigate（page 必填；goods_detail/goods_edit/event_detail/event_edit 另需 id，活动 id 来自 events_list），它返回 buttonLink，你把它嵌成 [按钮文字](buttonLink)；也可以不经 navigate 直接按协议写 app://<page>（带 id 页面为 app://<page>/<id>）；',
@@ -121,15 +127,21 @@ function sanitizeAttachments(list) {
       if (!item) return null
       if (typeof item === 'string') {
         const uri = item.trim()
-        return uri ? { id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, uri } : null
+        return uri ? { id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, uri, type: 'image' } : null
       }
       const uri = String(item.uri || '').trim()
       const localPath = String(item.localPath || '').trim()
-      if (!uri && !localPath) return null
+      const type = item.type === 'table' ? 'table' : 'image'
+      const filename = type === 'table' ? String(item.filename || '').trim() : ''
+      // 表格附件内容只在内存 registry，uri 可为空；图片仍需可预览地址
+      if (type === 'image' && !uri && !localPath) return null
+      if (type === 'table' && !filename && !uri && !localPath) return null
       return {
         id: String(item.id || `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`),
         uri,
-        localPath
+        localPath,
+        type,
+        ...(filename ? { filename } : {})
       }
     })
     .filter(Boolean)
@@ -224,6 +236,8 @@ function trimConvo(convo) {
  * @property {string} id
  * @property {string} uri 预览与解析用地址（data:/file/cloud-image/http 等）
  * @property {string} [localPath] 原生端相对路径（可选，便于回读）
+ * @property {'image'|'table'} [type] 缺省视为 image
+ * @property {string} [filename] 表格附件原始文件名（type=table 时使用）
  */
 
 /**
@@ -426,20 +440,39 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
   /**
    * 附件清单注入用户消息文本（不塞 data URL，避免撑爆上下文）。
-   * 序号用于本轮 vision_analyze；att:<id> 供同会话后续追问引用。
+   * 序号用于本轮 vision_analyze / table_dryrun；att:<id> 供同会话后续追问引用。
    * @param {string} text
    * @param {ChatAttachment[]} list
    */
   function withAttachmentMarkers(text, list) {
     if (!list?.length) return text
     const markers = list
-      .map((att, index) => `[附件图片: ${index + 1}|att:${att.id}]`)
+      .map((att, index) => {
+        const label = att.type === 'table' ? '附件表格' : '附件图片'
+        return `[${label}: ${index + 1}|att:${att.id}]`
+      })
       .join(' ')
     return `${text}\n\n${markers}`
   }
 
-  /** 发送中的附件快照：send 期间 vision_analyze 按序号取图；结束后清空 */
+  /** 发送中的附件快照：send 期间 vision_analyze / table_dryrun 按序号取件；结束后清空 */
   let activeSendAttachments = []
+
+  /**
+   * 表格附件内容注册表：id → ArrayBuffer|string（仅内存，不进 localStorage）。
+   * 会话切换/发送时填充；工具通过 readTableContent 回读。
+   * @type {Map<string, ArrayBuffer|string>}
+   */
+  const tableContentRegistry = new Map()
+
+  /**
+   * 供 table_* 工具读取表格内容。
+   * @param {string} attachmentId
+   * @returns {Promise<ArrayBuffer|string|null>}
+   */
+  async function readTableContent(attachmentId) {
+    return tableContentRegistry.get(String(attachmentId)) ?? null
+  }
 
   /** 当前可分析附件（优先本轮发送快照，其次待发区） */
   function listAttachments() {
@@ -470,11 +503,28 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   /**
-   * 追加视觉附件（上传/选择图片后仅缓存，不触发视觉调用）。
-   * @param {Array<{ uri: string, localPath?: string, id?: string }>} items
+   * 追加附件（图片或表格；仅缓存，不触发工具调用）。
+   * @param {Array<{ uri?: string, localPath?: string, id?: string, type?: string, filename?: string, content?: ArrayBuffer|string }>} items
    */
   function addAttachments(items) {
-    const incoming = sanitizeAttachments(items)
+    if (!Array.isArray(items) || items.length === 0) return attachments.value
+    /** @type {ChatAttachment[]} */
+    const incoming = []
+    for (const item of items) {
+      if (!item) continue
+      const type = item.type === 'table' ? 'table' : 'image'
+      const id = String(item.id || `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`)
+      const filename = type === 'table' ? String(item.filename || '').trim() : ''
+      const uri = String(item.uri || '').trim()
+      const localPath = String(item.localPath || '').trim()
+      if (type === 'table') {
+        if (item.content != null) tableContentRegistry.set(id, item.content)
+        incoming.push({ id, uri, localPath, type: 'table', ...(filename ? { filename } : {}) })
+      } else {
+        if (!uri && !localPath) continue
+        incoming.push({ id, uri, localPath, type: 'image' })
+      }
+    }
     if (incoming.length === 0) return attachments.value
     const room = MAX_ATTACHMENTS - attachments.value.length
     if (room <= 0) return attachments.value
@@ -544,11 +594,22 @@ export const useAiChatStore = defineStore('aiChat', () => {
         goodsStore,
         eventsStore: useEventsStore()
       })
+      const tableHandlers = createTableToolHandlers({
+        getAttachments: () => listAttachments(),
+        resolveSource: resolveVisionAttachment,
+        readTableContent,
+        goodsStore,
+        rechargeStore: useRechargeStore(),
+        eventsStore: useEventsStore(),
+        goodsGroupStore: useGoodsGroupStore(),
+        presetsStore: usePresetsStore()
+      })
       executorCache = {
         ...readHandlers,
         ...writeHandlers,
         ...visionHandlers,
-        ...attachmentHandlers
+        ...attachmentHandlers,
+        ...tableHandlers
       }
     }
     return (name, args) => {
@@ -615,7 +676,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
           ...MCP_TOOL_DEFINITIONS,
           ...MCP_WRITE_TOOL_DEFINITIONS,
           ...VISION_TOOL_DEFINITIONS,
-          ...ATTACHMENT_TOOL_DEFINITIONS
+          ...ATTACHMENT_TOOL_DEFINITIONS,
+          ...TABLE_TOOL_DEFINITIONS
         ],
         // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
         onDelta: (delta) => {

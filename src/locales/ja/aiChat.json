@@ -42,7 +42,11 @@
   "aiChat.visionNotice": "添付画像は自動では解析されません。「この画像を見て」など明示的な依頼があったときだけマルチモーダルモデルを呼び出します。画像入力対応のモデルが必要です。",
   "aiChat.attachImage": "画像を追加",
   "aiChat.attachFailed": "画像の選択に失敗しました。再試行してください",
-  "aiChat.attachLimit": "最大 {count} 枚まで",
+  "aiChat.attachLimit": "最大 {count} 個まで",
   "aiChat.attachNeedText": "知りたい内容も一言添えてください（例：この画像を見て）",
-  "aiChat.removeAttachment": "添付を削除"
+  "aiChat.removeAttachment": "添付を削除",
+  "aiChat.attachTable": "表をインポート",
+  "aiChat.attachTableFailed": "表ファイルの読み込みに失敗しました。再試行してください",
+  "aiChat.attachTableUnsupported": ".csv / .xlsx / .xlsm / .tsv / .zip のみ対応しています",
+  "aiChat.attachTableTooLarge": "表ファイルは {size} 以下にしてください"
 }

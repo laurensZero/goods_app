@@ -5,7 +5,15 @@ import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useRechargeStore } from '@/stores/recharge'
+import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { appLog } from '@/utils/logger'
+import {
+  buildAppCsvFiles,
+  packAppCsvZip,
+  parseAppCsv,
+  parseAppCsvFiles,
+  unpackAppCsvZip
+} from '@/utils/table/appDataCsv'
 
 const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5
@@ -18,7 +26,8 @@ const EXPORT_OPTION_KEYS = [
   { key: 'events', labelKey: 'manage.exportEvents', descKey: 'manage.exportEventsDesc' },
   { key: 'images', labelKey: 'manage.exportImages', descKey: 'manage.exportImagesDesc' },
   { key: 'recharge', labelKey: 'manage.exportRecharge', descKey: 'manage.exportRechargeDesc' },
-  { key: 'presets', labelKey: 'manage.exportPresets', descKey: 'manage.exportPresetsDesc' }
+  { key: 'presets', labelKey: 'manage.exportPresets', descKey: 'manage.exportPresetsDesc' },
+  { key: 'groups', labelKey: 'manage.exportGroups', descKey: 'manage.exportGroupsDesc' }
 ]
 
 export const exportSectionOptions = EXPORT_OPTION_KEYS.map((opt) => ({
@@ -29,7 +38,7 @@ export const exportSectionOptions = EXPORT_OPTION_KEYS.map((opt) => ({
 
 export function createDefaultExportSelection() {
   return exportSectionOptions.reduce((result, option) => {
-    result[option.key] = option.key === 'images' ? false : true
+    result[option.key] = true
     return result
   }, {})
 }
@@ -127,7 +136,73 @@ async function cleanupUnreferencedLocalImages() {
   return { removed, bytes }
 }
 
-async function exportBackupToNative(json, filename) {
+function bytesToBase64(bytes) {
+  let binary = ''
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(binary)
+}
+
+async function writeExportPayload(payload, filename) {
+  const isBinary = payload instanceof Uint8Array
+  const data = isBinary ? bytesToBase64(payload) : payload
+
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const saved = await exportBackupToNative(data, filename, isBinary)
+      let shared = await shareBackupFile(saved.uri).catch(() => false)
+
+      const shouldTryShareCacheFallback = !shared && !isBinary && payload.length < 4 * 1024 * 1024
+      if (shouldTryShareCacheFallback) {
+        const shareable = await exportBackupToShareCache(data, filename).catch(() => null)
+        if (shareable) shared = await shareBackupFile(shareable.uri).catch(() => false)
+      } else if (!shared && isBinary) {
+        const shareable = await exportBackupToShareCache(data, filename).catch(() => null)
+        if (shareable) shared = await shareBackupFile(shareable.uri).catch(() => false)
+      }
+
+      if (shared) {
+        void pruneBackupArtifacts().catch(() => {})
+        return {
+          kind: 'share',
+          message: saved.visibleToUser
+            ? i18n.global.t('manage.exportSharedWritten', { path: saved.path })
+            : i18n.global.t('manage.exportSharedChoose')
+        }
+      }
+
+      void pruneBackupArtifacts().catch(() => {})
+      return {
+        kind: 'path',
+        message: saved.visibleToUser
+          ? i18n.global.t('manage.exportedToDocument', { path: saved.path })
+          : i18n.global.t('manage.exportedToAppDir', { path: saved.path })
+      }
+    }
+  } catch (error) {
+    appLog('warn', 'export: native write failed, falling back to browser download', { error: error?.message })
+  }
+
+  const blob = isBinary
+    ? new Blob([payload], { type: 'application/zip' })
+    : new Blob([payload], { type: filename.toLowerCase().endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/json' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  URL.revokeObjectURL(url)
+  return {
+    kind: 'download',
+    message: i18n.global.t('manage.exportedToDownload', { filename })
+  }
+}
+
+async function exportBackupToNative(data, filename, isBinary = false) {
   const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
   const publicPath = `${BACKUP_DIR}/${filename}`
 
@@ -144,9 +219,9 @@ async function exportBackupToNative(json, filename) {
 
     const result = await Filesystem.writeFile({
       path: publicPath,
-      data: json,
+      data,
       directory: Directory.Documents,
-      encoding: Encoding.UTF8,
+      encoding: isBinary ? undefined : Encoding.UTF8,
       recursive: true
     })
 
@@ -155,9 +230,9 @@ async function exportBackupToNative(json, filename) {
     const fallbackPath = `backup/${filename}`
     const result = await Filesystem.writeFile({
       path: fallbackPath,
-      data: json,
+      data,
       directory: Directory.Data,
-      encoding: Encoding.UTF8,
+      encoding: isBinary ? undefined : Encoding.UTF8,
       recursive: true
     })
 
@@ -165,14 +240,14 @@ async function exportBackupToNative(json, filename) {
   }
 }
 
-async function exportBackupToShareCache(json, filename) {
+async function exportBackupToShareCache(data, filename) {
   const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
   const sharePath = `backup-share/${filename}`
   const result = await Filesystem.writeFile({
     path: sharePath,
-    data: json,
+    data,
     directory: Directory.Cache,
-    encoding: Encoding.UTF8,
+    encoding: typeof data === 'string' ? Encoding.UTF8 : undefined,
     recursive: true
   })
   return { path: sharePath, uri: result.uri }
@@ -227,10 +302,12 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
   const eventsStore = useEventsStore()
   const presetsStore = usePresetsStore()
   const rechargeStore = useRechargeStore()
+  const goodsGroupStore = useGoodsGroupStore()
 
   const importFileRef = ref(null)
   const showExportPicker = ref(false)
   const exportSelection = ref(createDefaultExportSelection())
+  const exportFormat = ref('csv')
   let exportLongPressTimer = 0
   let suppressNextExportClick = false
 
@@ -246,6 +323,10 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
   function closeExportPicker() {
     showExportPicker.value = false
     suppressNextExportClick = false
+  }
+
+  function setExportFormat(format) {
+    exportFormat.value = format === 'csv' ? 'csv' : 'json'
   }
 
   function toggleExportSection(key) {
@@ -292,7 +373,7 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       showToast(i18n.global.t('manage.exportSelectAtLeastOne'))
       return
     }
-    handleExport(exportSelection.value)
+    handleExport(exportSelection.value, exportFormat.value)
     closeExportPicker()
   }
 
@@ -302,12 +383,177 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     importFileRef.value.click()
   }
 
+  async function ensureGoodsGroupReady() {
+    if (!goodsGroupStore.isReady) {
+      try { await goodsGroupStore.init() } catch { /* ignore */ }
+    }
+  }
+
+  async function applyPresetsFromPayload(presets) {
+    if (!presets) return
+    for (const category of (presets.categories || [])) {
+      if (category) await presetsStore.addCategory(category)
+    }
+    for (const ip of (presets.ips || [])) {
+      if (ip) await presetsStore.addIp(ip)
+    }
+    for (const character of (presets.characters || [])) {
+      if (character?.name) await presetsStore.addCharacter(character.name, character.ip || '')
+    }
+    await presetsStore.syncStorageLocationsFromPaths(presets.storageLocations || [])
+  }
+
+  /** CSV 的 images/coverImage 可能是字符串或 JSON 文本；统一还原成 images 数组供 store 使用 */
+  function prepareGoodsImages(item) {
+    if (!item) return item
+    let images = item.images
+    if (typeof images === 'string') {
+      const text = images.trim()
+      if (text.startsWith('[')) {
+        try { images = JSON.parse(text) } catch { images = [] }
+      } else if (text) {
+        images = [{ uri: text, isPrimary: true }]
+      } else {
+        images = []
+      }
+    }
+    if (!Array.isArray(images) || images.length === 0) {
+      const cover = String(item.coverImage || item.image || '').trim()
+      images = cover ? [{ uri: cover, isPrimary: true }] : []
+    }
+    return {
+      ...item,
+      images,
+      // importGoodsBackup 会清空 coverImage；这里先带齐主图，避免 images 解析失败时丢图
+      coverImage: String(item.coverImage || images.find((i) => i?.isPrimary)?.uri || images[0]?.uri || ''),
+      image: String(item.image || images.find((i) => i?.isPrimary)?.uri || images[0]?.uri || '')
+    }
+  }
+
+  async function importGoodsLike(items) {
+    if (!Array.isArray(items) || items.length === 0) return 0
+    const prepared = items.map(prepareGoodsImages)
+    const withId = prepared.filter((item) => item?.id)
+    const withoutId = prepared.filter((item) => !item?.id).map((item) => ({ ...item, updatedAt: item.updatedAt || Date.now() }))
+    let added = 0
+    if (withId.length > 0) added += await goodsStore.importGoodsBackup(withId)
+    if (withoutId.length > 0) added += await goodsStore.addGoodsBatch(withoutId)
+    return added
+  }
+
+  async function importTrashLike(items) {
+    if (!Array.isArray(items) || items.length === 0) return 0
+    return goodsStore.importTrashBackup(items.map(prepareGoodsImages))
+  }
+
+  async function importEventsLike(events) {
+    if (!Array.isArray(events) || events.length === 0) return { added: 0, updated: 0 }
+    return eventsStore.importEventsBackup(events)
+  }
+
+  async function importRechargeLike(records) {
+    if (!Array.isArray(records) || records.length === 0) return { added: 0, updated: 0 }
+    return rechargeStore.importBackup(records)
+  }
+
+  async function importGroupsLike(groups, groupItems) {
+    await ensureGoodsGroupReady()
+    if ((groups?.length || 0) === 0 && (groupItems?.length || 0) === 0) return
+    await goodsGroupStore.updateGroupsBackup(groups || [], groupItems || [])
+  }
+
+  async function importParsedAppCsv(files) {
+    const bySchema = parseAppCsvFiles(files)
+    const goodsAdded = await importGoodsLike(bySchema.goods.items)
+    const trashAdded = await importTrashLike(bySchema.trash.items)
+    const rechargeResult = await importRechargeLike(bySchema.recharge.items)
+    const eventResult = await importEventsLike(bySchema.events.items)
+    await importGroupsLike(bySchema.goods_groups.items, bySchema.goods_group_items.items)
+
+    for (const item of bySchema.categories.items) {
+      if (item?.name) await presetsStore.addCategory(item.name)
+    }
+    for (const item of bySchema.ips.items) {
+      if (item?.name) await presetsStore.addIp(item.name)
+    }
+    for (const item of bySchema.characters.items) {
+      if (item?.name) await presetsStore.addCharacter(item.name, item.ip || '')
+    }
+    if (bySchema.storage_locations.items.length > 0) {
+      await presetsStore.syncStorageLocationsFromPaths(
+        bySchema.storage_locations.items.map((item) => item.path).filter(Boolean)
+      )
+    }
+    await presetsStore.syncStorageLocationsFromPaths(
+      bySchema.goods.items.map((item) => item.storageLocation).filter(Boolean)
+    )
+
+    const rechargeChanged = Number(rechargeResult.added || 0) + Number(rechargeResult.updated || 0)
+    const eventsChanged = Number(eventResult.added || 0) + Number(eventResult.updated || 0)
+    const totalErrors = Object.values(bySchema).reduce((sum, bucket) => sum + (bucket.errors?.length || 0), 0)
+
+    return {
+      goods: goodsAdded,
+      trash: trashAdded,
+      recharge: rechargeChanged,
+      eventsAdded: eventResult.added || 0,
+      eventsUpdated: eventResult.updated || 0,
+      eventsChanged,
+      errorCount: totalErrors
+    }
+  }
+
   async function handleImport(event) {
     await ensureEventsReady()
     const file = event.target.files?.[0]
     if (!file) return
 
     try {
+      const lower = String(file.name || '').toLowerCase()
+
+      if (lower.endsWith('.zip')) {
+        const bytes = new Uint8Array(await file.arrayBuffer())
+        const csvFiles = unpackAppCsvZip(bytes)
+        if (csvFiles.length === 0) {
+          showToast(i18n.global.t('manage.importCsvEmptyZip'))
+          return
+        }
+        const result = await importParsedAppCsv(csvFiles)
+        appLog('info', 'csv-zip-import: done', result)
+        showToast(i18n.global.t('manage.importCsvSuccess', {
+          goods: result.goods,
+          trash: result.trash,
+          recharge: result.recharge,
+          newEvents: result.eventsAdded,
+          updatedEvents: result.eventsUpdated
+        }), 4200)
+        return
+      }
+
+      if (lower.endsWith('.csv') || lower.endsWith('.tsv')) {
+        const text = await file.text()
+        let parsed
+        try {
+          parsed = parseAppCsv(text, undefined, file.name)
+        } catch (e) {
+          if (e?.message === 'CSV_UNSTANDARD') {
+            showToast(i18n.global.t('manage.importCsvUnstandard'), 4200)
+            return
+          }
+          throw e
+        }
+        const result = await importParsedAppCsv([{ filename: file.name, text }])
+        appLog('info', 'csv-import: done', { schema: parsed.schemaKey, ...result })
+        showToast(i18n.global.t('manage.importCsvSuccess', {
+          goods: result.goods,
+          trash: result.trash,
+          recharge: result.recharge,
+          newEvents: result.eventsAdded,
+          updatedEvents: result.eventsUpdated
+        }), 4200)
+        return
+      }
+
       const text = await file.text()
       const data = JSON.parse(text)
 
@@ -321,6 +567,8 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       const rechargeLegacy = Array.isArray(data.rechargeRecords) ? data.rechargeRecords : []
       const rechargeToImport = [...rechargeActive, ...rechargeDeleted, ...rechargeLegacy]
       const eventsToImport = Array.isArray(data.events) ? data.events : []
+      const groupsToImport = Array.isArray(data.goodsGroups) ? data.goodsGroups : []
+      const groupItemsToImport = Array.isArray(data.goodsGroupItems) ? data.goodsGroupItems : []
       const mergedGoodsToImport = [...goodsToImport, ...wishlistToImport]
 
       const goodsAdded = mergedGoodsToImport.length > 0
@@ -330,18 +578,8 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       const rechargeResult = rechargeToImport.length > 0
         ? await rechargeStore.importBackup(rechargeToImport) : { added: 0, updated: 0 }
 
-      if (data.presets) {
-        for (const category of (data.presets.categories || [])) {
-          if (category) await presetsStore.addCategory(category)
-        }
-        for (const ip of (data.presets.ips || [])) {
-          if (ip) await presetsStore.addIp(ip)
-        }
-        for (const character of (data.presets.characters || [])) {
-          if (character?.name) await presetsStore.addCharacter(character.name, character.ip || '')
-        }
-        await presetsStore.syncStorageLocationsFromPaths(data.presets.storageLocations || [])
-      }
+      if (data.presets) await applyPresetsFromPayload(data.presets)
+      await importGroupsLike(groupsToImport, groupItemsToImport)
 
       await presetsStore.syncStorageLocationsFromPaths(
         mergedGoodsToImport.map((item) => item.storageLocation).filter(Boolean)
@@ -365,18 +603,15 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     }
   }
 
-  async function handleExport(selection = null) {
+  async function collectExportLists(selected, { lightweight }) {
     const { sanitizeGoodsItemForExport, sanitizeEventForExport, sanitizeGoodsItemForSync } = await import('@/utils/goods/images')
-    await ensureEventsReady()
-    const selected = selection || createDefaultExportSelection()
     const includeGoods = selected.goods !== false
     const includeWishlist = selected.wishlist !== false
     const includeTrash = selected.trash !== false
     const includeEvents = selected.events !== false
-    const includeImages = selected.images === true
     const includeRecharge = selected.recharge !== false
     const includePresets = selected.presets !== false
-    const useLightweightImageExport = !includeImages
+    const includeGroups = selected.groups !== false
 
     const safeSanitizeGoodsItemForExport = async (item) => {
       try { return await sanitizeGoodsItemForExport(item) } catch { return null }
@@ -390,8 +625,13 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     const safeSanitizeEventLight = async (event) => {
       try {
         if (!event) return null
-        const { coverImage, photos, ...rest } = event
-        return { ...rest, coverImage: String(coverImage || ''), photos: Array.isArray(photos) ? photos.map((p) => ({ ...p })) : [] }
+        const { coverImageData: _coverImageData, ...rest } = event
+        return {
+          ...rest,
+          coverImage: String(rest.coverImage || ''),
+          photos: Array.isArray(rest.photos) ? rest.photos.map((p) => ({ ...p })) : [],
+          tracks: Array.isArray(rest.tracks) ? rest.tracks.map((t) => ({ ...t })) : []
+        }
       } catch { return null }
     }
 
@@ -407,101 +647,140 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     const goodsList = includeGoods
       ? await sanitizeSequential(
         goodsStore.list.filter((item) => !item?.isWishlist),
-        useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : undefined
+        lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+      ) : []
     const wishlistList = includeWishlist
       ? await sanitizeSequential(
         goodsStore.list.filter((item) => item?.isWishlist),
-        useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : undefined
+        lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+      ) : []
     const trashList = includeTrash
       ? await sanitizeSequential(
         goodsStore.trashList,
-        useLightweightImageExport ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : undefined
-    const rechargeRecords = includeRecharge ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: false }) : undefined
-    const rechargeTrash = includeRecharge ? [] : undefined
+        lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
+      ) : []
+    const rechargeRecords = includeRecharge
+      ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: false })
+      : []
     const eventsList = includeEvents
       ? await sanitizeSequential(
         eventsStore.list.filter((event) => !event?.deleted),
-        useLightweightImageExport ? safeSanitizeEventLight : safeSanitizeEventForExport
-      ) : undefined
+        lightweight ? safeSanitizeEventLight : safeSanitizeEventForExport
+      ) : []
+
+    let groupList = []
+    let groupItemList = []
+    if (includeGroups) {
+      await ensureGoodsGroupReady()
+      groupList = goodsGroupStore.groupList.filter((g) => !g?.deleted)
+      const groupIds = new Set(groupList.map((g) => g.id))
+      groupItemList = goodsGroupStore.groupItemList.filter((item) => !item?.deleted && groupIds.has(item.groupId))
+    }
+
+    const presets = includePresets ? {
+      categories: presetsStore.categories,
+      ips: presetsStore.ips,
+      characters: presetsStore.characters,
+      storageLocations: presetsStore.storageLocationPaths
+    } : null
+
+    return {
+      goodsList, wishlistList, trashList, rechargeRecords, eventsList,
+      groupList, groupItemList, presets,
+      includeGoods, includeWishlist, includeTrash, includeEvents, includeRecharge, includePresets, includeGroups,
+      includeImages: selected.images === true
+    }
+  }
+
+  async function handleExportAsCsv(selection) {
+    const selected = selection || createDefaultExportSelection()
+    const lists = await collectExportLists(selected, { lightweight: true })
+    const csvGoods = [
+      ...(lists.includeGoods ? lists.goodsList : []),
+      ...(lists.includeWishlist ? lists.wishlistList.map((item) => ({ ...item, isWishlist: true })) : [])
+    ]
+
+    const files = buildAppCsvFiles({
+      goods: csvGoods,
+      trash: lists.trashList,
+      events: lists.eventsList,
+      recharge: lists.rechargeRecords,
+      groups: lists.groupList,
+      groupItems: lists.groupItemList,
+      categories: lists.presets?.categories || [],
+      ips: lists.presets?.ips || [],
+      characters: lists.presets?.characters || [],
+      storageLocations: lists.presets?.storageLocations || []
+    })
+
+    if (Object.keys(files).length === 0) {
+      showToast(i18n.global.t('manage.exportSelectAtLeastOne'))
+      return
+    }
+
+    const zip = packAppCsvZip(files)
+    const filename = i18n.global.t('manage.csvZipFilename', { date: new Date().toISOString().split('T')[0] })
+    appLog('info', 'csv-export: start', {
+      files: Object.keys(files),
+      zipKB: Math.round(zip.length / 1024)
+    })
+
+    const result = await writeExportPayload(zip, filename)
+    showToast(result.message, 4200)
+  }
+
+  async function handleExportAsJson(selection) {
+    const selected = selection || createDefaultExportSelection()
+    const lists = await collectExportLists(selected, { lightweight: selected.images !== true })
+    const includeImages = lists.includeImages
+    const useLightweightImageExport = !includeImages
 
     const data = {
-      version: 8,
+      version: 9,
       exportedAt: new Date().toISOString(),
-      ...(includeGoods ? { goods: goodsList } : {}),
-      ...(includeWishlist ? { wishlist: wishlistList } : {}),
-      ...(includeTrash ? { trash: trashList } : {}),
-      ...(includeRecharge ? { recharge: rechargeRecords, rechargeTrash } : {}),
-      ...(includeEvents ? { events: eventsList } : {}),
-      ...(includePresets ? {
-        presets: {
-          categories: presetsStore.categories,
-          ips: presetsStore.ips,
-          characters: presetsStore.characters,
-          storageLocations: presetsStore.storageLocationPaths
-        }
-      } : {})
+      ...(lists.includeGoods ? { goods: lists.goodsList } : {}),
+      ...(lists.includeWishlist ? { wishlist: lists.wishlistList } : {}),
+      ...(lists.includeTrash ? { trash: lists.trashList } : {}),
+      ...(lists.includeRecharge ? { recharge: lists.rechargeRecords, rechargeTrash: [] } : {}),
+      ...(lists.includeEvents ? { events: lists.eventsList } : {}),
+      ...(lists.includeGroups ? { goodsGroups: lists.groupList, goodsGroupItems: lists.groupItemList } : {}),
+      ...(lists.presets ? { presets: lists.presets } : {})
     }
     const json = JSON.stringify(data)
     const filename = i18n.global.t('manage.backupFilename', { date: new Date().toISOString().split('T')[0] })
     appLog('info', 'backup-export: start', {
-      goods: goodsList?.length, wishlist: wishlistList?.length, trash: trashList?.length,
-      events: eventsList?.length, recharge: rechargeRecords?.length,
+      goods: lists.goodsList?.length, wishlist: lists.wishlistList?.length, trash: lists.trashList?.length,
+      events: lists.eventsList?.length, recharge: lists.rechargeRecords?.length,
+      groups: lists.groupList?.length,
       includeImages, sizeKB: Math.round(json.length / 1024)
     })
 
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const saved = await exportBackupToNative(json, filename)
-        let shared = await shareBackupFile(saved.uri).catch(() => false)
-
-        const shouldTryShareCacheFallback = !shared && json.length < 4 * 1024 * 1024
-        if (shouldTryShareCacheFallback) {
-          const shareable = await exportBackupToShareCache(json, filename).catch(() => null)
-          if (shareable) shared = await shareBackupFile(shareable.uri).catch(() => false)
-        }
-
-        if (shared) {
-          void pruneBackupArtifacts().catch(() => {})
-          showToast(
-            useLightweightImageExport
-              ? i18n.global.t('manage.exportSharedLightweight')
-              : (saved.visibleToUser
-                ? i18n.global.t('manage.exportSharedWritten', { path: saved.path })
-                : i18n.global.t('manage.exportSharedChoose')),
-            4200
-          )
-          return
-        }
-
-        void pruneBackupArtifacts().catch(() => {})
-        showToast(
-          useLightweightImageExport
-            ? i18n.global.t('manage.exportedLightweightTo', { location: saved.visibleToUser ? i18n.global.t('manage.exportedToDocument', { path: saved.path }) : i18n.global.t('manage.exportedToAppDir', { path: saved.path }) })
-            : (saved.visibleToUser
-              ? i18n.global.t('manage.exportedToDocument', { path: saved.path })
-              : i18n.global.t('manage.exportedToAppDir', { path: saved.path })),
-          4200
-        )
-        return
-      }
-    } catch (error) {
-      // fallback to browser download
-      appLog('warn', 'backup-export: native write failed, falling back to browser download', { error: error?.message })
+    const result = await writeExportPayload(json, filename)
+    if (result.kind === 'share') {
+      showToast(
+        useLightweightImageExport
+          ? i18n.global.t('manage.exportSharedLightweight')
+          : result.message,
+        4200
+      )
+      return
     }
+    showToast(
+      useLightweightImageExport && result.kind === 'path'
+        ? i18n.global.t('manage.exportedLightweightTo', { location: result.message })
+        : result.message,
+      4200
+    )
+  }
 
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    showToast(i18n.global.t('manage.exportedToDownload', { filename }), 4200)
+  async function handleExport(selection = null, format = 'json') {
+    await ensureEventsReady()
+    const mode = format === 'csv' ? 'csv' : exportFormat.value === 'csv' ? 'csv' : 'json'
+    if (mode === 'csv') {
+      await handleExportAsCsv(selection)
+      return
+    }
+    await handleExportAsJson(selection)
   }
 
   function cleanupExportTimers() {
@@ -519,10 +798,12 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     importFileRef,
     showExportPicker,
     exportSelection,
+    exportFormat,
     allExportSectionsSelected,
     // actions
     openExportPicker,
     closeExportPicker,
+    setExportFormat,
     toggleExportSection,
     toggleExportAll,
     startExportLongPress,

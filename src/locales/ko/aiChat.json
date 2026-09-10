@@ -42,7 +42,11 @@
   "aiChat.visionNotice": "첨부한 이미지는 자동으로 분석되지 않습니다. \"이 그림을 봐줘\"처럼 명시적으로 요청할 때만 멀티모달 모델을 호출합니다. 이미지 입력을 지원하는 모델이 필요합니다.",
   "aiChat.attachImage": "이미지 추가",
   "aiChat.attachFailed": "이미지 선택에 실패했습니다. 다시 시도해 주세요",
-  "aiChat.attachLimit": "최대 {count}장까지",
+  "aiChat.attachLimit": "최대 {count}개까지",
   "aiChat.attachNeedText": "궁금한 내용도 한마디 적어 주세요 (예: 이 그림을 봐줘)",
-  "aiChat.removeAttachment": "첨부 삭제"
+  "aiChat.removeAttachment": "첨부 삭제",
+  "aiChat.attachTable": "표 가져오기",
+  "aiChat.attachTableFailed": "표 파일 읽기에 실패했습니다. 다시 시도해 주세요",
+  "aiChat.attachTableUnsupported": ".csv / .xlsx / .xlsm / .tsv / .zip만 지원됩니다",
+  "aiChat.attachTableTooLarge": "표 파일은 {size} 이하여야 합니다"
 }

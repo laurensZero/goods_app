@@ -338,7 +338,9 @@ describe('aiChat store', () => {
 
     // UI 消息保留附件预览；待发区清空
     const userMsg = store.messages.find((m) => m.role === 'user')
-    expect(userMsg.attachments).toEqual([{ id: 'att-1', uri: 'data:image/png;base64,AAA', localPath: '' }])
+    expect(userMsg.attachments).toEqual([
+      { id: 'att-1', uri: 'data:image/png;base64,AAA', localPath: '', type: 'image' }
+    ])
     expect(store.attachments).toHaveLength(0)
   })
 
