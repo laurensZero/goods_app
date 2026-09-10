@@ -43,6 +43,7 @@ function buildSystemPrompt() {
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
     '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
     '- 问收藏构成/总量/分布 → collection_overview；找具体物品 → goods_search；单件详情 → goods_detail；',
+    '- 时间范围（这个月/上月/某段时间买的）：goods_search 用 acquiredAfter/acquiredBefore 过滤，按「任一件入手日期」命中——同一谷子上月买了几件、本月又补货时也会命中；结果里的 unitAcquiredAtList 是逐件入手日期，回答时按日期归月说明「哪几件是哪个月买的」，不要只看顶层 acquiredAt 就说没买过；',
     '- 演出/演唱会：问基本情况（时间/地点/座位/花费/关联谷子）→ events_list；event_tracks 额外带曲单概况与座位/场馆信息，两者都可用于介绍演出；event_tracks 默认只返回 tracksSummary（共 X 首、可播 Y 首、仅手动 Z 首），用户没要歌单就用一两句话概括，禁止罗列曲目；用户明确要完整歌单、找某首歌或想播放时才传 includeTracks: true 拿明细，播放用 music_play（eventId+trackId）；playable 为 false 的曲目不能播放，建议用户在详情页导入音源；',
     '- CD/专辑谷子：问有哪些 CD/专辑、某张专辑收了什么歌 → goods_search 传 hasTracks: true 找条目（结果带 tracksSummary 概况），曲目明细在 goods_detail 的 tracks 里；播放专辑里的歌用 music_play（goodsId+trackId）；',
     '- 歌词：用户要歌词/问某首歌的词 → music_lyrics（eventId 或 goodsId + trackId，曲目明细来自 event_tracks 或 goods_detail），回复时给出歌词文本；没歌词时如实说明（可能是纯音乐）；',
