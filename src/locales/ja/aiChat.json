@@ -36,5 +36,13 @@
   "aiChat.rename": "名前を変更",
   "aiChat.renameSuccess": "変更しました",
   "aiChat.messagesCount": "{count} 件のメッセージ",
-  "aiChat.jumpFailed": "ジャンプに失敗しました"
+  "aiChat.jumpFailed": "ジャンプに失敗しました",
+  "aiChat.visionModel": "視覚モデル（任意）",
+  "aiChat.visionModelPlaceholder": "空欄ならメインモデルを使用",
+  "aiChat.visionNotice": "添付画像は自動では解析されません。「この画像を見て」など明示的な依頼があったときだけマルチモーダルモデルを呼び出します。画像入力対応のモデルが必要です。",
+  "aiChat.attachImage": "画像を追加",
+  "aiChat.attachFailed": "画像の選択に失敗しました。再試行してください",
+  "aiChat.attachLimit": "最大 {count} 枚まで",
+  "aiChat.attachNeedText": "知りたい内容も一言添えてください（例：この画像を見て）",
+  "aiChat.removeAttachment": "添付を削除"
 }
