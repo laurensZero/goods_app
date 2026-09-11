@@ -17,6 +17,33 @@ describe('normalizeStatusTimeline (pure status history)', () => {
     ])
     expect(result).toHaveLength(2)
   })
+
+  it('keeps multi-unit unitIndexes sorted and unique', () => {
+    const result = normalizeStatusTimeline([
+      { status: '已拥有', at: '2026-01-01', unitIndexes: [2, 0, 0, 1] }
+    ])
+    expect(result).toEqual([{ status: '已拥有', at: '2026-01-01', unitIndexes: [0, 1, 2] }])
+  })
+
+  it('drops invalid unitIndexes and falls back to legacy unitIndex', () => {
+    const result = normalizeStatusTimeline([
+      { status: '已拥有', at: '2026-01-01', unitIndexes: [-1, 'x'], unitIndex: 3 },
+      { status: '已拥有', at: '2026-01-01', unitIndexes: [] }
+    ])
+    expect(result).toEqual([
+      { status: '已拥有', at: '2026-01-01', unitIndex: 3 },
+      { status: '已拥有', at: '2026-01-01' }
+    ])
+  })
+
+  it('dedupes multi-unit entry against equivalent legacy single-unit entry', () => {
+    const result = normalizeStatusTimeline([
+      { status: '已出', at: '2026-06-01', unitIndex: 0 },
+      { status: '已出', at: '2026-06-01', unitIndexes: [0] }
+    ])
+    // 归属集合等价 → 去重键相同,保留先出现的形态
+    expect(result).toEqual([{ status: '已出', at: '2026-06-01', unitIndex: 0 }])
+  })
 })
 
 describe('normalizeGoodsInput sell* columns', () => {

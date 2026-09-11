@@ -326,7 +326,6 @@ async function handleSubmit() {
       const unitInfos = Array.isArray(props.item.unitSaleInfoList) ? [...props.item.unitSaleInfoList] : []
       for (const index of selectedIndexes) {
         unitList[index] = status
-        timeline = appendStatusTimelineEntry(timeline, status, { ...baseOptions, unitIndex: index })
         if (showPriceFields.value) {
           while (unitInfos.length <= index) unitInfos.push(null)
           unitInfos[index] = {
@@ -337,6 +336,8 @@ async function handleSubmit() {
           }
         }
       }
+      // 同一次出谷的选中件合并为一条多件时间线条目(不再一件一条)
+      timeline = appendStatusTimelineEntry(timeline, status, { ...baseOptions, unitIndexes: selectedIndexes })
       updates.unitCollectStatusList = unitList
       updates.unitSaleInfoList = unitInfos
       updates.collectStatus = resolvePrimaryCollectStatus({
