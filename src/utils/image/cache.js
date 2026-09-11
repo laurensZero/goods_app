@@ -1,4 +1,4 @@
-﻿/**
+/**
  * utils/imageCache.js
  *
  * 图片缓存模块（内存 + Cache API + Capacitor FS）
@@ -197,6 +197,28 @@ const memoryCacheTimers = new Map()
 const MAX_MEMORY_CACHE_SIZE = isNative() ? 600 : 900
 const MEMORY_BLOB_TTL_MS = isNative() ? 180000 : 420000
 
+function removeFromMemoryCache(url) {
+  const value = memoryCache.get(url)
+  memoryCache.delete(url)
+  const timer = memoryCacheTimers.get(url)
+  if (timer) {
+    clearTimeout(timer)
+    memoryCacheTimers.delete(url)
+  }
+  return value
+}
+
+/** 同一 objectURL 可能挂在 normalized/raw 双 key 上；revoke 前必须清干净，否则留下死引用 */
+function evictSharedBlobEntry(targetUrl) {
+  const blob = removeFromMemoryCache(targetUrl)
+  if (!blob || !blob.startsWith('blob:')) return
+
+  for (const [key, value] of [...memoryCache.entries()]) {
+    if (value === blob) removeFromMemoryCache(key)
+  }
+  URL.revokeObjectURL(blob)
+}
+
 function setMemoryCache(url, objectUrl) {
   const existingTimer = memoryCacheTimers.get(url)
   if (existingTimer) {
@@ -206,16 +228,7 @@ function setMemoryCache(url, objectUrl) {
 
   if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
     const firstKey = memoryCache.keys().next().value
-    const firstVal = memoryCache.get(firstKey)
-    if (firstVal && firstVal.startsWith('blob:')) {
-      URL.revokeObjectURL(firstVal)
-    }
-    const firstTimer = memoryCacheTimers.get(firstKey)
-    if (firstTimer) {
-      clearTimeout(firstTimer)
-      memoryCacheTimers.delete(firstKey)
-    }
-    memoryCache.delete(firstKey)
+    evictSharedBlobEntry(firstKey)
   }
   memoryCache.set(url, objectUrl)
 
