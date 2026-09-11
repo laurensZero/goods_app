@@ -150,10 +150,9 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
   }
 
   // 跨月拆分条目（同一商品逐份日期分布在多个月份）会继承商品在列表中的全局排位，
-  // 该排位由商品级 acquiredAt 决定，和拆分条目自身的日期无关——例如 8-22 首购、
-  // 9-5 补货的商品，其 9 月条目会按 8-22 排在该月 9-3 商品之后。
+  // 该排位由商品级 acquiredAt / createdAt 决定，和拆分条目自身的日期无关。
   // 因此同月份内的条目需按条目自身日期重排；只回填到同月份原有的槽位上，
-  // 月份块之间的先后顺序（沿用 displayList 首次出现顺序）与无日期条目位置保持不变。
+  // 无日期条目位置保持不变。月份块顺序由 allTimelineMonthList 按 yearMonth 排序决定。
   const monthSlotMap = new Map()
   entries.forEach((entry, index) => {
     if (!entry.timelineYearMonth) return
@@ -199,9 +198,11 @@ export function useHomeTimeline({
     return buildTimelineEntries(displayList.value, sortDirection.value)
   })
 
-  // Flat month list — single source of truth for month ordering
+  // Flat month list — single source of truth for month ordering.
+  // 必须按 yearMonth 时间序排，不能沿用 displayList 首次出现顺序：
+  // 否则跨月拆分商品会按商品级 createdAt/acquiredAt 把更早的月份块先写入，
+  // 导致「2 月排在 1 月下面」这类时间线倒挂。
   const allTimelineMonthList = computed(() => {
-    const months = []
     const monthMap = new Map()
 
     for (const item of timelineEntries.value) {
@@ -219,7 +220,6 @@ export function useHomeTimeline({
           items: []
         }
         monthMap.set(yearMonth, monthGroup)
-        months.push(monthGroup)
       }
 
       monthGroup.items.push(item)
@@ -227,7 +227,11 @@ export function useHomeTimeline({
       monthGroup.totalSpend += Number(item.totalValueNumber) || 0
     }
 
-    return months
+    const directionFactor = sortDirection.value === 'asc' ? 1 : -1
+    return [...monthMap.values()].sort((a, b) => {
+      if (a.yearMonth === b.yearMonth) return 0
+      return (a.yearMonth < b.yearMonth ? -1 : 1) * directionFactor
+    })
   })
 
   const timelineYearGroups = computed(() => {
