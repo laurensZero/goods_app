@@ -14,6 +14,9 @@ export function useEditorHistory() {
     const entry = {
       brightness: Number(state.brightness) || 0,
       contrast: Number(state.contrast) || 0,
+      saturation: Number(state.saturation) || 0,
+      freeAngle: Number(state.freeAngle) || 0,
+      cropRatio: state.cropRatio ?? 'free',
       flipX: Number(state.flipX) || 1,
       cropData: state.cropData ? JSON.parse(JSON.stringify(state.cropData)) : null,
       rotation: Number(state.rotation) || 0,

@@ -285,20 +285,26 @@ export function useImageExport() {
       })
     }
 
-    emitProgress(5, '准备导出...')
+    emitProgress(5, '准备导出...', 'preparing')
 
-    if ((Number(options.brightness) || 0) !== 0 || (Number(options.contrast) || 0) !== 0) {
-      emitProgress(16, '应用亮度/对比度...')
+    const hasAdjustments =
+      (Number(options.brightness) || 0) !== 0 ||
+      (Number(options.contrast) || 0) !== 0 ||
+      (Number(options.saturation) || 0) !== 0
+
+    if (hasAdjustments) {
+      emitProgress(16, '应用亮度/对比度...', 'adjust')
       const adjustmentCanvas = await decodeBlobToCanvas(workingBlob)
       const adjustedCanvas = applyCanvasAdjustmentsToCanvas(adjustmentCanvas, {
         brightness: Number(options.brightness) || 0,
-        contrast: Number(options.contrast) || 0
+        contrast: Number(options.contrast) || 0,
+        saturation: Number(options.saturation) || 0
       })
       workingBlob = await canvasToBlob(adjustedCanvas, 'image/png', 1)
     }
 
     if (options.applyWhiteBg && String(options.whiteBgStyle || 'standard') === 'product') {
-      emitProgress(24, '优化商品图风格...')
+      emitProgress(24, '优化商品图风格...', 'product')
       workingBlob = await enhanceForProductShot(workingBlob, {
         brightness: options.productBoostBrightness,
         contrast: options.productBoostContrast,
@@ -310,7 +316,7 @@ export function useImageExport() {
     }
 
     if (options.applyWhiteBg) {
-      emitProgress(30, '合成背景中...')
+      emitProgress(30, '合成背景中...', 'whiteBg')
       workingBlob = await composeWhiteBackground(workingBlob, {
         bgColor: options.bgColor || '#ffffff',
         outputWidth: options.whiteBgWidth || 1200,
@@ -319,14 +325,14 @@ export function useImageExport() {
       })
       preferredFormat = 'image/jpeg'
     } else {
-      emitProgress(30, '检查透明通道...')
+      emitProgress(30, '检查透明通道...', 'alpha')
       if (await blobHasTransparency(workingBlob)) {
         preferredFormat = options.transparentPreferredFormat || 'image/png'
       }
     }
 
     if (skipCompression || workingBlob.size <= targetMaxBytes) {
-      emitProgress(100, '保存完成')
+      emitProgress(100, '保存完成', 'done')
       const file = new File([workingBlob], fileNameWithExt(options.fileName, preferredFormat), {
         type: preferredFormat,
         lastModified: Date.now()
@@ -342,7 +348,7 @@ export function useImageExport() {
       }
     }
 
-    emitProgress(60, '压缩中...')
+    emitProgress(60, '压缩中...', 'compress')
     const result = await compressUnderTarget(workingBlob, {
       targetMaxBytes,
       preferredFormat,
@@ -358,7 +364,7 @@ export function useImageExport() {
       lastModified: Date.now()
     })
 
-    emitProgress(100, '保存完成')
+    emitProgress(100, '保存完成', 'done')
 
     return {
       ...result,
