@@ -230,8 +230,8 @@
         </div>
       </section>
 
-      <!-- 后端选择 -->
-      <section class="content-section">
+      <!-- 后端选择暂时隐藏，保留底层切换逻辑以便后续恢复 -->
+      <section v-if="false" class="content-section">
         <div class="section-head">
           <p class="section-label">Backend</p>
           <h2 class="section-title">{{ t('sync.backend') }}</h2>
