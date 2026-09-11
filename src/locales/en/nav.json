@@ -46,5 +46,6 @@
   "nav.feedback": "Feedback",
   "nav.feedbackDetail": "Feedback Detail",
   "nav.surveys": "Surveys",
-  "nav.surveyFill": "Fill Survey"
+  "nav.surveyFill": "Fill Survey",
+  "nav.eventTypeManage": "Event Types"
 }

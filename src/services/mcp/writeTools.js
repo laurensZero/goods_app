@@ -65,17 +65,33 @@ function presetActionArgs(args) {
   const entity = String(args?.entity || '').trim()
   const action = String(args?.action || '').trim()
   const name = String(args?.name || '').trim()
-  if (!['category', 'ip', 'character', 'storage_location'].includes(entity)) {
-    throw new Error('entity 需为 category/ip/character/storage_location')
+  if (!['category', 'ip', 'character', 'storage_location', 'event_type'].includes(entity)) {
+    throw new Error('entity 需为 category/ip/character/storage_location/event_type')
   }
-  if (!['add', 'remove', 'rename'].includes(action)) {
-    throw new Error('action 需为 add/remove/rename')
+  if (!['add', 'remove', 'rename', 'set_show_tracks'].includes(action)) {
+    throw new Error('action 需为 add/remove/rename/set_show_tracks')
+  }
+  if (action === 'set_show_tracks' && entity !== 'event_type') {
+    throw new Error('set_show_tracks 仅支持 event_type')
   }
   if (action === 'rename' && entity === 'storage_location') {
     throw new Error('收纳位置暂不支持重命名，可删除后重建')
   }
+  if (action === 'rename' && !String(args?.newName || '').trim()) {
+    throw new Error('rename 需要 newName')
+  }
+  if (action === 'set_show_tracks' && args?.showTracks === undefined) {
+    throw new Error('set_show_tracks 需要 showTracks')
+  }
   if (!name) throw new Error('name 必填')
-  return { entity, action, name, newName: String(args?.newName || '').trim(), ip: String(args?.ip || '').trim() }
+  return {
+    entity,
+    action,
+    name,
+    newName: String(args?.newName || '').trim(),
+    ip: String(args?.ip || '').trim(),
+    showTracks: args?.showTracks === undefined ? undefined : Boolean(args.showTracks)
+  }
 }
 
 /**
@@ -365,18 +381,23 @@ export function createMcpWriteToolHandlers({
           categories: (presetsStore.categories || []).slice(0, 80).map(presetName),
           ips: (presetsStore.ips || []).slice(0, 80).map(presetName),
           characters: (presetsStore.characters || []).slice(0, 80).map(presetName),
-          storageLocations: (presetsStore.storageLocationPaths || []).slice(0, 80)
+          storageLocations: (presetsStore.storageLocationPaths || []).slice(0, 80),
+          eventTypes: (presetsStore.eventTypes || []).slice(0, 80).map((item) => ({
+            name: presetName(item),
+            showTracks: Boolean(item && typeof item === 'object' && item.showTracks)
+          })),
+          builtinEventTypes: ['exhibition', 'concert', 'other']
         }
       }
     },
 
     /**
-     * 管理预设（分类/IP/角色/收纳位置）。改名同时级联谷子条目。
+     * 管理预设（分类/IP/角色/收纳位置/活动类型）。改名同时级联谷子或活动条目。
      * @param {Record<string, any>} args
      */
     async presets_manage(args) {
       if (!presetsStore) throw new Error('预设模块不可用')
-      const { entity, action, name, newName, ip } = presetActionArgs(args)
+      const { entity, action, name, newName, ip, showTracks } = presetActionArgs(args)
 
       if (entity === 'storage_location') {
         if (action === 'add') {
@@ -402,7 +423,6 @@ export function createMcpWriteToolHandlers({
         if (action === 'add') await presetsStore.addCategory(name)
         else if (action === 'remove') await presetsStore.removeCategory(name)
         else {
-          if (!newName) throw new Error('rename 需要 newName')
           await presetsStore.updateCategoryName(name, newName)
           await goodsStore.replaceCategoryName(name, newName)
         }
@@ -410,21 +430,39 @@ export function createMcpWriteToolHandlers({
         if (action === 'add') await presetsStore.addIp(name)
         else if (action === 'remove') await presetsStore.removeIp(name)
         else {
-          if (!newName) throw new Error('rename 需要 newName')
           await presetsStore.updateIpName(name, newName)
           await goodsStore.replaceIpName(name, newName)
+        }
+      } else if (entity === 'event_type') {
+        if (!eventsStore) throw new Error('活动模块不可用')
+        if (action === 'add') {
+          await presetsStore.addEventType(name, Boolean(showTracks))
+        } else if (action === 'remove') {
+          await eventsStore.renameEventType(name, '')
+          await presetsStore.removeEventType(name)
+        } else if (action === 'set_show_tracks') {
+          await presetsStore.updateEventTypeShowTracks(name, Boolean(showTracks))
+        } else {
+          await presetsStore.updateEventTypeName(name, newName)
+          await eventsStore.renameEventType(name, newName)
         }
       } else {
         if (action === 'add') await presetsStore.addCharacter(name, ip)
         else if (action === 'remove') await presetsStore.removeCharacter(name)
         else {
-          if (!newName) throw new Error('rename 需要 newName')
           await presetsStore.updateCharacterName(name, newName)
           await goodsStore.replaceCharacterName(name, newName)
         }
       }
 
-      return { ok: true, entity, action, name, ...(newName ? { newName } : {}) }
+      return {
+        ok: true,
+        entity,
+        action,
+        name,
+        ...(newName ? { newName } : {}),
+        ...(showTracks !== undefined ? { showTracks: Boolean(showTracks) } : {})
+      }
     },
 
     /**

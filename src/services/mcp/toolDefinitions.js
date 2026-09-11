@@ -275,20 +275,21 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'settings_overview',
-    description: '查看应用当前设置：主题外观、通知开关、预设清单（分类/IP/角色/收纳位置的完整名称列表）。修改任何设置前先用本工具了解现状。',
+    description: '查看应用当前设置：主题外观、通知开关、预设清单（分类/IP/角色/收纳位置/活动类型的完整名称列表）。修改任何设置前先用本工具了解现状。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'presets_manage',
-    description: '管理预设：新增/删除/重命名分类、IP、角色；新增收纳位置（支持 "父级/子级" 路径形式，如 "A 柜/第二层"）。删除分类/IP/角色会同时从谷子条目上移除该标注；重命名会级联更新所有相关谷子。',
+    description: '管理预设：新增/删除/重命名分类、IP、角色、活动类型；新增收纳位置（支持 "父级/子级" 路径形式，如 "A 柜/第二层"）。删除分类/IP/角色会同时从谷子条目上移除该标注；重命名会级联更新相关谷子或活动。活动类型支持开关曲目展示（set_show_tracks）。',
     inputSchema: {
       type: 'object',
       properties: {
-        entity: { type: 'string', enum: ['category', 'ip', 'character', 'storage_location'], description: '要操作的预设类型' },
-        action: { type: 'string', enum: ['add', 'remove', 'rename'], description: '操作类型（storage_location 仅支持 add）' },
+        entity: { type: 'string', enum: ['category', 'ip', 'character', 'storage_location', 'event_type'], description: '要操作的预设类型' },
+        action: { type: 'string', enum: ['add', 'remove', 'rename', 'set_show_tracks'], description: '操作类型；storage_location 仅支持 add；set_show_tracks 仅 event_type' },
         name: { type: 'string', description: '预设名称' },
         newName: { type: 'string', description: 'rename 时的新名称' },
-        ip: { type: 'string', description: 'entity=character 且 action=add 时可选，角色所属 IP' }
+        ip: { type: 'string', description: 'entity=character 且 action=add 时可选，角色所属 IP' },
+        showTracks: { type: 'boolean', description: 'entity=event_type 时：add 可选是否开启曲目展示；set_show_tracks 必填目标开关值' }
       },
       required: ['entity', 'action', 'name']
     }

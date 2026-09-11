@@ -202,7 +202,7 @@
   "events.tracks.collectionPlaceholder": "NetEase / QQ Music 플레이리스트 또는 앨범 링크 붙여넣기",
   "events.tracks.cover": "트랙 커버",
   "events.tracks.delete": "삭제",
-    "events.tracks.dragHandle": "드래그하여 순서 변경",
+  "events.tracks.dragHandle": "드래그하여 순서 변경",
   "events.tracks.duration": "재생 시간",
   "events.tracks.durationPlaceholder": "예: 04:36",
   "events.tracks.import": "가져오기",
@@ -247,5 +247,8 @@
   "events.typeConcert": "콘서트",
   "events.typeExhibition": "전시회",
   "events.typeOther": "기타",
-  "events.undated": "날짜 미설정"
+  "events.undated": "날짜 미설정",
+  "events.addEdit.newType": "유형 만들기",
+  "events.addEdit.newTypePlaceholder": "유형 이름 입력",
+  "events.addEdit.newTypeSubmit": "추가"
 }

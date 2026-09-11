@@ -202,7 +202,7 @@
   "events.tracks.collectionPlaceholder": "NetEase／QQ Musicのプレイリストまたはアルバムリンクを貼り付け",
   "events.tracks.cover": "トラックカバー",
   "events.tracks.delete": "削除",
-    "events.tracks.dragHandle": "ドラッグで並べ替え",
+  "events.tracks.dragHandle": "ドラッグで並べ替え",
   "events.tracks.duration": "再生時間",
   "events.tracks.durationPlaceholder": "例：04:36",
   "events.tracks.import": "インポート",
@@ -247,5 +247,8 @@
   "events.typeConcert": "コンサート",
   "events.typeExhibition": "展示会",
   "events.typeOther": "その他",
-  "events.undated": "日付未設定"
+  "events.undated": "日付未設定",
+  "events.addEdit.newType": "種類を作成",
+  "events.addEdit.newTypePlaceholder": "種類名を入力",
+  "events.addEdit.newTypeSubmit": "追加"
 }

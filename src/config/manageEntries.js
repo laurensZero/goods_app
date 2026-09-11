@@ -62,6 +62,17 @@ export function useManageEntries() {
       stats: [{ label: t('manage.statCategoryCount'), value: `${presets.categories.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
     },
     {
+      key: 'eventTypes', group: 'preset', title: t('manage.eventTypeManage'), kicker: t('manage.eventTypeKicker'),
+      meta: t('manage.eventTypeMeta', { count: presets.eventTypes.length }),
+      detail: t('manage.eventTypeDetail'),
+      summary: t('manage.eventTypeSummary'),
+      recommendation: t('manage.eventTypeRecommendation'),
+      primaryLabel: t('manage.eventTypePrimaryLabel'), secondaryLabel: '',
+      iconMode: 'text', iconClass: 'cat-icon', iconText: '活',
+      path: '/manage/event-types',
+      stats: [{ label: t('manage.statEventTypeCount'), value: `${presets.eventTypes.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statEventList') }]
+    },
+    {
       key: 'ips', group: 'preset', title: t('manage.ipManage'), kicker: t('manage.ipKicker'),
       meta: t('manage.ipMeta', { count: presets.ips.length }),
       detail: t('manage.ipDetail'),
