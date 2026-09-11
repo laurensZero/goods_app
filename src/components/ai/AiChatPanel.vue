@@ -2392,14 +2392,18 @@ function removeSession(id) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--app-border);
   border-radius: 50%;
   background: var(--app-surface);
   color: var(--app-text-secondary);
   cursor: pointer;
-  opacity: 0.75;
+  opacity: 0.85;
+  /* 触屏：加大命中区、禁掉误触发的长按选中 */
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
   transition: opacity 0.15s ease, transform 0.15s ease, color 0.15s ease;
 }
 
@@ -2411,7 +2415,8 @@ function removeSession(id) {
 }
 
 .chat-queue__send svg {
-  width: 14px;
+  width: 16px;
+  height: 16px;
   height: 14px;
 }
 
