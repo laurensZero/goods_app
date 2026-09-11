@@ -25,7 +25,7 @@
           >
             {{ character }}
           </span>
-          <span v-if="item.variant" class="tl-expand-chip tl-expand-chip--variant">{{ item.variant }}</span>
+          <span v-if="displayVariant" class="tl-expand-chip tl-expand-chip--variant">{{ displayVariant }}</span>
         </div>
 
         <div class="tl-expand-meta">
@@ -48,6 +48,7 @@ import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { getTimelineDisplayTotal } from '@/composables/home/useHomeTimeline'
+import { getDisplayGoodsVariant } from '@/utils/goods/identity'
 
 const { t } = useI18n()
 
@@ -57,6 +58,7 @@ const props = defineProps({
 
 defineEmits(['open-detail'])
 
+const displayVariant = computed(() => getDisplayGoodsVariant(props.item))
 const displayUnitPrice = computed(() => (
   props.item.isWishlist
     ? props.item.price
