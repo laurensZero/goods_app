@@ -17,6 +17,7 @@ export const NAVIGATE_PAGES = {
   wishlist: 'wishlist',
   my: 'manage',
   events: 'events',
+  event_map: 'event-map',
   statistics: 'character-leaderboard',
   trash: 'trash',
   sync: 'manage-sync',
@@ -78,4 +79,39 @@ export function parseMusicPreviewHref(href) {
   const id = decodeURIComponent(String(idRaw || '').trim())
   if (!MUSIC_PREVIEW_SOURCES.has(source) || !id) return null
   return /** @type {{ source: 'netease' | 'qq' | 'bilibili', id: string }} */ ({ source, id })
+}
+
+/**
+ * 构造高德网页版地图链接（外跳浏览器/系统地图）。
+ * 有坐标用 marker 点位；只有地址则用 path 搜索。
+ * @param {{ latitude?: string, longitude?: string, location?: string, city?: string, name?: string }} params
+ * @returns {string} https://uri.amap.com/... 或 ''
+ */
+export function buildAmapWebLink(params = {}) {
+  const lat = Number(String(params.latitude || '').trim())
+  const lng = Number(String(params.longitude || '').trim())
+  const name = String(params.name || params.location || '').trim()
+  const address = String(params.location || '').trim()
+  const city = String(params.city || '').trim()
+  if (Number.isFinite(lat) && Number.isFinite(lng) && lat !== 0 && lng !== 0) {
+    const query = new URLSearchParams({
+      position: `${lng},${lat}`,
+      src: 'goodsapp',
+      coordinate: 'gaode',
+      callnative: '1'
+    })
+    if (name) query.set('name', name)
+    return `https://uri.amap.com/marker?${query.toString()}`
+  }
+  if (address) {
+    const query = new URLSearchParams({
+      address,
+      src: 'goodsapp',
+      callnative: '1'
+    })
+    if (city) query.set('city', city)
+    if (name) query.set('name', name)
+    return `https://uri.amap.com/search?${query.toString()}`
+  }
+  return ''
 }

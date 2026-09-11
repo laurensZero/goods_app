@@ -16,6 +16,7 @@ import { normalizeGoodsImageList } from '../../utils/goods/images'
 import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/neteaseMusic'
 import { searchQQSongs } from '../../utils/qqMusic'
 import { searchBilibiliVideos } from '../../utils/bilibiliMusic'
+import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
 
 /**
  * @typedef {Object} McpDbApi
@@ -513,7 +514,15 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     const events = await getEvents()
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
-    const active = events.filter((event) => !event.deleted)
+    const cityQuery = asText(args.city).trim().toLowerCase()
+    let active = events.filter((event) => !event.deleted)
+    if (cityQuery) {
+      active = active.filter((event) => {
+        const city = asText(event.city).toLowerCase()
+        const location = asText(event.location).toLowerCase()
+        return city.includes(cityQuery) || location.includes(cityQuery)
+      })
+    }
     const page = active.slice(offset, offset + limit)
 
     return {
@@ -521,11 +530,21 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       offset,
       limit,
       hasMore: offset + page.length < active.length,
+      mapButtonLink: 'app://event_map',
       events: page.map((event) => {
         const dayTickets = Array.isArray(event.dayTicketList) ? event.dayTicketList : []
         const otherExpenses = Array.isArray(event.otherExpenses) ? event.otherExpenses : []
         const dayTicketsTotal = dayTickets.reduce((sum, d) => sum + parseMoney(d?.price), 0)
         const otherTotal = otherExpenses.reduce((sum, e) => sum + parseMoney(e?.amount), 0)
+        const latitude = asText(event.latitude).trim()
+        const longitude = asText(event.longitude).trim()
+        const amapLink = buildAmapWebLink({
+          latitude,
+          longitude,
+          location: event.location,
+          city: event.city,
+          name: event.name
+        })
         return {
           id: event.id,
           name: event.name,
@@ -534,6 +553,11 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
           endDate: event.endDate,
           city: event.city,
           location: event.location,
+          latitude,
+          longitude,
+          // 应用内活动地图：[打开活动地图](app://event_map)；外跳高德用 amapLink
+          mapButtonLink: 'app://event_map',
+          amapLink,
           ticketPrice: event.ticketPrice,
           ticketType: event.ticketType,
           seatInfo: event.seatInfo,
@@ -593,6 +617,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         if (visibleTracks.length === 0) continue
       }
       const view = visibleTracks.map(trackView)
+      const latitude = asText(event.latitude).trim()
+      const longitude = asText(event.longitude).trim()
       matched.push({
         id: event.id,
         name: event.name,
@@ -601,6 +627,16 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         endDate: event.endDate,
         city: event.city,
         location: event.location,
+        latitude,
+        longitude,
+        mapButtonLink: 'app://event_map',
+        amapLink: buildAmapWebLink({
+          latitude,
+          longitude,
+          location: event.location,
+          city: event.city,
+          name: event.name
+        }),
         seatInfo: event.seatInfo,
         ticketPrice: event.ticketPrice,
         ticketType: event.ticketType,

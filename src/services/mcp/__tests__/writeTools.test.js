@@ -26,6 +26,11 @@ vi.mock('@/utils/share/goods', () => ({
   generateShareId: shareMocks.generateShareId
 }))
 vi.mock('@/config/share', () => ({ buildShareUrl: shareMocks.buildShareUrl }))
+vi.mock('@/utils/events/geocodeCity', () => ({
+  geocodeAddressToCity: vi.fn(async () => null),
+  combineCityDistrict: (/** @type {string} */ city, /** @type {string} */ district) =>
+    [city, district].filter(Boolean).join(' ')
+}))
 
 function createFakeStore() {
   return {
@@ -645,6 +650,44 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
       // 测试缺少 id 时报错
       await expect(handlers.navigate({ page: 'goods_detail' })).rejects.toThrow('需要 id')
       await expect(handlers.navigate({ page: 'nope' })).rejects.toThrow('未知页面')
+
+      // 活动地图页
+      const mapResult = await handlers.navigate({ page: 'event_map' })
+      expect(mapResult.buttonLink).toBe('app://event_map')
+    })
+
+    it('events_add 填 location 时尝试地理编码并返回地图按钮', async () => {
+      const { geocodeAddressToCity } = await import('@/utils/events/geocodeCity')
+      geocodeAddressToCity.mockResolvedValueOnce({
+        city: '上海市',
+        district: '浦东新区',
+        latitude: '31.22',
+        longitude: '121.55'
+      })
+      const list = []
+      const eventsStore = {
+        list,
+        addEventRecord: vi.fn(async (data) => {
+          const record = { id: 'e-new', ...data }
+          list.push(record)
+          return record
+        }),
+        updateEventRecord: vi.fn()
+      }
+      const handlers = createMcpWriteToolHandlers({
+        goodsStore: createFakeStore(),
+        eventsStore
+      })
+      const result = await handlers.events_add({
+        name: 'CP30',
+        type: '漫展',
+        location: '上海新国际博览中心'
+      })
+      expect(result.ok).toBe(true)
+      expect(result.mapButtonLink).toBe('app://event_map')
+      expect(result.item.city).toContain('上海')
+      expect(result.item.latitude).toBe('31.22')
+      expect(geocodeAddressToCity).toHaveBeenCalledWith('上海新国际博览中心')
     })
 
     it('account_info/account_logout 与 app_info', async () => {

@@ -39,6 +39,7 @@ const NOTIFY_KEYS = new Set([
 
 // navigate 支持的页面 → 路由名映射（与 app:// 跳转按钮共用，见 utils/ai/jumpLinks.js）
 import { NAVIGATE_PAGES, NAVIGATE_PAGES_WITH_ID } from '../../utils/ai/jumpLinks'
+import { geocodeAddressToCity, combineCityDistrict } from '../../utils/events/geocodeCity'
 
 const APPEARANCE_VALUES = new Set(['system', 'light', 'dark'])
 
@@ -718,20 +719,35 @@ export function createMcpWriteToolHandlers({
     },
 
 /**
-      * 新增一场活动。name 必填。
+      * 新增一场活动。name 必填。填了 location 时会尝试地理编码（需已登录 Supabase），
+      * 成功则回填 city/经纬度，活动地图才能打点。
       * @param {Record<string, any>} args
       */
      async events_add(args) {
        if (!eventsStore) throw new Error('活动模块不可用')
        const name = String(args?.name || '').trim()
        if (!name) throw new Error('name 必填')
+       let city = String(args?.city || '')
+       let location = String(args?.location || '')
+       let latitude = String(args?.latitude || '')
+       let longitude = String(args?.longitude || '')
+       if (location && !latitude && !longitude) {
+         const geo = await geocodeAddressToCity(location)
+         if (geo) {
+           city = city || combineCityDistrict(geo.city, geo.district)
+           latitude = geo.latitude || ''
+           longitude = geo.longitude || ''
+         }
+       }
        const record = await eventsStore.addEventRecord({
          name,
          type: String(args?.type || ''),
          startDate: String(args?.startDate || ''),
          endDate: String(args?.endDate || args?.startDate || ''),
-         city: String(args?.city || ''),
-         location: String(args?.location || ''),
+         city,
+         location,
+         latitude,
+         longitude,
          ticketPrice: String(args?.ticketPrice || ''),
          ticketType: String(args?.ticketType || ''),
          seatInfo: String(args?.seatInfo || ''),
@@ -750,13 +766,19 @@ export function createMcpWriteToolHandlers({
            startDate: record.startDate,
            endDate: record.endDate,
            city: record.city,
-           location: record.location
-         }
+           location: record.location,
+           latitude: record.latitude || '',
+           longitude: record.longitude || ''
+         },
+         mapButtonLink: 'app://event_map',
+         ...(latitude && longitude
+           ? { note: '已按场馆地址尝试地理编码；活动地图可显示点位。' }
+           : { note: '未解析到坐标（可能未登录或地址过泛）；可在编辑页补定位，或稍后更新 location。' })
        }
      },
 
      /**
-      * 按 id 部分更新活动。
+      * 按 id 部分更新活动。更新 location 且未显式传坐标时会重新地理编码。
       * @param {Record<string, any>} args
       */
      async events_update(args) {
@@ -777,8 +799,34 @@ export function createMcpWriteToolHandlers({
          if (args?.[key] !== undefined) patch[key] = args[key]
        }
        if (Object.keys(patch).length === 0) throw new Error('没有可更新的字段')
+
+       const nextLocation = patch.location !== undefined
+         ? String(patch.location || '')
+         : String(existing.location || '')
+       const locationChanged = patch.location !== undefined && patch.location !== existing.location
+       const explicitCoords = args?.latitude !== undefined || args?.longitude !== undefined
+       if (nextLocation && !explicitCoords && locationChanged) {
+         const geo = await geocodeAddressToCity(nextLocation)
+         if (geo) {
+           if (patch.city === undefined && !String(existing.city || '').trim()) {
+             patch.city = combineCityDistrict(geo.city, geo.district)
+           }
+           patch.latitude = geo.latitude || ''
+           patch.longitude = geo.longitude || ''
+         }
+       }
+       if (args?.latitude !== undefined) patch.latitude = String(args.latitude || '')
+       if (args?.longitude !== undefined) patch.longitude = String(args.longitude || '')
+
        await eventsStore.updateEventRecord(targetId, { ...existing, ...patch, id: targetId })
-       return { ok: true, id: targetId }
+       return {
+         ok: true,
+         id: targetId,
+         mapButtonLink: 'app://event_map',
+         ...(patch.latitude || patch.longitude
+           ? { note: '坐标已更新；可在 [活动地图](app://event_map) 查看点位。' }
+           : {})
+       }
      },
 
      /**
