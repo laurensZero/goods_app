@@ -1,3 +1,5 @@
+import { getItemSpendEntries } from './statistics'
+
 export const LEADERBOARD_DIMENSION_OPTIONS = [
   { label: '角色', value: 'character' },
   { label: 'IP', value: 'ip' },
@@ -101,6 +103,10 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       .filter(Boolean)
     const quantityNumber = Number(item.quantityNumber || 0)
     const totalValueNumber = Number(item.totalValueNumber || 0)
+    // 入手价总价与预算/时间线同口径
+    const spendEntries = getItemSpendEntries(item)
+    const spendTotal = spendEntries.reduce((sum, entry) => sum + entry.price, 0)
+    const spendUnitShare = quantityNumber > 0 ? spendTotal / quantityNumber : 0
     const unitCharacters = Array.isArray(item.unitCharacterList)
       ? item.unitCharacterList
           .slice(0, quantityNumber)
@@ -117,7 +123,8 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
       const seenLabels = new Set()
 
-      for (const label of unitCharacters) {
+      for (let unitIndex = 0; unitIndex < unitCharacters.length; unitIndex++) {
+        const label = unitCharacters[unitIndex]
         const current = map.get(label) || {
           key: label,
           label,
@@ -135,9 +142,11 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
         current.quantity += 1
         current.totalValue += unitValueShare
         current.officialTotalValue += officialPrice
-        // actualPrice 是全部份数的总入手价，入手价口径直接用 totalValueNumber
-        //（入手价或原价×数量，含运费，已折算 CNY）的每份分摊，与收藏页总价一致
-        current.actualTotalValue += unitValueShare
+        // 入手价：官方花费明细与份数对齐时按份取价，否则均摊
+        const unitSpend = spendEntries.length === quantityNumber
+          ? spendEntries[unitIndex]?.price
+          : undefined
+        current.actualTotalValue += unitSpend ?? spendUnitShare
         if (!seenLabels.has(label)) {
           current.itemCount += 1
           seenLabels.add(label)
@@ -175,7 +184,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       emptyEntry.quantity += Number(item.quantityNumber || 0)
       emptyEntry.totalValue += Number(item.totalValueNumber || 0)
       emptyEntry.officialTotalValue += itemOfficialTotal
-      emptyEntry.actualTotalValue += Number(item.totalValueNumber || 0)
+      emptyEntry.actualTotalValue += spendTotal
       emptyEntry.itemCount += 1
       emptyEntry.latestAcquiredTime = Math.max(emptyEntry.latestAcquiredTime, Number(item.acquiredTime || 0))
       map.set(emptyEntry.key, emptyEntry)
@@ -206,7 +215,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       current.quantity += quantityShare
       current.totalValue += totalValueShare
       current.officialTotalValue += officialTotalShare
-      current.actualTotalValue += totalValueShare
+      current.actualTotalValue += spendTotal * shareFactor
       current.itemCount += 1
       current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
 

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { getItemSpendEntries, calcPeriodSpend } from '../statistics'
+import {
+  getItemSpendEntries,
+  calcPeriodSpend,
+  parseShippingEvents,
+  getTotalShippingFee
+} from '../statistics'
 
 function makeItem(overrides = {}) {
   return {
@@ -11,6 +16,7 @@ function makeItem(overrides = {}) {
     actualPrice: '100',
     acquiredAt: '2026-08-10',
     shippingFee: '',
+    shippingEvents: [],
     collectStatus: '已拥有',
     unitAcquiredAtList: [],
     unitActualPriceList: [],
@@ -46,9 +52,26 @@ describe('getItemSpendEntries', () => {
       unitActualPriceList: ['40', '50']
     }))
     expect(entries).toHaveLength(2)
-    expect(entries.map((e) => e.price)).toEqual([45, 55])
+    // 无 shippingEvents：整笔运费挂最晚月
+    expect(entries.map((e) => e.price)).toEqual([40, 60])
     expect(entries[0].date.getMonth()).toBe(6)
     expect(entries[1].date.getMonth()).toBe(7)
+  })
+
+  it('attaches each shippingEvents fee to its own month', () => {
+    const entries = getItemSpendEntries(makeItem({
+      quantity: 3,
+      actualPrice: '90',
+      shippingFee: '10',
+      shippingEvents: [
+        { date: '2026-07-05', fee: '4' },
+        { date: '2026-08-20', fee: '6' }
+      ],
+      unitAcquiredAtList: ['2026-07-05', '2026-07-06', '2026-08-20'],
+      unitActualPriceList: ['30', '30', '30']
+    }))
+    // 7月: 30+30 + 运费4 = 64；8月: 30 + 运费6 = 36
+    expect(entries.map((e) => e.price)).toEqual([34, 30, 36])
   })
 
   it('prefers CNY-converted unit prices when present', () => {
@@ -60,8 +83,7 @@ describe('getItemSpendEntries', () => {
     expect(entries[0].price).toBe(48)
   })
 
-  it('distributes total spend across unit dates when unit prices are absent', () => {
-    // 8-22 买 11 份、9-5 补 3 份，未填逐件价：各月按份数均摊计入
+  it('distributes goods total across unit dates when unit prices are absent', () => {
     const entries = getItemSpendEntries(makeItem({
       quantity: 14,
       actualPrice: '140',
@@ -78,10 +100,13 @@ describe('getItemSpendEntries', () => {
     const september = entries.filter((e) => e.date.getMonth() === 8)
     expect(august).toHaveLength(11)
     expect(september).toHaveLength(3)
-    // 每份均摊 140/14 = 10 + 运费 14/14 = 1
-    for (const entry of entries) {
-      expect(entry.price).toBe(11)
+    for (const entry of august) {
+      expect(entry.price).toBe(10)
     }
+    // 无 events：运费 14 全部挂在 9 月首条
+    expect(september[0].price).toBe(24)
+    expect(september[1].price).toBe(10)
+    expect(september[2].price).toBe(10)
   })
 
   it('falls back to item acquiredAt for missing unit dates', () => {
@@ -117,8 +142,25 @@ describe('getItemSpendEntries', () => {
       unitActualPriceList: ['0', '']
     }))
     expect(entries[0].price).toBe(0)
-    // 总价 50、一份显式免费 → 另一份按余额承担 50,商品总花费不变
     expect(entries[1].price).toBe(50)
+  })
+})
+
+describe('parseShippingEvents / getTotalShippingFee', () => {
+  it('parses valid events and drops invalid rows', () => {
+    expect(parseShippingEvents([
+      { date: '2026-09-05', fee: '4' },
+      { date: '', fee: '1' },
+      { date: '2026-10-01', fee: '' },
+      null
+    ])).toEqual([{ date: '2026-09-05', fee: 4 }])
+  })
+
+  it('sums events over shippingFee', () => {
+    expect(getTotalShippingFee({
+      shippingFee: '99',
+      shippingEvents: [{ date: '2026-09-05', fee: '4' }, { date: '2026-10-12', fee: '6' }]
+    })).toBe(10)
   })
 })
 
@@ -146,5 +188,32 @@ describe('calcPeriodSpend', () => {
     const september = calcPeriodSpend([restockedGoods], (d) => d.getFullYear() === 2026 && d.getMonth() === 8)
     expect(august).toBeCloseTo(110)
     expect(september).toBeCloseTo(30)
+  })
+
+  it('attributes each shippingEvents fee to its date month', () => {
+    const withEvents = {
+      ...restockedGoods,
+      shippingFee: '8',
+      shippingEvents: [{ date: '2026-09-05', fee: '8' }]
+    }
+    const august = calcPeriodSpend([withEvents], (d) => d.getFullYear() === 2026 && d.getMonth() === 7)
+    const september = calcPeriodSpend([withEvents], (d) => d.getFullYear() === 2026 && d.getMonth() === 8)
+    expect(august).toBeCloseTo(110)
+    expect(september).toBeCloseTo(38)
+  })
+
+  it('splits multiple shippingEvents across months', () => {
+    const multi = {
+      ...restockedGoods,
+      shippingFee: '8',
+      shippingEvents: [
+        { date: '2026-08-22', fee: '3' },
+        { date: '2026-09-05', fee: '5' }
+      ]
+    }
+    const august = calcPeriodSpend([multi], (d) => d.getFullYear() === 2026 && d.getMonth() === 7)
+    const september = calcPeriodSpend([multi], (d) => d.getFullYear() === 2026 && d.getMonth() === 8)
+    expect(august).toBeCloseTo(113)
+    expect(september).toBeCloseTo(35)
   })
 })

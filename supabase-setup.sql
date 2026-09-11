@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS goods (
   actual_price_currency TEXT DEFAULT 'CNY',
   collect_status TEXT DEFAULT '已拥有',
   shipping_fee TEXT DEFAULT '',
+  shipping_events JSONB DEFAULT '[]',
   status_timeline JSONB DEFAULT '[]',
   sell_price TEXT DEFAULT '',
   sell_platform TEXT DEFAULT '',
@@ -285,6 +286,7 @@ BEGIN
     OR NEW.actual_price_currency IS DISTINCT FROM OLD.actual_price_currency
     OR NEW.collect_status IS DISTINCT FROM OLD.collect_status
     OR NEW.shipping_fee IS DISTINCT FROM OLD.shipping_fee
+    OR NEW.shipping_events IS DISTINCT FROM OLD.shipping_events
     OR NEW.status_timeline IS DISTINCT FROM OLD.status_timeline
     OR NEW.sell_price IS DISTINCT FROM OLD.sell_price
     OR NEW.sell_platform IS DISTINCT FROM OLD.sell_platform
@@ -1046,6 +1048,7 @@ BEGIN
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      shipping_events = EXCLUDED.shipping_events,
       status_timeline = EXCLUDED.status_timeline,
       sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
@@ -1078,6 +1081,7 @@ BEGIN
       quantity = EXCLUDED.quantity, points = EXCLUDED.points,
       currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
+      shipping_events = EXCLUDED.shipping_events,
       status_timeline = EXCLUDED.status_timeline,
       sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
@@ -1533,3 +1537,7 @@ DROP POLICY IF EXISTS "ota_releases_service_all" ON storage.objects;
 CREATE POLICY "ota_releases_service_all" ON storage.objects
   FOR ALL USING (bucket_id = 'ota-releases' AND auth.role() = 'service_role')
   WITH CHECK (bucket_id = 'ota-releases' AND auth.role() = 'service_role');
+
+-- ── 存量库增量迁移（新装库可跳过；已部署实例请单独执行）────────────────
+-- goods.shipping_events：多笔运费事件 [{date, fee}]
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS shipping_events JSONB DEFAULT '[]'::jsonb;

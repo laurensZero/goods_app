@@ -82,6 +82,7 @@ export function useGoodsEditorForm(options = {}) {
     actualPriceCurrency: 'CNY',
     collectStatus: '已拥有',
     shippingFee: '',
+    shippingEvents: [],
     sellPrice: '',
     sellPlatform: '',
     sellFee: '',
@@ -96,6 +97,7 @@ export function useGoodsEditorForm(options = {}) {
   const showUnitActualPriceInput = ref(false)
   const showUnitCharacterInput = ref(false)
   const showUnitCollectStatusInput = ref(false)
+  const showShippingEvents = ref(false)
   const quickCreateTarget = ref('')
   const quickCategoryName = ref('')
   const quickIpName = ref('')
@@ -291,6 +293,9 @@ export function useGoodsEditorForm(options = {}) {
         form.actualPriceCurrency = item.actualPriceCurrency || 'CNY'
         form.collectStatus = item.collectStatus || '已拥有'
         form.shippingFee = item.shippingFee ?? ''
+        form.shippingEvents = Array.isArray(item.shippingEvents)
+          ? item.shippingEvents.map((e) => ({ ...e }))
+          : []
         form.statusTimeline = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
         form.points = item.points ?? ''
         showPointsInput.value = !!item.points
@@ -319,6 +324,7 @@ export function useGoodsEditorForm(options = {}) {
         showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
         showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())
         showUnitCollectStatusInput.value = form.unitCollectStatusList.some((value) => !!String(value || '').trim())
+        showShippingEvents.value = form.shippingEvents.length > 0
         syncUnitAcquiredAtListLength()
         syncUnitActualPriceListLength()
         syncUnitCharacterListLength()
@@ -866,6 +872,104 @@ export function useGoodsEditorForm(options = {}) {
     showUnitDatePicker.value = true
   }
 
+  const showShippingDatePicker = ref(false)
+  const shippingDatePickerValue = ref([])
+  const activeShippingEventIndex = ref(-1)
+
+  function openShippingDatePicker(index) {
+    const event = form.shippingEvents[index]
+    const current = event?.date || form.acquiredAt
+    activeShippingEventIndex.value = index
+    shippingDatePickerValue.value = toDatePickerValue(current)
+    showShippingDatePicker.value = true
+  }
+
+  function onShippingDateConfirm({ selectedValues }) {
+    const index = activeShippingEventIndex.value
+    if (index < 0 || index >= form.shippingEvents.length) {
+      showShippingDatePicker.value = false
+      return
+    }
+    const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+    form.shippingEvents[index].date = `${year}-${month}-${day}`
+    shippingDatePickerValue.value = [year, month, day]
+    showShippingDatePicker.value = false
+  }
+
+  /** 逐件入手日去重（保序）；无逐件日期时回退商品级购入日 */
+  function getUniqueUnitDates() {
+    const seen = new Set()
+    const dates = []
+    const push = (value) => {
+      const s = normalizeUnitDateValue(value)
+      if (!s || seen.has(s)) return
+      seen.add(s)
+      dates.push(s)
+    }
+    if (Array.isArray(form.unitAcquiredAtList)) {
+      for (const value of form.unitAcquiredAtList) push(value)
+    }
+    if (dates.length === 0) push(form.acquiredAt)
+    if (dates.length === 0) push(getToday())
+    return dates
+  }
+
+  function addShippingEvent() {
+    // 按去重后的逐份入手日自动补运费事件（已存在的日期不重复加）
+    const unitDates = getUniqueUnitDates()
+    const existing = new Set(
+      form.shippingEvents
+        .map((e) => normalizeUnitDateValue(e?.date))
+        .filter(Boolean)
+    )
+    let added = 0
+    for (const date of unitDates) {
+      if (existing.has(date)) continue
+      form.shippingEvents.push({ date, fee: '' })
+      existing.add(date)
+      added += 1
+    }
+    // 全部日期都已有事件时，再补一条可用日历改日期的空行
+    if (added === 0) {
+      form.shippingEvents.push({ date: unitDates[0] || getToday(), fee: '' })
+    }
+    syncShippingFeeFromEvents()
+  }
+
+  function removeShippingEvent(index) {
+    if (index < 0 || index >= form.shippingEvents.length) return
+    form.shippingEvents.splice(index, 1)
+    syncShippingFeeFromEvents()
+  }
+
+  function normalizeShippingEventFee(index) {
+    const event = form.shippingEvents[index]
+    if (!event) return
+    const raw = String(event.fee ?? '').trim()
+    if (!raw) {
+      event.fee = ''
+      syncShippingFeeFromEvents()
+      return
+    }
+    const n = Number(raw)
+    event.fee = Number.isFinite(n) && n >= 0 ? String(Math.round(n * 100) / 100) : ''
+    syncShippingFeeFromEvents()
+  }
+
+  function syncShippingFeeFromEvents() {
+    if (form.shippingEvents.length === 0) {
+      form.shippingFee = ''
+      return
+    }
+    const total = form.shippingEvents.reduce((sum, e) => sum + (Number(e.fee) || 0), 0)
+    form.shippingFee = total > 0 ? String(Math.round(total * 100) / 100) : ''
+  }
+
+  function clearShippingEvents() {
+    form.shippingEvents = []
+    form.shippingFee = ''
+  }
+
   function onDateConfirm({ selectedValues }) {
     const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
     form.acquiredAt = `${year}-${month}-${day}`
@@ -944,10 +1048,12 @@ export function useGoodsEditorForm(options = {}) {
     noteInputRef,
     showDatePicker,
     showUnitDatePicker,
+    showShippingDatePicker,
     showSaleDateTimePicker,
     showCharPicker,
     datePickerValue,
     unitDatePickerValue,
+    shippingDatePickerValue,
     activeUnitDateIndex,
     minDate,
     maxDate,
@@ -993,6 +1099,7 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitActualPriceListLength,
     syncUnitCharacterListLength,
     showUnitCollectStatusInput,
+    showShippingEvents,
     hasUnitCollectStatusValue,
     disableCollectStatusInput,
     clearUnitCollectStatusList,
@@ -1002,8 +1109,15 @@ export function useGoodsEditorForm(options = {}) {
     syncAllUnitPricesFromActualPrice,
     openDatePicker,
     openUnitDatePicker,
+    openShippingDatePicker,
     onDateConfirm,
     onUnitDateConfirm,
+    onShippingDateConfirm,
+    addShippingEvent,
+    removeShippingEvent,
+    normalizeShippingEventFee,
+    clearShippingEvents,
+    syncShippingFeeFromEvents,
     toDatePickerValue,
     normalizeDateParts,
     syncField,

@@ -1,4 +1,5 @@
 import { computed } from 'vue'
+import { getItemSpendByYearMonth } from '@/utils/goods/statistics'
 
 function normalizeTimelineDate(value) {
   const normalized = String(value || '').trim()
@@ -39,6 +40,14 @@ export function getTimelineDisplayTotal(item) {
     return timelineTotal
   }
 
+  // 无时间线拆分时回退官方月度合计（与预算一致）
+  const yearMonth = String(item?.timelineYearMonth || '').trim()
+    || normalizeTimelineDate(item?.acquiredAt).slice(0, 7)
+  const spendByMonth = getItemSpendByYearMonth(item)
+  if (yearMonth && spendByMonth.has(yearMonth)) {
+    return spendByMonth.get(yearMonth) || 0
+  }
+
   const quantity = Math.max(1, Number(item?.quantity) || 1)
   const shipping = Number(item?.shippingFee) || 0
   const base = item?.actualPrice !== '' && item?.actualPrice != null
@@ -54,10 +63,9 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
   for (const item of goodsList) {
     const dates = getTimelineSourceDates(item)
     const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
-    const collectionTotalNumber = Number(item?.totalValueNumber) || 0
-    const shippingFeeNumber = Number(item?.shippingFee) || 0
-    const collectionGoodsTotalNumber = collectionTotalNumber - shippingFeeNumber
-    const perUnitShareNumber = quantityNumber > 0 ? collectionGoodsTotalNumber / quantityNumber : collectionGoodsTotalNumber
+    // 金额唯一来源：官方花费口径（getItemSpendEntries），与预算/统计/MCP 对齐
+    const spendByMonth = getItemSpendByYearMonth(item)
+    const hasSpendEntries = spendByMonth.size > 0
 
     // Build per-copy statuses aligned with dates
     const unitStatuses = Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList : []
@@ -71,6 +79,9 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
     }
 
     if (dates.length === 0) {
+      const unknownSpend = hasSpendEntries
+        ? [...spendByMonth.values()].reduce((sum, value) => sum + value, 0)
+        : 0
       entries.push({
         ...item,
         id: item.id,
@@ -81,10 +92,10 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         acquiredAt: '',
         timelineYearMonth: '',
         timelineSortTime: 0,
-        isExcludedFromValue: itemIsExcluded,
-        priceNumber: itemIsExcluded ? 0 : perUnitShareNumber,
-        totalValueNumber: itemIsExcluded ? 0 : collectionTotalNumber,
-        originalTotalValueNumber: collectionTotalNumber
+        isExcludedFromValue: itemIsExcluded || !hasSpendEntries,
+        priceNumber: unknownSpend / Math.max(1, quantityNumber),
+        totalValueNumber: unknownSpend,
+        originalTotalValueNumber: unknownSpend
       })
       continue
     }
@@ -104,11 +115,6 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
       monthMap.get(yearMonth).push(pair)
     }
 
-    const latestTimelineDate = dates.reduce((latest, date) => (
-      parseTimelineDateTimestamp(date) > parseTimelineDateTimestamp(latest) ? date : latest
-    ), '')
-    const shippingYearMonth = latestTimelineDate.slice(0, 7)
-
     const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthPairs], index) => {
       const id = monthMap.size === 1 ? item.id : `${item.id}::${yearMonth}`
       const monthDates = monthPairs.map((p) => p.date)
@@ -117,8 +123,8 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         return timestamp > latest.timestamp ? { value: normalizeTimelineDate(pair.date), timestamp } : latest
       }, { value: '', timestamp: 0 })
       const acquiredAt = latestDate.value || normalizeTimelineDate(item.acquiredAt)
-      const monthTotal = (perUnitShareNumber * monthDates.length)
-        + (yearMonth === shippingYearMonth ? shippingFeeNumber : 0)
+      // 官方口径：该月花费直接取 getItemSpendEntries 按月汇总
+      const monthTotal = spendByMonth.get(yearMonth) || 0
 
       // Per-copy status graying: only exclude if ALL copies in this month group have exited statuses
       let monthIsExcluded = false
@@ -138,9 +144,9 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         quantity: monthDates.length,
         timelineYearMonth: yearMonth,
         timelineQuantity: monthDates.length,
-        isExcludedFromValue: monthIsExcluded,
-        priceNumber: monthIsExcluded ? 0 : perUnitShareNumber,
-        totalValueNumber: monthIsExcluded ? 0 : monthTotal,
+        isExcludedFromValue: monthIsExcluded || !hasSpendEntries,
+        priceNumber: monthDates.length > 0 ? monthTotal / monthDates.length : 0,
+        totalValueNumber: monthTotal,
         originalTotalValueNumber: monthTotal,
         timelineSortTime: getLatestTimelineDateTimestamp(monthDates) || parseTimelineDateTimestamp(acquiredAt) || index
       }

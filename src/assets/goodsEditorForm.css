@@ -402,6 +402,129 @@
   line-height: 1.5;
 }
 
+.shipping-field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.shipping-field__fee {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.shipping-events-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+/* 日期 | 运费 | 删除 — 固定三列，避免 date-field 的 width:100% 把行挤扁 */
+.shipping-event-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px 36px;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.shipping-event-item__date {
+  width: 100% !important;
+  min-width: 0;
+  max-width: none;
+  overflow: hidden;
+}
+
+.shipping-event-item__date-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.shipping-event-item__date .date-field__icon {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.shipping-event-item__fee {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0 10px;
+  border: 1px solid rgba(20, 20, 22, 0.08);
+  border-radius: 16px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 15px;
+  text-align: right;
+  box-sizing: border-box;
+  -moz-appearance: textfield;
+}
+
+.shipping-event-item__fee::-webkit-outer-spin-button,
+.shipping-event-item__fee::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.shipping-event-item__delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: pointer;
+}
+
+.shipping-event-item__delete:active {
+  background: rgba(199, 68, 68, 0.08);
+  color: #c74444;
+}
+
+.shipping-event-item__delete svg {
+  width: 16px;
+  height: 16px;
+}
+
+.shipping-events-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  border: 1px dashed var(--app-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.shipping-events-add-btn:hover {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-primary) 5%, transparent);
+}
+
+.shipping-events-add-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
 .sale-reminder-field {
   gap: 14px;
 }

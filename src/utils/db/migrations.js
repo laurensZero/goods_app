@@ -252,4 +252,17 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 15,
+    description: 'Add goods.shippingEvents column (multi-restock shipping fees with dates)',
+    up: async (db) => {
+      // 多笔运费事件：[{ date: 'YYYY-MM-DD', fee: '4' }]。
+      // 跨月补货时每笔运费记到各自日期所在月；shippingFee 仍保留为合计。
+      // 旧版本地若已建 shippingDate 列可忽略（本列独立）。
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('shippingEvents')) {
+        await db.run("ALTER TABLE goods ADD COLUMN shippingEvents TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]
