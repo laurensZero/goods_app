@@ -102,186 +102,59 @@
             </section>
 
             <div class="editor-panels">
-              <section v-show="activeTab === 'basic'" class="editor-panel">
-                <div class="editor-group">
-                  <p class="editor-group-title">{{ t('imageEditor.orientation') }}</p>
-                  <div class="editor-actions">
-                    <button type="button" class="editor-btn" :disabled="saving" @click="rotateLeft">
-                      {{ t('imageEditor.rotateLeft') }}
-                    </button>
-                    <button type="button" class="editor-btn" :disabled="saving" @click="rotateRight">
-                      {{ t('imageEditor.rotateRight') }}
-                    </button>
-                    <button type="button" class="editor-btn" :disabled="saving" @click="flipHorizontal">
-                      {{ t('imageEditor.flipH') }}
-                    </button>
-                    <button type="button" class="editor-btn editor-btn--ghost" :disabled="saving" @click="resetCropper">
-                      {{ t('imageEditor.resetOrientation') }}
-                    </button>
-                  </div>
-                </div>
+              <EditorBasicPanel
+                v-show="activeTab === 'basic'"
+                :saving="saving"
+                :simple-mode="simpleMode"
+                :cropper-ready="Boolean(cropper)"
+                :show-crop-ratio="!simpleMode && !props.aspectRatio"
+                :brightness="brightness"
+                :contrast="contrast"
+                :saturation="saturation"
+                :free-angle="freeAngle"
+                :crop-ratio="cropRatio"
+                @rotate-left="rotateLeft"
+                @rotate-right="rotateRight"
+                @flip-h="flipHorizontal"
+                @reset="resetCropper"
+                @record-history="recordEditorHistory"
+                @update:brightness="brightness = $event"
+                @update:contrast="contrast = $event"
+                @update:saturation="saturation = $event"
+                @update:free-angle="applyFreeAngle"
+                @update:crop-ratio="setCropRatio"
+              />
 
-                <div v-if="!simpleMode" class="editor-group">
-                  <p class="editor-group-title">{{ t('imageEditor.correction') }}</p>
-                  <label class="editor-slider">
-                    <div class="editor-slider__head">
-                      <span>{{ t('imageEditor.brightness') }}</span>
-                      <strong>{{ formatSignedValue(brightness) }}</strong>
-                    </div>
-                    <input v-model.number="brightness" type="range" min="-60" max="60" step="1" @change="recordEditorHistory" />
-                  </label>
+              <EditorCutoutPanel
+                v-show="activeTab === 'cutout'"
+                :loading="cutoutLoading"
+                :saving="saving"
+                :progress="cutoutProgress"
+                :loading-text="cutoutLoadingText"
+                :error-text="errorText"
+                :quality-hint="cutoutQualityHint"
+                :cloud-available="cloudCutoutAvailable"
+                :model-value="cutoutModel"
+                @run="runCutout"
+                @update:model-value="cutoutModel = $event"
+              />
 
-                  <label class="editor-slider">
-                    <div class="editor-slider__head">
-                      <span>{{ t('imageEditor.contrast') }}</span>
-                      <strong>{{ formatSignedValue(contrast) }}</strong>
-                    </div>
-                    <input v-model.number="contrast" type="range" min="-40" max="40" step="1" @change="recordEditorHistory" />
-                  </label>
-                </div>
-              </section>
-
-              <section v-show="activeTab === 'cutout'" class="editor-panel">
-                <div class="editor-group">
-                  <p class="editor-group-title">{{ t('imageEditor.cutout') }}</p>
-                  <button
-                    type="button"
-                    class="editor-btn editor-btn--primary"
-                    :disabled="cutoutLoading || saving"
-                    @click="runCutout"
-                  >
-                    {{ cutoutLoading ? cutoutLoadingText : t('imageEditor.oneClickCutout') }}
-                  </button>
-
-                  <button
-                    v-if="errorText"
-                    type="button"
-                    class="editor-btn"
-                    :disabled="cutoutLoading || saving"
-                    @click="runCutout"
-                  >
-                    {{ t('imageEditor.retry') }}
-                  </button>
-
-                  <p class="editor-hint">{{ t('imageEditor.cutoutHint') }}</p>
-
-                  <div v-if="cloudCutoutAvailable" class="editor-model">
-                    <span class="editor-model__label">{{ t('imageEditor.cutoutModel') }}</span>
-                    <div class="editor-model__options">
-                      <button
-                        v-for="m in cutoutModelOptions"
-                        :key="m.value"
-                        type="button"
-                        :class="['editor-model__option', cutoutModel === m.value && 'editor-model__option--active']"
-                        @click="cutoutModel = m.value"
-                      >
-                        {{ m.label }}
-                      </button>
-                    </div>
-                    <p class="editor-hint">{{ t('imageEditor.cutoutModelHint') }}</p>
-                  </div>
-
-                  <p v-if="cutoutQualityHint" class="editor-hint editor-hint--warn">{{ cutoutQualityHint }}</p>
-                </div>
-
-
-
-                <div v-if="cutoutLoading" class="editor-progress">
-                  <div class="editor-progress__head">
-                    <span>{{ cutoutLoadingText }}</span>
-                    <strong>{{ cutoutProgress }}%</strong>
-                  </div>
-                  <div class="editor-progress__track">
-                    <div class="editor-progress__fill" :style="{ width: `${cutoutProgress}%` }" />
-                  </div>
-                </div>
-              </section>
-
-              <section v-show="activeTab === 'export'" class="editor-panel">
-                <div class="editor-group">
-                  <p class="editor-group-title">{{ t('imageEditor.exportSettings') }}</p>
-
-                  <label class="editor-toggle">
-                    <div class="editor-toggle__info">
-                      <strong>{{ t('imageEditor.autoWhiteBg') }}</strong>
-                      <span>{{ t('imageEditor.autoWhiteBgDesc') }}</span>
-                    </div>
-                    <input v-model="whiteBgEnabled" type="checkbox" class="editor-toggle__input" />
-                    <span class="editor-toggle__track" aria-hidden="true">
-                      <span class="editor-toggle__thumb" />
-                    </span>
-                  </label>
-
-                  <label v-if="whiteBgEnabled" class="editor-field">
-                    <span class="editor-field__label">{{ t('imageEditor.whiteBgStyle') }}</span>
-                    <AppSelect
-                      v-model="whiteBgStyle"
-                      :options="whiteBgStyleOptions"
-                      :placeholder="t('imageEditor.selectExportStyle')"
-                    />
-                  </label>
-
-                  <div v-if="whiteBgEnabled" class="editor-field">
-                    <span class="editor-field__label">{{ t('imageEditor.bgColor') }}</span>
-                    <div class="editor-bg-color">
-                      <button
-                        type="button"
-                        class="editor-bg-color__trigger"
-                        :aria-expanded="bgColorPickerOpen"
-                        @click="bgColorPickerOpen = !bgColorPickerOpen"
-                      >
-                        <span class="editor-bg-color__trigger-swatch" :style="{ background: bgColor }" aria-hidden="true" />
-                        <span class="editor-bg-color__trigger-hex">{{ bgColor }}</span>
-                        <svg class="editor-bg-color__trigger-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M7 10L12 15L17 10" />
-                        </svg>
-                      </button>
-
-                      <div v-if="bgColorPickerOpen" class="editor-bg-color__picker">
-                        <HslColorPicker
-                          v-model="bgColor"
-                          pick-fallback-enabled
-                          @fallback-pick="enterColorPickMode"
-                        />
-                      </div>
-
-                      <div class="editor-bg-color__actions">
-                        <div class="editor-bg-color__presets" :aria-label="t('imageEditor.bgColor')">
-                          <button
-                            v-for="preset in bgColorPresets"
-                            :key="preset"
-                            type="button"
-                            class="editor-bg-color__swatch"
-                            :class="{ 'editor-bg-color__swatch--active': bgColor === preset }"
-                            :style="{ background: preset }"
-                            :aria-label="preset"
-                            :aria-pressed="bgColor === preset"
-                            @click="bgColor = preset"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          class="editor-btn editor-bg-color__pick"
-                          :disabled="pickingColor"
-                          @click="pickDominantColor"
-                        >
-                          {{ pickingColor ? t('imageEditor.pickingColor') : t('imageEditor.pickFromImage') }}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <label v-if="whiteBgEnabled" class="editor-slider">
-                    <div class="editor-slider__head">
-                      <span>{{ t('imageEditor.whiteBgRatio') }}</span>
-                      <strong>{{ whiteBgScalePercent }}%</strong>
-                    </div>
-                    <input v-model.number="whiteBgScalePercent" type="range" min="40" max="100" step="1" />
-                  </label>
-
-                  <p class="editor-hint">{{ t('imageEditor.noCompressOnSave') }}</p>
-                </div>
-              </section>
+              <EditorExportPanel
+                v-show="activeTab === 'export'"
+                :white-bg-enabled="whiteBgEnabled"
+                :white-bg-style="whiteBgStyle"
+                :white-bg-scale-percent="whiteBgScalePercent"
+                :bg-color="bgColor"
+                :bg-color-picker-open="bgColorPickerOpen"
+                :picking-color="pickingColor"
+                @update:white-bg-enabled="whiteBgEnabled = $event"
+                @update:white-bg-style="whiteBgStyle = $event"
+                @update:white-bg-scale-percent="whiteBgScalePercent = $event"
+                @update:bg-color="bgColor = $event"
+                @toggle-bg-color-picker="bgColorPickerOpen = !bgColorPickerOpen"
+                @enter-color-pick="enterColorPickMode"
+                @pick-dominant="pickDominantColor"
+              />
 
               <p v-if="errorText" class="editor-error">{{ errorText }}</p>
 
@@ -331,11 +204,13 @@ import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
-import AppSelect from '@/components/common/AppSelect.vue'
-import HslColorPicker from '@/components/common/HslColorPicker.vue'
+import EditorBasicPanel from '@/components/image/editor/EditorBasicPanel.vue'
+import EditorCutoutPanel from '@/components/image/editor/EditorCutoutPanel.vue'
+import EditorExportPanel from '@/components/image/editor/EditorExportPanel.vue'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout, checkCloudCutoutPermission } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
+import '@/components/image/editor/editor-panels.css'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -353,11 +228,11 @@ const exportPreviewImageRef = ref(null)
 const previewRef = ref(null)
 const activeTab = ref('basic')
 const cutoutLoading = ref(false)
-const cutoutLoadingText = ref('抠图处理中...')
+const cutoutLoadingText = ref('')
 const cutoutProgress = ref(0)
 const saving = ref(false)
 const saveProgress = ref(0)
-const saveProgressText = ref('保存处理中...')
+const saveProgressText = ref('')
 const whiteBgEnabled = ref(true)
 const whiteBgStyle = ref('standard')
 const whiteBgScalePercent = ref(88)
@@ -367,6 +242,9 @@ const colorPickMode = ref(false)
 const pickingColor = ref(false)
 const brightness = ref(0)
 const contrast = ref(0)
+const saturation = ref(0)
+const freeAngle = ref(0)
+const cropRatio = ref('free')
 const errorText = ref('')
 const cutoutBrushMode = ref('')
 const cutoutBrushSize = ref(28)
@@ -388,20 +266,14 @@ const { exportForUpload } = useImageExport()
 
 const tabOptions = computed(() => {
   if (props.simpleMode) {
-    return [{ value: 'basic', label: '基础调整' }]
+    return [{ value: 'basic', label: t('imageEditor.tabBasic') }]
   }
   return [
-    { value: 'basic', label: '基础调整' },
-    { value: 'cutout', label: '智能抠图' },
-    { value: 'export', label: '导出设置' }
+    { value: 'basic', label: t('imageEditor.tabBasic') },
+    { value: 'cutout', label: t('imageEditor.tabCutout') },
+    { value: 'export', label: t('imageEditor.tabExport') }
   ]
 })
-
-const cutoutModelOptions = computed(() => [
-  { value: 'falcon', label: t('imageEditor.modelFalcon') },
-  { value: 'aurora', label: t('imageEditor.modelAurora') },
-  { value: 'ghost', label: t('imageEditor.modelGhost') }
-])
 
 async function refreshCloudCutoutAvailability() {
   cloudCutoutAvailable.value = await checkCloudCutoutPermission().catch(() => false)
@@ -409,13 +281,6 @@ async function refreshCloudCutoutAvailability() {
 
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
-
-const bgColorPresets = ['#ffffff', '#000000', '#8a8a8e']
-
-const whiteBgStyleOptions = computed(() => [
-  { value: 'standard', label: t('imageEditor.standardBg') },
-  { value: 'product', label: t('imageEditor.productEnhance') }
-])
 
 const whiteBgPreviewImageStyle = computed(() => ({
   transform: whiteBgEnabled.value ? `scale(${Math.max(0.4, Number(whiteBgScalePercent.value || 88) / 100)})` : 'scale(1)'
@@ -473,8 +338,6 @@ function destroyCropper() {
   }
 }
 
-
-
 function createTrackedObjectUrl(blob) {
   const url = URL.createObjectURL(blob)
   trackObjectUrl(url)
@@ -486,7 +349,7 @@ async function readBlobFromObjectUrl(url) {
 
   const response = await fetch(url)
   if (!response.ok) {
-    throw new Error('读取历史图片失败')
+    throw new Error(t('imageEditor.readHistoryFailed'))
   }
 
   return await response.blob()
@@ -497,9 +360,12 @@ function buildEditorSnapshot() {
   return {
     brightness: Number(brightness.value) || 0,
     contrast: Number(contrast.value) || 0,
+    saturation: Number(saturation.value) || 0,
+    freeAngle: Number(freeAngle.value) || 0,
+    cropRatio: cropRatio.value,
     flipX: Number(flipX) || 1,
     cropData: cropData ? { ...cropData } : null,
-    rotation: Number(cropData?.rotate) || 0,
+    rotation: Number(cropData?.rotate) || Number(freeAngle.value) || 0,
     cutoutPreviewUrl: previewUrl.value || '',
     cutoutMaskUrl: cutoutMaskUrl.value || '',
     cutoutPreparedImageUrl: cutoutPreparedImageUrl.value || '',
@@ -529,10 +395,15 @@ async function applyEditorSnapshot(snapshot) {
     cutoutApplyingMask.value = false
     cutoutProgress.value = 0
     saveProgress.value = 0
-    saveProgressText.value = '保存处理中...'
+    saveProgressText.value = t('imageEditor.saving')
 
     brightness.value = Number(snapshot.brightness) || 0
     contrast.value = Number(snapshot.contrast) || 0
+    saturation.value = Number(snapshot.saturation) || 0
+    freeAngle.value = Number(snapshot.freeAngle) || 0
+    if (snapshot.cropRatio !== undefined) {
+      cropRatio.value = snapshot.cropRatio
+    }
     flipX = Number(snapshot.flipX) || 1
 
     if (snapshot.hasCutout) {
@@ -644,6 +515,26 @@ function waitForImageLoad(img) {
   })
 }
 
+function resolveCropperAspectRatio() {
+  if (Number(props.aspectRatio) > 0) {
+    return Number(props.aspectRatio)
+  }
+  if (String(cropRatio.value) === 'free') {
+    return NaN
+  }
+  const ratio = Number(cropRatio.value)
+  return Number.isFinite(ratio) && ratio > 0 ? ratio : NaN
+}
+
+function setCropRatio(value) {
+  cropRatio.value = value
+  if (cropper) {
+    const ratio = resolveCropperAspectRatio()
+    cropper.setAspectRatio(ratio)
+  }
+  recordEditorHistory()
+}
+
 async function initCropper() {
   const token = ++cropperInitToken
   await nextTick()
@@ -668,7 +559,7 @@ async function initCropper() {
     zoomOnWheel: false,
     toggleDragModeOnDblclick: false,
     restore: false,
-    aspectRatio: props.aspectRatio || NaN,
+    aspectRatio: resolveCropperAspectRatio(),
     cropend: () => {
       recordEditorHistory()
     },
@@ -678,16 +569,6 @@ async function initCropper() {
   })
   applyPreviewFilter()
 }
-
-
-
-
-
-
-
-
-
-
 
 function openFromFile(file) {
   editorSessionId += 1
@@ -710,11 +591,14 @@ function openFromFile(file) {
   pickingColor.value = false
   brightness.value = 0
   contrast.value = 0
+  saturation.value = 0
+  freeAngle.value = 0
+  cropRatio.value = Number(props.aspectRatio) > 0 ? Number(props.aspectRatio) : 'free'
   cutoutLoading.value = false
   cutoutApplyingMask.value = false
   cutoutProgress.value = 0
   saveProgress.value = 0
-  saveProgressText.value = '保存处理中...'
+  saveProgressText.value = t('imageEditor.saving')
   errorText.value = ''
   flipX = 1
   void initCropper()
@@ -730,11 +614,11 @@ async function getCurrentBlob() {
     if (previewUrl.value) {
       const response = await fetch(previewUrl.value)
       if (!response.ok) {
-        throw new Error('读取当前预览图失败')
+        throw new Error(t('imageEditor.readPreviewFailed'))
       }
       return await response.blob()
     }
-    if (!props.sourceFile) throw new Error('未找到可编辑图片')
+    if (!props.sourceFile) throw new Error(t('imageEditor.missingImage'))
     return props.sourceFile
   }
 
@@ -746,7 +630,7 @@ async function getCurrentBlob() {
   return new Promise((resolve, reject) => {
     croppedCanvas.toBlob((blob) => {
       if (!blob) {
-        reject(new Error('生成编辑图失败'))
+        reject(new Error(t('imageEditor.exportCanvasFailed')))
         return
       }
       resolve(blob)
@@ -754,13 +638,36 @@ async function getCurrentBlob() {
   })
 }
 
+function normalizeAngle(angle) {
+  const value = Number(angle) || 0
+  const wrapped = ((value % 360) + 360) % 360
+  return wrapped > 180 ? wrapped - 360 : wrapped
+}
+
+function getCurrentRotation() {
+  if (!cropper) return Number(freeAngle.value) || 0
+  const data = cropper.getData(true)
+  return Number(data.rotate) || 0
+}
+
 function rotateLeft() {
-  cropper?.rotate(-90)
-  recordEditorHistory()
+  setFreeAngle(getCurrentRotation() - 90)
 }
 
 function rotateRight() {
-  cropper?.rotate(90)
+  setFreeAngle(getCurrentRotation() + 90)
+}
+
+function applyFreeAngle(angle) {
+  if (!cropper) return false
+  const normalized = normalizeAngle(angle)
+  freeAngle.value = normalized
+  cropper.rotateTo(normalized)
+  return true
+}
+
+function setFreeAngle(angle) {
+  if (!applyFreeAngle(angle)) return
   recordEditorHistory()
 }
 
@@ -776,6 +683,8 @@ function resetCropper() {
   flipX = 1
   brightness.value = 0
   contrast.value = 0
+  saturation.value = 0
+  freeAngle.value = 0
   applyPreviewFilter()
   recordEditorHistory()
 }
@@ -784,7 +693,8 @@ function applyPreviewFilter() {
   if (!cropper?.container) return
   const brightnessPercent = 100 + (Number(brightness.value) || 0)
   const contrastPercent = 100 + (Number(contrast.value) || 0)
-  cropper.container.style.filter = `brightness(${brightnessPercent}%) contrast(${contrastPercent}%)`
+  const saturationPercent = 100 + (Number(saturation.value) || 0)
+  cropper.container.style.filter = `brightness(${brightnessPercent}%) contrast(${contrastPercent}%) saturate(${saturationPercent}%)`
 }
 
 async function runCutout() {
@@ -792,8 +702,8 @@ async function runCutout() {
   cutoutLoading.value = true
   cutoutProgress.value = 5
   cutoutLoadingText.value = !isCutoutModelReady()
-    ? '模型准备中，请稍候...'
-    : '抠图处理中...'
+    ? t('imageEditor.modelPreparing')
+    : t('imageEditor.cutoutProcessing')
   errorText.value = ''
   cutoutQualityHint.value = ''
 
@@ -806,7 +716,6 @@ async function runCutout() {
     const inputBlob = await getCurrentBlob()
     cutoutInputImageUrl.value = createTrackedObjectUrl(inputBlob)
 
-    // 云端优先：白名单用户走 FAPIhub，失败回退本地
     const cloudAllowed = await checkCloudCutoutPermission().catch(() => false)
     if (cloudAllowed) {
       try {
@@ -856,14 +765,15 @@ async function runCutout() {
     cutoutMaskUrl.value = createTrackedObjectUrl(maskBlob)
 
     destroyCropper()
+    freeAngle.value = 0
     previewUrl.value = createTrackedObjectUrl(cutoutBlob)
     recordEditorHistory()
   } catch (error) {
-    errorText.value = error?.message || '抠图失败，请重试'
+    errorText.value = error?.message || t('imageEditor.cutoutFailed')
   } finally {
     cutoutLoading.value = false
     cutoutProgress.value = 0
-    cutoutLoadingText.value = '抠图处理中...'
+    cutoutLoadingText.value = t('imageEditor.cutoutProcessing')
   }
 }
 
@@ -1082,12 +992,32 @@ function onPickPointerCancel() {
   pickMagnifierVisible.value = false
 }
 
+function mapExportProgressText(stage) {
+  switch (stage) {
+    case 'preparing':
+      return t('imageEditor.preparing')
+    case 'adjust':
+      return t('imageEditor.applyingBC')
+    case 'product':
+      return t('imageEditor.optimizing')
+    case 'whiteBg':
+      return t('imageEditor.compositing')
+    case 'alpha':
+      return t('imageEditor.checkAlpha')
+    case 'compress':
+      return t('imageEditor.compressing')
+    case 'done':
+      return t('imageEditor.saveDone')
+    default:
+      return t('imageEditor.saving')
+  }
+}
 
 async function handleSave() {
   if (saving.value) return
   saving.value = true
   saveProgress.value = 5
-  saveProgressText.value = '准备导出...'
+  saveProgressText.value = t('imageEditor.preparing')
   errorText.value = ''
 
   try {
@@ -1101,11 +1031,10 @@ async function handleSave() {
       bgColor: bgColor.value,
       brightness: props.simpleMode ? 0 : brightness.value,
       contrast: props.simpleMode ? 0 : contrast.value,
-      onProgress: ({ percent, text }) => {
+      saturation: props.simpleMode ? 0 : saturation.value,
+      onProgress: ({ percent, stage, text }) => {
         saveProgress.value = Number(percent) || 0
-        if (text) {
-          saveProgressText.value = text
-        }
+        saveProgressText.value = mapExportProgressText(stage) || text
       },
       fileName: props.sourceFile?.name || `image_${Date.now()}`
     })
@@ -1117,21 +1046,16 @@ async function handleSave() {
     })
     emit('update:show', false)
   } catch (error) {
-    errorText.value = error?.message || '保存失败，请重试'
+    errorText.value = error?.message || t('imageEditor.saveFailed')
   } finally {
     saving.value = false
     saveProgress.value = 0
-    saveProgressText.value = '保存处理中...'
+    saveProgressText.value = t('imageEditor.saving')
   }
 }
 
 function handleCancel() {
   emit('update:show', false)
-}
-
-function formatSignedValue(value) {
-  const number = Number(value) || 0
-  return number > 0 ? `+${number}` : `${number}`
 }
 
 watch(
@@ -1150,7 +1074,6 @@ watch(
       colorPickMode.value = false
       return
     }
-    // 打开即预取云端权限，切换 tab 时直接命中缓存，模型选择器无需等待
     void refreshCloudCutoutAvailability()
     if (props.sourceFile) {
       openFromFile(props.sourceFile)
@@ -1167,7 +1090,7 @@ watch(
   }
 )
 
-watch([brightness, contrast], () => {
+watch([brightness, contrast, saturation], () => {
   applyPreviewFilter()
 })
 
@@ -1179,9 +1102,11 @@ async function commitCrop() {
       const blob = await getCurrentBlob()
       destroyCropper()
       flipX = 1
+      freeAngle.value = 0
       previewUrl.value = createTrackedObjectUrl(blob)
     } else {
       destroyCropper()
+      freeAngle.value = 0
     }
   } catch (error) {
     // 保持当前状态，避免裁切提交失败时丢失预览
@@ -1228,12 +1153,6 @@ watch(
     }
   }
 )
-
-
-
-
-
-
 
 onBeforeUnmount(() => {
   setPageScrollLock(false)
@@ -1410,8 +1329,6 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
-/* Plain preview: hide crop UI for cutout / export tabs so the left area is
-   a clean preview instead of an active cropper. */
 .editor-preview--plain :deep(.cropper-crop-box),
 .editor-preview--plain :deep(.cropper-modal),
 .editor-preview--plain :deep(.cropper-line),
@@ -1427,8 +1344,6 @@ onBeforeUnmount(() => {
   cursor: default;
 }
 
-/* Export tab: draw the scaled preview on a flat backdrop so the user can judge
-   how the background fill will look once saved. */
 .editor-image--export-hidden {
   opacity: 0;
 }
@@ -1552,27 +1467,6 @@ onBeforeUnmount(() => {
   color: var(--app-text, #1f2937);
 }
 
-.editor-mask-preview {
-  position: absolute;
-  z-index: 5;
-  pointer-events: none;
-}
-
-.editor-brush-layer {
-  position: absolute;
-  z-index: 10;
-}
-
-.editor-mask-preview,
-.editor-brush-layer {
-  max-width: 100%;
-  max-height: 100%;
-}
-
-.editor-brush-layer :deep(canvas) {
-  display: block;
-}
-
 .editor-panels {
   flex: 1;
   min-height: 0;
@@ -1586,392 +1480,12 @@ onBeforeUnmount(() => {
   display: none;
 }
 
-.editor-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.editor-group {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  background: var(--app-surface-soft);
-  border-radius: var(--radius-card, 18px);
-}
-
-.editor-group-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--app-text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .editor-history-bar {
   margin-top: -2px;
 }
 
 .editor-history-btn {
   min-height: 38px;
-}
-
-.editor-btn {
-  flex: 1 1 auto;
-  min-height: 42px;
-  padding: 0 14px;
-  border: none;
-  border-radius: var(--radius-small, 14px);
-  background: var(--app-surface);
-  color: var(--app-text);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  transition: transform var(--motion-fast, 200ms) ease, opacity var(--motion-fast, 200ms) ease;
-}
-
-.editor-btn--primary {
-  background: var(--app-text);
-  color: var(--app-bg);
-}
-
-.editor-btn--ghost {
-  background: transparent;
-  color: var(--app-text-secondary);
-}
-
-.editor-btn:active {
-  transform: scale(var(--press-scale-button, 0.96));
-}
-
-.editor-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.editor-slider {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.editor-slider__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--app-text-secondary);
-}
-
-.editor-slider__head strong {
-  font-size: 14px;
-  color: var(--app-text);
-}
-
-.editor-slider input {
-  width: 100%;
-  accent-color: var(--app-text);
-}
-
-.editor-chips {
-  display: flex;
-  gap: 8px;
-}
-
-.editor-chip {
-  height: 36px;
-  padding: 0 16px;
-  border: none;
-  border-radius: 999px;
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.editor-chip--active {
-  background: var(--app-text);
-  color: var(--app-bg);
-}
-
-.editor-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.editor-model {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.editor-model__label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.editor-model__options {
-  display: flex;
-  gap: 8px;
-}
-
-.editor-model__option {
-  flex: 1;
-  height: 36px;
-  padding: 0 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius-small, 14px);
-  background: var(--app-surface);
-  color: var(--app-text-secondary);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  transition: transform var(--motion-fast, 200ms) ease, border-color var(--motion-fast, 200ms) ease;
-}
-
-.editor-model__option--active {
-  border-color: var(--app-text);
-  color: var(--app-text);
-}
-
-.editor-model__option:active {
-  transform: scale(var(--press-scale-button, 0.96));
-}
-
-.editor-toggle {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
-  background: var(--app-surface);
-  border-radius: var(--radius-card, 18px);
-}
-
-.editor-toggle__info {
-  flex: 1;
-  min-width: 0;
-}
-
-.editor-toggle__info strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--app-text);
-}
-
-.editor-toggle__info span {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--app-text-secondary);
-}
-
-.editor-toggle__input {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.editor-toggle__track {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  width: 48px;
-  height: 28px;
-  padding: 3px;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.1);
-  flex-shrink: 0;
-}
-
-.editor-toggle__thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
-  transition: transform var(--motion-fast, 200ms) var(--motion-emphasis, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-.editor-toggle__input:checked + .editor-toggle__track {
-  background: var(--app-text);
-}
-
-.editor-toggle__input:checked + .editor-toggle__track .editor-toggle__thumb {
-  transform: translateX(20px);
-}
-
-.editor-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.editor-field__label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.editor-bg-color {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.editor-bg-color__trigger {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 44px;
-  padding: 6px 12px;
-  border: 1px solid var(--app-border);
-  border-radius: var(--radius-small, 14px);
-  background: var(--app-surface);
-  color: var(--app-text);
-  transition: transform var(--motion-fast, 200ms) ease, border-color var(--motion-fast, 200ms) ease;
-}
-
-.editor-bg-color__trigger:active {
-  transform: scale(var(--press-scale-button, 0.98));
-}
-
-.editor-bg-color__trigger-swatch {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  box-shadow:
-    inset 0 0 0 1px rgba(20, 20, 22, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.24);
-}
-
-.editor-bg-color__trigger-hex {
-  flex: 1;
-  min-width: 0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.editor-bg-color__trigger-arrow {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  stroke: var(--app-text-tertiary);
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  transition: transform 0.18s ease;
-}
-
-.editor-bg-color__trigger[aria-expanded='true'] .editor-bg-color__trigger-arrow {
-  transform: rotate(180deg);
-}
-
-.editor-bg-color__picker {
-  padding: 14px;
-  border-radius: var(--radius-card, 18px);
-  background: var(--app-surface-soft);
-}
-
-.editor-bg-color__actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.editor-bg-color__presets {
-  display: flex;
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-}
-
-.editor-bg-color__swatch {
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 2px solid transparent;
-  border-radius: 10px;
-  background-clip: padding-box;
-  box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.1);
-  cursor: pointer;
-  transition: border-color var(--motion-fast, 200ms) ease, transform var(--motion-fast, 200ms) ease;
-}
-
-.editor-bg-color__swatch--active {
-  border-color: var(--app-text);
-}
-
-.editor-bg-color__swatch:active {
-  transform: scale(var(--press-scale-button, 0.96));
-}
-
-.editor-bg-color__pick {
-  flex: none;
-  min-height: 44px;
-}
-
-.editor-hint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--app-text-tertiary);
-  line-height: 1.5;
-}
-
-.editor-hint--warn {
-  color: var(--app-warning, #f5a623);
-}
-
-.editor-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  background: var(--app-surface-soft);
-  border-radius: var(--radius-card, 18px);
-}
-
-.editor-progress__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-  color: var(--app-text-secondary);
-}
-
-.editor-progress__head strong {
-  font-size: 14px;
-  color: var(--app-text);
-}
-
-.editor-progress__track {
-  height: 6px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.editor-progress__fill {
-  height: 100%;
-  width: 0;
-  border-radius: inherit;
-  background: var(--app-text);
-  transition: width 0.15s ease;
 }
 
 .editor-error {
@@ -1994,7 +1508,6 @@ onBeforeUnmount(() => {
   flex: 1;
 }
 
-/* Transitions */
 .editor-fade-enter-active,
 .editor-fade-leave-active {
   transition: opacity 0.2s ease;
@@ -2019,7 +1532,6 @@ onBeforeUnmount(() => {
   transform: translateY(16px) scale(0.98);
 }
 
-/* Mobile */
 @media (max-width: 760px) {
   .editor-overlay {
     align-items: flex-end;
@@ -2090,7 +1602,6 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Tablet */
 @media (min-width: 761px) and (max-width: 1024px) {
   .editor-dialog {
     width: min(calc(100vw - 32px), 720px);
@@ -2114,7 +1625,6 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Desktop */
 @media (min-width: 1025px) {
   .editor-dialog {
     width: min(calc(100vw - 48px), 800px);
@@ -2138,20 +1648,7 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Dark mode */
 :global(html.theme-dark) .editor-dialog {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4);
-}
-
-:global(html.theme-dark) .editor-toggle__track {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-:global(html.theme-dark) .editor-bg-color__swatch {
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
-}
-
-:global(html.theme-dark) .editor-progress__track {
-  background: rgba(255, 255, 255, 0.08);
 }
 </style>
