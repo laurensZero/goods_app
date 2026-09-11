@@ -89,7 +89,7 @@ function effectivePrice(item) {
 function goodsListItem(item, convert = null) {
   const actualCurrency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
   const officialCurrency = asText(item.currency || 'CNY').trim() || 'CNY'
-  // 花费折算：非愿望单用官方逐件口径（getItemSpendEntries 已含运费均摊与状态排除，
+  // 花费折算：非愿望单用官方逐件口径（getItemSpendEntries：shippingEvents 分笔归月 / 单笔挂最晚月、状态排除，
   // 折算字段存在时价格已是 CNY）；愿望单按 标价×数量 期望值折算
   let spendCNY = null
   let priceCNY = null
@@ -976,7 +976,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     const yearPrefix = year > 0 ? String(year) : ''
     const [items, records] = await Promise.all([loadEnrichedItems(), getRechargeRecords()])
 
-    // 官方消费趋势口径：逐件带日期条目（运费均摊、跨月补货各自归月、
+    // 官方花费口径：getItemSpendEntries（shippingEvents 分笔归月 / 单笔挂最晚月、跨月补货各自归月、
     // 愿望单与 已出/已赠出/丢失 不计入），统一折算 CNY
     /** @type {Map<string, { amount: number, count: number }>} */
     const goodsMonths = new Map()
@@ -1028,7 +1028,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         count: rechargeFiltered.length,
         byMonth: monthsToArray(rechargeMonths)
       },
-      note: '谷子金额为官方消费趋势口径（实付价+运费均摊，缺省回退标价，逐件按入手日期归月；愿望单与 已出/已赠出/丢失 不计入' +
+      note: '谷子金额为官方花费口径（实付价+运费，缺省回退标价×数量；shippingEvents 按日期分月，无则整笔挂最晚入手月；愿望单与 已出/已赠出/丢失 不计入' +
         (convertToCNY ? '，非 CNY 已折算' : '') + '）；充值按充值时间归月。'
     }
   }

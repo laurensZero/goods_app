@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="page add-page">
     <main class="page-body">
       <NavBar :title="navBarTitle" show-back @back="handleBack" />
@@ -515,18 +515,6 @@
                             @change="form.actualPrice = normalizeUnitPriceValue(form.actualPrice); syncAllUnitPricesFromActualPrice()"
                           />
                         </label>
-                        <label class="price-row__field price-row__field--small">
-                          <span class="field-label">{{ t('goods.editor.shippingFee') }}</span>
-                          <input
-                            v-model="form.shippingFee"
-                            type="number"
-                            min="0"
-                            step="1"
-                            placeholder="0.00"
-                            @blur="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
-                            @change="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
-                          />
-                        </label>
                         <AppSelect v-model="form.actualPriceCurrency" :options="currencyOptions" :placeholder="t('common.currency')" class="currency-select" />
                       </div>
 
@@ -574,6 +562,104 @@
                   <span class="field-label">{{ t('goods.editor.quantity') }}</span>
                   <input v-model.number="form.quantity" type="number" min="1" step="1" placeholder="1" />
                 </label>
+
+                <div v-if="!form.isWishlist" class="field shipping-field">
+                  <label class="shipping-field__fee">
+                    <span class="field-label">{{ t('goods.editor.shippingFee') }}</span>
+                    <input
+                      v-model="form.shippingFee"
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="0.00"
+                      :disabled="form.shippingEvents.length > 0"
+                      @blur="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
+                      @change="form.shippingFee = normalizeUnitPriceValue(form.shippingFee)"
+                    />
+                  </label>
+
+                  <div class="actual-price-block" :class="{ 'actual-price-block--open': showShippingEvents }">
+                    <button class="actual-price-toggle" type="button" @click="showShippingEvents = !showShippingEvents">
+                      <span class="actual-price-toggle__copy">
+                        <span class="actual-price-toggle__title">
+                          {{ showShippingEvents ? t('goods.editor.collapseShippingDetail') : t('goods.editor.shippingDetail') }}
+                        </span>
+                        <span class="actual-price-toggle__desc">
+                          {{ t('goods.editor.shippingEventsHint') }}
+                        </span>
+                      </span>
+                      <svg class="actual-price-toggle__arrow" :class="{ 'actual-price-toggle__arrow--open': showShippingEvents }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M7 10L12 15L17 10" />
+                      </svg>
+                    </button>
+
+                    <div v-if="showShippingEvents" class="actual-price-panel shipping-events-block">
+                      <div class="inline-actions">
+                        <span class="inline-actions__label">{{ t('goods.editor.addShippingEvent') }}</span>
+                        <button
+                          v-if="form.shippingEvents.length > 0"
+                          type="button"
+                          class="inline-clear-btn"
+                          @click="clearShippingEvents"
+                        >
+                          {{ t('common.clear') }}
+                        </button>
+                      </div>
+
+                      <div
+                        v-for="(event, index) in form.shippingEvents"
+                        :key="`shipping-event-${index}`"
+                        class="shipping-event-item"
+                      >
+                        <button
+                          class="date-field shipping-event-item__date"
+                          type="button"
+                          @pointerdown="flushActiveInput"
+                          @click="openShippingDatePicker(index)"
+                        >
+                          <span class="shipping-event-item__date-text" :class="{ 'date-field__value--placeholder': !event.date }">
+                            {{ event.date || t('goods.editor.selectDate') }}
+                          </span>
+                          <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <rect x="3" y="5" width="18" height="16" rx="3" />
+                            <path d="M8 3V7" />
+                            <path d="M16 3V7" />
+                            <path d="M3 10H21" />
+                          </svg>
+                        </button>
+                        <input
+                          v-model="event.fee"
+                          class="shipping-event-item__fee"
+                          type="number"
+                          inputmode="decimal"
+                          min="0"
+                          step="1"
+                          placeholder="0.00"
+                          :aria-label="t('goods.editor.shippingEventItem', { index: index + 1 })"
+                          @blur="normalizeShippingEventFee(index)"
+                          @change="normalizeShippingEventFee(index)"
+                        />
+                        <button
+                          type="button"
+                          class="shipping-event-item__delete"
+                          :aria-label="t('common.delete')"
+                          @click="removeShippingEvent(index)"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M18 6L6 18M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <button type="button" class="shipping-events-add-btn" @click="addShippingEvent">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
+                        <span>{{ t('goods.editor.addShippingEvent') }}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
                 <label class="field">
                   <span class="field-label">{{ form.isWishlist ? t('goods.editor.expectedDate') : t('goods.editor.purchaseDate') }}</span>
@@ -808,6 +894,17 @@
       @confirm="onUnitDateConfirm"
     />
 
+    <AppDatePicker
+      v-model:show="showShippingDatePicker"
+      v-model="shippingDatePickerValue"
+      :z-index="2004"
+      :is-tablet="isTabletViewport"
+      :title="t('goods.editor.shippingDetail')"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onShippingDateConfirm"
+    />
+
     <AppDateTimePicker
       v-model:show="showSaleDateTimePicker"
       v-model="form.saleAt"
@@ -888,6 +985,7 @@ const {
   showUnitActualPriceInput,
   showUnitCharacterInput,
   showUnitCollectStatusInput,
+  showShippingEvents,
   quickCreateTarget,
   quickCategoryName,
   quickIpName,
@@ -901,10 +999,12 @@ const {
   noteInputRef,
   showDatePicker,
   showUnitDatePicker,
+  showShippingDatePicker,
   showSaleDateTimePicker,
   showCharPicker,
   datePickerValue,
   unitDatePickerValue,
+  shippingDatePickerValue,
   minDate,
   maxDate,
   availableCharacters,
@@ -946,6 +1046,12 @@ const {
   openSaleDateTimePicker,
   onDateConfirm,
   onUnitDateConfirm,
+  openShippingDatePicker,
+  onShippingDateConfirm,
+  addShippingEvent,
+  removeShippingEvent,
+  normalizeShippingEventFee,
+  clearShippingEvents,
   onSaleDateTimeConfirm,
   syncField,
   syncFieldLater,

@@ -28,9 +28,10 @@ function makeItem(overrides = {}) {
 }
 
 describe('getUnitCost', () => {
-  it('uses actualPrice with shipping share', () => {
+  it('uses actualPrice total with shipping as whole-item cost', () => {
+    // actualPrice 是全部份数总价；无逐份日期时官方明细合成 1 条：50+10
     const item = makeItem({ quantity: 2, actualPrice: '50', shippingFee: '10' })
-    expect(getUnitCost(item)).toBe(55)
+    expect(getUnitCost(item)).toBe(60)
   })
 
   it('prefers unitActualPriceList for a specific unit', () => {

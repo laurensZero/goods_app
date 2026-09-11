@@ -7,9 +7,11 @@
  *   price 语义为该条全部数量的总价)
  * - 逐件:unitSaleInfoList[i] = { price, platform, fee, date },含义由 unitCollectStatusList[i] 决定
  *
- * 输入兼容原始 store item(actualPrice 字符串)和视图层 item
- * (带 actualPriceCNYNumber 等折算字段,口径与 statistics.js 一致)。
+ * 入手成本与预算/时间线共用 statistics.js 的运费归月规则（getItemCostEntries）；
+ * 成本侧不因「已出」排除条目。
  */
+
+import { getItemCostEntries, getTotalShippingFee } from './statistics'
 
 const SOLD_STATUS = '已出'
 const LISTING_STATUS = '在售'
@@ -24,7 +26,7 @@ function getQuantity(item) {
   return Math.max(1, Number(item?.quantityNumber || item?.quantity) || 1)
 }
 
-/** 金额取整到分:运费均摊/链式累加会产生 -1.4e-14 之类浮点噪声 */
+/** 金额取整到分:运费归月/链式累加会产生 -1.4e-14 之类浮点噪声 */
 function roundMoney(value) {
   const n = Number(value)
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0
@@ -42,27 +44,46 @@ function getItemUnitPriceNumber(item) {
 }
 
 /**
- * 某一件的入手成本 = 该件实付价(unitActualPriceList 优先) + 邮费均摊
+ * 某一件的入手成本。
+ * 优先用官方成本明细（与预算同一套运费归月）；明细份数与 quantity 对齐时按份取价。
  * @param {object} item
  * @param {number|null} [unitIndex]
  * @returns {number}
  */
 export function getUnitCost(item, unitIndex = null) {
   const qty = getQuantity(item)
-  const shippingShare = toNumber(item?.shippingFee) / qty
+  const entries = getItemCostEntries(item)
+
   if (unitIndex != null && Number.isInteger(unitIndex)) {
-    // 优先视图层折算后的逐件 CNY 价,回退原始逐件价(与聚合字段口径一致)
+    if (entries.length === qty && entries[unitIndex]) {
+      return entries[unitIndex].price
+    }
+    // 无逐份日期时明细会合并成 1 条总账，逐件成本回退：单价 + 运费均摊
+    const shippingShare = getTotalShippingFee(item) / qty
     const unitPrices = Array.isArray(item?.unitActualPriceCNYList)
       ? item.unitActualPriceCNYList
       : (Array.isArray(item?.unitActualPriceList) ? item.unitActualPriceList : [])
     const unitPrice = toNumber(unitPrices[unitIndex])
     if (unitPrice > 0) return unitPrice + shippingShare
+    if (entries.length > 0) {
+      const goodsTotal = entries.reduce((sum, entry) => sum + entry.price, 0) - getTotalShippingFee(item)
+      return goodsTotal / qty + shippingShare
+    }
+    return getItemUnitPriceNumber(item) + shippingShare
   }
-  return getItemUnitPriceNumber(item) + shippingShare
+
+  if (entries.length > 0) {
+    return entries.reduce((sum, entry) => sum + entry.price, 0)
+  }
+  return getItemUnitPriceNumber(item) + getTotalShippingFee(item)
 }
 
 /** 整条 count 件的入手总成本(与 getUnitCost 同口径,逐件回退) */
 function getScopeCost(item, count) {
+  const entries = getItemCostEntries(item)
+  if (entries.length >= count && count > 0) {
+    return entries.slice(0, count).reduce((sum, entry) => sum + entry.price, 0)
+  }
   let total = 0
   for (let i = 0; i < count; i++) total += getUnitCost(item, i)
   return total

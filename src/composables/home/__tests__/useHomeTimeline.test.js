@@ -24,6 +24,7 @@ const restockedGoods = {
     ...Array.from({ length: 11 }, () => '2026-08-22'),
     ...Array.from({ length: 3 }, () => '2026-09-05')
   ],
+  actualPrice: '140',
   totalValueNumber: 140,
   collectStatus: '已拥有'
 }
@@ -33,6 +34,7 @@ const normalGoods = {
   name: '普通谷子',
   quantity: 1,
   acquiredAt: '2026-09-03',
+  actualPrice: '50',
   totalValueNumber: 50,
   collectStatus: '已拥有'
 }
@@ -47,6 +49,7 @@ describe('useHomeTimeline', () => {
         ...Array.from({ length: 11 }, () => '2026-08-22'),
         ...Array.from({ length: 3 }, () => '2026-09-05')
       ],
+      actualPrice: '140',
       totalValueNumber: 150,
       shippingFee: 10,
       collectStatus: '已拥有'
@@ -59,6 +62,27 @@ describe('useHomeTimeline', () => {
     expect(august.totalValueNumber).toBe(110)
     expect(september.totalValueNumber).toBe(40)
     expect(getTimelineDisplayTotal(august) + getTimelineDisplayTotal(september)).toBe(150)
+  })
+
+  it('attaches shipping to shippingEvents date month', () => {
+    const item = {
+      id: 'shipping-override',
+      quantity: 2,
+      acquiredAt: '2026-08-22',
+      unitAcquiredAtList: ['2026-08-22', '2026-09-05'],
+      actualPrice: '100',
+      totalValueNumber: 110,
+      shippingFee: '10',
+      shippingEvents: [{ date: '2026-08-22', fee: '10' }],
+      collectStatus: '已拥有'
+    }
+    const timeline = setupTimeline([item])
+    const months = timeline.allTimelineMonthList.value
+    const august = months.find((month) => month.yearMonth === '2026-08').items[0]
+    const september = months.find((month) => month.yearMonth === '2026-09').items[0]
+
+    expect(august.totalValueNumber).toBe(60)
+    expect(september.totalValueNumber).toBe(50)
   })
 
   it('orders a split-month restock entry by its own date within the month (desc)', () => {
@@ -86,14 +110,14 @@ describe('useHomeTimeline', () => {
     const august = months.find((m) => m.yearMonth === '2026-08')
     expect(september.count).toBe(4)
     expect(august.count).toBe(11)
-    // 逐件均摊 140 / 14 = 10：9 月 = 3 × 10 + 50 = 80，8 月 = 11 × 10 = 110
+    // 官方口径：逐件均摊 140 / 14 = 10：9 月 = 3 × 10 + 50 = 80，8 月 = 11 × 10 = 110
     expect(september.totalSpend).toBeCloseTo(80)
     expect(august.totalSpend).toBeCloseTo(110)
   })
 
   it('sorts within-month entries ascending when sortDirection is asc', () => {
-    const early = { id: 'c', name: '月初谷子', quantity: 1, acquiredAt: '2026-09-01', totalValueNumber: 10, collectStatus: '已拥有' }
-    const late = { id: 'd', name: '月末谷子', quantity: 1, acquiredAt: '2026-09-28', totalValueNumber: 10, collectStatus: '已拥有' }
+    const early = { id: 'c', name: '月初谷子', quantity: 1, acquiredAt: '2026-09-01', actualPrice: '10', totalValueNumber: 10, collectStatus: '已拥有' }
+    const late = { id: 'd', name: '月末谷子', quantity: 1, acquiredAt: '2026-09-28', actualPrice: '10', totalValueNumber: 10, collectStatus: '已拥有' }
 
     const timeline = setupTimeline([early, late], { sortDirection: 'asc' })
 
@@ -102,8 +126,8 @@ describe('useHomeTimeline', () => {
   })
 
   it('re-orders within-month entries even when list order comes from a non-date sort', () => {
-    const early = { id: 'c', name: 'A谷子', quantity: 1, acquiredAt: '2026-09-01', totalValueNumber: 10, collectStatus: '已拥有' }
-    const late = { id: 'd', name: 'Z谷子', quantity: 1, acquiredAt: '2026-09-28', totalValueNumber: 10, collectStatus: '已拥有' }
+    const early = { id: 'c', name: 'A谷子', quantity: 1, acquiredAt: '2026-09-01', actualPrice: '10', totalValueNumber: 10, collectStatus: '已拥有' }
+    const late = { id: 'd', name: 'Z谷子', quantity: 1, acquiredAt: '2026-09-28', actualPrice: '10', totalValueNumber: 10, collectStatus: '已拥有' }
 
     // 列表按名称排序时 d 在前，但时间线月内应按条目日期 desc
     const timeline = setupTimeline([late, early], { sortDirection: 'desc' })
@@ -131,6 +155,7 @@ describe('useHomeTimeline', () => {
       name: '一月谷子',
       quantity: 1,
       acquiredAt: '2025-01-10',
+      actualPrice: '10',
       totalValueNumber: 10,
       collectStatus: '已拥有'
     }
@@ -140,6 +165,7 @@ describe('useHomeTimeline', () => {
       quantity: 3,
       acquiredAt: '2025-01-20',
       unitAcquiredAtList: ['2025-01-20', '2025-01-21', '2025-02-10'],
+      actualPrice: '30',
       totalValueNumber: 30,
       collectStatus: '已拥有'
     }
@@ -156,6 +182,7 @@ describe('useHomeTimeline', () => {
       name: '一月谷子',
       quantity: 1,
       acquiredAt: '2025-01-10',
+      actualPrice: '10',
       totalValueNumber: 10,
       collectStatus: '已拥有'
     }
@@ -165,17 +192,19 @@ describe('useHomeTimeline', () => {
       quantity: 3,
       acquiredAt: '2025-01-20',
       unitAcquiredAtList: ['2025-01-20', '2025-01-21', '2025-02-10'],
+      actualPrice: '30',
       totalValueNumber: 30,
       collectStatus: '已拥有'
     }
     const timeline = setupTimeline([splitAcrossMonths, janOnly], { sortDirection: 'asc' })
 
     expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2025-01', '2025-02'])
+    expect(timeline.timelineYearGroups.value[0].months.map((m) => m.yearMonth)).toEqual(['2025-01', '2025-02'])
   })
 
   it('orders months across year boundaries (desc: newer year first)', () => {
-    const dec = { id: 'd', name: '12月', quantity: 1, acquiredAt: '2025-12-05', totalValueNumber: 1, collectStatus: '已拥有' }
-    const jan = { id: 'n', name: '1月', quantity: 1, acquiredAt: '2026-01-05', totalValueNumber: 1, collectStatus: '已拥有' }
+    const dec = { id: 'd', name: '12月', quantity: 1, acquiredAt: '2025-12-05', actualPrice: '1', totalValueNumber: 1, collectStatus: '已拥有' }
+    const jan = { id: 'n', name: '1月', quantity: 1, acquiredAt: '2026-01-05', actualPrice: '1', totalValueNumber: 1, collectStatus: '已拥有' }
     const timeline = setupTimeline([dec, jan], { sortDirection: 'desc' })
 
     expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2026-01', '2025-12'])

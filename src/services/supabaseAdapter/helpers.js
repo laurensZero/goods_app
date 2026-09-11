@@ -19,7 +19,7 @@ import i18n from '@/locales'
 
 // goods：业务字段。trashed 不在 push 白名单（由 toGoodsRows 的 isTrash 桶路由参数决定），
 // 但 pull 侧要读回分桶，归入 SELECT 的服务器生成列。
-export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline']
+export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline']
 export const GOODS_COLS = [...GOODS_BUSINESS_KEYS, 'syncedBy', 'userId']
 export const GOODS_SELECT_COLS = [...GOODS_BUSINESS_KEYS.map(camelToSnake), 'trashed', 'updated_at', 'user_id'].join(', ')
 

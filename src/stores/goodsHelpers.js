@@ -155,6 +155,31 @@ function normalizeSellDateValue(value) {
 }
 
 /**
+ * 多笔运费事件：[{ date: 'YYYY-MM-DD', fee: '4' }]。
+ * 无效日期/空运费的行丢弃；运费 0 保留（便于占位）。
+ */
+function normalizeShippingEvents(list) {
+  if (!Array.isArray(list)) return []
+  const normalized = []
+  for (const raw of list) {
+    if (!raw || typeof raw !== 'object') continue
+    const date = normalizeSellDateValue(raw.date)
+    if (!date) continue
+    const feeRaw = String(raw.fee ?? '').trim()
+    if (feeRaw === '') continue
+    const fee = Number(feeRaw)
+    // 0 元运费事件无意义，不落库
+    if (!Number.isFinite(fee) || fee <= 0) continue
+    normalized.push({ date, fee: String(Math.round(fee * 100) / 100) })
+  }
+  return normalized
+}
+
+function sumShippingEvents(events) {
+  return events.reduce((sum, e) => sum + (Number(e.fee) || 0), 0)
+}
+
+/**
  * 逐件出谷信息列表:每件 {price, platform, fee, date},含义由 unitCollectStatusList[i] 决定
  * (在售=挂牌信息,已出=成交信息)。空对象归一化为 null,尾部 null 裁剪。
  */
@@ -363,6 +388,11 @@ function normalizeGoodsInput(data, fallbackId = '') {
   const normalizedActualPrice = isWishlist
     ? ''
     : (resolvedUnitActualPriceTotal || normalizePriceValue(data.actualPrice))
+  const shippingEvents = isWishlist ? [] : normalizeShippingEvents(data.shippingEvents)
+  // 有运费事件时 shippingFee 合计覆盖手填值，保证 totalValueNumber 一致
+  const shippingFeeTotal = shippingEvents.length > 0
+    ? String(Math.round(sumShippingEvents(shippingEvents) * 100) / 100)
+    : String(data.shippingFee || '').trim()
 
   return {
     id: data.id || fallbackId,
@@ -397,7 +427,8 @@ function normalizeGoodsInput(data, fallbackId = '') {
     currency: String(data.currency || '').trim() || 'CNY',
     actualPriceCurrency: String(data.actualPriceCurrency || '').trim() || 'CNY',
     collectStatus: normalizeCollectStatus(data.collectStatus),
-    shippingFee: String(data.shippingFee || '').trim(),
+    shippingFee: shippingFeeTotal,
+    shippingEvents,
     // 出谷信息:含义由状态决定(在售=挂牌信息,已出=成交信息)
     sellPrice: isWishlist ? '' : normalizeUnitPriceValue(data.sellPrice),
     sellPlatform: isWishlist ? '' : String(data.sellPlatform || '').trim(),
@@ -434,6 +465,13 @@ function mergeGoodsRecord(existing, incoming) {
   const variant = getGoodsVariant(existing) || getGoodsVariant(incoming)
   const images = mergeGoodsImages(existing.images, incoming.images, existing.coverImage, incoming.coverImage)
   const mergedQuantity = Math.max(1, Number(existing.quantity) || 1) + Math.max(1, Number(incoming.quantity) || 1)
+  const mergedShippingEvents = normalizeShippingEvents([
+    ...(existing.shippingEvents || []),
+    ...(incoming.shippingEvents || [])
+  ])
+  const mergedShippingFee = mergedShippingEvents.length > 0
+    ? String(Math.round(sumShippingEvents(mergedShippingEvents) * 100) / 100)
+    : (existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee)
 
   return {
     ...existing,
@@ -474,7 +512,8 @@ function mergeGoodsRecord(existing, incoming) {
     images,
     note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
     collectStatus: existing.collectStatus || incoming.collectStatus,
-    shippingFee: existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee,
+    shippingFee: mergedShippingFee,
+    shippingEvents: mergedShippingEvents,
     sellPrice: existing.sellPrice || incoming.sellPrice || '',
     sellPlatform: existing.sellPlatform || incoming.sellPlatform || '',
     sellFee: existing.sellFee || incoming.sellFee || '',
