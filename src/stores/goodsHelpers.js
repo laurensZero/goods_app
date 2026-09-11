@@ -252,9 +252,23 @@ function normalizeStatusTimeline(list) {
       // 时间线是纯状态历史;卖出金额数据存 sell* 列,进入此处前已由 harvest 收割
       const result = { status, at }
       if (entry.note) result.note = String(entry.note).trim()
-      if (entry.unitIndex != null && Number.isInteger(entry.unitIndex)) result.unitIndex = entry.unitIndex
-      // 去重：相同 status + at + unitIndex + note 只保留一条
-      const key = `${result.status}|${result.at}|${result.unitIndex ?? ''}|${result.note ?? ''}`
+      if (entry.unitIndex != null && Number.isInteger(entry.unitIndex) && entry.unitIndex >= 0) {
+        result.unitIndex = entry.unitIndex
+      }
+      // 多件归属:升序去重的非负整数数组;与 legacy unitIndex 并存时以 unitIndexes 为准
+      if (Array.isArray(entry.unitIndexes)) {
+        const unitIndexes = [...new Set(
+          entry.unitIndexes
+            .map((n) => Number(n))
+            .filter((n) => Number.isInteger(n) && n >= 0)
+        )].sort((a, b) => a - b)
+        if (unitIndexes.length > 0) result.unitIndexes = unitIndexes
+      }
+      // 去重：相同 status + at + 归属集合 + note 只保留一条
+      const scopeKey = result.unitIndexes
+        ? result.unitIndexes.join(',')
+        : (result.unitIndex != null ? String(result.unitIndex) : '')
+      const key = `${result.status}|${result.at}|${scopeKey}|${result.note ?? ''}`
       if (seen.has(key)) return null
       seen.add(key)
       return result

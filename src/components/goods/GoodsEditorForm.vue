@@ -857,7 +857,13 @@
               </div>
 
               <div class="field-card">
-                <StatusTimelineEditor v-model="form.statusTimeline" :collect-status-options="collectStatusOptions" />
+                <StatusTimelineEditor
+                  v-model="form.statusTimeline"
+                  :collect-status-options="collectStatusOptions"
+                  :quantity="quantityNumber"
+                  :unit-acquired-at-list="form.unitAcquiredAtList"
+                  :unit-collect-status-list="form.unitCollectStatusList"
+                />
               </div>
               </section>
             </div>

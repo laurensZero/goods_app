@@ -6,29 +6,32 @@
     </div>
 
     <div class="timeline-card">
-      <div
-        v-for="(entry, index) in entries"
-        :key="`${entry.at}-${entry.status}-${index}`"
-        class="timeline-entry"
-        :class="{ 'timeline-entry--first': index === 0 }"
-      >
-        <div class="timeline-rail" aria-hidden="true">
-          <div :class="['timeline-dot', { 'timeline-dot--active': index === 0 }]" />
-          <div v-if="index < entries.length - 1" class="timeline-line" />
-        </div>
-        <div class="timeline-content">
-          <div class="timeline-header">
-            <span :class="['timeline-status', { 'timeline-status--active': index === 0 }]">
-              {{ getStatusLabel(entry.status) }}
-            </span>
-            <span v-if="entry.price" class="timeline-price">
-              ¥{{ entry.price }}{{ entry.status === '在售' ? ` ${t('sale.timelineListed')}` : entry.status === '已出' ? ` ${t('sale.timelineDealt')}` : '' }}
-            </span>
-            <span v-if="entry.platform" class="timeline-platform">{{ entry.platform }}</span>
-            <span class="timeline-date">{{ entry.at }}</span>
+      <!-- 多份且存在逐件条目:按件分组(整批 → 第1件 → …);单件/全整批时不带组头平铺 -->
+      <div v-for="section in renderSections" :key="section.key" class="timeline-group">
+        <p v-if="section.label" class="timeline-group__label">{{ section.label }}</p>
+        <div
+          v-for="(entry, index) in section.entries"
+          :key="`${section.key}-${entry.at}-${entry.status}-${index}`"
+          class="timeline-entry"
+        >
+          <div class="timeline-rail" aria-hidden="true">
+            <div :class="['timeline-dot', { 'timeline-dot--active': index === 0 }]" />
+            <div v-if="index < section.entries.length - 1" class="timeline-line" />
           </div>
-          <p v-if="entry.fee" class="timeline-note">{{ t('sale.fee') }} ¥{{ entry.fee }}</p>
-          <p v-if="entry.note" class="timeline-note">{{ entry.note }}</p>
+          <div class="timeline-content">
+            <div class="timeline-header">
+              <span :class="['timeline-status', { 'timeline-status--active': index === 0 }]">
+                {{ getStatusLabel(entry.status) }}
+              </span>
+              <span v-if="entry.price" class="timeline-price">
+                ¥{{ entry.price }}{{ entry.status === '在售' ? ` ${t('sale.timelineListed')}` : entry.status === '已出' ? ` ${t('sale.timelineDealt')}` : '' }}
+              </span>
+              <span v-if="entry.platform" class="timeline-platform">{{ entry.platform }}</span>
+              <span class="timeline-date">{{ entry.at }}</span>
+            </div>
+            <p v-if="entry.fee" class="timeline-note">{{ t('sale.fee') }} ¥{{ entry.fee }}</p>
+            <p v-if="entry.note" class="timeline-note">{{ entry.note }}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -39,6 +42,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { getStatusLabel } from '@/utils/goods/status'
+import { buildTimelineUnitSections } from '@/utils/goods/statusTimeline'
 
 const props = defineProps({
   timeline: {
@@ -52,6 +56,25 @@ const { t } = useI18n()
 const entries = computed(() => {
   if (!Array.isArray(props.timeline)) return []
   return [...props.timeline].reverse()
+})
+
+function sectionLabel(section) {
+  if (section.unitStart == null) return t('goods.detail.timelineAllUnits')
+  if (section.unitEnd == null || section.unitEnd === section.unitStart) {
+    return t('sale.unitLabel', { n: section.unitStart + 1 })
+  }
+  return t('goods.detail.timelineUnitRange', { a: section.unitStart + 1, b: section.unitEnd + 1 })
+}
+
+const renderSections = computed(() => {
+  const sections = buildTimelineUnitSections(props.timeline)
+  if (!sections) {
+    return [{ key: 'all', label: '', entries: entries.value }]
+  }
+  return sections.map((section) => ({
+    ...section,
+    label: sectionLabel(section)
+  }))
 })
 </script>
 
@@ -100,6 +123,17 @@ const entries = computed(() => {
 
 .timeline-entry:last-child {
   min-height: auto;
+}
+
+.timeline-group + .timeline-group {
+  margin-top: 16px;
+}
+
+.timeline-group__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+  margin: 0 0 8px;
 }
 
 .timeline-rail {

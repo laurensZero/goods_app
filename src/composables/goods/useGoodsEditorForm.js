@@ -16,7 +16,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
-import { alignSaleTimelineDates, computeEditedTimeline } from '@/utils/goods/statusTimeline'
+import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   ensureSaleReminderPermission,
@@ -489,51 +489,19 @@ export function useGoodsEditorForm(options = {}) {
     } else {
       // 新增时记录初始状态到时间线;用户已在时间线 Tab 手动添加过条目则完全尊重,不覆写
       const initialStatus = form.isWishlist ? '' : (form.collectStatus || '已拥有')
-      const hasUnitStatuses = Array.isArray(form.unitCollectStatusList) && form.unitCollectStatusList.length > 0
       const timelineEditedByUser = Array.isArray(form.statusTimeline) && form.statusTimeline.length > 0
       if (initialStatus && !timelineEditedByUser) {
-        if (hasUnitStatuses) {
-          // 有逐份状态时：只记录一条汇总时间线，逐份持有天数由 unitAcquiredAtList 独立计算
-          const timelineDate = form.acquiredAt || getToday()
-          form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
-        } else if (quantityNumber.value >= 2) {
-          // 多份无逐份状态：逐份购入日期生成时间线条目
-          const unitDates = Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : []
-          const validUnitDates = unitDates
-            .map((d, i) => {
-              const date = String(d || '').trim()
-              return /^\d{4}-\d{2}-\d{2}$/.test(date) ? { date, index: i } : null
-            })
-            .filter(Boolean)
-
-          if (validUnitDates.length > 0) {
-            // 所有逐份日期相同 → 只建一条汇总记录
-            const allSameDate = validUnitDates.every((d) => d.date === validUnitDates[0].date)
-            if (allSameDate) {
-              form.statusTimeline = [{ status: initialStatus, at: validUnitDates[0].date }]
-            } else {
-              form.statusTimeline = validUnitDates
-                .map(({ date, index: i }) => ({
-                  status: initialStatus,
-                  at: date,
-                  unitIndex: i
-                }))
-                .sort((a, b) => a.at.localeCompare(b.at))
-            }
-
-            if (validUnitDates.length < quantityNumber.value) {
-              const timelineDate = form.acquiredAt || getToday()
-              form.statusTimeline.push({ status: initialStatus, at: timelineDate })
-              form.statusTimeline.sort((a, b) => a.at.localeCompare(b.at))
-            }
-          } else {
-            const timelineDate = form.acquiredAt || getToday()
-            form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
-          }
+        const fallbackDate = form.acquiredAt || getToday()
+        if (quantityNumber.value >= 2) {
+          // 多份:同一天下单的件归为一条多件条目(如第 1-11 件 / 第 12-14 件);
+          // 有逐份状态也一样先记购入史,卖出/挂牌由随后的 alignSaleTimelineDates 补
+          form.statusTimeline = buildAcquisitionTimelineEntries({
+            status: initialStatus,
+            unitDates: Array.isArray(form.unitAcquiredAtList) ? form.unitAcquiredAtList : [],
+            fallbackDate
+          })
         } else {
-          // 单份无逐份状态：直接使用购入日期
-          const timelineDate = form.acquiredAt || getToday()
-          form.statusTimeline = [{ status: initialStatus, at: timelineDate }]
+          form.statusTimeline = [{ status: initialStatus, at: fallbackDate }]
         }
       }
       // 新增即出谷的场景:出谷日期对齐时间线条目

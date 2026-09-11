@@ -16,7 +16,8 @@ import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/
 import {
   applyAcquiredAtToTimeline,
   bootstrapAcquisitionStatus,
-  ensureInitialTimeline
+  ensureInitialTimeline,
+  maintainTimelineOnGoodsUpdate
 } from '@/utils/goods/statusTimeline'
 
 /**
@@ -103,9 +104,11 @@ export async function updateGoods(id, data, list, onMutate) {
   const idx = list.value.findIndex((item) => item.id === id)
   if (idx === -1) return null
 
-  const imagesExplicit = Array.isArray(data?.images)
   const previous = list.value[idx]
-  const next = normalizeGoodsInput({ ...previous, ...data, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
+  // 编辑器会显式传入算好的 statusTimeline;MCP/AI 只改字段时由 maintainTimelineOnGoodsUpdate 补齐
+  const timelineAware = maintainTimelineOnGoodsUpdate(previous, data)
+  const imagesExplicit = Array.isArray(timelineAware?.images)
+  const next = normalizeGoodsInput({ ...previous, ...timelineAware, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
   const removedPaths = diffRemovedManagedImagePaths(previous, next)
   list.value[idx] = next
   triggerRef(list)

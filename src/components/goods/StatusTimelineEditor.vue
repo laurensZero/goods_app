@@ -26,19 +26,75 @@
             >
               {{ entry.at || t('common.selectDate') }}
             </button>
-            <span v-if="entry.unitIndex != null" class="timeline-item__unit-tag">
-              {{ t('sale.unitLabel', { n: entry.unitIndex + 1 }) }}
-            </span>
           </div>
-          <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
-               Android WebView 下有中断中文输入法组合(吞字)的风险 -->
-          <input
-            type="text"
-            :value="entry.note || ''"
-            class="timeline-item__note"
-            :placeholder="t('goods.editor.timelineNotePlaceholder')"
-            @change="updateEntry(index, 'note', $event.target.value)"
-          />
+          <div class="timeline-item__row">
+            <button
+              v-if="showUnitSelect"
+              type="button"
+              class="timeline-item__unit-btn"
+              @click="toggleUnitPanel(index)"
+            >
+              {{ entryScopeLabel(entry) }}
+            </button>
+            <!-- 用 change 而非 input:逐键 emit 会触发整表 deep watch 重建,
+                 Android WebView 下有中断中文输入法组合(吞字)的风险 -->
+            <input
+              type="text"
+              :value="entry.note || ''"
+              class="timeline-item__note"
+              :class="{ 'timeline-item__note--flex': showUnitSelect }"
+              :placeholder="t('goods.editor.timelineNotePlaceholder')"
+              @change="updateEntry(index, 'note', $event.target.value)"
+            />
+          </div>
+
+          <div v-if="showUnitSelect && activeUnitIndex === index" class="unit-panel">
+            <div class="unit-panel__actions">
+              <button type="button" class="unit-panel__chip" @click="selectWholeLot(index)">
+                {{ t('goods.detail.timelineAllUnits') }}
+              </button>
+              <button type="button" class="unit-panel__chip" @click="selectAllUnits(index)">
+                {{ t('common.selectAll') }}
+              </button>
+              <button type="button" class="unit-panel__chip unit-panel__chip--ghost" @click="activeUnitIndex = -1">
+                {{ t('common.done') }}
+              </button>
+            </div>
+
+            <!-- 同日且同状态的件自动归批,一键套用;状态已分叉的组不会出现 -->
+            <div v-if="datePresets.length > 0" class="unit-panel__presets">
+              <button
+                v-for="preset in datePresets"
+                :key="`${preset.date}-${preset.status}-${preset.units[0]}`"
+                type="button"
+                class="unit-panel__preset"
+                @click="applyDatePreset(index, preset.units)"
+              >
+                <span class="unit-panel__preset-label">{{ scopeLabelForUnits(preset.units) }}</span>
+                <span class="unit-panel__preset-meta">
+                  <span v-if="preset.status" class="unit-panel__preset-status">{{ preset.status }}</span>
+                  <span class="unit-panel__preset-date">{{ preset.date }}</span>
+                </span>
+              </button>
+            </div>
+
+            <div class="unit-panel__grid">
+              <label
+                v-for="n in quantityNumber"
+                :key="`unit-check-${n}`"
+                class="unit-panel__item"
+                :class="{ 'unit-panel__item--on': isUnitChecked(entry, n - 1) }"
+              >
+                <input
+                  type="checkbox"
+                  class="unit-panel__checkbox"
+                  :checked="isUnitChecked(entry, n - 1)"
+                  @change="toggleUnit(index, n - 1)"
+                />
+                <span>{{ t('sale.unitLabel', { n }) }}</span>
+              </label>
+            </div>
+          </div>
         </div>
         <button
           type="button"
@@ -74,10 +130,11 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatDate } from '@/utils/format'
 import { useTabletViewport } from '@/composables/useTabletViewport'
+import { getEntryUnitIndexes, makeUnitScopeFields } from '@/utils/goods/statusTimeline'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 
@@ -87,6 +144,18 @@ const props = defineProps({
     default: () => []
   },
   collectStatusOptions: {
+    type: Array,
+    default: () => []
+  },
+  quantity: {
+    type: Number,
+    default: 1
+  },
+  unitAcquiredAtList: {
+    type: Array,
+    default: () => []
+  },
+  unitCollectStatusList: {
     type: Array,
     default: () => []
   }
@@ -100,11 +169,51 @@ const { isTabletViewport } = useTabletViewport()
 const showDatePicker = ref(false)
 const datePickerValue = ref([])
 const activeDateIndex = ref(-1)
+const activeUnitIndex = ref(-1)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
 
 // 按日期排序的条目（仅用于渲染，不直接修改原始数据）
 const entries = ref([])
+
+const quantityNumber = computed(() => Math.max(1, Number(props.quantity) || 1))
+const showUnitSelect = computed(() => quantityNumber.value >= 2)
+
+// 同日且同当前状态的件才归为快捷预设——两件购入日相同但状态已分叉(如一件已赠出)
+// 时不能提示「第 1-2 件」,否则一键套用会把历史状态写到不该覆盖的件上
+const datePresets = computed(() => {
+  if (!showUnitSelect.value) return []
+  const dates = Array.isArray(props.unitAcquiredAtList) ? props.unitAcquiredAtList : []
+  const statuses = Array.isArray(props.unitCollectStatusList) ? props.unitCollectStatusList : []
+  /** @type {Map<string, { date: string, status: string, units: number[] }>} */
+  const byBatch = new Map()
+  for (let i = 0; i < quantityNumber.value; i++) {
+    const date = String(dates[i] || '').trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue
+    const status = String(statuses[i] || '').trim()
+    const key = `${date}|${status}`
+    if (!byBatch.has(key)) byBatch.set(key, { date, status, units: [] })
+    byBatch.get(key).units.push(i)
+  }
+  return [...byBatch.values()]
+    .filter((batch) => batch.units.length >= 2)
+    .sort((a, b) => a.date.localeCompare(b.date) || a.status.localeCompare(b.status))
+})
+
+function scopeLabelForUnits(units) {
+  const sorted = [...new Set(units)].sort((a, b) => a - b)
+  if (sorted.length === 0) return t('goods.detail.timelineAllUnits')
+  if (sorted.length === 1) return t('sale.unitLabel', { n: sorted[0] + 1 })
+  const consecutive = sorted[sorted.length - 1] - sorted[0] === sorted.length - 1
+  if (consecutive) {
+    return t('goods.detail.timelineUnitRange', { a: sorted[0] + 1, b: sorted[sorted.length - 1] + 1 })
+  }
+  return sorted.map((u) => t('sale.unitLabel', { n: u + 1 })).join('、')
+}
+
+function entryScopeLabel(entry) {
+  return scopeLabelForUnits(getEntryUnitIndexes(entry) || [])
+}
 
 // 从 modelValue 初始化并排序
 function syncEntries() {
@@ -113,7 +222,11 @@ function syncEntries() {
 }
 
 // 监听 modelValue 变化
-watch(() => props.modelValue, syncEntries, { immediate: true, deep: true })
+watch(() => props.modelValue, () => {
+  syncEntries()
+  // 条目被外部移除时收起归属面板,避免悬空索引
+  if (activeUnitIndex.value >= entries.value.length) activeUnitIndex.value = -1
+}, { immediate: true, deep: true })
 
 function toDatePickerValue(dateString) {
   const normalized = String(dateString || '').trim()
@@ -135,6 +248,7 @@ function fromDatePickerValue(values) {
 
 function openDatePicker(index) {
   activeDateIndex.value = index
+  activeUnitIndex.value = -1
   const entry = entries.value[index]
   datePickerValue.value = toDatePickerValue(entry?.at)
   showDatePicker.value = true
@@ -178,10 +292,58 @@ function updateEntry(index, field, value) {
   emit('update:modelValue', sorted)
 }
 
+function toggleUnitPanel(index) {
+  activeUnitIndex.value = activeUnitIndex.value === index ? -1 : index
+}
+
+function applyEntryScope(index, units) {
+  const sorted = [...entries.value]
+  const entry = sorted[index]
+  if (!entry) return
+  const { unitIndex, unitIndexes } = makeUnitScopeFields(units)
+  const updated = { ...entry }
+  delete updated.unitIndex
+  delete updated.unitIndexes
+  if (unitIndex != null) updated.unitIndex = unitIndex
+  if (unitIndexes) updated.unitIndexes = unitIndexes
+  sorted[index] = updated
+  emit('update:modelValue', sorted)
+}
+
+function isUnitChecked(entry, unitIndex) {
+  const scope = getEntryUnitIndexes(entry)
+  return scope !== null && scope.includes(unitIndex)
+}
+
+function toggleUnit(index, unitIndex) {
+  const entry = entries.value[index]
+  if (!entry) return
+  const current = getEntryUnitIndexes(entry) || []
+  const next = current.includes(unitIndex)
+    ? current.filter((u) => u !== unitIndex)
+    : [...current, unitIndex]
+  applyEntryScope(index, next)
+}
+
+function selectAllUnits(index) {
+  applyEntryScope(index, Array.from({ length: quantityNumber.value }, (_, i) => i))
+}
+
+function selectWholeLot(index) {
+  applyEntryScope(index, [])
+  activeUnitIndex.value = -1
+}
+
+function applyDatePreset(index, units) {
+  applyEntryScope(index, units)
+  activeUnitIndex.value = -1
+}
+
 function removeEntry(index) {
   const sorted = [...entries.value]
   sorted.splice(index, 1)
   emit('update:modelValue', sorted)
+  if (activeUnitIndex.value === index) activeUnitIndex.value = -1
 }
 
 function addEntry() {
@@ -263,6 +425,28 @@ function addEntry() {
   border-color: var(--app-primary);
 }
 
+.timeline-item__unit-btn {
+  min-width: 96px;
+  max-width: 140px;
+  padding: 8px 10px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.timeline-item__unit-btn:hover,
+.timeline-item__unit-btn:focus-visible {
+  border-color: var(--app-primary);
+}
+
 .timeline-item__note {
   width: 100%;
   padding: 8px 10px;
@@ -274,69 +458,129 @@ function addEntry() {
   outline: none;
 }
 
+.timeline-item__note--flex {
+  flex: 1;
+  min-width: 0;
+  width: auto;
+}
+
 .timeline-item__note:focus {
   border-color: var(--app-primary);
 }
 
-.timeline-item__sale {
+.unit-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--app-primary) 28%, var(--app-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-primary) 4%, var(--app-surface));
+}
+
+.unit-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.unit-panel__chip {
+  padding: 5px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.unit-panel__chip:hover {
+  border-color: var(--app-primary);
+  color: var(--app-primary);
+}
+
+.unit-panel__chip--ghost {
+  margin-left: auto;
+}
+
+.unit-panel__presets {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unit-panel__preset {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-}
-
-.timeline-item__sale-text {
-  font-size: 12px;
-  color: var(--app-text-tertiary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.timeline-item__sale-clear {
-  border: none;
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px dashed color-mix(in srgb, var(--app-primary) 40%, var(--app-border));
+  border-radius: 8px;
   background: transparent;
-  color: var(--app-danger, #dc2626);
+  color: var(--app-text);
   font-size: 12px;
   cursor: pointer;
-  padding: 0;
-  flex-shrink: 0;
 }
 
-.timeline-item__unit-tag {
-  align-self: center;
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--app-text-tertiary);
-  border: 1px solid var(--app-border);
-  padding: 2px 8px;
-  border-radius: 999px;
+.unit-panel__preset:hover {
+  background: color-mix(in srgb, var(--app-primary) 8%, transparent);
+}
+
+.unit-panel__preset-label {
+  font-weight: 600;
+  color: var(--app-primary);
+}
+
+.unit-panel__preset-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.unit-panel__preset-status {
+  color: var(--app-text-secondary);
   white-space: nowrap;
 }
 
-.timeline-item__sale-fields {
-  display: flex;
+.unit-panel__preset-date {
+  color: var(--app-text-tertiary);
+}
+
+.unit-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 6px;
+  max-height: 160px;
+  overflow-y: auto;
 }
 
-.timeline-item__sale-input {
-  flex: 1;
-  min-width: 0;
-  padding: 8px 10px;
+.unit-panel__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--app-surface);
-  color: var(--app-text);
-  font-size: 13px;
-  outline: none;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  cursor: pointer;
 }
 
-.timeline-item__sale-input:focus {
+.unit-panel__item--on {
   border-color: var(--app-primary);
+  color: var(--app-primary);
+  background: color-mix(in srgb, var(--app-primary) 8%, var(--app-surface));
 }
 
-.timeline-item__sale-input::placeholder {
-  color: var(--app-placeholder);
+.unit-panel__checkbox {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--app-primary);
+  flex-shrink: 0;
 }
 
 .timeline-item__delete {
