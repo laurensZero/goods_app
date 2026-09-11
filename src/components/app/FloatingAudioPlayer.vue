@@ -679,7 +679,8 @@ onBeforeUnmount(() => {
   right: 12px;
   bottom: max(12px, env(safe-area-inset-bottom));
   width: min(calc(100vw - 24px), 280px);
-  z-index: 90;
+  /* 盖过 Vant Popup 默认 2000（AI 助手弹窗等），保证试听时浮窗仍可操作 */
+  z-index: 2200;
 }
 
 .floating-player__surface {

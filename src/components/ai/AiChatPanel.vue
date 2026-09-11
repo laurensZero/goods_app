@@ -139,19 +139,62 @@
             v-html="getRenderedMarkdown(msg)"
           />
           <p v-else-if="msg.content" class="chat-text">{{ getMessageText(msg) }}</p>
-          <!-- ask_user：选项一行一个，也可手动输入答案 -->
+          <!-- ask_user：选项一行一个，可试听；也可手动输入答案 -->
           <div v-if="msg.role === 'assistant' && msg.pendingAsk" class="chat-ask">
             <p class="chat-ask__question">{{ msg.pendingAsk.question }}</p>
             <div v-if="msg.pendingAsk.options?.length" class="chat-ask__options">
-              <button
+              <div
                 v-for="option in msg.pendingAsk.options"
-                :key="option"
-                type="button"
-                class="chat-ask__option"
-                @click="aiChat.answerAskUser(option)"
+                :key="option.label"
+                class="chat-ask__option-row"
               >
-                {{ option }}
-              </button>
+                <button
+                  type="button"
+                  class="chat-ask__option"
+                  @click="aiChat.answerAskUser(option.label)"
+                >
+                  {{ option.label }}
+                </button>
+                <button
+                  v-if="canPreviewAskOption(option)"
+                  :class="[
+                    'chat-ask__play',
+                    {
+                      'chat-ask__play--active': isAskPreviewActive(option),
+                      'chat-ask__play--playing': isAskPreviewPlaying(option)
+                    }
+                  ]"
+                  type="button"
+                  :disabled="askPreviewBusy === previewKeyOf(option)"
+                  :aria-label="isAskPreviewPlaying(option) ? t('aiChat.askPreviewPause') : t('aiChat.askPreviewPlay')"
+                  :title="isAskPreviewPlaying(option) ? t('aiChat.askPreviewPause') : t('aiChat.askPreviewPlay')"
+                  @click="playAskPreview(option)"
+                >
+                  <svg
+                    v-if="askPreviewBusy === previewKeyOf(option)"
+                    class="chat-ask__play-spinner"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.4"
+                    stroke-linecap="round"
+                  >
+                    <path d="M12 3a9 9 0 1 0 9 9" />
+                  </svg>
+                  <svg
+                    v-else-if="isAskPreviewPlaying(option)"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="none"
+                  >
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                    <path d="M8 5.14v13.72a1 1 0 0 0 1.5.86l11-6.86a1 1 0 0 0 0-1.72l-11-6.86a1 1 0 0 0-1.5.86z" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div class="chat-ask__manual">
               <input
@@ -204,7 +247,21 @@
       <!-- 排队中的消息：半透明气泡挂在当前回复下方（仿 Codex），↵ 立即打断并发送 -->
       <div v-if="aiChat.sendQueue.length > 0" class="chat-queue">
         <div v-for="item in aiChat.sendQueue" :key="item.id" class="chat-queue__item">
-          <div class="chat-queue__bubble">{{ item.content }}</div>
+          <div class="chat-queue__bubble">
+            <span class="chat-queue__text">{{ item.content }}</span>
+            <span v-if="item.attachments?.length" class="chat-queue__att" :title="t('aiChat.queuedWithAttachments')">
+              <svg v-if="item.attachments[0]?.type === 'table'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <path d="M21 15l-5-5L5 21" />
+              </svg>
+              {{ item.attachments.length }}
+            </span>
+          </div>
           <button
             class="chat-queue__send"
             type="button"
@@ -312,18 +369,44 @@
           @input="autoGrow"
           @keydown.enter="handleEnterKey"
         />
-        <!-- 流式生成中：发送键变为停止键；否则正常发送（有内容或有附件时可点） -->
-        <button
-          v-if="aiChat.sending"
-          class="chat-compose__send chat-compose__send--stop"
-          type="button"
-          :aria-label="t('aiChat.stopGeneration')"
-          @click="aiChat.stopStreaming()"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
-            <rect x="7" y="7" width="10" height="10" rx="1.5" />
-          </svg>
-        </button>
+        <!-- 流式中：有内容时可继续发送入队（触屏也能排队）；无内容时只保留停止键 -->
+        <template v-if="aiChat.sending">
+          <button
+            v-if="!canQueueSend"
+            class="chat-compose__send chat-compose__send--stop"
+            type="button"
+            :aria-label="t('aiChat.stopGeneration')"
+            @click="aiChat.stopStreaming()"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+              <rect x="7" y="7" width="10" height="10" rx="1.5" />
+            </svg>
+          </button>
+          <template v-else>
+            <button
+              class="chat-compose__send chat-compose__send--stop"
+              type="button"
+              :aria-label="t('aiChat.stopGeneration')"
+              @click="aiChat.stopStreaming()"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <rect x="7" y="7" width="10" height="10" rx="1.5" />
+              </svg>
+            </button>
+            <button
+              class="chat-compose__send chat-compose__send--queue"
+              type="button"
+              :aria-label="t('aiChat.sendQueued')"
+              :title="t('aiChat.sendQueued')"
+              @click="send"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5" />
+                <path d="M5 12l7-7 7 7" />
+              </svg>
+            </button>
+          </template>
+        </template>
         <button
           v-else
           class="chat-compose__send"
@@ -489,9 +572,10 @@ import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useAiChatStore } from '@/stores/aiChat'
+import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { normalizeBaseUrl } from '@/services/ai/chatClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
-import { parseJumpHref } from '@/utils/ai/jumpLinks'
+import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
 import { isTableFilename } from '@/utils/table/parseTable'
 
@@ -505,6 +589,7 @@ defineOptions({ name: 'AiChatPanel' })
 const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const aiChat = useAiChatStore()
+const playerStore = useMediaPlayerStore()
 
 const inputText = ref('')
 const inputRef = ref(null)
@@ -513,6 +598,8 @@ const showSettings = ref(false)
 const showHistory = ref(false)
 const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '' })
 const maxAttachments = MAX_ATTACHMENTS
+/** 流式中输入区是否已有可入队内容（文字或附件） */
+const canQueueSend = computed(() => Boolean(inputText.value.trim()) || aiChat.attachments.length > 0)
 const attachMenuOpen = ref(false)
 const tableFileInputRef = ref(null)
 /** 正在撤回中的消息 id */
@@ -768,7 +855,15 @@ function onMarkdownClick(event) {
 
   const anchor = target.closest('a')
   if (!anchor) return
-  const jump = parseJumpHref(anchor.getAttribute('href') || '')
+  const href = anchor.getAttribute('href') || ''
+  // 试听链接：app://play_music/<source>/<id>，点一下直接播，不跳路由
+  const musicPreview = parseMusicPreviewHref(href)
+  if (musicPreview) {
+    event.preventDefault()
+    void playMusicPreviewHref(musicPreview.source, musicPreview.id, anchor.textContent || '')
+    return
+  }
+  const jump = parseJumpHref(href)
   if (!jump) return
   event.preventDefault()
   router.push(jump).catch(() => {
@@ -838,6 +933,167 @@ function submitAskManual(msg) {
   if (!text || !msg?.pendingAsk) return
   askDraft.value = ''
   aiChat.answerAskUser(text)
+}
+
+/** 正在拉起试听的选项 key（用于转圈反馈） */
+const askPreviewBusy = ref('')
+
+/** 音源展示名：出现在「歌名 · 歌手 · 音源 · 时长」里，解析时丢弃 */
+const PREVIEW_SOURCE_LABELS = new Set([
+  '网易云', '网易', 'netease',
+  'QQ', 'qq', 'QQ音乐', 'qq音乐',
+  'B站', 'bilibili', 'Bilibili',
+  'manual', '手动'
+])
+
+/**
+ * 把试听文案拆成 title/artist：兼容 AI 把「歌名 · 歌手 · 音源 · 时长」整段塞进 title 的情况。
+ * @param {string} rawTitle
+ * @param {string} [rawArtist]
+ */
+function normalizePreviewTrackMeta(rawTitle, rawArtist = '') {
+  let title = String(rawTitle || '').replace(/^▶\s*/, '').trim()
+  let artist = String(rawArtist || '').trim()
+  if (!title) return { title: '', artist: '' }
+  const isNoise = (/** @type {string} */ part) =>
+    PREVIEW_SOURCE_LABELS.has(part)
+    || /^\d{1,2}:\d{2}(:\d{2})?$/.test(part)
+    || /^\d+\s*ms$/i.test(part)
+
+  if (!artist && /[·•]/.test(title)) {
+    const parts = title.split(/[·•]/).map((p) => p.trim()).filter(Boolean)
+    if (parts.length >= 2) {
+      title = parts[0]
+      artist = parts.slice(1).find((p) => !isNoise(p)) || ''
+    }
+  }
+  return { title, artist }
+}
+
+/**
+ * 选项是否有可在线试听的音源 id。
+ * @param {any} option
+ */
+function canPreviewAskOption(option) {
+  if (!option || typeof option !== 'object') return false
+  return Boolean(
+    String(option.neteaseSongId || '').trim()
+    || String(option.qqSongId || '').trim()
+    || String(option.bilibiliVideoId || '').trim()
+  )
+}
+
+/**
+ * @param {any} option
+ */
+function previewKeyOf(option) {
+  if (!option || typeof option !== 'object') return ''
+  return String(
+    option.neteaseSongId || option.qqSongId || option.bilibiliVideoId || option.label || ''
+  ).trim()
+}
+
+/** 该选项是否正在播放器里播放/加载 */
+function isAskPreviewActive(option) {
+  const key = previewKeyOf(option)
+  return Boolean(key) && String(playerStore.currentTrackId || '') === key
+}
+
+/** 正在播放的选项：按钮显示暂停 */
+function isAskPreviewPlaying(option) {
+  return isAskPreviewActive(option) && Boolean(playerStore.isPlaying)
+}
+
+/**
+ * 试听 ask_user 选项：用选中候选的音源 id 直接拉起应用内播放器（不写库）。
+ * 已在播的同一首 → 暂停/继续。
+ * @param {any} option
+ */
+async function playAskPreview(option) {
+  if (!canPreviewAskOption(option)) return
+  const key = previewKeyOf(option)
+  if (!key || askPreviewBusy.value === key) return
+
+  // 当前已在播这一首：点按钮切换暂停/继续
+  if (isAskPreviewActive(option)) {
+    try {
+      await playerStore.toggleTrackPlayback(playerStore.currentTrack || { id: key })
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : String(e))
+    }
+    return
+  }
+
+  askPreviewBusy.value = key
+  try {
+    const neteaseSongId = String(option.neteaseSongId || '').trim()
+    const qqSongId = String(option.qqSongId || '').trim()
+    const bilibiliVideoId = String(option.bilibiliVideoId || '').trim()
+    const source =
+      String(option.source || '').trim()
+      || (neteaseSongId ? 'netease' : qqSongId ? 'qq' : bilibiliVideoId ? 'bilibili' : '')
+    const meta = normalizePreviewTrackMeta(
+      String(option.title || '').trim() || String(option.label || '').trim(),
+      String(option.artist || '').trim()
+    )
+    const track = {
+      id: key,
+      title: meta.title || key,
+      artist: meta.artist,
+      album: String(option.album || '').trim(),
+      coverUrl: String(option.coverUrl || '').trim(),
+      durationMs: Math.max(0, Number(option.durationMs) || 0),
+      source,
+      neteaseSongId,
+      qqSongId,
+      bilibiliVideoId
+    }
+    // 超时兜底：网络卡住时不要让按钮永远停在禁用/灰态
+    await Promise.race([
+      playerStore.playTrack(track),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('试听加载超时，请稍后重试')), 20000)
+      })
+    ])
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : String(e))
+  } finally {
+    askPreviewBusy.value = ''
+  }
+}
+
+/**
+ * 回复正文里的试听链接 app://play_music/<source>/<id>。
+ * @param {'netease' | 'qq' | 'bilibili'} source
+ * @param {string} id
+ * @param {string} label 链接文案，可含「歌名 · 歌手」等
+ */
+async function playMusicPreviewHref(source, id, label) {
+  const trackId = String(id || '').trim()
+  const src = String(source || '').trim()
+  if (!trackId || !src) return
+  const meta = normalizePreviewTrackMeta(label, '')
+  try {
+    await Promise.race([
+      playerStore.playTrack({
+        id: trackId,
+        title: meta.title || trackId,
+        artist: meta.artist,
+        album: '',
+        coverUrl: '',
+        durationMs: 0,
+        source: src,
+        neteaseSongId: src === 'netease' ? trackId : '',
+        qqSongId: src === 'qq' ? trackId : '',
+        bilibiliVideoId: src === 'bilibili' ? trackId : ''
+      }),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('试听加载超时，请稍后重试')), 20000)
+      })
+    ])
+  } catch (e) {
+    showToast(e instanceof Error ? e.message : String(e))
+  }
 }
 
 /**
@@ -1019,6 +1275,12 @@ function removeSession(id) {
 
 /* 空状态：内容垂直居中；有消息后从顶部排列 */
 .chat-area:not(.chat-area--filled) {
+  justify-content: center;
+}
+
+/* 空态时让消息列撑满可用高度并居中，避免整块内容偏下 */
+.chat-area:not(.chat-area--filled) .chat-messages {
+  flex: 1;
   justify-content: center;
 }
 
@@ -1323,8 +1585,15 @@ function removeSession(id) {
   gap: 6px;
 }
 
+.chat-ask__option-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
 .chat-ask__option {
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
   border-radius: 10px;
@@ -1343,6 +1612,58 @@ function removeSession(id) {
 
 .chat-ask__option:active {
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+/* 试听键：与选项等高，仅在有音源 id 时出现 */
+.chat-ask__play {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-text) 4%, transparent);
+  color: var(--app-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+
+.chat-ask__play svg {
+  width: 16px;
+  height: 16px;
+}
+
+.chat-ask__play:not(:disabled):hover,
+.chat-ask__play:not(:disabled):active {
+  border-color: color-mix(in srgb, var(--app-text) 28%, transparent);
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
+  color: var(--app-text);
+}
+
+.chat-ask__play:not(:disabled):active {
+  transform: scale(0.94);
+}
+
+.chat-ask__play:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* 正在试听：深色高亮，区分未播放的灰三角 */
+.chat-ask__play--active {
+  border-color: color-mix(in srgb, var(--app-text) 35%, transparent);
+  background: var(--app-text);
+  color: var(--app-surface);
+  opacity: 1;
+}
+
+.chat-ask__play--playing {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-text) 12%, transparent);
+}
+
+.chat-ask__play-spinner {
+  animation: spin 0.7s linear infinite;
 }
 
 .chat-ask__manual {
@@ -1766,7 +2087,7 @@ function removeSession(id) {
 
 .chat-compose__row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 2px;
   min-height: 44px;
 }
@@ -1778,7 +2099,7 @@ function removeSession(id) {
   justify-content: center;
   width: 40px;
   height: 40px;
-  margin: 0 0 2px 2px;
+  margin: 0 0 0 2px;
   border: none;
   border-radius: 50%;
   background: transparent;
@@ -1911,7 +2232,7 @@ function removeSession(id) {
   resize: none;
   overflow-y: hidden;
   max-height: 120px;
-  padding: 10px 6px;
+  padding: 0 6px;
   border: none;
   background: transparent;
   color: var(--app-text);
@@ -1919,6 +2240,22 @@ function removeSession(id) {
   line-height: 1.45;
   font-family: inherit;
   outline: none;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+/* 空输入：占位左对齐，单行在输入框内垂直居中 */
+.chat-compose__input:placeholder-shown {
+  padding-top: 0;
+  padding-bottom: 0;
+  line-height: 36px;
+}
+
+/* 有内容：恢复正常上下内边距，多行滚动 */
+.chat-compose__input:not(:placeholder-shown) {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  line-height: 1.45;
 }
 
 .chat-compose__input::-webkit-scrollbar {
@@ -1936,7 +2273,7 @@ function removeSession(id) {
   justify-content: center;
   width: 36px;
   height: 36px;
-  margin: 0 2px 3px 0;
+  margin: 0 2px 0 0;
   border: none;
   border-radius: 50%;
   background: #141416;
@@ -1976,6 +2313,15 @@ function removeSession(id) {
   stroke: none;
 }
 
+/* 流式中继续排队发送：蓝色区分于停止键 */
+.chat-compose__send--queue {
+  background: #3b82f6;
+}
+
+.chat-compose__send--queue:active {
+  transform: scale(0.92);
+}
+
 .chat-compose__spinner {
   animation: spin 0.7s linear infinite;
 }
@@ -1999,6 +2345,10 @@ function removeSession(id) {
 }
 
 .chat-queue__bubble {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
   padding: 10px 14px;
   border-radius: 18px 18px 4px 18px;
   background: color-mix(in srgb, var(--app-text) 10%, transparent);
@@ -2006,13 +2356,35 @@ function removeSession(id) {
   font-size: 14px;
   line-height: 1.45;
   opacity: 0.55;
+  /* 最多 4 行，超出省略 */
+}
+
+.chat-queue__text {
   white-space: pre-wrap;
   word-break: break-word;
-  /* 最多 4 行，超出省略 */
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-width: 0;
+}
+
+.chat-queue__att {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 12%, transparent);
+  font-size: 11px;
+  color: var(--app-text-secondary);
+}
+
+.chat-queue__att svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 .chat-queue__send {

@@ -42,6 +42,132 @@ const MAX_CONVO_MESSAGES = 80
 const MAX_ATTACHMENTS = 3
 
 /**
+ * @typedef {Object} AskUserOption
+ * @property {string} label 用户点选后返回给模型的文案
+ * @property {string} [title]
+ * @property {string} [artist]
+ * @property {string} [album]
+ * @property {string} [coverUrl]
+ * @property {number} [durationMs]
+ * @property {string} [source]
+ * @property {string} [neteaseSongId]
+ * @property {string} [qqSongId]
+ * @property {string} [bilibiliVideoId]
+ */
+
+/**
+ * 规范化 ask_user 选项：兼容字符串与结构化对象（后者可带试听元数据）。
+ * 字段别名：songId/id/mid/videoId/bv 等按 source 归到标准音源 id。
+ * @param {unknown} raw
+ * @returns {AskUserOption | null}
+ */
+export function normalizeAskUserOption(raw) {
+  if (typeof raw === 'string') {
+    const label = raw.trim()
+    return label ? { label } : null
+  }
+  if (!raw || typeof raw !== 'object') return null
+  const item = /** @type {Record<string, any>} */ (raw)
+  const label = String(item.label ?? item.text ?? item.title ?? '').trim()
+  if (!label) return null
+
+  const pick = (/** @type {any[]} */ keys) => {
+    for (const key of keys) {
+      const value = String(item[key] ?? '').trim()
+      if (value) return value
+    }
+    return ''
+  }
+
+  let bilibiliVideoId =
+    pick(['bilibiliVideoId', 'bvid', 'videoId', 'bv']) || (String(item.id || '').match(/BV[0-9A-Za-z]+/i)?.[0] || '')
+  let neteaseSongId = pick(['neteaseSongId', 'neteaseId', 'songId', 'musicId'])
+  let qqSongId = pick(['qqSongId', 'qqId', 'mid', 'songMid'])
+  let source = String(item.source || item.platform || '').trim().toLowerCase()
+  if (source === '网易云' || source === '网易' || source === '163') source = 'netease'
+  if (source === 'qq音乐' || source === 'qq音乐' || source === 'qq-music') source = 'qq'
+  if (source === 'b站' || source === '哔哩哔哩') source = 'bilibili'
+
+  // 通用 songId/id：按 source 归类；无 source 时数字 id 视为网易云，BV 视为 B 站
+  if (source === 'qq' && !qqSongId) {
+    qqSongId = pick(['songId', 'id', 'mid'])
+    if (qqSongId === neteaseSongId && source === 'qq') {
+      // songId 被误填到 neteaseSongId 时挪过来
+      neteaseSongId = ''
+    }
+  } else if (source === 'netease' && !neteaseSongId) {
+    neteaseSongId = pick(['songId', 'id', 'musicId'])
+    if (neteaseSongId === qqSongId) qqSongId = ''
+  } else if (source === 'bilibili' && !bilibiliVideoId) {
+    bilibiliVideoId = pick(['songId', 'id', 'videoId', 'bvid', 'bv'])
+    if (bilibiliVideoId === neteaseSongId) neteaseSongId = ''
+    if (bilibiliVideoId === qqSongId) qqSongId = ''
+  } else if (!source) {
+    const generic = pick(['songId', 'id'])
+    if (generic && !neteaseSongId && !qqSongId) {
+      if (/^BV/i.test(generic)) {
+        bilibiliVideoId = bilibiliVideoId || generic
+        source = 'bilibili'
+      } else if (/^\d+$/.test(generic) && !bilibiliVideoId) {
+        neteaseSongId = generic
+        source = 'netease'
+      }
+    }
+  }
+
+  if (!source) {
+    source = neteaseSongId ? 'netease' : qqSongId ? 'qq' : bilibiliVideoId ? 'bilibili' : ''
+  }
+  // source 与已有 id 冲突时清空错误字段（例如 source=bilibili 却只填了 neteaseSongId）
+  if (source === 'netease') {
+    qqSongId = ''
+    bilibiliVideoId = ''
+  } else if (source === 'qq') {
+    neteaseSongId = ''
+    bilibiliVideoId = ''
+  } else if (source === 'bilibili') {
+    neteaseSongId = ''
+    qqSongId = ''
+  }
+
+  /** @type {AskUserOption} */
+  const option = { label }
+  const title = String(item.title || item.songTitle || item.name || '').trim()
+  if (title) option.title = title
+  const artist = String(item.artist || item.author || '').trim()
+  if (artist) option.artist = artist
+  const album = String(item.album || '').trim()
+  if (album) option.album = album
+  const coverUrl = String(item.coverUrl || item.picUrl || item.cover || '').trim()
+  if (coverUrl) option.coverUrl = coverUrl
+  const durationMs = Math.max(0, Number(item.durationMs || item.duration) || 0)
+  if (durationMs) option.durationMs = durationMs
+  if (source) option.source = source
+  if (neteaseSongId) option.neteaseSongId = neteaseSongId
+  if (qqSongId) option.qqSongId = qqSongId
+  if (bilibiliVideoId) option.bilibiliVideoId = bilibiliVideoId
+  return option
+}
+
+/**
+ * 规范化 ask_user 选项但不抛错：任何异常都降级为纯 label，保证选择器能弹出来。
+ * @param {unknown} raw
+ * @returns {AskUserOption | null}
+ */
+function safeNormalizeAskUserOption(raw) {
+  try {
+    return normalizeAskUserOption(raw)
+  } catch {
+    if (typeof raw === 'string' && raw.trim()) return { label: raw.trim() }
+    if (raw && typeof raw === 'object') {
+      const label = String(/** @type {any} */ (raw).label || /** @type {any} */ (raw).text || '').trim()
+      if (label) return { label }
+    }
+    return null
+  }
+}
+
+/**
  * 系统提示词：注入当天日期（「这个月」类问题的时间基准）与工具选择规则。
  * @param {{ hasWebSearch?: boolean }} [options]
  */
@@ -56,14 +182,13 @@ function buildSystemPrompt(options = {}) {
     '设置工具：settings_overview（查看设置与预设清单）、presets_manage（增删改分类/IP/角色/收纳位置，改名会级联谷子）、theme_set（切换主题）、notify_settings_set（修改通知设置），改设置前先用 settings_overview 看现状，删除类操作先向用户确认;',
     '视觉工具：vision_analyze（看图；仅用户明确要求时用，见下方铁律）、attachment_apply（把聊天附件写入谷子图/活动封面/活动照片，普通写操作，不需要视觉识别）；',
     '表格工具：table_dryrun（解析 xlsx/csv/zip 附件；官方格式返回 mode=official 快速路径，非官方 mode=structure 看结构 / mode=dryrun 带映射预演，均不写库）、table_commit（官方直接标准导入，非官方按映射批量写入；需 dryRunConfirmed: true）；',
-    ...(hasWebSearch
-      ? [
-        '联网工具：web_search（Tavily 搜索）；仅在需要训练数据之外或有时效性的信息时调用（新番播出、谷子发售/再版、市价行情、冷门作品设定、近期活动），常识性术语不要搜。' +
-        '配额铁律：同一轮回复最多调用 1 次 web_search，最多不超过 2 次；禁止为同一问题连续多轮搜索、禁止拆成多个关键词反复搜。' +
-        '第一次搜索就把关键词写全（作品中文名+年份/类型等），拿到结果后直接整理回答；结果不够就说明局限，不要重搜。' +
-        '结果含 title/url/content，回答时附 1-2 个最相关来源链接。'
-      ]
-      : []),
+    '联网工具：web_search（Tavily 搜索）' +
+      (hasWebSearch
+        ? '；仅在需要训练数据之外或有时效性的信息时调用（新番播出、谷子发售/再版、市价行情、冷门作品设定、近期活动），常识性术语不要搜。' +
+          '配额铁律：同一轮回复最多调用 1 次 web_search，最多不超过 2 次；禁止为同一问题连续多轮搜索、禁止拆成多个关键词反复搜。' +
+          '第一次搜索就把关键词写全（作品中文名+年份/类型等），拿到结果后直接整理回答；结果不够就说明局限，不要重搜。' +
+          '结果含 title/url/content，回答时附 1-2 个最相关来源链接。'
+        : '；当前未配置搜索 Key，调用会返回 needsSetup。用户需要联网信息（新番、发售、市价等）时：可先调用一次 web_search，拿到 needsSetup 后如实告知「需要 Tavily 搜索 Key 才能联网」，并附跳转按钮 [打开 AI 设置](app://ai_service) 引导用户去「我的 → AI 服务设置」填写（tvly-…，仅存本机）；不要编造时效信息。'),
     '工具选择规则：',
     '- 问花了多少钱/消费/月度账单 → 必须用 spending_summary，禁止用 goods_search 拼凑花费答案；',
     '- 问角色排行/最喜欢谁 → character_leaderboard；问东西放在哪 → storage_locations；问还想买什么/愿望单 → wishlist_overview；问卖了多少/回血/盈亏 → sale_ledger；',
@@ -72,7 +197,8 @@ function buildSystemPrompt(options = {}) {
     '- 演出/演唱会：问基本情况（时间/地点/座位/花费/关联谷子）→ events_list；event_tracks 额外带曲单概况与座位/场馆信息，两者都可用于介绍演出；event_tracks 默认只返回 tracksSummary（共 X 首、可播 Y 首、仅手动 Z 首），用户没要歌单就用一两句话概括，禁止罗列曲目；用户明确要完整歌单、找某首歌或想播放时才传 includeTracks: true 拿明细，播放用 music_play（eventId+trackId）；playable 为 false 的曲目不能播放，建议用户在详情页导入音源；',
     '- CD/专辑谷子：问有哪些 CD/专辑、某张专辑收了什么歌 → goods_search 传 hasTracks: true 找条目（结果带 tracksSummary 概况），曲目明细在 goods_detail 的 tracks 里；播放专辑里的歌用 music_play（goodsId+trackId）；',
     '- 歌词：用户要歌词/问某首歌的词 → music_lyrics（eventId 或 goodsId + trackId，曲目明细来自 event_tracks 或 goods_detail），回复时给出歌词文本；没歌词时如实说明（可能是纯音乐）；',
-    '- 加歌到演出：用户要给某场演出/演唱会加歌 → ① events_list / event_tracks 拿 eventId → ② music_search 按歌名（可加歌手）在线搜 → ③ 把候选歌展示给用户确认选哪首 → ④ event_tracks_manage（action=add，tracks 带 title + neteaseSongId/qqSongId/bilibiliVideoId）写入。不要跳过搜歌直接手填 songId；搜不到时如实告知并问用户是否手动录入（source=manual，不可在线播放）。删单曲 → event_tracks_manage（action=remove，trackId 来自 event_tracks 的 includeTracks 明细）；',
+    '- 在线搜歌（找歌/听歌/比版本，不必是加歌）→ music_search。命中 ≥2 条时：不要只用文字罗列；对可在线播放的候选，在回复里给试听按钮 [▶歌名](app://play_music/<source>/<id>) 或 [▶歌名 · 歌手](app://play_music/<source>/<id>)——链接文案只写歌名（可加歌手），禁止把音源/时长塞进链接文字。source 只能是 netease/qq/bilibili；id 用结果里的 neteaseSongId/qqSongId/bilibiliVideoId，链接逐字符写对。用户点按钮即可应用内试听，不需要 ask_user。纯搜歌/试听场景禁止弹选择卡片；只有用户明确要「加到某场演出」时才走下方加歌流程；',
+    '- 加歌到演出：用户要给某场演出/演唱会加歌 → ① events_list / event_tracks 拿 eventId → ② music_search 按歌名（可加歌手）在线搜 → ③ 若有多首候选，必须用 ask_user 弹选项（2-6 个对象：label 写「歌名 · 歌手 · 音源 · 时长」，并带上 title/artist/source/coverUrl/durationMs/neteaseSongId|qqSongId|bilibiliVideoId），让用户可试听后再点选，禁止只用文字列候选、禁止替用户拍板 → ④ event_tracks_manage（action=add，tracks 带 title + coverUrl + neteaseSongId/qqSongId/bilibiliVideoId，coverUrl 从 music_search 结果原样复制）写入。不要跳过搜歌直接手填 songId；搜不到时如实告知并问用户是否手动录入（source=manual，不可在线播放）。删单曲 → event_tracks_manage（action=remove，trackId 来自 event_tracks 的 includeTracks 明细）；',
     '- 充值统计：问某个项目/游戏的具体充值（如「空月祝福一共买了几张」「原神去年充了多少」）→ recharge_search（按 game/itemName/year 过滤并用 byItem/byMonth 回答），不要只靠 recharge_summary 的总览猜；总览/按年分布 → recharge_summary；',
     '- 图片：用户想看某件谷子的图/在回复里展示图片时 → goods_detail 返回的 images 数组里有可直接展示的 uri，用 ![描述](uri) 嵌入回复（最多 2-3 张，coverUrl 是主图）；看演出/活动的现场照片 → event_tracks 的 photos，同样用 ![描述](uri) 嵌入；',
     '- 图片 URL 铁律：嵌入回复的图片/照片 URL 必须从工具结果里逐字符原样复制，严禁凭记忆重写、拼接或编造——URL 里任何一段文件名写错都会变成打不开的死链；',
@@ -95,7 +221,9 @@ function buildSystemPrompt(options = {}) {
     '- 新增/修改/删除等操作只做用户明确要求的事，批量或不可逆操作前先和用户确认；',
     '- 金额是用户手填的字符串，可能为空或含非数字字符；',
     '- 记忆（memory_save）判定铁律：只记用户明确表达的、长期有效的偏好/习惯（称呼、口味偏好如「只收吧唧」、预算习惯等），写成一条简短的第三人称陈述；收藏数据本身能通过工具查到，禁止存成记忆；一次性任务指令、本轮对话内容不存；拿不准是不是长期偏好就先问用户一句；保存后在回复里顺带告知已记住，用户要求忘记时用 remove（text 需与已存文本完全一致）；',
-    '- 提问（ask_user）：需要用户在几个明确选项中做选择时（如「这首还是那首」「映射哪一列」「导入哪些表」），调用 ask_user 会弹出选项按钮让用户点选，比让用户打字更快。options 写 2-6 个简短清晰的选项；拿不准用户意图、开放性问题不要用 ask_user（直接文字问即可）。工具返回用户所选文本，据此继续后续操作；',
+    '- 提问（ask_user）：需要用户在几个明确选项中做选择时（如「这首还是那首」「映射哪一列」「导入哪些表」），调用 ask_user 会弹出选项按钮让用户点选，比让用户打字更快。options 写 2-6 个简短清晰的选项；拿不准用户意图、开放性问题不要用 ask_user（直接文字问即可）。工具返回用户所选 label，据此继续后续操作。' +
+      '选歌要「加到演出」时：options 必须用对象数组，把 music_search 命中的候选整条带进 label + title/artist/source/coverUrl/durationMs/音源 id（选项旁会有试听按钮）。' +
+      '只搜歌/试听、用户没说要加歌时不要用 ask_user，改在正文里输出 [▶…](app://play_music/<source>/<id>) 试听链接。',
     '- 圈内用语铁律：解释二次元/谷圈黑话时，拿不准的词不要编词源、不要假装权威定义（尤其禁止「X 是 Y 的缩写」这种干净词源）；不确定就说「圈内一般用来指…，各地用法可能有差别」，或反问用户怎么理解。纠正用户时语气平等，禁止「你是不是刚入坑」「这太正常了」这类说教；用户说得对就直接认可，说得偏就平实补充，不要居高临下。',
     '- 用用户的语言回答，简洁自然。'
   ]
@@ -271,7 +399,7 @@ function trimConvo(convo) {
  * @property {string} [error]
  * @property {ChatAttachment[]} [attachments] 用户消息附带的图片（仅展示；视觉分析须用户点名）
  * @property {{ entries: Array<Record<string, any>>, undone: boolean }} [undoJournal] 本回合写操作撤回日志
- * @property {{ question: string, options: string[] }} [pendingAsk] ask_user 挂起中：等待用户点选
+ * @property {{ question: string, options: AskUserOption[] }} [pendingAsk] ask_user 挂起中：等待用户点选
  */
 
 export const useAiChatStore = defineStore('aiChat', () => {
@@ -808,8 +936,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
           ...VISION_TOOL_DEFINITIONS,
           ...ATTACHMENT_TOOL_DEFINITIONS,
           ...TABLE_TOOL_DEFINITIONS,
-          // 仅配置了搜索 Key 时才暴露，避免模型无谓调用
-          ...(hasWebSearchEnabled() ? WEB_SEARCH_TOOL_DEFINITIONS : [])
+          // 始终暴露：未配 Key 时返回 needsSetup，便于模型引导用户去设置绑定
+          ...WEB_SEARCH_TOOL_DEFINITIONS
         ],
         signal: currentAbort.signal,
         // 流式增量：思维链/正文边生成边写入消息（最终以 result 为准整体覆盖）
@@ -833,7 +961,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
                 const result = await new Promise((resolve) => {
                   const question = String(args?.question || '').trim() || '请选择'
                   const options = (Array.isArray(args?.options) ? args.options : [])
-                    .map((o) => String(o || '').trim())
+                    .map(safeNormalizeAskUserOption)
                     .filter(Boolean)
                     .slice(0, 6)
                   assistant.pendingAsk = reactive({ question, options })

@@ -1433,7 +1433,8 @@ function tryPlayLinkedGoodsBackHero() {
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  /* 高于播放器浮窗（2200） */
+  z-index: 2400;
   display: flex;
   align-items: center;
   justify-content: center;

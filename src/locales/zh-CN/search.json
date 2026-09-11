@@ -65,5 +65,11 @@
   "search.onlyKeywordsOrBasic": "仅关键词或基础条件",
   "search.noMatchKeyword": "没有找到与「{keyword}」相关的谷子，试试更短的关键词或放宽筛选条件。",
   "search.noMatchFilter": "当前筛选条件下没有匹配的收藏。",
-  "search.deletePreset": "删除方案"
+  "search.deletePreset": "删除方案",
+  "search.matchPinyin": "拼音匹配",
+  "search.matchPinyinDesc": "开启后可用拼音/首字母搜索中文名称",
+  "search.matchCase": "区分大小写",
+  "search.matchCaseDesc": "开启后英文关键词按大小写精确匹配",
+  "search.includeNote": "搜索备注",
+  "search.includeNoteDesc": "关闭后关键词不匹配备注内容"
 }

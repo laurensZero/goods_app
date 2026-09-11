@@ -117,7 +117,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
 import { fetchQQSongCoverMap, openQQSong } from '@/utils/qqMusic'
-import { buildBilibiliWebUrl } from '@/utils/bilibiliMusic'
+import { buildBilibiliWebUrl, fetchBilibiliCoverMap } from '@/utils/bilibiliMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
@@ -148,6 +148,7 @@ const normalizedTracks = computed(() =>
     const coverUrl = String(
       item?.coverUrl
       || (source === 'qq' ? coverMap.value[qqSongId] : coverMap.value[neteaseSongId])
+      || (bilibiliVideoId ? coverMap.value[bilibiliVideoId] : '')
       || ''
     ).trim()
     return {
@@ -190,14 +191,22 @@ watch(
         .filter((mid) => mid && !coverMap.value[mid])
     ))
 
-    if (!missingNeteaseIds.length && !missingQQIds.length) return
+    const missingBiliIds = Array.from(new Set(
+      trackList
+        .filter((item) => item?.bilibiliVideoId && !String(item?.coverUrl || '').trim())
+        .map((item) => String(item.bilibiliVideoId).trim())
+        .filter((bvid) => bvid && !coverMap.value[bvid])
+    ))
+
+    if (!missingNeteaseIds.length && !missingQQIds.length && !missingBiliIds.length) return
 
     try {
-      const [neteaseMap, qqMap] = await Promise.all([
+      const [neteaseMap, qqMap, biliMap] = await Promise.all([
         missingNeteaseIds.length ? fetchNeteaseSongCoverMap(missingNeteaseIds) : Promise.resolve({}),
-        missingQQIds.length ? fetchQQSongCoverMap(missingQQIds) : Promise.resolve({})
+        missingQQIds.length ? fetchQQSongCoverMap(missingQQIds) : Promise.resolve({}),
+        missingBiliIds.length ? fetchBilibiliCoverMap(missingBiliIds) : Promise.resolve({})
       ])
-      coverMap.value = { ...coverMap.value, ...neteaseMap, ...qqMap }
+      coverMap.value = { ...coverMap.value, ...neteaseMap, ...qqMap, ...biliMap }
     } catch {
       // ignore cover lookup failures
     }

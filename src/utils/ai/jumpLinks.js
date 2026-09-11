@@ -4,6 +4,9 @@
  * AI 在 markdown 里输出 [按钮文字](app://...)，渲染层给链接加按钮样式，
  * 用户点击后由 AiChatPanel 的事件委托解析并 router.push——不会自动跳转。
  *
+ * 另有试听协议 app://play_music/<source>/<id>：source 为 netease/qq/bilibili，
+ * id 为对应音源 id；点击由聊天面板拦截并拉起应用内播放器（不跳路由）。
+ *
  * 页面映射与 navigate 工具共用一份，改这里两边同步生效。
  */
 
@@ -37,6 +40,9 @@ export const NAVIGATE_PAGES_WITH_ID = {
 /** app:// 协议前缀 */
 export const JUMP_HREF_PREFIX = 'app://'
 
+/** 可试听音源 */
+const MUSIC_PREVIEW_SOURCES = new Set(['netease', 'qq', 'bilibili'])
+
 /**
  * 解析 app:// 跳转链接。
  * @param {string} href
@@ -55,4 +61,21 @@ export function parseJumpHref(href) {
   }
   const routeName = NAVIGATE_PAGES[page]
   return routeName ? { name: routeName } : null
+}
+
+/**
+ * 解析试听链接：app://play_music/<source>/<id>
+ * @param {string} href
+ * @returns {{ source: 'netease' | 'qq' | 'bilibili', id: string } | null}
+ */
+export function parseMusicPreviewHref(href) {
+  if (typeof href !== 'string' || !href.startsWith(JUMP_HREF_PREFIX)) return null
+  const path = href.slice(JUMP_HREF_PREFIX.length).replace(/^\/+|\/+$/g, '')
+  const [pageRaw, sourceRaw, idRaw] = path.split('/')
+  const page = decodeURIComponent(String(pageRaw || '').trim())
+  if (page !== 'play_music') return null
+  const source = decodeURIComponent(String(sourceRaw || '').trim()).toLowerCase()
+  const id = decodeURIComponent(String(idRaw || '').trim())
+  if (!MUSIC_PREVIEW_SOURCES.has(source) || !id) return null
+  return /** @type {{ source: 'netease' | 'qq' | 'bilibili', id: string }} */ ({ source, id })
 }

@@ -114,6 +114,7 @@ function enrichItem(item, exchangeRate) {
     acquiredTime: parseAcquiredTime(item.acquiredAt),
     timelineYearMonth: parseTimelineYearMonth(item.acquiredAt),
     searchText: buildSearchText(item),
+    searchPlainText: buildSearchText(item, { includePinyin: false }),
     _primaryStatus: resolvePrimaryCollectStatus(item),
     _isPending: hasCollectStatusMatch(item, ['待发货', '待补款', '待补邮']) && !item.isWishlist,
     _isExited: areAllCopiesExited(item),

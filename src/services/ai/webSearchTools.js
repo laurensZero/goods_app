@@ -119,7 +119,18 @@ export function createWebSearchToolHandlers({ getConfig }) {
 
     const apiKey = asText(getConfig()?.searchApiKey).trim()
     if (!apiKey) {
-      throw new Error('未配置搜索 API Key：请在 AI 设置里填写 Tavily Key（tvly-…），或改用不需要联网的问题')
+      // 结构化返回而非抛错：让模型拿到 needsSetup 后引导用户去绑定 Key（app://ai_service）
+      return {
+        query,
+        unavailable: true,
+        needsSetup: true,
+        results: [],
+        resultCount: 0,
+        guide:
+          '本机未配置 Tavily 搜索 Key（searchApiKey），联网搜索不可用。' +
+          '请如实告知用户：需要时可在「我的 → AI 服务设置」填写 Tavily Key（tvly-…）开启联网；' +
+          '并附跳转按钮 [打开 AI 设置](app://ai_service)。不要编造搜索结果。'
+      }
     }
 
     const data = await postJson(

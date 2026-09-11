@@ -65,5 +65,11 @@
   "search.onlyKeywordsOrBasic": "Keywords or basic filters only",
   "search.noMatchKeyword": "No items found matching 「{keyword}」. Try shorter keywords or relax your filters.",
   "search.noMatchFilter": "No matching items under current filters.",
-  "search.deletePreset": "Delete preset"
+  "search.deletePreset": "Delete preset",
+  "search.matchPinyin": "Pinyin match",
+  "search.matchPinyinDesc": "When on, search Chinese names by pinyin or initials",
+  "search.matchCase": "Match case",
+  "search.matchCaseDesc": "When on, English keywords match case-sensitively",
+  "search.includeNote": "Search notes",
+  "search.includeNoteDesc": "When off, keywords do not match note content"
 }

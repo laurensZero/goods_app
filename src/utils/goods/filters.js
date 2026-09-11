@@ -117,24 +117,27 @@ function getDatePresetFloor(datePreset) {
   }
 }
 
-export function buildSearchText(item) {
+export function buildSearchText(item, { includePinyin = true, includeNote = true, matchCase = false } = {}) {
   const textParts = [
     item.name,
     item.category,
     item.ip,
     item.variant,
-    item.note,
+    ...(includeNote ? [item.note] : []),
     item.storageLocation,
     ...(Array.isArray(item.characters) ? item.characters : []),
     ...(Array.isArray(item.tags) ? item.tags : [])
   ]
 
   const plainText = textParts
-    .map((part) => String(part || '').trim().toLowerCase())
+    .map((part) => String(part || '').trim())
     .filter(Boolean)
+    .map((part) => (matchCase ? part : part.toLowerCase()))
     .join('\n')
 
-  // 为包含中文的字段追加拼音（全拼 + 首字母）
+  if (!includePinyin) return plainText
+
+  // 为包含中文的字段追加拼音（全拼 + 首字母；拼音本身始终小写）
   const pinyinParts = textParts
     .map((part) => String(part || '').trim())
     .filter((part) => part && /[一-鿿]/.test(part))
@@ -242,6 +245,34 @@ function sortGoodsList(list, sortBy) {
   return sorted
 }
 
+/**
+ * 关键词匹配：默认（开拼音 / 不区分大小写 / 含备注）走预构建 searchText；
+ * 区分大小写或不含备注时按需重建比对文本（预构建文本已小写，不能直接用于区分大小写）。
+ */
+function matchKeyword(item, keyword, filters) {
+  if (!keyword) return true
+
+  const matchPinyin = filters.matchPinyin !== false
+  const matchCase = filters.matchCase === true
+  const includeNote = filters.includeNote !== false
+
+  // 预构建缓存仅覆盖「含备注 + 不区分大小写」
+  if (!matchCase && includeNote) {
+    const haystack = matchPinyin
+      ? (item.searchText || buildSearchText(item))
+      : (item.searchPlainText || buildSearchText(item, { includePinyin: false }))
+    return haystack.includes(keyword.toLowerCase())
+  }
+
+  const haystack = buildSearchText(item, {
+    includePinyin: matchPinyin,
+    includeNote,
+    matchCase: true
+  })
+  if (matchCase) return haystack.includes(keyword)
+  return haystack.toLowerCase().includes(keyword.toLowerCase())
+}
+
 export function createDefaultGoodsFilters(overrides = {}) {
   return {
     keyword: '',
@@ -258,6 +289,9 @@ export function createDefaultGoodsFilters(overrides = {}) {
     hasNote: DEFAULT_TOGGLE,
     collectStatuses: [],
     sortBy: DEFAULT_SORT,
+    matchPinyin: true,
+    matchCase: false,
+    includeNote: true,
     ...overrides
   }
 }
@@ -279,6 +313,12 @@ export function normalizeGoodsFilterConditions(input = {}) {
   normalized.hasNote = normalizeToggleValue(input.hasNote)
   normalized.collectStatuses = normalizeStringList(input.collectStatuses)
   normalized.sortBy = normalizeSortValue(input.sortBy)
+  // 拼音匹配开关：默认开启；显式传 false 才关闭
+  normalized.matchPinyin = input.matchPinyin !== false
+  // 大小写匹配：默认不区分；显式传 true 才区分
+  normalized.matchCase = input.matchCase === true
+  // 是否搜索备注：默认搜索；显式传 false 才排除备注
+  normalized.includeNote = input.includeNote !== false
 
   return normalized
 }
@@ -304,13 +344,14 @@ export function countActiveGoodsFilters(input, options = {}) {
   if (filters.hasNote !== DEFAULT_TOGGLE) count += 1
   if (filters.collectStatuses.length) count += 1
   if (filters.sortBy !== DEFAULT_SORT) count += 1
+  // matchPinyin / matchCase / includeNote 只影响关键词匹配方式，不计入筛选条件数量
 
   return count
 }
 
 export function applyGoodsFilters(list, input) {
   const filters = normalizeGoodsFilterConditions(input)
-  const keyword = filters.keyword.toLowerCase()
+  const keyword = filters.matchCase ? filters.keyword : filters.keyword.toLowerCase()
   const priceMin = parseNumberLike(filters.priceMin)
   const priceMax = parseNumberLike(filters.priceMax)
   const presetFloor = getDatePresetFloor(filters.acquiredPreset)
@@ -320,7 +361,7 @@ export function applyGoodsFilters(list, input) {
     : 0
 
   const filtered = list.filter((item) => {
-    const matchesKeyword = !keyword || (item.searchText || buildSearchText(item)).includes(keyword)
+    const matchesKeyword = !keyword || matchKeyword(item, keyword, filters)
     if (!matchesKeyword) return false
 
     if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false
@@ -358,7 +399,7 @@ export function applyGoodsFilters(list, input) {
 
 export function filterGoodsList(list, input) {
   const filters = normalizeGoodsFilterConditions(input)
-  const keyword = filters.keyword.toLowerCase()
+  const keyword = filters.matchCase ? filters.keyword : filters.keyword.toLowerCase()
   const priceMin = parseNumberLike(filters.priceMin)
   const priceMax = parseNumberLike(filters.priceMax)
   const presetFloor = getDatePresetFloor(filters.acquiredPreset)
@@ -368,7 +409,7 @@ export function filterGoodsList(list, input) {
     : 0
 
   return list.filter((item) => {
-    const matchesKeyword = !keyword || (item.searchText || buildSearchText(item)).includes(keyword)
+    const matchesKeyword = !keyword || matchKeyword(item, keyword, filters)
     if (!matchesKeyword) return false
 
     if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false

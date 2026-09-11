@@ -199,6 +199,29 @@ export async function searchBilibiliVideos(keyword, limit = 20, page = 1) {
   return (Array.isArray(payload?.data?.result) ? payload.data.result : []).map(mapVideoToTrack).filter((item) => item.bilibiliVideoId && item.title)
 }
 
+/**
+ * 按 BV 号批量取封面（view 接口的 pic）。
+ * 补救历史写入时丢了 coverUrl 的 B 站曲目（B 站没有像网易/QQ 那样的 songId 封面接口）。
+ * @param {string[]} bvids
+ * @returns {Promise<Record<string, string>>} bvid → coverUrl
+ */
+export async function fetchBilibiliCoverMap(bvids) {
+  const ids = Array.from(new Set((Array.isArray(bvids) ? bvids : []).map((id) => String(id || '').trim()).filter(Boolean))).slice(0, 12)
+  if (!ids.length) return {}
+  const entries = await Promise.all(
+    ids.map(async (bvid) => {
+      try {
+        const detail = await biliJson('/x/web-interface/view', { bvid })
+        const cover = toHttpsUrl(detail?.pic)
+        return cover ? [bvid, cover] : null
+      } catch {
+        return null
+      }
+    })
+  )
+  return Object.fromEntries(entries.filter(Boolean))
+}
+
 export async function fetchBilibiliPlayableUrl(bvid) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) throw new Error('缺少 Bilibili 视频 BV 号')

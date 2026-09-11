@@ -13,7 +13,7 @@ import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
-import { searchNeteaseSongs } from '../../utils/neteaseMusic'
+import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/neteaseMusic'
 import { searchQQSongs } from '../../utils/qqMusic'
 import { searchBilibiliVideos } from '../../utils/bilibiliMusic'
 
@@ -728,8 +728,25 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
 
     if (source === 'all' || source === 'netease') {
       await safeSearch('netease', async () => {
-        const songs = await searchNeteaseSongs(keyword, limit)
-        return songs.slice(0, limit).map(viewMusicSearchHit)
+        const songs = (await searchNeteaseSongs(keyword, limit)).slice(0, limit)
+        const hits = songs.map(viewMusicSearchHit)
+        // 网易云搜索接口常不带 album.picUrl：缺封面的用 songId 批量补拉
+        const missingIds = hits
+          .filter((hit) => !hit.coverUrl && hit.neteaseSongId)
+          .map((hit) => hit.neteaseSongId)
+        if (missingIds.length > 0) {
+          try {
+            const coverMap = await fetchNeteaseSongCoverMap(missingIds)
+            for (const hit of hits) {
+              if (!hit.coverUrl && hit.neteaseSongId && coverMap[hit.neteaseSongId]) {
+                hit.coverUrl = coverMap[hit.neteaseSongId]
+              }
+            }
+          } catch {
+            // 封面补齐失败不影响搜索结果本身
+          }
+        }
+        return hits
       })
     }
     if (source === 'all' || source === 'qq') {
@@ -755,7 +772,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       total,
       sources: results,
       ...(errors.length ? { partialErrors: errors } : {}),
-      hint: '挑一首与用户意图匹配的，把对应 songId/videoId 填入 event_tracks_manage 的 tracks 数组；拿不准选哪首时先问用户。'
+      hint: '纯搜歌/试听：把可播候选整理给用户，并在回复里输出试听链接 [▶歌名](app://play_music/<source>/<id>)（链接文案只写歌名，可加歌手；source=netease/qq/bilibili，id=对应 songId/bvid）；不要用 ask_user。用户要加到演出时：再用 ask_user（对象选项，带 title/artist/source/coverUrl/音源 id）让用户选，然后 event_tracks_manage。'
     }
   }
 
@@ -769,6 +786,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       album: asText(track?.album).trim(),
       durationMs: Math.max(0, Number(track?.durationMs) || 0),
       source: asText(track?.source).trim(),
+      // 封面必须透传：B 站没有事后补封面的接口，丢了就永久空白
+      ...(asText(track?.coverUrl).trim() ? { coverUrl: asText(track?.coverUrl).trim() } : {}),
       ...(asText(track?.neteaseSongId).trim() ? { neteaseSongId: asText(track?.neteaseSongId).trim() } : {}),
       ...(asText(track?.qqSongId).trim() ? { qqSongId: asText(track?.qqSongId).trim() } : {}),
       ...(asText(track?.bilibiliVideoId).trim() ? { bilibiliVideoId: asText(track?.bilibiliVideoId).trim() } : {})
