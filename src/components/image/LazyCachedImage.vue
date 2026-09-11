@@ -288,6 +288,12 @@ function onImageError() {
   if (retryKey.value < MAX_AUTO_RETRY) {
     retryKey.value += 1
     isImageLoading.value = true
+    // blob: 可能已被内存 LRU / TTL revoke。只 bump retryKey 会用同一死 URL
+    // 重挂 <img>，时间线等高密度列表里会一直空白。必须清掉后重新 resolve。
+    if (String(resolvedSrc.value || '').startsWith('blob:')) {
+      resolvedSrc.value = ''
+      void runLoad()
+    }
     return
   }
   hasLoadError.value = true
