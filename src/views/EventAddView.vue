@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div
     class="page event-add-page"
     :class="{ 'event-add-page--navigating': isNavigatingToPicker, 'event-add-page--restoring': !pageDisplayReady }"
@@ -84,6 +84,23 @@
                         <div class="field field--half">
                           <span class="field-label">{{ t('events.addEdit.eventType') }}</span>
                           <AppSelect v-model="form.type" :options="typeOptions" :placeholder="t('events.addEdit.eventTypePlaceholder')" />
+                          <button class="field-add-btn" type="button" @click="toggleQuickCreateType">
+                            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                              <path d="M8 3V13" />
+                              <path d="M3 8H13" />
+                            </svg>
+                            {{ t('events.addEdit.newType') }}
+                          </button>
+                          <QuickPresetCreator
+                            v-if="quickTypeCreate"
+                            :show="quickTypeCreate"
+                            v-model="quickTypeName"
+                            :placeholder="t('events.addEdit.newTypePlaceholder')"
+                            :maxlength="20"
+                            :submit-text="t('events.addEdit.newTypeSubmit')"
+                            @cancel="closeQuickCreateType"
+                            @submit="submitQuickType"
+                          />
                         </div>
 
                         <div class="field field--full">
@@ -412,10 +429,10 @@
                     </div>
                   </section>
 
-                  <section v-if="form.type === 'concert'" v-show="activeTab === 'music'" class="tab-panel">
+                  <section v-if="showsTracks" v-show="activeTab === 'music'" class="tab-panel">
                     <div class="section-head">
                       <p class="section-label">Setlist</p>
-                      <h2 class="section-title">{{ t('events.addEdit.concertSetlist') }}</h2>
+                      <h2 class="section-title">{{ form.type === 'concert' ? t('events.addEdit.concertSetlist') : t('events.addEdit.tracks') }}</h2>
                     </div>
 
                     <div class="field-card">
@@ -474,6 +491,8 @@ import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 // ...
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
+import { resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
 import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/eventLinkedGoodsPicker'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
@@ -493,6 +512,7 @@ import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { resizeTextarea } from '@/utils/textarea'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
+import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 
 defineOptions({ name: 'EventAddView' })
 
@@ -502,16 +522,43 @@ const props = defineProps({
   id: { type: String, default: '' }
 })
 
-const typeOptions = computed(() => [
-  { label: t('events.typeExhibition'), value: 'exhibition' },
-  { label: t('events.typeConcert'), value: 'concert' },
-  { label: t('events.typeOther'), value: 'other' }
-])
-
 const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
+const presets = usePresetsStore()
+
+const typeOptions = computed(() => [
+  { label: resolveEventTypeLabel('exhibition', t), value: 'exhibition' },
+  { label: resolveEventTypeLabel('concert', t), value: 'concert' },
+  ...presets.eventTypes.map((item) => ({ label: item.name, value: item.name })),
+  { label: resolveEventTypeLabel('other', t), value: 'other' }
+])
+
+const showsTracks = computed(() => typeShowsTracks(form.type, presets.eventTypes))
+
+const quickTypeCreate = ref(false)
+const quickTypeName = ref('')
+
+function toggleQuickCreateType() {
+  quickTypeCreate.value = !quickTypeCreate.value
+  if (!quickTypeCreate.value) quickTypeName.value = ''
+}
+
+function closeQuickCreateType() {
+  quickTypeCreate.value = false
+  quickTypeName.value = ''
+}
+
+async function submitQuickType() {
+  await commitActiveInput()
+  const name = String(quickTypeName.value || '').trim()
+  if (!name) return
+  if (await presets.addEventType(name)) {
+    form.type = name
+    closeQuickCreateType()
+  }
+}
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
 const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
@@ -599,7 +646,7 @@ const tabItems = computed(() => {
     { key: 'gallery', label: t('events.addEdit.galleryNotes') }
   ]
 
-  if (form.type === 'concert') {
+  if (showsTracks.value) {
     items.push({ key: 'music', label: t('events.addEdit.tracks') })
   }
 
@@ -877,7 +924,7 @@ watch(
 watch(
   () => form.type,
   () => {
-    if (form.type !== 'concert' && activeTab.value === 'music') {
+    if (!showsTracks.value && activeTab.value === 'music') {
       activeTab.value = 'basic'
     }
   }
@@ -1619,6 +1666,33 @@ onBeforeUnmount(() => {
   color: var(--app-text-secondary);
   font-size: 14px;
   font-weight: 600;
+}
+
+.field-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  border: none;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 0;
+  margin-top: -2px;
+}
+
+.field-add-btn:active {
+  transform: scale(0.96);
+}
+
+.field-add-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 .field-hint,

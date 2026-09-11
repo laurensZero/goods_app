@@ -46,5 +46,6 @@
   "nav.feedback": "フィードバック",
   "nav.feedbackDetail": "フィードバック詳細",
   "nav.surveys": "アンケート",
-  "nav.surveyFill": "アンケートに回答"
+  "nav.surveyFill": "アンケートに回答",
+  "nav.eventTypeManage": "イベント種類管理"
 }

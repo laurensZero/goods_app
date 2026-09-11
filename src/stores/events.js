@@ -114,7 +114,12 @@ export const useEventsStore = defineStore('events', () => {
   const activeList = computed(() => list.value.filter((item) => !item.deleted))
 
   const groupedByMonth = computed(() => {
-    const sorted = [...activeList.value].sort((a, b) => getSortDate(b).localeCompare(getSortDate(a)))
+    const sorted = [...activeList.value].sort((a, b) => {
+      const dateCmp = getSortDate(b).localeCompare(getSortDate(a))
+      if (dateCmp !== 0) return dateCmp
+      // 同一天按创建时间，避免编辑保存后顺序漂移
+      return (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0)
+    })
     const grouped = {}
 
     for (const event of sorted) {
@@ -245,6 +250,35 @@ export const useEventsStore = defineStore('events', () => {
     }
     triggerSync()
     return id
+  }
+
+  // 自定义活动类型改名/清除的级联：next 为空串时清空 type（展示层回落为「其他」）
+  async function renameEventType(previous, next) {
+    const prev = String(previous || '').trim()
+    if (!prev) return false
+    const nextName = String(next || '').trim()
+    const now = Date.now()
+    let changed = false
+    const updatedItems = []
+
+    list.value = list.value.map((item) => {
+      if (item.type !== prev) return item
+      changed = true
+      const nextItem = { ...item, type: nextName, updatedAt: now }
+      updatedItems.push(nextItem)
+      return nextItem
+    })
+
+    if (!changed) return false
+    triggerRef(list)
+    try {
+      await saveEvents(updatedItems)
+    } catch (e) {
+      console.error('[events] renameEventType DB write failed:', e)
+      throw e
+    }
+    triggerSync()
+    return true
   }
 
   // 把一次成功的歌词匹配结果（命中平台 + 歌曲 id）写回曲目，
@@ -519,6 +553,7 @@ export const useEventsStore = defineStore('events', () => {
     refreshList,
     importEventsBackup,
     markMediaAsRemote,
-    applyTrackLyricMatch
+    applyTrackLyricMatch,
+    renameEventType
   }
 })

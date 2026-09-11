@@ -46,5 +46,6 @@
   "nav.feedback": "피드백",
   "nav.feedbackDetail": "피드백 상세",
   "nav.surveys": "설문조사",
-  "nav.surveyFill": "설문조사 참여"
+  "nav.surveyFill": "설문조사 참여",
+  "nav.eventTypeManage": "이벤트 유형 관리"
 }

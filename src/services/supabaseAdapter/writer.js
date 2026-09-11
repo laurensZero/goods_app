@@ -80,11 +80,20 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       ips: JSON.stringify(presetsData.ips || []),
       characters: JSON.stringify(presetsData.characters || []),
       storage_locations: JSON.stringify(presetsData.storageLocations || []),
+      event_types: JSON.stringify(presetsData.eventTypes || []),
       user_id: currentUserId || null
     }
-    const { error } = await withRetry(() =>
+    let { error } = await withRetry(() =>
       db.from('sync_presets').upsert(presetsRow, { onConflict: 'user_id' })
     )
+    // 自建/未迁移实例尚无 event_types 列时，退回旧列集，保证其余预设仍可同步
+    if (error && /event_types/i.test(error.message || '')) {
+      const fallbackRow = { ...presetsRow }
+      delete fallbackRow.event_types
+      ;({ error } = await withRetry(() =>
+        db.from('sync_presets').upsert(fallbackRow, { onConflict: 'user_id' })
+      ))
+    }
     if (error) console.warn('[supabase] presets upsert warning:', error.message)
   }
 
@@ -228,7 +237,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
         categories: JSON.stringify(presets.categories || []),
         ips: JSON.stringify(presets.ips || []),
         characters: JSON.stringify(presets.characters || []),
-        storage_locations: JSON.stringify(presets.storageLocations || [])
+        storage_locations: JSON.stringify(presets.storageLocations || []),
+        event_types: JSON.stringify(presets.eventTypes || [])
       } : {},
       p_delete_goods: deleteGoods || [],
       p_delete_groups: deleteGroups || [],

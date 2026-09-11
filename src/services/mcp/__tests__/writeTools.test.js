@@ -55,6 +55,7 @@ function createFakeSettingsStores() {
       characters: [{ name: '纳西妲', ip: '原神' }],
       storageLocations: [{ id: 'loc-1', name: 'A 柜', parentId: '' }],
       storageLocationPaths: ['A 柜'],
+      eventTypes: [{ name: '漫展舞台', showTracks: true }],
       addCategory: vi.fn(async () => true),
       removeCategory: vi.fn(async () => true),
       updateCategoryName: vi.fn(async () => true),
@@ -64,6 +65,10 @@ function createFakeSettingsStores() {
       addCharacter: vi.fn(async () => true),
       removeCharacter: vi.fn(async () => true),
       updateCharacterName: vi.fn(async () => true),
+      addEventType: vi.fn(async () => true),
+      removeEventType: vi.fn(async () => true),
+      updateEventTypeName: vi.fn(async () => true),
+      updateEventTypeShowTracks: vi.fn(async () => true),
       ensureStorageLocationPath: vi.fn(async (path) => ({ path })),
       buildStorageLocationPathById: vi.fn((id) => (id === 'loc-1' ? 'A 柜' : ''))
     },
@@ -275,6 +280,8 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
      expect(overview.notifications.enabled).toBe(true)
      expect(overview.presets.categories).toEqual(['吧唧', '立牌'])
      expect(overview.presets.storageLocations).toEqual(['A 柜'])
+     expect(overview.presets.eventTypes).toEqual([{ name: '漫展舞台', showTracks: true }])
+     expect(overview.presets.builtinEventTypes).toEqual(['exhibition', 'concert', 'other'])
    })
 
    it('events_delete 删除活动', async () => {
@@ -313,6 +320,32 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
     await expect(handlers.presets_manage({ entity: 'category', action: 'rename', name: '吧唧' })).rejects.toThrow('newName')
     await expect(handlers.presets_manage({ entity: 'storage_location', action: 'rename', name: 'A 柜' })).rejects.toThrow('暂不支持')
     await expect(handlers.presets_manage({ entity: 'nope', action: 'add', name: 'x' })).rejects.toThrow('entity')
+  })
+
+  it('presets_manage 支持活动类型增删改与曲目开关', async () => {
+    const store = createFakeStore()
+    const { presetsStore } = createFakeSettingsStores()
+    const eventsStore = {
+      renameEventType: vi.fn(async () => true)
+    }
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore, eventsStore })
+
+    expect((await handlers.presets_manage({ entity: 'event_type', action: 'add', name: '漫展舞台', showTracks: true })).ok).toBe(true)
+    expect(presetsStore.addEventType).toHaveBeenCalledWith('漫展舞台', true)
+
+    expect((await handlers.presets_manage({ entity: 'event_type', action: 'rename', name: '漫展舞台', newName: '舞台演出' })).ok).toBe(true)
+    expect(presetsStore.updateEventTypeName).toHaveBeenCalledWith('漫展舞台', '舞台演出')
+    expect(eventsStore.renameEventType).toHaveBeenCalledWith('漫展舞台', '舞台演出')
+
+    expect((await handlers.presets_manage({ entity: 'event_type', action: 'set_show_tracks', name: '舞台演出', showTracks: false })).ok).toBe(true)
+    expect(presetsStore.updateEventTypeShowTracks).toHaveBeenCalledWith('舞台演出', false)
+
+    expect((await handlers.presets_manage({ entity: 'event_type', action: 'remove', name: '舞台演出' })).ok).toBe(true)
+    expect(eventsStore.renameEventType).toHaveBeenCalledWith('舞台演出', '')
+    expect(presetsStore.removeEventType).toHaveBeenCalledWith('舞台演出')
+
+    await expect(handlers.presets_manage({ entity: 'event_type', action: 'set_show_tracks', name: 'x' })).rejects.toThrow('showTracks')
+    await expect(handlers.presets_manage({ entity: 'category', action: 'set_show_tracks', name: 'x', showTracks: true })).rejects.toThrow('仅支持')
   })
 
   it('presets_manage 收纳位置新增走路径创建，删除按路径定位', async () => {

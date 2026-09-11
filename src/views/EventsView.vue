@@ -474,7 +474,7 @@ const filteredEvents = computed(() => {
       event.description,
       event.startDate,
       event.endDate,
-      EVENT_TYPE_LABELS.value[event.type] || '',
+      EVENT_TYPE_LABELS.value[event.type] || event.type || '',
       ...(Array.isArray(event.tags) ? event.tags : []),
       ...(Array.isArray(event.tracks) ? event.tracks.flatMap((track) => [track?.title, track?.artist, track?.album]) : [])
     ].filter(Boolean)
@@ -501,14 +501,14 @@ const groupedEventsByYear = computed(() => {
     const tA = getEvtTime(left)
     const tB = getEvtTime(right)
     if (tA !== tB) return sortDirection.value === 'asc' ? tA - tB : tB - tA
-    // 同一天内使用与 DB 查询一致的确定性排序，保证跨设备顺序一致
+    // 同一天内按创建时间排，避免编辑保存（updatedAt 变化）导致顺序漂移
     const dir = sortDirection.value === 'asc' ? 1 : -1
-    const uA = left.updatedAt || 0
-    const uB = right.updatedAt || 0
-    if (uA !== uB) return (uA - uB) * dir
     const cA = left.createdAt || 0
     const cB = right.createdAt || 0
     if (cA !== cB) return (cA - cB) * dir
+    const uA = left.updatedAt || 0
+    const uB = right.updatedAt || 0
+    if (uA !== uB) return (uA - uB) * dir
     const nA = String(left.name || '')
     const nB = String(right.name || '')
     if (nA !== nB) return nA.localeCompare(nB)

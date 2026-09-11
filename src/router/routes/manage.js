@@ -6,6 +6,12 @@ export default [
     meta: { titleKey: 'nav.categoryManage' }
   },
   {
+    path: '/manage/event-types',
+    name: 'manage-event-types',
+    component: () => import('@/views/EventTypeManageView.vue'),
+    meta: { titleKey: 'nav.eventTypeManage' }
+  },
+  {
     path: '/manage/ips',
     name: 'manage-ips',
     component: () => import('@/views/IpManageView.vue'),

@@ -7,6 +7,7 @@ import {
   normalizeStorageLocationValue,
   splitStorageLocationPath
 } from '@/utils/storageLocations'
+import { isBuiltinEventType } from '@/constants/eventTypes'
 
 const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
@@ -16,11 +17,13 @@ const STORAGE_KEY_SYNC_DIGEST = 'goods_presets_sync_digest'
 const STORAGE_KEY_FAV_CAT = 'goods_presets_favorite_categories'
 const STORAGE_KEY_FAV_IP = 'goods_presets_favorite_ips'
 const STORAGE_KEY_FAV_CHR = 'goods_presets_favorite_characters'
+const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const DEFAULT_STORAGE_LOCATIONS = []
+const DEFAULT_EVENT_TYPES = []
 
 function cloneList(list) {
   return JSON.parse(JSON.stringify(list))
@@ -213,11 +216,28 @@ function normalizeIpsList(list) {
   return [...new Set(values)]
 }
 
+function normalizeEventTypesList(list) {
+  if (!Array.isArray(list)) return []
+  const seen = new Set()
+  const result = []
+  for (const item of list) {
+    const name = String((item && typeof item === 'object' ? item.name : item) || '').trim()
+    if (!name || isBuiltinEventType(name) || seen.has(name)) continue
+    seen.add(name)
+    result.push({
+      name,
+      showTracks: Boolean(item && typeof item === 'object' && item.showTracks)
+    })
+  }
+  return result
+}
+
 export const usePresetsStore = defineStore('presets', () => {
   const categories = ref(cloneList(DEFAULT_CATEGORIES))
   const ips = ref(cloneList(DEFAULT_IPS))
   const characters = ref(cloneList(DEFAULT_CHARACTERS))
   const storageLocations = ref(cloneList(DEFAULT_STORAGE_LOCATIONS))
+  const eventTypes = ref(cloneList(DEFAULT_EVENT_TYPES))
   const favoriteCategories = ref([])
   const favoriteIps = ref([])
   const favoriteCharacters = ref([])
@@ -286,19 +306,21 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc, favCat, favIp, favChr] = await Promise.all([
+    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
       readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS),
       readPersistedList(STORAGE_KEY_FAV_CAT, []),
       readPersistedList(STORAGE_KEY_FAV_IP, []),
-      readPersistedList(STORAGE_KEY_FAV_CHR, [])
+      readPersistedList(STORAGE_KEY_FAV_CHR, []),
+      readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES)
     ])
     categories.value = cat
     ips.value = ip
     characters.value = chr
     storageLocations.value = loc
+    eventTypes.value = normalizeEventTypesList(evtTypes)
     favoriteCategories.value = Array.isArray(favCat) ? favCat : []
     favoriteIps.value = Array.isArray(favIp) ? favIp : []
     favoriteCharacters.value = Array.isArray(favChr) ? favChr : []
@@ -322,7 +344,8 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_IP, ips.value),
       writePersistedList(STORAGE_KEY_CHR, characters.value),
-      writePersistedList(STORAGE_KEY_LOC, storageLocations.value)
+      writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
+      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
     ])
 
     isReady.value = true
@@ -525,6 +548,60 @@ export const usePresetsStore = defineStore('presets', () => {
     categories.value = [...list]
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
     autoPushPresets()
+  }
+
+  async function addEventType(name, showTracks = false) {
+    const normalized = String(name || '').trim()
+    if (!normalized || isBuiltinEventType(normalized)) return false
+    if (eventTypes.value.some((item) => item.name === normalized)) return false
+
+    eventTypes.value = [...eventTypes.value, { name: normalized, showTracks: Boolean(showTracks) }]
+    await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    autoPushPresets()
+    return true
+  }
+
+  async function removeEventType(name) {
+    const normalized = String(name || '').trim()
+    if (!normalized || isBuiltinEventType(normalized)) return
+    eventTypes.value = eventTypes.value.filter((item) => item.name !== normalized)
+    await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    autoPushPresets()
+  }
+
+  async function updateEventTypeName(oldName, newName) {
+    const previous = String(oldName || '').trim()
+    const next = String(newName || '').trim()
+    if (!previous || !next || isBuiltinEventType(previous) || isBuiltinEventType(next)) return false
+
+    const index = eventTypes.value.findIndex((item) => item.name === previous)
+    if (index === -1) return false
+    if (previous === next) return true
+    if (eventTypes.value.some((item) => item.name === next)) return false
+
+    const updated = [...eventTypes.value]
+    updated.splice(index, 1, { ...updated[index], name: next })
+    eventTypes.value = updated
+    await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    autoPushPresets()
+    return true
+  }
+
+  async function updateEventTypeShowTracks(name, showTracks) {
+    const normalized = String(name || '').trim()
+    if (!normalized || isBuiltinEventType(normalized)) return false
+    const index = eventTypes.value.findIndex((item) => item.name === normalized)
+    if (index === -1) return false
+
+    const next = Boolean(showTracks)
+    if (eventTypes.value[index].showTracks === next) return true
+
+    const updated = [...eventTypes.value]
+    updated.splice(index, 1, { ...updated[index], showTracks: next })
+    eventTypes.value = updated
+    await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    autoPushPresets()
+    return true
   }
 
   async function addIp(name) {
@@ -765,6 +842,12 @@ export const usePresetsStore = defineStore('presets', () => {
 
     storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
 
+    // eventTypes：兼容 string[] 与 [{name, showTracks}]
+    const evtRaw = snapshot.eventTypes
+    if (Array.isArray(evtRaw)) {
+      eventTypes.value = normalizeEventTypesList(evtRaw)
+    }
+
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_IP, ips.value),
@@ -772,7 +855,8 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
       writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value),
       writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value),
-      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
+      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
+      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
     ])
   }
 
@@ -829,6 +913,7 @@ export const usePresetsStore = defineStore('presets', () => {
     ips,
     characters,
     storageLocations,
+    eventTypes,
     storageLocationTree,
     storageLocationPaths,
     isReady,
@@ -837,6 +922,10 @@ export const usePresetsStore = defineStore('presets', () => {
     removeCategory,
     updateCategoryName,
     reorderCategories,
+    addEventType,
+    removeEventType,
+    updateEventTypeName,
+    updateEventTypeShowTracks,
     addIp,
     removeIp,
     updateIpName,

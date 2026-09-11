@@ -244,6 +244,8 @@ import { isLocalImageUri } from '@/utils/image/localImage'
 import { getCachedImageThumb, peekImageThumb } from '@/utils/image/thumb'
 import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown } from '@/utils/markdown'
+import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
+import { usePresetsStore } from '@/stores/presets'
 
 defineOptions({ name: 'EventDetailView' })
 
@@ -260,6 +262,7 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const goodsStore = useGoodsStore()
+const presets = usePresetsStore()
 const { t } = useI18n()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
@@ -328,15 +331,8 @@ const eventStateKey = computed(() => `${EVENT_DETAIL_STATE_PREFIX}:${String(even
 const eventPendingKey = computed(() => `${EVENT_DETAIL_PENDING_PREFIX}:${String(eventId.value || '')}`)
 const eventTrackKey = computed(() => `${EVENT_DETAIL_TRACK_KEY_PREFIX}:${String(eventId.value || '')}`)
 
-const TYPE_MAP = computed(() => ({
-  exhibition: { label: t('events.typeExhibition'), cls: 'type-exhibition' },
-  concert: { label: t('events.typeConcert'), cls: 'type-concert' },
-  other: { label: t('events.typeOther'), cls: 'type-other' }
-}))
-
-const typeInfo = computed(() => TYPE_MAP.value[event.value?.type] || TYPE_MAP.value.other)
-const typeLabel = computed(() => typeInfo.value.label)
-const typeChipClass = computed(() => typeInfo.value.cls)
+const typeLabel = computed(() => resolveEventTypeLabel(event.value?.type, t))
+const typeChipClass = computed(() => getEventTypeChipClass(event.value?.type))
 const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || t('goods.heroFallbackEvent'))
 const coverCardStyle = computed(() => ({}))
 const dateDisplay = computed(() => {
@@ -355,9 +351,11 @@ const eventPhotoUris = computed(() => (
     .map((photo) => String(photo?.uri || '').trim())
     .filter(Boolean)
 ))
-const trackList = computed(() =>
-  (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId || item?.qqSongId)
-)
+const showsTracks = computed(() => typeShowsTracks(event.value?.type, presets.eventTypes))
+const trackList = computed(() => {
+  if (!showsTracks.value) return []
+  return (Array.isArray(event.value?.tracks) ? event.value.tracks : []).filter((item) => item?.title || item?.artist || item?.neteaseSongId || item?.qqSongId)
+})
 const tagsDisplay = computed(() => (
   event.value?.tags?.length ? event.value.tags.join('、') : t('common.unfilled')
 ))
@@ -986,6 +984,7 @@ function tryPlayLinkedGoodsBackHero() {
 .type-market { background: rgba(250, 149, 90, 0.14); color: #d26f20; }
 .type-exchange { background: rgba(50, 200, 140, 0.14); color: #188f63; }
 .type-other { background: rgba(142, 142, 147, 0.14); color: #6a6e77; }
+.type-custom { background: rgba(150, 100, 250, 0.14); color: #7c4dcc; }
 
 .hero-chip--tag {
   background: rgba(120, 100, 255, 0.1);

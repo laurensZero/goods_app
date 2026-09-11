@@ -60,7 +60,7 @@
         <span class="event-card__tag-pill">{{ dateDisplay || t('events.card.pendingTime') }}</span>
         <span v-if="event.location" class="event-card__tag-pill">{{ event.location }}</span>
         <span v-if="event.linkedGoodsIds?.length" class="event-card__tag-pill">{{ event.linkedGoodsIds.length }}{{ t('common.itemsLinkedUnit') }}</span>
-        <span v-if="event.type === 'concert' && event.tracks?.length" class="event-card__tag-pill">{{ event.tracks.length }}{{ t('common.tracksUnit') }}</span>
+        <span v-if="showsTracks && event.tracks?.length" class="event-card__tag-pill">{{ event.tracks.length }}{{ t('common.tracksUnit') }}</span>
         <span v-for="tag in event.tags" :key="tag" class="event-card__tag-pill">{{ tag }}</span>
         <span v-if="event.photos?.length" class="event-card__tag-pill">{{ event.photos.length }}{{ t('common.photosUnit') }}</span>
       </div>
@@ -76,8 +76,11 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
+import { usePresetsStore } from '@/stores/presets'
 
 const { t } = useI18n()
+const presets = usePresetsStore()
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -101,17 +104,11 @@ const MOUSE_TAP_THRESHOLD = 6
 let tagsDragStartX = 0
 let tagsDragStartScrollLeft = 0
 
-const TYPE_MAP = computed(() => ({
-  exhibition: { label: t('events.typeExhibition'), cls: 'type-exhibition' },
-  concert: { label: t('events.typeConcert'), cls: 'type-concert' },
-  other: { label: t('events.typeOther'), cls: 'type-other' }
-}))
-
 const coverMediaStyle = computed(() => ({}))
 
-const typeInfo = computed(() => TYPE_MAP.value[props.event.type] || TYPE_MAP.value.other)
-const typeLabel = computed(() => typeInfo.value.label)
-const typeChipClass = computed(() => typeInfo.value.cls)
+const typeLabel = computed(() => resolveEventTypeLabel(props.event.type, t))
+const typeChipClass = computed(() => getEventTypeChipClass(props.event.type))
+const showsTracks = computed(() => typeShowsTracks(props.event.type, presets.eventTypes))
 const dateDisplay = computed(() => {
   const start = props.event.startDate
   const end = props.event.endDate
@@ -437,6 +434,11 @@ onBeforeUnmount(() => {
   color: #666a74;
 }
 
+.event-card__tag-pill.type-custom {
+  background: rgba(150, 100, 250, 0.14);
+  color: #7c4dcc;
+}
+
 .event-card__bottom {
   min-height: 18px;
 }
@@ -471,5 +473,10 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .event-card__tag-pill.type-other {
   background: rgba(142, 142, 147, 0.22);
   color: #a7acb8;
+}
+
+:global(html.theme-dark) .event-card__tag-pill.type-custom {
+  background: rgba(150, 100, 250, 0.2);
+  color: #c4a1ff;
 }
 </style>

@@ -362,7 +362,11 @@ export const useSyncStore = defineStore('sync', () => {
         .filter((item) => item.name),
       storageLocations: presets.storageLocations.map((item) => ({
         id: String(item?.id || '').trim(), name: String(item?.name || '').trim(), parentId: String(item?.parentId || '').trim()
-      }))
+      })),
+      eventTypes: presets.eventTypes.map((item) => ({
+        name: String(item?.name || '').trim(),
+        showTracks: Boolean(item?.showTracks)
+      })).filter((item) => item.name)
     }
   }
 

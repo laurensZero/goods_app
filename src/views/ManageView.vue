@@ -5,11 +5,14 @@
 
       <section v-if="isDesktopSettingsViewport" class="settings-workspace">
         <aside class="settings-sidebar">
-          <div class="settings-group">
-            <p class="settings-group__label">{{ t('manage.settings') }}</p>
+          <div v-for="group in manageEntryGroups" :key="group.key" class="settings-group">
+            <div class="settings-group__head">
+              <p class="settings-group__label">{{ group.label }}</p>
+              <h2 class="settings-group__title">{{ group.title }}</h2>
+            </div>
             <div class="settings-nav">
               <button
-                v-for="entry in manageEntries"
+                v-for="entry in group.entries"
                 :key="entry.key"
                 type="button"
                 :class="['settings-nav__item', { 'settings-nav__item--active': selectedManageKey === entry.key }]"
@@ -320,6 +323,7 @@ import AppToast from '@/components/common/AppToast.vue'
 
 // Lazy-loaded sub-pages
 const CategoryManageView = defineAsyncComponent(() => import('@/views/CategoryManageView.vue'))
+const EventTypeManageView = defineAsyncComponent(() => import('@/views/EventTypeManageView.vue'))
 const IpManageView = defineAsyncComponent(() => import('@/views/IpManageView.vue'))
 const CharacterManageView = defineAsyncComponent(() => import('@/views/CharacterManageView.vue'))
 const StorageLocationsView = defineAsyncComponent(() => import('@/views/StorageLocationsView.vue'))
@@ -402,7 +406,7 @@ const activeManageEntry = computed(() =>
 )
 
 const manageComponentMap = {
-  categories: CategoryManageView, ips: IpManageView, characters: CharacterManageView,
+  categories: CategoryManageView, eventTypes: EventTypeManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
   notifications: NotifySettingsView, mcp: McpSettingsView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
@@ -615,6 +619,19 @@ onBeforeRouteLeave((to) => {
   border-radius: 26px;
   background: color-mix(in srgb, var(--app-surface) 86%, transparent);
   box-shadow: var(--app-shadow);
+}
+
+.settings-group__head {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-group__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
 }
 
 .settings-nav {

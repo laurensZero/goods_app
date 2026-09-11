@@ -46,5 +46,6 @@
   "nav.feedback": "反饋",
   "nav.feedbackDetail": "反饋詳情",
   "nav.surveys": "問卷調查",
-  "nav.surveyFill": "填寫問卷"
+  "nav.surveyFill": "填寫問卷",
+  "nav.eventTypeManage": "活動類型管理"
 }

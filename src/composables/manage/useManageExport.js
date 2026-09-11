@@ -400,6 +400,11 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
     for (const character of (presets.characters || [])) {
       if (character?.name) await presetsStore.addCharacter(character.name, character.ip || '')
     }
+    for (const eventType of (presets.eventTypes || [])) {
+      const name = typeof eventType === 'object' ? String(eventType?.name || '').trim() : String(eventType || '').trim()
+      const showTracks = typeof eventType === 'object' ? Boolean(eventType?.showTracks) : false
+      if (name) await presetsStore.addEventType(name, showTracks)
+    }
     await presetsStore.syncStorageLocationsFromPaths(presets.storageLocations || [])
   }
 
@@ -681,7 +686,8 @@ export function useManageExport({ showToast, ensureEventsReady } = {}) {
       categories: presetsStore.categories,
       ips: presetsStore.ips,
       characters: presetsStore.characters,
-      storageLocations: presetsStore.storageLocationPaths
+      storageLocations: presetsStore.storageLocationPaths,
+      eventTypes: presetsStore.eventTypes
     } : null
 
     return {

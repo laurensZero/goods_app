@@ -55,7 +55,9 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       categories: parsePresetsField(row.categories),
       ips: parsePresetsField(row.ips),
       characters: parsePresetsField(row.characters),
-      storageLocations: parsePresetsField(row.storageLocations)
+      storageLocations: parsePresetsField(row.storageLocations),
+      // 迁移前列不存在时省略该键，replacePresetsSnapshot 据此保留本地自定义类型
+      ...(row.eventTypes !== undefined ? { eventTypes: parsePresetsField(row.eventTypes) } : {})
     }
   }
 
@@ -307,7 +309,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
         categories: parsePresetsField(p.categories),
         ips: parsePresetsField(p.ips),
         characters: parsePresetsField(p.characters),
-        storageLocations: parsePresetsField(p.storageLocations)
+        storageLocations: parsePresetsField(p.storageLocations),
+        ...(p.eventTypes !== undefined ? { eventTypes: parsePresetsField(p.eventTypes) } : {})
       }
     })() : null
 
