@@ -441,7 +441,7 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
         action: 'add',
         eventId: 'e1',
         tracks: [
-          { title: 'Melt', artist: '初音未来', source: 'netease', neteaseSongId: 'n123' },
+          { title: 'Melt', artist: '初音未来', source: 'netease', neteaseSongId: 'n123', coverUrl: 'https://p1.music.net/a.jpg' },
           { title: '手写曲' }
         ]
       })
@@ -455,7 +455,12 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
 
       const saved = eventsStore.updateEventRecord.mock.calls[0][1]
       expect(saved.tracks).toHaveLength(3)
-      expect(saved.tracks[1]).toMatchObject({ title: 'Melt', neteaseSongId: 'n123', source: 'netease' })
+      expect(saved.tracks[1]).toMatchObject({
+        title: 'Melt',
+        neteaseSongId: 'n123',
+        source: 'netease',
+        coverUrl: 'https://p1.music.net/a.jpg'
+      })
     })
 
     it('add：缺 title / 空数组 / 未知活动时报错', async () => {

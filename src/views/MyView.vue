@@ -1292,7 +1292,12 @@ function openAccountManageSheet() {
   showAccountManageSheet.value = true
   // 优先用缓存立即显示，后台静默刷新（不阻塞弹窗打开）
   authStore.fetchLinkedProviders().catch(() => {})
-  if (!qqStore.isInitialized) qqStore.init().catch(() => {})
+  if (!qqStore.isInitialized) {
+    qqStore.init().catch(() => {})
+  } else {
+    // 已初始化：保持缓存展示，后台再刷一次最新绑定状态
+    qqStore.refreshBinding().catch(() => {})
+  }
 }
 
 function closeAccountManageSheet() {

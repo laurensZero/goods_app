@@ -65,5 +65,11 @@
   "search.onlyKeywordsOrBasic": "キーワードまたは基本フィルターのみ",
   "search.noMatchKeyword": "「{keyword}」に一致するアイテムが見つかりません。キーワードを短くするか、フィルターを緩めてみてください。",
   "search.noMatchFilter": "現在のフィルター条件下で一致するアイテムがありません。",
-  "search.deletePreset": "プリセットを削除"
+  "search.deletePreset": "プリセットを削除",
+  "search.matchPinyin": "ピンイン一致",
+  "search.matchPinyinDesc": "オンにするとピンインや頭文字で中国語名を検索できます",
+  "search.matchCase": "大文字小文字を区別",
+  "search.matchCaseDesc": "オンにすると英語キーワードを大文字小文字を区別して検索します",
+  "search.includeNote": "メモを検索",
+  "search.includeNoteDesc": "オフにするとキーワードがメモ内容に一致しません"
 }

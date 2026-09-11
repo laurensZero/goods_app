@@ -11,6 +11,10 @@ import {
   GOODS_FILTER_DATE_PRESET_OPTIONS
 } from '@/utils/goods/filters'
 import { normalizeStorageLocationValue, splitStorageLocationPath, buildStorageLocationPath } from '@/utils/storageLocations'
+import { writePersisted } from '@/utils/platform/storage'
+
+// 关键词匹配偏好（拼音/大小写/备注）跨会话记住上次选择
+const MATCH_PREFS_KEY = 'goods_search_match_prefs'
 
 function buildOptionList(values, specialOption = null) {
   const base = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
@@ -20,27 +24,78 @@ function buildOptionList(values, specialOption = null) {
   return specialOption ? [specialOption, ...base] : base
 }
 
+function readMatchPrefsSync() {
+  try {
+    const raw = localStorage.getItem(MATCH_PREFS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return null
+    return {
+      matchPinyin: typeof parsed.matchPinyin === 'boolean' ? parsed.matchPinyin : undefined,
+      matchCase: typeof parsed.matchCase === 'boolean' ? parsed.matchCase : undefined,
+      includeNote: typeof parsed.includeNote === 'boolean' ? parsed.includeNote : undefined
+    }
+  } catch {
+    return null
+  }
+}
+
 export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
   const { t } = useI18n()
   const presets = usePresetsStore()
   const filterPresetsStore = useFilterPresetsStore()
 
   // --- Filter state ---
-  const filters = reactive(createDefaultGoodsFilters({ hasImage: 'any' }))
+  const savedMatchPrefs = readMatchPrefsSync() || {}
+  const filters = reactive(createDefaultGoodsFilters({
+    hasImage: 'any',
+    ...savedMatchPrefs
+  }))
   const debouncedKeyword = ref('')
   const activePresetId = ref('')
   const activePresetName = ref('')
 
   // 关键字真防抖：避免每个按键都触发全表过滤 + 重排
+  // 区分大小写时保留原始大小写，否则统一小写
   let keywordDebounceTimer = 0
+
+  function commitKeyword(value) {
+    const trimmed = String(value || '').trim()
+    debouncedKeyword.value = filters.matchCase ? trimmed : trimmed.toLowerCase()
+  }
+
+  function scheduleKeywordCommit(value) {
+    clearTimeout(keywordDebounceTimer)
+    keywordDebounceTimer = setTimeout(() => {
+      commitKeyword(value)
+    }, 250)
+  }
 
   watch(
     () => filters.keyword,
-    (value) => {
+    (value) => scheduleKeywordCommit(value)
+  )
+
+  // 切换大小写匹配时立刻按新规则重算 keyword（防抖已提交的会被覆盖）
+  watch(
+    () => filters.matchCase,
+    () => {
       clearTimeout(keywordDebounceTimer)
-      keywordDebounceTimer = setTimeout(() => {
-        debouncedKeyword.value = String(value || '').trim().toLowerCase()
-      }, 250)
+      commitKeyword(filters.keyword)
+    }
+  )
+
+  // 持久化匹配偏好
+  watch(
+    () => [filters.matchPinyin, filters.matchCase, filters.includeNote],
+    ([matchPinyin, matchCase, includeNote]) => {
+      const payload = JSON.stringify({ matchPinyin, matchCase, includeNote })
+      try {
+        localStorage.setItem(MATCH_PREFS_KEY, payload)
+      } catch {
+        // ignore
+      }
+      writePersisted(MATCH_PREFS_KEY, payload)
     }
   )
 
@@ -226,7 +281,13 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
   }
 
   function resetFilters() {
-    assignFilters(createDefaultGoodsFilters({ hasImage: 'any' }))
+    // 重置筛选条件时保留匹配偏好（拼音/大小写/备注）
+    assignFilters(createDefaultGoodsFilters({
+      hasImage: 'any',
+      matchPinyin: filters.matchPinyin,
+      matchCase: filters.matchCase,
+      includeNote: filters.includeNote
+    }))
     activePresetId.value = ''
     activePresetName.value = ''
   }
@@ -246,7 +307,9 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     })
     Object.assign(filters, normalized)
     clearTimeout(keywordDebounceTimer)
-    debouncedKeyword.value = normalized.keyword.toLowerCase()
+    debouncedKeyword.value = normalized.matchCase
+      ? normalized.keyword
+      : normalized.keyword.toLowerCase()
   }
 
   function formatPresetSummary(conditions) {

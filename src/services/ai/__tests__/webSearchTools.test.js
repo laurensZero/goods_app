@@ -25,9 +25,13 @@ describe('webSearchTools', () => {
     expect(WEB_SEARCH_TOOL_DEFINITIONS[0].inputSchema.required).toEqual(['query'])
   })
 
-  it('未配置 searchApiKey 时抛出引导错误', async () => {
+  it('未配置 searchApiKey 时返回 needsSetup 引导（不抛错）', async () => {
     const handlers = createWebSearchToolHandlers({ getConfig: () => ({ searchApiKey: '' }) })
-    await expect(handlers.web_search({ query: '初音' })).rejects.toThrow(/Tavily|搜索 API Key/)
+    const result = await handlers.web_search({ query: '初音' })
+    expect(result.unavailable).toBe(true)
+    expect(result.needsSetup).toBe(true)
+    expect(result.resultCount).toBe(0)
+    expect(result.guide).toMatch(/Tavily|ai_service/)
     expect(capacitorHttpMock.request).not.toHaveBeenCalled()
   })
 

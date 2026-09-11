@@ -28,6 +28,49 @@
         <span v-if="activeFilterCount > 0" class="filter-popup__badge">{{ activeFilterCount }}</span>
       </header>
 
+      <!-- Keyword matching options: compact square toggles -->
+      <section class="content-section content-section--compact">
+        <div class="match-tile-grid">
+          <button
+            type="button"
+            class="match-tile"
+            :class="{ 'match-tile--active': filters.matchPinyin !== false }"
+            :aria-pressed="filters.matchPinyin !== false"
+            @click="toggleMatchOption('matchPinyin')"
+          >
+            <span class="match-tile__label">{{ t('search.matchPinyin') }}</span>
+            <span class="match-tile__switch" :class="{ 'match-tile__switch--on': filters.matchPinyin !== false }">
+              <span class="match-tile__slider" />
+            </span>
+          </button>
+          <button
+            type="button"
+            class="match-tile"
+            :class="{ 'match-tile--active': filters.matchCase === true }"
+            :aria-pressed="filters.matchCase === true"
+            @click="toggleMatchOption('matchCase')"
+          >
+            <span class="match-tile__label">{{ t('search.matchCase') }}</span>
+            <span class="match-tile__switch" :class="{ 'match-tile__switch--on': filters.matchCase === true }">
+              <span class="match-tile__slider" />
+            </span>
+          </button>
+          <button
+            type="button"
+            class="match-tile"
+            :class="{ 'match-tile--active': filters.includeNote !== false }"
+            :aria-pressed="filters.includeNote !== false"
+            @click="toggleMatchOption('includeNote')"
+          >
+            <span class="match-tile__label">{{ t('search.includeNote') }}</span>
+            <span class="match-tile__switch" :class="{ 'match-tile__switch--on': filters.includeNote !== false }">
+              <span class="match-tile__slider" />
+            </span>
+          </button>
+        </div>
+        <p v-if="matchOptionHint" class="match-mode-hint">{{ matchOptionHint }}</p>
+      </section>
+
       <!-- Body -->
       <div class="filter-popup__body">
         <!-- Advanced Filters toggle -->
@@ -364,7 +407,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Popup } from 'vant'
 import { useI18n } from 'vue-i18n'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -432,6 +475,24 @@ const presetDraftName = ref('')
 const advancedExpanded = ref(false)
 
 const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters.keyword && props.filters.keyword.trim()))
+
+// Match option chips: tap toggles + shows short desc
+const matchOptionHint = ref('')
+
+function isMatchOptionOn(key) {
+  if (key === 'matchPinyin' || key === 'includeNote') return props.filters[key] !== false
+  return props.filters[key] === true
+}
+
+function toggleMatchOption(key) {
+  const next = !isMatchOptionOn(key)
+  emit('update-field', { key, value: next })
+  matchOptionHint.value = t(`search.${key}Desc`)
+}
+
+watch(showProxy, (visible) => {
+  if (!visible) matchOptionHint.value = ''
+})
 
 // Date picker
 const showDatePicker = ref(false)
@@ -570,6 +631,112 @@ function onDateConfirm({ selectedValues }) {
 /* ── Content section ── */
 .content-section {
   margin-bottom: var(--section-gap);
+}
+
+.content-section--compact {
+  margin-bottom: 8px;
+  padding: 0 var(--page-padding);
+}
+
+/* ── Match option tiles (square, label on top, switch below) ── */
+.match-tile-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.match-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 72px;
+  padding: 10px 6px;
+  border: 1px solid var(--app-glass-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, transform 0.16s ease;
+}
+
+.match-tile:active {
+  transform: scale(0.97);
+}
+
+.match-tile--active {
+  border-color: color-mix(in srgb, var(--app-text) 18%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 96%, var(--app-text) 4%);
+  color: var(--app-text);
+}
+
+.match-tile__label {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.match-tile__switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.match-tile__slider {
+  position: absolute;
+  inset: 0;
+  background-color: var(--app-surface-muted, #e5e5ea);
+  transition: background-color 0.25s ease;
+  border-radius: 24px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.match-tile__slider::before {
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.match-tile__switch--on .match-tile__slider {
+  background-color: var(--app-chip-accent-text);
+}
+
+.match-tile__switch--on .match-tile__slider::before {
+  transform: translateX(16px);
+}
+
+:global(html.theme-dark) .match-tile__slider {
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+:global(html.theme-dark) .match-tile__slider::before {
+  background-color: #f5f5f7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+:global(html.theme-dark) .match-tile__switch--on .match-tile__slider {
+  background-color: var(--app-chip-accent-text);
+}
+
+.match-mode-hint {
+  margin: 6px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .section-head {

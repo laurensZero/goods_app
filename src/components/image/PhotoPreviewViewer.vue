@@ -541,7 +541,8 @@ defineExpose({ close, isOpen })
 .photo-preview-overlay {
   position: fixed;
   inset: 0;
-  z-index: 2000;
+  /* 高于播放器浮窗（2200），全屏看图时不被挡住 */
+  z-index: 2400;
   background: var(--app-bg);
   background: color-mix(in srgb, var(--app-bg) 80%, transparent);
   backdrop-filter: blur(40px) saturate(180%);

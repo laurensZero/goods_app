@@ -65,5 +65,11 @@
   "search.onlyKeywordsOrBasic": "키워드 또는 기본 필터만 사용",
   "search.noMatchKeyword": "「{keyword}」(과)와 일치하는 아이템이 없습니다. 키워드를 짧게 하거나 필터를 완화해 보세요.",
   "search.noMatchFilter": "현재 필터 조건에서 일치하는 아이템이 없습니다.",
-  "search.deletePreset": "프리셋 삭제"
+  "search.deletePreset": "프리셋 삭제",
+  "search.matchPinyin": "병음 일치",
+  "search.matchPinyinDesc": "켜면 병음 또는 이니셜로 중국어 이름을 검색할 수 있습니다",
+  "search.matchCase": "대소문자 구분",
+  "search.matchCaseDesc": "켜면 영문 키워드를 대소문자 구분하여 검색합니다",
+  "search.includeNote": "메모 검색",
+  "search.includeNoteDesc": "끄면 키워드가 메모 내용과 일치하지 않습니다"
 }

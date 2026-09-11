@@ -218,7 +218,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     name: 'event_tracks_manage',
     description:
       '管理演出/演唱会的曲单：action=add 追加曲目、action=remove 删除单曲。' +
-      'eventId 来自 events_list / event_tracks。add 时 tracks 为数组，每首至少填 title（歌名），可选 artist/album/source/neteaseSongId/qqSongId/bilibiliVideoId/durationMs。' +
+      'eventId 来自 events_list / event_tracks。add 时 tracks 为数组，每首至少填 title（歌名），可选 artist/album/source/coverUrl/neteaseSongId/qqSongId/bilibiliVideoId/durationMs（coverUrl 从 music_search 原样带回，B 站尤其依赖它显示封面）。' +
       'remove 时 trackId 来自 event_tracks（includeTracks: true）的曲目明细。只增删不覆盖整单。',
     inputSchema: {
       type: 'object',
@@ -227,7 +227,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         eventId: { type: 'string', description: '活动 id，来自 events_list / event_tracks' },
         tracks: {
           type: 'array',
-          description: '仅 action=add：要追加的曲目数组。每首 { title, artist?, album?, source?, neteaseSongId?, qqSongId?, bilibiliVideoId?, durationMs? }',
+          description: '仅 action=add：要追加的曲目数组。每首 { title, artist?, album?, source?, coverUrl?, neteaseSongId?, qqSongId?, bilibiliVideoId?, durationMs? }',
           items: {
             type: 'object',
             properties: {
@@ -235,6 +235,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
               artist: { type: 'string', description: '歌手' },
               album: { type: 'string', description: '专辑名' },
               source: { type: 'string', enum: ['netease', 'qq', 'bilibili', 'manual'], description: '音源，默认 manual（仅手动录入，不可在线播放）' },
+              coverUrl: { type: 'string', description: '封面图 URL，从 music_search 结果原样复制' },
               neteaseSongId: { type: 'string', description: '网易云歌曲 id（source=netease 时提供，可在线播放）' },
               qqSongId: { type: 'string', description: 'QQ 音乐歌曲 id（source=qq 时提供）' },
               bilibiliVideoId: { type: 'string', description: 'B 站视频 id（source=bilibili 时提供）' },
@@ -370,17 +371,34 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     description:
       '向用户提问并等待选择。调用后界面会出现问题和选项按钮，用户点击某项后工具才返回所选文本。' +
       '适用于：字段映射拿不准、导入前确认、多候选选一首歌等——代替长篇文字追问，让用户点一下即可。' +
-      'options 为 2-6 个简短选项；用户选中的文本会作为工具返回值（string）。',
+      '选歌时 options 用对象，字段名必须是 neteaseSongId / qqSongId / bilibiliVideoId（不要写成 songId），这样选项旁才有试听按钮。' +
+      '用户选中的 label 会作为工具返回值（string）。',
     inputSchema: {
       type: 'object',
       properties: {
         question: { type: 'string', description: '要问用户的问题（简洁明确）' },
         options: {
           type: 'array',
-          items: { type: 'string' },
           minItems: 2,
           maxItems: 6,
-          description: '2-6 个选项文本，用户点击后原样返回'
+          description:
+            '2-6 个选项对象。每项至少 label；选歌时务必带上对应音源 id 字段名：neteaseSongId / qqSongId / bilibiliVideoId（禁止写成 songId）。示例：{ "label": "离去之原 · Hanser · 网易云", "title": "离去之原", "artist": "Hanser", "source": "netease", "neteaseSongId": "30569747", "coverUrl": "https://…", "durationMs": 267000 }',
+          items: {
+            type: 'object',
+            properties: {
+              label: { type: 'string', description: '选项展示文案（必填）；用户点击后返回给模型的就是这个字符串' },
+              title: { type: 'string', description: '歌名（试听用）' },
+              artist: { type: 'string', description: '歌手（试听用）' },
+              album: { type: 'string', description: '专辑名（可选）' },
+              coverUrl: { type: 'string', description: '封面 URL，从 music_search 原样复制（可选）' },
+              durationMs: { type: 'number', description: '时长毫秒（可选）' },
+              source: { type: 'string', enum: ['netease', 'qq', 'bilibili', 'manual'], description: '音源' },
+              neteaseSongId: { type: 'string', description: '网易云 id（有则可试听）' },
+              qqSongId: { type: 'string', description: 'QQ 音乐 id（有则可试听）' },
+              bilibiliVideoId: { type: 'string', description: 'B 站 BV 号（有则可试听）' }
+            },
+            required: ['label']
+          }
         }
       },
       required: ['question', 'options']
@@ -556,9 +574,9 @@ export const MCP_TOOL_DEFINITIONS = [
   {
     name: 'music_search',
     description:
-      '在线搜索歌曲（网易云 / QQ 音乐 / Bilibili）。返回歌名、歌手、时长与各源歌曲 id，' +
-      '供 event_tracks_manage add 时填入 neteaseSongId / qqSongId / bilibiliVideoId（这样曲目才能在线播放）。' +
-      '用户要求给活动加歌、找歌时先用本工具搜，再向用户确认选哪首，然后 event_tracks_manage。',
+      '在线搜索歌曲（网易云 / QQ 音乐 / Bilibili）。返回歌名、歌手、时长、封面 URL 与各源歌曲 id。' +
+      '纯搜歌/比版本：在回复里给试听链接 [▶…](app://play_music/<source>/<id>)，不要 ask_user。' +
+      '要加到演出：再 ask_user 选一首，然后 event_tracks_manage（带 coverUrl + songId）。',
     inputSchema: {
       type: 'object',
       properties: {

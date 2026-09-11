@@ -20,10 +20,12 @@ import {
   requestShipReminderBackfill,
   unbindQQ,
 } from '@/services/qqService'
-import { readPersisted, writePersisted } from '@/utils/platform/storage'
+import { readPersisted, writePersisted, removePersisted } from '@/utils/platform/storage'
 
 // 本地键：定时抢购成功 → QQ 提醒开关（纯客户端偏好，见 CheckoutView 使用）
 const CHECKOUT_NOTIFY_KEY = 'goods_qq_checkout_notify'
+// 本地键：绑定状态缓存（按 userId 隔离；账号管理优先读缓存再后台刷新）
+const BINDING_CACHE_KEY = 'goods_qq_binding_cache'
 
 export const useQQBindingStore = defineStore('qqBinding', () => {
   const binding = ref(null)
@@ -51,8 +53,42 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
   const bindCode = computed(() => binding.value?.bind_code || '')
   const qqNickname = computed(() => binding.value?.qq_nickname || '')
 
+  /** 读取当前用户 id 下的本地绑定缓存（跨账号不串用） */
+  async function loadCachedBinding(userId) {
+    if (!userId) return null
+    try {
+      const raw = await readPersisted(BINDING_CACHE_KEY)
+      if (!raw) return null
+      const parsed = JSON.parse(raw)
+      if (!parsed || parsed.userId !== userId) return null
+      return parsed.binding || null
+    } catch {
+      return null
+    }
+  }
+
+  /** 写入绑定缓存；binding 为 null 表示未绑定 */
+  async function saveCachedBinding(userId, nextBinding) {
+    if (!userId) return
+    try {
+      await writePersisted(BINDING_CACHE_KEY, JSON.stringify({ userId, binding: nextBinding }))
+    } catch {
+      // 缓存失败不影响主流程
+    }
+  }
+
+  /** 登出/换账号时清除缓存，避免残留上一账号状态 */
+  async function clearCachedBinding() {
+    try {
+      await removePersisted(BINDING_CACHE_KEY)
+    } catch {
+      // ignore
+    }
+  }
+
   /**
-   * 初始化：拉取当前用户绑定状态。未登录时置空并标记完成，避免每次重拉。
+   * 初始化：优先读本地缓存立即展示，再后台拉取服务端刷新。
+   * 未登录时置空并标记完成，避免每次重拉。
    */
   async function init() {
     if (isInitialized.value) return
@@ -63,12 +99,17 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
       binding.value = null
       return
     }
+    // 1) 缓存优先：已绑定账号立刻显示已绑定态，不等待网络
+    const cached = await loadCachedBinding(authStore.user?.id)
+    if (cached !== undefined) binding.value = cached
+    // 2) 后台静默刷新（网络失败时保留缓存，不抹掉已绑定展示）
     isLoading.value = true
     try {
-      binding.value = await getQQBinding()
+      const fresh = await getQQBinding()
+      binding.value = fresh
+      await saveCachedBinding(authStore.user?.id, fresh)
     } catch (e) {
       console.warn('[qq-binding] init failed:', e.message)
-      binding.value = null
     } finally {
       isLoading.value = false
     }
@@ -82,6 +123,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     try {
       const code = await requestBindCode()
       binding.value = { status: 'pending', bind_code: code, enabled: true }
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
       return code
     } finally {
       isLoading.value = false
@@ -95,6 +137,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     isLoading.value = true
     try {
       binding.value = await getQQBinding()
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
     } finally {
       isLoading.value = false
     }
@@ -105,7 +148,10 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
    */
   async function toggleEnabled(enabled) {
     await setQQEnabled(enabled)
-    if (binding.value) binding.value.enabled = !!enabled
+    if (binding.value) {
+      binding.value.enabled = !!enabled
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
+    }
   }
 
   /**
@@ -118,6 +164,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     if (binding.value) binding.value.mihoyo_enabled = next
     try {
       await setMihoyoEnabled(next)
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
     } catch (e) {
       if (binding.value) binding.value.mihoyo_enabled = prev
       throw e
@@ -137,6 +184,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     if (binding.value) binding.value.mihoyo_shops = next
     try {
       await setMihoyoShops(next)
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
     } catch (e) {
       if (binding.value) binding.value.mihoyo_shops = prev
       throw e
@@ -159,6 +207,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
       await setShipReminderOffsets(next)
       // 让超期存量 / 新增档位立即生效：服务端重建该用户全部待发货商品的任务
       await requestShipReminderBackfill()
+      await saveCachedBinding(useAuthStore().user?.id, binding.value)
     } catch (e) {
       if (binding.value) binding.value.ship_reminder_offsets_days = prev
       throw e
@@ -173,6 +222,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     try {
       await unbindQQ()
       binding.value = null
+      await clearCachedBinding()
     } finally {
       isLoading.value = false
     }
@@ -194,6 +244,7 @@ export const useQQBindingStore = defineStore('qqBinding', () => {
     binding.value = null
     isInitialized.value = false
     isLoading.value = false
+    clearCachedBinding()
   }
 
   return {
