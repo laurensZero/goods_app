@@ -420,6 +420,10 @@ export const useAiChatStore = defineStore('aiChat', () => {
   const sendQueue = ref([])
   /** 当前轮的中断控制器（用户点停止生成） */
   let currentAbort = null
+  /** 当前轮令牌：被 ↵ 强制抢占后，旧轮 finally 不得再改 sending/队列 */
+  let turnToken = 0
+  /** 当前轮的 assistant 消息（强制结束时用来收尾 UI） */
+  let activeAssistant = null
   /** ask_user 挂起时的 resolve（UI 点选后调用 answerAskUser 唤醒） */
   let pendingAskResolve = null
   /** 待发送的视觉附件：随下一条用户消息进入会话；不自动触发 vision_analyze */
@@ -846,6 +850,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
   /**
    * 立即发送队列中的某条：丢弃它之前的所有排队项，打断当前生成，
    * 当前轮 finally 的 drainQueue 会优先把它发出去。
+   * 工具调用可能不响应 AbortSignal（网络卡住/长搜索）——此时不能干等 finally，
+   * 超时后强制抢占本轮，立刻启动排队消息。
    * @param {string} id
    */
   function sendQueuedNow(id) {
@@ -854,6 +860,40 @@ export const useAiChatStore = defineStore('aiChat', () => {
     sendQueue.value = sendQueue.value.slice(idx)
     devLog('send:queued-now', { id, remaining: sendQueue.value.length })
     stopStreaming()
+
+    const token = turnToken
+    // 短暂给 abort 一点时间优雅收尾；仍卡在 sending 则强制进入下一轮
+    setTimeout(() => {
+      if (turnToken !== token || !sending.value) return
+      devLog('send:queued-now:force', { id })
+      supersedeCurrentTurn()
+    }, 1200)
+  }
+
+  /** 抢占当前轮：旧 runTurn 不得再写状态；收尾 UI 并立刻 drain 队列 */
+  function supersedeCurrentTurn() {
+    turnToken += 1
+    if (currentAbort) {
+      try {
+        currentAbort.abort()
+      } catch {
+        // ignore
+      }
+      currentAbort = null
+    }
+    if (pendingAskResolve) {
+      pendingAskResolve(null)
+      pendingAskResolve = null
+    }
+    const msg = activeAssistant
+    if (msg) {
+      msg.pending = false
+      if (!msg.content && msg.reasoning) msg.content = msg.reasoning
+    }
+    activeAssistant = null
+    sending.value = false
+    activeSendAttachments = []
+    drainQueue()
   }
 
   /** 当前轮结束后：取队列下一条继续发送 */
@@ -879,6 +919,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
    * @param {ChatAttachment[]} pendingAttachments
    */
   async function runTurn(content, pendingAttachments) {
+    const token = ++turnToken
     activeSendAttachments = pendingAttachments
     const modelText = withAttachmentMarkers(content, pendingAttachments)
 
@@ -911,6 +952,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     // 普通对象的赋值绕过 Proxy 不会触发视图更新（页面停在「思考中」）
     const assistant = reactive({ id: uid(), role: 'assistant', content: '', steps: [], reasoning: '', pending: true })
     messages.value.push(assistant)
+    activeAssistant = assistant
     sending.value = true
     lastError.value = ''
     currentAbort = new AbortController()
@@ -989,6 +1031,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
         )
       })
       devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length, reasoningLen: result.reasoning?.length || 0 })
+      // 已被 ↵ 抢占：丢弃本轮结果，避免污染新会话轮次
+      if (token !== turnToken) return
       assistant.content = result.content
       assistant.reasoning = result.reasoning || ''
       assistant.pending = false
@@ -1005,6 +1049,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
       }
       devLog('reply:applied', { pending: assistant.pending, contentLen: assistant.content.length })
     } catch (e) {
+      if (token !== turnToken) return
       const aborted = currentAbort?.signal?.aborted
       assistant.pending = false
       if (aborted) {
@@ -1018,11 +1063,15 @@ export const useAiChatStore = defineStore('aiChat', () => {
         devLog('reply:failed', { error: assistant.error })
       }
     } finally {
-      sending.value = false
-      activeSendAttachments = []
-      currentAbort = null
-      // 有排队消息则继续发出
-      drainQueue()
+      // 旧轮被抢占时，sending/队列由 supersedeCurrentTurn 负责，这里不能再动
+      if (token === turnToken) {
+        sending.value = false
+        activeSendAttachments = []
+        currentAbort = null
+        activeAssistant = null
+        // 有排队消息则继续发出
+        drainQueue()
+      }
     }
   }
 
