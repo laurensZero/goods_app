@@ -34,7 +34,7 @@
               >
                 {{ character }}
               </span>
-              <span v-if="item.variant" class="sheet-chip sheet-chip--variant">{{ item.variant }}</span>
+              <span v-if="displayVariant" class="sheet-chip sheet-chip--variant">{{ displayVariant }}</span>
             </div>
 
             <div class="sheet-meta">
@@ -64,6 +64,7 @@ import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { getTimelineDisplayTotal } from '@/composables/home/useHomeTimeline'
+import { getDisplayGoodsVariant } from '@/utils/goods/identity'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -78,6 +79,7 @@ const displayCharacters = computed(() => {
   const c = props.item?.characters
   return Array.isArray(c) ? c.slice(0, 3) : []
 })
+const displayVariant = computed(() => getDisplayGoodsVariant(props.item))
 
 const totalPrice = computed(() => {
   const item = props.item

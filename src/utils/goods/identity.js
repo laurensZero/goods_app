@@ -92,6 +92,37 @@ export function getGoodsVariant(item) {
   return ''
 }
 
+function characterNameSet(characters) {
+  return new Set(
+    (Array.isArray(characters) ? characters : [])
+      .map((name) => String(name || '').trim())
+      .filter(Boolean),
+  )
+}
+
+/** 款式规范化后是否与角色名重复（相等，或拆分后全是角色名） */
+export function isVariantRedundantWithCharacters(variantText, characters) {
+  const normalized = normalizeGoodsVariant(variantText)
+  if (!normalized) return false
+
+  const names = characterNameSet(characters)
+  if (names.size === 0) return false
+  if (names.has(normalized)) return true
+
+  const parts = normalized
+    .split(/\s*[\/／,，、]\s*/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return parts.length > 1 && parts.every((part) => names.has(part))
+}
+
+/** 展示用款式：与角色名重复时不返回，避免详情/卡片重复 chip */
+export function getDisplayGoodsVariant(item) {
+  const variant = getGoodsVariant(item)
+  if (isVariantRedundantWithCharacters(variant, item?.characters)) return ''
+  return variant
+}
+
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 
 export function buildGoodsIdentityKey(item) {

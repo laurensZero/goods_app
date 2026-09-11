@@ -10,7 +10,9 @@ import {
   stripVariantFromNote,
   buildNoteWithVariant,
   buildGoodsIdentityAliases,
-  getGoodsVariant
+  getGoodsVariant,
+  isVariantRedundantWithCharacters,
+  getDisplayGoodsVariant
 } from '../identity'
 
 describe('normalizeGoodsName', () => {
@@ -148,6 +150,41 @@ describe('getGoodsVariant', () => {
 
   it('returns empty for null', () => {
     expect(getGoodsVariant(null)).toBe('')
+  })
+})
+
+describe('isVariantRedundantWithCharacters / getDisplayGoodsVariant', () => {
+  it('hides variant when it equals a character name', () => {
+    expect(isVariantRedundantWithCharacters('兹白', ['兹白'])).toBe(true)
+    expect(getDisplayGoodsVariant({ variant: '兹白', characters: ['兹白'] })).toBe('')
+  })
+
+  it('hides variant after sale-marker normalization matches character', () => {
+    expect(getDisplayGoodsVariant({ variant: '兹白【预售5月】', characters: ['兹白'] })).toBe('')
+  })
+
+  it('hides multi-character join that matches character set', () => {
+    expect(getDisplayGoodsVariant({ variant: 'A / B', characters: ['A', 'B'] })).toBe('')
+  })
+
+  it('keeps variant that differs from character name', () => {
+    expect(getDisplayGoodsVariant({ variant: '昔涟B', characters: ['昔涟'] })).toBe('昔涟B')
+    expect(getDisplayGoodsVariant({ variant: '初版', characters: ['昔涟'] })).toBe('初版')
+  })
+
+  it('hides note-derived variant that equals character', () => {
+    expect(getDisplayGoodsVariant({ note: '款式：兹白\n备注', characters: ['兹白'] })).toBe('')
+  })
+
+  it('hides when no explicit variant and only characters exist', () => {
+    // getGoodsVariant falls back to characters; display should hide the duplicate
+    expect(getGoodsVariant({ characters: ['昔涟'] })).toBe('昔涟')
+    expect(getDisplayGoodsVariant({ characters: ['昔涟'] })).toBe('')
+  })
+
+  it('keeps variant when no characters to compare', () => {
+    expect(getDisplayGoodsVariant({ variant: '兹白' })).toBe('兹白')
+    expect(isVariantRedundantWithCharacters('兹白', [])).toBe(false)
   })
 })
 

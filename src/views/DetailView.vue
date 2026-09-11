@@ -159,9 +159,9 @@
               <strong class="info-value">{{ item.storageLocation }}</strong>
             </article>
 
-            <article v-if="variantText" class="info-tile">
+            <article v-if="displayVariantText" class="info-tile">
               <span class="info-label">{{ t('common.variant') }}</span>
-              <strong class="info-value">{{ variantText }}</strong>
+              <strong class="info-value">{{ displayVariantText }}</strong>
             </article>
 
             <article v-if="!item.isWishlist && hasUnitHoldingDays" class="info-tile">
@@ -367,7 +367,7 @@ import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMa
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
 import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
 import { extractSaleEntries } from '@/utils/goods/saleStats'
-import { getGoodsVariant } from '@/utils/goods/identity'
+import { getGoodsVariant, getDisplayGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay } from '@/utils/saleReminder'
 import { renderMarkdown } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
@@ -620,6 +620,8 @@ function onGoodsPreviewIndexChange(next) {
 }
 const coverInitial = computed(() => (item.value?.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 const variantText = computed(() => getGoodsVariant(item.value))
+// 展示层去重：款式规范化后等于角色名时不显示款式 tile（监控匹配仍用 variantText）
+const displayVariantText = computed(() => getDisplayGoodsVariant(item.value))
 function hasActualPriceValue(value) {
   return value !== '' && value != null
 }
