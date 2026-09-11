@@ -160,7 +160,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_add',
-    description: '新增一场活动/展览（漫展、演唱会等）。name 必填；startDate 建议填写（YYYY-MM-DD）。票务、开支、关联谷子等可选。',
+    description: '新增一场活动/展览（漫展、演唱会等）。name 必填；startDate 建议填写（YYYY-MM-DD）。填 location（场馆全称）时会自动尝试地理编码，成功则回填城市与经纬度，活动地图可打点。票务、开支、关联谷子等可选。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -169,7 +169,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         startDate: { type: 'string', description: '开始日期 YYYY-MM-DD' },
         endDate: { type: 'string', description: '结束日期 YYYY-MM-DD' },
         city: { type: 'string', description: '城市' },
-        location: { type: 'string', description: '场地/场馆' },
+        location: { type: 'string', description: '场地/场馆全称（如「上海新国际博览中心」），便于地图打点' },
         ticketPrice: { type: 'string', description: '票价（字符串数字）' },
         ticketType: { type: 'string', description: '票种' },
         seatInfo: { type: 'string', description: '座位信息' },
@@ -411,11 +411,11 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'navigate',
-    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。',
+    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。看活动分布用 event_map（活动地图）。',
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit/event_detail/event_edit' },
+        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit/event_detail/event_edit' },
         id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id）' }
       },
       required: ['page']
@@ -535,12 +535,13 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_list',
-    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计（ticketPrice + 逐日票 + 其他开支，原币种未折算）、关联谷子数量，按开始日期倒序。回答「这次漫展花了多少」类问题使用；查某场演出/演唱会唱了哪些歌请改用 event_tracks。',
+    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计、城市/场馆、经纬度（latitude/longitude，来自本机活动库）、地图按钮链接，按开始日期倒序。回答「这次漫展花了多少」「上海有哪些活动」「XX场馆坐标」类问题必须先用本工具读本地数据，禁止为已有活动的场馆坐标去 web_search。查某场演出唱了哪些歌请改用 event_tracks。mapButtonLink 可嵌入 [活动地图](app://event_map)，amapLink 可外跳高德导航。',
     inputSchema: {
       type: 'object',
       properties: {
         limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-        offset: { type: 'integer', minimum: 0, default: 0 }
+        offset: { type: 'integer', minimum: 0, default: 0 },
+        city: { type: 'string', description: '按城市/场馆关键词过滤，如「上海」「新国际博览」' }
       }
     }
   },
