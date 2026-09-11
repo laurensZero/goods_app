@@ -122,4 +122,63 @@ describe('useHomeTimeline', () => {
     expect(renderedIndexes.every((index) => Number.isInteger(index))).toBe(true)
     expect(new Set(renderedIndexes).size).toBe(renderedIds.length)
   })
+
+  it('orders month blocks chronologically even when displayList order is inverted (desc)', () => {
+    // 同一商品跨 1/2 月拆分：unit 日期从 1 月写到 2 月，构建时 1 月槽位先出现；
+    // 再叠加更早添加的 1 月整件。若沿用 displayList 首次出现顺序，2 月会沉到 1 月下面。
+    const janOnly = {
+      id: 'j',
+      name: '一月谷子',
+      quantity: 1,
+      acquiredAt: '2025-01-10',
+      totalValueNumber: 10,
+      collectStatus: '已拥有'
+    }
+    const splitAcrossMonths = {
+      id: 's',
+      name: '跨月谷子',
+      quantity: 3,
+      acquiredAt: '2025-01-20',
+      unitAcquiredAtList: ['2025-01-20', '2025-01-21', '2025-02-10'],
+      totalValueNumber: 30,
+      collectStatus: '已拥有'
+    }
+    // createdAt desc 下先列表跨月商品、后列表一月整件（模拟较早添加的 1 月商品）
+    const timeline = setupTimeline([splitAcrossMonths, janOnly], { sortDirection: 'desc' })
+
+    expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2025-02', '2025-01'])
+    expect(timeline.timelineYearGroups.value[0].months.map((m) => m.yearMonth)).toEqual(['2025-02', '2025-01'])
+  })
+
+  it('orders month blocks with asc direction (older first)', () => {
+    const janOnly = {
+      id: 'j',
+      name: '一月谷子',
+      quantity: 1,
+      acquiredAt: '2025-01-10',
+      totalValueNumber: 10,
+      collectStatus: '已拥有'
+    }
+    const splitAcrossMonths = {
+      id: 's',
+      name: '跨月谷子',
+      quantity: 3,
+      acquiredAt: '2025-01-20',
+      unitAcquiredAtList: ['2025-01-20', '2025-01-21', '2025-02-10'],
+      totalValueNumber: 30,
+      collectStatus: '已拥有'
+    }
+    const timeline = setupTimeline([splitAcrossMonths, janOnly], { sortDirection: 'asc' })
+
+    expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2025-01', '2025-02'])
+  })
+
+  it('orders months across year boundaries (desc: newer year first)', () => {
+    const dec = { id: 'd', name: '12月', quantity: 1, acquiredAt: '2025-12-05', totalValueNumber: 1, collectStatus: '已拥有' }
+    const jan = { id: 'n', name: '1月', quantity: 1, acquiredAt: '2026-01-05', totalValueNumber: 1, collectStatus: '已拥有' }
+    const timeline = setupTimeline([dec, jan], { sortDirection: 'desc' })
+
+    expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2026-01', '2025-12'])
+    expect(timeline.timelineYearGroups.value.map((g) => g.year)).toEqual(['2026', '2025'])
+  })
 })
