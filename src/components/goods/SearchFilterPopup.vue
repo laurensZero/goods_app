@@ -407,7 +407,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Popup } from 'vant'
 import { useI18n } from 'vue-i18n'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -424,12 +424,27 @@ import {
 } from '@/utils/goods/filters'
 
 const { t } = useI18n()
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
-onMounted(() => updateViewport())
+const { isTabletViewport, updateViewport } = useTabletViewport()
+
+// 打开期间锁定布局：软键盘弹起会压缩 innerHeight，避免平板被误判成底部弹层
+const lockedIsTablet = ref(null)
+const isTablet = computed(() => {
+  if (props.visible && lockedIsTablet.value !== null) return lockedIsTablet.value
+  return isTabletViewport.value
+})
+
+watch(showProxy, async (visible) => {
+  if (visible) {
+    await updateViewport()
+    lockedIsTablet.value = isTabletViewport.value
+  } else {
+    lockedIsTablet.value = null
+  }
+})
 
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 const popupStyle = computed(() => isTablet.value
-  ? { width: 'min(900px, calc(100vw - 32px))', height: 'calc(100vh - 32px)' }
+  ? { width: 'min(900px, calc(100vw - 32px))', height: 'min(720px, calc(100dvh - 32px))' }
   : { height: '85vh' }
 )
 
