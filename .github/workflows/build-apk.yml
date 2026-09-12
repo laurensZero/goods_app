@@ -388,13 +388,35 @@ jobs:
               -o /dev/null || true
           done
 
-          curl -sS -f -X POST \
-            "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/vnd.android.package-archive" \
-            -H "x-upsert: true" \
-            --data-binary "@${APK_FILE}" \
-            -w "\nHTTP %{http_code}"
+          # Connection reset / transient network errors between GH runners and Supabase are common
+          MAX_ATTEMPTS=4
+          for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+            echo "Upload attempt ${i}/${MAX_ATTEMPTS}..."
+            HTTP_CODE=$(curl -sS -f -X POST \
+              "${SUPABASE_URL}/storage/v1/object/ota-releases/${STORAGE_PATH}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/vnd.android.package-archive" \
+              -H "x-upsert: true" \
+              --data-binary "@${APK_FILE}" \
+              -w "%{http_code}" \
+              -o /tmp/supabase-upload-resp.json \
+              --connect-timeout 30 \
+              --max-time 600 \
+              -H "Expect:" || true)
+            RESP_BODY=$(cat /tmp/supabase-upload-resp.json 2>/dev/null || true)
+            echo "HTTP ${HTTP_CODE}: ${RESP_BODY}"
+            if [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "201" ]; then
+              echo "Upload succeeded."
+              break
+            fi
+            if [ "${i}" -eq "${MAX_ATTEMPTS}" ]; then
+              echo "Upload failed after ${MAX_ATTEMPTS} attempts (last HTTP ${HTTP_CODE})."
+              exit 1
+            fi
+            BACKOFF=$((i * 15))
+            echo "Retrying in ${BACKOFF}s..."
+            sleep "${BACKOFF}"
+          done
 
           echo ""
           echo "Upserting APK record into ota_releases..."
