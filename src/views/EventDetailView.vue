@@ -192,14 +192,15 @@
     </main>
 
     <!-- 危险确认：force-center；z-index 高于播放器浮窗（2200） -->
-    <AppSheet v-model="showDeleteDialog" force-center :z-index="2400">
-      <h3 class="dialog-title">{{ t('events.detail.deleteDialog.title') }}</h3>
-      <p class="dialog-message">{{ t('events.detail.deleteDialog.message', { name: event.name }) }}</p>
-      <div class="dialog-actions">
-        <button class="dialog-btn" type="button" @click="showDeleteDialog = false">{{ t('events.detail.deleteDialog.cancel') }}</button>
-        <button class="dialog-btn danger" type="button" @click="handleDelete">{{ t('events.detail.deleteDialog.confirm') }}</button>
-      </div>
-    </AppSheet>
+    <DangerConfirmDialog
+      v-model:show="showDeleteDialog"
+      :z-index="2400"
+      :title="t('events.detail.deleteDialog.title')"
+      :description="t('events.detail.deleteDialog.message', { name: event.name })"
+      :confirm-text="t('events.detail.deleteDialog.confirm')"
+      :cancel-text="t('events.detail.deleteDialog.cancel')"
+      @confirm="handleDelete"
+    />
 
     <PhotoPreviewViewer
       v-model:index="previewPhotoIndex"
@@ -230,7 +231,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
-import AppSheet from '@/components/common/AppSheet.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'

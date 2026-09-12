@@ -47,7 +47,7 @@
   }
 }
 
-/* ── Confirm Dialog（兼容旧类；新代码用 glass-modal） ── */
+/* ── Confirm Dialog（兼容旧类；删除确认走 DangerConfirmDialog 独立类名） ── */
 
 .confirm-overlay {
   position: fixed;
@@ -58,16 +58,13 @@
   justify-content: center;
   padding: 24px;
   background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .confirm-card {
   width: min(100%, 360px);
   padding: 22px;
   border-radius: var(--radius-large);
-  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
-  border: 1px solid var(--app-glass-border);
+  background: var(--app-surface);
   box-shadow: var(--app-shadow-lg);
 }
 

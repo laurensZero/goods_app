@@ -2,11 +2,11 @@
   <AppSheet
     :model-value="show"
     force-center
-    :z-index="3000"
+    :z-index="zIndex"
     @update:model-value="handleCancel"
   >
-    <div class="confirm-card" role="alertdialog" aria-modal="true">
-      <div class="confirm-icon">
+    <div class="danger-confirm" role="alertdialog" aria-modal="true">
+      <div class="danger-confirm__icon">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M3 6H21" />
           <path d="M8 6V4H16V6" />
@@ -15,13 +15,13 @@
           <path d="M14 11V17" />
         </svg>
       </div>
-      <h2 class="confirm-title">{{ title }}</h2>
-      <p class="confirm-desc">{{ description }}</p>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">
+      <h2 class="danger-confirm__title">{{ title }}</h2>
+      <p class="danger-confirm__desc">{{ description }}</p>
+      <div class="danger-confirm__actions">
+        <button class="danger-confirm__btn danger-confirm__btn--ghost" type="button" @click="handleCancel">
           {{ cancelText || t('common.cancel') }}
         </button>
-        <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">
+        <button class="danger-confirm__btn danger-confirm__btn--danger" type="button" @click="handleConfirm">
           {{ confirmText || t('common.confirm') }}
         </button>
       </div>
@@ -41,7 +41,8 @@ const props = defineProps({
   title: { type: String, default: '' },
   description: { type: String, default: '' },
   confirmText: { type: String, default: '' },
-  cancelText: { type: String, default: '' }
+  cancelText: { type: String, default: '' },
+  zIndex: { type: Number, default: 3000 }
 })
 
 const emit = defineEmits(['update:show', 'cancel', 'confirm'])
@@ -60,16 +61,14 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-.confirm-card {
-  width: min(100%, 320px);
-  margin: 0 auto;
-  padding: 28px 24px 24px;
+/* 外壳 = AppSheet 一层；内容透明铺开，不再套内层白卡 */
+.danger-confirm {
+  width: 100%;
   text-align: center;
-  background: transparent;
   color: var(--app-text);
 }
 
-.confirm-icon {
+.danger-confirm__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -80,7 +79,7 @@ function handleConfirm() {
   color: #ff3b30;
 }
 
-.confirm-icon svg {
+.danger-confirm__icon svg {
   width: 20px;
   height: 20px;
   stroke: currentColor;
@@ -89,57 +88,56 @@ function handleConfirm() {
   stroke-linejoin: round;
 }
 
-.confirm-title {
-  margin-top: 16px;
+.danger-confirm__title {
+  margin: 16px 0 0;
   color: var(--app-text);
   font-size: 20px;
   font-weight: 600;
   letter-spacing: -0.03em;
 }
 
-.confirm-desc {
-  margin-top: 8px;
+.danger-confirm__desc {
+  margin: 8px 0 0;
   color: var(--app-text-secondary);
   font-size: 14px;
   line-height: 1.6;
 }
 
-.confirm-actions {
+.danger-confirm__actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 20px;
 }
 
-.confirm-btn {
+.danger-confirm__btn {
   height: 48px;
   border: none;
   border-radius: 16px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
 }
 
-.confirm-btn:active {
+.danger-confirm__btn:active {
   transform: scale(0.96);
 }
 
-.confirm-btn--ghost {
+.danger-confirm__btn--ghost {
   background: var(--app-surface-soft);
   color: var(--app-text);
 }
 
-.confirm-btn--danger {
+.danger-confirm__btn--danger {
   background: var(--app-primary);
-  color: #ffffff;
+  color: #fff;
 }
 
-:global(html.theme-dark) .confirm-btn--ghost {
+:global(html.theme-dark) .danger-confirm__btn--ghost {
   background: rgba(255, 255, 255, 0.06);
 }
 
-:global(html.theme-dark) .confirm-btn--danger {
+:global(html.theme-dark) .danger-confirm__btn--danger {
   background: #f5f5f7;
   color: #d32f2f;
 }
