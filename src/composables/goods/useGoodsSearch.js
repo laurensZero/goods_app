@@ -25,16 +25,30 @@ function buildOptionList(values, specialOption = null) {
 }
 
 // 分类筛选项按 presets.categories 的自定义顺序排列（与编辑/导入时选择分类一致）
+// 「其他」永远垫底；不在预设里的分类按字母序放在「其他」之前
 function buildCategoryOptionList(values, orderedCatalog, specialOption = null) {
-  const present = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
-  const rank = new Map(orderedCatalog.map((name, index) => [String(name || '').trim(), index]))
+  const OTHER = '其他'
+  const present = new Set(values.map((item) => String(item || '').trim()).filter(Boolean))
 
-  const ordered = [...present].sort((a, b) => {
-    const ra = rank.has(a) ? rank.get(a) : Number.MAX_SAFE_INTEGER
-    const rb = rank.has(b) ? rank.get(b) : Number.MAX_SAFE_INTEGER
-    if (ra !== rb) return ra - rb
-    return a.localeCompare(b, 'zh-Hans-CN')
-  }).map((value) => ({ label: value, value }))
+  const orderedNames = []
+  const seen = new Set()
+
+  for (const raw of orderedCatalog) {
+    const name = String(raw || '').trim()
+    if (!name || name === OTHER || seen.has(name) || !present.has(name)) continue
+    orderedNames.push(name)
+    seen.add(name)
+  }
+
+  const extras = [...present]
+    .filter((name) => name !== OTHER && !seen.has(name))
+    .sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+
+  const ordered = [
+    ...orderedNames,
+    ...extras,
+    ...(present.has(OTHER) ? [OTHER] : [])
+  ].map((value) => ({ label: value, value }))
 
   return specialOption ? [specialOption, ...ordered] : ordered
 }

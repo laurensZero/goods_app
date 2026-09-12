@@ -3,12 +3,11 @@
     v-model:show="showProxy"
     teleport="body"
     :z-index="zIndex"
-    :lock-scroll="false"
+    :lock-scroll="true"
     :position="popupPosition"
     :round="!isTablet"
     transition="sheet-pop"
     :class="['picker-popup', { 'picker-popup--center': isTablet }]"
-    @opened="onOpened"
   >
     <div class="dt-picker">
       <div class="dt-picker-toolbar">
@@ -30,27 +29,30 @@
         {{ previewText }}
       </div>
 
-      <DatePicker
-        v-show="activeTab === 'date'"
-        v-model="dateValue"
-        :min-date="minDate"
-        :max-date="maxDate"
-        :show-toolbar="false"
-      />
-      <TimePicker
-        v-show="activeTab === 'time'"
-        v-model="timeValue"
-        :columns-type="['hour', 'minute']"
-        :show-toolbar="false"
-      />
+      <div v-show="activeTab === 'date'" class="dt-picker-wheel" @wheel="onDateWheel">
+        <DatePicker
+          v-model="dateValue"
+          :min-date="minDate"
+          :max-date="maxDate"
+          :show-toolbar="false"
+        />
+      </div>
+      <div v-show="activeTab === 'time'" class="dt-picker-wheel" @wheel="onTimeWheel">
+        <TimePicker
+          v-model="timeValue"
+          :columns-type="['hour', 'minute']"
+          :show-toolbar="false"
+        />
+      </div>
     </div>
   </Popup>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DatePicker, TimePicker, Popup } from 'vant'
+import { usePickerWheel } from '@/composables/usePickerWheel'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -68,6 +70,15 @@ const { t } = useI18n()
 const activeTab = ref('date')
 const dateValue = ref([])
 const timeValue = ref([])
+
+const { onWheel: onDateWheel } = usePickerWheel(dateValue, {
+  mode: 'date',
+  minDate: props.minDate || undefined,
+  maxDate: props.maxDate || undefined
+})
+const { onWheel: onTimeWheel } = usePickerWheel(timeValue, {
+  mode: 'time'
+})
 
 const popupPosition = computed(() => (props.isTablet ? 'center' : 'bottom'))
 
@@ -100,12 +111,17 @@ function parseModelValue(val) {
   }
 }
 
-function onOpened() {
+function resetLocalFromModel() {
   const parsed = parseModelValue(props.modelValue)
   dateValue.value = parsed.date
   timeValue.value = parsed.time
   activeTab.value = 'date'
 }
+
+// 仅在打开瞬间写入草稿；opened 后再重置会冲掉用户已经开始的滑动
+watch(() => props.show, (show) => {
+  if (show) resetLocalFromModel()
+}, { immediate: true })
 
 function handleCancel() {
   showProxy.value = false
@@ -183,5 +199,9 @@ function handleConfirm() {
   color: var(--app-text);
   padding: 4px 16px 12px;
   letter-spacing: 0.5px;
+}
+
+.dt-picker-wheel {
+  touch-action: none;
 }
 </style>
