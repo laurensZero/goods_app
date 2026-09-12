@@ -378,5 +378,8 @@
   "goods.unnamedGoods": "名前なしアイテム",
   "preset.deleteDesc": "{count}件のアイテムが{field}にリンクされています。削除すると対応するフィールドがクリアされます。",
   "preset.deleteTitle": "「{name}」を削除しますか？",
-  "preset.thisPreset": "このプリセット"
+  "preset.thisPreset": "このプリセット",
+  "goods.addMethod.collage": "フリー コラージュ",
+  "goods.addMethod.collageDesc": "複数画像を 1 枚に合わせて商品画像として追加",
+  "goods.image.addCollage": "コラージュ"
 }

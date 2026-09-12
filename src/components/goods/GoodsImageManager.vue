@@ -37,6 +37,13 @@
         >
           {{ isPickingLocal ? t('goods.image.reading') : t('goods.image.addLocal') }}
         </button>
+        <button
+          type="button"
+          class="image-manager__action-btn"
+          @click="showCollageDialog = true"
+        >
+          {{ t('goods.image.addCollage') }}
+        </button>
       </div>
     </div>
 
@@ -138,6 +145,10 @@
       :source-file="editingSourceFile"
       @save="handleQuickEditSave"
     />
+    <QuickCollageDialog
+      v-model:show="showCollageDialog"
+      @save="handleCollageSave"
+    />
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -148,6 +159,7 @@ import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
 import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
+import QuickCollageDialog from '@/components/image/QuickCollageDialog.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import {
   GOODS_IMAGE_KIND_OPTIONS,
@@ -181,6 +193,7 @@ const isPickingLocal = ref(false)
 const isPreparingEdit = ref(false)
 const activeImageId = ref('')
 const showQuickEditor = ref(false)
+const showCollageDialog = ref(false)
 const editingSourceFile = ref(null)
 const editingTargetId = ref('')
 
@@ -362,6 +375,44 @@ async function handleQuickEditSave(result) {
   }
 }
 
+async function handleCollageSave(result) {
+  if (!result?.file || !result.blob) return
+  try {
+    // 直接落盘导出的 blob，避免二次转换丢内容
+    const file = result.file.type?.includes('png')
+      ? result.file
+      : new File([result.blob], result.file.name || `collage_${Date.now()}.png`, {
+          type: 'image/png',
+          lastModified: Date.now()
+        })
+    const saved = await saveLocalImage(file)
+    trackEditorSessionLocalImage(saved.localPath)
+
+    const nextId = createGoodsImageId()
+    const nextImages = images.value.map((image) => ({
+      ...image,
+      isPrimary: false,
+      kind: image.kind === 'primary' ? 'custom' : image.kind
+    }))
+    nextImages.push({
+      id: nextId,
+      uri: saved.uri,
+      localUri: saved.uri,
+      remoteUri: '',
+      kind: 'primary',
+      label: '',
+      storageMode: inferGoodsImageStorageMode(saved.uri),
+      localPath: saved.localPath || '',
+      isPrimary: true
+    })
+    activeImageId.value = nextId
+    emitImages(nextImages)
+  } catch (error) {
+    console.error('[image-manager] 保存拼图失败', error)
+    showToast(t('collage.exportFailed'))
+  }
+}
+
 function dataUrlToFile(dataUrl, fileSeed = 'image') {
   const match = String(dataUrl || '').match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
   if (!match) throw new Error(t('goods.image.formatInvalid'))
@@ -521,7 +572,7 @@ function getSourceLabel(storageMode) {
 
 .image-manager__actions {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 

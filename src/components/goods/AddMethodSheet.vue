@@ -469,6 +469,16 @@ function onTaobaoImport() {
   stroke: #af52de;
 }
 
+.option-icon--collage {
+  background: rgba(90, 100, 220, 0.12);
+}
+
+.option-icon--collage svg {
+  width: 22px;
+  height: 22px;
+  stroke: #5a64dc;
+}
+
 .option-icon--taobao {
   background: rgba(255, 70, 0, 0.10);
 }
