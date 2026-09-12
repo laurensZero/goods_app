@@ -24,6 +24,21 @@ function buildOptionList(values, specialOption = null) {
   return specialOption ? [specialOption, ...base] : base
 }
 
+// 分类筛选项按 presets.categories 的自定义顺序排列（与编辑/导入时选择分类一致）
+function buildCategoryOptionList(values, orderedCatalog, specialOption = null) {
+  const present = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
+  const rank = new Map(orderedCatalog.map((name, index) => [String(name || '').trim(), index]))
+
+  const ordered = [...present].sort((a, b) => {
+    const ra = rank.has(a) ? rank.get(a) : Number.MAX_SAFE_INTEGER
+    const rb = rank.has(b) ? rank.get(b) : Number.MAX_SAFE_INTEGER
+    if (ra !== rb) return ra - rb
+    return a.localeCompare(b, 'zh-Hans-CN')
+  }).map((value) => ({ label: value, value }))
+
+  return specialOption ? [specialOption, ...ordered] : ordered
+}
+
 function readMatchPrefsSync() {
   try {
     const raw = localStorage.getItem(MATCH_PREFS_KEY)
@@ -122,8 +137,9 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
   )
 
   // --- Option lists (derived from sourceList, NOT filteredItems) ---
-  const categoryOptions = computed(() => buildOptionList(
+  const categoryOptions = computed(() => buildCategoryOptionList(
     sourceList.value.map((item) => item.category),
+    presets.categories,
     sourceList.value.some((item) => !String(item.category || '').trim())
       ? { label: t('search.uncategorized'), value: GOODS_FILTER_SPECIAL_VALUES.uncategorized }
       : null
