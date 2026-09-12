@@ -131,11 +131,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePresetsStore } from '@/stores/presets'
 import { useEventsStore } from '@/stores/events'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
+import { useEditSheet } from '@/composables/manage/useEditSheet'
 import {
   BUILTIN_EVENT_TYPES,
   getEventTypeChipClass,
@@ -178,21 +179,15 @@ const editingName = ref('')
 const editName = ref('')
 const editError = ref('')
 const editInputRef = ref(null)
-const keyboardInset = ref(0)
 
 const showDeleteConfirm = ref(false)
 const pendingDeleteName = ref('')
 const affectedCount = ref(0)
 
-const editSheetStyle = computed(() => ({
-  '--edit-sheet-keyboard-offset': `${keyboardInset.value}px`
-}))
-
-const editSheetVisible = computed({
-  get: () => Boolean(editingName.value),
-  set: (v) => {
-    if (!v) closeEdit()
-  }
+const { editSheetStyle, editSheetVisible, handleEditInputFocus } = useEditSheet({
+  editingKey: editingName,
+  editInputRef,
+  closeEdit
 })
 
 async function toggleInput() {
@@ -268,38 +263,6 @@ function closeEdit() {
   editError.value = ''
 }
 
-function updateKeyboardInset() {
-  if (!editingName.value) {
-    keyboardInset.value = 0
-    return
-  }
-
-  const viewport = window.visualViewport
-  if (!viewport) {
-    keyboardInset.value = 0
-    return
-  }
-
-  keyboardInset.value = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-}
-
-function ensureEditInputVisible() {
-  if (!editingName.value) return
-  editInputRef.value?.scrollIntoView?.({
-    block: 'center',
-    inline: 'nearest',
-    behavior: 'smooth'
-  })
-}
-
-function handleEditInputFocus() {
-  window.setTimeout(() => {
-    updateKeyboardInset()
-    ensureEditInputVisible()
-  }, 80)
-  window.setTimeout(ensureEditInputVisible, 220)
-}
-
 async function saveEdit() {
   const previous = editingName.value
   const nextName = String(editName.value || '').trim()
@@ -323,27 +286,6 @@ async function saveEdit() {
   await eventsStore.renameEventType(previous, nextName)
   closeEdit()
 }
-
-onMounted(() => {
-  window.visualViewport?.addEventListener('resize', updateKeyboardInset)
-  window.visualViewport?.addEventListener('scroll', updateKeyboardInset)
-})
-
-onBeforeUnmount(() => {
-  window.visualViewport?.removeEventListener('resize', updateKeyboardInset)
-  window.visualViewport?.removeEventListener('scroll', updateKeyboardInset)
-})
-
-watch(editingName, async (value) => {
-  if (!value) {
-    keyboardInset.value = 0
-    return
-  }
-
-  await nextTick()
-  updateKeyboardInset()
-  window.setTimeout(ensureEditInputVisible, 120)
-})
 </script>
 
 <style scoped>
