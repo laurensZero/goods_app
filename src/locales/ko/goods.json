@@ -378,5 +378,8 @@
   "goods.unnamedGoods": "이름 없는 항목",
   "preset.deleteDesc": "{count}개의 아이템이 {field}에 연결되어 있습니다. 삭제하면 해당 필드가 초기화됩니다.",
   "preset.deleteTitle": "\"{name}\"을(를) 삭제하시겠습니까?",
-  "preset.thisPreset": "이 프리셋"
+  "preset.thisPreset": "이 프리셋",
+  "goods.addMethod.collage": "자유 콜라주",
+  "goods.addMethod.collageDesc": "여러 이미지를 하나로 합쳐 상품 이미지로 추가",
+  "goods.image.addCollage": "콜라주"
 }

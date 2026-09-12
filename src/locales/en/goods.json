@@ -378,5 +378,8 @@
   "goods.unnamedGoods": "Unnamed Item",
   "preset.deleteDesc": "{count} items are linked to {field}. Deleting will clear the corresponding field.",
   "preset.deleteTitle": "Delete \"{name}\"?",
-  "preset.thisPreset": "this preset"
+  "preset.thisPreset": "this preset",
+  "goods.addMethod.collage": "Free Collage",
+  "goods.addMethod.collageDesc": "Combine images into one, then add as a goods image",
+  "goods.image.addCollage": "Collage"
 }

@@ -31,6 +31,7 @@ import zhMcp from './zh-CN/mcp.json'
 import zhSurvey from './zh-CN/survey.json'
 import zhSale from './zh-CN/sale.json'
 import zhBirthday from './zh-CN/birthday.json'
+import zhCollage from './zh-CN/collage.json'
 
 import enCommon from './en/common.json'
 import enNav from './en/nav.json'
@@ -58,6 +59,7 @@ import enMcp from './en/mcp.json'
 import enSurvey from './en/survey.json'
 import enSale from './en/sale.json'
 import enBirthday from './en/birthday.json'
+import enCollage from './en/collage.json'
 
 import jaCommon from './ja/common.json'
 import jaNav from './ja/nav.json'
@@ -85,6 +87,7 @@ import jaMcp from './ja/mcp.json'
 import jaSurvey from './ja/survey.json'
 import jaSale from './ja/sale.json'
 import jaBirthday from './ja/birthday.json'
+import jaCollage from './ja/collage.json'
 
 import koCommon from './ko/common.json'
 import koNav from './ko/nav.json'
@@ -112,6 +115,7 @@ import koMcp from './ko/mcp.json'
 import koSurvey from './ko/survey.json'
 import koSale from './ko/sale.json'
 import koBirthday from './ko/birthday.json'
+import koCollage from './ko/collage.json'
 
 import zhTWCommon from './zh-TW/common.json'
 import zhTWNav from './zh-TW/nav.json'
@@ -139,6 +143,7 @@ import zhTWMcp from './zh-TW/mcp.json'
 import zhTWSurvey from './zh-TW/survey.json'
 import zhTWSale from './zh-TW/sale.json'
 import zhTWBirthday from './zh-TW/birthday.json'
+import zhTWCollage from './zh-TW/collage.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
@@ -186,6 +191,7 @@ const zhCNMessages = {
   ...zhSale,
   ...zhMcp,
   ...zhAiChat,
+  ...zhCollage,
   survey: zhSurvey,
   birthday: zhBirthday
 }
@@ -215,6 +221,7 @@ const enMessages = {
   ...enSale,
   ...enMcp,
   ...enAiChat,
+  ...enCollage,
   survey: enSurvey,
   birthday: enBirthday
 }
@@ -244,6 +251,7 @@ const jaMessages = {
   ...jaSale,
   ...jaMcp,
   ...jaAiChat,
+  ...jaCollage,
   survey: jaSurvey,
   birthday: jaBirthday
 }
@@ -273,6 +281,7 @@ const koMessages = {
   ...koSale,
   ...koMcp,
   ...koAiChat,
+  ...koCollage,
   survey: koSurvey,
   birthday: koBirthday
 }
@@ -302,6 +311,7 @@ const zhTWMessages = {
   ...zhTWSale,
   ...zhTWMcp,
   ...zhTWAiChat,
+  ...zhTWCollage,
   survey: zhTWSurvey,
   birthday: zhTWBirthday
 }

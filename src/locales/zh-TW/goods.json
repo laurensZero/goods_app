@@ -378,5 +378,8 @@
   "goods.unnamedGoods": "未命名谷子",
   "preset.deleteDesc": "{count} 件谷子關聯了{field}，刪除后将清空对應字段。",
   "preset.deleteTitle": "刪除「{name}」？",
-  "preset.thisPreset": "该预設"
+  "preset.thisPreset": "该预設",
+  "goods.addMethod.collage": "自由拼圖",
+  "goods.addMethod.collageDesc": "多圖拼成一張後，作為谷子圖片新增",
+  "goods.image.addCollage": "拼圖"
 }
