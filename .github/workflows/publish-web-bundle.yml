@@ -411,19 +411,71 @@ jobs:
               min_native_version: (if $min_native_version == "" then null else $min_native_version end)
             }')
 
-          HTTP_CODE=$(curl -sS -X POST \
-            "${SUPABASE_URL}/rest/v1/ota_releases" \
-            -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
-            -H "Content-Type: application/json" \
-            -H "Prefer: return=minimal" \
-            -d "${PAYLOAD}" \
-            -o /dev/null -w "%{http_code}")
+          VERSION_ENCODED=$(printf '%s' "${VERSION}" | jq -sRr @uri)
 
-          if [ "${HTTP_CODE}" = "201" ]; then
-            echo "Bundle record inserted successfully."
+          record_exists() {
+            local found
+            found=$(curl -sS --max-time 30 \
+              "${SUPABASE_URL}/rest/v1/ota_releases?select=id&channel=eq.${CHANNEL}&type=eq.web_bundle&version=eq.${VERSION_ENCODED}&limit=1" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Accept: application/json" \
+              || echo '[]')
+            [ "$(echo "${found}" | jq 'length')" -gt 0 ]
+          }
+
+          # 504 可能是网关超时但写入已成功，先查再重试，避免重复插入
+          if record_exists; then
+            echo "Bundle record for ${VERSION} already exists, skip insert."
+            exit 0
+          fi
+
+          MAX_ATTEMPTS=5
+          INSERT_OK=0
+          for i in $(seq 1 "${MAX_ATTEMPTS}"); do
+            HTTP_CODE=$(curl -sS --max-time 60 -X POST \
+              "${SUPABASE_URL}/rest/v1/ota_releases" \
+              -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
+              -H "Content-Type: application/json" \
+              -H "Prefer: return=minimal" \
+              -d "${PAYLOAD}" \
+              -o /tmp/ota-insert-resp.json -w "%{http_code}" \
+              || echo "000")
+            RESP_BODY=$(cat /tmp/ota-insert-resp.json 2>/dev/null || true)
+            echo "Insert attempt ${i}/${MAX_ATTEMPTS}: HTTP ${HTTP_CODE} ${RESP_BODY}"
+
+            if [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "200" ]; then
+              INSERT_OK=1
+              break
+            fi
+
+            # 网关超时/网络错误：查库确认是否已写入
+            if [ "${HTTP_CODE}" = "504" ] || [ "${HTTP_CODE}" = "502" ] || [ "${HTTP_CODE}" = "503" ] || [ "${HTTP_CODE}" = "000" ]; then
+              if record_exists; then
+                echo "Insert returned HTTP ${HTTP_CODE} but record exists in DB; treating as success."
+                INSERT_OK=1
+                break
+              fi
+            fi
+
+            if [ "${i}" -eq "${MAX_ATTEMPTS}" ]; then
+              break
+            fi
+            BACKOFF=$((i * 5))
+            echo "Retrying insert in ${BACKOFF}s..."
+            sleep "${BACKOFF}"
+          done
+
+          if [ "${INSERT_OK}" != "1" ]; then
+            if record_exists; then
+              echo "Insert reported failure but record exists in DB; treating as success."
+            else
+              echo "::error::Failed to insert ota_releases record for ${VERSION} (channel=${CHANNEL})"
+              exit 1
+            fi
           else
-            echo "::warning::Insert returned HTTP ${HTTP_CODE}"
+            echo "Bundle record inserted successfully."
           fi
 
       - name: Prune old bundles (keep latest 3)
