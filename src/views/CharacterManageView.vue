@@ -227,11 +227,12 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
+import { useEditSheet } from '@/composables/manage/useEditSheet'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
 import { sortPresetList } from '@/utils/presets/sort'
@@ -267,17 +268,11 @@ const editName = ref('')
 const editIp = ref('')
 const editError = ref('')
 const editInputRef = ref(null)
-const keyboardInset = ref(0)
 
-const editSheetStyle = computed(() => ({
-  '--edit-sheet-keyboard-offset': `${keyboardInset.value}px`
-}))
-
-const editSheetVisible = computed({
-  get: () => Boolean(editingCharacter.value),
-  set: (v) => {
-    if (!v) closeEdit()
-  }
+const { editSheetStyle, editSheetVisible, handleEditInputFocus } = useEditSheet({
+  editingKey: editingCharacter,
+  editInputRef,
+  closeEdit
 })
 
 const filteredCharacters = computed(() => {
@@ -411,59 +406,6 @@ async function saveEdit() {
 
   closeEdit()
 }
-
-function updateKeyboardInset() {
-  if (!editingCharacter.value) {
-    keyboardInset.value = 0
-    return
-  }
-
-  const viewport = window.visualViewport
-  if (!viewport) {
-    keyboardInset.value = 0
-    return
-  }
-
-  keyboardInset.value = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop)
-}
-
-function ensureEditInputVisible() {
-  if (!editingCharacter.value) return
-  editInputRef.value?.scrollIntoView?.({
-    block: 'center',
-    inline: 'nearest',
-    behavior: 'smooth'
-  })
-}
-
-function handleEditInputFocus() {
-  window.setTimeout(() => {
-    updateKeyboardInset()
-    ensureEditInputVisible()
-  }, 80)
-  window.setTimeout(ensureEditInputVisible, 220)
-}
-
-onMounted(() => {
-  window.visualViewport?.addEventListener('resize', updateKeyboardInset)
-  window.visualViewport?.addEventListener('scroll', updateKeyboardInset)
-})
-
-onBeforeUnmount(() => {
-  window.visualViewport?.removeEventListener('resize', updateKeyboardInset)
-  window.visualViewport?.removeEventListener('scroll', updateKeyboardInset)
-})
-
-watch(editingCharacter, async (value) => {
-  if (!value) {
-    keyboardInset.value = 0
-    return
-  }
-
-  await nextTick()
-  updateKeyboardInset()
-  window.setTimeout(ensureEditInputVisible, 120)
-})
 </script>
 
 <style scoped>
@@ -823,7 +765,13 @@ watch(editingCharacter, async (value) => {
 
 :global(html.theme-dark) .confirm-btn,
   :global(html.theme-dark) .save-btn {
+    background: #f5f5f7;
     color: #141416;
+  }
+
+:global(html.theme-dark) .ip-chip {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.6);
   }
 
 :global(html.theme-dark) .ip-chip--active {
@@ -834,5 +782,9 @@ watch(editingCharacter, async (value) => {
 
 :global(html.theme-dark) .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
+  }
+
+:global(html.theme-dark) .s-clear {
+    background: rgba(255, 255, 255, 0.2);
   }
 </style>
