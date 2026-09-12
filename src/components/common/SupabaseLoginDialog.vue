@@ -1,6 +1,6 @@
 <template>
   <Transition name="sheet-pop">
-    <div v-if="modelValue" class="overlay" @click.self="closeDialog">
+    <div v-if="modelValue" class="auth-overlay" @click.self="closeDialog">
       <div class="dialog dialog--wide dialog--scrollable">
         <div class="dialog-scroll">
           <h3 class="dialog-title">{{ activeMode === 'register' ? t('my.authRegister') : t('my.authLogin') }}</h3>
@@ -414,25 +414,25 @@ watch(() => props.modelValue, (val) => {
 </script>
 
 <style scoped>
-.overlay {
+.auth-overlay {
   position: fixed;
   inset: 0;
   z-index: var(--z-dialog);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  padding: 0;
   background: var(--app-overlay);
   backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
   -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
 }
 
 .dialog {
-  width: min(100%, 420px);
-  padding: 24px;
+  width: 100%;
+  max-height: min(calc(100dvh - var(--tabbar-height, 94px) - env(safe-area-inset-bottom)), 88vh);
+  padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px);
   overflow: hidden;
-  border-radius: var(--radius-large);
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
   border: 1px solid var(--app-glass-border);
   background: var(--app-glass-strong);
   box-shadow: var(--app-shadow);
@@ -443,11 +443,10 @@ watch(() => props.modelValue, (val) => {
 .dialog--scrollable {
   display: flex;
   flex-direction: column;
-  max-height: min(calc(100dvh - 48px), 720px);
 }
 
 .dialog--wide {
-  width: min(100%, 520px);
+  width: 100%;
 }
 
 .dialog-scroll {
@@ -671,22 +670,21 @@ watch(() => props.modelValue, (val) => {
   transform: scale(0.95) translateY(8px);
 }
 
-@media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
+@media (min-width: 768px) {
+  .auth-overlay {
+    align-items: center;
+    padding: 24px;
   }
 
   .dialog {
-    width: min(100%, 100%);
-    padding: 20px;
-    border-bottom-left-radius: var(--radius-large);
-    border-bottom-right-radius: var(--radius-large);
+    width: min(100%, 420px);
+    max-height: min(calc(100dvh - 48px), 720px);
+    padding: 24px;
+    border-radius: var(--radius-large);
   }
 
-  .dialog--scrollable {
-    max-height: min(calc(100dvh - var(--tabbar-height) - 48px - env(safe-area-inset-bottom)), 85vh);
+  .dialog--wide {
+    width: min(100%, 520px);
   }
 }
 </style>
