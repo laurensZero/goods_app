@@ -57,7 +57,8 @@ export function useManageEntries() {
       summary: t('manage.categorySummary'),
       recommendation: t('manage.categoryRecommendation'),
       primaryLabel: t('manage.categoryPrimaryLabel'), secondaryLabel: '',
-      iconMode: 'text', iconClass: 'cat-icon', iconText: '分',
+      iconMode: 'svg', iconClass: 'cat-icon',
+      iconPaths: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'],
       path: '/manage/categories',
       stats: [{ label: t('manage.statCategoryCount'), value: `${presets.categories.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
     },
@@ -68,7 +69,8 @@ export function useManageEntries() {
       summary: t('manage.eventTypeSummary'),
       recommendation: t('manage.eventTypeRecommendation'),
       primaryLabel: t('manage.eventTypePrimaryLabel'), secondaryLabel: '',
-      iconMode: 'text', iconClass: 'cat-icon', iconText: '活',
+      iconMode: 'svg', iconClass: 'event-icon',
+      iconPaths: ['M8 2v4', 'M16 2v4', 'M3 10h18', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
       path: '/manage/event-types',
       stats: [{ label: t('manage.statEventTypeCount'), value: `${presets.eventTypes.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statEventList') }]
     },
@@ -79,7 +81,8 @@ export function useManageEntries() {
       summary: t('manage.ipSummary'),
       recommendation: t('manage.ipRecommendation'),
       primaryLabel: t('manage.ipPrimaryLabel'), secondaryLabel: '',
-      iconMode: 'text', iconClass: 'ip-icon', iconText: 'IP',
+      iconMode: 'svg', iconClass: 'ip-icon',
+      iconPaths: ['M12 2L2 7l10 5 10-5-10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5'],
       path: '/manage/ips',
       stats: [{ label: t('manage.statIpCount'), value: `${presets.ips.length}` }, { label: t('manage.statApplicableScene'), value: t('manage.statCharacterAttribution') }]
     },
@@ -90,7 +93,8 @@ export function useManageEntries() {
       summary: t('manage.characterSummary'),
       recommendation: t('manage.characterRecommendation'),
       primaryLabel: t('manage.characterPrimaryLabel'), secondaryLabel: '',
-      iconMode: 'text', iconClass: 'char-icon', iconText: '角',
+      iconMode: 'svg', iconClass: 'char-icon',
+      iconPaths: ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
       path: '/manage/characters',
       stats: [{ label: t('manage.statCharacterCount'), value: `${presets.characters.length}` }, { label: t('manage.statRelatedField'), value: t('manage.statIpCollection') }]
     },

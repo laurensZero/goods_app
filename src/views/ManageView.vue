@@ -19,8 +19,7 @@
                 @click="selectManageEntry(entry.key)"
               >
                 <span :class="['settings-icon', entry.iconClass]">
-                  <template v-if="entry.iconMode === 'text'">{{ entry.iconText }}</template>
-                  <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path v-for="(path, index) in entry.iconPaths" :key="index" :d="path" />
                   </svg>
                 </span>
@@ -186,8 +185,7 @@
               @contextmenu.prevent="entry.key === 'export' ? openExportPicker() : null"
             >
               <span :class="['settings-icon', entry.iconClass]">
-                <template v-if="entry.iconMode === 'text'">{{ entry.iconText }}</template>
-                <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path v-for="(path, index) in entry.iconPaths" :key="index" :d="path" />
                 </svg>
               </span>
@@ -684,6 +682,7 @@ onBeforeRouteLeave((to) => {
 }
 
 .cat-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
+.event-icon { background: rgba(138, 122, 255, 0.14); color: #8a7aff; }
 .ip-icon { background: rgba(250, 149, 90, 0.12); color: #fa9040; }
 .char-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 .storage-icon { background: rgba(80, 120, 230, 0.12); color: #4f76d6; }
