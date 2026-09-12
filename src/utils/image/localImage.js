@@ -40,7 +40,13 @@ export async function pickLinkedLocalImages(limit) {
     const results = []
     for (const file of files) {
       const saved = await saveLocalImage(file)
-      results.push({ uri: saved.uri, localPath: saved.localPath, storageMode: 'linked-local' })
+      results.push({
+        uri: saved.uri,
+        localPath: saved.localPath,
+        storageMode: 'linked-local',
+        // 直接带上 File，避免调用方再 fetch 转换 URI（多选时更稳）
+        file
+      })
     }
     return results
   }
@@ -52,7 +58,8 @@ export async function pickLinkedLocalImages(limit) {
     results.push({
       uri: await fileToDataUrl(file),
       localPath: '',
-      storageMode: 'inline-local'
+      storageMode: 'inline-local',
+      file
     })
   }
   return results
@@ -86,14 +93,19 @@ export async function pickLinkedLocalImage() {
 }
 
 async function pickNativeGalleryImages(limit) {
+  // Android 上 pickImages 的 limit 文档仅保证 0/1；传 >1 时部分机型只能单选。
+  // 多选用 0（不限制），再在上层按业务上限截断。
+  const pickerLimit = Number(limit) > 1 ? 0 : Number(limit) || 0
   const result = await FilePicker.pickImages({
-    limit: limit || 0,
+    limit: pickerLimit,
     readData: false
   })
   const files = result?.files || []
+  const max = Number(limit) > 0 ? Number(limit) : files.length
   const out = []
   for (const picked of files) {
     if (!picked) continue
+    if (out.length >= max) break
     const fileName = String(picked.name || `image_${Date.now()}`)
     const mimeType = String(picked.mimeType || inferImageMimeFromPath(fileName) || 'image/png')
     if (picked.path) {
