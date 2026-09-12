@@ -8,6 +8,8 @@ import {
   signInWithOAuth,
   signOut as supabaseSignOut,
   resetPassword,
+  verifyRecoveryOtp,
+  getAuthRedirectTo,
   updateUserProfile,
   getUser,
   onAuthStateChange,
@@ -106,7 +108,7 @@ export const useAuthStore = defineStore('auth', () => {
       authSubscription = null
     }
 
-    // 处理 OAuth / Magic Link 回调中的 token
+    // 处理 OAuth / Magic Link / Recovery 回调中的 token
     try {
       await handleAuthCallback()
     } catch (e) {
@@ -198,7 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = ''
     try {
-      await sendMagicLink(email)
+      await sendMagicLink(email, { emailRedirectTo: getAuthRedirectTo() || undefined })
     } catch (e) {
       error.value = e.message || '发送失败'
       throw e
@@ -211,7 +213,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = ''
     try {
-      const options = {}
+      const options = { redirectTo: getAuthRedirectTo() || undefined }
       // Azure AD 需要显式请求 email scope
       if (provider === 'azure') {
         options.scopes = 'email openid profile'
@@ -252,6 +254,26 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       await resetPassword(email)
     } catch (e) {
+      error.value = e.message || '重置失败'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * 验证邮件 OTP 并设新密码（免配 redirect 域名）
+   */
+  async function resetPasswordWithOtp(email, token, newPassword) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      await verifyRecoveryOtp(email, token)
+      const data = await updatePassword(newPassword)
+      log.info('reset:otp:success')
+      return data
+    } catch (e) {
+      log.error('reset:otp:failed', { error: e.message })
       error.value = e.message || '重置失败'
       throw e
     } finally {
@@ -355,8 +377,8 @@ export const useAuthStore = defineStore('auth', () => {
     isLoggedIn, userEmail, userDisplayName, userAvatarUrl,
     linkedProviders,
     init, loginWithEmail, registerWithEmail, loginWithMagicLink,
-    loginWithOAuth, logout, sendResetPassword, updateProfile,
-    changePassword, fetchLinkedProviders, linkProvider,
+    loginWithOAuth, logout, sendResetPassword, resetPasswordWithOtp,
+    updateProfile, changePassword, fetchLinkedProviders, linkProvider,
     unlinkProvider, deleteAccount: deleteAccountAction,
     clearError, dispose
   }

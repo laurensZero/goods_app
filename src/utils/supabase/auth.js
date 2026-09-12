@@ -2,6 +2,19 @@
 // Supabase Auth wrapper — thin layer over @supabase/supabase-js auth API
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { AUTH_WEB_ORIGIN } from '@/config/supabase'
+
+/**
+ * Auth 邮件/OAuth 回调应跳转的 Web 地址（魔法链接、OAuth；OTP 重置密码不需要）。
+ * Web/PWA 用当前 origin；Capacitor/Tauri/file 需要 AUTH_WEB_ORIGIN（浏览器打不开本地协议）。
+ * @returns {string} 可用于 redirectTo 的 URL，无可用 Web 入口时返回 ''
+ */
+export function getAuthRedirectTo() {
+  if (AUTH_WEB_ORIGIN) return AUTH_WEB_ORIGIN.replace(/\/+$/, '')
+  const { protocol, origin } = window.location
+  if (protocol === 'http:' || protocol === 'https:') return origin
+  return ''
+}
 
 /**
  * 处理 OAuth / Magic Link 回调中的 token
@@ -142,12 +155,29 @@ export async function signOut() {
 }
 
 /**
- * Send password reset email
+ * Send password recovery email (OTP 模式：邮件里展示 {{ .Token }} 验证码，不依赖跳转域名)
+ * 不传 redirectTo 时 Supabase 会回退用后台 Site URL（仅影响邮件里的链接，OTP 流程不点链接）
  */
 export async function resetPassword(email, options = {}) {
   const client = getSupabaseClient()
+  const redirectTo = options.redirectTo ?? getAuthRedirectTo()
   const { data, error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: options.redirectTo
+    redirectTo: redirectTo || undefined
+  })
+  if (error) throw error
+  return data
+}
+
+/**
+ * Verify password recovery OTP and establish a recovery session
+ * 验证通过后可直接 updateUser({ password }) 设新密码
+ */
+export async function verifyRecoveryOtp(email, token) {
+  const client = getSupabaseClient()
+  const { data, error } = await client.auth.verifyOtp({
+    email,
+    token,
+    type: 'recovery'
   })
   if (error) throw error
   return data

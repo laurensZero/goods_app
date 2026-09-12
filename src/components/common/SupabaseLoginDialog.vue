@@ -115,9 +115,9 @@
             </div>
           </form>
 
-          <!-- Reset Password -->
+          <!-- Reset Password: email → OTP + new password -->
           <form v-if="activeMode === 'reset'" class="auth-form" @submit.prevent="handleResetPassword">
-            <p class="auth-desc">{{ t('my.authMagicLinkDesc') }}</p>
+            <p class="auth-desc">{{ t('my.authResetOtpDesc') }}</p>
 
             <label class="auth-field">
               <span class="auth-field__label">{{ t('my.authEmail') }}</span>
@@ -128,14 +128,57 @@
                 :placeholder="t('my.authEmail')"
                 autocomplete="email"
                 required
+                :disabled="resetSent"
               />
             </label>
 
-            <div v-if="resetSent" class="dialog-success">{{ t('my.authResetSent') }}</div>
+            <template v-if="resetSent">
+              <label class="auth-field">
+                <span class="auth-field__label">{{ t('my.authOtpCode') }}</span>
+                <input
+                  v-model="otpCode"
+                  class="auth-input"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  :placeholder="t('my.authOtpCodePlaceholder')"
+                  required
+                />
+              </label>
+
+              <label class="auth-field">
+                <span class="auth-field__label">{{ t('my.newPassword') }}</span>
+                <input
+                  v-model="password"
+                  class="auth-input"
+                  type="password"
+                  :placeholder="t('my.newPassword')"
+                  autocomplete="new-password"
+                  required
+                  minlength="6"
+                />
+              </label>
+
+              <label class="auth-field">
+                <span class="auth-field__label">{{ t('my.confirmNewPassword') }}</span>
+                <input
+                  v-model="confirmPassword"
+                  class="auth-input"
+                  type="password"
+                  :placeholder="t('my.confirmNewPassword')"
+                  autocomplete="new-password"
+                  required
+                />
+              </label>
+
+              <button type="button" class="auth-forgot" :disabled="isLoading" @click="resendResetOtp">
+                {{ t('my.authResendOtp') }}
+              </button>
+            </template>
 
             <div class="auth-actions">
-              <button type="submit" class="auth-btn auth-btn--primary" :disabled="isLoading || resetSent">
-                {{ isLoading ? '...' : t('my.authResetPassword') }}
+              <button type="submit" class="auth-btn auth-btn--primary" :disabled="isLoading">
+                {{ isLoading ? '...' : (resetSent ? t('my.changePassword') : t('my.authResetPassword')) }}
               </button>
             </div>
           </form>
@@ -217,6 +260,7 @@ const activeMode = ref('login-email')
 const email = ref('')
 const password = ref('')
 const confirmPassword = ref('')
+const otpCode = ref('')
 const magicLinkSent = ref(false)
 const resetSent = ref(false)
 const authError = ref('')
@@ -240,6 +284,7 @@ function resetForm() {
   email.value = ''
   password.value = ''
   confirmPassword.value = ''
+  otpCode.value = ''
   magicLinkSent.value = false
   resetSent.value = false
   authError.value = ''
@@ -295,10 +340,54 @@ async function handleMagicLink() {
 
 async function handleResetPassword() {
   authError.value = ''
+
+  // 第二步：验证码 + 新密码
+  if (resetSent.value) {
+    if (!otpCode.value.trim()) {
+      authError.value = t('my.authOtpRequired')
+      return
+    }
+    if (password.value !== confirmPassword.value) {
+      authError.value = t('my.authPasswordMismatch')
+      return
+    }
+    if (password.value.length < 6) {
+      authError.value = t('my.authPasswordTooShort')
+      return
+    }
+    isLoading.value = true
+    try {
+      await authStore.resetPasswordWithOtp(email.value, otpCode.value.trim(), password.value)
+      emit('toast', t('my.changePasswordSuccess'))
+      closeDialog()
+    } catch (e) {
+      authError.value = e.message || t('my.changePasswordFailed')
+    } finally {
+      isLoading.value = false
+    }
+    return
+  }
+
+  // 第一步：发送验证码邮件
   isLoading.value = true
   try {
     await authStore.sendResetPassword(email.value)
     resetSent.value = true
+    emit('toast', t('my.authResetSent'))
+  } catch (e) {
+    authError.value = e.message || 'Failed'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function resendResetOtp() {
+  if (isLoading.value || !email.value) return
+  authError.value = ''
+  isLoading.value = true
+  try {
+    await authStore.sendResetPassword(email.value)
+    emit('toast', t('my.authResetSent'))
   } catch (e) {
     authError.value = e.message || 'Failed'
   } finally {
