@@ -1175,7 +1175,7 @@ onBeforeUnmount(() => {
   width: 52px;
   padding: 8px 8px 10px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow);
   backdrop-filter: blur(24px) saturate(135%);

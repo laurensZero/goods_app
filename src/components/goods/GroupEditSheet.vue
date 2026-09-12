@@ -1,14 +1,10 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :position="popupPosition"
-    round
-    transition="sheet-pop"
-    :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
+    sheet-class="group-sheet-popup"
   >
     <div class="group-sheet">
-      <div v-if="!isTablet" class="group-sheet__handle" />
       <p class="group-sheet__title">{{ t('nav.groupDetail') }}</p>
 
       <div class="group-sheet__body">
@@ -135,16 +131,12 @@
     </div>
 
     <!-- Cover picker -->
-    <Popup
-      v-model:show="showCoverPicker"
-      teleport="body"
+    <AppSheet
+      v-model="showCoverPicker"
       :position="popupPosition"
-      round
-      transition="sheet-pop"
-      :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
+      sheet-class="group-sheet-popup"
     >
       <div class="group-sheet">
-        <div v-if="!isTablet" class="group-sheet__handle" />
         <p class="group-sheet__title">{{ t('goodsGroup.selectCover') }}</p>
         <div class="cover-picker-grid">
           <button
@@ -166,15 +158,15 @@
           </button>
         </div>
       </div>
-    </Popup>
-  </Popup>
+    </AppSheet>
+  </AppSheet>
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import AppSheet from '@/components/common/AppSheet.vue'
+import { useWideViewport } from '@/composables/useWideViewport'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { CURRENCIES } from '@/constants/currencies'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -188,10 +180,9 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'update', 'remove-member', 'reorder', 'delete-group'])
 const { t } = useI18n()
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
-onMounted(() => updateViewport())
+const { isWide } = useWideViewport()
 
-const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
+const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)
@@ -286,43 +277,19 @@ defineExpose({ consumeBack })
 </script>
 
 <style scoped>
-.group-sheet-popup {
-  overflow: hidden;
-}
-
-:global(.group-sheet-popup.van-popup--bottom) {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-}
-
-:global(.group-sheet-popup.van-popup--center) {
+/* 平板 center 时覆盖 AppSheet 默认 420px 宽度（原 Popup 为 480px） */
+:global(.app-sheet-overlay--center .group-sheet-popup.app-sheet--center) {
   width: min(480px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: var(--radius-large) !important;
 }
 
 .group-sheet {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-height: 90dvh;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%),
-    var(--app-bg);
+    transparent;
   color: var(--app-text);
-  overflow-y: auto;
-}
-
-.group-sheet__handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
 }
 
 .group-sheet__title {
@@ -607,12 +574,5 @@ defineExpose({ consumeBack })
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-}
-
-:global(html.theme-dark) .group-sheet-popup.van-popup {
-  --van-popup-background: var(--app-surface);
-  background: var(--app-surface) !important;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42);
-  border: none;
 }
 </style>

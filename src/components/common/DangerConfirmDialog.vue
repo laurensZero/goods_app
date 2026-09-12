@@ -1,36 +1,38 @@
 <template>
-  <Teleport to="body">
-    <Transition name="confirm-modal">
-      <div v-if="show" class="confirm-overlay" @click="handleCancel">
-        <div class="confirm-card" role="alertdialog" aria-modal="true" @click.stop>
-          <div class="confirm-icon">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 6H21" />
-              <path d="M8 6V4H16V6" />
-              <path d="M19 6L18 20H6L5 6" />
-              <path d="M10 11V17" />
-              <path d="M14 11V17" />
-            </svg>
-          </div>
-          <h2 class="confirm-title">{{ title }}</h2>
-          <p class="confirm-desc">{{ description }}</p>
-          <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">
-              {{ cancelText || t('common.cancel') }}
-            </button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">
-              {{ confirmText || t('common.confirm') }}
-            </button>
-          </div>
-        </div>
+  <AppSheet
+    :model-value="show"
+    force-center
+    :z-index="3000"
+    @update:model-value="handleCancel"
+  >
+    <div class="confirm-card" role="alertdialog" aria-modal="true">
+      <div class="confirm-icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6H21" />
+          <path d="M8 6V4H16V6" />
+          <path d="M19 6L18 20H6L5 6" />
+          <path d="M10 11V17" />
+          <path d="M14 11V17" />
+        </svg>
       </div>
-    </Transition>
-  </Teleport>
+      <h2 class="confirm-title">{{ title }}</h2>
+      <p class="confirm-desc">{{ description }}</p>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">
+          {{ cancelText || t('common.cancel') }}
+        </button>
+        <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">
+          {{ confirmText || t('common.confirm') }}
+        </button>
+      </div>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
 import { useI18n } from 'vue-i18n'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 
@@ -58,26 +60,13 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-.confirm-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 3000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--app-overlay, rgba(20, 20, 22, 0.22));
-  backdrop-filter: blur(var(--app-overlay-blur, 8px)) saturate(var(--app-overlay-saturate, 120%));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur, 8px)) saturate(var(--app-overlay-saturate, 120%));
-  padding: 24px;
-}
-
 .confirm-card {
   width: min(100%, 320px);
+  margin: 0 auto;
   padding: 28px 24px 24px;
-  border-radius: 24px;
-  background: var(--app-surface);
-  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.18);
   text-align: center;
+  background: transparent;
+  color: var(--app-text);
 }
 
 .confirm-icon {
@@ -144,21 +133,6 @@ function handleConfirm() {
 .confirm-btn--danger {
   background: var(--app-primary);
   color: #ffffff;
-}
-
-.confirm-modal-enter-active,
-.confirm-modal-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.confirm-modal-enter-from,
-.confirm-modal-leave-to {
-  opacity: 0;
-}
-
-:global(html.theme-dark) .confirm-card {
-  background: rgba(24, 24, 28, 0.78);
-  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
 }
 
 :global(html.theme-dark) .confirm-btn--ghost {

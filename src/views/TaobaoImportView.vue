@@ -194,67 +194,65 @@
       </Transition>
     </main>
 
-    <!-- ========== 编辑商品信息底部弹窗 ========== -->
-    <Teleport to="body">
-      <Transition name="sheet-pop">
-        <div v-if="showEditSheet" class="sheet-backdrop" @click="closeEdit" />
-      </Transition>
-      <Transition name="sheet-pop">
-        <div v-if="showEditSheet" class="edit-sheet" role="dialog" aria-modal="true" :aria-label="t('import.editGoodsInfo')">
-          <div class="sheet-handle" aria-hidden="true" />
-          <p class="sheet-title">{{ t('import.editGoodsInfo') }}</p>
+    <!-- ========== 编辑商品信息底部弹窗（键盘跟随小卡：bottom + 不锁滚动） ========== -->
+    <AppSheet
+      :model-value="showEditSheet"
+      position="bottom"
+      :lock-scroll="false"
+      sheet-class="taobao-edit-sheet"
+      @update:model-value="(v) => { if (!v) closeEdit() }"
+    >
+      <p class="sheet-title">{{ t('import.editGoodsInfo') }}</p>
 
-          <div class="edit-sheet-body">
-            <div class="edit-field">
-              <span class="edit-label">{{ t('common.name') }}</span>
-              <input v-model="editForm.name" type="text" :placeholder="t('import.goodsName')" class="edit-input" />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">IP</span>
-              <AppSelect v-model="editForm.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('common.category') }}</span>
-              <AppSelect v-model="editForm.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('common.character') }}</span>
-              <input v-model="editForm.charactersText" type="text" :placeholder="t('import.characterPlaceholder')" class="edit-input" />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('common.variant') }}</span>
-              <input v-model="editForm.variant" type="text" :placeholder="t('import.variantPlaceholder')" class="edit-input" />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('import.priceLabel') }}</span>
-              <input v-model="editForm.price" type="number" min="0" step="1" placeholder="0.00" class="edit-input" />
-              <p v-if="editPriceError" class="field-error field-error--block">{{ editPriceError }}</p>
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('import.purchaseDate') }}</span>
-              <input v-model="editForm.acquiredAt" type="date" class="edit-input" />
-            </div>
-            <div class="edit-field edit-field--image">
-              <span class="edit-label">{{ t('import.imageUrl') }}</span>
-              <MihoyoImagePicker
-                ref="editMihoyoPickerRef"
-                v-model="editForm.image"
-                :hint="editForm.charactersText.split(',')[0]?.trim() || editForm.variant || ''"
-              />
-            </div>
-            <div class="edit-field">
-              <span class="edit-label">{{ t('common.note') }}</span>
-              <input v-model="editForm.note" type="text" :placeholder="t('import.notePlaceholder')" class="edit-input" />
-            </div>
-          </div>
-
-          <div class="edit-sheet-actions">
-            <button class="edit-cancel-btn" type="button" @click="closeEdit">{{ t('common.cancel') }}</button>
-            <button class="edit-save-btn" type="button" @click="saveEdit">{{ t('common.save') }}</button>
-          </div>
+      <div class="edit-sheet-body">
+        <div class="edit-field">
+          <span class="edit-label">{{ t('common.name') }}</span>
+          <input v-model="editForm.name" type="text" :placeholder="t('import.goodsName')" class="edit-input" />
         </div>
-      </Transition>
-    </Teleport>
+        <div class="edit-field">
+          <span class="edit-label">IP</span>
+          <AppSelect v-model="editForm.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('common.category') }}</span>
+          <AppSelect v-model="editForm.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('common.character') }}</span>
+          <input v-model="editForm.charactersText" type="text" :placeholder="t('import.characterPlaceholder')" class="edit-input" />
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('common.variant') }}</span>
+          <input v-model="editForm.variant" type="text" :placeholder="t('import.variantPlaceholder')" class="edit-input" />
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('import.priceLabel') }}</span>
+          <input v-model="editForm.price" type="number" min="0" step="1" placeholder="0.00" class="edit-input" />
+          <p v-if="editPriceError" class="field-error field-error--block">{{ editPriceError }}</p>
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('import.purchaseDate') }}</span>
+          <input v-model="editForm.acquiredAt" type="date" class="edit-input" />
+        </div>
+        <div class="edit-field edit-field--image">
+          <span class="edit-label">{{ t('import.imageUrl') }}</span>
+          <MihoyoImagePicker
+            ref="editMihoyoPickerRef"
+            v-model="editForm.image"
+            :hint="editForm.charactersText.split(',')[0]?.trim() || editForm.variant || ''"
+          />
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">{{ t('common.note') }}</span>
+          <input v-model="editForm.note" type="text" :placeholder="t('import.notePlaceholder')" class="edit-input" />
+        </div>
+      </div>
+
+      <div class="edit-sheet-actions">
+        <button class="edit-cancel-btn" type="button" @click="closeEdit">{{ t('common.cancel') }}</button>
+        <button class="edit-save-btn" type="button" @click="saveEdit">{{ t('common.save') }}</button>
+      </div>
+    </AppSheet>
   </div>
 </template>
 
@@ -266,6 +264,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { parseTaobaoXlsx } from '@/utils/taobao'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 import { validatePrice } from '@/utils/validate'

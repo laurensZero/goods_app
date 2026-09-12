@@ -1,163 +1,157 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="show" class="sheet-backdrop" @click="handleClose" />
-    </Transition>
+  <AppSheet
+    :model-value="show"
+    sheet-class="share-sheet"
+    @update:model-value="(v) => { if (!v) handleClose() }"
+  >
+    <p class="sheet-title">{{ goodsItems.length > 1 ? t('goods.share.titleCount', { count: goodsItems.length }) : t('goods.share.title') }}</p>
 
-    <Transition name="sheet-pop">
-      <div v-if="show" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('goods.share.title')">
-        <div class="sheet-handle" aria-hidden="true" />
+    <div v-if="shareResult" class="share-mode-switch" role="tablist" :aria-label="t('goods.share.modeSwitchLabel')">
+      <div class="share-mode-indicator" :class="{ right: shareMode === 'image' }" />
+      <button
+        type="button"
+        class="share-mode-tab"
+        :class="{ active: shareMode === 'link' }"
+        role="tab"
+        :aria-selected="shareMode === 'link'"
+        @click="shareMode = 'link'"
+      >
+        {{ t('goods.share.linkShare') }}
+      </button>
+      <button
+        type="button"
+        class="share-mode-tab"
+        :class="{ active: shareMode === 'image' }"
+        role="tab"
+        :aria-selected="shareMode === 'image'"
+        @click="shareMode = 'image'"
+      >
+        {{ t('goods.share.imageShare') }}
+      </button>
+    </div>
 
-        <p class="sheet-title">{{ goodsItems.length > 1 ? t('goods.share.titleCount', { count: goodsItems.length }) : t('goods.share.title') }}</p>
+    <!-- Loading -->
+    <div v-if="loading" class="sheet-loading">
+      <span class="load-spinner" />
+      <p class="load-text">{{ t('goods.share.generating') }}</p>
+    </div>
 
-        <div v-if="shareResult" class="share-mode-switch" role="tablist" :aria-label="t('goods.share.modeSwitchLabel')">
-          <div class="share-mode-indicator" :class="{ right: shareMode === 'image' }" />
-          <button
-            type="button"
-            class="share-mode-tab"
-            :class="{ active: shareMode === 'link' }"
-            role="tab"
-            :aria-selected="shareMode === 'link'"
-            @click="shareMode = 'link'"
+    <!-- Not logged in -->
+    <div v-else-if="noLogin" class="sheet-error">
+      <p class="error-text">{{ t('goods.share.loginRequired') }}</p>
+      <button class="sheet-retry-btn sheet-retry-btn--primary" type="button" @click="goToLogin">{{ t('goods.share.goToLogin') }}</button>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error" class="sheet-error">
+      <p class="error-text">{{ error }}</p>
+      <button class="sheet-retry-btn" type="button" @click="generateShare">{{ t('common.retry') }}</button>
+    </div>
+
+    <!-- Result -->
+    <template v-else-if="shareResult">
+      <!-- Preview -->
+      <div class="share-preview">
+        <div class="preview-thumbs">
+          <div
+            v-for="item in goodsItems.slice(0, 4)"
+            :key="item.id"
+            class="preview-thumb"
           >
-            {{ t('goods.share.linkShare') }}
-          </button>
-          <button
-            type="button"
-            class="share-mode-tab"
-            :class="{ active: shareMode === 'image' }"
-            role="tab"
-            :aria-selected="shareMode === 'image'"
-            @click="shareMode = 'image'"
-          >
-            {{ t('goods.share.imageShare') }}
-          </button>
+            <LazyCachedImage
+              v-if="getGoodsCover(item)"
+              :src="getGoodsCover(item)"
+              class="preview-img"
+              :alt="item.name || t('goods.share.goodsPreview')"
+            />
+            <span v-else class="preview-fallback">{{ (item.name || '?').charAt(0) }}</span>
+          </div>
+          <div v-if="goodsItems.length > 4" class="preview-more">
+            +{{ goodsItems.length - 4 }}
+          </div>
         </div>
+        <p class="preview-name">{{ goodsItems[0]?.name }}{{ goodsItems.length > 1 ? t('goods.share.etAlCount', { count: goodsItems.length }) : '' }}</p>
+      </div>
 
-        <!-- Loading -->
-        <div v-if="loading" class="sheet-loading">
-          <span class="load-spinner" />
-          <p class="load-text">{{ t('goods.share.generating') }}</p>
-        </div>
-
-        <!-- Not logged in -->
-        <div v-else-if="noLogin" class="sheet-error">
-          <p class="error-text">{{ t('goods.share.loginRequired') }}</p>
-          <button class="sheet-retry-btn sheet-retry-btn--primary" type="button" @click="goToLogin">{{ t('goods.share.goToLogin') }}</button>
-        </div>
-
-        <!-- Error -->
-        <div v-else-if="error" class="sheet-error">
-          <p class="error-text">{{ error }}</p>
-          <button class="sheet-retry-btn" type="button" @click="generateShare">{{ t('common.retry') }}</button>
-        </div>
-
-        <!-- Result -->
-        <template v-else-if="shareResult">
-          <!-- Preview -->
-          <div class="share-preview">
-            <div class="preview-thumbs">
-              <div
-                v-for="item in goodsItems.slice(0, 4)"
-                :key="item.id"
-                class="preview-thumb"
-              >
-                <LazyCachedImage
-                  v-if="getGoodsCover(item)"
-                  :src="getGoodsCover(item)"
-                  class="preview-img"
-                  :alt="item.name || t('goods.share.goodsPreview')"
-                />
-                <span v-else class="preview-fallback">{{ (item.name || '?').charAt(0) }}</span>
-              </div>
-              <div v-if="goodsItems.length > 4" class="preview-more">
-                +{{ goodsItems.length - 4 }}
+      <Transition name="mode-fade" mode="out-in">
+        <div v-if="shareMode === 'link'" key="link">
+          <div class="share-card">
+            <!-- URL (https landing page, clickable in chat apps) -->
+            <div class="share-field" v-if="shareResult.url">
+              <label class="share-field-label">{{ t('goods.share.linkLabel') }}</label>
+              <div class="share-field-row">
+                <code class="share-field-value">{{ shareResult.url }}</code>
+                <button class="share-copy-btn" type="button" @click="copyLink">
+                  {{ linkCopied ? t('common.copied') : t('common.copy') }}
+                </button>
               </div>
             </div>
-            <p class="preview-name">{{ goodsItems[0]?.name }}{{ goodsItems.length > 1 ? t('goods.share.etAlCount', { count: goodsItems.length }) : '' }}</p>
+
+            <!-- Code (always present) -->
+            <div class="share-field">
+              <label class="share-field-label">{{ t('goods.share.shareCode') }}</label>
+              <div class="share-field-row">
+                <code class="share-field-value share-code">{{ shareResult.code }}</code>
+                <button class="share-copy-btn" type="button" @click="copyCode">
+                  {{ codeCopied ? t('common.copied') : t('common.copy') }}
+                </button>
+              </div>
+            </div>
           </div>
 
-          <Transition name="mode-fade" mode="out-in">
-            <div v-if="shareMode === 'link'" key="link">
-              <div class="share-card">
-                <!-- URL (https landing page, clickable in chat apps) -->
-                <div class="share-field" v-if="shareResult.url">
-                  <label class="share-field-label">{{ t('goods.share.linkLabel') }}</label>
-                  <div class="share-field-row">
-                    <code class="share-field-value">{{ shareResult.url }}</code>
-                    <button class="share-copy-btn" type="button" @click="copyLink">
-                      {{ linkCopied ? t('common.copied') : t('common.copy') }}
-                    </button>
-                  </div>
-                </div>
+          <button class="sheet-share-btn" type="button" @click="systemShare">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            {{ t('goods.share.shareToOther') }}
+          </button>
+        </div>
 
-                <!-- Code (always present) -->
-                <div class="share-field">
-                  <label class="share-field-label">{{ t('goods.share.shareCode') }}</label>
-                  <div class="share-field-row">
-                    <code class="share-field-value share-code">{{ shareResult.code }}</code>
-                    <button class="share-copy-btn" type="button" @click="copyCode">
-                      {{ codeCopied ? t('common.copied') : t('common.copy') }}
-                    </button>
-                  </div>
-                </div>
-              </div>
+        <div v-else key="image" class="poster-card">
+          <div class="poster-head">
+            <p class="poster-title">{{ t('goods.share.qrPoster') }}</p>
+            <button class="poster-generate-btn" type="button" :disabled="posterGenerating" @click="regeneratePoster">
+              {{ posterGenerating ? t('goods.share.generating') : (posterDataUrl ? t('goods.share.regenerate') : t('goods.share.generateImage')) }}
+            </button>
+          </div>
 
-              <button class="sheet-share-btn" type="button" @click="systemShare">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                  <polyline points="16 6 12 2 8 6" />
-                  <line x1="12" y1="2" x2="12" y2="15" />
-                </svg>
-                {{ t('goods.share.shareToOther') }}
-              </button>
-            </div>
+          <div v-if="posterGenerating" class="poster-loading">{{ t('goods.share.drawingPoster') }}</div>
+          <p v-else-if="posterError" class="poster-error">{{ posterError }}</p>
 
-            <div v-else key="image" class="poster-card">
-              <div class="poster-head">
-                <p class="poster-title">{{ t('goods.share.qrPoster') }}</p>
-                <button class="poster-generate-btn" type="button" :disabled="posterGenerating" @click="regeneratePoster">
-                  {{ posterGenerating ? t('goods.share.generating') : (posterDataUrl ? t('goods.share.regenerate') : t('goods.share.generateImage')) }}
-                </button>
-              </div>
+          <img
+            v-else-if="posterDataUrl"
+            :src="posterDataUrl"
+            class="poster-preview"
+            :alt="t('goods.share.qrPoster')"
+            loading="lazy"
+          />
 
-              <div v-if="posterGenerating" class="poster-loading">{{ t('goods.share.drawingPoster') }}</div>
-              <p v-else-if="posterError" class="poster-error">{{ posterError }}</p>
+          <div class="poster-actions">
+            <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="savePosterImage">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              {{ posterSaved ? t('goods.share.saved') : t('goods.share.saveImage') }}
+            </button>
+            <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+                <polyline points="16 6 12 2 8 6" />
+                <line x1="12" y1="2" x2="12" y2="15" />
+              </svg>
+              {{ posterShared ? t('goods.share.shared') : t('goods.share.shareImage') }}
+            </button>
+          </div>
+        </div>
+      </Transition>
+    </template>
 
-              <img
-                v-else-if="posterDataUrl"
-                :src="posterDataUrl"
-                class="poster-preview"
-                :alt="t('goods.share.qrPoster')"
-                loading="lazy"
-              />
-
-              <div class="poster-actions">
-                <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="savePosterImage">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="7 10 12 15 17 10" />
-                    <line x1="12" y1="15" x2="12" y2="3" />
-                  </svg>
-                  {{ posterSaved ? t('goods.share.saved') : t('goods.share.saveImage') }}
-                </button>
-                <button class="poster-action-btn" type="button" :disabled="posterGenerating || !shareResult" @click="sharePosterImage">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                    <polyline points="16 6 12 2 8 6" />
-                    <line x1="12" y1="2" x2="12" y2="15" />
-                  </svg>
-                  {{ posterShared ? t('goods.share.shared') : t('goods.share.shareImage') }}
-                </button>
-              </div>
-            </div>
-          </Transition>
-        </template>
-
-        <button class="sheet-cancel" type="button" @click="handleClose">{{ t('common.close') }}</button>
-      </div>
-    </Transition>
-  </Teleport>
+    <button class="sheet-cancel" type="button" @click="handleClose">{{ t('common.close') }}</button>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -174,6 +168,7 @@ import { useAuthStore } from '@/stores/auth'
 import { createShare, updateShare, findMatchingShare, toggleShareDisabled } from '@/services/shareService'
 import { buildSharePosterDataUrl } from '@/utils/share/poster'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
@@ -504,47 +499,11 @@ watch(() => shareResult.value?.code, (value) => {
 </script>
 
 <style scoped>
-/* Backdrop */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-/* Panel */
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  max-height: 90dvh;
-  overflow-y: auto;
-  z-index: 90;
-  display: flex;
-  flex-direction: column;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .share-sheet.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 .sheet-title {
@@ -980,35 +939,9 @@ watch(() => shareResult.value?.code, (value) => {
   transform: translateY(-6px);
 }
 
-/* Tablet */
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
-
-  .sheet-cancel {
-    display: none;
-  }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
-}
-
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+/* 宽屏 center 时隐藏取消按钮（与原 900px 断点行为一致） */
+:global(.app-sheet-overlay--center) .sheet-cancel {
+  display: none;
 }
 
 :global(html.theme-dark) .share-preview,

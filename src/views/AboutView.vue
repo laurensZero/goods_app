@@ -225,31 +225,25 @@
 
     </main>
 
-    <Transition name="sheet-pop">
-      <div v-if="showWebUpdateRestartDialog" class="overlay" @click.self="cancelWebUpdateRestart">
-        <div class="dialog">
-          <h3 class="dialog-title">{{ t('about.resourceUpdateReady') }}</h3>
-          <p class="dialog-desc">{{ t('about.restartPrompt') }}</p>
-          <div class="dialog-actions dialog-actions__right">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="cancelWebUpdateRestart">{{ t('about.later') }}</button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmWebUpdateRestart">{{ t('about.restartNow') }}</button>
-          </div>
-        </div>
+    <!-- Web 更新重启确认（普通确认） -->
+    <AppSheet :model-value="showWebUpdateRestartDialog" @update:model-value="(v) => { if (!v) cancelWebUpdateRestart() }">
+      <h3 class="dialog-title">{{ t('about.resourceUpdateReady') }}</h3>
+      <p class="dialog-desc">{{ t('about.restartPrompt') }}</p>
+      <div class="dialog-actions dialog-actions__right">
+        <button type="button" class="dialog-btn dialog-btn--secondary" @click="cancelWebUpdateRestart">{{ t('about.later') }}</button>
+        <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmWebUpdateRestart">{{ t('about.restartNow') }}</button>
       </div>
-    </Transition>
+    </AppSheet>
 
-    <Transition name="sheet-pop">
-      <div v-if="showWebUpdateResetDialog" class="overlay" @click.self="showWebUpdateResetDialog = false">
-        <div class="dialog">
-          <h3 class="dialog-title">{{ t('about.restoreBuiltinTitle') }}</h3>
-          <p class="dialog-desc">{{ t('about.restoreBuiltinDesc') }}</p>
-          <div class="dialog-actions dialog-actions__right">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="showWebUpdateResetDialog = false">{{ t('about.cancel') }}</button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmResetWebUpdate">{{ t('about.confirmRestore') }}</button>
-          </div>
-        </div>
+    <!-- 危险确认：恢复内置 force-center -->
+    <AppSheet :model-value="showWebUpdateResetDialog" force-center @update:model-value="(v) => { if (!v) showWebUpdateResetDialog = false }">
+      <h3 class="dialog-title">{{ t('about.restoreBuiltinTitle') }}</h3>
+      <p class="dialog-desc">{{ t('about.restoreBuiltinDesc') }}</p>
+      <div class="dialog-actions dialog-actions__right">
+        <button type="button" class="dialog-btn dialog-btn--secondary" @click="showWebUpdateResetDialog = false">{{ t('about.cancel') }}</button>
+        <button type="button" class="dialog-btn dialog-btn--primary" @click="confirmResetWebUpdate">{{ t('about.confirmRestore') }}</button>
       </div>
-    </Transition>
+    </AppSheet>
 
     <AppToast :message="toastMsg" />
   </div>
@@ -260,6 +254,7 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useWebUpdateStore } from '@/stores/webUpdate'

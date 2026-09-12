@@ -1,11 +1,9 @@
 <template>
-  <Popup
-    :show="show"
+  <AppSheet
+    :model-value="show"
     :position="position"
-    :round="!isTabletViewport"
     :lock-scroll="false"
-    :class="['picker-popup', 'queue-manager-popup', { 'picker-popup--center': isTabletViewport }]"
-    @update:show="$emit('update:show', $event)"
+    @update:model-value="$emit('update:show', $event)"
   >
     <div class="queue-manager">
       <div class="queue-manager__head">
@@ -55,11 +53,11 @@
         </button>
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 defineProps({
   show: { type: Boolean, default: false },
@@ -81,8 +79,6 @@ defineEmits(['update:show', 'clear-failed'])
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
-  max-height: 78dvh;
 }
 
 .queue-manager__head {
@@ -136,10 +132,6 @@ defineEmits(['update:show', 'clear-failed'])
   color: #c74444;
   font-size: 12px;
   cursor: pointer;
-}
-
-.queue-manager-popup {
-  overflow: hidden;
 }
 
 .queue-list {

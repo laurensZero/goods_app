@@ -1,11 +1,9 @@
 <template>
-  <Popup
-    :show="show"
+  <AppSheet
+    :model-value="show"
     :position="position"
-    :round="!isTabletViewport"
     :lock-scroll="false"
-    :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
-    @update:show="$emit('update:show', $event)"
+    @update:model-value="$emit('update:show', $event)"
   >
     <div class="cart-picker">
       <p class="cart-picker__title">{{ $t('checkout.fromCart') }}</p>
@@ -54,12 +52,12 @@
         </button>
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { fetchCartList } from '@/utils/mihoyo/index'
 
 const props = defineProps({
@@ -147,7 +145,6 @@ function handleAddFromCart() {
   display: flex;
   flex-direction: column;
   max-height: 75dvh;
-  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
 }
 
 .cart-picker__title {

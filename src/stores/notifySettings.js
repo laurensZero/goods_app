@@ -49,12 +49,9 @@ export const useNotifySettingsStore = defineStore('notifySettings', () => {
   const isTabletViewport = computed(() => {
     const w = viewportWidth.value || 0
     const h = viewportHeight.value || 0
+    if (!w || !h) return false
     const shortSide = Math.min(w, h)
     const longSide = Math.max(w, h)
-    const isMobileDevice = typeof navigator !== 'undefined'
-      ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
-      : false
-    if (isMobileDevice) return false
     return shortSide >= TABLET_MIN_SHORT_SIDE && longSide >= TABLET_MIN_LONG_SIDE
   })
 

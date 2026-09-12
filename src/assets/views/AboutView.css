@@ -16,8 +16,7 @@
 .info-card,
 .stat-card,
 .feedback-card,
-.update-panel,
-.dialog {
+.update-panel {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -529,25 +528,7 @@
   padding-top: 14px;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(var(--app-tint-blur));
-  -webkit-backdrop-filter: blur(var(--app-tint-blur));
-}
-
-.dialog {
-  width: min(100%, 480px);
-  padding: 24px;
-  border-radius: var(--radius-large);
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
@@ -717,26 +698,6 @@
 .toast-fade-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(8px);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
 }
 
 :deep(.nav-bar) {

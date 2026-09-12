@@ -1,150 +1,140 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
-    :position="popupPosition"
-    round
-    :class="['sell-sheet-popup', { 'sell-sheet-popup--tablet': isTablet }]"
-  >
-    <div class="sell-sheet">
-      <div v-if="!isTablet" class="sell-sheet__handle" />
-      <p class="sell-sheet__title">{{ t('sale.sheetTitle') }}</p>
+  <AppSheet v-model="showProxy" size="wide" sheet-class="sell-sheet-popup">
+    <h3 class="sell-sheet__title">{{ t('sale.sheetTitle') }}</h3>
 
-      <div class="sell-sheet__body">
-        <!-- 目标状态 -->
-        <div class="field-group">
-          <span class="field-label">{{ t('sale.targetStatus') }}</span>
-          <div class="chip-row">
-            <button
-              v-for="option in statusOptions"
-              :key="option.value"
-              :class="['status-chip', { 'status-chip--active': form.status === option.value }]"
-              type="button"
-              @click="form.status = option.value"
-            >
-              {{ option.label }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 逐件选择 -->
-        <div v-if="unitOptions.length > 0" class="field-group">
-          <span class="field-label">{{ t('sale.selectUnits') }}</span>
-          <div class="chip-row">
-            <button
-              v-for="unit in unitOptions"
-              :key="unit.index"
-              :class="['unit-chip', {
-                'unit-chip--active': selectedUnits.has(unit.index),
-                'unit-chip--disabled': unit.disabled
-              }]"
-              type="button"
-              :disabled="unit.disabled"
-              @click="toggleUnit(unit.index)"
-            >
-              <span>{{ t('sale.unitLabel', { n: unit.index + 1 }) }}</span>
-              <span class="unit-chip__status">{{ unit.statusLabel }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- 价格 -->
-        <div v-if="showPriceFields" class="field-group">
-          <span class="field-label">{{ priceLabel }}</span>
-          <input
-            v-model="form.price"
-            class="field-input"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            :placeholder="t('sale.pricePlaceholder')"
-          />
-          <p v-if="selectedUnits.size > 1" class="field-hint">{{ t('sale.perUnitHint') }}</p>
-        </div>
-
-        <!-- 平台 -->
-        <div v-if="showPriceFields" class="field-group">
-          <span class="field-label">{{ t('sale.platform') }}</span>
-          <input
-            v-model="form.platform"
-            class="field-input"
-            type="text"
-            :placeholder="t('sale.platformPlaceholder')"
-          />
-          <div v-if="platformChips.length > 0" class="chip-row">
-            <button
-              v-for="platform in platformChips"
-              :key="platform"
-              :class="['platform-chip', { 'platform-chip--active': form.platform === platform }]"
-              type="button"
-              @click="form.platform = form.platform === platform ? '' : platform"
-            >
-              {{ platform }}
-            </button>
-          </div>
-        </div>
-
-        <!-- 手续费 -->
-        <div v-if="showFeeField" class="field-group">
-          <span class="field-label">{{ t('sale.fee') }}</span>
-          <input
-            v-model="form.fee"
-            class="field-input"
-            type="number"
-            inputmode="decimal"
-            min="0"
-            :placeholder="t('sale.feePlaceholder')"
-          />
-        </div>
-
-        <!-- 日期 -->
-        <div class="field-group">
-          <span class="field-label">{{ t('sale.date') }}</span>
-          <button type="button" class="field-input field-input--btn" @click="openDatePicker">
-            {{ form.date || t('common.selectDate') }}
+    <div class="sell-sheet__body">
+      <!-- 目标状态 -->
+      <div class="field-group">
+        <span class="field-label">{{ t('sale.targetStatus') }}</span>
+        <div class="chip-row">
+          <button
+            v-for="option in statusOptions"
+            :key="option.value"
+            :class="['status-chip', { 'status-chip--active': form.status === option.value }]"
+            type="button"
+            @click="form.status = option.value"
+          >
+            {{ option.label }}
           </button>
-        </div>
-
-        <!-- 备注 -->
-        <div class="field-group">
-          <span class="field-label">{{ t('sale.note') }}</span>
-          <input
-            v-model="form.note"
-            class="field-input"
-            type="text"
-            :placeholder="t('sale.notePlaceholder')"
-          />
         </div>
       </div>
 
-      <button
-        class="sell-sheet__submit"
-        type="button"
-        :disabled="saving || !canSubmit"
-        @click="handleSubmit"
-      >
-        {{ submitText }}
-      </button>
+      <!-- 逐件选择 -->
+      <div v-if="unitOptions.length > 0" class="field-group">
+        <span class="field-label">{{ t('sale.selectUnits') }}</span>
+        <div class="chip-row">
+          <button
+            v-for="unit in unitOptions"
+            :key="unit.index"
+            :class="['unit-chip', {
+              'unit-chip--active': selectedUnits.has(unit.index),
+              'unit-chip--disabled': unit.disabled
+            }]"
+            type="button"
+            :disabled="unit.disabled"
+            @click="toggleUnit(unit.index)"
+          >
+            <span>{{ t('sale.unitLabel', { n: unit.index + 1 }) }}</span>
+            <span class="unit-chip__status">{{ unit.statusLabel }}</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 价格 -->
+      <div v-if="showPriceFields" class="field-group">
+        <span class="field-label">{{ priceLabel }}</span>
+        <input
+          v-model="form.price"
+          class="field-input"
+          type="number"
+          inputmode="decimal"
+          min="0"
+          :placeholder="t('sale.pricePlaceholder')"
+        />
+        <p v-if="selectedUnits.size > 1" class="field-hint">{{ t('sale.perUnitHint') }}</p>
+      </div>
+
+      <!-- 平台 -->
+      <div v-if="showPriceFields" class="field-group">
+        <span class="field-label">{{ t('sale.platform') }}</span>
+        <input
+          v-model="form.platform"
+          class="field-input"
+          type="text"
+          :placeholder="t('sale.platformPlaceholder')"
+        />
+        <div v-if="platformChips.length > 0" class="chip-row">
+          <button
+            v-for="platform in platformChips"
+            :key="platform"
+            :class="['platform-chip', { 'platform-chip--active': form.platform === platform }]"
+            type="button"
+            @click="form.platform = form.platform === platform ? '' : platform"
+          >
+            {{ platform }}
+          </button>
+        </div>
+      </div>
+
+      <!-- 手续费 -->
+      <div v-if="showFeeField" class="field-group">
+        <span class="field-label">{{ t('sale.fee') }}</span>
+        <input
+          v-model="form.fee"
+          class="field-input"
+          type="number"
+          inputmode="decimal"
+          min="0"
+          :placeholder="t('sale.feePlaceholder')"
+        />
+      </div>
+
+      <!-- 日期 -->
+      <div class="field-group">
+        <span class="field-label">{{ t('sale.date') }}</span>
+        <button type="button" class="field-input field-input--btn" @click="openDatePicker">
+          {{ form.date || t('common.selectDate') }}
+        </button>
+      </div>
+
+      <!-- 备注 -->
+      <div class="field-group">
+        <span class="field-label">{{ t('sale.note') }}</span>
+        <input
+          v-model="form.note"
+          class="field-input"
+          type="text"
+          :placeholder="t('sale.notePlaceholder')"
+        />
+      </div>
     </div>
 
-    <AppDatePicker
-      v-model:show="showDatePicker"
-      v-model="datePickerValue"
-      :z-index="2400"
-      :is-tablet="isTablet"
-      :title="t('sale.date')"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="onDateConfirm"
-    />
-  </Popup>
+    <button
+      class="sell-sheet__submit"
+      type="button"
+      :disabled="saving || !canSubmit"
+      @click="handleSubmit"
+    >
+      {{ submitText }}
+    </button>
+  </AppSheet>
+
+  <AppDatePicker
+    v-model:show="showDatePicker"
+    v-model="datePickerValue"
+    :z-index="2400"
+    :is-tablet="isWide"
+    :title="t('sale.date')"
+    :min-date="minDate"
+    :max-date="maxDate"
+    @confirm="onDateConfirm"
+  />
 </template>
 
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useWideViewport } from '@/composables/useWideViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'
@@ -153,6 +143,7 @@ import {
   getStatusShortLabel,
   resolvePrimaryCollectStatus
 } from '@/utils/goods/status'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 
 const BUILTIN_PLATFORMS = ['闲鱼', '千岛', '微店', '淘宝', '转转']
@@ -166,10 +157,8 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'saved'])
 const { t } = useI18n()
 const store = useGoodsStore()
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
-onMounted(() => updateViewport())
+const { isWide } = useWideViewport()
 
-const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)
@@ -366,72 +355,188 @@ async function handleSubmit() {
 </script>
 
 <style scoped>
-/* 必须 hidden:内层背景要被弹层圆角裁剪;日期选择器自带 teleport,不受影响 */
-.sell-sheet-popup { overflow: hidden; }
-:global(.sell-sheet-popup.van-popup--bottom) { left: 0; right: 0; bottom: 0; width: 100%; }
-:global(.sell-sheet-popup.van-popup--center) { width: min(480px, calc(100vw - 48px)) !important; max-width: calc(100vw - 48px) !important; border-radius: 28px !important; }
+/* 外壳由 AppSheet 提供；此处只保留内容布局 */
 
-.sell-sheet {
-  display: flex; flex-direction: column; width: 100%; max-height: 90dvh;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  background: radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%), var(--app-bg);
+/* 平板 center 时覆盖 AppSheet 默认 420px 宽度（原为 420px，保持一致即可，无需覆盖） */
+
+.sell-sheet__title {
+  margin: 0 0 16px;
   color: var(--app-text);
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  text-align: left;
 }
-.sell-sheet__handle { width: 36px; height: 4px; border-radius: 4px; background: rgba(142, 142, 147, 0.28); margin: 0 auto 16px; flex-shrink: 0; }
-.sell-sheet__title { font-size: 13px; font-weight: 500; color: var(--app-text-tertiary); text-align: center; margin: 0 0 16px; }
-.sell-sheet__body { display: flex; flex-direction: column; gap: 16px; overflow-y: auto; max-height: 56vh; padding-bottom: 4px; scrollbar-width: none; }
-.sell-sheet__body::-webkit-scrollbar { display: none; }
 
-.field-group { display: flex; flex-direction: column; gap: 8px; }
-.field-label { font-size: 13px; font-weight: 500; color: var(--app-text-secondary); }
-.field-hint { font-size: 12px; color: var(--app-text-tertiary); margin: 0; }
+.sell-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--app-text-secondary);
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  margin: 0;
+}
 
 .field-input {
-  width: 100%; height: 44px; padding: 0 12px; border-radius: var(--radius-small, 14px);
-  background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
-  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  font-size: 15px; color: var(--app-text); outline: none; box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border-radius: var(--radius-small, 14px);
+  background: var(--app-surface-soft);
+  border: 1px solid transparent;
+  font-size: 15px;
+  color: var(--app-text);
+  outline: none;
+  box-sizing: border-box;
 }
-.field-input::placeholder { color: var(--app-placeholder); }
-.field-input--btn { display: flex; align-items: center; cursor: pointer; text-align: left; }
 
-.chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.field-input:focus {
+  border-color: var(--app-input-focus-border, rgba(20, 20, 22, 0.16));
+}
+
+.field-input::placeholder {
+  color: var(--app-placeholder);
+}
+
+.field-input--btn {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chip-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 
 .status-chip {
-  display: inline-flex; align-items: center; height: 34px; padding: 0 16px;
-  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent); border-radius: 999px;
-  background: transparent; color: var(--app-text-secondary); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
-.status-chip--active { background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12)); color: var(--app-chip-accent-text, #2070c0); border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24)); }
+
+.status-chip--active {
+  background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12));
+  color: var(--app-chip-accent-text, #2070c0);
+  border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24));
+}
 
 .unit-chip {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 12px;
-  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent); border-radius: 12px;
-  background: transparent; color: var(--app-text-secondary); font-size: 12px; font-weight: 500;
-  cursor: pointer; transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 6px 12px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
-.unit-chip__status { font-size: 11px; color: var(--app-text-tertiary); }
-.unit-chip--active { background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12)); color: var(--app-chip-accent-text, #2070c0); border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24)); }
-.unit-chip--active .unit-chip__status { color: var(--app-chip-accent-text, #2070c0); }
-.unit-chip--disabled { opacity: 0.4; cursor: not-allowed; }
+
+.unit-chip__status {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+}
+
+.unit-chip--active {
+  background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12));
+  color: var(--app-chip-accent-text, #2070c0);
+  border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24));
+}
+
+.unit-chip--active .unit-chip__status {
+  color: var(--app-chip-accent-text, #2070c0);
+}
+
+.unit-chip--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .platform-chip {
-  display: inline-flex; align-items: center; height: 28px; padding: 0 10px;
-  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent); border-radius: 999px;
-  background: transparent; color: var(--app-text-secondary); font-size: 12px; font-weight: 500;
-  cursor: pointer; white-space: nowrap; transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
-.platform-chip--active { background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12)); color: var(--app-chip-accent-text, #2070c0); border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24)); }
+
+.platform-chip--active {
+  background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12));
+  color: var(--app-chip-accent-text, #2070c0);
+  border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24));
+}
 
 .sell-sheet__submit {
-  height: var(--button-height, 52px); border: none; border-radius: var(--radius-small, 14px);
-  background: var(--app-text); color: var(--app-surface); font-size: 16px; font-weight: 600;
-  cursor: pointer; margin-top: 16px; flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 52px;
+  height: 52px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: var(--radius-small, 14px);
+  background: var(--app-text);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+  margin-top: 16px;
+  flex-shrink: 0;
   transition: transform 0.14s ease, opacity 0.14s ease;
 }
-.sell-sheet__submit:active { transform: scale(var(--press-scale-button, 0.96)); }
-.sell-sheet__submit:disabled { opacity: 0.4; cursor: not-allowed; }
 
-:global(html.theme-dark) .sell-sheet-popup.van-popup { --van-popup-background: var(--app-surface); background: var(--app-surface) !important; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42); border: none; }
+.sell-sheet__submit:active {
+  transform: scale(var(--press-scale-button, 0.96));
+}
+
+.sell-sheet__submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 </style>

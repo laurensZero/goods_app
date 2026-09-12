@@ -208,12 +208,10 @@
       @confirm="onTimerConfirm"
     />
 
-    <Popup
-      v-model:show="showLeaveConfirm"
+    <AppSheet
+      v-model="showLeaveConfirm"
       :position="leaveConfirmPosition"
-      :round="!isTabletViewport"
-      :close-on-click-overlay="false"
-      :class="['picker-popup', 'leave-confirm-popup', { 'picker-popup--center': isTabletViewport }]"
+      :close-on-overlay="false"
     >
       <div class="leave-confirm">
         <div class="leave-confirm__content">
@@ -229,7 +227,7 @@
           </button>
         </div>
       </div>
-    </Popup>
+    </AppSheet>
 
     <CheckoutQueueManager
       v-model:show="showQueueManager"
@@ -276,8 +274,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import StepProgress from '@/components/checkout/StepProgress.vue'
 import CheckoutStepCookie from '@/components/checkout/CheckoutStepCookie.vue'
@@ -1249,15 +1247,10 @@ onUnmounted(() => {
 }
 
 /* ── 离开确认 ── */
-.leave-confirm-popup {
-  overflow: hidden;
-}
-
 .leave-confirm {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 22px 20px calc(env(safe-area-inset-bottom, 0px) + 18px);
 }
 
 .leave-confirm__content {

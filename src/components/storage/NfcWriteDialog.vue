@@ -1,38 +1,42 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="show" class="overlay" @click.self="cancel">
-      <div class="dialog nfc-dialog" role="dialog" aria-modal="true" :aria-label="t('storage.nfc.bindTitle')">
-        <p class="dialog-label">{{ t('storage.nfc.bindLabel') }}</p>
-        <h3 class="dialog-title">{{ t('storage.nfc.bindTitle') }}</h3>
+  <AppSheet
+    :model-value="show"
+    force-center
+    sheet-class="nfc-dialog"
+    @update:model-value="(v) => { if (!v) cancel() }"
+  >
+    <div class="nfc-inner">
+      <p class="dialog-label">{{ t('storage.nfc.bindLabel') }}</p>
+      <h3 class="dialog-title">{{ t('storage.nfc.bindTitle') }}</h3>
 
-        <div class="nfc-content">
-          <div class="nfc-animation" :class="{ 'is-scanning': status === 'scanning', 'is-success': status === 'success', 'is-error': status === 'error' }">
-            <svg viewBox="0 0 24 24" fill="none" class="nfc-icon">
-              <path v-if="status !== 'success' && status !== 'error'" d="M4.68 18C2.5 16 1.34 13.9 1 12M8.9 15C7.75 13.3 7.55 12.3 7.8 10M13.1 12.1C13.5 11 13.9 10 14.5 9M18.3 9.4C19.5 8 20.6 6.8 21.6 5.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-              <path v-if="status === 'success'" d="M5 13L9 17L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <path v-if="status === 'error'" d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <p class="dialog-desc">{{ promptMessage }}</p>
+      <div class="nfc-content">
+        <div class="nfc-animation" :class="{ 'is-scanning': status === 'scanning', 'is-success': status === 'success', 'is-error': status === 'error' }">
+          <svg viewBox="0 0 24 24" fill="none" class="nfc-icon">
+            <path v-if="status !== 'success' && status !== 'error'" d="M4.68 18C2.5 16 1.34 13.9 1 12M8.9 15C7.75 13.3 7.55 12.3 7.8 10M13.1 12.1C13.5 11 13.9 10 14.5 9M18.3 9.4C19.5 8 20.6 6.8 21.6 5.8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path v-if="status === 'success'" d="M5 13L9 17L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path v-if="status === 'error'" d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
+        <p class="dialog-desc">{{ promptMessage }}</p>
+      </div>
 
-        <div class="dialog-actions">
-          <button
-            type="button"
-            class="dialog-btn dialog-btn--secondary"
-            @click="cancel"
-          >
-            {{ status === 'scanning' ? t('common.cancel') : t('common.close') }}
-          </button>
-        </div>
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="dialog-btn dialog-btn--secondary"
+          @click="cancel"
+        >
+          {{ status === 'scanning' ? t('common.cancel') : t('common.close') }}
+        </button>
       </div>
     </div>
-  </Transition>
+  </AppSheet>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
@@ -61,28 +65,14 @@ useDialogBackButton(cancel, () => props.show)
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
+
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .nfc-dialog.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
-.nfc-dialog {
-  width: min(100%, 480px);
-  padding: 24px;
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
-  box-shadow: var(--app-shadow);
+.nfc-inner {
   text-align: center;
 }
 
@@ -204,51 +194,5 @@ useDialogBackButton(cancel, () => props.show)
 
 .dialog-btn:active {
   opacity: 0.8;
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
-}
-
-@media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
-  }
-
-  .nfc-dialog {
-    width: 100%;
-    padding: 20px;
-    border-bottom-left-radius: var(--radius-large);
-    border-bottom-right-radius: var(--radius-large);
-  }
-
-  .dialog-actions {
-    margin-inline: -20px;
-    padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
-  }
-
-  .dialog-btn {
-    flex: 1 1 0;
-    min-width: 0;
-    width: 100%;
-  }
 }
 </style>

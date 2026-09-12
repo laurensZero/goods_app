@@ -1,5 +1,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
+// 纯像素断点（不用 UA）：短边 ≥600 且长边 ≥900 视为平板/宽屏，弹层居中；否则手机底部。
+// 手机横屏短边通常 <600，不会被误判成平板。
 const TABLET_MIN_SHORT_SIDE = 600
 const TABLET_MIN_LONG_SIDE = 900
 
@@ -10,16 +12,9 @@ export function useTabletViewport() {
   const isTabletViewport = computed(() => {
     const width = viewportWidth.value || 0
     const height = viewportHeight.value || 0
+    if (!width || !height) return false
     const shortSide = Math.min(width, height)
     const longSide = Math.max(width, height)
-    const isMobileDevice = typeof navigator !== 'undefined'
-      ? (navigator.userAgentData?.mobile ?? /Mobile|iPhone|iPod|Windows Phone/i.test(navigator.userAgent || ''))
-      : false
-
-    if (isMobileDevice) {
-      return false
-    }
-
     return shortSide >= TABLET_MIN_SHORT_SIDE && longSide >= TABLET_MIN_LONG_SIDE
   })
 

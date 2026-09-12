@@ -886,50 +886,7 @@
   line-height: 1.6;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: rgba(14, 18, 28, 0.38);
-  backdrop-filter: blur(var(--app-overlay-blur));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur));
-}
-
-.dialog {
-  width: min(100%, 420px);
-  padding: 24px;
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  border: 1px solid var(--app-glass-border);
-  background: var(--app-glass-strong);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
-}
-
-.dialog--scrollable {
-  display: flex;
-  flex-direction: column;
-  max-height: min(calc(100dvh - 48px), 720px);
-}
-
-.dialog--wide {
-  width: min(100%, 520px);
-}
-
-.dialog-scroll {
-  min-height: 0;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  padding-right: 6px;
-  margin-right: -6px;
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
@@ -1079,26 +1036,6 @@
   cursor: not-allowed;
 }
 
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
-}
-
 :deep(.nav-bar) {
   z-index: 60;
 }
@@ -1109,23 +1046,6 @@
 }
 
 @media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
-  }
-
-  .dialog {
-    width: min(100%, 100%);
-    padding: 20px;
-    border-bottom-left-radius: 28px;
-    border-bottom-right-radius: 28px;
-  }
-
-  .dialog--scrollable {
-    max-height: min(calc(100dvh - var(--tabbar-height) - 48px - env(safe-area-inset-bottom)), 78vh);
-  }
-
   .hero-head,
   .panel-head,
   .log-group-head,
@@ -1189,8 +1109,6 @@
   .dialog-actions {
     flex-direction: row;
     justify-content: stretch;
-    margin-inline: -20px;
-    padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
   }
 
   .dialog-actions .dialog-btn {
@@ -1267,8 +1185,7 @@
 
 :global(html.theme-dark) .entry-card,
 :global(html.theme-dark) .panel-card,
-:global(html.theme-dark) .hero-card,
-:global(html.theme-dark) .dialog {
+:global(html.theme-dark) .hero-card {
   border-color: rgba(255, 255, 255, 0.04);
 }
 

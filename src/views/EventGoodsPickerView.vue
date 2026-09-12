@@ -86,17 +86,11 @@
       </div>
     </Teleport>
 
-    <Popup
-      v-model:show="showSortSheet"
-      teleport="body"
-      transition="sheet-pop"
+    <AppSheet
+      v-model="showSortSheet"
       :position="popupPosition"
-      :round="!isTablet"
-      overlay-class="sort-sheet-overlay"
-      :class="['sort-sheet', { 'sort-sheet--tablet': isTablet }]"
     >
       <div class="sort-sheet__panel">
-        <div v-if="!isTablet" class="sort-sheet__handle" />
         <div class="sort-sheet__head">
           <div>
             <p class="sort-sheet__label">{{ t('home.toolbar.sortMethod') }}</p>
@@ -122,7 +116,7 @@
           </button>
         </div>
       </div>
-    </Popup>
+    </AppSheet>
   </div>
 </template>
 
@@ -130,7 +124,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -481,35 +475,8 @@ onBeforeUnmount(() => {
   color: #fff;
 }
 
-.sort-sheet {
-  background: transparent;
-}
-
-:global(.sort-sheet-overlay) {
-  background: rgba(20, 20, 22, 0.18);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
 .sort-sheet__panel {
-  background: var(--app-surface);
-}
-
-.sort-sheet--tablet {
-  width: min(520px, calc(100vw - 48px));
-}
-
-.sort-sheet--tablet .sort-sheet__panel {
-  border-radius: 28px;
-  overflow: hidden;
-}
-
-.sort-sheet__handle {
-  width: 40px;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(20, 20, 22, 0.12);
-  margin: 10px auto 4px;
+  background: transparent;
 }
 
 .sort-sheet__head {

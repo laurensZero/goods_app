@@ -1,74 +1,78 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="showDialog" class="overlay" @click.self="store.dismiss()">
-      <div
-        class="dialog birthday-dialog"
-        :style="accentStyle"
-        @pointerdown="onPointerDown"
-        @pointerup="onPointerUp"
-      >
-        <div class="birthday-ribbon" aria-hidden="true">🎂</div>
-        <p class="birthday-kicker">Happy Birthday</p>
+  <AppSheet
+    :model-value="showDialog"
+    force-center
+    size="wide"
+    :z-index="1150"
+    @update:model-value="onSheetUpdate"
+  >
+    <div
+      class="birthday-dialog"
+      :style="accentStyle"
+      @pointerdown="onPointerDown"
+      @pointerup="onPointerUp"
+    >
+      <div class="birthday-ribbon" aria-hidden="true">🎂</div>
+      <p class="birthday-kicker">Happy Birthday</p>
 
-        <Transition :name="`birthday-slide-${slideDirection}`" mode="out-in">
-          <div :key="current.id" class="birthday-slide">
-            <h3 class="dialog-title">{{ t('birthday.todayTitle', { name: current.name }) }}</h3>
+      <Transition :name="`birthday-slide-${slideDirection}`" mode="out-in">
+        <div :key="current.id" class="birthday-slide">
+          <h3 class="dialog-title">{{ t('birthday.todayTitle', { name: current.name }) }}</h3>
 
-            <p class="birthday-meta">
-              <span v-if="current.ip" class="birthday-meta__ip">{{ current.ip }}</span>
-              <span>{{ t('birthday.dateLabel', { month: current.month, day: current.day }) }}</span>
-            </p>
+          <p class="birthday-meta">
+            <span v-if="current.ip" class="birthday-meta__ip">{{ current.ip }}</span>
+            <span>{{ t('birthday.dateLabel', { month: current.month, day: current.day }) }}</span>
+          </p>
 
-            <p class="birthday-message">
-              {{ current.message || t('birthday.defaultMessage', { name: current.name }) }}
-            </p>
+          <p class="birthday-message">
+            {{ current.message || t('birthday.defaultMessage', { name: current.name }) }}
+          </p>
 
-            <div class="birthday-stats">
-              <div class="birthday-stat">
-                <span class="birthday-stat__value">{{ t('birthday.countValue', { count: formatQuantity(current.quantity) }) }}</span>
-                <span class="birthday-stat__label">{{ t('birthday.countLabel') }}</span>
-              </div>
-              <div class="birthday-stat">
-                <span class="birthday-stat__value">¥ {{ formatMoney(current.totalValue) }}</span>
-                <span class="birthday-stat__label">{{ t('birthday.spendLabel') }}</span>
-              </div>
+          <div class="birthday-stats">
+            <div class="birthday-stat">
+              <span class="birthday-stat__value">{{ t('birthday.countValue', { count: formatQuantity(current.quantity) }) }}</span>
+              <span class="birthday-stat__label">{{ t('birthday.countLabel') }}</span>
             </div>
-
-            <div v-if="wallImages.length" class="birthday-wall" :class="{ 'birthday-wall--fading': wallFading }">
-              <div
-                v-for="(url, index) in wallImages"
-                :key="`${current.id}-${index}`"
-                class="birthday-wall-item"
-              >
-                <LazyCachedImage :src="url" alt="" />
-              </div>
+            <div class="birthday-stat">
+              <span class="birthday-stat__value">¥ {{ formatMoney(current.totalValue) }}</span>
+              <span class="birthday-stat__label">{{ t('birthday.spendLabel') }}</span>
             </div>
           </div>
-        </Transition>
 
-        <div v-if="birthdays.length > 1" class="birthday-pager" role="tablist">
-          <button
-            v-for="(entry, index) in birthdays"
-            :key="entry.id"
-            type="button"
-            class="birthday-dot"
-            :class="{ 'birthday-dot--active': index === activeIndex }"
-            :aria-label="entry.name"
-            @click="goTo(index)"
-          />
+          <div v-if="wallImages.length" class="birthday-wall" :class="{ 'birthday-wall--fading': wallFading }">
+            <div
+              v-for="(url, index) in wallImages"
+              :key="`${current.id}-${index}`"
+              class="birthday-wall-item"
+            >
+              <LazyCachedImage :src="url" alt="" />
+            </div>
+          </div>
         </div>
+      </Transition>
 
-        <div class="dialog-actions">
-          <button type="button" class="dialog-btn dialog-btn--secondary" @click="handleRefresh">
-            {{ t('birthday.refresh') }}
-          </button>
-          <button type="button" class="dialog-btn dialog-btn--primary" @click="store.dismiss()">
-            {{ t('common.known') }}
-          </button>
-        </div>
+      <div v-if="birthdays.length > 1" class="birthday-pager" role="tablist">
+        <button
+          v-for="(entry, index) in birthdays"
+          :key="entry.id"
+          type="button"
+          class="birthday-dot"
+          :class="{ 'birthday-dot--active': index === activeIndex }"
+          :aria-label="entry.name"
+          @click="goTo(index)"
+        />
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="dialog-btn dialog-btn--secondary" @click="handleRefresh">
+          {{ t('birthday.refresh') }}
+        </button>
+        <button type="button" class="dialog-btn dialog-btn--primary" @click="store.dismiss()">
+          {{ t('common.known') }}
+        </button>
       </div>
     </div>
-  </Transition>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -77,6 +81,7 @@ import { useI18n } from 'vue-i18n'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const store = useCharacterBirthdayStore()
@@ -88,6 +93,10 @@ const birthdays = computed(() => store.visibleBirthdays)
 const showDialog = computed(() => store.dialogVisible && birthdays.value.length > 0)
 
 useDialogBackButton(() => store.dismiss(), showDialog)
+
+function onSheetUpdate(visible) {
+  if (!visible) store.dismiss()
+}
 const current = computed(() => birthdays.value[Math.min(activeIndex.value, birthdays.value.length - 1)] || birthdays.value[0])
 
 // 手机 3×3 共 9 张；宽屏（与卡片拉宽同断点）4 列 12 张
@@ -175,45 +184,22 @@ function formatMoney(value) {
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
+/* 外壳（遮罩/玻璃/圆角/内边距）由 AppSheet 提供；此处保留 accent 顶边与内容布局 */
 .birthday-dialog {
   --birthday-accent: #e2557f;
   /* 拖拽切换轮播时避免框选文字 */
   user-select: none;
   -webkit-user-select: none;
-  transition: border-color 0.25s ease;
   position: relative;
-  width: min(100%, 420px);
-  max-height: 82vh;
-  padding: 24px;
-  border-radius: var(--radius-large);
+  padding-top: 16px;
   border-top: 4px solid var(--birthday-accent);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.birthday-dialog::-webkit-scrollbar {
-  display: none;
+  color: var(--app-text);
 }
 
 .birthday-ribbon {
   position: absolute;
   top: 16px;
-  right: 20px;
+  right: 0;
   font-size: 28px;
   line-height: 1;
 }
@@ -384,14 +370,8 @@ function formatMoney(value) {
   color: var(--app-text);
 }
 
-/* 平板/桌面：横向拉宽，加高弹窗上下空间避免按钮被截断 */
+/* 平板/桌面：照片墙横向拉宽（外壳宽度由 AppSheet 管理） */
 @media (min-width: 768px) {
-  .birthday-dialog {
-    width: min(100%, 580px);
-    max-height: 88vh;
-    padding: 28px 32px 24px;
-  }
-
   .birthday-wall {
     grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
   }

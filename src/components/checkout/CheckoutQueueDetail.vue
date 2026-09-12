@@ -1,11 +1,9 @@
 <template>
-  <Popup
-    :show="show"
+  <AppSheet
+    :model-value="show"
     :position="position"
-    :round="!isTabletViewport"
     :lock-scroll="false"
-    :class="['picker-popup', 'queue-detail-popup', { 'picker-popup--center': isTabletViewport }]"
-    @update:show="$emit('update:show', $event)"
+    @update:model-value="$emit('update:show', $event)"
   >
     <div v-if="activeQueueDetail" class="queue-detail">
       <div class="queue-detail__head">
@@ -69,11 +67,11 @@
         </button>
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 defineProps({
   show: { type: Boolean, default: false },
@@ -95,9 +93,6 @@ defineEmits(['update:show'])
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
-  max-height: 78dvh;
-  overflow-y: auto;
 }
 
 .queue-detail__head {

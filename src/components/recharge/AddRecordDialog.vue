@@ -1,162 +1,159 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="show" class="dialog-overlay" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="show"
+    size="wide"
+    @update:model-value="close"
+  >
+    <p class="dialog-label">{{ isEditMode ? t('recharge.dialog.editLabel') : t('recharge.dialog.addLabel') }}</p>
+    <h3 class="dialog-title">{{ isEditMode ? t('recharge.dialog.editTitle') : t('recharge.dialog.addTitle') }}</h3>
 
-    <Transition name="sheet-pop">
-      <section v-if="show" class="dialog" role="dialog" aria-modal="true" :aria-label="isEditMode ? t('recharge.editRecord') : t('recharge.addRecord')">
-        <p class="dialog-label">{{ isEditMode ? t('recharge.dialog.editLabel') : t('recharge.dialog.addLabel') }}</p>
-        <h3 class="dialog-title">{{ isEditMode ? t('recharge.dialog.editTitle') : t('recharge.dialog.addTitle') }}</h3>
+    <div class="dialog-fields">
+      <template v-if="mode === 'preset'">
+        <div class="preset-section">
+          <div class="preset-section__head">
+            <label class="field-label">{{ t('recharge.dialog.dataSource') }}</label>
+            <p class="field-tip">{{ t('recharge.dialog.dataSourceTip') }}</p>
+          </div>
 
-        <div class="dialog-fields">
-          <template v-if="mode === 'preset'">
-            <div class="preset-section">
-              <div class="preset-section__head">
-                <label class="field-label">{{ t('recharge.dialog.dataSource') }}</label>
-                <p class="field-tip">{{ t('recharge.dialog.dataSourceTip') }}</p>
-              </div>
-
-              <div class="preset-grid preset-grid--source">
-                <button
-                  v-for="entry in presetGameCards"
-                  :key="entry.key"
-                  type="button"
-                  :class="['preset-card', 'preset-card--source', { 'preset-card--active': form.presetGameKey === entry.key }]"
-                  @click="form.presetGameKey = entry.key"
-                >
-                  <div class="preset-card__body">
-                    <p class="preset-card__title">{{ entry.displayName }}</p>
-                    <p class="preset-card__meta">{{ entry.regionLabel }} · {{ t('recharge.dialog.tiers', { count: entry.optionCount }) }}</p>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div class="preset-section">
-              <div class="preset-section__head">
-                <label class="field-label">{{ t('recharge.dialog.dataTier') }}</label>
-                <p class="field-tip">{{ selectedPresetGame ? t('recharge.dialog.tierTip') : t('recharge.dialog.selectGameFirst') }}</p>
-              </div>
-
-              <div v-if="presetOptionCards.length > 0" class="preset-grid preset-grid--option">
-                <button
-                  v-for="option in presetOptionCards"
-                  :key="option.value"
-                  type="button"
-                  :class="['preset-card', 'preset-card--option', { 'preset-card--active': form.presetOptionKey === option.value }]"
-                  @click="form.presetOptionKey = option.value"
-                >
-                  <div class="preset-card__media preset-card__media--option">
-                    <LazyCachedImage
-                      v-if="option.image"
-                      :src="option.image"
-                      :alt="option.name"
-                      class="preset-card__image"
-                      loading="lazy"
-                    />
-                    <div v-else class="preset-card__fallback">{{ option.name.slice(0, 1) || '?' }}</div>
-                  </div>
-                  <div class="preset-card__body">
-                    <p class="preset-card__title">{{ option.name }}</p>
-                    <p class="preset-card__meta">¥{{ option.amountText }}</p>
-                  </div>
-                </button>
-              </div>
-
-              <div v-else class="preset-empty">{{ t('recharge.dialog.tierPlaceholder') }}</div>
-            </div>
-          </template>
-
-          <template v-if="mode !== 'preset'">
-            <label class="field-label">{{ t('recharge.dialog.game') }}</label>
-            <AppSelect v-model="form.game" :options="gameSelectOptions" :placeholder="t('recharge.dialog.gamePlaceholder')" />
-
-            <label class="field-label">{{ t('recharge.dialog.itemName') }}</label>
-            <input v-model.trim="form.itemName" class="field-input" type="text" :placeholder="t('recharge.dialog.itemNamePlaceholder')" />
-
-            <label class="field-label">{{ t('recharge.dialog.amount') }}</label>
-            <input v-model="form.amount" class="field-input" type="number" min="0" step="1" :placeholder="t('recharge.dialog.amountPlaceholder')" />
-          </template>
-
-          <label class="field-label">{{ t('recharge.dialog.date') }}</label>
-          <button type="button" class="date-field" @click="openDatePicker">
-            <span :class="{ 'date-field__value--placeholder': !form.chargedAt }">
-              {{ form.chargedAt || t('recharge.dialog.datePlaceholder') }}
-            </span>
-            <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="3" y="5" width="18" height="16" rx="3" />
-              <path d="M8 3V7" />
-              <path d="M16 3V7" />
-              <path d="M3 10H21" />
-            </svg>
-          </button>
-
-          <label class="field-label">{{ t('recharge.dialog.note') }}</label>
-          <textarea v-model.trim="form.note" class="field-textarea" rows="3" :placeholder="t('recharge.dialog.notePlaceholder')" />
-
-          <label class="field-label">{{ t('recharge.dialog.imageUrl') }}</label>
-          <div class="image-input-row">
-            <input
-              :value="imageInputValue"
-              class="field-input image-url-input"
-              type="text"
-              inputmode="url"
-              :placeholder="imageInputPlaceholder"
-              @input="onImageUrlInput"
-            />
+          <div class="preset-grid preset-grid--source">
             <button
+              v-for="entry in presetGameCards"
+              :key="entry.key"
               type="button"
-              class="image-pick-btn"
-              :aria-label="t('recharge.dialog.chooseImage')"
-              @click="pickLocalImage"
+              :class="['preset-card', 'preset-card--source', { 'preset-card--active': form.presetGameKey === entry.key }]"
+              @click="form.presetGameKey = entry.key"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-            </button>
-          </div>
-          <div v-if="form.image && isLocalImage(form.image)" class="image-preview-row">
-            <LazyCachedImage :src="form.image" class="image-preview-thumb" :alt="t('recharge.dialog.imagePreview')" />
-            <button type="button" class="image-remove-btn" :aria-label="t('common.remove')" @click="form.image = ''">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
+              <div class="preset-card__body">
+                <p class="preset-card__title">{{ entry.displayName }}</p>
+                <p class="preset-card__meta">{{ entry.regionLabel }} · {{ t('recharge.dialog.tiers', { count: entry.optionCount }) }}</p>
+              </div>
             </button>
           </div>
         </div>
 
-        <p v-if="errorText" class="error-text">{{ errorText }}</p>
+        <div class="preset-section">
+          <div class="preset-section__head">
+            <label class="field-label">{{ t('recharge.dialog.dataTier') }}</label>
+            <p class="field-tip">{{ selectedPresetGame ? t('recharge.dialog.tierTip') : t('recharge.dialog.selectGameFirst') }}</p>
+          </div>
 
-        <div class="dialog-actions">
-          <button type="button" class="btn btn--ghost" @click="close">{{ t('common.cancel') }}</button>
-          <button type="button" class="btn btn--primary" @click="submit">{{ isEditMode ? t('recharge.dialog.saveEdit') : t('recharge.dialog.saveNew') }}</button>
+          <div v-if="presetOptionCards.length > 0" class="preset-grid preset-grid--option">
+            <button
+              v-for="option in presetOptionCards"
+              :key="option.value"
+              type="button"
+              :class="['preset-card', 'preset-card--option', { 'preset-card--active': form.presetOptionKey === option.value }]"
+              @click="form.presetOptionKey = option.value"
+            >
+              <div class="preset-card__media preset-card__media--option">
+                <LazyCachedImage
+                  v-if="option.image"
+                  :src="option.image"
+                  :alt="option.name"
+                  class="preset-card__image"
+                  loading="lazy"
+                />
+                <div v-else class="preset-card__fallback">{{ option.name.slice(0, 1) || '?' }}</div>
+              </div>
+              <div class="preset-card__body">
+                <p class="preset-card__title">{{ option.name }}</p>
+                <p class="preset-card__meta">¥{{ option.amountText }}</p>
+              </div>
+            </button>
+          </div>
+
+          <div v-else class="preset-empty">{{ t('recharge.dialog.tierPlaceholder') }}</div>
         </div>
-      </section>
-    </Transition>
+      </template>
 
-    <AppDatePicker
-      v-model:show="showDatePicker"
-      v-model="datePickerValue"
-      :z-index="2000"
-      :is-tablet="isTabletViewport"
-      :title="t('recharge.dialog.date')"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="onDateConfirm"
-    />
-  </Teleport>
+      <template v-if="mode !== 'preset'">
+        <label class="field-label">{{ t('recharge.dialog.game') }}</label>
+        <AppSelect v-model="form.game" :options="gameSelectOptions" :placeholder="t('recharge.dialog.gamePlaceholder')" />
+
+        <label class="field-label">{{ t('recharge.dialog.itemName') }}</label>
+        <input v-model.trim="form.itemName" class="field-input" type="text" :placeholder="t('recharge.dialog.itemNamePlaceholder')" />
+
+        <label class="field-label">{{ t('recharge.dialog.amount') }}</label>
+        <input v-model="form.amount" class="field-input" type="number" min="0" step="1" :placeholder="t('recharge.dialog.amountPlaceholder')" />
+      </template>
+
+      <label class="field-label">{{ t('recharge.dialog.date') }}</label>
+      <button type="button" class="date-field" @click="openDatePicker">
+        <span :class="{ 'date-field__value--placeholder': !form.chargedAt }">
+          {{ form.chargedAt || t('recharge.dialog.datePlaceholder') }}
+        </span>
+        <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="16" rx="3" />
+          <path d="M8 3V7" />
+          <path d="M16 3V7" />
+          <path d="M3 10H21" />
+        </svg>
+      </button>
+
+      <label class="field-label">{{ t('recharge.dialog.note') }}</label>
+      <textarea v-model.trim="form.note" class="field-textarea" rows="3" :placeholder="t('recharge.dialog.notePlaceholder')" />
+
+      <label class="field-label">{{ t('recharge.dialog.imageUrl') }}</label>
+      <div class="image-input-row">
+        <input
+          :value="imageInputValue"
+          class="field-input image-url-input"
+          type="text"
+          inputmode="url"
+          :placeholder="imageInputPlaceholder"
+          @input="onImageUrlInput"
+        />
+        <button
+          type="button"
+          class="image-pick-btn"
+          :aria-label="t('recharge.dialog.chooseImage')"
+          @click="pickLocalImage"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </button>
+      </div>
+      <div v-if="form.image && isLocalImage(form.image)" class="image-preview-row">
+        <LazyCachedImage :src="form.image" class="image-preview-thumb" :alt="t('recharge.dialog.imagePreview')" />
+        <button type="button" class="image-remove-btn" :aria-label="t('common.remove')" @click="form.image = ''">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <p v-if="errorText" class="error-text">{{ errorText }}</p>
+
+    <div class="dialog-actions">
+      <button type="button" class="btn btn--ghost" @click="close">{{ t('common.cancel') }}</button>
+      <button type="button" class="btn btn--primary" @click="submit">{{ isEditMode ? t('recharge.dialog.saveEdit') : t('recharge.dialog.saveNew') }}</button>
+    </div>
+  </AppSheet>
+
+  <AppDatePicker
+    v-model:show="showDatePicker"
+    v-model="datePickerValue"
+    :z-index="2000"
+    :is-tablet="isTabletViewport"
+    :title="t('recharge.dialog.date')"
+    :min-date="minDate"
+    :max-date="maxDate"
+    @confirm="onDateConfirm"
+  />
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSelect from '@/components/common/AppSelect.vue'
 
 const { t } = useI18n()
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useTabletViewport } from '@/composables/useTabletViewport'
@@ -480,31 +477,9 @@ function normalizeDateParts(dateString) {
 onMounted(() => {
   updateViewport()
 })
-
-onBeforeUnmount(() => {
-})
 </script>
 
 <style scoped>
-.dialog {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 90;
-  width: 100%;
-  max-height: min(90dvh, 760px);
-  transform: translateY(0);
-  overflow: auto;
-  padding: 18px 16px max(24px, env(safe-area-inset-bottom));
-  border-radius: 24px 24px 0 0;
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
 .dialog-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -811,59 +786,6 @@ onBeforeUnmount(() => {
 .btn--primary {
   background: var(--app-text);
   color: var(--app-surface);
-}
-
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-}
-
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-  transition: opacity var(--motion-fast) var(--motion-emphasis);
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-  opacity: 0;
-}
-
-.dialog-pop-enter-active {
-  transition: opacity var(--motion-fast) var(--motion-ease-emphasis), transform 0.28s var(--motion-ease-spring);
-}
-
-.dialog-pop-leave-active {
-  transition: opacity var(--motion-fast) var(--motion-ease-emphasis), transform var(--motion-fast) var(--motion-ease-emphasis);
-}
-
-.dialog-pop-enter-from,
-.dialog-pop-leave-to {
-  opacity: 0;
-  transform: translateY(100%);
-}
-
-@media (min-width: 900px) {
-  .dialog {
-    left: 50%;
-    top: 50%;
-    right: auto;
-    bottom: auto;
-    width: min(100vw - 24px, 540px);
-    max-height: min(86vh, 740px);
-    transform: translate(-50%, -50%);
-    padding: 18px;
-    border-radius: 24px;
-  }
-
-  .dialog-pop-enter-from,
-  .dialog-pop-leave-to {
-    opacity: 0;
-    transform: translate(-50%, calc(-50% + 14px)) scale(0.98);
-  }
 }
 
 @media (max-width: 520px) {

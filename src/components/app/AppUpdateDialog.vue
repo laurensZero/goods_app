@@ -1,62 +1,65 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
-      <div class="dialog update-dialog">
-        <p class="update-kicker">Update Available</p>
-        <h3 class="dialog-title">{{ t('common.appUpdate.foundNew', { version: updateStore.latestVersion }) }}</h3>
-        <p class="dialog-desc">
-          {{ t('common.appUpdate.currentAndLatest', { current: updateStore.currentVersion, latest: updateStore.latestVersion }) }}
-          <template v-if="publishedAtLabel">{{ t('common.publishedAt', { date: publishedAtLabel }) }}</template>
-          <template v-if="updateStore.isForceUpdate">{{ t('common.appUpdate.forceUpdate') }}</template>
-        </p>
+  <AppSheet
+    :model-value="showDialog"
+    force-center
+    size="wide"
+    :z-index="1100"
+    :close-on-overlay="!updateStore.isForceUpdate"
+    @update:model-value="onSheetUpdate"
+  >
+    <p class="update-kicker">Update Available</p>
+    <h3 class="dialog-title">{{ t('common.appUpdate.foundNew', { version: updateStore.latestVersion }) }}</h3>
+    <p class="dialog-desc">
+      {{ t('common.appUpdate.currentAndLatest', { current: updateStore.currentVersion, latest: updateStore.latestVersion }) }}
+      <template v-if="publishedAtLabel">{{ t('common.publishedAt', { date: publishedAtLabel }) }}</template>
+      <template v-if="updateStore.isForceUpdate">{{ t('common.appUpdate.forceUpdate') }}</template>
+    </p>
 
-        <div class="version-row">
-          <div class="version-pill">
-            <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
-            <strong class="version-pill__value">v{{ updateStore.currentVersion }}</strong>
-          </div>
-          <div class="version-pill version-pill--accent">
-            <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
-            <strong class="version-pill__value">v{{ updateStore.latestVersion }}</strong>
-          </div>
-        </div>
-
-        <section v-if="updateStore.releaseNotesPreview" class="release-notes">
-          <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
-          <pre class="release-notes__body">{{ updateStore.releaseNotesPreview }}</pre>
-        </section>
-
-        <p class="update-tip">
-          {{ updateStore.usingMockDownload
-            ? t('common.appUpdate.devPreview')
-            : (updateStore.supportsInAppDownload
-              ? t('common.appUpdate.nativeDownload')
-              : t('common.appUpdate.webDownload')) }}
-        </p>
-        <section v-if="updateStore.isDownloading" class="download-progress">
-          <div class="download-progress__head">
-            <span>{{ t('common.downloading') }}</span>
-            <span>{{ updateStore.downloadProgress }}%</span>
-          </div>
-          <div class="download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
-            <span class="download-progress__bar" :style="{ transform: `scaleX(${updateStore.downloadProgress / 100})` }" />
-          </div>
-          <div class="download-progress__meta">
-            <span>{{ updateStore.downloadTransferred || t('common.preparing') }}</span>
-            <span>{{ updateStore.downloadSpeed || '--' }}</span>
-          </div>
-        </section>
-        <p v-if="updateStore.downloadError" class="update-error">{{ updateStore.downloadError }}</p>
-
-        <div class="dialog-actions">
-          <button v-if="!updateStore.isForceUpdate" type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">{{ t('common.laterOrNot') }}</button>
-          <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
-            {{ updateStore.isDownloading ? t('common.downloading') + '…' : (updateStore.usingMockDownload ? t('common.appUpdate.simulateDownload') : (updateStore.supportsInAppDownload ? t('common.appUpdate.downloadAndInstall') : t('common.appUpdate.goToUpdate'))) }}
-          </button>
-        </div>
+    <div class="version-row">
+      <div class="version-pill">
+        <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
+        <strong class="version-pill__value">v{{ updateStore.currentVersion }}</strong>
+      </div>
+      <div class="version-pill version-pill--accent">
+        <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
+        <strong class="version-pill__value">v{{ updateStore.latestVersion }}</strong>
       </div>
     </div>
-  </Transition>
+
+    <section v-if="updateStore.releaseNotesPreview" class="release-notes">
+      <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
+      <pre class="release-notes__body">{{ updateStore.releaseNotesPreview }}</pre>
+    </section>
+
+    <p class="update-tip">
+      {{ updateStore.usingMockDownload
+        ? t('common.appUpdate.devPreview')
+        : (updateStore.supportsInAppDownload
+          ? t('common.appUpdate.nativeDownload')
+          : t('common.appUpdate.webDownload')) }}
+    </p>
+    <section v-if="updateStore.isDownloading" class="download-progress">
+      <div class="download-progress__head">
+        <span>{{ t('common.downloading') }}</span>
+        <span>{{ updateStore.downloadProgress }}%</span>
+      </div>
+      <div class="download-progress__track" role="progressbar" :aria-valuenow="updateStore.downloadProgress" aria-valuemin="0" aria-valuemax="100">
+        <span class="download-progress__bar" :style="{ transform: `scaleX(${updateStore.downloadProgress / 100})` }" />
+      </div>
+      <div class="download-progress__meta">
+        <span>{{ updateStore.downloadTransferred || t('common.preparing') }}</span>
+        <span>{{ updateStore.downloadSpeed || '--' }}</span>
+      </div>
+    </section>
+    <p v-if="updateStore.downloadError" class="update-error">{{ updateStore.downloadError }}</p>
+
+    <div class="dialog-actions">
+      <button v-if="!updateStore.isForceUpdate" type="button" class="dialog-btn dialog-btn--secondary" :disabled="updateStore.isDownloading" @click="updateStore.dismissDialog()">{{ t('common.laterOrNot') }}</button>
+      <button type="button" class="dialog-btn dialog-btn--primary" :disabled="updateStore.isDownloading" @click="updateStore.downloadAndInstallUpdate()">
+        {{ updateStore.isDownloading ? t('common.downloading') + '…' : (updateStore.usingMockDownload ? t('common.appUpdate.simulateDownload') : (updateStore.supportsInAppDownload ? t('common.appUpdate.downloadAndInstall') : t('common.appUpdate.goToUpdate'))) }}
+      </button>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -64,6 +67,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const updateStore = useAppUpdateStore()
@@ -82,35 +86,13 @@ const publishedAtLabel = computed(() => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
 })
 
-function handleOverlayClick() {
-  if (updateStore.isForceUpdate) return
-  updateStore.dismissDialog()
+function onSheetUpdate(visible) {
+  if (!visible) updateStore.dismissDialog()
 }
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.update-dialog {
-  width: min(100%, 480px);
-  padding: 24px;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  max-height: min(86vh, 760px);
-  overflow: auto;
-}
+/* 外壳（遮罩/玻璃/圆角/内边距）由 AppSheet 提供 */
 
 .update-kicker {
   color: var(--app-text-tertiary);
@@ -269,26 +251,6 @@ function handleOverlayClick() {
 .dialog-btn--primary {
   background: var(--app-text);
   color: var(--app-bg);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .update-dialog,
-.overlay-fade-leave-active .update-dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .update-dialog,
-.overlay-fade-leave-to .update-dialog {
-  transform: scale(0.95) translateY(8px);
 }
 
 @media (max-width: 768px) {

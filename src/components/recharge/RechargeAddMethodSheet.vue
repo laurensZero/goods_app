@@ -1,55 +1,49 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="modelValue"
+    @update:model-value="close"
+  >
+    <p class="sheet-title">{{ t('recharge.addMethod.title') }}</p>
 
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('recharge.addMethod.title')">
-        <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">{{ t('recharge.addMethod.title') }}</p>
-
-        <div class="sheet-options">
-          <button class="sheet-option" type="button" @click="onManual">
-            <span class="option-icon option-icon--manual">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="4" y="4" width="16" height="16" rx="3" />
-                <path d="M8 12H16" />
-                <path d="M12 8V16" />
-              </svg>
-            </span>
-            <div class="option-body">
-              <p class="option-title">{{ t('recharge.addMethod.manual.title') }}</p>
-              <p class="option-desc">{{ t('recharge.addMethod.manual.desc') }}</p>
-            </div>
-            <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
-
-          <div class="sheet-divider" />
-
-          <button class="sheet-option" type="button" @click="onPreset">
-            <span class="option-icon option-icon--import">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <circle cx="12" cy="12" r="8" />
-                <path d="M12 8v4l3 3" />
-              </svg>
-            </span>
-            <div class="option-body">
-              <p class="option-title">{{ t('recharge.addMethod.preset.title') }}</p>
-              <p class="option-desc">{{ t('recharge.addMethod.preset.desc') }}</p>
-            </div>
-            <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M9 6l6 6-6 6" />
-            </svg>
-          </button>
+    <div class="sheet-options">
+      <button class="sheet-option" type="button" @click="onManual">
+        <span class="option-icon option-icon--manual">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="4" y="4" width="16" height="16" rx="3" />
+            <path d="M8 12H16" />
+            <path d="M12 8V16" />
+          </svg>
+        </span>
+        <div class="option-body">
+          <p class="option-title">{{ t('recharge.addMethod.manual.title') }}</p>
+          <p class="option-desc">{{ t('recharge.addMethod.manual.desc') }}</p>
         </div>
+        <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
 
-        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
-      </div>
-    </Transition>
-  </Teleport>
+      <div class="sheet-divider" />
+
+      <button class="sheet-option" type="button" @click="onPreset">
+        <span class="option-icon option-icon--import">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" />
+            <path d="M12 8v4l3 3" />
+          </svg>
+        </span>
+        <div class="option-body">
+          <p class="option-title">{{ t('recharge.addMethod.preset.title') }}</p>
+          <p class="option-desc">{{ t('recharge.addMethod.preset.desc') }}</p>
+        </div>
+        <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M9 6l6 6-6 6" />
+        </svg>
+      </button>
+    </div>
+
+    <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -59,6 +53,7 @@ const props = defineProps({
 
 import { useI18n } from 'vue-i18n'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 
@@ -82,39 +77,6 @@ function onPreset() {
 </script>
 
 <style scoped>
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-}
-
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 110;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  border-radius: 24px 24px 0 0;
-  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
-  border: 1px solid var(--app-glass-border);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto 16px;
-  border-radius: 999px;
-  background: rgba(142, 142, 147, 0.28);
-}
-
 .sheet-title {
   margin: 0 0 14px;
   text-align: center;
@@ -232,36 +194,6 @@ function onPreset() {
 
 .sheet-cancel:active {
   background: rgba(142, 142, 147, 0.18);
-}
-
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-    max-height: 90dvh;
-    overflow-y: auto;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
-
-  .sheet-cancel {
-    display: none;
-  }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
-}
-
-:global(html.theme-dark) .sheet-panel {
-  background: rgba(24, 24, 28, 0.8);
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
 }
 
 :global(html.theme-dark) .sheet-options,

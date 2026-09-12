@@ -314,106 +314,93 @@
       @toast="onDialogToast"
     />
 
-    <Teleport to="body">
-      <Transition name="sheet-pop">
-        <div v-if="showBudgetDialog" class="login-overlay budget-overlay" @click.self="closeBudgetDialog">
-          <section class="login-sheet budget-sheet" role="dialog" aria-modal="true" aria-labelledby="budgetSheetTitle">
-            <h2 id="budgetSheetTitle" class="login-sheet__title">{{ t('my.setBudget') }}</h2>
-            <p class="login-sheet__desc">{{ t('my.budgetDesc') }}</p>
+    <AppSheet v-model="showBudgetDialog" size="wide" @update:model-value="(v) => { if (!v) closeBudgetDialog() }">
+      <h2 class="login-sheet__title">{{ t('my.setBudget') }}</h2>
+      <p class="login-sheet__desc">{{ t('my.budgetDesc') }}</p>
 
-            <div class="budget-sheet__fields">
-              <label class="budget-input-wrap">
-                <span class="budget-input-wrap__label">{{ t('my.monthlyBudget') }}</span>
-                <input
-                  v-model="monthlyBudgetInput"
-                  class="budget-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputmode="decimal"
-                  :placeholder="t('my.monthlyBudgetPlaceholder')"
-                />
-              </label>
+      <div class="budget-sheet__fields">
+        <label class="budget-input-wrap">
+          <span class="budget-input-wrap__label">{{ t('my.monthlyBudget') }}</span>
+          <input
+            v-model="monthlyBudgetInput"
+            class="budget-input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            :placeholder="t('my.monthlyBudgetPlaceholder')"
+          />
+        </label>
 
-              <label class="budget-input-wrap">
-                <span class="budget-input-wrap__label">{{ t('my.yearlyBudget') }}</span>
-                <input
-                  v-model="yearlyBudgetInput"
-                  class="budget-input"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  inputmode="decimal"
-                  :placeholder="t('my.yearlyBudgetPlaceholder')"
-                />
-              </label>
-            </div>
-
-            <div class="login-sheet__actions">
-              <button type="button" class="login-sheet__button login-sheet__button--primary" @click="closeBudgetDialog">
-                {{ t('my.done') }}
-              </button>
-            </div>
-          </section>
-        </div>
-      </Transition>
-    </Teleport>
-
-    <Transition name="sheet-pop">
-      <div v-if="showLogoutDialog" class="login-overlay" @click.self="closeLogoutDialog">
-        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="logoutSheetTitle">
-          <h2 id="logoutSheetTitle" class="login-sheet__title">{{ t('my.logout') }}</h2>
-          <p class="login-sheet__desc">
-            {{ t('my.authLogoutDesc') }}
-          </p>
-
-          <div class="login-sheet__actions">
-            <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmLogout">
-              {{ t('my.confirmLogout') }}
-            </button>
-            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLogoutDialog">
-              {{ t('my.cancel') }}
-            </button>
-          </div>
-        </section>
+        <label class="budget-input-wrap">
+          <span class="budget-input-wrap__label">{{ t('my.yearlyBudget') }}</span>
+          <input
+            v-model="yearlyBudgetInput"
+            class="budget-input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputmode="decimal"
+            :placeholder="t('my.yearlyBudgetPlaceholder')"
+          />
+        </label>
       </div>
-    </Transition>
 
-    <Transition name="sheet-pop">
-      <div v-if="showProfileEditSheet" class="login-overlay" @click.self="closeProfileEditSheet">
-        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="profileEditSheetTitle">
-          <h2 id="profileEditSheetTitle" class="login-sheet__title">{{ t('my.rename') }}</h2>
-          <div class="rename-field">
-            <input
-              v-model="renameInput"
-              class="auth-input"
-              type="text"
-              :placeholder="t('my.authDisplayName')"
-              maxlength="30"
-              @keydown.enter="confirmRename"
-            />
-          </div>
-          <p v-if="renameError" class="rename-error">{{ renameError }}</p>
-          <div class="login-sheet__actions">
-            <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="!renameInput.trim() || renameLoading" @click="confirmRename">
-              {{ renameLoading ? '...' : t('common.confirm') }}
-            </button>
-            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="chooseNewAvatar">
-              {{ t('my.changeAvatar') }}
-            </button>
-            <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="editExistingAvatar">
-              {{ t('my.editCurrentAvatar') }}
-            </button>
-            <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="confirmResetAvatar">
-              {{ t('my.resetAvatar') }}
-            </button>
-            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeProfileEditSheet">
-              {{ t('my.cancel') }}
-            </button>
-          </div>
-        </section>
+      <div class="login-sheet__actions">
+        <button type="button" class="login-sheet__button login-sheet__button--primary" @click="closeBudgetDialog">
+          {{ t('my.done') }}
+        </button>
       </div>
-    </Transition>
+    </AppSheet>
+
+    <!-- 危险确认：手机平板都居中 -->
+    <AppSheet v-model="showLogoutDialog" force-center size="wide" @update:model-value="(v) => { if (!v) closeLogoutDialog() }">
+      <h2 class="login-sheet__title">{{ t('my.logout') }}</h2>
+      <p class="login-sheet__desc">
+        {{ t('my.authLogoutDesc') }}
+      </p>
+
+      <div class="login-sheet__actions">
+        <button type="button" class="login-sheet__button login-sheet__button--primary" @click="confirmLogout">
+          {{ t('my.confirmLogout') }}
+        </button>
+        <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeLogoutDialog">
+          {{ t('my.cancel') }}
+        </button>
+      </div>
+    </AppSheet>
+
+    <AppSheet v-model="showProfileEditSheet" size="wide" @update:model-value="(v) => { if (!v) closeProfileEditSheet() }">
+      <h2 class="login-sheet__title">{{ t('my.rename') }}</h2>
+      <div class="rename-field">
+        <input
+          v-model="renameInput"
+          class="auth-input"
+          type="text"
+          :placeholder="t('my.authDisplayName')"
+          maxlength="30"
+          @keydown.enter="confirmRename"
+        />
+      </div>
+      <p v-if="renameError" class="rename-error">{{ renameError }}</p>
+      <div class="login-sheet__actions">
+        <button type="button" class="login-sheet__button login-sheet__button--primary" :disabled="!renameInput.trim() || renameLoading" @click="confirmRename">
+          {{ renameLoading ? '...' : t('common.confirm') }}
+        </button>
+        <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="chooseNewAvatar">
+          {{ t('my.changeAvatar') }}
+        </button>
+        <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="editExistingAvatar">
+          {{ t('my.editCurrentAvatar') }}
+        </button>
+        <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="confirmResetAvatar">
+          {{ t('my.resetAvatar') }}
+        </button>
+        <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeProfileEditSheet">
+          {{ t('my.cancel') }}
+        </button>
+      </div>
+    </AppSheet>
 
     <!-- Avatar Crop Editor -->
     <QuickImageEditorDialog
@@ -424,388 +411,378 @@
     />
 
     <!-- Change Password Dialog -->
-    <Transition name="sheet-pop">
-      <div v-if="showChangePasswordSheet" class="login-overlay" @click.self="closeChangePasswordSheet">
-        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="changePasswordTitle">
-          <h2 id="changePasswordTitle" class="login-sheet__title">{{ t('my.changePasswordTitle') }}</h2>
+    <AppSheet v-model="showChangePasswordSheet" size="wide" @update:model-value="(v) => { if (!v) closeChangePasswordSheet() }">
+      <h2 class="login-sheet__title">{{ t('my.changePasswordTitle') }}</h2>
 
-          <form class="auth-form" @submit.prevent="confirmChangePassword">
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
-              <input
-                v-model="changePasswordOld"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.currentPassword')"
-                autocomplete="current-password"
-                required
-              />
-            </label>
+      <form class="auth-form" @submit.prevent="confirmChangePassword">
+        <label class="auth-field">
+          <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
+          <input
+            v-model="changePasswordOld"
+            class="auth-input"
+            type="password"
+            :placeholder="t('my.currentPassword')"
+            autocomplete="current-password"
+            required
+          />
+        </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.newPassword') }}</span>
-              <input
-                v-model="changePasswordNew"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.newPassword')"
-                autocomplete="new-password"
-                required
-                minlength="6"
-              />
-            </label>
+        <label class="auth-field">
+          <span class="auth-field__label">{{ t('my.newPassword') }}</span>
+          <input
+            v-model="changePasswordNew"
+            class="auth-input"
+            type="password"
+            :placeholder="t('my.newPassword')"
+            autocomplete="new-password"
+            required
+            minlength="6"
+          />
+        </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.confirmNewPassword') }}</span>
-              <input
-                v-model="changePasswordConfirm"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.confirmNewPassword')"
-                autocomplete="new-password"
-                required
-              />
-            </label>
+        <label class="auth-field">
+          <span class="auth-field__label">{{ t('my.confirmNewPassword') }}</span>
+          <input
+            v-model="changePasswordConfirm"
+            class="auth-input"
+            type="password"
+            :placeholder="t('my.confirmNewPassword')"
+            autocomplete="new-password"
+            required
+          />
+        </label>
 
-            <p v-if="changePasswordError" class="rename-error">{{ changePasswordError }}</p>
+        <p v-if="changePasswordError" class="rename-error">{{ changePasswordError }}</p>
 
-            <div class="login-sheet__actions">
-              <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changePasswordLoading || !changePasswordOld || !changePasswordNew || !changePasswordConfirm">
-                {{ changePasswordLoading ? '...' : t('common.confirm') }}
-              </button>
-              <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangePasswordSheet">
-                {{ t('my.cancel') }}
-              </button>
-            </div>
-          </form>
-        </section>
-      </div>
-    </Transition>
+        <div class="login-sheet__actions">
+          <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changePasswordLoading || !changePasswordOld || !changePasswordNew || !changePasswordConfirm">
+            {{ changePasswordLoading ? '...' : t('common.confirm') }}
+          </button>
+          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangePasswordSheet">
+            {{ t('my.cancel') }}
+          </button>
+        </div>
+      </form>
+    </AppSheet>
 
     <!-- Account Management Dialog -->
-    <Transition name="sheet-pop">
-      <div v-if="showAccountManageSheet" class="login-overlay" @click.self="closeAccountManageSheet">
-        <section class="login-sheet login-sheet--tall" role="dialog" aria-modal="true" aria-labelledby="accountManageTitle">
-          <h2 id="accountManageTitle" class="login-sheet__title">{{ t('my.accountManage') }}</h2>
+    <AppSheet v-model="showAccountManageSheet" size="wide" @update:model-value="(v) => { if (!v) closeAccountManageSheet() }">
+      <h2 class="login-sheet__title">{{ t('my.accountManage') }}</h2>
 
-          <!-- Current Email -->
-          <div class="account-manage-section">
-            <h3 class="account-manage-section__title">{{ t('my.authEmail') }}</h3>
-            <div class="account-manage-item">
-              <div class="account-manage-item__info">
-                <span class="account-manage-item__provider">{{ t('my.authEmail') }}</span>
-                <span class="account-manage-item__email">{{ authStore.userEmail }}</span>
-              </div>
-              <button
-                type="button"
-                class="login-sheet__button login-sheet__button--secondary-sm"
-                @click="openChangeEmail"
-              >
-                {{ t('my.changeEmail') }}
-              </button>
-            </div>
+      <!-- Current Email -->
+      <div class="account-manage-section">
+        <h3 class="account-manage-section__title">{{ t('my.authEmail') }}</h3>
+        <div class="account-manage-item">
+          <div class="account-manage-item__info">
+            <span class="account-manage-item__provider">{{ t('my.authEmail') }}</span>
+            <span class="account-manage-item__email">{{ authStore.userEmail }}</span>
           </div>
-
-          <!-- Change Email Form (hidden by default) -->
-          <div v-if="showChangeEmailForm" class="account-manage-section">
-            <form class="auth-form" @submit.prevent="confirmChangeEmail">
-              <label class="auth-field">
-                <span class="auth-field__label">{{ t('my.newEmail') }}</span>
-                <input
-                  v-model="changeEmailNew"
-                  class="auth-input"
-                  type="email"
-                  :placeholder="t('my.authEmail')"
-                  autocomplete="email"
-                  required
-                />
-              </label>
-              <p v-if="changeEmailError" class="rename-error">{{ changeEmailError }}</p>
-              <p v-if="changeEmailSent" class="dialog-success">{{ t('my.changeEmailSent') }}</p>
-              <div class="login-sheet__actions">
-                <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changeEmailLoading || !changeEmailNew || changeEmailNew === authStore.userEmail">
-                  {{ changeEmailLoading ? '...' : t('common.confirm') }}
-                </button>
-                <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangeEmail">
-                  {{ t('my.cancel') }}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          <!-- Linked Accounts List -->
-          <div class="account-manage-section">
-            <h3 class="account-manage-section__title">{{ t('my.linkedAccounts') }}</h3>
-            <div v-if="authStore.linkedProviders.length === 0" class="account-manage-empty">
-              {{ t('my.notLoggedIn') }}
-            </div>
-            <div v-for="identity in authStore.linkedProviders" :key="identity.id" class="account-manage-item">
-              <div class="account-manage-item__info">
-                <span class="account-manage-item__provider">{{ getProviderLabel(identity.provider) }}</span>
-                <span class="account-manage-item__email">{{ identity.identity_data?.email || identity.identity_data?.name || '' }}</span>
-              </div>
-              <button
-                type="button"
-                class="login-sheet__button login-sheet__button--danger-sm"
-                :disabled="authStore.linkedProviders.length <= 1"
-                @click="confirmUnlinkProvider(identity)"
-              >
-                {{ t('my.unlinkProvider') }}
-              </button>
-            </div>
-          </div>
-
-          <!-- QQ 推送绑定 -->
-          <div class="account-manage-section">
-            <h3 class="account-manage-section__title">{{ t('my.qqBindingTitle') }}</h3>
-            <div class="account-manage-item">
-              <div class="account-manage-item__info">
-                <span class="account-manage-item__provider">QQ Push</span>
-                <span class="account-manage-item__email">
-                  {{ qqStore.isBound ? (qqStore.qqNickname || t('my.qqBound')) : t('my.qqNotBound') }}
-                </span>
-              </div>
-              <button
-                type="button"
-                class="login-sheet__button login-sheet__button--secondary-sm"
-                :disabled="qqStore.isLoading"
-                @click="openQQBindingSheet"
-              >
-                {{ qqStore.isBound ? t('my.qqManage') : t('my.qqBind') }}
-              </button>
-            </div>
-          </div>
-
-          <!-- Link New Provider -->
-          <div class="account-manage-section">
-            <h3 class="account-manage-section__title">{{ t('my.linkProvider') }}</h3>
-            <div class="social-buttons">
-              <button type="button" class="social-btn social-btn--google" :disabled="authStore.isLoading" @click="handleLinkProvider('google')">
-                <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                <span>Google</span>
-              </button>
-              <button type="button" class="social-btn social-btn--github" :disabled="authStore.isLoading" @click="handleLinkProvider('github')">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-                <span>GitHub</span>
-              </button>
-              <button type="button" class="social-btn social-btn--microsoft" :disabled="authStore.isLoading" @click="handleLinkProvider('azure')">
-                <svg viewBox="0 0 21 21" width="20" height="20" aria-hidden="true">
-                  <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                  <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                  <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                  <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-                </svg>
-                <span>Microsoft</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Change Password Button -->
-          <div class="account-manage-section">
-            <button type="button" class="login-sheet__button login-sheet__button--secondary login-sheet__button--full" @click="openChangePasswordFromManage">
-              {{ t('my.changePassword') }}
-            </button>
-          </div>
-
-          <!-- Delete Account Button -->
-          <div class="account-manage-section">
-            <button type="button" class="login-sheet__button login-sheet__button--danger login-sheet__button--full" @click="openDeleteAccountFromManage">
-              {{ t('my.deleteAccount') }}
-            </button>
-          </div>
-
-          <div class="login-sheet__actions">
-            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeAccountManageSheet">
-              {{ t('my.close') }}
-            </button>
-          </div>
-        </section>
+          <button
+            type="button"
+            class="login-sheet__button login-sheet__button--secondary-sm"
+            @click="openChangeEmail"
+          >
+            {{ t('my.changeEmail') }}
+          </button>
+        </div>
       </div>
-    </Transition>
+
+      <!-- Change Email Form (hidden by default) -->
+      <div v-if="showChangeEmailForm" class="account-manage-section">
+        <form class="auth-form" @submit.prevent="confirmChangeEmail">
+          <label class="auth-field">
+            <span class="auth-field__label">{{ t('my.newEmail') }}</span>
+            <input
+              v-model="changeEmailNew"
+              class="auth-input"
+              type="email"
+              :placeholder="t('my.authEmail')"
+              autocomplete="email"
+              required
+            />
+          </label>
+          <p v-if="changeEmailError" class="rename-error">{{ changeEmailError }}</p>
+          <p v-if="changeEmailSent" class="dialog-success">{{ t('my.changeEmailSent') }}</p>
+          <div class="login-sheet__actions">
+            <button type="submit" class="login-sheet__button login-sheet__button--primary" :disabled="changeEmailLoading || !changeEmailNew || changeEmailNew === authStore.userEmail">
+              {{ changeEmailLoading ? '...' : t('common.confirm') }}
+            </button>
+            <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeChangeEmail">
+              {{ t('my.cancel') }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Linked Accounts List -->
+      <div class="account-manage-section">
+        <h3 class="account-manage-section__title">{{ t('my.linkedAccounts') }}</h3>
+        <div v-if="authStore.linkedProviders.length === 0" class="account-manage-empty">
+          {{ t('my.notLoggedIn') }}
+        </div>
+        <div v-for="identity in authStore.linkedProviders" :key="identity.id" class="account-manage-item">
+          <div class="account-manage-item__info">
+            <span class="account-manage-item__provider">{{ getProviderLabel(identity.provider) }}</span>
+            <span class="account-manage-item__email">{{ identity.identity_data?.email || identity.identity_data?.name || '' }}</span>
+          </div>
+          <button
+            type="button"
+            class="login-sheet__button login-sheet__button--danger-sm"
+            :disabled="authStore.linkedProviders.length <= 1"
+            @click="confirmUnlinkProvider(identity)"
+          >
+            {{ t('my.unlinkProvider') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- QQ 推送绑定 -->
+      <div class="account-manage-section">
+        <h3 class="account-manage-section__title">{{ t('my.qqBindingTitle') }}</h3>
+        <div class="account-manage-item">
+          <div class="account-manage-item__info">
+            <span class="account-manage-item__provider">QQ Push</span>
+            <span class="account-manage-item__email">
+              {{ qqStore.isBound ? (qqStore.qqNickname || t('my.qqBound')) : t('my.qqNotBound') }}
+            </span>
+          </div>
+          <button
+            type="button"
+            class="login-sheet__button login-sheet__button--secondary-sm"
+            :disabled="qqStore.isLoading"
+            @click="openQQBindingSheet"
+          >
+            {{ qqStore.isBound ? t('my.qqManage') : t('my.qqBind') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Link New Provider -->
+      <div class="account-manage-section">
+        <h3 class="account-manage-section__title">{{ t('my.linkProvider') }}</h3>
+        <div class="social-buttons">
+          <button type="button" class="social-btn social-btn--google" :disabled="authStore.isLoading" @click="handleLinkProvider('google')">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+            </svg>
+            <span>Google</span>
+          </button>
+          <button type="button" class="social-btn social-btn--github" :disabled="authStore.isLoading" @click="handleLinkProvider('github')">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+              <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            <span>GitHub</span>
+          </button>
+          <button type="button" class="social-btn social-btn--microsoft" :disabled="authStore.isLoading" @click="handleLinkProvider('azure')">
+            <svg viewBox="0 0 21 21" width="20" height="20" aria-hidden="true">
+              <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+              <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+              <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+              <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+            </svg>
+            <span>Microsoft</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Change Password Button -->
+      <div class="account-manage-section">
+        <button type="button" class="login-sheet__button login-sheet__button--secondary login-sheet__button--full" @click="openChangePasswordFromManage">
+          {{ t('my.changePassword') }}
+        </button>
+      </div>
+
+      <!-- Delete Account Button -->
+      <div class="account-manage-section">
+        <button type="button" class="login-sheet__button login-sheet__button--danger login-sheet__button--full" @click="openDeleteAccountFromManage">
+          {{ t('my.deleteAccount') }}
+        </button>
+      </div>
+
+      <div class="login-sheet__actions">
+        <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeAccountManageSheet">
+          {{ t('my.close') }}
+        </button>
+      </div>
+    </AppSheet>
 
     <QQBindingSheet :show="showQQBindingSheet" @close="closeQQBindingSheet" @bound="onQQBound" />
 
-    <!-- Delete Account Dialog -->
-    <Transition name="sheet-pop">
-      <div v-if="showDeleteAccountSheet" class="login-overlay" @click.self="closeDeleteAccountSheet">
-        <section class="login-sheet" role="dialog" aria-modal="true" aria-labelledby="deleteAccountTitle">
-          <h2 id="deleteAccountTitle" class="login-sheet__title login-sheet__title--danger">{{ t('my.deleteAccountTitle') }}</h2>
-          <p class="login-sheet__desc login-sheet__desc--danger">{{ t('my.deleteAccountDesc') }}</p>
+    <!-- Delete Account Dialog：危险确认始终居中 -->
+    <AppSheet v-model="showDeleteAccountSheet" force-center size="wide" @update:model-value="(v) => { if (!v) closeDeleteAccountSheet() }">
+      <h2 class="login-sheet__title login-sheet__title--danger">{{ t('my.deleteAccountTitle') }}</h2>
+      <p class="login-sheet__desc login-sheet__desc--danger">{{ t('my.deleteAccountDesc') }}</p>
 
-          <form class="auth-form" @submit.prevent="confirmDeleteAccount">
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.deleteAccountConfirmHint') }}</span>
-              <input
-                v-model="deleteAccountEmail"
-                class="auth-input"
-                type="email"
-                :placeholder="t('my.authEmail')"
-                autocomplete="email"
-                required
-              />
-            </label>
+      <form class="auth-form" @submit.prevent="confirmDeleteAccount">
+        <label class="auth-field">
+          <span class="auth-field__label">{{ t('my.deleteAccountConfirmHint') }}</span>
+          <input
+            v-model="deleteAccountEmail"
+            class="auth-input"
+            type="email"
+            :placeholder="t('my.authEmail')"
+            autocomplete="email"
+            required
+          />
+        </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
-              <input
-                v-model="deleteAccountPassword"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.authPassword')"
-                autocomplete="current-password"
-                required
-              />
-            </label>
+        <label class="auth-field">
+          <span class="auth-field__label">{{ t('my.currentPassword') }}</span>
+          <input
+            v-model="deleteAccountPassword"
+            class="auth-input"
+            type="password"
+            :placeholder="t('my.authPassword')"
+            autocomplete="current-password"
+            required
+          />
+        </label>
 
-            <p v-if="deleteAccountError" class="rename-error">{{ deleteAccountError }}</p>
+        <p v-if="deleteAccountError" class="rename-error">{{ deleteAccountError }}</p>
 
-            <div class="login-sheet__actions">
-              <button type="submit" class="login-sheet__button login-sheet__button--danger" :disabled="deleteAccountLoading || deleteAccountEmail !== authStore.userEmail || !deleteAccountPassword">
-                {{ deleteAccountLoading ? '...' : t('my.deleteAccount') }}
-              </button>
-              <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeDeleteAccountSheet">
-                {{ t('my.cancel') }}
-              </button>
+        <div class="login-sheet__actions">
+          <button type="submit" class="login-sheet__button login-sheet__button--danger" :disabled="deleteAccountLoading || deleteAccountEmail !== authStore.userEmail || !deleteAccountPassword">
+            {{ deleteAccountLoading ? '...' : t('my.deleteAccount') }}
+          </button>
+          <button type="button" class="login-sheet__button login-sheet__button--secondary" @click="closeDeleteAccountSheet">
+            {{ t('my.cancel') }}
+          </button>
+        </div>
+      </form>
+    </AppSheet>
+
+    <!-- Announcement List Popup：高于浮动播放器 2200 -->
+    <AppSheet
+      :model-value="announcementStore.listVisible"
+      size="wide"
+      :z-index="2500"
+      @update:model-value="(v) => { if (!v) closeAnnouncementList() }"
+    >
+      <header class="announcement-list-sheet__header">
+        <h2 class="announcement-list-sheet__title">{{ t('my.announcements') }}</h2>
+        <button type="button" class="announcement-list-sheet__close" :aria-label="t('my.close')" @click="closeAnnouncementList">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </header>
+
+      <div class="announcement-list-sheet__body">
+        <div v-if="announcementStore.listLoading" class="announcement-list-sheet__empty">
+          <p>{{ t('common.loading') }}</p>
+        </div>
+        <template v-else>
+          <!-- 公告列表 -->
+          <ul v-if="announcementStore.allAnnouncements.length > 0" class="announcement-list">
+          <li
+            v-for="announcement in announcementStore.allAnnouncements"
+            :key="announcement.id"
+            class="announcement-list__item"
+            :class="{ 'announcement-list__item--unread': !isAnnouncementRead(announcement.id) }"
+            role="button"
+            tabindex="0"
+            @click="viewAnnouncementDetail(announcement)"
+            @keydown.enter="viewAnnouncementDetail(announcement)"
+            @keydown.space.prevent="viewAnnouncementDetail(announcement)"
+          >
+            <div class="announcement-list__item-content">
+              <h3 class="announcement-list__item-title">
+                <span v-if="!isAnnouncementRead(announcement.id)" class="announcement-list__item-dot" aria-hidden="true" />
+                {{ announcement.title || t('common.announcement') }}
+              </h3>
+              <p class="announcement-list__item-desc">{{ truncateText(announcement.message, 120) }}</p>
+              <span v-if="announcement.showRule?.startAt" class="announcement-list__item-date">{{ formatAnnouncementDate(announcement.showRule.startAt) }}</span>
             </div>
-          </form>
-        </section>
-      </div>
-    </Transition>
+            <svg class="announcement-list__item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <polyline points="9 18 15 12 9 6" />
+            </svg>
+          </li>
+        </ul>
 
-    <!-- Announcement List Popup -->
-    <Transition name="sheet-pop">
-      <div v-if="announcementStore.listVisible" class="overlay" @click.self="closeAnnouncementList">
-        <section class="announcement-list-sheet" role="dialog" aria-modal="true" :aria-label="t('my.announcements')">
-          <header class="announcement-list-sheet__header">
-            <h2 class="announcement-list-sheet__title">{{ t('my.announcements') }}</h2>
-            <button type="button" class="announcement-list-sheet__close" :aria-label="t('my.close')" @click="closeAnnouncementList">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </header>
-
-          <div class="announcement-list-sheet__body">
-            <div v-if="announcementStore.listLoading" class="announcement-list-sheet__empty">
-              <p>{{ t('common.loading') }}</p>
-            </div>
-            <template v-else>
-              <!-- 公告列表 -->
-              <ul v-if="announcementStore.allAnnouncements.length > 0" class="announcement-list">
+          <!-- 更新日志（仅 beta 频道用户可见） -->
+          <div v-if="announcementStore.isBetaChannel && announcementStore.changelogEntries.length > 0" class="changelog-section">
+            <h3 class="changelog-section__title">{{ t('my.changelog') }}</h3>
+            <ul class="changelog-list">
               <li
-                v-for="announcement in announcementStore.allAnnouncements"
-                :key="announcement.id"
-                class="announcement-list__item"
-                :class="{ 'announcement-list__item--unread': !isAnnouncementRead(announcement.id) }"
-                role="button"
-                tabindex="0"
-                @click="viewAnnouncementDetail(announcement)"
-                @keydown.enter="viewAnnouncementDetail(announcement)"
-                @keydown.space.prevent="viewAnnouncementDetail(announcement)"
+                v-for="entry in announcementStore.changelogEntries"
+                :key="entry.version"
+                class="changelog-list__item"
               >
-                <div class="announcement-list__item-content">
-                  <h3 class="announcement-list__item-title">
-                    <span v-if="!isAnnouncementRead(announcement.id)" class="announcement-list__item-dot" aria-hidden="true" />
-                    {{ announcement.title || t('common.announcement') }}
-                  </h3>
-                  <p class="announcement-list__item-desc">{{ truncateText(announcement.message, 120) }}</p>
-                  <span v-if="announcement.showRule?.startAt" class="announcement-list__item-date">{{ formatAnnouncementDate(announcement.showRule.startAt) }}</span>
+                <div class="changelog-list__header">
+                  <span class="changelog-list__version">v{{ entry.version }}</span>
+                  <span v-if="entry.publishedAt" class="changelog-list__date">{{ formatChangelogDate(entry.publishedAt) }}</span>
                 </div>
-                <svg class="announcement-list__item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
+                <p v-if="entry.notes" class="changelog-list__notes">{{ entry.notes }}</p>
               </li>
             </ul>
-
-              <!-- 更新日志（仅 beta 频道用户可见） -->
-              <div v-if="announcementStore.isBetaChannel && announcementStore.changelogEntries.length > 0" class="changelog-section">
-                <h3 class="changelog-section__title">{{ t('my.changelog') }}</h3>
-                <ul class="changelog-list">
-                  <li
-                    v-for="entry in announcementStore.changelogEntries"
-                    :key="entry.version"
-                    class="changelog-list__item"
-                  >
-                    <div class="changelog-list__header">
-                      <span class="changelog-list__version">v{{ entry.version }}</span>
-                      <span v-if="entry.publishedAt" class="changelog-list__date">{{ formatChangelogDate(entry.publishedAt) }}</span>
-                    </div>
-                    <p v-if="entry.notes" class="changelog-list__notes">{{ entry.notes }}</p>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- 空态：无公告 + 无更新日志 -->
-              <div v-if="announcementStore.allAnnouncements.length === 0 && (!announcementStore.isBetaChannel || announcementStore.changelogEntries.length === 0)" class="announcement-list-sheet__empty">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="announcement-list-sheet__empty-icon">
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                  <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
-                  <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
-                  <path d="M18 8a6 6 0 0 0-9.33-5" />
-                  <line x1="1" y1="1" x2="23" y2="23" />
-                </svg>
-                <p>{{ t('my.noAnnouncements') }}</p>
-              </div>
-            </template>
           </div>
-        </section>
+
+          <!-- 空态：无公告 + 无更新日志 -->
+          <div v-if="announcementStore.allAnnouncements.length === 0 && (!announcementStore.isBetaChannel || announcementStore.changelogEntries.length === 0)" class="announcement-list-sheet__empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="announcement-list-sheet__empty-icon">
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              <path d="M18.63 13A17.89 17.89 0 0 1 18 8" />
+              <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14" />
+              <path d="M18 8a6 6 0 0 0-9.33-5" />
+              <line x1="1" y1="1" x2="23" y2="23" />
+            </svg>
+            <p>{{ t('my.noAnnouncements') }}</p>
+          </div>
+        </template>
       </div>
-    </Transition>
+    </AppSheet>
 
-    <!-- Announcement Detail Popup -->
-    <Transition name="sheet-pop">
-      <div v-if="detailAnnouncement" class="overlay" @click.self="closeAnnouncementDetail">
-        <div class="dialog announcement-detail-dialog">
-          <p class="announcement-kicker">Announcement</p>
-          <h3 class="dialog-title">{{ detailAnnouncement.title || t('common.announcement') }}</h3>
+    <!-- Announcement Detail Popup：高于浮动播放器 2200 -->
+    <AppSheet
+      :model-value="!!detailAnnouncement"
+      size="wide"
+      :z-index="2500"
+      @update:model-value="(v) => { if (!v) closeAnnouncementDetail() }"
+    >
+      <p class="announcement-kicker">Announcement</p>
+      <h3 class="dialog-title">{{ detailAnnouncement?.title || t('common.announcement') }}</h3>
 
-          <img
-            v-if="detailAnnouncement.imageUrl"
-            :src="detailAnnouncement.imageUrl"
-            :alt="detailAnnouncement.title || 'Announcement'"
-            class="announcement-image"
-            loading="lazy"
-          />
+      <img
+        v-if="detailAnnouncement?.imageUrl"
+        :src="detailAnnouncement.imageUrl"
+        :alt="detailAnnouncement?.title || 'Announcement'"
+        class="announcement-image"
+        loading="lazy"
+      />
 
-          <div
-            v-if="detailIsMarkdown"
-            class="announcement-body markdown-body"
-            v-html="detailContentHtml"
-          />
-          <p v-else class="dialog-desc">{{ detailContentText }}</p>
+      <div
+        v-if="detailIsMarkdown"
+        class="announcement-body markdown-body"
+        v-html="detailContentHtml"
+      />
+      <p v-else class="dialog-desc">{{ detailContentText }}</p>
 
-          <div class="announcement-meta">
-            <span v-if="detailDateLabel" class="announcement-meta__item">{{ detailDateLabel }}</span>
-          </div>
-
-          <div class="dialog-actions">
-            <button
-              type="button"
-              class="dialog-btn dialog-btn--secondary"
-              @click="closeAnnouncementDetail"
-            >
-              {{ t('common.known') }}
-            </button>
-            <button
-              v-if="detailShowPrimaryButton"
-              type="button"
-              class="dialog-btn dialog-btn--primary"
-              @click="handleDetailPrimaryAction"
-            >
-              {{ detailPrimaryButtonText }}
-            </button>
-          </div>
-        </div>
+      <div class="announcement-meta">
+        <span v-if="detailDateLabel" class="announcement-meta__item">{{ detailDateLabel }}</span>
       </div>
-    </Transition>
+
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="dialog-btn dialog-btn--secondary"
+          @click="closeAnnouncementDetail"
+        >
+          {{ t('common.known') }}
+        </button>
+        <button
+          v-if="detailShowPrimaryButton"
+          type="button"
+          class="dialog-btn dialog-btn--primary"
+          @click="handleDetailPrimaryAction"
+        >
+          {{ detailPrimaryButtonText }}
+        </button>
+      </div>
+    </AppSheet>
 
     <AppToast :message="toastMsg" />
   </div>
@@ -833,6 +810,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -1666,18 +1644,7 @@ onActivated(() => {
   pointer-events: none;
 }
 
-/* ── 公告列表弹窗 ── */
-.announcement-list-sheet {
-  display: flex;
-  flex-direction: column;
-  width: min(100% - 32px, 480px);
-  max-height: 70vh;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  overflow: hidden;
-}
-
+/* ── 公告列表弹窗（外壳由 AppSheet 提供） ── */
 .announcement-list-sheet__header {
   display: flex;
   align-items: center;
@@ -1874,22 +1841,7 @@ onActivated(() => {
   word-break: break-word;
 }
 
-/* ── 公告详情弹窗 ── */
-.announcement-detail-dialog {
-  width: min(100%, 480px);
-  max-height: 80vh;
-  padding: 24px;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.announcement-detail-dialog::-webkit-scrollbar {
-  display: none;
-}
-
+/* ── 公告详情弹窗（外壳由 AppSheet 提供） ── */
 .announcement-kicker {
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -2060,20 +2012,6 @@ onActivated(() => {
   border-top: 1px solid var(--app-border, rgba(0, 0, 0, 0.08));
 }
 
-/* overlay 复用现有 .overlay 样式 */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
 .account-hero {
   margin-top: 20px;
 }
@@ -2211,7 +2149,7 @@ onActivated(() => {
   align-self: center;
   padding: 0 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   color: var(--app-text-secondary);
   font-size: 11px;
   font-weight: 700;
@@ -2693,25 +2631,7 @@ onActivated(() => {
   box-shadow: none;
 }
 
-.login-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(20, 20, 22, 0.28);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.login-sheet {
-  width: 100%;
-  padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px);
-  border-radius: 24px 24px 0 0;
-  background: var(--app-surface);
-  box-shadow: 0 -10px 28px rgba(0, 0, 0, 0.12);
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .login-sheet__title {
   font-size: 20px;
   font-weight: 700;
@@ -2954,10 +2874,6 @@ onActivated(() => {
   margin-top: 16px;
 }
 
-.budget-overlay {
-  z-index: 220;
-}
-
 @media (max-width: 1023px) {
   .content-grid {
     grid-template-columns: 1fr;
@@ -3076,33 +2992,6 @@ onActivated(() => {
 
   .detail-row__value {
     text-align: left;
-  }
-}
-
-@media (min-width: 768px) {
-  .login-overlay {
-    align-items: center;
-  }
-
-  .login-sheet {
-    width: min(100%, 430px);
-    margin: 0 auto;
-    border-radius: 24px;
-  }
-
-  .budget-overlay {
-    align-items: center;
-  }
-
-  .budget-sheet {
-    width: min(100%, 460px);
-    border-radius: 24px;
-  }
-
-  .budget-sheet-pop-enter-from .budget-sheet,
-  .budget-sheet-pop-leave-to .budget-sheet {
-    transform: translateY(0) scale(0.96);
-    opacity: 0;
   }
 }
 

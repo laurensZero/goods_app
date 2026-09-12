@@ -1,12 +1,8 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :position="popupPosition"
-    round
-    transition="sheet-pop"
-    :class="['search-filter-popup-popup', { 'search-filter-popup-popup--tablet': isTablet }]"
-    :style="popupStyle"
+    :sheet-class="['search-filter-popup-popup', { 'search-filter-popup-popup--tablet': isTablet }]"
   >
     <div class="filter-popup">
       <!-- Header -->
@@ -403,12 +399,12 @@
         @confirm="onDateConfirm"
       />
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useI18n } from 'vue-i18n'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import SearchBar from '@/components/common/SearchBar.vue'
@@ -480,10 +476,6 @@ watch(showProxy, async (visible) => {
 })
 
 const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
-const popupStyle = computed(() => isTablet.value
-  ? { width: 'min(900px, calc(100vw - 32px))', height: 'min(720px, calc(100dvh - 32px))' }
-  : { height: '85vh' }
-)
 
 const presetEditorVisible = ref(false)
 const presetDraftName = ref('')
@@ -552,15 +544,28 @@ function onDateConfirm({ selectedValues }) {
 </script>
 
 <style scoped>
-:global(.search-filter-popup-popup.van-popup) {
-  background: color-mix(in srgb, var(--app-bg) 88%, transparent);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+/* 原 Popup 内联尺寸：bottom 85vh；tablet center 900×720 —— 改为 sheet-class 覆盖 */
+:global(.search-filter-popup-popup) {
+  height: 85vh;
+}
+
+:global(.search-filter-popup-popup .app-sheet__scroll) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:global(.app-sheet-overlay--center .search-filter-popup-popup--tablet.search-filter-popup-popup) {
+  width: min(900px, calc(100vw - 32px)) !important;
+  height: min(720px, calc(100dvh - 32px)) !important;
 }
 
 .filter-popup {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   height: 100%;
   background: transparent;
 }

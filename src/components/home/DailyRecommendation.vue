@@ -1,63 +1,57 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="modelValue"
+    sheet-class="daily-rec-sheet"
+    @update:model-value="(v) => { if (!v) close() }"
+  >
+    <div class="sheet-header">
+      <p class="sheet-title">{{ t('home.dailyRec.label') }}</p>
+      <button type="button" class="shuffle-btn" :aria-label="t('home.dailyRec.shuffle')" @click="shuffle">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 18h3.5a4 4 0 0 0 3.5-2l2-3a4 4 0 0 1 3.5-2H21" />
+          <path d="M3 6h3.5a4 4 0 0 1 3.5 2l1.5 2a4 4 0 0 0 3.5 2H21" />
+          <path d="M18 2l3 3-3 3" />
+          <path d="M18 16l3 3-3 3" />
+        </svg>
+        <span>{{ t('home.dailyRec.shuffle') }}</span>
+      </button>
+    </div>
 
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('home.dailyRec.label')">
-        <div class="sheet-handle" aria-hidden="true" />
-
-        <div class="sheet-header">
-          <p class="sheet-title">{{ t('home.dailyRec.label') }}</p>
-          <button type="button" class="shuffle-btn" :aria-label="t('home.dailyRec.shuffle')" @click="shuffle">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 18h3.5a4 4 0 0 0 3.5-2l2-3a4 4 0 0 1 3.5-2H21" />
-              <path d="M3 6h3.5a4 4 0 0 1 3.5 2l1.5 2a4 4 0 0 0 3.5 2H21" />
-              <path d="M18 2l3 3-3 3" />
-              <path d="M18 16l3 3-3 3" />
-            </svg>
-            <span>{{ t('home.dailyRec.shuffle') }}</span>
-          </button>
+    <Transition name="card-swap" mode="out-in">
+      <div v-if="item" :key="item.id" class="rec-card" @click="openDetail">
+        <div class="rec-cover">
+          <LazyCachedImage
+            v-if="item.coverImage"
+            :src="item.coverImage"
+            :alt="item.name"
+            class="rec-img"
+            :lazy="false"
+            :skeleton-enabled="false"
+          />
+          <span v-else class="rec-fallback">{{ coverInitial }}</span>
         </div>
-
-        <Transition name="card-swap" mode="out-in">
-          <div v-if="item" :key="item.id" class="rec-card" @click="openDetail">
-            <div class="rec-cover">
-              <LazyCachedImage
-                v-if="item.coverImage"
-                :src="item.coverImage"
-                :alt="item.name"
-                class="rec-img"
-                :lazy="false"
-                :skeleton-enabled="false"
-              />
-              <span v-else class="rec-fallback">{{ coverInitial }}</span>
-            </div>
-            <div class="rec-info">
-              <h3 class="rec-name">{{ item.name }}</h3>
-              <div class="rec-tags">
-                <span v-if="item.category" class="rec-tag">{{ item.category }}</span>
-                <span v-if="item.ip" class="rec-tag rec-tag--ip">{{ item.ip }}</span>
-                <span v-for="c in displayCharacters" :key="c" class="rec-tag rec-tag--char">{{ c }}</span>
-              </div>
-              <p v-if="priceText" class="rec-price">{{ priceText }}</p>
-              <p v-if="item.notes" class="rec-notes">{{ item.notes }}</p>
-            </div>
+        <div class="rec-info">
+          <h3 class="rec-name">{{ item.name }}</h3>
+          <div class="rec-tags">
+            <span v-if="item.category" class="rec-tag">{{ item.category }}</span>
+            <span v-if="item.ip" class="rec-tag rec-tag--ip">{{ item.ip }}</span>
+            <span v-for="c in displayCharacters" :key="c" class="rec-tag rec-tag--char">{{ c }}</span>
           </div>
-          <div v-else class="rec-empty">
-            <p>{{ t('home.dailyRec.empty') }}</p>
-          </div>
-        </Transition>
-
-        <button type="button" class="sheet-action-btn" :disabled="!item" @click="openDetail">
-          {{ t('home.dailyRec.viewDetail') }}
-        </button>
-
-        <button type="button" class="sheet-cancel" @click="close">{{ t('common.close') }}</button>
+          <p v-if="priceText" class="rec-price">{{ priceText }}</p>
+          <p v-if="item.notes" class="rec-notes">{{ item.notes }}</p>
+        </div>
+      </div>
+      <div v-else class="rec-empty">
+        <p>{{ t('home.dailyRec.empty') }}</p>
       </div>
     </Transition>
-  </Teleport>
+
+    <button type="button" class="sheet-action-btn" :disabled="!item" @click="openDetail">
+      {{ t('home.dailyRec.viewDetail') }}
+    </button>
+
+    <button type="button" class="sheet-cancel" @click="close">{{ t('common.close') }}</button>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -65,6 +59,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const props = defineProps({
@@ -151,43 +146,11 @@ resolvePick()
 </script>
 
 <style scoped>
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 90;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 90dvh;
-  overflow-y: auto;
-}
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .daily-rec-sheet.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 .sheet-header {
@@ -316,26 +279,11 @@ resolvePick()
 .card-swap-enter-from { opacity: 0; transform: scale(0.95); }
 .card-swap-leave-to { opacity: 0; transform: scale(0.95); }
 
-/* Tablet */
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto; top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-  }
-  .sheet-handle { display: none; }
-  .sheet-cancel { display: none; }
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
+/* 宽屏 center 时隐藏取消按钮（与原 900px 断点行为一致） */
+:global(.app-sheet-overlay--center) .sheet-cancel {
+  display: none;
 }
 
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
 :global(html.theme-dark) .rec-card {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }

@@ -438,16 +438,12 @@
       :photos="previewPhotos"
     />
 
-    <Popup
-      v-model:show="showSettings"
+    <AppSheet
+      v-model="showSettings"
       :position="popupPosition"
-      :round="!isTabletViewport"
-      teleport="body"
-      transition="sheet-pop"
-      :class="['ai-settings-popup', { 'ai-settings-popup--center': isTabletViewport }]"
+      sheet-class="ai-settings-popup"
     >
       <div class="ai-settings-body">
-        <div class="popup-handle" />
         <h3 class="ai-settings-body__title">{{ t('aiChat.settingsTitle') }}</h3>
 
         <label class="settings-field">
@@ -481,18 +477,14 @@
         <p class="ai-settings-body__hint">{{ t('aiChat.visionNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.writeNotice') }}</p>
       </div>
-    </Popup>
+    </AppSheet>
 
-    <Popup
-      v-model:show="showHistory"
+    <AppSheet
+      v-model="showHistory"
       :position="popupPosition"
-      :round="!isTabletViewport"
-      teleport="body"
-      transition="sheet-pop"
-      :class="['ai-history-popup', { 'ai-history-popup--center': isTabletViewport }]"
+      sheet-class="ai-history-popup"
     >
       <div class="ai-history-body">
-        <div class="popup-handle" />
         <h3 class="ai-history-body__title">{{ t('aiChat.history') }}</h3>
 
         <button class="history-new" type="button" @click="startNewChat">
@@ -555,7 +547,7 @@
           <p v-if="aiChat.sessions.length === 0" class="history-empty">{{ t('aiChat.emptySessions') }}</p>
         </div>
       </div>
-    </Popup>
+    </AppSheet>
   </div>
 </template>
 
@@ -567,7 +559,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
@@ -2420,45 +2412,11 @@ function removeSession(id) {
   height: 14px;
 }
 
-/* ── Settings popup（与 ManageView picker-popup 同一套视觉约定） ── */
-.ai-settings-popup {
-  overflow: hidden;
-}
-
-:global(.ai-settings-popup.van-popup),
-:global(.ai-settings-popup.van-popup--bottom) {
-  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-:global(.ai-settings-popup--center.van-popup--center) {
-  width: min(520px, calc(100vw - 40px));
-  border-radius: 28px !important;
-  overflow: hidden;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
-}
-
+/* ── Settings sheet（AppSheet 承载，内容区透明继承 sheet 表面） ── */
 .ai-settings-body {
   width: 100%;
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   color: var(--app-text);
   background: transparent;
-}
-
-:global(.ai-settings-popup--center.van-popup--center) .ai-settings-body {
-  padding: 22px;
-}
-
-.popup-handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-text) 16%, transparent);
 }
 
 .ai-settings-body__title {
@@ -2538,40 +2496,13 @@ function removeSession(id) {
   line-height: 1.55;
 }
 
-/* ── History popup（与设置弹层同一套视觉约定） ── */
-.ai-history-popup {
-  overflow: hidden;
-}
-
-:global(.ai-history-popup.van-popup),
-:global(.ai-history-popup.van-popup--bottom) {
-  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-:global(.ai-history-popup--center.van-popup--center) {
-  width: min(520px, calc(100vw - 40px));
-  border-radius: 28px !important;
-  overflow: hidden;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
-}
-
+/* ── History sheet（与设置弹层同一套视觉约定） ── */
 .ai-history-body {
   width: 100%;
-  max-height: min(70vh, 560px);
   display: flex;
   flex-direction: column;
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   color: var(--app-text);
   background: transparent;
-}
-
-:global(.ai-history-popup--center.van-popup--center) .ai-history-body {
-  padding: 22px;
 }
 
 .ai-history-body__title {

@@ -1,163 +1,163 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="modelValue" class="overlay" @click.self="closeDialog">
-      <div class="fb-dialog">
-        <div class="fb-dialog__scroll">
-          <!-- Header -->
-          <div class="fb-header">
-            <span class="fb-header__icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-              </svg>
-            </span>
-            <h3 class="fb-header__title">{{ t('about.feedbackDialogTitle') }}</h3>
-            <p class="fb-header__desc">{{ t('about.feedbackInAppDesc') }}</p>
-          </div>
+  <AppSheet
+    :model-value="modelValue"
+    force-center
+    size="wide"
+    :z-index="1100"
+    @update:model-value="onSheetUpdate"
+  >
+    <!-- Header -->
+    <div class="fb-header">
+      <span class="fb-header__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      </span>
+      <h3 class="fb-header__title">{{ t('about.feedbackDialogTitle') }}</h3>
+      <p class="fb-header__desc">{{ t('about.feedbackInAppDesc') }}</p>
+    </div>
 
-          <!-- Status messages -->
-          <Transition name="fb-status-fade">
-            <div v-if="submitError" class="fb-status fb-status--error">
-              <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0V5zm.75 6.5a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>
-              {{ submitError }}
-            </div>
-          </Transition>
-          <Transition name="fb-status-fade">
-            <div v-if="submitSuccess" class="fb-status fb-status--success">
-              <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.69z"/></svg>
-              {{ t('about.feedbackSuccess') }}
-            </div>
-          </Transition>
+    <!-- Status messages -->
+    <Transition name="fb-status-fade">
+      <div v-if="submitError" class="fb-status fb-status--error">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0V5zm.75 6.5a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>
+        {{ submitError }}
+      </div>
+    </Transition>
+    <Transition name="fb-status-fade">
+      <div v-if="submitSuccess" class="fb-status fb-status--success">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.69z"/></svg>
+        {{ t('about.feedbackSuccess') }}
+      </div>
+    </Transition>
 
-          <form class="fb-form" @submit.prevent="handleSubmit">
-            <!-- Type segmented control -->
-            <div class="fb-segment">
-              <span class="fb-segment__label">{{ t('about.feedbackTypeLabel') }}</span>
-              <div class="fb-segment__track">
-                <button
-                  v-for="opt in typeOptions"
-                  :key="opt.value"
-                  type="button"
-                  class="fb-segment__btn"
-                  :class="{ 'fb-segment__btn--active': feedbackType === opt.value }"
-                  @click="feedbackType = opt.value"
-                >
-                  <span class="fb-segment__icon" v-html="opt.icon" />
-                  {{ opt.label }}
-                </button>
-              </div>
-            </div>
-
-            <!-- Title -->
-            <div class="fb-field">
-              <label class="fb-field__label" for="fb-title">{{ t('about.feedbackTitleLabel') }}</label>
-              <input
-                id="fb-title"
-                v-model="feedbackTitle"
-                class="fb-field__input"
-                type="text"
-                :placeholder="t('about.feedbackTitlePlaceholder')"
-                required
-                maxlength="100"
-              />
-            </div>
-
-            <!-- Content -->
-            <div class="fb-field">
-              <div class="fb-field__row">
-                <label class="fb-field__label" for="fb-content">{{ t('about.feedbackContentLabel') }}</label>
-                <span class="fb-field__count">{{ feedbackContent.length }}/2000</span>
-              </div>
-              <textarea
-                id="fb-content"
-                v-model="feedbackContent"
-                class="fb-field__input fb-field__textarea"
-                :placeholder="t('about.feedbackContentPlaceholder')"
-                rows="4"
-                maxlength="2000"
-              />
-            </div>
-
-            <!-- Contact -->
-            <div class="fb-field">
-              <label class="fb-field__label" for="fb-contact">
-                {{ t('about.feedbackContactLabel') }}
-              </label>
-              <input
-                id="fb-contact"
-                v-model="feedbackContact"
-                class="fb-field__input"
-                type="text"
-                :placeholder="t('about.feedbackContactPlaceholder')"
-                maxlength="100"
-              />
-            </div>
-
-            <!-- Attachments -->
-            <div class="fb-field">
-              <label class="fb-field__label">{{ t('about.feedbackAttachments') }}</label>
-              <div class="fb-attach-row">
-                <button type="button" class="fb-attach-btn" @click="$refs.fileInput.click()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-                  {{ t('about.feedbackPickFile') }}
-                </button>
-                <label class="fb-log-toggle">
-                  <input v-model="collectLog" type="checkbox" class="fb-log-checkbox" />
-                  {{ t('about.feedbackCollectLog') }}
-                </label>
-              </div>
-              <input
-                ref="fileInput"
-                type="file"
-                multiple
-                accept="image/*,video/*,.log,.txt,.json"
-                class="fb-file-hidden"
-                @change="handleFileSelect"
-              />
-              <div v-if="selectedFiles.length > 0" class="fb-attach-previews">
-                <div v-for="(f, idx) in selectedFiles" :key="idx" class="fb-attach-preview">
-                  <img v-if="f.type.startsWith('image/')" :src="f.preview" class="fb-attach-thumb" />
-                  <span v-else class="fb-attach-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                  </span>
-                  <div class="fb-attach-info">
-                    <span class="fb-attach-name">{{ f.name }}</span>
-                    <span class="fb-attach-size">{{ formatSize(f.size) }}</span>
-                  </div>
-                  <button type="button" class="fb-attach-remove" @click="removeFile(idx)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Actions -->
-            <p v-if="!userId" class="fb-anon-note">
-              <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0V5zm.75 6.5a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>
-              {{ t('about.feedbackAnonNote') }}
-            </p>
-            <div class="fb-actions">
-              <button
-                type="button"
-                class="fb-btn fb-btn--ghost"
-                :disabled="isSubmitting"
-                @click="closeDialog"
-              >
-                {{ t('about.feedbackCancel') }}
-              </button>
-              <button
-                type="submit"
-                class="fb-btn fb-btn--primary"
-                :disabled="isSubmitting || !feedbackTitle.trim()"
-              >
-                <span v-if="isSubmitting" class="fb-btn__spinner" />
-                {{ isSubmitting ? t('about.feedbackSubmitting') : t('about.feedbackSubmit') }}
-              </button>
-            </div>
-          </form>
+    <form class="fb-form" @submit.prevent="handleSubmit">
+      <!-- Type segmented control -->
+      <div class="fb-segment">
+        <span class="fb-segment__label">{{ t('about.feedbackTypeLabel') }}</span>
+        <div class="fb-segment__track">
+          <button
+            v-for="opt in typeOptions"
+            :key="opt.value"
+            type="button"
+            class="fb-segment__btn"
+            :class="{ 'fb-segment__btn--active': feedbackType === opt.value }"
+            @click="feedbackType = opt.value"
+          >
+            <span class="fb-segment__icon" v-html="opt.icon" />
+            {{ opt.label }}
+          </button>
         </div>
       </div>
-    </div>
-  </Transition>
+
+      <!-- Title -->
+      <div class="fb-field">
+        <label class="fb-field__label" for="fb-title">{{ t('about.feedbackTitleLabel') }}</label>
+        <input
+          id="fb-title"
+          v-model="feedbackTitle"
+          class="fb-field__input"
+          type="text"
+          :placeholder="t('about.feedbackTitlePlaceholder')"
+          required
+          maxlength="100"
+        />
+      </div>
+
+      <!-- Content -->
+      <div class="fb-field">
+        <div class="fb-field__row">
+          <label class="fb-field__label" for="fb-content">{{ t('about.feedbackContentLabel') }}</label>
+          <span class="fb-field__count">{{ feedbackContent.length }}/2000</span>
+        </div>
+        <textarea
+          id="fb-content"
+          v-model="feedbackContent"
+          class="fb-field__input fb-field__textarea"
+          :placeholder="t('about.feedbackContentPlaceholder')"
+          rows="4"
+          maxlength="2000"
+        />
+      </div>
+
+      <!-- Contact -->
+      <div class="fb-field">
+        <label class="fb-field__label" for="fb-contact">
+          {{ t('about.feedbackContactLabel') }}
+        </label>
+        <input
+          id="fb-contact"
+          v-model="feedbackContact"
+          class="fb-field__input"
+          type="text"
+          :placeholder="t('about.feedbackContactPlaceholder')"
+          maxlength="100"
+        />
+      </div>
+
+      <!-- Attachments -->
+      <div class="fb-field">
+        <label class="fb-field__label">{{ t('about.feedbackAttachments') }}</label>
+        <div class="fb-attach-row">
+          <button type="button" class="fb-attach-btn" @click="$refs.fileInput.click()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            {{ t('about.feedbackPickFile') }}
+          </button>
+          <label class="fb-log-toggle">
+            <input v-model="collectLog" type="checkbox" class="fb-log-checkbox" />
+            {{ t('about.feedbackCollectLog') }}
+          </label>
+        </div>
+        <input
+          ref="fileInput"
+          type="file"
+          multiple
+          accept="image/*,video/*,.log,.txt,.json"
+          class="fb-file-hidden"
+          @change="handleFileSelect"
+        />
+        <div v-if="selectedFiles.length > 0" class="fb-attach-previews">
+          <div v-for="(f, idx) in selectedFiles" :key="idx" class="fb-attach-preview">
+            <img v-if="f.type.startsWith('image/')" :src="f.preview" class="fb-attach-thumb" />
+            <span v-else class="fb-attach-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+            </span>
+            <div class="fb-attach-info">
+              <span class="fb-attach-name">{{ f.name }}</span>
+              <span class="fb-attach-size">{{ formatSize(f.size) }}</span>
+            </div>
+            <button type="button" class="fb-attach-remove" @click="removeFile(idx)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <p v-if="!userId" class="fb-anon-note">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm-.75 4a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0V5zm.75 6.5a.75.75 0 100-1.5.75.75 0 000 1.5z"/></svg>
+        {{ t('about.feedbackAnonNote') }}
+      </p>
+      <div class="fb-actions">
+        <button
+          type="button"
+          class="fb-btn fb-btn--ghost"
+          :disabled="isSubmitting"
+          @click="closeDialog"
+        >
+          {{ t('about.feedbackCancel') }}
+        </button>
+        <button
+          type="submit"
+          class="fb-btn fb-btn--primary"
+          :disabled="isSubmitting || !feedbackTitle.trim()"
+        >
+          <span v-if="isSubmitting" class="fb-btn__spinner" />
+          {{ isSubmitting ? t('about.feedbackSubmitting') : t('about.feedbackSubmit') }}
+        </button>
+      </div>
+    </form>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -171,6 +171,7 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { uploadAttachments, removeAttachments, collectDeviceLog, attachmentFolderKey } from '@/services/feedbackAttachmentService'
 import { getDeviceId } from '@/utils/feedbackDevice'
 import packageJson from '../../../package.json'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -182,6 +183,10 @@ const emit = defineEmits(['update:modelValue', 'submitted'])
 useDialogBackButton(closeDialog, () => props.modelValue)
 
 const { t } = useI18n()
+
+function onSheetUpdate(visible) {
+  if (!visible) closeDialog()
+}
 
 const feedbackType = ref('bug')
 const feedbackTitle = ref('')
@@ -330,35 +335,7 @@ watch(() => props.modelValue, (val) => {
 </script>
 
 <style scoped>
-/* ── Overlay ── */
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-/* ── Dialog shell ── */
-.fb-dialog {
-  width: min(100%, 460px);
-  max-height: min(calc(100dvh - 40px), 88vh);
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow-lg);
-}
-
-.fb-dialog__scroll {
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 24px;
-}
+/* 外壳（遮罩/玻璃/圆角/内边距/滚动）由 AppSheet 提供 */
 
 /* ── Header ── */
 .fb-header {
@@ -729,24 +706,6 @@ watch(() => props.modelValue, (val) => {
 }
 
 /* ── Transitions ── */
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.overlay-fade-enter-active .fb-dialog,
-.overlay-fade-leave-active .fb-dialog {
-  transition: transform 0.25s var(--motion-ease-emphasis), opacity 0.2s ease;
-}
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-.overlay-fade-enter-from .fb-dialog,
-.overlay-fade-leave-to .fb-dialog {
-  transform: scale(0.96) translateY(6px);
-  opacity: 0;
-}
-
 .fb-status-fade-enter-active,
 .fb-status-fade-leave-active {
   transition: all 0.2s ease;
@@ -755,31 +714,5 @@ watch(() => props.modelValue, (val) => {
 .fb-status-fade-leave-to {
   opacity: 0;
   transform: translateY(-4px);
-}
-
-/* ── Mobile: bottom sheet ── */
-@media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .fb-dialog {
-    width: 100%;
-    max-height: 85vh;
-    border-bottom-left-radius: 0;
-    border-bottom-right-radius: 0;
-  }
-
-  .fb-dialog__scroll {
-    padding: 24px 20px 20px;
-  }
-}
-
-@media (min-width: 768px) {
-  .fb-dialog {
-    border: 1px solid var(--app-border);
-  }
 }
 </style>

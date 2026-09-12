@@ -205,16 +205,12 @@
         </div>
       </section>
 
-      <Popup
-        v-model:show="showExportPicker"
+      <AppSheet
+        v-model="showExportPicker"
         :position="exportPickerPosition"
-        :round="!isTabletViewport"
-        teleport="body"
-        transition="sheet-pop"
-        :class="['picker-popup', { 'picker-popup--center': isTabletViewport }]"
+        sheet-class="picker-popup"
       >
         <div class="export-picker-body">
-          <div class="export-picker__handle" />
           <div class="export-picker__head">
             <div>
               <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
@@ -295,7 +291,7 @@
             </button>
           </div>
         </div>
-      </Popup>
+      </AppSheet>
 
       <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.zip" hidden @change="handleImport" />
 
@@ -308,7 +304,7 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useToast } from '@/composables/useToast'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 
@@ -762,7 +758,7 @@ onBeforeRouteLeave((to) => {
   height: 100%;
   padding: 28px;
   border-radius: 32px;
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1138,7 +1134,7 @@ onBeforeRouteLeave((to) => {
 .mobile-group {
   padding: 18px;
   border-radius: 28px;
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
 
@@ -1173,44 +1169,11 @@ onBeforeRouteLeave((to) => {
   stroke-linejoin: round;
 }
 
-.picker-popup {
-  overflow: hidden;
-}
-
-:global(.picker-popup.van-popup),
-:global(.picker-popup.van-popup--bottom) {
-  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-:global(.picker-popup--center.van-popup--center) {
-  width: min(520px, calc(100vw - 40px));
-  border-radius: 28px !important;
-  overflow: hidden;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
-}
-
+/* AppSheet 已提供表面/圆角/内边距 */
 .export-picker-body {
   width: 100%;
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   color: var(--app-text);
   background: transparent;
-}
-
-:global(.picker-popup--center.van-popup--center) .export-picker-body {
-  padding: 22px;
-}
-
-.export-picker__handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-text) 16%, transparent);
 }
 
 .export-picker__head {

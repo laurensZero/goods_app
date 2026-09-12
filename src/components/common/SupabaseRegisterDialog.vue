@@ -1,85 +1,79 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="modelValue" class="auth-overlay" @click.self="closeDialog">
-      <div class="dialog dialog--wide dialog--scrollable">
-        <div class="dialog-scroll">
-          <h3 class="dialog-title">{{ t('my.authRegister') }}</h3>
+  <AppSheet :model-value="modelValue" size="wide" @update:model-value="closeDialog">
+    <h3 class="dialog-title">{{ t('my.authRegister') }}</h3>
 
-          <div v-if="authError" class="dialog-error">{{ authError }}</div>
-          <div v-if="registerSuccess" class="dialog-success">{{ t('my.authRegisterSuccess') }}</div>
+    <div v-if="authError" class="dialog-error">{{ authError }}</div>
+    <div v-if="registerSuccess" class="dialog-success">{{ t('my.authRegisterSuccess') }}</div>
 
-          <form class="auth-form" @submit.prevent="handleRegister">
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.authEmail') }}</span>
-              <input
-                v-model="email"
-                class="auth-input"
-                type="email"
-                :placeholder="t('my.authEmail')"
-                autocomplete="email"
-                required
-                @input="onEmailInput"
-              />
-            </label>
+    <form class="auth-form" @submit.prevent="handleRegister">
+      <label class="auth-field">
+        <span class="auth-field__label">{{ t('my.authEmail') }}</span>
+        <input
+          v-model="email"
+          class="auth-input"
+          type="email"
+          :placeholder="t('my.authEmail')"
+          autocomplete="email"
+          required
+          @input="onEmailInput"
+        />
+      </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.authDisplayName') }}</span>
-              <input
-                v-model="displayName"
-                class="auth-input"
-                type="text"
-                :placeholder="t('my.authDisplayName')"
-                autocomplete="name"
-              />
-            </label>
+      <label class="auth-field">
+        <span class="auth-field__label">{{ t('my.authDisplayName') }}</span>
+        <input
+          v-model="displayName"
+          class="auth-input"
+          type="text"
+          :placeholder="t('my.authDisplayName')"
+          autocomplete="name"
+        />
+      </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.authPassword') }}</span>
-              <input
-                v-model="password"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.authPassword')"
-                autocomplete="new-password"
-                required
-                minlength="6"
-              />
-            </label>
+      <label class="auth-field">
+        <span class="auth-field__label">{{ t('my.authPassword') }}</span>
+        <input
+          v-model="password"
+          class="auth-input"
+          type="password"
+          :placeholder="t('my.authPassword')"
+          autocomplete="new-password"
+          required
+          minlength="6"
+        />
+      </label>
 
-            <label class="auth-field">
-              <span class="auth-field__label">{{ t('my.authConfirmPassword') }}</span>
-              <input
-                v-model="confirmPassword"
-                class="auth-input"
-                type="password"
-                :placeholder="t('my.authConfirmPassword')"
-                autocomplete="new-password"
-                required
-              />
-            </label>
+      <label class="auth-field">
+        <span class="auth-field__label">{{ t('my.authConfirmPassword') }}</span>
+        <input
+          v-model="confirmPassword"
+          class="auth-input"
+          type="password"
+          :placeholder="t('my.authConfirmPassword')"
+          autocomplete="new-password"
+          required
+        />
+      </label>
 
-            <div class="auth-actions">
-              <button type="submit" class="auth-btn auth-btn--primary" :disabled="isLoading || registerSuccess">
-                {{ isLoading ? '...' : t('my.authRegister') }}
-              </button>
-            </div>
-          </form>
-
-          <div class="auth-footer">
-            <button type="button" class="auth-link" @click="goToLogin">
-              {{ t('my.authGoToLogin') }}
-            </button>
-          </div>
-
-          <div class="dialog-actions" style="margin-top: 12px;">
-            <button type="button" class="dialog-btn dialog-btn--secondary" @click="closeDialog">
-              {{ t('theme.cancel') }}
-            </button>
-          </div>
-        </div>
+      <div class="auth-actions">
+        <button type="submit" class="auth-btn auth-btn--primary" :disabled="isLoading || registerSuccess">
+          {{ isLoading ? '...' : t('my.authRegister') }}
+        </button>
       </div>
+    </form>
+
+    <div class="auth-footer">
+      <button type="button" class="auth-link" @click="goToLogin">
+        {{ t('my.authGoToLogin') }}
+      </button>
     </div>
-  </Transition>
+
+    <div class="dialog-actions" style="margin-top: 12px;">
+      <button type="button" class="dialog-btn dialog-btn--secondary" @click="closeDialog">
+        {{ t('theme.cancel') }}
+      </button>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -87,6 +81,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
@@ -164,49 +159,6 @@ watch(() => props.modelValue, (val) => {
 </script>
 
 <style scoped>
-.auth-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.dialog {
-  width: 100%;
-  max-height: min(calc(100dvh - var(--tabbar-height, 94px) - env(safe-area-inset-bottom)), 88vh);
-  padding: 20px 18px calc(env(safe-area-inset-bottom) + 18px);
-  overflow: hidden;
-  border-radius: var(--radius-large) var(--radius-large) 0 0;
-  border: 1px solid var(--app-glass-border);
-  background: var(--app-glass-strong);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-}
-
-.dialog--scrollable {
-  display: flex;
-  flex-direction: column;
-}
-
-.dialog--wide {
-  width: 100%;
-}
-
-.dialog-scroll {
-  min-height: 0;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  padding-right: 6px;
-  margin-right: -6px;
-}
-
 .dialog-title {
   margin: 0 0 16px;
   color: var(--app-text);
@@ -308,6 +260,7 @@ watch(() => props.modelValue, (val) => {
 
 .auth-footer {
   margin-top: 16px;
+  padding-bottom: 8px;
   text-align: center;
 }
 
@@ -319,43 +272,5 @@ watch(() => props.modelValue, (val) => {
   font-size: 14px;
   cursor: pointer;
   text-decoration: underline;
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
-}
-
-@media (min-width: 768px) {
-  .auth-overlay {
-    align-items: center;
-    padding: 24px;
-  }
-
-  .dialog {
-    width: min(100%, 420px);
-    max-height: min(calc(100dvh - 48px), 720px);
-    padding: 24px;
-    border-radius: var(--radius-large);
-  }
-
-  .dialog--wide {
-    width: min(100%, 520px);
-  }
 }
 </style>

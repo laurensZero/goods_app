@@ -191,18 +191,15 @@
       </section>
     </main>
 
-    <Transition name="sheet-pop">
-      <div v-if="showDeleteDialog" class="dialog-overlay" @click.self="showDeleteDialog = false">
-        <div class="dialog-card">
-          <h3 class="dialog-title">{{ t('events.detail.deleteDialog.title') }}</h3>
-          <p class="dialog-message">{{ t('events.detail.deleteDialog.message', { name: event.name }) }}</p>
-          <div class="dialog-actions">
-            <button class="dialog-btn" type="button" @click="showDeleteDialog = false">{{ t('events.detail.deleteDialog.cancel') }}</button>
-            <button class="dialog-btn danger" type="button" @click="handleDelete">{{ t('events.detail.deleteDialog.confirm') }}</button>
-          </div>
-        </div>
+    <!-- 危险确认：force-center；z-index 高于播放器浮窗（2200） -->
+    <AppSheet v-model="showDeleteDialog" force-center :z-index="2400">
+      <h3 class="dialog-title">{{ t('events.detail.deleteDialog.title') }}</h3>
+      <p class="dialog-message">{{ t('events.detail.deleteDialog.message', { name: event.name }) }}</p>
+      <div class="dialog-actions">
+        <button class="dialog-btn" type="button" @click="showDeleteDialog = false">{{ t('events.detail.deleteDialog.cancel') }}</button>
+        <button class="dialog-btn danger" type="button" @click="handleDelete">{{ t('events.detail.deleteDialog.confirm') }}</button>
       </div>
-    </Transition>
+    </AppSheet>
 
     <PhotoPreviewViewer
       v-model:index="previewPhotoIndex"
@@ -233,6 +230,7 @@ import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import EmptyState from '@/components/common/EmptyState.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
@@ -903,8 +901,7 @@ function tryPlayLinkedGoodsBackHero() {
 .note-card,
 .expense-card,
 .gallery-card,
-.linked-goods-card,
-.dialog-card {
+.linked-goods-card {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -1429,28 +1426,7 @@ function tryPlayLinkedGoodsBackHero() {
   stroke-linejoin: round;
 }
 
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  /* 高于播放器浮窗（2200） */
-  z-index: 2400;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(20, 20, 22, 0.24);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.dialog-card {
-  width: 100%;
-  max-width: 340px;
-  padding: 24px;
-  border-radius: 24px;
-  text-align: center;
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
@@ -1484,16 +1460,6 @@ function tryPlayLinkedGoodsBackHero() {
 .dialog-btn.danger {
   background: #16171b;
   color: #ffffff;
-}
-
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-  opacity: 0;
 }
 
 .empty-wrap {
