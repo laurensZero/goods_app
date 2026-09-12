@@ -61,10 +61,10 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-/* 外壳 = AppSheet 一层；内容透明铺开，不再套内层白卡 */
+/* 外壳 = AppSheet 一层；内容透明铺开，图标与文字左对齐 */
 .danger-confirm {
   width: 100%;
-  text-align: center;
+  text-align: left;
   color: var(--app-text);
 }
 
