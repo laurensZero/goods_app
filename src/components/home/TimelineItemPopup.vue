@@ -2,6 +2,7 @@
   <AppSheet
     :model-value="modelValue && !!item"
     sheet-class="timeline-item-popup"
+    glass-blur
     @update:model-value="(v) => { if (!v) close() }"
   >
     <div v-if="item" class="sheet-body">

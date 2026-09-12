@@ -1,21 +1,28 @@
 <template>
   <Teleport to="body">
-    <Transition
-      :name="instant ? '' : 'sheet-pop'"
-      @after-enter="onAfterEnter"
-      @after-leave="onAfterLeave"
+    <!-- 常驻 + visibility：关闭不卸载，玻璃层可提前合成 -->
+    <div
+      v-if="booted"
+      class="app-sheet-overlay"
+      :class="[
+        `app-sheet-overlay--${placement}`,
+        {
+          'app-sheet-overlay--wide': isWide,
+          'app-sheet-overlay--glass-blur': glassBlur
+        }
+      ]"
+      :style="overlayStyle"
     >
+      <!-- 遮罩压暗：关闭时立刻收，不跟面板 leave 拖泥带水 -->
       <div
-        v-if="modelValue"
-        class="app-sheet-overlay"
-        :class="[
-          `app-sheet-overlay--${placement}`,
-          { 'app-sheet-overlay--wide': isWide }
-        ]"
-        :style="overlayStyle"
-        @click.self="onOverlayClick"
-      >
+        class="app-sheet-scrim"
+        :class="{ 'app-sheet-scrim--open': modelValue }"
+        @click="onOverlayClick"
+      />
+
+      <Transition :name="instant ? '' : 'sheet-pop'">
         <div
+          v-show="modelValue"
           class="app-sheet"
           :class="[
             `app-sheet--${size}`,
@@ -31,43 +38,42 @@
             <slot />
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
   </Teleport>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWideViewport } from '@/composables/useWideViewport'
 
-// 打开序号只增不减：后打开的层叠在上，关闭不影响已打开层
 let openSeq = 0
 const BASE_Z = 90
 const Z_STEP = 10
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  /** 强制居中（危险确认等） */
   forceCenter: { type: Boolean, default: false },
-  /** 强制底部（覆盖宽屏居中） */
   forceBottom: { type: Boolean, default: false },
-  /** bottom | top | center；省略时按 forceCenter/isWide 自动 */
   position: { type: String, default: '' },
   closeOnOverlay: { type: Boolean, default: true },
-  /** mobile | dialog | wide */
   size: { type: String, default: 'dialog' },
   zIndex: { type: Number, default: undefined },
-  /** 打开时锁住 body 滚动（与 Vant Popup 默认一致） */
   lockScroll: { type: Boolean, default: true },
-  /** 跳过入场动画（如详情页返回时接管弹层） */
   instant: { type: Boolean, default: false },
-  /** 附加到 .app-sheet 的 class（用于 querySelector 等） */
+  /** 弹窗以外的背景是否模糊；默认只压暗 */
+  glassBlur: { type: Boolean, default: false },
   sheetClass: { type: [String, Array, Object], default: '' }
 })
 
 const emit = defineEmits(['update:modelValue', 'opened', 'closed'])
 
-const { isWide } = useWideViewport() // 短边≥600 且长边≥900，纯像素，不用 UA
+const { isWide } = useWideViewport()
+
+const booted = ref(false)
+onMounted(() => {
+  booted.value = true
+})
 
 const placement = computed(() => {
   if (props.position) return props.position
@@ -81,9 +87,8 @@ const showHandle = computed(() => !isCentered.value)
 
 const localZ = ref(props.zIndex != null ? props.zIndex : BASE_Z)
 
-const overlayStyle = computed(() => ({ zIndex: localZ.value }))
+const overlayVisible = ref(false)
 
-// 多层弹层共用 body 锁：最后一层关闭才恢复滚动
 let bodyLockDepth = 0
 let previousBodyOverflow = ''
 let holdsBodyLock = false
@@ -108,20 +113,35 @@ function unlockBody() {
   }
 }
 
+const overlayStyle = computed(() => ({
+  zIndex: localZ.value,
+  visibility: overlayVisible.value ? 'visible' : 'hidden',
+  pointerEvents: props.modelValue ? 'auto' : 'none'
+}))
+
 watch(
   () => props.modelValue,
-  (open) => {
+  async (open) => {
     if (open) {
       openSeq += 1
       if (props.zIndex == null) {
         localZ.value = BASE_Z + openSeq * Z_STEP
       }
       lockBody()
+      overlayVisible.value = true
       if (props.instant) {
         emit('opened')
+        return
       }
+      await nextTick()
+      void document.body.offsetHeight
+      emit('opened')
     } else {
       unlockBody()
+      // 等面板 leave 动画结束再藏壳
+      window.setTimeout(() => {
+        if (!props.modelValue) overlayVisible.value = false
+      }, 300)
     }
   },
   { immediate: true }
@@ -131,14 +151,6 @@ onBeforeUnmount(() => {
   unlockBody()
 })
 
-function onAfterEnter() {
-  emit('opened')
-}
-
-function onAfterLeave() {
-  emit('closed')
-}
-
 function onOverlayClick() {
   if (props.closeOnOverlay) emit('update:modelValue', false)
 }
@@ -147,7 +159,6 @@ defineExpose({ isWide, isCentered, placement })
 </script>
 
 <style scoped>
-/* 遮罩只压暗，不整页重糊——模糊交给面板自身 */
 .app-sheet-overlay {
   position: fixed;
   inset: 0;
@@ -155,7 +166,8 @@ defineExpose({ isWide, isCentered, placement })
   display: flex;
   justify-content: center;
   padding: 0;
-  background: var(--app-overlay);
+  /* 根不带背景；压暗交给 scrim，方便关闭时立刻消失 */
+  pointer-events: none;
 }
 
 .app-sheet-overlay--bottom {
@@ -171,8 +183,31 @@ defineExpose({ isWide, isCentered, placement })
   padding: 24px;
 }
 
-/* 玻璃只作用在弹窗本体：背后内容透过面板时被磨砂，弹窗外保持清晰 */
+.app-sheet-scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--app-overlay);
+  opacity: 0;
+  pointer-events: none;
+  /* 默认（关闭）：立刻收；打开时用 --open 覆盖为淡入 */
+  transition: none;
+}
+
+/* 弹窗以外的背景模糊：模糊加在全屏遮罩上，面板保持实心玻璃 */
+.app-sheet-overlay--glass-blur .app-sheet-scrim {
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+}
+
+.app-sheet-scrim--open {
+  opacity: 1;
+  pointer-events: auto;
+  transition: opacity 0.18s ease;
+}
+
 .app-sheet {
+  position: relative;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -182,9 +217,7 @@ defineExpose({ isWide, isCentered, placement })
   border-radius: var(--radius-large) var(--radius-large) 0 0;
   border: 1px solid var(--app-glass-border);
   border-bottom: none;
-  background: color-mix(in srgb, var(--app-glass-strong) 82%, transparent);
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
+  background: var(--app-glass-strong);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
 }
@@ -241,14 +274,14 @@ defineExpose({ isWide, isCentered, placement })
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
 }
 
-/* 与全局 sheet-pop 一致：遮罩淡入 + 面板上滑（center 为 fade+微上移） */
-:global(.sheet-pop-enter-active) .app-sheet,
-:global(.sheet-pop-leave-active) .app-sheet {
+/* 旧版 sheet-pop：面板 spring 上滑 + 淡入 */
+:global(.sheet-pop-enter-active.app-sheet),
+:global(.sheet-pop-leave-active.app-sheet) {
   transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
 }
 
-:global(.sheet-pop-enter-from) .app-sheet,
-:global(.sheet-pop-leave-to) .app-sheet {
+:global(.sheet-pop-enter-from.app-sheet),
+:global(.sheet-pop-leave-to.app-sheet) {
   transform: translateY(26px);
   opacity: 0;
 }
