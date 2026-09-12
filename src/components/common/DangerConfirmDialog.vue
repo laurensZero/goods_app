@@ -133,11 +133,11 @@ function handleConfirm() {
   color: #fff;
 }
 
-:global(html.theme-dark) .danger-confirm__btn--ghost {
+:global(html.theme-dark .danger-confirm__btn--ghost) {
   background: rgba(255, 255, 255, 0.06);
 }
 
-:global(html.theme-dark) .danger-confirm__btn--danger {
+:global(html.theme-dark .danger-confirm__btn--danger) {
   background: #f5f5f7;
   color: #d32f2f;
 }
