@@ -106,11 +106,16 @@ jobs:
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Accept: application/json" || echo "[]")
-            STORED_PATH=$(echo "${BUNDLE_JSON}" | jq -r '.[0].storage_path // empty')
-            STORED_SHA256=$(echo "${BUNDLE_JSON}" | jq -r '.[0].sha256 // empty')
-            STORED_SIZE=$(echo "${BUNDLE_JSON}" | jq -r '.[0].file_size // 0')
-            STORED_MIN=$(echo "${BUNDLE_JSON}" | jq -r '.[0].min_native_version // ""')
-            STORED_NOTES=$(echo "${BUNDLE_JSON}" | jq -r '.[0].notes // ""')
+            # 仅在数组结果上取 [0]；对象错误单独处理
+            if printf '%s' "${BUNDLE_JSON}" | jq -e 'type=="object" and has("message")' >/dev/null 2>&1; then
+              echo "::error::Supabase rollback lookup failed: $(printf '%s' "${BUNDLE_JSON}" | jq -r '.message // "unknown error"')"
+              exit 1
+            fi
+            STORED_PATH=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].storage_path // empty) else empty end')
+            STORED_SHA256=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].sha256 // empty) else empty end')
+            STORED_SIZE=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].file_size // 0) else 0 end')
+            STORED_MIN=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].min_native_version // "") else "" end')
+            STORED_NOTES=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].notes // "") else "" end')
             if [ -z "${STORED_PATH}" ]; then
               echo "::error::Rollback version ${ROLLBACK} not found in database"
               exit 1
@@ -141,8 +146,14 @@ jobs:
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Accept: application/json" || echo "[]")
 
-          BASE_APK=$(echo "${APK_JSON}" | jq -r '.[0].version // empty' | sed -E 's/^[vV]//')
+          # PostgREST 失败时可能返回对象而不是数组；jq 用 .[0] 会报 "Cannot index object with number"
+          BASE_APK=$(printf '%s' "${APK_JSON}" | jq -r 'if type=="array" then (.[0].version // empty) elif type=="object" then (.version // empty) else empty end' 2>/dev/null | sed -E 's/^[vV]//')
           if [ -z "${BASE_APK}" ]; then
+            echo "APK JSON: ${APK_JSON}"
+            if printf '%s' "${APK_JSON}" | jq -e 'type=="object" and has("message")' >/dev/null 2>&1; then
+              echo "::error::Supabase APK version query failed: $(printf '%s' "${APK_JSON}" | jq -r '.message // "unknown error"')"
+              exit 1
+            fi
             echo "No APK release found, falling back to base 0.0.0"
             BASE_APK="0.0.0"
           fi
@@ -150,13 +161,20 @@ jobs:
 
           # Query Supabase for the latest bundle with the base prefix（跨通道共用一套递增，
           # 保证版本号全局唯一且单调递增，方便回档/排查/反馈定位）
+          # like 值需整体 URL 编码（含尾部 *），避免网关/Shell 语义问题
+          LIKE_ENCODED=$(printf '%s' "${BASE_APK}.*" | jq -sRr @uri)
           RESPONSE=$(curl -sS -X GET \
-            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&type=eq.web_bundle&version=like.${BASE_APK}.*&order=published_at.desc&limit=1" \
+            "${SUPABASE_URL}/rest/v1/ota_releases?select=version&type=eq.web_bundle&version=like.${LIKE_ENCODED}&order=published_at.desc&limit=1" \
             -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
             -H "Accept: application/json" || echo "[]")
 
-          LATEST=$(echo "${RESPONSE}" | jq -r '.[0].version // empty')
+          LATEST=$(printf '%s' "${RESPONSE}" | jq -r 'if type=="array" then (.[0].version // empty) elif type=="object" then (.version // empty) else empty end' 2>/dev/null)
+          if [ -z "${LATEST}" ] && printf '%s' "${RESPONSE}" | jq -e 'type=="object" and has("message")' >/dev/null 2>&1; then
+            echo "Bundle query JSON: ${RESPONSE}"
+            echo "::error::Supabase bundle version query failed: $(printf '%s' "${RESPONSE}" | jq -r '.message // "unknown error"')"
+            exit 1
+          fi
 
           if [ -n "${LATEST}" ]; then
             # Extract the sequence number and increment
