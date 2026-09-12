@@ -193,18 +193,13 @@ defineExpose({ isWide, isCentered, placement })
   transition: none;
 }
 
-/* 弹窗以外的背景模糊：模糊加在全屏遮罩上，面板保持实心玻璃 */
-.app-sheet-overlay--glass-blur .app-sheet-scrim {
-  backdrop-filter: blur(28px) saturate(140%);
-  -webkit-backdrop-filter: blur(28px) saturate(140%);
-}
-
 .app-sheet-scrim--open {
   opacity: 1;
   pointer-events: auto;
   transition: opacity 0.18s ease;
 }
 
+/* 弹窗覆盖区域：所有 AppSheet 面板自身都有毛玻璃（backdrop-filter） */
 .app-sheet {
   position: relative;
   pointer-events: auto;
@@ -217,9 +212,17 @@ defineExpose({ isWide, isCentered, placement })
   border-radius: var(--radius-large) var(--radius-large) 0 0;
   border: 1px solid var(--app-glass-border);
   border-bottom: none;
-  background: var(--app-glass-strong);
+  background: color-mix(in srgb, var(--app-glass-strong) 72%, transparent);
+  backdrop-filter: blur(40px) saturate(160%);
+  -webkit-backdrop-filter: blur(40px) saturate(160%);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
+}
+
+/* glassBlur：弹窗以外的全屏背景也模糊（可选） */
+.app-sheet-overlay--glass-blur .app-sheet-scrim {
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
 }
 
 .app-sheet-overlay--center .app-sheet {
