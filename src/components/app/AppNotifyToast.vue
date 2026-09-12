@@ -21,6 +21,9 @@
         <div class="app-notify-body">
           <div class="app-notify-title">{{ item.text }}</div>
           <div class="app-notify-sub">{{ item.subText }}</div>
+          <div v-if="typeof item.progress === 'number'" class="app-notify-progress" role="progressbar" :aria-valuenow="item.progress" aria-valuemin="0" aria-valuemax="100">
+            <span class="app-notify-progress__bar" :style="{ transform: `scaleX(${(item.progress || 0) / 100})` }" />
+          </div>
           <div v-if="item.saleAt && countdowns[item.id]" class="app-notify-countdown-text">{{ countdowns[item.id] }}</div>
           <div v-if="item.actions?.length" class="app-notify-actions">
             <button
@@ -266,8 +269,10 @@ function handleClick(item) {
 }
 
 function handleAction(item, action) {
-  action.callback?.()
-  dismiss(item.id)
+  action.callback?.(item.id)
+  if (!action.keepOpen) {
+    dismiss(item.id)
+  }
 }
 </script>
 
@@ -337,6 +342,24 @@ function handleAction(item, action) {
   color: var(--app-text-secondary);
   line-height: 1.3;
   margin-top: 2px;
+}
+
+.app-notify-progress {
+  margin-top: 8px;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 12%, transparent);
+  overflow: hidden;
+}
+
+.app-notify-progress__bar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--app-chip-accent-text);
+  transform-origin: left;
+  transition: transform 0.2s ease;
 }
 
 .app-notify-countdown-text {

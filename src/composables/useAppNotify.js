@@ -45,11 +45,22 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
   const router = useRouter()
   let pollTimer = null
   const firedKeys = new Set()
+  const autoCloseTimers = new Map()
+  let stopAppDownloadWatch = null
+  let stopWebDownloadWatch = null
 
   // 获取通知设置 store
   const notifySettingsStore = useNotifySettingsStore()
 
   // ---- generic push ----
+
+  function cancelAutoClose(id) {
+    const timer = autoCloseTimers.get(id)
+    if (timer) {
+      window.clearTimeout(timer)
+      autoCloseTimers.delete(id)
+    }
+  }
 
   function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key, forceAutoClose } = {}) {
     if (!text) return
@@ -74,7 +85,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       createdAt: Date.now(),
       duration: effectiveDuration,
       actions: actions || [],
-      persistent: !!persistent
+      persistent: !!persistent,
+      progress: null
     }
 
     // 使用设置中的最大显示数量
@@ -87,24 +99,44 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     // 自动关闭逻辑：如果设置了 forceAutoClose 或者启用了自动关闭且不是持久化通知
     const shouldAutoClose = forceAutoClose || (!persistent && notifySettingsStore.effectiveSettings.autoClose)
     if (shouldAutoClose) {
-      setTimeout(() => {
-        dismiss(notification.id)
+      const timer = window.setTimeout(() => {
+        autoCloseTimers.delete(notification.id)
+        const current = notifications.value.find((n) => n.id === notification.id)
+        if (current && !current.persistent) {
+          dismiss(notification.id)
+        }
       }, effectiveDuration)
+      autoCloseTimers.set(notification.id, timer)
     }
 
     return notification.id
   }
 
+  function update(id, patch) {
+    if (!id) return
+    notifications.value = notifications.value.map((n) => {
+      if (n.id !== id) return n
+      const next = { ...n, ...patch }
+      if (next.persistent) cancelAutoClose(id)
+      return next
+    })
+  }
+
   function dismissByKey(key) {
     if (!key) return
+    const matched = notifications.value.filter((n) => n.key === key)
+    matched.forEach((n) => cancelAutoClose(n.id))
     notifications.value = notifications.value.filter((n) => n.key !== key)
   }
 
   function dismiss(id) {
+    cancelAutoClose(id)
     notifications.value = notifications.value.filter((n) => n.id !== id)
   }
 
   function clearAll() {
+    autoCloseTimers.forEach((timer) => window.clearTimeout(timer))
+    autoCloseTimers.clear()
     notifications.value = []
   }
 
@@ -301,6 +333,145 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     )
   }
 
+  // ---- 下载进度：把 store 进度同步到同一条通知上 ----
+
+  function resolveDownloadError(store, kind) {
+    return String((kind === 'web' ? store.lastError : store.downloadError) || '').trim()
+  }
+
+  function showDownloadError(notifyId, store, kind, message) {
+    update(notifyId, {
+      iconType: 'warn',
+      text: '下载失败',
+      subText: message || '请稍后重试',
+      progress: null,
+      persistent: true,
+      actions: [
+        {
+          key: 'retry',
+          label: '重试',
+          primary: true,
+          keepOpen: true,
+          callback: () => startUpdateDownload(notifyId, kind)
+        }
+      ]
+    })
+  }
+
+  function bindDownloadToNotify(notifyId, store, kind) {
+    if (kind === 'web') {
+      stopWebDownloadWatch?.()
+    } else {
+      stopAppDownloadWatch?.()
+    }
+
+    let sawDownloading = false
+    let finished = false
+
+    const stop = watch(
+      () => ({
+        downloading: store.isDownloading,
+        progress: Number(store.downloadProgress) || 0,
+        transferred: kind === 'app' ? String(store.downloadTransferred || '') : '',
+        speed: kind === 'app' ? String(store.downloadSpeed || '') : ''
+      }),
+      ({ downloading, progress, transferred, speed }) => {
+        if (finished) return
+        // 用户手动关掉通知后停止同步
+        if (!notifications.value.some((n) => n.id === notifyId)) {
+          finished = true
+          stop()
+          return
+        }
+
+        if (downloading) {
+          sawDownloading = true
+          const percent = Math.min(100, Math.round(progress))
+          const parts = [`${percent}%`]
+          if (transferred) parts.push(transferred)
+          if (speed) parts.push(speed)
+          update(notifyId, {
+            iconType: 'syncing',
+            text: '正在下载更新',
+            subText: parts.join(' · '),
+            progress: percent,
+            persistent: true,
+            actions: []
+          })
+          return
+        }
+
+        if (sawDownloading) {
+          finished = true
+          stop()
+          const error = resolveDownloadError(store, kind)
+          if (error) {
+            showDownloadError(notifyId, store, kind, error)
+            return
+          }
+          update(notifyId, {
+            iconType: 'success',
+            text: '下载完成',
+            subText: kind === 'web' ? '即将应用更新' : '正在启动安装…',
+            progress: 100,
+            persistent: true,
+            actions: []
+          })
+          setTimeout(() => dismiss(notifyId), 2800)
+        }
+      }
+    )
+
+    if (kind === 'web') {
+      stopWebDownloadWatch = stop
+    } else {
+      stopAppDownloadWatch = stop
+    }
+
+    return {
+      stop,
+      isFinished: () => finished,
+      markFinished() {
+        finished = true
+        stop()
+      }
+    }
+  }
+
+  function startUpdateDownload(notifyId, kind) {
+    const store = kind === 'web' ? webUpdateStore : appUpdateStore
+    if (!store || store.isDownloading) return
+
+    update(notifyId, {
+      iconType: 'syncing',
+      text: '正在下载更新',
+      subText: i18n.global.t('common.preparing'),
+      progress: 0,
+      persistent: true,
+      actions: []
+    })
+
+    const binder = bindDownloadToNotify(notifyId, store, kind)
+
+    const runner = kind === 'web'
+      ? webUpdateStore.downloadAndPrepareUpdate()
+      : appUpdateStore.downloadAndInstallUpdate()
+
+    Promise.resolve(runner)
+      .then((ok) => {
+        if (ok === false && !binder.isFinished() && !store.isDownloading) {
+          binder.markFinished()
+          showDownloadError(notifyId, store, kind, resolveDownloadError(store, kind))
+        }
+      })
+      .catch((error) => {
+        if (!binder.isFinished()) {
+          binder.markFinished()
+          showDownloadError(notifyId, store, kind, String(error?.message || resolveDownloadError(store, kind) || ''))
+        }
+      })
+  }
+
   // ---- 3. OTA update watcher ----
 
   let lastWebUpdateReady = false
@@ -348,9 +519,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
                 key: 'download',
                 label: '下载更新',
                 primary: true,
-                callback: () => {
-                  webUpdateStore.downloadAndPrepareUpdate().catch(() => {})
-                }
+                keepOpen: true,
+                callback: (notifyId) => startUpdateDownload(notifyId, 'web')
               }
             ]
           })
@@ -389,7 +559,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
                 key: 'download',
                 label: '下载更新',
                 primary: true,
-                callback: () => appUpdateStore.downloadAndInstallUpdate().catch(() => {})
+                keepOpen: true,
+                callback: (notifyId) => startUpdateDownload(notifyId, 'app')
               }
             ]
           })
@@ -428,6 +599,10 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       clearTimeout(syncAutoRetryTimer)
       syncAutoRetryTimer = null
     }
+    stopWebDownloadWatch?.()
+    stopWebDownloadWatch = null
+    stopAppDownloadWatch?.()
+    stopAppDownloadWatch = null
     document.removeEventListener('visibilitychange', onVisibilityChange)
   }
 

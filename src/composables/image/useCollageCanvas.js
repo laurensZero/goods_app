@@ -383,7 +383,15 @@ export function useCollageCanvas() {
   }
 
   async function addImagesFromFiles(files) {
-    const list = Array.from(files || []).filter((file) => file && String(file.type || '').startsWith('image/'))
+    const list = Array.from(files || []).filter((file) => {
+      if (!file) return false
+      const type = String(file.type || '')
+      const name = String(file.name || '')
+      // 空 type 时按扩展名兜底，避免安卓多选后 File.type 为空被全丢掉
+      if (type.startsWith('image/')) return true
+      if (!type && /\.(png|jpe?g|webp|gif|bmp|heic|heif)$/i.test(name)) return true
+      return false
+    })
     if (!list.length) return 0
 
     const allowed = clampCollageImageCount(objectCount.value, list.length)
