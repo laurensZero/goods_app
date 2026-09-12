@@ -437,17 +437,30 @@ img {
   background-clip: padding-box;
 }
 
+/* 只保留弹层一层背景：去掉 Vant 默认白遮罩，滚轮区透明叠在弹层上 */
 .picker-popup .van-picker {
-  --van-picker-background: var(--app-surface);
+  --van-picker-background: transparent;
+  --van-picker-mask-color: none;
   --van-picker-toolbar-height: 52px;
   --van-picker-option-font-size: 17px;
   --van-picker-title-font-size: 16px;
   --van-picker-confirm-action-color: var(--app-text);
   --van-picker-cancel-action-color: #8e8e93;
+  background: transparent;
 }
 
-.picker-popup.van-popup--center .van-picker {
-  --van-picker-background: transparent;
+.picker-popup .van-picker__mask {
+  display: none;
+}
+
+/* 选中行用一条轻量高亮代替上下白渐变 */
+.picker-popup .van-picker__frame {
+  border-top: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
+  background: color-mix(in srgb, var(--app-text) 3.5%, transparent);
+  border-radius: 10px;
+  right: 10px;
+  left: 10px;
 }
 
 .picker-popup .van-picker__toolbar {
@@ -460,14 +473,26 @@ img {
 
 .picker-popup .van-picker-column__item {
   color: var(--app-text-secondary);
+  opacity: 1;
 }
 
 .picker-popup .van-picker-column__item--selected {
   color: var(--app-text);
+  font-weight: 600;
 }
 
+/* 滚轮层自己接管竖向手势，避免和页面滚动/弹层手势打架导致卡顿 */
 .picker-popup .van-picker-column {
-  touch-action: pan-y;
+  touch-action: none;
+  cursor: grab;
+}
+
+.picker-popup .van-picker-column:active {
+  cursor: grabbing;
+}
+
+.picker-popup .van-picker-column__wrapper {
+  will-change: transform;
 }
 
 body :is(
@@ -702,10 +727,14 @@ html.theme-dark .picker-popup.van-popup--center {
 }
 
 html.theme-dark .picker-popup .van-picker {
-  --van-picker-background: rgba(24, 24, 28, 0.96);
-  --van-picker-mask-color:
-    linear-gradient(180deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18)),
-    linear-gradient(0deg, rgba(24, 24, 28, 0.94), rgba(24, 24, 28, 0.18));
+  --van-picker-background: transparent;
+  --van-picker-mask-color: none;
+  background: transparent;
+}
+
+html.theme-dark .picker-popup .van-picker__frame {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 @media (min-width: 520px) {
