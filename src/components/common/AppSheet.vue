@@ -20,14 +20,14 @@
         @click="onOverlayClick"
       />
 
-      <Transition :name="instant ? '' : 'sheet-pop'">
+      <Transition name="sheet-pop">
         <div
-          v-show="modelValue"
+          v-if="modelValue"
           class="app-sheet"
           :class="[
             `app-sheet--${size}`,
             `app-sheet--${placement}`,
-            { 'app-sheet--has-handle': showHandle },
+            { 'app-sheet--has-handle': showHandle, 'is-instant': instant },
             sheetClass
           ]"
           role="dialog"
@@ -287,5 +287,14 @@ defineExpose({ isWide, isCentered, placement })
 :global(.sheet-pop-leave-to.app-sheet) {
   transform: translateY(26px);
   opacity: 0;
+}
+
+/* 跳过动画：hero 返回等场景 */
+.app-sheet.is-instant,
+:global(.sheet-pop-enter-active.app-sheet.is-instant),
+:global(.sheet-pop-leave-active.app-sheet.is-instant) {
+  transition: none !important;
+  transform: none !important;
+  opacity: 1 !important;
 }
 </style>

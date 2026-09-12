@@ -385,16 +385,15 @@
       </section>
 
       <!-- 危险确认：force-center -->
-      <AppSheet :model-value="showResetConfirm" force-center :z-index="1200" @update:model-value="(v) => { if (!v) showResetConfirm = false }">
-        <h3 class="dialog-title">{{ t('common.confirmDelete') }}</h3>
-        <p class="dialog-desc">
-          {{ t('sync.clearConfigDesc') }}
-        </p>
-        <div class="dialog-actions">
-          <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">{{ t('common.cancel') }}</button>
-          <button class="dialog-btn dialog-btn--danger" @click="handleReset">{{ t('common.confirmDelete') }}</button>
-        </div>
-      </AppSheet>
+      <DangerConfirmDialog
+        :show="showResetConfirm"
+        :z-index="1200"
+        :title="t('common.confirmDelete')"
+        :description="t('sync.clearConfigDesc')"
+        :confirm-text="t('common.confirmDelete')"
+        @update:show="(v) => { if (!v) showResetConfirm = false }"
+        @confirm="handleReset"
+      />
 
       <!-- 拉取冲突确认（内容较多，size=wide） -->
       <AppSheet :model-value="showPullConflict" size="wide" :z-index="1200" :close-on-overlay="false" @update:model-value="(v) => { if (!v) handlePullConflict(false) }">
@@ -520,6 +519,7 @@ import { useToast } from '@/composables/useToast'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 
 const { t } = useI18n()
 const syncStore = useSyncStore()

@@ -486,7 +486,6 @@ body :is(
   .sheet-panel,
   .edit-sheet,
   .dialog,
-  .confirm-card,
   .app-select__panel,
   .sort-sheet__panel
 ) {
@@ -498,7 +497,6 @@ body :is(
   .overlay,
   .dialog-overlay,
   .sheet-backdrop,
-  .confirm-overlay,
   .sort-sheet-overlay
 ) {
   backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate)) !important;

@@ -138,15 +138,15 @@
 
     <ShareSheet :show="showShareSheet" :goods-items="shareSheetItems" :initial-share="shareInitial" @close="showShareSheet = false" />
 
-    <!-- 危险确认：居中，保留原有按钮逻辑 -->
-    <AppSheet :model-value="!!deleteTarget" force-center @update:model-value="(v) => { if (!v) deleteTarget = null }">
-      <p class="confirm-title">{{ t('share.deleteTitle') }}</p>
-      <p class="confirm-desc">{{ t('share.deleteDesc') }}</p>
-      <div class="confirm-actions">
-        <button class="confirm-btn confirm-btn--cancel" type="button" @click="deleteTarget = null">{{ t('common.cancel') }}</button>
-        <button class="confirm-btn confirm-btn--delete" type="button" @click="doDelete">{{ t('share.confirmDelete') }}</button>
-      </div>
-    </AppSheet>
+    <DangerConfirmDialog
+      :show="!!deleteTarget"
+      :title="t('share.deleteTitle')"
+      :description="t('share.deleteDesc')"
+      :confirm-text="t('share.confirmDelete')"
+      @update:show="(v) => { if (!v) deleteTarget = null }"
+      @cancel="deleteTarget = null"
+      @confirm="doDelete"
+    />
   </div>
 </template>
 
@@ -155,7 +155,7 @@ import { computed, onMounted, ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
-import AppSheet from '@/components/common/AppSheet.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import { listUserShares, toggleShareDisabled, deleteShare, getShare } from '@/services/shareService'
 import { buildShareUrl } from '@/config/share'
@@ -685,48 +685,6 @@ onMounted(() => {
   opacity: 0.42;
 }
 
-/* 外壳由 AppSheet 提供；此处只保留内容样式 */
-.confirm-title {
-  color: var(--app-text);
-  font-size: 18px;
-  font-weight: 700;
-  text-align: center;
-  letter-spacing: -0.02em;
-}
-
-.confirm-desc {
-  margin-top: 8px;
-  color: var(--app-text-secondary);
-  font-size: 14px;
-  line-height: 1.6;
-  text-align: center;
-}
-
-.confirm-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.confirm-btn {
-  min-height: 48px;
-  border: none;
-  border-radius: 14px;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.confirm-btn--cancel {
-  background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
-  color: var(--app-text);
-}
-
-.confirm-btn--delete {
-  background: #d15353;
-  color: #fff;
-}
 
 @media (max-width: 1023px) {
   .share-hero {

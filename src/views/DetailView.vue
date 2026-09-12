@@ -226,25 +226,13 @@
     />
 
     <!-- 危险确认：回收站删除 force-center -->
-    <AppSheet v-model="showDeleteDialog" force-center>
-      <div class="dialog-icon">
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M3 6H21" />
-          <path d="M8 6V4H16V6" />
-          <path d="M19 6L18 20H6L5 6" />
-          <path d="M10 11V17" />
-          <path d="M14 11V17" />
-        </svg>
-      </div>
-
-      <h2 class="dialog-title">{{ t('common.moveToTrash') }}</h2>
-      <p class="dialog-desc">{{ item?.name || t('common.thisCollection') }} {{ t('common.moveToTrashDesc') }}</p>
-
-      <div class="dialog-actions">
-        <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">{{ t('common.cancel') }}</button>
-        <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">{{ t('common.trash') }}</button>
-      </div>
-    </AppSheet>
+    <DangerConfirmDialog
+      v-model:show="showDeleteDialog"
+      :title="t('common.moveToTrash')"
+      :description="`${item?.name || t('common.thisCollection')} ${t('common.moveToTrashDesc')}`"
+      :confirm-text="t('common.trash')"
+      @confirm="confirmDelete"
+    />
 
     <!-- SKU选择对话框 -->
     <AppSheet v-model="showCartDialog">
@@ -368,6 +356,7 @@ import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack 
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
@@ -1044,10 +1033,6 @@ async function doAddToCart(skuId) {
   } finally {
     cartLoading.value = false
   }
-}
-
-function closeDeleteDialog() {
-  showDeleteDialog.value = false
 }
 
 async function confirmDelete() {
