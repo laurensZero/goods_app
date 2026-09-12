@@ -1,12 +1,9 @@
 <template>
-  <van-popup
-    :show="show"
+  <AppSheet
+    :model-value="show"
     :position="isMobile ? 'bottom' : 'center'"
-    round
-    transition="sheet-pop"
-    :style="isMobile ? { maxHeight: '85vh' } : {}"
-    class="ranking-popup picker-popup"
-    @update:show="$emit('update:show', $event)"
+    sheet-class="ranking-popup"
+    @update:model-value="$emit('update:show', $event)"
   >
     <div class="ranking-popup__header">
       <h3 class="ranking-popup__title">{{ t('leaderboard.fullRanking') }}</h3>
@@ -40,13 +37,14 @@
         :description="t('leaderboard.emptyDesc')"
       />
     </div>
-  </van-popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatLeaderboardMetricValue } from '@/utils/goods/leaderboard'
+import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
@@ -73,19 +71,6 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
 </script>
 
 <style scoped>
-.ranking-popup {
-  --van-popup-background: var(--app-surface);
-}
-:global(.ranking-popup.van-popup--bottom) {
-  border-radius: var(--radius-large) var(--radius-large) 0 0 !important;
-}
-:global(.ranking-popup.van-popup--center) {
-  border-radius: var(--radius-large) !important;
-}
-:global(.ranking-popup) {
-  scrollbar-width: none;
-}
-:global(.ranking-popup::-webkit-scrollbar) { display: none; }
 .ranking-popup__header {
   display: flex;
   align-items: center;
@@ -93,7 +78,7 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
   padding: 20px 20px 12px;
   position: sticky;
   top: 0;
-  background: var(--app-surface);
+  background: transparent;
   z-index: 1;
 }
 .ranking-popup__title {

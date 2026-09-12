@@ -1,16 +1,11 @@
-﻿<template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+<template>
+  <AppSheet
+    v-model="showProxy"
     :z-index="210"
     :position="popupPosition"
-    round
-    transition="sheet-pop"
-    :class="['batch-edit-popup', { 'batch-edit-popup--tablet': isTablet }]"
+    sheet-class="batch-edit-popup"
   >
     <div class="batch-edit-sheet">
-      <div v-if="!isTablet" class="batch-edit-sheet__handle" />
-
       <section class="batch-edit-hero">
         <p class="batch-edit-hero__label">{{ t('goods.batch.batchEditLabel') }}</p>
         <h2 class="batch-edit-hero__title">{{ t('goods.batch.modifyItems', { count: selectedCount }) }}</h2>
@@ -239,7 +234,7 @@
         </button>
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 
   <AppDatePicker
     v-model:show="showDatePicker"
@@ -254,15 +249,15 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { validatePrice } from '@/utils/validate'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useWideViewport } from '@/composables/useWideViewport'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import StorageLocationInput from '@/components/storage/StorageLocationInput.vue'
@@ -323,9 +318,9 @@ const showProxy = computed({
   set: (value) => emit('update:show', value)
 })
 
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
-onMounted(() => updateViewport())
-const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
+const { isWide } = useWideViewport()
+const isTablet = isWide
+const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 
 function hasPriceInput(value) {
   return value !== '' && value !== null && value !== undefined
@@ -614,41 +609,29 @@ defineExpose({
 </script>
 
 <style scoped>
-.batch-edit-popup {
-  overflow: hidden;
-}
-
-:global(.batch-edit-popup.van-popup--bottom) {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-}
-
-:global(.batch-edit-popup.van-popup--center) {
+/* 宽屏 center 时覆盖 AppSheet 默认 420px 宽度（原 Popup 为 720px） */
+:global(.app-sheet-overlay--center .batch-edit-popup.app-sheet--center) {
   width: min(720px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: var(--radius-large) !important;
+}
+
+/* 让内容区撑满 AppSheet 滚动视口，操作栏固定在底部 */
+:global(.batch-edit-popup .app-sheet__scroll) {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .batch-edit-sheet {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
   width: 100%;
-  max-height: 90dvh;
-  padding: 12px 16px 0;
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%),
-    var(--app-bg);
+    transparent;
   color: var(--app-text);
-}
-
-.batch-edit-sheet__handle {
-  width: 42px;
-  height: 5px;
-  margin: 0 auto 18px;
-  border-radius: 999px;
-  background: var(--app-chip-bg);
 }
 
 .batch-edit-hero {
@@ -1043,7 +1026,6 @@ defineExpose({
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-top: 16px;
-  padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
 
 .confirm-btn {
@@ -1078,21 +1060,8 @@ defineExpose({
 @media (min-width: 900px) {
   .batch-edit-sheet {
     width: 100%;
-    border-radius: var(--radius-large);
-    padding-top: 24px;
-  }
-
-  .batch-edit-actions {
-    padding-bottom: 16px;
   }
 }
-
-:global(html.theme-dark) .batch-edit-popup.van-popup {
-    --van-popup-background: var(--app-surface);
-    background: var(--app-surface) !important;
-    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42);
-    border: none;
-  }
 
 :global(html.theme-dark .batch-edit-sheet .app-select__value--placeholder) {
     color: var(--app-placeholder) !important;

@@ -89,17 +89,12 @@
     </div>
   </section>
 
-  <Popup
-    v-model:show="showSortSheet"
-    teleport="body"
-    transition="sheet-pop"
+  <AppSheet
+    v-model="showSortSheet"
     :position="popupPosition"
-    :round="!isTablet"
-    overlay-class="sort-sheet-overlay"
-    :class="['sort-sheet', { 'sort-sheet--tablet': isTablet }]"
+    sheet-class="sort-sheet"
   >
     <div class="sort-sheet__panel">
-      <div v-if="!isTablet" class="sort-sheet__handle" />
       <div class="sort-sheet__head">
         <div>
           <p class="sort-sheet__label">{{ t('home.toolbar.sortMethod') }}</p>
@@ -143,13 +138,13 @@
         </div>
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 
@@ -633,43 +628,10 @@ onBeforeUnmount(() => {
   }
 }
 
-.sort-sheet {
-  overflow: hidden;
-}
-
-:global(.sort-sheet-overlay) {
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
-
-.sort-sheet--tablet {
-  width: min(560px, calc(100vw - 64px));
-  max-width: calc(100vw - 64px);
-  overflow: visible;
-  background: transparent;
-  box-shadow: none;
-}
-
+/* AppSheet 已提供遮罩/把手/表面/内边距，内容只负责布局 */
 .sort-sheet__panel {
-  padding: 12px 16px calc(max(env(safe-area-inset-bottom), 16px) + 4px);
-  background: var(--app-surface);
-}
-
-.sort-sheet--tablet .sort-sheet__panel {
-  padding: 18px;
-  border: 1px solid var(--app-glass-border);
-  border-radius: 24px;
-  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-}
-
-.sort-sheet__handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--app-text) 18%, transparent);
+  color: var(--app-text);
+  background: transparent;
 }
 
 .sort-sheet__head {
@@ -678,16 +640,6 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
-}
-
-.sort-sheet--tablet .sort-sheet__head {
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.sort-sheet--tablet .sort-sheet__head > div {
-  min-width: 0;
 }
 
 .sort-sheet__label {
@@ -702,14 +654,6 @@ onBeforeUnmount(() => {
   font-weight: 700;
 }
 
-.sort-sheet--tablet .sort-sheet__label {
-  font-size: 13px;
-}
-
-.sort-sheet--tablet .sort-sheet__title {
-  font-size: 18px;
-}
-
 .sort-sheet__dir-btn {
   min-height: 34px;
   padding: 0 12px;
@@ -719,13 +663,7 @@ onBeforeUnmount(() => {
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 600;
-}
-
-.sort-sheet--tablet .sort-sheet__dir-btn {
-  min-height: 40px;
-  padding: 0 16px;
   flex-shrink: 0;
-  background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-glass));
 }
 
 .sort-sheet__divider {
@@ -747,14 +685,6 @@ onBeforeUnmount(() => {
   overflow: auto;
 }
 
-.sort-sheet--tablet .sort-sheet__options {
-  gap: 0;
-  max-height: min(56vh, 420px);
-  padding: 6px;
-  border-radius: 20px;
-  background: color-mix(in srgb, var(--app-bg) 88%, var(--app-glass));
-}
-
 .sort-sheet__option {
   display: flex;
   align-items: center;
@@ -769,30 +699,9 @@ onBeforeUnmount(() => {
   text-align: left;
 }
 
-.sort-sheet--tablet .sort-sheet__option {
-  padding: 18px 18px;
-  border: none;
-  border-radius: 16px;
-  background: transparent;
-  transition: background 0.16s ease, box-shadow 0.16s ease;
-}
-
-.sort-sheet--tablet .sort-sheet__option + .sort-sheet__option {
-  margin-top: 2px;
-}
-
 .sort-sheet__option--active {
   border-color: color-mix(in srgb, var(--app-text) 24%, transparent);
   background: color-mix(in srgb, var(--app-text) 6%, var(--app-surface));
-}
-
-.sort-sheet--tablet .sort-sheet__option--active {
-  background: rgba(255, 255, 255, 0.48);
-  box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.14);
-}
-
-.sort-sheet--tablet .sort-sheet__option:active {
-  background: rgba(20, 20, 22, 0.05);
 }
 
 .sort-sheet__option-name {
@@ -831,28 +740,6 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .sort-sheet__dir-btn,
 :global(html.theme-dark) .sort-sheet__option--active {
   background: rgba(255, 255, 255, 0.08);
-}
-
-:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__panel {
-  background: rgba(24, 24, 28, 0.8);
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-}
-
-:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__options {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__dir-btn {
-  background: rgba(255, 255, 255, 0.06);
-}
-
-:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__option--active {
-  background: rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-}
-
-:global(html.theme-dark) .sort-sheet--tablet .sort-sheet__option:active {
-  background: rgba(255, 255, 255, 0.06);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -418,23 +418,10 @@ img {
   overflow: hidden;
 }
 
-.picker-popup.van-popup,
-.picker-popup.van-popup--bottom {
-  --van-popup-background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.picker-popup.van-popup--center {
+/* AppSheet 居中时的日期/导出选择器限宽（原先 van-popup--center 为 720px） */
+:global(.app-sheet-overlay--center .picker-popup.app-sheet--center) {
   width: min(720px, calc(100vw - 48px)) !important;
   max-width: calc(100vw - 48px) !important;
-  border-radius: var(--radius-large);
-  overflow: hidden;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
-  background-clip: padding-box;
 }
 
 /* 只保留弹层一层背景：去掉 Vant 默认白遮罩，滚轮区透明叠在弹层上 */
@@ -496,14 +483,6 @@ img {
 }
 
 body :is(
-  .picker-popup.van-popup,
-  .picker-popup.van-popup--bottom,
-  .picker-popup.van-popup--center,
-  .theme-color-popup.van-popup,
-  .theme-color-popup.van-popup--bottom,
-  .theme-color-popup.van-popup--center,
-  .batch-edit-popup.van-popup,
-  .batch-edit-popup.van-popup--center,
   .sheet-panel,
   .edit-sheet,
   .dialog,
@@ -716,16 +695,6 @@ html.theme-dark .edit-page .multi-select__option--active .multi-select__check {
   stroke: #f4f7ff !important;
 }
 
-html.theme-dark .picker-popup.van-popup,
-html.theme-dark .picker-popup.van-popup--bottom,
-html.theme-dark .picker-popup.van-popup--center {
-  background: rgba(24, 24, 28, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  box-shadow: var(--app-shadow-xl);
-  backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
-}
-
 html.theme-dark .picker-popup .van-picker {
   --van-picker-background: transparent;
   --van-picker-mask-color: none;
@@ -745,8 +714,8 @@ html.theme-dark .picker-popup .van-picker__frame {
 
 /* Dark mode patches for manage views popups */
 html.theme-dark .edit-sheet {
-  background: rgba(24, 24, 28, 0.94) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent) !important;
+  border: 1px solid var(--app-glass-border) !important;
   box-shadow: var(--app-shadow-xl) !important;
 }
 html.theme-dark .edit-sheet .save-btn,
@@ -780,19 +749,6 @@ html.theme-dark .edit-sheet .edit-error {
 html.theme-dark .edit-sheet .edit-caption,
 html.theme-dark .edit-sheet .edit-label {
   color: rgba(255, 255, 255, 0.5) !important;
-}
-
-html.theme-dark .batch-edit-popup.van-popup {
-  --van-popup-background: var(--app-surface);
-  background: var(--app-surface) !important;
-}
-
-html.theme-dark .batch-edit-popup.van-popup .batch-edit-sheet {
-  background: var(--app-surface) !important;
-}
-
-html.theme-dark .van-popup {
-  --van-popup-background: var(--app-surface);
 }
 
 /* ── View Transition: circular reveal for theme switching ────────── */

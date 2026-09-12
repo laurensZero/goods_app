@@ -162,58 +162,57 @@
       </section>
     </main>
 
-    <Teleport to="body">
-      <Transition name="sheet-pop">
-        <div v-if="editingCharacter" class="edit-backdrop" @click="closeEdit" />
-      </Transition>
-      <Transition name="sheet-pop">
-        <div v-if="editingCharacter" class="edit-sheet" :style="editSheetStyle">
-          <div class="edit-header">
-            <span class="edit-title">{{ t('manage.character.editTitle') }}</span>
-            <button type="button" class="edit-close" @click="closeEdit">×</button>
-          </div>
-
-          <p class="edit-caption">{{ t('manage.character.current', { name: editingCharacter }) }}</p>
-
-          <input
-            ref="editInputRef"
-            v-model="editName"
-            class="row-input"
-            type="text"
-            maxlength="30"
-            :placeholder="t('manage.character.newPlaceholder')"
-            @focus="handleEditInputFocus"
-            @keyup.enter="saveEdit"
-          />
-
-          <div class="edit-group">
-            <span class="edit-label">{{ t('manage.character.belongIp') }}</span>
-            <div class="ip-select-chips">
-              <button
-                type="button"
-                :class="['ip-chip', { 'ip-chip--active': editIp === '' }]"
-                @click="editIp = ''"
-              >
-                {{ t('manage.character.notSet') }}
-              </button>
-              <button
-                v-for="ip in presets.ips"
-                :key="ip"
-                type="button"
-                :class="['ip-chip', { 'ip-chip--active': editIp === ip }]"
-                @click="editIp = ip"
-              >
-                {{ ip }}
-              </button>
-            </div>
-          </div>
-
-          <p v-if="editError" class="edit-error">{{ editError }}</p>
-
-          <button class="save-btn" type="button" @click="saveEdit">{{ t('manage.character.saveEdit') }}</button>
+    <AppSheet
+      v-model="editSheetVisible"
+      :lock-scroll="false"
+      sheet-class="manage-edit-sheet"
+    >
+      <div class="edit-form" :style="editSheetStyle">
+        <div class="edit-header">
+          <span class="edit-title">{{ t('manage.character.editTitle') }}</span>
+          <button type="button" class="edit-close" @click="closeEdit">×</button>
         </div>
-      </Transition>
-    </Teleport>
+
+        <p class="edit-caption">{{ t('manage.character.current', { name: editingCharacter }) }}</p>
+
+        <input
+          ref="editInputRef"
+          v-model="editName"
+          class="row-input"
+          type="text"
+          maxlength="30"
+          :placeholder="t('manage.character.newPlaceholder')"
+          @focus="handleEditInputFocus"
+          @keyup.enter="saveEdit"
+        />
+
+        <div class="edit-group">
+          <span class="edit-label">{{ t('manage.character.belongIp') }}</span>
+          <div class="ip-select-chips">
+            <button
+              type="button"
+              :class="['ip-chip', { 'ip-chip--active': editIp === '' }]"
+              @click="editIp = ''"
+            >
+              {{ t('manage.character.notSet') }}
+            </button>
+            <button
+              v-for="ip in presets.ips"
+              :key="ip"
+              type="button"
+              :class="['ip-chip', { 'ip-chip--active': editIp === ip }]"
+              @click="editIp = ip"
+            >
+              {{ ip }}
+            </button>
+          </div>
+        </div>
+
+        <p v-if="editError" class="edit-error">{{ editError }}</p>
+
+        <button class="save-btn" type="button" @click="saveEdit">{{ t('manage.character.saveEdit') }}</button>
+      </div>
+    </AppSheet>
     </div>
 
   <PresetDeleteConfirm
@@ -238,6 +237,7 @@ import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
 import { sortPresetList } from '@/utils/presets/sort'
 import { pinyinIncludes } from '@/utils/pinyin'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import PresetSortBar from '@/components/preset/PresetSortBar.vue'
 
@@ -272,6 +272,13 @@ const keyboardInset = ref(0)
 const editSheetStyle = computed(() => ({
   '--edit-sheet-keyboard-offset': `${keyboardInset.value}px`
 }))
+
+const editSheetVisible = computed({
+  get: () => Boolean(editingCharacter.value),
+  set: (v) => {
+    if (!v) closeEdit()
+  }
+})
 
 const filteredCharacters = computed(() => {
   let list = presets.characters.map((character) => ({
@@ -740,31 +747,10 @@ watch(editingCharacter, async (value) => {
   padding: 40px 0 0;
 }
 
-.edit-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 59;
-  background: rgba(20, 20, 22, 0.12);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-}
-
-.edit-sheet {
-  position: fixed;
-  left: 50%;
-  bottom: calc(max(env(safe-area-inset-bottom), 16px) + 16px + var(--edit-sheet-keyboard-offset, 0px));
-  transform: translateX(-50%);
-  width: min(calc(100vw - 32px), 420px);
-  max-height: calc(100dvh - var(--edit-sheet-keyboard-offset, 0px) - 32px);
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: var(--radius-card);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
-  padding: 18px 16px 16px;
-  z-index: 60;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+/* 外壳由 AppSheet 提供；内容区用 padding 补偿键盘高度 */
+.edit-form {
+  padding-bottom: var(--edit-sheet-keyboard-offset, 0px);
+  transition: padding-bottom 0.18s ease;
 }
 
 .edit-header {
@@ -834,36 +820,6 @@ watch(editingCharacter, async (value) => {
   opacity: 0;
   transform: translateY(-8px);
 }
-
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
-  opacity: 0;
-}
-
-.sheet-slide-enter-active {
-  transition: opacity 220ms ease, transform 280ms var(--motion-ease-spring);
-}
-
-.sheet-slide-leave-active {
-  transition: opacity 220ms ease, transform 220ms ease;
-}
-
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(28px);
-}
-
-:global(html.theme-dark) .edit-sheet {
-    background: rgba(24, 24, 28, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42);
-  }
 
 :global(html.theme-dark) .confirm-btn,
   :global(html.theme-dark) .save-btn {

@@ -1,13 +1,9 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :z-index="zIndex"
-    :lock-scroll="true"
     :position="popupPosition"
-    :round="!isTablet"
-    transition="sheet-pop"
-    :class="['picker-popup', { 'picker-popup--center': isTablet }]"
+    sheet-class="picker-popup"
   >
     <div class="picker-wheel-root" @wheel="onWheel">
       <DatePicker
@@ -25,12 +21,13 @@
         @confirm="handleConfirm"
       />
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { computed, nextTick, ref, watch } from 'vue'
-import { DatePicker, Popup } from 'vant'
+import { DatePicker } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { usePickerWheel } from '@/composables/usePickerWheel'
 
 const props = defineProps({

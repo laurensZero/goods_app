@@ -255,14 +255,11 @@
       </section>
     </main>
 
-    <Popup
-      v-model:show="colorPicker.show"
-      teleport="body"
-      transition="sheet-pop"
+    <AppSheet
+      v-model="colorPicker.show"
       :z-index="2200"
       :position="pickerPopupPosition"
-      :round="!isTabletViewport"
-      :class="['theme-color-popup', { 'theme-color-popup--center': isTabletViewport }]"
+      sheet-class="theme-color-popup"
     >
       <div class="theme-color-sheet">
         <div class="theme-color-sheet__head">
@@ -298,7 +295,7 @@
           <HslColorPicker v-model="pickerHex" :field="colorPicker.field" />
         </div>
       </div>
-    </Popup>
+    </AppSheet>
   </div>
 </template>
 
@@ -312,7 +309,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { captureTransitionOrigin, toggleAppearanceWithTransition } from '@/composables/useThemeTransition'
 import { getHeroAnimMode, setHeroAnimMode as _setHeroAnimMode } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 

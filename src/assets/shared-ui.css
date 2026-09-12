@@ -1,4 +1,53 @@
-/* ── Confirm Dialog ── */
+/* ── Glass Dialog System ──
+   统一弹层材质：面板玻璃 + 遮罩 token。
+   形态：居中 modal / 底部 sheet / 浮动卡。布局由各组件保留，材质走这里。 */
+
+.glass-panel {
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  border: 1px solid var(--app-glass-border);
+  border-radius: var(--radius-large);
+  box-shadow: var(--app-shadow-lg);
+}
+
+.glass-backdrop {
+  background: var(--app-overlay);
+  /* blur 由 base.css 强制 --app-overlay-blur / saturate */
+}
+
+/* 居中确认卡（危险/删除/退出 — 手机平板都居中，不改底部） */
+.glass-modal {
+  width: min(100%, 360px);
+  max-height: min(calc(100dvh - 48px), 720px);
+  padding: 22px;
+  overflow: auto;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  border: 1px solid var(--app-glass-border);
+  border-radius: var(--radius-large);
+  box-shadow: var(--app-shadow-lg);
+}
+
+/* 底部 sheet 面板（手机贴底；平板由组件 media query 居中） */
+.glass-sheet {
+  width: min(100%, 480px);
+  max-height: min(calc(100dvh - var(--tabbar-height, 94px) - env(safe-area-inset-bottom)), 90vh);
+  padding: 16px 18px calc(env(safe-area-inset-bottom) + 18px);
+  overflow: auto;
+  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  border: 1px solid var(--app-glass-border);
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
+  box-shadow: 0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
+}
+
+@media (min-width: 768px) {
+  .glass-sheet {
+    width: min(100%, 420px);
+    max-height: min(calc(100dvh - 48px), 720px);
+    border-radius: var(--radius-large);
+  }
+}
+
+/* ── Confirm Dialog（兼容旧类；新代码用 glass-modal） ── */
 
 .confirm-overlay {
   position: fixed;
@@ -17,7 +66,7 @@
   width: min(100%, 360px);
   padding: 22px;
   border-radius: var(--radius-large);
-  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow-lg);
 }
@@ -49,13 +98,19 @@
 .sheet-pop-enter-active .confirm-sheet,
 .sheet-pop-enter-active .fb-dialog,
 .sheet-pop-enter-active .announcement-list-sheet,
+.sheet-pop-enter-active .auth-dialog,
+.sheet-pop-enter-active .glass-sheet,
+.sheet-pop-enter-active .glass-modal,
 .sheet-pop-leave-active .login-sheet,
 .sheet-pop-leave-active .sheet-panel,
 .sheet-pop-leave-active .edit-sheet,
 .sheet-pop-leave-active .dialog,
 .sheet-pop-leave-active .confirm-sheet,
 .sheet-pop-leave-active .fb-dialog,
-.sheet-pop-leave-active .announcement-list-sheet {
+.sheet-pop-leave-active .announcement-list-sheet,
+.sheet-pop-leave-active .auth-dialog,
+.sheet-pop-leave-active .glass-sheet,
+.sheet-pop-leave-active .glass-modal {
   transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
 }
 
@@ -67,13 +122,15 @@
 .sheet-pop-enter-active.confirm-sheet,
 .sheet-pop-enter-active.fb-dialog,
 .sheet-pop-enter-active.announcement-list-sheet,
+.sheet-pop-enter-active.auth-dialog,
 .sheet-pop-leave-active.login-sheet,
 .sheet-pop-leave-active.sheet-panel,
 .sheet-pop-leave-active.edit-sheet,
 .sheet-pop-leave-active.dialog,
 .sheet-pop-leave-active.confirm-sheet,
 .sheet-pop-leave-active.fb-dialog,
-.sheet-pop-leave-active.announcement-list-sheet {
+.sheet-pop-leave-active.announcement-list-sheet,
+.sheet-pop-leave-active.auth-dialog {
   transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
 }
 
@@ -90,13 +147,19 @@
 .sheet-pop-enter-from .confirm-sheet,
 .sheet-pop-enter-from .fb-dialog,
 .sheet-pop-enter-from .announcement-list-sheet,
+.sheet-pop-enter-from .auth-dialog,
+.sheet-pop-enter-from .glass-sheet,
+.sheet-pop-enter-from .glass-modal,
 .sheet-pop-leave-to .login-sheet,
 .sheet-pop-leave-to .sheet-panel,
 .sheet-pop-leave-to .edit-sheet,
 .sheet-pop-leave-to .dialog,
 .sheet-pop-leave-to .confirm-sheet,
 .sheet-pop-leave-to .fb-dialog,
-.sheet-pop-leave-to .announcement-list-sheet {
+.sheet-pop-leave-to .announcement-list-sheet,
+.sheet-pop-leave-to .auth-dialog,
+.sheet-pop-leave-to .glass-sheet,
+.sheet-pop-leave-to .glass-modal {
   transform: translateY(26px);
   opacity: 0;
 }
@@ -107,11 +170,15 @@
 .sheet-pop-enter-from.dialog,
 .sheet-pop-enter-from.confirm-sheet,
 .sheet-pop-enter-from.fb-dialog,
+.sheet-pop-enter-from.announcement-list-sheet,
+.sheet-pop-enter-from.auth-dialog,
 .sheet-pop-leave-to.login-sheet,
 .sheet-pop-leave-to.edit-sheet,
 .sheet-pop-leave-to.dialog,
 .sheet-pop-leave-to.confirm-sheet,
-.sheet-pop-leave-to.fb-dialog {
+.sheet-pop-leave-to.fb-dialog,
+.sheet-pop-leave-to.announcement-list-sheet,
+.sheet-pop-leave-to.auth-dialog {
   transform: translateY(26px);
   opacity: 0;
 }
@@ -131,24 +198,6 @@
   .sheet-pop-leave-to.sheet-panel {
     transform: translateX(-50%) translateY(-50%) scale(0.94);
   }
-}
-
-/* Vant Popup: opt in via <van-popup transition="sheet-pop">.
-   Center-positioned popups keep Vant's translateY(-50%) centering. */
-.sheet-pop-enter-active.van-popup,
-.sheet-pop-leave-active.van-popup {
-  transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
-}
-
-.sheet-pop-enter-from.van-popup,
-.sheet-pop-leave-to.van-popup {
-  transform: translateY(26px);
-  opacity: 0;
-}
-
-.sheet-pop-enter-from.van-popup--center,
-.sheet-pop-leave-to.van-popup--center {
-  transform: translateY(calc(-50% + 26px));
 }
 
 /* ── Shared Spinner ── */

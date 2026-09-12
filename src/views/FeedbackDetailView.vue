@@ -1,172 +1,168 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="modelValue" class="overlay" @click.self="close">
-      <div class="fb-dialog">
-        <div class="fb-dialog__handle" />
-        <div class="fb-dialog__scroll">
-          <!-- Close button -->
-          <button type="button" class="fb-dialog__close" @click="close">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M18 6L6 18M6 6l12 12"/></svg>
-          </button>
+  <!-- 普通详情弹层：手机底、宽屏居中；scroll 由 AppSheet 提供 -->
+  <AppSheet :model-value="modelValue" size="wide" @update:model-value="close">
+    <div class="fb-detail-root">
+      <!-- Close button -->
+      <button type="button" class="fb-dialog__close" @click="close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
 
-          <template v-if="feedback">
-            <!-- Header -->
-            <div class="fb-detail-header">
-              <div class="fb-detail-meta">
-                <span class="fb-detail-id">#{{ feedback.id }}</span>
-                <span class="fb-status-tag" :class="`fb-status-tag--${feedback.status}`">
-                  {{ statusLabel(feedback.status) }}
-                </span>
-                <span class="fb-type-tag" :class="`fb-type-tag--${feedback.type}`">
-                  {{ typeLabel(feedback.type) }}
-                </span>
+      <template v-if="feedback">
+        <!-- Header -->
+        <div class="fb-detail-header">
+          <div class="fb-detail-meta">
+            <span class="fb-detail-id">#{{ feedback.id }}</span>
+            <span class="fb-status-tag" :class="`fb-status-tag--${feedback.status}`">
+              {{ statusLabel(feedback.status) }}
+            </span>
+            <span class="fb-type-tag" :class="`fb-type-tag--${feedback.type}`">
+              {{ typeLabel(feedback.type) }}
+            </span>
+          </div>
+          <h1 class="fb-detail-title">{{ feedback.title }}</h1>
+          <p class="fb-detail-time">{{ formatTime(feedback.created_at) }}</p>
+        </div>
+
+        <!-- Content -->
+        <div v-if="feedback.content" class="fb-detail-section">
+          <h3 class="fb-detail-section__title">{{ t('about.feedbackContentLabel') }}</h3>
+          <p class="fb-detail-body">{{ feedback.content }}</p>
+        </div>
+
+        <!-- Contact -->
+        <div v-if="feedback.contact" class="fb-detail-section">
+          <h3 class="fb-detail-section__title">{{ t('about.feedbackContactLabel') }}</h3>
+          <p class="fb-detail-body">{{ feedback.contact }}</p>
+        </div>
+
+        <!-- Attachments -->
+        <div v-if="feedback.attachments?.length" class="fb-detail-section">
+          <h3 class="fb-detail-section__title">{{ t('about.feedbackAttachments') }} ({{ feedback.attachments.length }})</h3>
+          <div class="fb-attach-list">
+            <a
+              v-for="(att, idx) in feedback.attachments"
+              :key="idx"
+              :href="att.url"
+              target="_blank"
+              rel="noopener"
+              class="fb-attach-item"
+            >
+              <img v-if="att.type?.startsWith('image/')" :src="att.url" class="fb-attach-thumb" />
+              <span v-else class="fb-attach-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
+              </span>
+              <div class="fb-attach-info">
+                <span class="fb-attach-name">{{ att.name }}</span>
+                <span class="fb-attach-size">{{ formatSize(att.size) }}</span>
               </div>
-              <h1 class="fb-detail-title">{{ feedback.title }}</h1>
-              <p class="fb-detail-time">{{ formatTime(feedback.created_at) }}</p>
-            </div>
-
-            <!-- Content -->
-            <div v-if="feedback.content" class="fb-detail-section">
-              <h3 class="fb-detail-section__title">{{ t('about.feedbackContentLabel') }}</h3>
-              <p class="fb-detail-body">{{ feedback.content }}</p>
-            </div>
-
-            <!-- Contact -->
-            <div v-if="feedback.contact" class="fb-detail-section">
-              <h3 class="fb-detail-section__title">{{ t('about.feedbackContactLabel') }}</h3>
-              <p class="fb-detail-body">{{ feedback.contact }}</p>
-            </div>
-
-            <!-- Attachments -->
-            <div v-if="feedback.attachments?.length" class="fb-detail-section">
-              <h3 class="fb-detail-section__title">{{ t('about.feedbackAttachments') }} ({{ feedback.attachments.length }})</h3>
-              <div class="fb-attach-list">
-                <a
-                  v-for="(att, idx) in feedback.attachments"
-                  :key="idx"
-                  :href="att.url"
-                  target="_blank"
-                  rel="noopener"
-                  class="fb-attach-item"
-                >
-                  <img v-if="att.type?.startsWith('image/')" :src="att.url" class="fb-attach-thumb" />
-                  <span v-else class="fb-attach-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14,2 14,8 20,8"/></svg>
-                  </span>
-                  <div class="fb-attach-info">
-                    <span class="fb-attach-name">{{ att.name }}</span>
-                    <span class="fb-attach-size">{{ formatSize(att.size) }}</span>
-                  </div>
-                  <svg class="fb-attach-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
-                </a>
-              </div>
-            </div>
-
-            <!-- Admin reply -->
-            <div v-if="feedback.admin_reply" class="fb-detail-section fb-admin-reply">
-              <h3 class="fb-detail-section__title">
-                <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.69z"/></svg>
-                {{ t('about.feedbackAdminReply') }}
-                <span v-if="feedback.admin_reply_at" class="fb-admin-reply-time">
-                  {{ formatTime(feedback.admin_reply_at) }}
-                </span>
-              </h3>
-              <p class="fb-detail-body">{{ feedback.admin_reply }}</p>
-            </div>
-
-            <!-- Follow-ups -->
-            <div v-if="followups.length > 0" class="fb-detail-section">
-              <h3 class="fb-detail-section__title">{{ t('about.feedbackFollowups') }} ({{ followups.length }})</h3>
-              <div class="fb-followup-list">
-                <article
-                  v-for="(fu, idx) in followups"
-                  :key="idx"
-                  class="fb-followup-item"
-                  :class="{ 'fb-followup-item--admin': fu.role === 'admin' }"
-                >
-                  <div class="fb-followup-header">
-                    <span class="fb-followup-author" :class="{ 'fb-followup-author--admin': fu.role === 'admin' }">
-                      {{ fu.role === 'admin' ? t('about.feedbackAdmin') : t('about.feedbackYou') }}
-                    </span>
-                    <span class="fb-followup-time">{{ formatTime(fu.created_at) }}</span>
-                  </div>
-                  <p class="fb-followup-content">{{ fu.content }}</p>
-              <div v-if="fu.attachments?.length" class="fb-followup-attachments">
-                <a
-                  v-for="(att, aIdx) in fu.attachments"
-                  :key="aIdx"
-                  :href="att.url"
-                  target="_blank"
-                  rel="noopener"
-                  class="fb-followup-att"
-                >
-                  <img v-if="att.type?.startsWith('image/')" :src="att.url" class="fb-followup-att-img" />
-                  <span v-else class="fb-followup-att-file">{{ att.name }}</span>
-                </a>
-              </div>
-                </article>
-              </div>
-            </div>
-
-            <!-- Add follow-up -->
-            <div v-if="feedback.status !== 'closed'" class="fb-detail-section fb-followup-input">
-              <h3 class="fb-detail-section__title">{{ t('about.feedbackAddFollowup') }}</h3>
-              <textarea
-                v-model="newFollowup"
-                class="fb-followup-textarea"
-                :placeholder="t('about.feedbackFollowupPlaceholder')"
-                rows="3"
-                maxlength="1000"
-              />
-              <!-- Attachments for follow-up -->
-              <div class="fb-followup-attach">
-                <button type="button" class="fb-attach-btn-sm" @click="$refs.fuFileInput.click()">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
-                </button>
-                <label class="fb-log-toggle-sm">
-                  <input v-model="fuCollectLog" type="checkbox" class="fb-log-checkbox" />
-                  {{ t('about.feedbackCollectLog') }}
-                </label>
-              </div>
-              <input
-                ref="fuFileInput"
-                type="file"
-                multiple
-                accept="image/*,video/*,.log,.txt,.json"
-                class="fb-file-hidden"
-                @change="handleFuFileSelect"
-              />
-              <div v-if="fuFiles.length > 0" class="fb-attach-previews-sm">
-                <div v-for="(f, idx) in fuFiles" :key="idx" class="fb-attach-preview-sm">
-                  <img v-if="f.type?.startsWith('image/')" :src="f.url" class="fb-attach-thumb-sm" />
-                  <span v-else class="fb-attach-icon-sm">{{ f.name?.split('.').pop() }}</span>
-                  <span class="fb-attach-name-sm">{{ f.name }}</span>
-                  <button type="button" class="fb-attach-remove-sm" @click="removeFuFile(idx)">×</button>
-                </div>
-              </div>
-              <div class="fb-followup-actions">
-                <span class="fb-followup-count">{{ newFollowup.length }}/1000</span>
-                <button
-                  type="button"
-                  class="fb-btn fb-btn--primary"
-                  :disabled="(!newFollowup.trim() && fuFiles.length === 0 && !fuCollectLog) || isAddingFollowup"
-                  @click="handleAddFollowup"
-                >
-                  <span v-if="isAddingFollowup" class="fb-btn__spinner" />
-                  {{ t('about.feedbackSendFollowup') }}
-                </button>
-              </div>
-            </div>
-          </template>
-
-          <!-- Loading -->
-          <div v-else-if="loading" class="fb-detail-loading">
-            <span class="fb-btn__spinner" style="width:24px;height:24px;" />
+              <svg class="fb-attach-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+            </a>
           </div>
         </div>
+
+        <!-- Admin reply -->
+        <div v-if="feedback.admin_reply" class="fb-detail-section fb-admin-reply">
+          <h3 class="fb-detail-section__title">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14"><path d="M8 1a7 7 0 100 14A7 7 0 008 1zm3.22 5.28a.75.75 0 00-1.06-1.06L7 8.38 5.84 7.22a.75.75 0 00-1.06 1.06l1.75 1.75a.75.75 0 001.06 0l3.63-3.69z"/></svg>
+            {{ t('about.feedbackAdminReply') }}
+            <span v-if="feedback.admin_reply_at" class="fb-admin-reply-time">
+              {{ formatTime(feedback.admin_reply_at) }}
+            </span>
+          </h3>
+          <p class="fb-detail-body">{{ feedback.admin_reply }}</p>
+        </div>
+
+        <!-- Follow-ups -->
+        <div v-if="followups.length > 0" class="fb-detail-section">
+          <h3 class="fb-detail-section__title">{{ t('about.feedbackFollowups') }} ({{ followups.length }})</h3>
+          <div class="fb-followup-list">
+            <article
+              v-for="(fu, idx) in followups"
+              :key="idx"
+              class="fb-followup-item"
+              :class="{ 'fb-followup-item--admin': fu.role === 'admin' }"
+            >
+              <div class="fb-followup-header">
+                <span class="fb-followup-author" :class="{ 'fb-followup-author--admin': fu.role === 'admin' }">
+                  {{ fu.role === 'admin' ? t('about.feedbackAdmin') : t('about.feedbackYou') }}
+                </span>
+                <span class="fb-followup-time">{{ formatTime(fu.created_at) }}</span>
+              </div>
+              <p class="fb-followup-content">{{ fu.content }}</p>
+            <div v-if="fu.attachments?.length" class="fb-followup-attachments">
+              <a
+                v-for="(att, aIdx) in fu.attachments"
+                :key="aIdx"
+                :href="att.url"
+                target="_blank"
+                rel="noopener"
+                class="fb-followup-att"
+              >
+                <img v-if="att.type?.startsWith('image/')" :src="att.url" class="fb-followup-att-img" />
+                <span v-else class="fb-followup-att-file">{{ att.name }}</span>
+              </a>
+            </div>
+              </article>
+          </div>
+        </div>
+
+        <!-- Add follow-up -->
+        <div v-if="feedback.status !== 'closed'" class="fb-detail-section fb-followup-input">
+          <h3 class="fb-detail-section__title">{{ t('about.feedbackAddFollowup') }}</h3>
+          <textarea
+            v-model="newFollowup"
+            class="fb-followup-textarea"
+            :placeholder="t('about.feedbackFollowupPlaceholder')"
+            rows="3"
+            maxlength="1000"
+          />
+          <!-- Attachments for follow-up -->
+          <div class="fb-followup-attach">
+            <button type="button" class="fb-attach-btn-sm" @click="$refs.fuFileInput.click()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+            </button>
+            <label class="fb-log-toggle-sm">
+              <input v-model="fuCollectLog" type="checkbox" class="fb-log-checkbox" />
+              {{ t('about.feedbackCollectLog') }}
+            </label>
+          </div>
+          <input
+            ref="fuFileInput"
+            type="file"
+            multiple
+            accept="image/*,video/*,.log,.txt,.json"
+            class="fb-file-hidden"
+            @change="handleFuFileSelect"
+          />
+          <div v-if="fuFiles.length > 0" class="fb-attach-previews-sm">
+            <div v-for="(f, idx) in fuFiles" :key="idx" class="fb-attach-preview-sm">
+              <img v-if="f.type?.startsWith('image/')" :src="f.url" class="fb-attach-thumb-sm" />
+              <span v-else class="fb-attach-icon-sm">{{ f.name?.split('.').pop() }}</span>
+              <span class="fb-attach-name-sm">{{ f.name }}</span>
+              <button type="button" class="fb-attach-remove-sm" @click="removeFuFile(idx)">×</button>
+            </div>
+          </div>
+          <div class="fb-followup-actions">
+            <span class="fb-followup-count">{{ newFollowup.length }}/1000</span>
+            <button
+              type="button"
+              class="fb-btn fb-btn--primary"
+              :disabled="(!newFollowup.trim() && fuFiles.length === 0 && !fuCollectLog) || isAddingFollowup"
+              @click="handleAddFollowup"
+            >
+              <span v-if="isAddingFollowup" class="fb-btn__spinner" />
+              {{ t('about.feedbackSendFollowup') }}
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <!-- Loading -->
+      <div v-else-if="loading" class="fb-detail-loading">
+        <span class="fb-btn__spinner" style="width:24px;height:24px;" />
       </div>
     </div>
-  </Transition>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -177,6 +173,7 @@ import { getFeedback, addFollowup } from '@/services/feedbackService'
 import { uploadAttachments, removeAttachments, collectDeviceLog, attachmentFolderKey } from '@/services/feedbackAttachmentService'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -306,58 +303,10 @@ watch(() => props.modelValue, (val) => {
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-overlay-blur));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur));
-}
-
-.fb-dialog {
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
+.fb-detail-root {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  width: min(100%, 480px);
-  max-height: min(calc(100dvh - 40px), 88vh);
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow-lg);
-}
-
-.fb-dialog__scroll {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 24px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.fb-dialog__scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.fb-dialog__handle {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .fb-dialog__handle {
-    display: block;
-    width: 36px;
-    height: 4px;
-    margin: 10px auto 0;
-    border-radius: 2px;
-    background: color-mix(in srgb, var(--app-text) 15%, transparent);
-  }
+  padding: 4px 0 8px;
 }
 
 .fb-dialog__close {
@@ -869,52 +818,10 @@ watch(() => props.modelValue, (val) => {
   padding: 48px 0;
 }
 
-/* Transitions */
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-.overlay-fade-enter-active .fb-dialog,
-.overlay-fade-leave-active .fb-dialog {
-  transition: transform 0.25s var(--motion-ease-emphasis), opacity 0.2s ease;
-}
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-.overlay-fade-enter-from .fb-dialog,
-.overlay-fade-leave-to .fb-dialog {
-  transform: scale(0.96) translateY(6px);
-  opacity: 0;
-}
-
-/* Mobile: bottom sheet */
 @media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 0;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .fb-dialog {
-    width: 100%;
-    max-height: 88vh;
-    border-radius: 20px 20px 0 0;
-  }
-
-  .fb-dialog__scroll {
-    padding: 8px 20px 20px;
-  }
-
   .fb-dialog__close {
     top: 12px;
     right: 12px;
-  }
-}
-
-@media (min-width: 768px) {
-  .fb-dialog {
-    border: 1px solid var(--app-border);
   }
 }
 </style>

@@ -870,7 +870,7 @@ function resetSettings() {
 .settings-card {
   padding: 20px;
   border-radius: 24px;
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
 

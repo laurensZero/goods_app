@@ -1,14 +1,10 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :position="popupPosition"
-    round
-    transition="sheet-pop"
-    :class="['group-sheet-popup', { 'group-sheet-popup--tablet': isTablet }]"
+    sheet-class="group-sheet-popup"
   >
     <div class="group-sheet">
-      <div v-if="!isTablet" class="group-sheet__handle" />
       <p class="group-sheet__title">{{ isAddMode ? t('goodsGroup.addMember') : t('goodsGroup.selectGroup') }}</p>
 
       <div class="group-sheet__body">
@@ -119,13 +115,13 @@
       :initial-goods-ids="goodsIds"
       @created="handleCreated"
     />
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useTabletViewport } from '@/composables/useTabletViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
@@ -237,17 +233,16 @@ function handleCreated(group) {
 </script>
 
 <style scoped>
-.group-sheet-popup { overflow: hidden; }
-:global(.group-sheet-popup.van-popup--bottom) { left: 0; right: 0; bottom: 0; width: 100%; }
-:global(.group-sheet-popup.van-popup--center) { width: min(480px, calc(100vw - 48px)) !important; max-width: calc(100vw - 48px) !important; border-radius: var(--radius-large) !important; }
+/* 平板 center 时覆盖 AppSheet 默认 420px 宽度（原 Popup 为 480px） */
+:global(.app-sheet-overlay--center .group-sheet-popup.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
+}
 
 .group-sheet {
-  display: flex; flex-direction: column; width: 100%; max-height: 90dvh;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  background: radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%), var(--app-bg);
+  display: flex; flex-direction: column; width: 100%;
+  background: radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%), transparent;
   color: var(--app-text);
 }
-.group-sheet__handle { width: 36px; height: 4px; border-radius: 4px; background: rgba(142, 142, 147, 0.28); margin: 0 auto 16px; flex-shrink: 0; }
 .group-sheet__title { font-size: 13px; font-weight: 500; color: var(--app-text-tertiary); text-align: center; margin: 0 0 16px; }
 .group-sheet__body { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 50vh; }
 
@@ -295,6 +290,4 @@ function handleCreated(group) {
 .filter-chips::-webkit-scrollbar { display: none; }
 .filter-chip { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent); border-radius: 999px; background: transparent; color: var(--app-text-secondary); font-size: 12px; font-weight: 500; cursor: pointer; white-space: nowrap; transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease; }
 .filter-chip--active { background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12)); color: var(--app-chip-accent-text, #2070c0); border-color: var(--app-chip-accent-border, rgba(32, 112, 192, 0.24)); }
-
-:global(html.theme-dark) .group-sheet-popup.van-popup { --van-popup-background: var(--app-surface); background: var(--app-surface) !important; box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42); border: none; }
 </style>

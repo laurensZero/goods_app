@@ -1,132 +1,132 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="show" class="overlay" @click.self="close">
-      <section class="dialog qq-dialog" role="dialog" aria-modal="true" :aria-label="t('my.qqBindingTitle')">
-        <header class="qq-head">
-          <div>
-            <p class="dialog-label">QQ PUSH</p>
-            <h3 class="dialog-title">{{ t('my.qqBindingTitle') }}</h3>
-            <p class="dialog-desc">{{ t('my.qqBindingDesc') }}</p>
-          </div>
-          <button type="button" class="qq-close" :aria-label="t('common.close')" @click="close">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </header>
+  <AppSheet
+    :model-value="show"
+    size="wide"
+    @update:model-value="(v) => { if (!v) close() }"
+  >
+    <header class="qq-head">
+      <div>
+        <p class="dialog-label">QQ PUSH</p>
+        <h3 class="dialog-title">{{ t('my.qqBindingTitle') }}</h3>
+        <p class="dialog-desc">{{ t('my.qqBindingDesc') }}</p>
+      </div>
+      <button type="button" class="qq-close" :aria-label="t('common.close')" @click="close">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+    </header>
 
-        <!-- 已绑定 -->
-        <div v-if="view === 'bound'" class="qq-body">
-          <div class="qq-bound">
-            <div class="qq-bound__avatar">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                <circle cx="12" cy="7" r="4" />
-              </svg>
-            </div>
-            <p class="qq-bound__label">
-              {{ qqStore.qqNickname ? t('my.qqBoundWith', { name: qqStore.qqNickname }) : t('my.qqBound') }}
-            </p>
-            <p class="qq-bound__hint">{{ t('my.qqBoundHint') }}</p>
-          </div>
-
-          <div class="qq-toggle-row">
-            <div class="qq-toggle-row__info">
-              <span class="qq-toggle-row__title">{{ t('my.qqPushToggle') }}</span>
-              <span class="qq-toggle-row__desc">{{ t('notifySettings.qqPushDesc') }}</span>
-            </div>
-            <label class="toggle-switch" :aria-label="t('my.qqPushToggle')">
-              <input
-                type="checkbox"
-                :checked="qqStore.isEnabled"
-                @change="onToggleChange"
-              />
-              <span class="toggle-slider" />
-            </label>
-          </div>
-
-          <div class="dialog-actions">
-            <button type="button" class="dialog-btn dialog-btn--danger" @click="confirmUnbind">
-              {{ t('my.qqUnbind') }}
-            </button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="close">
-              {{ t('common.known') }}
-            </button>
-          </div>
+    <!-- 已绑定 -->
+    <div v-if="view === 'bound'" class="qq-body">
+      <div class="qq-bound">
+        <div class="qq-bound__avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
         </div>
+        <p class="qq-bound__label">
+          {{ qqStore.qqNickname ? t('my.qqBoundWith', { name: qqStore.qqNickname }) : t('my.qqBound') }}
+        </p>
+        <p class="qq-bound__hint">{{ t('my.qqBoundHint') }}</p>
+      </div>
 
-        <!-- 未绑定 -->
-        <div v-else-if="view === 'unbound'" class="qq-body">
-          <div class="qq-steps">
-            <ol class="qq-steps__list">
-              <li>{{ t('my.qqBindStep1') }} <span class="qq-bot-qq">{{ BOT_QQ }}</span></li>
-              <li>{{ t('my.qqBindStep2') }}</li>
-              <li>{{ t('my.qqBindStep3') }}</li>
-            </ol>
-          </div>
-
-          <div class="dialog-actions">
-            <button
-              type="button"
-              class="dialog-btn dialog-btn--primary"
-              :disabled="qqStore.isLoading"
-              @click="beginBinding"
-            >
-              {{ qqStore.isLoading ? '...' : t('my.qqBindNow') }}
-            </button>
-          </div>
+      <div class="qq-toggle-row">
+        <div class="qq-toggle-row__info">
+          <span class="qq-toggle-row__title">{{ t('my.qqPushToggle') }}</span>
+          <span class="qq-toggle-row__desc">{{ t('notifySettings.qqPushDesc') }}</span>
         </div>
+        <label class="toggle-switch" :aria-label="t('my.qqPushToggle')">
+          <input
+            type="checkbox"
+            :checked="qqStore.isEnabled"
+            @change="onToggleChange"
+          />
+          <span class="toggle-slider" />
+        </label>
+      </div>
 
-        <!-- 绑定中（pending）：展示绑定码 + 轮询等待 -->
-        <div v-else class="qq-body">
-          <div class="qq-steps">
-            <ol class="qq-steps__list">
-              <li>{{ t('my.qqBindStep1') }} <span class="qq-bot-qq">{{ BOT_QQ }}</span></li>
-              <li>{{ t('my.qqBindStep2') }}</li>
-              <li>{{ t('my.qqBindStep3') }}</li>
-            </ol>
-          </div>
-
-          <div class="qq-code-card">
-            <div class="qq-code-card__row">
-              <span class="qq-code-card__label">{{ t('my.qqBotQQLabel') }}</span>
-              <span class="qq-code-card__value">{{ BOT_QQ }}</span>
-              <button type="button" class="qq-copy-btn" @click="copy(BOT_QQ)">{{ t('my.qqCopy') }}</button>
-            </div>
-            <div class="qq-code-card__row">
-              <span class="qq-code-card__label">{{ t('my.qqBindCodeLabel') }}</span>
-              <span class="qq-code-card__value qq-code-card__value--code">{{ qqStore.bindCode || '·····' }}</span>
-              <button
-                type="button"
-                class="qq-copy-btn"
-                :disabled="!qqStore.bindCode"
-                @click="copy(qqStore.bindCode)"
-              >
-                {{ t('my.qqCopy') }}
-              </button>
-            </div>
-          </div>
-
-          <p class="qq-waiting">
-            <span v-if="polling" class="qq-waiting__dot" />
-            {{ polling ? t('my.qqWaiting') : t('my.qqWaitingTimeout') }}
-          </p>
-
-          <div class="dialog-actions">
-            <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="qqStore.isLoading" @click="refresh">
-              {{ qqStore.isLoading ? '...' : t('my.qqRefresh') }}
-            </button>
-            <button type="button" class="dialog-btn dialog-btn--primary" @click="close">
-              {{ t('common.close') }}
-            </button>
-          </div>
-        </div>
-
-        <AppToast :message="toastMsg" />
-      </section>
+      <div class="dialog-actions">
+        <button type="button" class="dialog-btn dialog-btn--danger" @click="confirmUnbind">
+          {{ t('my.qqUnbind') }}
+        </button>
+        <button type="button" class="dialog-btn dialog-btn--primary" @click="close">
+          {{ t('common.known') }}
+        </button>
+      </div>
     </div>
-  </Transition>
+
+    <!-- 未绑定 -->
+    <div v-else-if="view === 'unbound'" class="qq-body">
+      <div class="qq-steps">
+        <ol class="qq-steps__list">
+          <li>{{ t('my.qqBindStep1') }} <span class="qq-bot-qq">{{ BOT_QQ }}</span></li>
+          <li>{{ t('my.qqBindStep2') }}</li>
+          <li>{{ t('my.qqBindStep3') }}</li>
+        </ol>
+      </div>
+
+      <div class="dialog-actions">
+        <button
+          type="button"
+          class="dialog-btn dialog-btn--primary"
+          :disabled="qqStore.isLoading"
+          @click="beginBinding"
+        >
+          {{ qqStore.isLoading ? '...' : t('my.qqBindNow') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- 绑定中（pending）：展示绑定码 + 轮询等待 -->
+    <div v-else class="qq-body">
+      <div class="qq-steps">
+        <ol class="qq-steps__list">
+          <li>{{ t('my.qqBindStep1') }} <span class="qq-bot-qq">{{ BOT_QQ }}</span></li>
+          <li>{{ t('my.qqBindStep2') }}</li>
+          <li>{{ t('my.qqBindStep3') }}</li>
+        </ol>
+      </div>
+
+      <div class="qq-code-card">
+        <div class="qq-code-card__row">
+          <span class="qq-code-card__label">{{ t('my.qqBotQQLabel') }}</span>
+          <span class="qq-code-card__value">{{ BOT_QQ }}</span>
+          <button type="button" class="qq-copy-btn" @click="copy(BOT_QQ)">{{ t('my.qqCopy') }}</button>
+        </div>
+        <div class="qq-code-card__row">
+          <span class="qq-code-card__label">{{ t('my.qqBindCodeLabel') }}</span>
+          <span class="qq-code-card__value qq-code-card__value--code">{{ qqStore.bindCode || '·····' }}</span>
+          <button
+            type="button"
+            class="qq-copy-btn"
+            :disabled="!qqStore.bindCode"
+            @click="copy(qqStore.bindCode)"
+          >
+            {{ t('my.qqCopy') }}
+          </button>
+        </div>
+      </div>
+
+      <p class="qq-waiting">
+        <span v-if="polling" class="qq-waiting__dot" />
+        {{ polling ? t('my.qqWaiting') : t('my.qqWaitingTimeout') }}
+      </p>
+
+      <div class="dialog-actions">
+        <button type="button" class="dialog-btn dialog-btn--secondary" :disabled="qqStore.isLoading" @click="refresh">
+          {{ qqStore.isLoading ? '...' : t('my.qqRefresh') }}
+        </button>
+        <button type="button" class="dialog-btn dialog-btn--primary" @click="close">
+          {{ t('common.close') }}
+        </button>
+      </div>
+    </div>
+
+    <AppToast :message="toastMsg" />
+  </AppSheet>
 </template>
 
 <script setup>
@@ -134,6 +134,7 @@ import { computed, ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import AppToast from '@/components/common/AppToast.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useQQBindingStore } from '@/stores/qqBinding'
 import { BOT_QQ } from '@/services/qqService'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -286,30 +287,7 @@ onUnmounted(stopPolling)
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.dialog {
-  width: min(100%, 400px);
-  padding: 24px;
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  box-shadow: var(--app-shadow);
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -337,7 +315,7 @@ onUnmounted(stopPolling)
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 20px 20px 4px;
+  padding: 0 0 4px;
 }
 
 .qq-close {
@@ -649,25 +627,5 @@ onUnmounted(stopPolling)
 .dialog-btn:active,
 .qq-close:active {
   transform: scale(0.96);
-}
-
-@media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
-  }
-
-  .dialog {
-    width: 100%;
-    padding: 20px;
-    border-bottom-left-radius: var(--radius-large);
-    border-bottom-right-radius: var(--radius-large);
-  }
-
-  .dialog-actions {
-    margin-inline: -20px;
-    padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
-  }
 }
 </style>

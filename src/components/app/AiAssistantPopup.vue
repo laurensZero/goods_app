@@ -1,12 +1,11 @@
 <template>
-  <Popup
-    :show="show"
+  <AppSheet
+    :model-value="show"
     :position="isTabletViewport ? 'center' : 'top'"
-    teleport="body"
-    :class="['ai-assistant-popup', { 'ai-assistant-popup--center': isTabletViewport }]"
-    @update:show="onUpdateShow"
+    sheet-class="ai-assistant-popup"
+    @update:model-value="onUpdateShow"
   >
-    <div 
+    <div
       class="ai-assistant-body"
       :class="{ 'ai-assistant-body--tablet': isTabletViewport }"
     >
@@ -21,7 +20,7 @@
       </header>
       <AiChatPanel />
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -31,7 +30,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AiChatPanel from '@/components/ai/AiChatPanel.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
@@ -73,21 +72,16 @@ defineExpose({ close })
 .ai-assistant-body {
   display: flex;
   flex-direction: column;
-  /* 手机顶部滑入:几乎全屏高度 */
+  /* 手机顶部滑入：占满 AppSheet 可滚动区域 */
   height: min(88dvh, 840px);
   color: var(--app-text);
   background: transparent;
-  /* 顶部给状态栏/刘海留安全区，底部给手势条留安全区 */
-  padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* 平板/居中弹窗:外层 .ai-assistant-popup--center 已经限死了高度(min(78dvh,720px)),
-   这里改成 100% 贴合该高度,避免 88dvh 撑出更大尺寸被 overflow:hidden 裁掉输入框 */
+/* 平板/居中弹窗：贴合 AppSheet 居中限高，避免内容溢出 */
 .ai-assistant-body--tablet {
   height: 100%;
-  /* 居中弹窗不贴顶，不需要状态栏安全区 */
-  padding-top: 0;
+  min-height: min(70dvh, 640px);
 }
 
 .ai-assistant-head {
@@ -127,29 +121,5 @@ defineExpose({ close })
   stroke: currentColor;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-/* 磨砂玻璃底（与 AI 设置/历史弹层同一套视觉约定） */
-:global(.ai-assistant-popup.van-popup) {
-  --van-popup-background: color-mix(in srgb, var(--app-surface) 92%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 92%, transparent);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-/* 手机 top 弹窗：底部两角圆角，避免直角贴底 */
-:global(.ai-assistant-popup.van-popup--top) {
-  border-radius: 0 0 24px 24px !important;
-  overflow: hidden;
-}
-
-:global(.ai-assistant-popup--center.van-popup--center) {
-  width: min(520px, calc(100vw - 40px));
-  height: min(78dvh, 720px);
-  border-radius: 28px !important;
-  overflow: hidden;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 </style>

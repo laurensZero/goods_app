@@ -1,50 +1,53 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="show" class="overlay" @click.self="close">
-      <section class="dialog qr-dialog" role="dialog" aria-modal="true" :aria-label="t('storage.qr.title')">
-        <header class="qr-head">
-          <div>
-            <p class="dialog-label">{{ t('storage.qr.label') }}</p>
-            <h3 class="dialog-title">{{ t('storage.qr.title') }}</h3>
-          </div>
-          <button type="button" class="qr-close" :aria-label="t('common.close')" @click="close">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
-        </header>
+  <AppSheet
+    :model-value="show"
+    force-center
+    size="wide"
+    sheet-class="qr-dialog"
+    @update:model-value="(v) => { if (!v) close() }"
+  >
+    <header class="qr-head">
+      <div>
+        <p class="dialog-label">{{ t('storage.qr.label') }}</p>
+        <h3 class="dialog-title">{{ t('storage.qr.title') }}</h3>
+      </div>
+      <button type="button" class="qr-close" :aria-label="t('common.close')" @click="close">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M18 6 6 18" />
+          <path d="m6 6 12 12" />
+        </svg>
+      </button>
+    </header>
 
-        <div class="qr-content">
-          <div class="qr-card">
-            <img v-if="qrDataUrl" class="qr-image" :src="qrDataUrl" :alt="t('storage.qr.imageAlt', { name: nodeName })" />
-            <div v-else class="qr-placeholder">{{ t('storage.qr.generating') }}</div>
-          </div>
+    <div class="qr-content">
+      <div class="qr-card">
+        <img v-if="qrDataUrl" class="qr-image" :src="qrDataUrl" :alt="t('storage.qr.imageAlt', { name: nodeName })" />
+        <div v-else class="qr-placeholder">{{ t('storage.qr.generating') }}</div>
+      </div>
 
-          <div class="qr-meta">
-            <p class="qr-node">{{ nodeName }}</p>
-            <p class="qr-path">{{ nodePath }}</p>
-            <p class="qr-desc">{{ t('storage.qr.desc') }}</p>
-          </div>
+      <div class="qr-meta">
+        <p class="qr-node">{{ nodeName }}</p>
+        <p class="qr-path">{{ nodePath }}</p>
+        <p class="qr-desc">{{ t('storage.qr.desc') }}</p>
+      </div>
 
-          <label class="qr-link">
-            <span>{{ t('storage.qr.linkLabel') }}</span>
-            <textarea readonly :value="qrUrl" />
-          </label>
-        </div>
-
-        <div class="dialog-actions">
-          <button type="button" class="dialog-btn dialog-btn--secondary" @click="copyLink">
-            {{ t('storage.qr.copyLink') }}
-          </button>
-          <button type="button" class="dialog-btn dialog-btn--primary" :disabled="!qrDataUrl" @click="downloadQr">
-            {{ t('storage.qr.download') }}
-          </button>
-        </div>
-      </section>
-      <AppToast :message="toastMsg" />
+      <label class="qr-link">
+        <span>{{ t('storage.qr.linkLabel') }}</span>
+        <textarea readonly :value="qrUrl" />
+      </label>
     </div>
-  </Transition>
+
+    <div class="dialog-actions">
+      <button type="button" class="dialog-btn dialog-btn--secondary" @click="copyLink">
+        {{ t('storage.qr.copyLink') }}
+      </button>
+      <button type="button" class="dialog-btn dialog-btn--primary" :disabled="!qrDataUrl" @click="downloadQr">
+        {{ t('storage.qr.download') }}
+      </button>
+    </div>
+
+    <AppToast :message="toastMsg" />
+  </AppSheet>
 </template>
 
 <script setup>
@@ -53,6 +56,7 @@ import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
 import { useToast } from '@/composables/useToast'
 import AppToast from '@/components/common/AppToast.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { buildStorageQrUrl } from '@/utils/storageQr'
@@ -169,28 +173,11 @@ async function downloadQr() {
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  padding-bottom: calc(24px + env(safe-area-inset-bottom));
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-.qr-dialog {
-  width: min(100%, 480px);
-  padding: 24px;
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  box-shadow: var(--app-shadow);
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .qr-dialog.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 .qr-head {
@@ -348,45 +335,5 @@ async function downloadQr() {
 .dialog-btn:active,
 .qr-close:active {
   transform: scale(0.96);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
-}
-
-@media (max-width: 767px) {
-  .overlay {
-    align-items: flex-end;
-    padding: 16px;
-    padding-bottom: calc(var(--tabbar-height) + 24px + env(safe-area-inset-bottom));
-  }
-
-  .qr-dialog {
-    width: 100%;
-    padding: 20px;
-    border-bottom-left-radius: var(--radius-large);
-    border-bottom-right-radius: var(--radius-large);
-  }
-
-  .dialog-actions {
-    margin-inline: -20px;
-    padding: 14px 20px calc(4px + max(env(safe-area-inset-bottom), 0px));
-  }
 }
 </style>

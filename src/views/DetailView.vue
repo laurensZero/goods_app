@@ -225,58 +225,51 @@
       :description="t('goods.detail.notFoundDesc')"
     />
 
-    <Transition name="sheet-pop">
-      <div v-if="showDeleteDialog" class="dialog-overlay" @click="closeDeleteDialog">
-        <div class="dialog-card" @click.stop>
-          <div class="dialog-icon">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 6H21" />
-              <path d="M8 6V4H16V6" />
-              <path d="M19 6L18 20H6L5 6" />
-              <path d="M10 11V17" />
-              <path d="M14 11V17" />
-            </svg>
-          </div>
-
-          <h2 class="dialog-title">{{ t('common.moveToTrash') }}</h2>
-          <p class="dialog-desc">{{ item?.name || t('common.thisCollection') }} {{ t('common.moveToTrashDesc') }}</p>
-
-          <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">{{ t('common.cancel') }}</button>
-            <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">{{ t('common.trash') }}</button>
-          </div>
-        </div>
+    <!-- 危险确认：回收站删除 force-center -->
+    <AppSheet v-model="showDeleteDialog" force-center>
+      <div class="dialog-icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6H21" />
+          <path d="M8 6V4H16V6" />
+          <path d="M19 6L18 20H6L5 6" />
+          <path d="M10 11V17" />
+          <path d="M14 11V17" />
+        </svg>
       </div>
-    </Transition>
+
+      <h2 class="dialog-title">{{ t('common.moveToTrash') }}</h2>
+      <p class="dialog-desc">{{ item?.name || t('common.thisCollection') }} {{ t('common.moveToTrashDesc') }}</p>
+
+      <div class="dialog-actions">
+        <button class="dialog-btn dialog-btn--ghost" type="button" @click="closeDeleteDialog">{{ t('common.cancel') }}</button>
+        <button class="dialog-btn dialog-btn--danger" type="button" @click="confirmDelete">{{ t('common.trash') }}</button>
+      </div>
+    </AppSheet>
 
     <!-- SKU选择对话框 -->
-    <Transition name="sheet-pop">
-      <div v-if="showCartDialog" class="dialog-overlay" @click="showCartDialog = false">
-        <div class="dialog-card" @click.stop>
-          <h2 class="dialog-title">{{ t('goods.selectSpec') }}</h2>
-          <p class="dialog-desc">{{ item?.name }}</p>
+    <AppSheet v-model="showCartDialog">
+      <h2 class="dialog-title">{{ t('goods.selectSpec') }}</h2>
+      <p class="dialog-desc">{{ item?.name }}</p>
 
-          <div class="sku-list">
-            <button
-              v-for="sku in cartSkus"
-              :key="sku.id"
-              :class="['sku-option', { 'sku-option--selected': selectedSkuId === sku.id }]"
-              type="button"
-              @click="selectedSkuId = sku.id"
-            >
-              {{ sku.text }}
-            </button>
-          </div>
-
-          <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--ghost" type="button" @click="showCartDialog = false">{{ t('common.cancel') }}</button>
-            <button class="dialog-btn dialog-btn--primary" type="button" :disabled="cartLoading || !selectedSkuId" @click="doAddToCart(selectedSkuId)">
-              {{ cartLoading ? t('toast.addingToCart') : t('common.addToCart') }}
-            </button>
-          </div>
-        </div>
+      <div class="sku-list">
+        <button
+          v-for="sku in cartSkus"
+          :key="sku.id"
+          :class="['sku-option', { 'sku-option--selected': selectedSkuId === sku.id }]"
+          type="button"
+          @click="selectedSkuId = sku.id"
+        >
+          {{ sku.text }}
+        </button>
       </div>
-    </Transition>
+
+      <div class="dialog-actions">
+        <button class="dialog-btn dialog-btn--ghost" type="button" @click="showCartDialog = false">{{ t('common.cancel') }}</button>
+        <button class="dialog-btn dialog-btn--primary" type="button" :disabled="cartLoading || !selectedSkuId" @click="doAddToCart(selectedSkuId)">
+          {{ cartLoading ? t('toast.addingToCart') : t('common.addToCart') }}
+        </button>
+      </div>
+    </AppSheet>
 
     <Teleport to="body">
       <div v-if="showMoreSheet" class="more-popover-overlay" @click="showMoreSheet = false" />
@@ -374,6 +367,7 @@ import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRout
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import EventTrackList from '@/components/events/EventTrackList.vue'
@@ -1788,27 +1782,6 @@ function getImageKindLabel(kind) {
   text-underline-offset: 2px;
 }
 
-.dialog-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(20, 20, 22, 0.22);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-
-.dialog-card {
-  width: min(100%, 360px);
-  padding: 22px;
-  border-radius: 24px;
-  background: var(--app-surface);
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
-}
-
 .dialog-icon {
   display: flex;
   align-items: center;
@@ -1912,17 +1885,6 @@ function getImageKindLabel(kind) {
   transform: scale(0.96);
 }
 
-.dialog-fade-enter-active,
-.dialog-fade-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.dialog-fade-enter-from,
-.dialog-fade-leave-to {
-  opacity: 0;
-}
-
-/* 鈹€鈹€ 骞虫澘 / 澶у睆閫傞厤锛氬乏灏侀潰 + 鍙宠鎯呭弻鏍忓竷灞€ 鈹€鈹€ */
 @media (min-width: 900px) {
   .detail-shell {
     display: grid;

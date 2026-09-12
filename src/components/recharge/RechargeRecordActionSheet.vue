@@ -1,45 +1,33 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="modelValue"
+    @update:model-value="close"
+  >
+    <p class="sheet-title">{{ t('recharge.recordAction.title') }}</p>
+    <p class="sheet-record">{{ record?.itemName || t('recharge.unnamedItem') }}</p>
 
-    <Transition name="sheet-pop">
-      <div
-        v-if="modelValue"
-        class="sheet-panel"
-        role="dialog"
-        aria-modal="true"
-        :aria-label="t('recharge.recordAction.title')"
-      >
-        <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">{{ t('recharge.recordAction.title') }}</p>
-        <p class="sheet-record">{{ record?.itemName || t('recharge.unnamedItem') }}</p>
-
-        <div class="sheet-options">
-          <button class="sheet-option" type="button" @click="onEdit">
-            <span class="option-icon">{{ t('common.edit') }}</span>
-            <div class="option-body">
-              <p class="option-title">{{ t('recharge.recordAction.editTitle') }}</p>
-              <p class="option-desc">{{ t('recharge.recordAction.editDesc') }}</p>
-            </div>
-          </button>
-
-          <div class="sheet-divider" />
-
-          <button class="sheet-option sheet-option--danger" type="button" @click="onDelete">
-            <span class="option-icon option-icon--danger">{{ t('common.delete') }}</span>
-            <div class="option-body">
-              <p class="option-title">{{ t('recharge.recordAction.moveToTrash') }}</p>
-              <p class="option-desc">{{ t('recharge.recordAction.moveToTrashDesc') }}</p>
-            </div>
-          </button>
+    <div class="sheet-options">
+      <button class="sheet-option" type="button" @click="onEdit">
+        <span class="option-icon">{{ t('common.edit') }}</span>
+        <div class="option-body">
+          <p class="option-title">{{ t('recharge.recordAction.editTitle') }}</p>
+          <p class="option-desc">{{ t('recharge.recordAction.editDesc') }}</p>
         </div>
+      </button>
 
-        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
-      </div>
-    </Transition>
-  </Teleport>
+      <div class="sheet-divider" />
+
+      <button class="sheet-option sheet-option--danger" type="button" @click="onDelete">
+        <span class="option-icon option-icon--danger">{{ t('common.delete') }}</span>
+        <div class="option-body">
+          <p class="option-title">{{ t('recharge.recordAction.moveToTrash') }}</p>
+          <p class="option-desc">{{ t('recharge.recordAction.moveToTrashDesc') }}</p>
+        </div>
+      </button>
+    </div>
+
+    <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -50,6 +38,7 @@ const props = defineProps({
 
 import { useI18n } from 'vue-i18n'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 const { t } = useI18n()
 
 const emit = defineEmits(['update:modelValue', 'edit', 'delete'])
@@ -72,34 +61,6 @@ function onDelete() {
 </script>
 
 <style scoped>
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: var(--app-overlay);
-}
-
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 110;
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
-  border: 1px solid var(--app-glass-border);
-}
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  margin: 0 auto 14px;
-  border-radius: 999px;
-  background: rgba(142, 142, 147, 0.28);
-}
-
 .sheet-title {
   text-align: center;
   color: var(--app-text-tertiary);
@@ -183,46 +144,5 @@ function onDelete() {
   color: var(--app-text);
   font-size: 15px;
   font-weight: 600;
-}
-
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
-  opacity: 0;
-}
-
-.sheet-slide-enter-active {
-  transition: transform 0.28s var(--motion-ease-spring), opacity 0.2s ease;
-}
-
-.sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.2s ease;
-}
-
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
-  transform: translateX(-50%) translateY(100%);
-  opacity: 0;
-}
-
-@media (min-width: 900px) {
-  .sheet-panel {
-    top: 50%;
-    bottom: auto;
-    width: min(calc(100vw - 64px), 420px);
-    max-height: min(80vh, 560px);
-    padding: 16px 18px 18px;
-    border-radius: 24px;
-    transform: translate(-50%, -50%);
-    overflow: auto;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
 }
 </style>

@@ -1,49 +1,51 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="showDialog" class="overlay" @click.self="announcementStore.dismissAnnouncement()">
-      <div class="dialog announcement-dialog">
-        <p class="announcement-kicker">Announcement</p>
-        <h3 class="dialog-title">{{ activeAnnouncement?.title || t('common.announcement') }}</h3>
+  <AppSheet
+    :model-value="showDialog"
+    force-center
+    size="wide"
+    :z-index="1150"
+    @update:model-value="onSheetUpdate"
+  >
+    <p class="announcement-kicker">Announcement</p>
+    <h3 class="dialog-title">{{ activeAnnouncement?.title || t('common.announcement') }}</h3>
 
-        <img
-          v-if="activeAnnouncement?.imageUrl"
-          :src="activeAnnouncement.imageUrl"
-          :alt="activeAnnouncement.title || 'Announcement'"
-          class="announcement-image"
-          loading="lazy"
-        />
+    <img
+      v-if="activeAnnouncement?.imageUrl"
+      :src="activeAnnouncement.imageUrl"
+      :alt="activeAnnouncement.title || 'Announcement'"
+      class="announcement-image"
+      loading="lazy"
+    />
 
-        <div
-          v-if="isMarkdown"
-          class="announcement-body markdown-body"
-          v-html="contentHtml"
-        />
-        <p v-else class="dialog-desc">{{ contentText }}</p>
+    <div
+      v-if="isMarkdown"
+      class="announcement-body markdown-body"
+      v-html="contentHtml"
+    />
+    <p v-else class="dialog-desc">{{ contentText }}</p>
 
-        <div class="announcement-meta">
-          <span v-if="updatedAtLabel" class="announcement-meta__item">{{ t('common.updatedAt', { date: updatedAtLabel }) }}</span>
-        </div>
-
-        <div class="dialog-actions">
-          <button
-            type="button"
-            class="dialog-btn dialog-btn--secondary"
-            @click="announcementStore.dismissAnnouncement()"
-          >
-            {{ t('common.known') }}
-          </button>
-          <button
-            v-if="showPrimaryButton"
-            type="button"
-            class="dialog-btn dialog-btn--primary"
-            @click="announcementStore.handlePrimaryAction()"
-          >
-            {{ primaryButtonText }}
-          </button>
-        </div>
-      </div>
+    <div class="announcement-meta">
+      <span v-if="updatedAtLabel" class="announcement-meta__item">{{ t('common.updatedAt', { date: updatedAtLabel }) }}</span>
     </div>
-  </Transition>
+
+    <div class="dialog-actions">
+      <button
+        type="button"
+        class="dialog-btn dialog-btn--secondary"
+        @click="announcementStore.dismissAnnouncement()"
+      >
+        {{ t('common.known') }}
+      </button>
+      <button
+        v-if="showPrimaryButton"
+        type="button"
+        class="dialog-btn dialog-btn--primary"
+        @click="announcementStore.handlePrimaryAction()"
+      >
+        {{ primaryButtonText }}
+      </button>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -52,6 +54,7 @@ import { useI18n } from 'vue-i18n'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
@@ -59,6 +62,10 @@ const announcementStore = useAnnouncementStore()
 const showDialog = computed(() => announcementStore.dialogVisible && !!announcementStore.activeAnnouncement)
 
 useDialogBackButton(() => announcementStore.dismissAnnouncement(), showDialog)
+
+function onSheetUpdate(visible) {
+  if (!visible) announcementStore.dismissAnnouncement()
+}
 const activeAnnouncement = computed(() => announcementStore.activeAnnouncement)
 
 const contentHtml = ref('')
@@ -135,33 +142,7 @@ const updatedAtLabel = computed(() => {
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog-high);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.announcement-dialog {
-  width: min(100%, 480px);
-  max-height: 80vh;
-  padding: 24px;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.announcement-dialog::-webkit-scrollbar {
-  display: none;
-}
+/* 外壳（遮罩/玻璃/圆角/内边距）由 AppSheet 提供 */
 
 .announcement-kicker {
   color: var(--app-text-tertiary);
@@ -333,15 +314,5 @@ const updatedAtLabel = computed(() => {
 .dialog-btn--primary {
   background: var(--app-text);
   color: var(--app-bg);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
 }
 </style>

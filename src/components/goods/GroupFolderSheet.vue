@@ -1,15 +1,12 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :position="popupPosition"
-    round
-    transition="sheet-pop"
-    :class="['group-folder-popup', { 'group-folder-popup--tablet': isTablet, 'group-folder-popup--instant': skipOpenAnimation }]"
+    :instant="skipOpenAnimation"
+    sheet-class="group-folder-popup"
     @opened="onSheetOpened"
   >
     <div class="group-folder">
-      <div v-if="!isTablet" class="group-folder__handle" />
       <div class="group-folder__header">
         <div class="group-folder__info">
           <span class="group-folder__name">{{ group?.name || t('goodsGroup.untitled') }}</span>
@@ -55,7 +52,7 @@
       :target-group-id="groupId"
       @add="handleAddMembers"
     />
-  </Popup>
+  </AppSheet>
 
   <DangerConfirmDialog
     v-model:show="showDeleteConfirm"
@@ -68,13 +65,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue'
+import { ref, computed, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { Popup } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useToast } from '@/composables/useToast'
 import AppToast from '@/components/common/AppToast.vue'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useWideViewport } from '@/composables/useWideViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
@@ -100,11 +97,9 @@ const { t } = useI18n()
 const goodsStore = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
+const { isWide } = useWideViewport()
 const { toastMsg, showToast } = useToast()
-onMounted(() => updateViewport())
-
-const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
+const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)
@@ -216,7 +211,7 @@ function isRectStable(prevRect, nextRect, tolerance = 0.5) {
 }
 
 function isBottomPopupSettled(popup) {
-  if (!popup || isTablet.value) return true
+  if (!popup || isWide.value) return true
   const rect = readElementRect(popup)
   if (!rect) return false
   if (rect.top >= window.innerHeight - 1 || rect.bottom > window.innerHeight + 1) return false
@@ -354,53 +349,19 @@ async function handleAddMembers() {
 </script>
 
 <style scoped>
-.group-folder-popup {
-  overflow: hidden;
-}
-
-:global(.group-folder-popup.van-popup--bottom) {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-}
-
-:global(.group-folder-popup.van-popup--center) {
+/* 宽屏 center 时覆盖 AppSheet 默认 420px 宽度（原 Popup 为 720px） */
+:global(.app-sheet-overlay--center .group-folder-popup.app-sheet--center) {
   width: min(720px, calc(100vw - 48px)) !important;
-  max-width: calc(100vw - 48px) !important;
-  border-radius: var(--radius-large) !important;
 }
 
 .group-folder {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-height: 90dvh;
-  padding: 12px 12px max(24px, env(safe-area-inset-bottom));
   background:
     radial-gradient(circle at top, color-mix(in srgb, var(--app-text) 5%, transparent), transparent 42%),
-    var(--app-bg);
+    transparent;
   color: var(--app-text);
-  overflow-y: scroll;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-
-.group-folder::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  background: transparent;
-}
-
-.group-folder__handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 12px;
-  flex-shrink: 0;
 }
 
 .group-folder__header {
@@ -489,25 +450,5 @@ async function handleAddMembers() {
 
 .group-folder__add:active {
   background: var(--app-selection-bg);
-}
-
-:global(html.theme-dark) .group-folder-popup.van-popup {
-  --van-popup-background: var(--app-surface);
-  background: var(--app-surface) !important;
-  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.42);
-  border: none;
-}
-
-/* Instant mode: disable ALL Popup transitions/animations for hero back */
-.group-folder-popup--instant,
-.group-folder-popup--instant :deep(.van-overlay),
-.group-folder-popup--instant :deep(.van-popup),
-.group-folder-popup--instant :deep(.van-fade-enter-active),
-.group-folder-popup--instant :deep(.van-fade-leave-active),
-.group-folder-popup--instant :deep(.sheet-pop-enter-active),
-.group-folder-popup--instant :deep(.sheet-pop-leave-active) {
-  transition-duration: 0s !important;
-  animation-duration: 0s !important;
-  transition-delay: 0s !important;
 }
 </style>

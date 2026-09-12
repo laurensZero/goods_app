@@ -1,31 +1,33 @@
-﻿<template>
-  <Teleport to="body">
-    <Transition name="confirm-modal">
-      <div v-if="show" class="confirm-overlay" @click="$emit('cancel')">
-        <div class="confirm-card" role="alertdialog" aria-modal="true" @click.stop>
-          <div class="confirm-icon">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 6H21" />
-              <path d="M8 6V4H16V6" />
-              <path d="M19 6L18 20H6L5 6" />
-              <path d="M10 11V17" />
-              <path d="M14 11V17" />
-            </svg>
-          </div>
-          <h2 class="confirm-title">{{ t('preset.deleteTitle', { name }) }}</h2>
-          <p class="confirm-desc">{{ t('preset.deleteDesc', { count, field: fieldLabel || t('preset.thisPreset') }) }}</p>
-          <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--ghost" type="button" @click="$emit('cancel')">{{ t('common.cancel') }}</button>
-            <button class="confirm-btn confirm-btn--danger" type="button" @click="$emit('confirm')">{{ t('common.delete') }}</button>
-          </div>
-        </div>
+<template>
+  <AppSheet
+    :model-value="show"
+    force-center
+    size="wide"
+    @update:model-value="handleCancel"
+  >
+    <div class="confirm-card" role="alertdialog" aria-modal="true">
+      <div class="confirm-icon">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M3 6H21" />
+          <path d="M8 6V4H16V6" />
+          <path d="M19 6L18 20H6L5 6" />
+          <path d="M10 11V17" />
+          <path d="M14 11V17" />
+        </svg>
       </div>
-    </Transition>
-  </Teleport>
+      <h2 class="confirm-title">{{ t('preset.deleteTitle', { name }) }}</h2>
+      <p class="confirm-desc">{{ t('preset.deleteDesc', { count, field: fieldLabel || t('preset.thisPreset') }) }}</p>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-btn--ghost" type="button" @click="handleCancel">{{ t('common.cancel') }}</button>
+        <button class="confirm-btn confirm-btn--danger" type="button" @click="handleConfirm">{{ t('common.delete') }}</button>
+      </div>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
 import { useI18n } from 'vue-i18n'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 
@@ -35,10 +37,40 @@ defineProps({
   count: { type: Number, default: 0 },
   fieldLabel: { type: String, default: '' },
 })
-defineEmits(['cancel', 'confirm'])
+const emit = defineEmits(['update:show', 'cancel', 'confirm'])
+
+function handleCancel() {
+  emit('update:show', false)
+  emit('cancel')
+}
+
+function handleConfirm() {
+  emit('update:show', false)
+  emit('confirm')
+}
 </script>
 
 <style scoped>
+.confirm-card {
+  width: min(100%, 320px);
+  margin: 0 auto;
+  padding: 28px 24px 24px;
+  text-align: center;
+  background: transparent;
+  color: var(--app-text);
+}
+
+.confirm-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 59, 48, 0.1);
+  color: #ff3b30;
+}
+
 .confirm-icon svg {
   width: 20px;
   height: 20px;
@@ -90,31 +122,16 @@ defineEmits(['cancel', 'confirm'])
 }
 
 .confirm-btn--danger {
-  background: #141416;
+  background: var(--app-primary);
   color: #ffffff;
 }
 
-.confirm-modal-enter-active,
-.confirm-modal-leave-active {
-  transition: opacity 180ms ease;
-}
-
-.confirm-modal-enter-from,
-.confirm-modal-leave-to {
-  opacity: 0;
-}
-
-:global(html.theme-dark) .confirm-card {
-    background: rgba(24, 24, 28, 0.78);
-    box-shadow: 0 22px 56px rgba(0, 0, 0, 0.42);
-  }
-
 :global(html.theme-dark) .confirm-btn--ghost {
-    background: rgba(255, 255, 255, 0.06);
-  }
+  background: rgba(255, 255, 255, 0.06);
+}
 
 :global(html.theme-dark) .confirm-btn--danger {
-    background: #f5f5f7;
-    color: #d32f2f;
-  }
+  background: #f5f5f7;
+  color: #d32f2f;
+}
 </style>

@@ -64,18 +64,15 @@
         </article>
       </section>
 
-      <Transition name="sheet-pop">
-        <div v-if="showBackendConfirm" class="overlay" @click.self="cancelChooseBackend">
-          <div class="dialog">
-            <h3 class="dialog-title">{{ t('sync.switchBackend') }}</h3>
-            <p class="dialog-desc">{{ t('sync.switchBackendDesc', { backend: 'Supabase' }) }}</p>
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">{{ t('common.cancel') }}</button>
-              <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">{{ t('sync.confirmSwitch') }}</button>
-            </div>
-          </div>
+      <!-- 后端切换确认（普通确认：手机底、宽屏居中） -->
+      <AppSheet :model-value="showBackendConfirm" :z-index="1200" @update:model-value="(v) => { if (!v) cancelChooseBackend() }">
+        <h3 class="dialog-title">{{ t('sync.switchBackend') }}</h3>
+        <p class="dialog-desc">{{ t('sync.switchBackendDesc', { backend: 'Supabase' }) }}</p>
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" @click="cancelChooseBackend">{{ t('common.cancel') }}</button>
+          <button class="dialog-btn dialog-btn--primary" @click="confirmChooseBackend">{{ t('sync.confirmSwitch') }}</button>
         </div>
-      </Transition>
+      </AppSheet>
 
       <section class="content-section overview-section">
         <div class="section-head">
@@ -387,140 +384,119 @@
         </article>
       </section>
 
-      <Transition name="sheet-pop">
-        <div v-if="showResetConfirm" class="overlay" @click.self="showResetConfirm = false">
-          <div class="dialog">
-            <h3 class="dialog-title">{{ t('common.confirmDelete') }}</h3>
-            <p class="dialog-desc">
-              {{ t('sync.clearConfigDesc') }}
-            </p>
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">{{ t('common.cancel') }}</button>
-              <button class="dialog-btn dialog-btn--danger" @click="handleReset">{{ t('common.confirmDelete') }}</button>
-            </div>
-          </div>
+      <!-- 危险确认：force-center -->
+      <AppSheet :model-value="showResetConfirm" force-center :z-index="1200" @update:model-value="(v) => { if (!v) showResetConfirm = false }">
+        <h3 class="dialog-title">{{ t('common.confirmDelete') }}</h3>
+        <p class="dialog-desc">
+          {{ t('sync.clearConfigDesc') }}
+        </p>
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" @click="showResetConfirm = false">{{ t('common.cancel') }}</button>
+          <button class="dialog-btn dialog-btn--danger" @click="handleReset">{{ t('common.confirmDelete') }}</button>
         </div>
-      </Transition>
+      </AppSheet>
 
-      <Transition name="sheet-pop">
-        <div v-if="showPullConflict" class="overlay">
-          <div class="dialog dialog--wide dialog--scrollable">
-            <div class="dialog-scroll">
-              <h3 class="dialog-title">{{ t('sync.remoteDataDetected') }}</h3>
-              <div class="conflict-info">
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.sourceDevice') }}</span>
-                  <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
-                </div>
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
-                  <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
-                </div>
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.remoteTotal') }}</span>
-                  <span class="conflict-value">{{ t('sync.remoteTotalValue', { collection: pullConflictData.remoteCollectionCount, wishlist: pullConflictData.remoteWishlistCount, trash: pullConflictData.remoteTrashCount, recharge: pullConflictData.remoteRechargeCount || 0, events: pullConflictData.remoteEventCount || 0, images: pullConflictData.remoteImageCount || 0 }) }}</span>
-                </div>
-              </div>
-              <div class="conflict-diff">
-                <p class="conflict-diff-title">{{ t('sync.diff') }}</p>
-                <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">{{ t('sync.remoteAdded') }}</span>
-                  <span class="conflict-diff-value conflict-diff-value--add">{{ t('sync.remoteAddedValue', { collection: pullConflictData.remoteOnlyCollection, wishlist: pullConflictData.remoteOnlyWishlist, trash: pullConflictData.remoteOnlyTrash, recharge: pullConflictData.remoteOnlyRecharge || 0, events: pullConflictData.remoteOnlyEvents || 0, images: pullConflictData.remoteOnlyImages || 0 }) }}</span>
-                </div>
-                <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">{{ t('sync.remoteModified') }}</span>
-                  <span class="conflict-diff-value conflict-diff-value--update">{{ t('sync.remoteModifiedValue', { goods: pullConflictData.updatedGoods || 0, recharge: pullConflictData.updatedRecharge || 0, events: pullConflictData.updatedEvents || 0, images: pullConflictData.updatedImages || 0 }) }}</span>
-                </div>
-                <div class="conflict-diff-row">
-                  <span class="conflict-diff-label">{{ t('sync.localOnly') }}</span>
-                  <span class="conflict-diff-value conflict-diff-value--local">{{ t('sync.localOnlyValue', { collection: pullConflictData.localOnlyCollection, wishlist: pullConflictData.localOnlyWishlist, trash: pullConflictData.localOnlyTrash, recharge: pullConflictData.localOnlyRecharge || 0, events: pullConflictData.localOnlyEvents || 0, images: pullConflictData.localOnlyImages || 0 }) }}</span>
-                </div>
-              </div>
-              <p class="conflict-desc">{{ t('sync.pullConflictDesc') }}</p>
-            </div>
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">{{ t('common.cancel') }}</button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
-                {{ t('sync.confirmPull') }}
-              </button>
-            </div>
+      <!-- 拉取冲突确认（内容较多，size=wide） -->
+      <AppSheet :model-value="showPullConflict" size="wide" :z-index="1200" :close-on-overlay="false" @update:model-value="(v) => { if (!v) handlePullConflict(false) }">
+        <h3 class="dialog-title">{{ t('sync.remoteDataDetected') }}</h3>
+        <div class="conflict-info">
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.sourceDevice') }}</span>
+            <span class="conflict-value">{{ pullConflictData.remoteDevice }}</span>
+          </div>
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
+            <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
+          </div>
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.remoteTotal') }}</span>
+            <span class="conflict-value">{{ t('sync.remoteTotalValue', { collection: pullConflictData.remoteCollectionCount, wishlist: pullConflictData.remoteWishlistCount, trash: pullConflictData.remoteTrashCount, recharge: pullConflictData.remoteRechargeCount || 0, events: pullConflictData.remoteEventCount || 0, images: pullConflictData.remoteImageCount || 0 }) }}</span>
           </div>
         </div>
-      </Transition>
+        <div class="conflict-diff">
+          <p class="conflict-diff-title">{{ t('sync.diff') }}</p>
+          <div class="conflict-diff-row">
+            <span class="conflict-diff-label">{{ t('sync.remoteAdded') }}</span>
+            <span class="conflict-diff-value conflict-diff-value--add">{{ t('sync.remoteAddedValue', { collection: pullConflictData.remoteOnlyCollection, wishlist: pullConflictData.remoteOnlyWishlist, trash: pullConflictData.remoteOnlyTrash, recharge: pullConflictData.remoteOnlyRecharge || 0, events: pullConflictData.remoteOnlyEvents || 0, images: pullConflictData.remoteOnlyImages || 0 }) }}</span>
+          </div>
+          <div class="conflict-diff-row">
+            <span class="conflict-diff-label">{{ t('sync.remoteModified') }}</span>
+            <span class="conflict-diff-value conflict-diff-value--update">{{ t('sync.remoteModifiedValue', { goods: pullConflictData.updatedGoods || 0, recharge: pullConflictData.updatedRecharge || 0, events: pullConflictData.updatedEvents || 0, images: pullConflictData.updatedImages || 0 }) }}</span>
+          </div>
+          <div class="conflict-diff-row">
+            <span class="conflict-diff-label">{{ t('sync.localOnly') }}</span>
+            <span class="conflict-diff-value conflict-diff-value--local">{{ t('sync.localOnlyValue', { collection: pullConflictData.localOnlyCollection, wishlist: pullConflictData.localOnlyWishlist, trash: pullConflictData.localOnlyTrash, recharge: pullConflictData.localOnlyRecharge || 0, events: pullConflictData.localOnlyEvents || 0, images: pullConflictData.localOnlyImages || 0 }) }}</span>
+          </div>
+        </div>
+        <p class="conflict-desc">{{ t('sync.pullConflictDesc') }}</p>
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" @click="handlePullConflict(false)">{{ t('common.cancel') }}</button>
+          <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handlePullConflict(true)">
+            {{ t('sync.confirmPull') }}
+          </button>
+        </div>
+      </AppSheet>
 
-      <Transition name="sheet-pop">
-        <div v-if="showSyncConflict" class="overlay">
-          <div class="dialog dialog--scrollable">
-            <div class="dialog-scroll">
-              <h3 class="dialog-title">{{ t('sync.conflictDetected') }}</h3>
-              <p class="conflict-desc">{{ t('sync.conflictDesc') }}</p>
-              <div class="conflict-info">
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
-                  <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
-                </div>
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.localLastSync') }}</span>
-                  <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || t('sync.neverSynced') }}</span>
-                </div>
-                <div class="conflict-row">
-                  <span class="conflict-label">{{ t('sync.localLastModified') }}</span>
-                  <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || t('sync.noLocalChanges') }}</span>
-                </div>
-              </div>
-              <p class="conflict-desc">{{ t('sync.conflictChoose') }}</p>
-            </div>
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
-                {{ t('sync.uploadLocal') }}
-              </button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(true)">
-                {{ t('sync.pullRemoteBtn') }}
-              </button>
-            </div>
+      <!-- 同步冲突确认 -->
+      <AppSheet :model-value="showSyncConflict" :z-index="1200" :close-on-overlay="false" @update:model-value="(v) => { if (!v) handleSyncConflict(false) }">
+        <h3 class="dialog-title">{{ t('sync.conflictDetected') }}</h3>
+        <p class="conflict-desc">{{ t('sync.conflictDesc') }}</p>
+        <div class="conflict-info">
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
+            <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
+          </div>
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.localLastSync') }}</span>
+            <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || t('sync.neverSynced') }}</span>
+          </div>
+          <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.localLastModified') }}</span>
+            <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || t('sync.noLocalChanges') }}</span>
           </div>
         </div>
-      </Transition>
+        <p class="conflict-desc">{{ t('sync.conflictChoose') }}</p>
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(false)">
+            {{ t('sync.uploadLocal') }}
+          </button>
+          <button class="dialog-btn dialog-btn--primary" :disabled="syncStore.isSyncing" @click="handleSyncConflict(true)">
+            {{ t('sync.pullRemoteBtn') }}
+          </button>
+        </div>
+      </AppSheet>
 
       <!-- Supabase URL 输入对话框 -->
-      <Transition name="sheet-pop">
-        <div v-if="showSupabaseUrlDialog" class="overlay" @click.self="showSupabaseUrlDialog = false">
-          <div class="dialog">
-            <h3 class="dialog-title">{{ t('sync.supabaseUrlTitle') }}</h3>
-            <input
-              v-model="supabaseUrlInput"
-              class="dialog-input"
-              type="url"
-              placeholder="https://xxxxx.supabase.co"
-              autocomplete="off"
-            />
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseUrlDialog = false">{{ t('common.cancel') }}</button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseUrlInput.trim()" @click="handleSaveSupabaseUrl">{{ t('common.save') }}</button>
-            </div>
-          </div>
+      <AppSheet :model-value="showSupabaseUrlDialog" :z-index="1200" @update:model-value="(v) => { if (!v) showSupabaseUrlDialog = false }">
+        <h3 class="dialog-title">{{ t('sync.supabaseUrlTitle') }}</h3>
+        <input
+          v-model="supabaseUrlInput"
+          class="dialog-input"
+          type="url"
+          placeholder="https://xxxxx.supabase.co"
+          autocomplete="off"
+        />
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseUrlDialog = false">{{ t('common.cancel') }}</button>
+          <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseUrlInput.trim()" @click="handleSaveSupabaseUrl">{{ t('common.save') }}</button>
         </div>
-      </Transition>
+      </AppSheet>
 
       <!-- Supabase Key 输入对话框 -->
-      <Transition name="sheet-pop">
-        <div v-if="showSupabaseKeyDialog" class="overlay" @click.self="showSupabaseKeyDialog = false">
-          <div class="dialog">
-            <h3 class="dialog-title">{{ t('sync.supabaseKeyTitle') }}</h3>
-            <input
-              v-model="supabaseKeyInput"
-              class="dialog-input"
-              type="text"
-              placeholder="eyJhbGciOiJIUzI1NiIs..."
-              autocomplete="off"
-            />
-            <div class="dialog-actions">
-              <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseKeyDialog = false">{{ t('common.cancel') }}</button>
-              <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseKeyInput.trim()" @click="handleSaveSupabaseKey">{{ t('common.save') }}</button>
-            </div>
-          </div>
+      <AppSheet :model-value="showSupabaseKeyDialog" :z-index="1200" @update:model-value="(v) => { if (!v) showSupabaseKeyDialog = false }">
+        <h3 class="dialog-title">{{ t('sync.supabaseKeyTitle') }}</h3>
+        <input
+          v-model="supabaseKeyInput"
+          class="dialog-input"
+          type="text"
+          placeholder="eyJhbGciOiJIUzI1NiIs..."
+          autocomplete="off"
+        />
+        <div class="dialog-actions">
+          <button class="dialog-btn dialog-btn--secondary" @click="showSupabaseKeyDialog = false">{{ t('common.cancel') }}</button>
+          <button class="dialog-btn dialog-btn--primary" :disabled="!supabaseKeyInput.trim()" @click="handleSaveSupabaseKey">{{ t('common.save') }}</button>
         </div>
-      </Transition>
+      </AppSheet>
 
       <AppToast :message="toastMsg" />
     </main>
@@ -543,6 +519,7 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const syncStore = useSyncStore()
@@ -1243,7 +1220,6 @@ onMounted(async () => {
   line-height: 1.5;
 }
 
-/* Dialog overrides: align z-index with this view's layering */
-.overlay { z-index: 1200 }
+/* 外壳由 AppSheet 提供 */
 </style>
 

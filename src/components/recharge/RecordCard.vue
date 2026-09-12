@@ -201,7 +201,7 @@ function onClick() {
   width: 18px;
   height: 18px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 10%, transparent);
 }
 

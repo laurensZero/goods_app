@@ -1,20 +1,17 @@
 <template>
   <div class="page cart-import-page">
     <NavBar :title="pageTitle" show-back />
-    <Transition name="sheet-pop">
-      <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
-        <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
-          <p class="dialog-label">Import Notice</p>
-          <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
-          <p class="dialog-desc">{{ errorDialogMessage }}</p>
-          <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
-              {{ t('common.ok') }}
-            </button>
-          </div>
-        </div>
+    <!-- 普通提示对话框 -->
+    <AppSheet :model-value="showErrorDialog" force-center @update:model-value="(v) => { if (!v) closeErrorDialog() }">
+      <p class="dialog-label">Import Notice</p>
+      <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
+      <p class="dialog-desc">{{ errorDialogMessage }}</p>
+      <div class="dialog-actions">
+        <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
+          {{ t('common.ok') }}
+        </button>
       </div>
-    </Transition>
+    </AppSheet>
 
     <main class="page-body">
       <Transition name="step-fade" mode="out-in">
@@ -215,6 +212,7 @@ import {
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 defineOptions({ name: 'CartImportView' })
@@ -484,28 +482,7 @@ async function doImport() {
   min-height: 100dvh;
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1150;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: rgba(14, 18, 28, 0.38);
-  backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-  -webkit-backdrop-filter: blur(var(--app-overlay-blur)) saturate(var(--app-overlay-saturate));
-}
-
-.import-error-dialog {
-  width: min(100%, 420px);
-  padding: 24px;
-  border-radius: var(--radius-large);
-  border: 1px solid var(--app-glass-border);
-  background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
-  box-shadow: var(--app-shadow);
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-label {
   color: var(--app-text-tertiary);
   font-size: 12px;
@@ -548,26 +525,6 @@ async function doImport() {
 .dialog-btn--primary {
   background: var(--app-text);
   color: var(--app-bg);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-active .dialog,
-.overlay-fade-leave-active .dialog {
-  transition: transform 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-.overlay-fade-enter-from .dialog,
-.overlay-fade-leave-to .dialog {
-  transform: scale(0.95) translateY(8px);
 }
 
 .page-body {

@@ -1,109 +1,107 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="showPrompt" class="sheet-backdrop" @click="dismissImport" />
-    </Transition>
-
-    <Transition name="sheet-pop">
-      <div v-if="showPrompt" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('common.aria.fromShareCode')">
-        <div class="sheet-handle" aria-hidden="true" />
-        
-        <div class="share-header">
-          <p class="share-title">{{ t('common.foundSharedGoods') }}</p>
-        </div>
-
-        <!-- 正在加载 -->
-        <div v-if="fetching" class="share-loading">
-          <span class="share-spinner" />
-          <p class="share-loading-text">{{ t('common.fetchShareContent') }}</p>
-        </div>
-
-        <!-- 获取失败 -->
-        <div v-else-if="fetchError" class="share-error-box">
-          <p class="share-error-desc">{{ fetchError }}</p>
-          <div class="share-error-actions">
-            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.ignore') }}</button>
-            <button class="sheet-btn sheet-btn--retry" type="button" @click="retryFetch">{{ t('common.retry') }}</button>
-          </div>
-        </div>
-
-        <!-- 解析结果预览 & 导入 -->
-        <template v-else-if="payload">
-          <div v-if="disabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
-          <div class="share-preview-head">
-            <p class="share-preview-count">{{ t('common.itemsCount', { count: payload.goods?.length || 0 }) }}</p>
-            <p v-if="payload.sharedAt" class="share-preview-date">{{ formatSharedAt(payload.sharedAt) }}</p>
-          </div>
-
-          <div class="share-goods-list">
-            <div
-              v-for="(item, idx) in payload.goods"
-              :key="idx"
-              class="share-goods-card"
-              :class="{ 'share-goods-card--imported': importedIndexes.has(idx) }"
-            >
-              <div class="share-goods-thumb">
-                <img
-                  v-if="getItemCover(item)"
-                  :src="getItemCover(item)"
-                  class="share-goods-img"
-                  loading="lazy"
-                />
-                <span v-else class="share-goods-initial">{{ (item.name || '?').charAt(0) }}</span>
-              </div>
-              <div class="share-goods-info">
-                <p class="share-goods-name">{{ item.name }}</p>
-                <div class="share-goods-meta">
-                  <span v-if="item.ip" class="share-meta-tag share-meta-tag--ip">{{ item.ip }}</span>
-                  <span v-if="item.category" class="share-meta-tag">{{ item.category }}</span>
-                  <span v-if="item.variant" class="share-meta-tag">{{ item.variant }}</span>
-                  <span v-if="item.price" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
-                  <span v-if="item.actualPrice" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
-                  <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
-                </div>
-              </div>
-              <span v-if="importedIndexes.has(idx)" class="share-imported-badge">{{ t('common.imported') }}</span>
-            </div>
-          </div>
-
-          <div class="import-target-switch" role="tablist" :aria-label="t('common.aria.importTarget')">
-            <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
-            <button
-              type="button"
-              class="import-target-tab"
-              :class="{ active: importTarget === 'collection' }"
-              role="tab"
-              :aria-selected="importTarget === 'collection'"
-              @click="importTarget = 'collection'"
-            >
-              {{ t('common.importCollection') }}
-            </button>
-            <button
-              type="button"
-              class="import-target-tab"
-              :class="{ active: importTarget === 'wishlist' }"
-              role="tab"
-              :aria-selected="importTarget === 'wishlist'"
-              @click="importTarget = 'wishlist'"
-            >
-              {{ t('common.importWishlist') }}
-            </button>
-          </div>
-
-          <div class="share-actions-footer">
-            <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.cancel') }}</button>
-            <button
-              class="sheet-btn sheet-btn--confirm"
-              :disabled="importing || remainingCount === 0"
-              @click="handleImport"
-            >
-              {{ importing ? t('common.importing') : t('common.importAll', { count: remainingCount }) }}
-            </button>
-          </div>
-        </template>
+  <AppSheet
+    :model-value="showPrompt"
+    size="wide"
+    :z-index="1100"
+    sheet-class="clipboard-sheet"
+    @update:model-value="onSheetUpdate"
+  >
+    <div class="share-root">
+      <div class="share-header">
+        <p class="share-title">{{ t('common.foundSharedGoods') }}</p>
       </div>
-    </Transition>
-  </Teleport>
+
+      <!-- 正在加载 -->
+      <div v-if="fetching" class="share-loading">
+        <span class="share-spinner" />
+        <p class="share-loading-text">{{ t('common.fetchShareContent') }}</p>
+      </div>
+
+      <!-- 获取失败 -->
+      <div v-else-if="fetchError" class="share-error-box">
+        <p class="share-error-desc">{{ fetchError }}</p>
+        <div class="share-error-actions">
+          <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.ignore') }}</button>
+          <button class="sheet-btn sheet-btn--retry" type="button" @click="retryFetch">{{ t('common.retry') }}</button>
+        </div>
+      </div>
+
+      <!-- 解析结果预览 & 导入 -->
+      <template v-else-if="payload">
+        <div v-if="disabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
+        <div class="share-preview-head">
+          <p class="share-preview-count">{{ t('common.itemsCount', { count: payload.goods?.length || 0 }) }}</p>
+          <p v-if="payload.sharedAt" class="share-preview-date">{{ formatSharedAt(payload.sharedAt) }}</p>
+        </div>
+
+        <div class="share-goods-list">
+          <div
+            v-for="(item, idx) in payload.goods"
+            :key="idx"
+            class="share-goods-card"
+            :class="{ 'share-goods-card--imported': importedIndexes.has(idx) }"
+          >
+            <div class="share-goods-thumb">
+              <img
+                v-if="getItemCover(item)"
+                :src="getItemCover(item)"
+                class="share-goods-img"
+                loading="lazy"
+              />
+              <span v-else class="share-goods-initial">{{ (item.name || '?').charAt(0) }}</span>
+            </div>
+            <div class="share-goods-info">
+              <p class="share-goods-name">{{ item.name }}</p>
+              <div class="share-goods-meta">
+                <span v-if="item.ip" class="share-meta-tag share-meta-tag--ip">{{ item.ip }}</span>
+                <span v-if="item.category" class="share-meta-tag">{{ item.category }}</span>
+                <span v-if="item.variant" class="share-meta-tag">{{ item.variant }}</span>
+                <span v-if="item.price" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
+                <span v-if="item.actualPrice" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
+                <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
+              </div>
+            </div>
+            <span v-if="importedIndexes.has(idx)" class="share-imported-badge">{{ t('common.imported') }}</span>
+          </div>
+        </div>
+
+        <div class="import-target-switch" role="tablist" :aria-label="t('common.aria.importTarget')">
+          <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
+          <button
+            type="button"
+            class="import-target-tab"
+            :class="{ active: importTarget === 'collection' }"
+            role="tab"
+            :aria-selected="importTarget === 'collection'"
+            @click="importTarget = 'collection'"
+          >
+            {{ t('common.importCollection') }}
+          </button>
+          <button
+            type="button"
+            class="import-target-tab"
+            :class="{ active: importTarget === 'wishlist' }"
+            role="tab"
+            :aria-selected="importTarget === 'wishlist'"
+            @click="importTarget = 'wishlist'"
+          >
+            {{ t('common.importWishlist') }}
+          </button>
+        </div>
+
+        <div class="share-actions-footer">
+          <button class="sheet-btn sheet-btn--cancel" type="button" @click="dismissImport">{{ t('common.cancel') }}</button>
+          <button
+            class="sheet-btn sheet-btn--confirm"
+            :disabled="importing || remainingCount === 0"
+            @click="handleImport"
+          >
+            {{ importing ? t('common.importing') : t('common.importAll', { count: remainingCount }) }}
+          </button>
+        </div>
+      </template>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -113,11 +111,16 @@ import { useClipboardImport } from '@/composables/useClipboardImport'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { formatCurrency } from '@/utils/format'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const { showPrompt, incomingShareId, dismissImport } = useClipboardImport()
 
 useDialogBackButton(dismissImport, showPrompt)
+
+function onSheetUpdate(visible) {
+  if (!visible) dismissImport()
+}
 
 const {
   fetching,
@@ -156,44 +159,21 @@ watch(showPrompt, (newVal) => {
 </script>
 
 <style scoped>
-/* 遮罩 */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-dialog);
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-/* 面板 */
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: calc(var(--z-dialog) + 10);
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: var(--radius-large) var(--radius-large) 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
+/* 外壳（遮罩/玻璃/圆角/内边距/把手/滚动）由 AppSheet 提供 */
+/* 让内容区撑满 AppSheet 滚动视口，操作栏固定在底部 */
+:global(.clipboard-sheet .app-sheet__scroll) {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  max-height: 90dvh;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+.share-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  color: var(--app-text);
 }
 
 .share-header {
@@ -296,7 +276,7 @@ watch(showPrompt, (newVal) => {
 
 /* 商品列表（带滚动） */
 .share-goods-list {
-  flex: 1;
+  flex: 1 1 auto;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior-y: contain;
@@ -306,7 +286,7 @@ watch(showPrompt, (newVal) => {
   gap: 10px;
   margin: 0 -8px 16px;
   padding: 0 8px;
-  max-height: 50vh;
+  min-height: 0;
 }
 
 .share-goods-card {
@@ -489,35 +469,5 @@ watch(showPrompt, (newVal) => {
 .sheet-btn--confirm {
   background: var(--app-text);
   color: var(--app-bg);
-}
-
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: var(--radius-large);
-    max-height: 80dvh;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
-}
-
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
-:global(html.theme-dark) .share-goods-card {
-  background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
-}
-
-:global(html.theme-dark) .sheet-btn--confirm {
-  background: #f5f5f7;
-  color: #141416;
 }
 </style>

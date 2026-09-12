@@ -630,39 +630,12 @@
   height: 15px;
 }
 
-/* ── 编辑底部弹窗 ────────────────────────────────────────────── */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: rgba(0, 0, 0, 0.38);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-.edit-sheet {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
+/* ── 编辑底部弹窗（外壳由 AppSheet 提供） ──────────────────────── */
+.taobao-edit-sheet {
   width: min(100vw, 480px);
-  z-index: 90;
-  background: var(--bg-page, var(--app-surface));
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 90vh;
-  overflow: hidden;
+  margin-inline: auto;
 }
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 14px;
-  flex-shrink: 0;
-}
+
 .sheet-title {
   font-size: 13px;
   font-weight: 500;
@@ -734,17 +707,6 @@
   color: #fff;
 }
 
-/* ── 弹窗过渡动画 ────────────────────────────────────────────── */
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active { transition: opacity .25s; }
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to     { opacity: 0; }
-
-.sheet-slide-enter-active { transition: transform .32s cubic-bezier(0.16, 1, 0.3, 1); }
-.sheet-slide-leave-active { transition: transform .3s var(--motion-ease-default); }
-.sheet-slide-enter-from,
-.sheet-slide-leave-to     { transform: translateX(-50%) translateY(100%); }
-
 :global(html.theme-dark) .file-pick-area {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.10);
@@ -787,16 +749,6 @@
     background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
     backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
     -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  }
-:global(html.theme-dark) .sheet-backdrop {
-    background: var(--app-overlay);
-    backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
-    -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
-  }
-:global(html.theme-dark) .edit-sheet {
-    background: rgba(24, 24, 28, 0.82);
-    border: 1px solid var(--app-glass-border);
-    box-shadow: var(--app-shadow-xl);
   }
 :global(html.theme-dark) .edit-field {
     background: rgba(255, 255, 255, 0.05);

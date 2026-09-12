@@ -1,20 +1,17 @@
 <template>
   <div class="page account-import-page">
     <NavBar :title="t('import.account')" show-back />
-    <Transition name="sheet-pop">
-      <div v-if="showErrorDialog" class="overlay" @click.self="closeErrorDialog">
-        <div class="dialog import-error-dialog" role="alertdialog" aria-modal="true">
-          <p class="dialog-label">Import Notice</p>
-          <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
-          <p class="dialog-desc">{{ errorDialogMessage }}</p>
-          <div class="dialog-actions">
-            <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
-              {{ t('common.ok') }}
-            </button>
-          </div>
-        </div>
+    <!-- 普通提示对话框 -->
+    <AppSheet :model-value="showErrorDialog" force-center @update:model-value="(v) => { if (!v) closeErrorDialog() }">
+      <p class="dialog-label">Import Notice</p>
+      <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
+      <p class="dialog-desc">{{ errorDialogMessage }}</p>
+      <div class="dialog-actions">
+        <button class="dialog-btn dialog-btn--primary" type="button" @click="closeErrorDialog">
+          {{ t('common.ok') }}
+        </button>
       </div>
-    </Transition>
+    </AppSheet>
 
     <main class="page-body">
 
@@ -283,6 +280,7 @@ import {
 import { buildGoodsIdentityAliases, buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 defineOptions({ name: 'AccountImportView' })
 

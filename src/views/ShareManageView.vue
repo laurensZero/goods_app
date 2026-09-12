@@ -138,22 +138,15 @@
 
     <ShareSheet :show="showShareSheet" :goods-items="shareSheetItems" :initial-share="shareInitial" @close="showShareSheet = false" />
 
-    <Teleport to="body">
-      <Transition name="sheet-pop">
-        <div v-if="deleteTarget" class="confirm-backdrop" @click="deleteTarget = null" />
-      </Transition>
-      <Transition name="sheet-pop">
-        <div v-if="deleteTarget" class="confirm-sheet" role="dialog" aria-modal="true">
-          <div class="confirm-handle" aria-hidden="true" />
-          <p class="confirm-title">{{ t('share.deleteTitle') }}</p>
-          <p class="confirm-desc">{{ t('share.deleteDesc') }}</p>
-          <div class="confirm-actions">
-            <button class="confirm-btn confirm-btn--cancel" type="button" @click="deleteTarget = null">{{ t('common.cancel') }}</button>
-            <button class="confirm-btn confirm-btn--delete" type="button" @click="doDelete">{{ t('share.confirmDelete') }}</button>
-          </div>
-        </div>
-      </Transition>
-    </Teleport>
+    <!-- 危险确认：居中，保留原有按钮逻辑 -->
+    <AppSheet :model-value="!!deleteTarget" force-center @update:model-value="(v) => { if (!v) deleteTarget = null }">
+      <p class="confirm-title">{{ t('share.deleteTitle') }}</p>
+      <p class="confirm-desc">{{ t('share.deleteDesc') }}</p>
+      <div class="confirm-actions">
+        <button class="confirm-btn confirm-btn--cancel" type="button" @click="deleteTarget = null">{{ t('common.cancel') }}</button>
+        <button class="confirm-btn confirm-btn--delete" type="button" @click="doDelete">{{ t('share.confirmDelete') }}</button>
+      </div>
+    </AppSheet>
   </div>
 </template>
 
@@ -162,6 +155,7 @@ import { computed, onMounted, ref, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import { listUserShares, toggleShareDisabled, deleteShare, getShare } from '@/services/shareService'
 import { buildShareUrl } from '@/config/share'
@@ -344,7 +338,7 @@ onMounted(() => {
 .share-toolbar,
 .share-state-card,
 .share-record {
-  background: color-mix(in srgb, var(--app-surface) 88%, transparent);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
 
@@ -691,39 +685,7 @@ onMounted(() => {
   opacity: 0.42;
 }
 
-.confirm-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
-
-.confirm-sheet {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 100;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-}
-
-.confirm-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 999px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-}
-
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .confirm-title {
   color: var(--app-text);
   font-size: 18px;
@@ -764,30 +726,6 @@ onMounted(() => {
 .confirm-btn--delete {
   background: #d15353;
   color: #fff;
-}
-
-.sheet-backdrop-enter-active,
-.sheet-backdrop-leave-active {
-  transition: opacity 0.28s ease;
-}
-
-.sheet-backdrop-enter-from,
-.sheet-backdrop-leave-to {
-  opacity: 0;
-}
-
-.sheet-slide-enter-active {
-  transition: transform 0.32s var(--motion-ease-spring), opacity 0.22s ease;
-}
-
-.sheet-slide-leave-active {
-  transition: transform 0.24s ease, opacity 0.18s ease;
-}
-
-.sheet-slide-enter-from,
-.sheet-slide-leave-to {
-  transform: translateX(-50%) translateY(100%);
-  opacity: 0.6;
 }
 
 @media (max-width: 1023px) {
@@ -852,24 +790,6 @@ onMounted(() => {
   }
 }
 
-@media (min-width: 900px) {
-  .confirm-sheet {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-  }
-
-  .confirm-handle {
-    display: none;
-  }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-  }
-}
-
 :global(html.theme-dark) .share-hero__copy,
 :global(html.theme-dark) .share-hero__stats,
 :global(html.theme-dark) .share-toolbar,
@@ -892,12 +812,5 @@ onMounted(() => {
 :global(html.theme-dark) .share-primary-btn {
   background: #f5f5f7;
   color: #141416;
-}
-
-:global(html.theme-dark) .confirm-sheet {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 </style>

@@ -694,32 +694,10 @@
   letter-spacing: 0.02em;
 }
 
-:global(.theme-color-popup.van-popup),
-:global(.theme-color-popup.van-popup--bottom) {
-  --van-popup-background: var(--app-surface);
-  background: var(--app-surface);
-}
-
-.theme-color-popup {
-  overflow: hidden;
-}
-
-.theme-color-popup--center {
-  width: min(520px, calc(100vw - 40px));
-  border-radius: 28px;
-  box-shadow:
-    0 28px 80px color-mix(in srgb, var(--app-text) 18%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 8%, transparent);
-}
-
+/* AppSheet 已提供表面/圆角/内边距，内容区只负责布局 */
 .theme-color-sheet {
-  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
   color: var(--app-text);
-  background: var(--app-surface);
-}
-
-.theme-color-popup--center .theme-color-sheet {
-  padding: 22px;
+  background: transparent;
 }
 
 .theme-color-sheet__head,

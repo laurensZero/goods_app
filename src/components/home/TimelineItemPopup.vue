@@ -1,60 +1,52 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="modelValue && !!item"
+    sheet-class="timeline-item-popup"
+    @update:model-value="(v) => { if (!v) close() }"
+  >
+    <div v-if="item" class="sheet-body">
+      <div class="sheet-cover">
+        <LazyCachedImage
+          v-if="item.coverImage"
+          :src="item.coverImage"
+          :alt="item.name"
+          class="sheet-img"
+          :lazy="false"
+          :skeleton-enabled="false"
+        />
+        <span v-else class="sheet-fallback">{{ coverInitial }}</span>
+      </div>
 
-    <Transition name="sheet-pop">
-      <div v-if="modelValue && item" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="item.name">
-        <div class="sheet-handle" aria-hidden="true" />
+      <div class="sheet-info">
+        <h3 class="sheet-name">{{ item.name }}</h3>
 
-        <div class="sheet-body">
-          <div class="sheet-cover">
-            <LazyCachedImage
-              v-if="item.coverImage"
-              :src="item.coverImage"
-              :alt="item.name"
-              class="sheet-img"
-              :lazy="false"
-              :skeleton-enabled="false"
-            />
-            <span v-else class="sheet-fallback">{{ coverInitial }}</span>
-          </div>
-
-          <div class="sheet-info">
-            <h3 class="sheet-name">{{ item.name }}</h3>
-
-            <div class="sheet-chips">
-              <span v-if="item.category" class="sheet-chip">{{ item.category }}</span>
-              <span v-if="item.ip" class="sheet-chip sheet-chip--ip">{{ item.ip }}</span>
-              <span
-                v-for="character in displayCharacters"
-                :key="character"
-                class="sheet-chip sheet-chip--char"
-              >
-                {{ character }}
-              </span>
-              <span v-if="displayVariant" class="sheet-chip sheet-chip--variant">{{ displayVariant }}</span>
-            </div>
-
-            <div class="sheet-meta">
-              <span v-if="displayAcquiredAtText" class="sheet-date">{{ displayAcquiredAtText }}</span>
-              <span v-if="Number(item.quantity) > 1" class="sheet-qty">×{{ item.quantity }}</span>
-              <span v-if="totalPrice !== ''" class="sheet-price">{{ totalPrice }}</span>
-            </div>
-
-            <p v-if="item.note" class="sheet-note">{{ item.note }}</p>
-          </div>
+        <div class="sheet-chips">
+          <span v-if="item.category" class="sheet-chip">{{ item.category }}</span>
+          <span v-if="item.ip" class="sheet-chip sheet-chip--ip">{{ item.ip }}</span>
+          <span
+            v-for="character in displayCharacters"
+            :key="character"
+            class="sheet-chip sheet-chip--char"
+          >
+            {{ character }}
+          </span>
+          <span v-if="displayVariant" class="sheet-chip sheet-chip--variant">{{ displayVariant }}</span>
         </div>
 
-        <button type="button" class="sheet-action-btn" @click="openDetail">
-          {{ t('home.viewDetail') }}
-        </button>
+        <div class="sheet-meta">
+          <span v-if="displayAcquiredAtText" class="sheet-date">{{ displayAcquiredAtText }}</span>
+          <span v-if="Number(item.quantity) > 1" class="sheet-qty">×{{ item.quantity }}</span>
+          <span v-if="totalPrice !== ''" class="sheet-price">{{ totalPrice }}</span>
+        </div>
 
-        <button type="button" class="sheet-cancel" @click="close">{{ t('common.close') }}</button>
+        <p v-if="item.note" class="sheet-note">{{ item.note }}</p>
       </div>
-    </Transition>
-  </Teleport>
+    </div>
+
+    <button type="button" class="sheet-action-btn" @click="openDetail">
+      {{ t('home.viewDetail') }}
+    </button>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -62,6 +54,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { getTimelineDisplayTotal } from '@/composables/home/useHomeTimeline'
 import { getDisplayGoodsVariant } from '@/utils/goods/identity'
@@ -113,43 +106,11 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
 </script>
 
 <style scoped>
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 90;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 90dvh;
-  overflow-y: auto;
-}
-
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .timeline-item-popup.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 .sheet-body {
@@ -225,69 +186,10 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
   height: 48px; width: 100%; border: none; border-radius: 14px;
   background: var(--app-text); color: var(--app-surface);
   font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
-  margin-bottom: 10px; transition: opacity 0.14s ease, transform 0.14s ease;
+  margin-bottom: 0; transition: opacity 0.14s ease, transform 0.14s ease;
 }
 .sheet-action-btn:active { opacity: 0.88; transform: scale(0.985); }
 
-.sheet-cancel {
-  height: 54px; width: 100%; border: none; border-radius: 18px;
-  background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
-  border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  font-size: 16px; font-weight: 600; color: var(--app-text, #141416);
-  transition: background 0.14s ease;
-}
-.sheet-cancel:active { background: rgba(142, 142, 147, 0.18); }
-
-/* Transitions — 手机端底部上滑，平板端居中淡入 */
-.sheet-pop-enter-active,
-.sheet-pop-leave-active {
-  transition: opacity 0.24s ease, transform 0.26s cubic-bezier(0.32, 0.94, 0.6, 1);
-}
-.sheet-pop-enter-from,
-.sheet-pop-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(100%);
-}
-/* 遮罩只淡入淡出 */
-.sheet-backdrop.sheet-pop-enter-active,
-.sheet-backdrop.sheet-pop-leave-active {
-  transition: opacity 0.24s ease;
-}
-.sheet-backdrop.sheet-pop-enter-from,
-.sheet-backdrop.sheet-pop-leave-to {
-  opacity: 0;
-  transform: none;
-}
-
-/* Tablet — 居中弹窗，与 DailyRecommendation 一致 */
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    left: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-    padding-top: 20px;
-    padding-bottom: 20px;
-  }
-  .sheet-handle { display: none; }
-  .sheet-cancel { display: none; }
-  /* 平板端用缩放入场，不用底部上滑 */
-  .sheet-pop-enter-active,
-  .sheet-pop-leave-active {
-    transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.34, 1.3, 0.64, 1);
-  }
-  .sheet-pop-enter-from,
-  .sheet-pop-leave-to {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-  }
-}
-
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.04);
-}
 :global(html.theme-dark) .sheet-chip--ip {
   color: #7da4f5;
   background: rgba(74, 122, 236, 0.18);
@@ -302,8 +204,5 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
 }
 :global(html.theme-dark) .sheet-action-btn {
   background: #f5f5f7; color: #141416;
-}
-:global(html.theme-dark) .sheet-cancel {
-  background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 </style>

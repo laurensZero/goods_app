@@ -1,198 +1,202 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="visible" class="overlay" @click.self="dismiss">
-      <div class="dialog survey-popup">
-        <button type="button" class="survey-popup-close" @click="dismiss">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
-        </button>
+  <AppSheet
+    :model-value="visible"
+    force-center
+    size="wide"
+    :z-index="1200"
+    @update:model-value="onSheetUpdate"
+  >
+    <div class="survey-popup">
+      <button type="button" class="survey-popup-close" @click="dismiss">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
 
-        <!-- Progress dots -->
-        <div class="survey-popup-progress">
-          <span
-            v-for="(_, idx) in totalSlides"
-            :key="idx"
-            class="survey-popup-dot"
-            :class="{
-              'survey-popup-dot--active': idx === currentIndex,
-              'survey-popup-dot--done': idx < currentIndex
-            }"
-          />
-        </div>
+      <!-- Progress dots -->
+      <div class="survey-popup-progress">
+        <span
+          v-for="(_, idx) in totalSlides"
+          :key="idx"
+          class="survey-popup-dot"
+          :class="{
+            'survey-popup-dot--active': idx === currentIndex,
+            'survey-popup-dot--done': idx < currentIndex
+          }"
+        />
+      </div>
 
-        <!-- Swipe area -->
-        <div
-          class="survey-popup-swipe"
-          @touchstart="onTouchStart"
-          @touchmove="onTouchMove"
-          @touchend="onTouchEnd"
-        >
-          <div class="survey-popup-slide" :style="{ transform: slideTransform }">
-            <!-- Slide 0: Intro -->
-            <div class="survey-popup-question survey-popup-intro">
-              <img v-if="activeSurvey.image" :src="activeSurvey.image" class="intro-image" alt="" />
-              <div v-else class="intro-icon">
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M9 11l3 3L22 4" />
-                  <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                </svg>
-              </div>
-              <h3 class="intro-title">{{ activeSurvey.title }}</h3>
-              <p v-if="activeSurvey.description" class="intro-desc">{{ activeSurvey.description }}</p>
-              <div class="intro-meta">
-                {{ activeSurvey.questions.length }} {{ t('survey.questions') }}
-              </div>
+      <!-- Swipe area -->
+      <div
+        class="survey-popup-swipe"
+        @touchstart="onTouchStart"
+        @touchmove="onTouchMove"
+        @touchend="onTouchEnd"
+      >
+        <div class="survey-popup-slide" :style="{ transform: slideTransform }">
+          <!-- Slide 0: Intro -->
+          <div class="survey-popup-question survey-popup-intro">
+            <img v-if="activeSurvey.image" :src="activeSurvey.image" class="intro-image" alt="" />
+            <div v-else class="intro-icon">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+              </svg>
             </div>
+            <h3 class="intro-title">{{ activeSurvey.title }}</h3>
+            <p v-if="activeSurvey.description" class="intro-desc">{{ activeSurvey.description }}</p>
+            <div class="intro-meta">
+              {{ activeSurvey.questions.length }} {{ t('survey.questions') }}
+            </div>
+          </div>
 
-            <!-- Slides 1..N: Questions -->
-            <div
-              v-for="(q, idx) in activeSurvey.questions"
-              :key="q.id"
-              class="survey-popup-question"
-            >
-              <p class="survey-popup-qindex">{{ idx + 1 }} / {{ activeSurvey.questions.length }}</p>
-              <h4 class="survey-popup-qtitle">
-                {{ q.title }}
-                <span v-if="q.required" class="survey-popup-required">*</span>
-              </h4>
-              <p v-if="q.description" class="survey-popup-qdesc">{{ q.description }}</p>
-              <img v-if="q.image" :src="q.image" class="survey-popup-qimage" alt="" />
+          <!-- Slides 1..N: Questions -->
+          <div
+            v-for="(q, idx) in activeSurvey.questions"
+            :key="q.id"
+            class="survey-popup-question"
+          >
+            <p class="survey-popup-qindex">{{ idx + 1 }} / {{ activeSurvey.questions.length }}</p>
+            <h4 class="survey-popup-qtitle">
+              {{ q.title }}
+              <span v-if="q.required" class="survey-popup-required">*</span>
+            </h4>
+            <p v-if="q.description" class="survey-popup-qdesc">{{ q.description }}</p>
+            <img v-if="q.image" :src="q.image" class="survey-popup-qimage" alt="" />
 
-              <div class="survey-popup-qbody">
-                <!-- Single Choice -->
-                <template v-if="q.type === 'single_choice'">
-                  <label
-                    v-for="opt in q.options"
-                    :key="opt.id"
-                    class="popup-radio"
-                    :class="{ 'popup-radio--checked': answers[q.id] === opt.id }"
-                    @click="setAnswer(q.id, opt.id)"
+            <div class="survey-popup-qbody">
+              <!-- Single Choice -->
+              <template v-if="q.type === 'single_choice'">
+                <label
+                  v-for="opt in q.options"
+                  :key="opt.id"
+                  class="popup-radio"
+                  :class="{ 'popup-radio--checked': answers[q.id] === opt.id }"
+                  @click="setAnswer(q.id, opt.id)"
+                >
+                  <span class="popup-radio-dot" />
+                  <span class="popup-radio-label">{{ opt.label }}</span>
+                </label>
+              </template>
+
+              <!-- Multiple Choice -->
+              <template v-else-if="q.type === 'multiple_choice'">
+                <label
+                  v-for="opt in q.options"
+                  :key="opt.id"
+                  class="popup-checkbox"
+                  :class="{ 'popup-checkbox--checked': getMultiSelected(q.id).has(opt.id) }"
+                  @click="toggleMulti(q.id, opt.id)"
+                >
+                  <span class="popup-checkbox-box">
+                    <svg v-if="getMultiSelected(q.id).has(opt.id)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </span>
+                  <span class="popup-checkbox-label">{{ opt.label }}</span>
+                </label>
+              </template>
+
+              <!-- Text -->
+              <template v-else-if="q.type === 'text'">
+                <textarea
+                  v-if="q.multiline"
+                  class="popup-textarea"
+                  :value="answers[q.id] || ''"
+                  :placeholder="q.placeholder || ''"
+                  :maxlength="q.maxLength || undefined"
+                  rows="3"
+                  @input="setAnswer(q.id, $event.target.value)"
+                />
+                <input
+                  v-else
+                  class="popup-input"
+                  type="text"
+                  :value="answers[q.id] || ''"
+                  :placeholder="q.placeholder || ''"
+                  :maxlength="q.maxLength || undefined"
+                  @input="setAnswer(q.id, $event.target.value)"
+                />
+              </template>
+
+              <!-- Rating -->
+              <template v-else-if="q.type === 'rating'">
+                <div class="popup-stars">
+                  <div
+                    v-for="star in (q.maxRating || 5)"
+                    :key="star"
+                    class="popup-star"
+                    :class="{ 'popup-star--active': star <= (answers[q.id] || 0) }"
+                    @click="setAnswer(q.id, star === (answers[q.id] || 0) ? 0 : star)"
                   >
-                    <span class="popup-radio-dot" />
-                    <span class="popup-radio-label">{{ opt.label }}</span>
-                  </label>
-                </template>
-
-                <!-- Multiple Choice -->
-                <template v-else-if="q.type === 'multiple_choice'">
-                  <label
-                    v-for="opt in q.options"
-                    :key="opt.id"
-                    class="popup-checkbox"
-                    :class="{ 'popup-checkbox--checked': getMultiSelected(q.id).has(opt.id) }"
-                    @click="toggleMulti(q.id, opt.id)"
-                  >
-                    <span class="popup-checkbox-box">
-                      <svg v-if="getMultiSelected(q.id).has(opt.id)" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </span>
-                    <span class="popup-checkbox-label">{{ opt.label }}</span>
-                  </label>
-                </template>
-
-                <!-- Text -->
-                <template v-else-if="q.type === 'text'">
-                  <textarea
-                    v-if="q.multiline"
-                    class="popup-textarea"
-                    :value="answers[q.id] || ''"
-                    :placeholder="q.placeholder || ''"
-                    :maxlength="q.maxLength || undefined"
-                    rows="3"
-                    @input="setAnswer(q.id, $event.target.value)"
-                  />
-                  <input
-                    v-else
-                    class="popup-input"
-                    type="text"
-                    :value="answers[q.id] || ''"
-                    :placeholder="q.placeholder || ''"
-                    :maxlength="q.maxLength || undefined"
-                    @input="setAnswer(q.id, $event.target.value)"
-                  />
-                </template>
-
-                <!-- Rating -->
-                <template v-else-if="q.type === 'rating'">
-                  <div class="popup-stars">
-                    <div
-                      v-for="star in (q.maxRating || 5)"
-                      :key="star"
-                      class="popup-star"
-                      :class="{ 'popup-star--active': star <= (answers[q.id] || 0) }"
-                      @click="setAnswer(q.id, star === (answers[q.id] || 0) ? 0 : star)"
-                    >
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                      </svg>
-                    </div>
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </svg>
                   </div>
-                </template>
+                </div>
+              </template>
 
-                <!-- Matrix -->
-                <template v-else-if="q.type === 'matrix'">
-                  <div class="popup-matrix">
-                    <div v-for="row in q.rows" :key="row.id" class="popup-matrix-row">
-                      <span class="popup-matrix-label">{{ row.label }}</span>
-                      <div class="popup-matrix-stars">
-                        <div
-                          v-for="(col, colIdx) in q.columns"
-                          :key="col.id"
-                          class="popup-matrix-star"
-                          :class="{ 'popup-matrix-star--active': getMatrixStarIndex(q.id, row.id) >= colIdx }"
-                          @click="setAnswer(q.id, { ...(answers[q.id] || {}), [row.id]: col.id })"
-                        >
-                          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                          </svg>
-                        </div>
+              <!-- Matrix -->
+              <template v-else-if="q.type === 'matrix'">
+                <div class="popup-matrix">
+                  <div v-for="row in q.rows" :key="row.id" class="popup-matrix-row">
+                    <span class="popup-matrix-label">{{ row.label }}</span>
+                    <div class="popup-matrix-stars">
+                      <div
+                        v-for="(col, colIdx) in q.columns"
+                        :key="col.id"
+                        class="popup-matrix-star"
+                        :class="{ 'popup-matrix-star--active': getMatrixStarIndex(q.id, row.id) >= colIdx }"
+                        @click="setAnswer(q.id, { ...(answers[q.id] || {}), [row.id]: col.id })"
+                      >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
                       </div>
                     </div>
                   </div>
-                </template>
-              </div>
+                </div>
+              </template>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Validation error -->
-        <div v-if="validationError" class="survey-popup-error">
-          {{ validationError }}
-        </div>
+      <!-- Validation error -->
+      <div v-if="validationError" class="survey-popup-error">
+        {{ validationError }}
+      </div>
 
-        <!-- Navigation -->
-        <div class="survey-popup-nav">
-          <button
-            type="button"
-            class="popup-nav-btn popup-nav-btn--prev"
-            :disabled="currentIndex === 0"
-            @click="prev"
-          >
-            {{ t('common.back') || 'Back' }}
-          </button>
-          <button
-            v-if="isLastSlide"
-            type="button"
-            class="popup-nav-btn popup-nav-btn--submit"
-            :disabled="isSubmitting"
-            @click="handleSubmit"
-          >
-            {{ isSubmitting ? t('survey.submitting') : t('survey.submit') }}
-          </button>
-          <button
-            v-else
-            type="button"
-            class="popup-nav-btn popup-nav-btn--next"
-            @click="next"
-          >
-            {{ isIntro ? (t('survey.start') || 'Start') : (t('common.next') || 'Next') }}
-          </button>
-        </div>
+      <!-- Navigation -->
+      <div class="survey-popup-nav">
+        <button
+          type="button"
+          class="popup-nav-btn popup-nav-btn--prev"
+          :disabled="currentIndex === 0"
+          @click="prev"
+        >
+          {{ t('common.back') || 'Back' }}
+        </button>
+        <button
+          v-if="isLastSlide"
+          type="button"
+          class="popup-nav-btn popup-nav-btn--submit"
+          :disabled="isSubmitting"
+          @click="handleSubmit"
+        >
+          {{ isSubmitting ? t('survey.submitting') : t('survey.submit') }}
+        </button>
+        <button
+          v-else
+          type="button"
+          class="popup-nav-btn popup-nav-btn--next"
+          @click="next"
+        >
+          {{ isIntro ? (t('survey.start') || 'Start') : (t('common.next') || 'Next') }}
+        </button>
       </div>
     </div>
-  </Transition>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -201,6 +205,7 @@ import { useI18n } from 'vue-i18n'
 import { useSurveyStore } from '@/stores/survey'
 import { submitSurveyResponse } from '@/services/surveyService'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const surveyStore = useSurveyStore()
@@ -208,6 +213,10 @@ const surveyStore = useSurveyStore()
 const visible = ref(false)
 
 useDialogBackButton(dismiss, visible)
+
+function onSheetUpdate(value) {
+  if (!value) dismiss()
+}
 const activeSurvey = ref(null)
 const currentIndex = ref(0)
 const answers = reactive({})
@@ -360,28 +369,12 @@ defineExpose({ checkPopup, openSurvey })
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-dialog-high) + 50);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
+/* 外壳（遮罩/玻璃/圆角/内边距）由 AppSheet 提供 */
 .survey-popup {
   position: relative;
-  width: min(100%, 420px);
-  max-height: 85vh;
   display: flex;
   flex-direction: column;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  overflow: hidden;
+  color: var(--app-text);
 }
 .survey-popup-close {
   position: absolute;
@@ -723,26 +716,8 @@ defineExpose({ checkPopup, openSurvey })
   color: var(--app-surface);
 }
 
-/* Transition */
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
-}
-
-/* Tablet */
+/* Tablet: only content padding adjustments; shell handled by AppSheet */
 @media (min-width: 768px) {
-  .overlay {
-    padding: 24px;
-  }
-  .survey-popup {
-    width: min(100%, 560px);
-    max-height: 80vh;
-    border-radius: var(--radius-large);
-  }
   .survey-popup-question {
     padding: 12px 32px 20px;
   }
@@ -751,9 +726,6 @@ defineExpose({ checkPopup, openSurvey })
   }
   .intro-image {
     max-width: 360px;
-  }
-  .survey-popup-nav {
-    padding: 16px 32px;
   }
 }
 </style>

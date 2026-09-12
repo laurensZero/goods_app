@@ -1,58 +1,61 @@
 <template>
-  <Transition name="sheet-pop">
-    <div v-if="showDialog" class="overlay" @click.self="handleOverlayClick">
-      <div class="dialog update-dialog">
-        <p class="update-kicker">Bundle Update</p>
-        <h3 class="dialog-title">{{ restartReady ? t('common.webUpdate.downloaded') : t('common.webUpdate.foundNew', { version: webUpdateStore.latestVersion }) }}</h3>
-        <p class="dialog-desc" v-if="!restartReady">
-          {{ t('common.webUpdate.currentVsLatest', { current: webUpdateStore.currentVersion || 'builtin', latest: webUpdateStore.latestVersion }) }}
-          <template v-if="webUpdateStore.isForceUpdate">{{ t('common.webUpdate.forceRestart') }}</template>
-        </p>
-        <p class="dialog-desc" v-else>
-          {{ t('common.webUpdate.restartConfirm') }}
-        </p>
+  <AppSheet
+    :model-value="showDialog"
+    force-center
+    size="wide"
+    :z-index="1090"
+    :close-on-overlay="!webUpdateStore.isForceUpdate"
+    @update:model-value="onSheetUpdate"
+  >
+    <p class="update-kicker">Bundle Update</p>
+    <h3 class="dialog-title">{{ restartReady ? t('common.webUpdate.downloaded') : t('common.webUpdate.foundNew', { version: webUpdateStore.latestVersion }) }}</h3>
+    <p class="dialog-desc" v-if="!restartReady">
+      {{ t('common.webUpdate.currentVsLatest', { current: webUpdateStore.currentVersion || 'builtin', latest: webUpdateStore.latestVersion }) }}
+      <template v-if="webUpdateStore.isForceUpdate">{{ t('common.webUpdate.forceRestart') }}</template>
+    </p>
+    <p class="dialog-desc" v-else>
+      {{ t('common.webUpdate.restartConfirm') }}
+    </p>
 
-        <div class="version-row">
-          <div class="version-pill">
-            <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
-            <strong class="version-pill__value">{{ webUpdateStore.currentVersion || 'builtin' }}</strong>
-          </div>
-          <div class="version-pill version-pill--accent">
-            <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
-            <strong class="version-pill__value">v{{ webUpdateStore.latestVersion }}</strong>
-          </div>
-        </div>
-
-        <section v-if="releaseNotesPreview && !restartReady" class="release-notes">
-          <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
-          <pre class="release-notes__body">{{ releaseNotesPreview }}</pre>
-        </section>
-
-        <p v-if="webUpdateStore.lastError" class="update-error">{{ webUpdateStore.lastError }}</p>
-        <p v-if="webUpdateStore.isDownloading" class="update-tip">{{ t('common.downloading') }} {{ webUpdateStore.downloadProgress }}%</p>
-
-        <div class="dialog-actions">
-          <button
-            v-if="!webUpdateStore.isForceUpdate"
-            type="button"
-            class="dialog-btn dialog-btn--secondary"
-            :disabled="webUpdateStore.isDownloading"
-            @click="restartReady ? handleLaterRestart() : webUpdateStore.dismissDialog()"
-          >
-            {{ restartReady ? t('common.later') : t('common.laterOrNot') }}
-          </button>
-          <button
-            type="button"
-            class="dialog-btn dialog-btn--primary"
-            :disabled="webUpdateStore.isDownloading"
-            @click="restartReady ? handleRestartNow() : handleStartWebUpdate()"
-          >
-            {{ restartReady ? t('common.restartNow') : (webUpdateStore.isDownloading ? t('common.downloading') + '…' : t('common.webUpdate.downloadAndRestart')) }}
-          </button>
-        </div>
+    <div class="version-row">
+      <div class="version-pill">
+        <span class="version-pill__label">{{ t('common.currentLabel') }}</span>
+        <strong class="version-pill__value">{{ webUpdateStore.currentVersion || 'builtin' }}</strong>
+      </div>
+      <div class="version-pill version-pill--accent">
+        <span class="version-pill__label">{{ t('common.latestLabel') }}</span>
+        <strong class="version-pill__value">v{{ webUpdateStore.latestVersion }}</strong>
       </div>
     </div>
-  </Transition>
+
+    <section v-if="releaseNotesPreview && !restartReady" class="release-notes">
+      <p class="release-notes__label">{{ t('common.updateNotes') }}</p>
+      <pre class="release-notes__body">{{ releaseNotesPreview }}</pre>
+    </section>
+
+    <p v-if="webUpdateStore.lastError" class="update-error">{{ webUpdateStore.lastError }}</p>
+    <p v-if="webUpdateStore.isDownloading" class="update-tip">{{ t('common.downloading') }} {{ webUpdateStore.downloadProgress }}%</p>
+
+    <div class="dialog-actions">
+      <button
+        v-if="!webUpdateStore.isForceUpdate"
+        type="button"
+        class="dialog-btn dialog-btn--secondary"
+        :disabled="webUpdateStore.isDownloading"
+        @click="restartReady ? handleLaterRestart() : webUpdateStore.dismissDialog()"
+      >
+        {{ restartReady ? t('common.later') : t('common.laterOrNot') }}
+      </button>
+      <button
+        type="button"
+        class="dialog-btn dialog-btn--primary"
+        :disabled="webUpdateStore.isDownloading"
+        @click="restartReady ? handleRestartNow() : handleStartWebUpdate()"
+      >
+        {{ restartReady ? t('common.restartNow') : (webUpdateStore.isDownloading ? t('common.downloading') + '…' : t('common.webUpdate.downloadAndRestart')) }}
+      </button>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -61,6 +64,7 @@ import { Capacitor } from '@capacitor/core'
 import { useI18n } from 'vue-i18n'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 const webUpdateStore = useWebUpdateStore()
@@ -73,9 +77,8 @@ const releaseNotesPreview = computed(() => {
   return String(webUpdateStore.releaseNotesPreview || '').trim()
 })
 
-function handleOverlayClick() {
-  if (webUpdateStore.isForceUpdate) return
-  webUpdateStore.dismissDialog()
+function onSheetUpdate(visible) {
+  if (!visible) webUpdateStore.dismissDialog()
 }
 
 async function handleStartWebUpdate() {
@@ -111,28 +114,7 @@ watch(showDialog, (visible) => {
 </script>
 
 <style scoped>
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: calc(var(--z-dialog) - 10);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--app-overlay);
-  backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-  -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
-}
-
-.update-dialog {
-  width: min(100%, 480px);
-  padding: 24px;
-  border-radius: var(--radius-large);
-  background: var(--app-surface);
-  box-shadow: var(--app-shadow);
-  max-height: min(86vh, 760px);
-  overflow: auto;
-}
+/* 外壳（遮罩/玻璃/圆角/内边距）由 AppSheet 提供 */
 
 .update-kicker {
   color: var(--app-text-tertiary);
@@ -247,15 +229,5 @@ watch(showDialog, (visible) => {
 .dialog-btn--primary {
   background: var(--app-text);
   color: var(--app-bg);
-}
-
-.overlay-fade-enter-active,
-.overlay-fade-leave-active {
-  transition: opacity 0.25s ease;
-}
-
-.overlay-fade-enter-from,
-.overlay-fade-leave-to {
-  opacity: 0;
 }
 </style>

@@ -4,227 +4,222 @@
   用法：<AddMethodSheet v-model="showSheet" @manual="..." @import="..." />
 -->
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
+  <AppSheet
+    :model-value="modelValue"
+    sheet-class="add-method-sheet"
+    @update:model-value="(v) => { if (!v) close() }"
+    @closed="view = 'options'"
+  >
+    <!-- ============ 选项列表 ============ -->
+    <template v-if="view === 'options'">
+      <p class="sheet-title">{{ t('goods.addMethod.selectTitle') }}</p>
 
-    <Transition name="sheet-pop" @after-leave="view = 'options'">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="view === 'share-import' ? t('goods.addMethod.importFromShare') : t('goods.addMethod.selectTitle')">
-        <div class="sheet-handle" aria-hidden="true" />
-
-        <!-- ============ 选项列表 ============ -->
-        <template v-if="view === 'options'">
-          <p class="sheet-title">{{ t('goods.addMethod.selectTitle') }}</p>
-
-          <div class="sheet-options">
-            <!-- 手动添加 -->
-            <button class="sheet-option" type="button" @click="onManual">
-              <span class="option-icon option-icon--manual">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <rect x="4" y="4" width="16" height="16" rx="3" />
-                  <path d="M8 12H16" />
-                  <path d="M12 8V16" />
-                </svg>
-              </span>
-              <div class="option-body">
-                <p class="option-title">{{ t('goods.addMethod.manualAdd') }}</p>
-                <p class="option-desc">{{ t('goods.addMethod.manualAddDesc') }}</p>
-              </div>
-              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
-
-            <div class="sheet-divider" />
-
-            <!-- 批量添加 -->
-            <button class="sheet-option" type="button" @click="onBatchAdd">
-              <span class="option-icon option-icon--batch">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
-                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
-                  <path d="M17.5 14v7M14 17.5h7" />
-                </svg>
-              </span>
-              <div class="option-body">
-                <p class="option-title">{{ t('goods.addMethod.batchAdd') }}</p>
-                <p class="option-desc">{{ t('goods.addMethod.batchAddDesc') }}</p>
-              </div>
-              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
-
-            <div class="sheet-divider" />
-
-            <!-- 从米游铺导入 -->
-            <button class="sheet-option" type="button" @click="onImport">
-              <span class="option-icon option-icon--import">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="8" />
-                  <path d="M12 8v4l3 3" />
-                </svg>
-              </span>
-              <div class="option-body">
-                <p class="option-title">{{ t('goods.addMethod.importFromMihoyo') }}</p>
-                <p class="option-desc">{{ t('goods.addMethod.importFromMihoyoDesc') }}</p>
-              </div>
-              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
-
-            <div class="sheet-divider" />
-
-            <!-- 从分享码导入 -->
-            <button class="sheet-option" type="button" @click="view = 'share-import'">
-              <span class="option-icon option-icon--share">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-              </span>
-              <div class="option-body">
-                <p class="option-title">{{ t('goods.addMethod.importFromShare') }}</p>
-                <p class="option-desc">{{ t('goods.addMethod.importFromShareDesc') }}</p>
-              </div>
-              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
-
-            <div v-if="props.showTaobaoImport" class="sheet-divider" />
-
-            <!-- 从淘宝订单导入 -->
-            <button v-if="props.showTaobaoImport" class="sheet-option" type="button" @click="onTaobaoImport">
-              <span class="option-icon option-icon--taobao">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
-                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 9h18M9 3v18M3 3h18v18H3z" stroke-width="1.6"/>
-                  <path d="M15 13l2 2 4-4" stroke-width="2"/>
-                </svg>
-              </span>
-              <div class="option-body">
-                <p class="option-title">{{ t('goods.addMethod.importFromTaobao') }}</p>
-                <p class="option-desc">{{ t('goods.addMethod.importFromTaobaoDesc') }}</p>
-              </div>
-              <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M9 6l6 6-6 6" />
-              </svg>
-            </button>
+      <div class="sheet-options">
+        <!-- 手动添加 -->
+        <button class="sheet-option" type="button" @click="onManual">
+          <span class="option-icon option-icon--manual">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="4" y="4" width="16" height="16" rx="3" />
+              <path d="M8 12H16" />
+              <path d="M12 8V16" />
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('goods.addMethod.manualAdd') }}</p>
+            <p class="option-desc">{{ t('goods.addMethod.manualAddDesc') }}</p>
           </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
 
-          <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
-        </template>
+        <div class="sheet-divider" />
 
-        <!-- ============ 分享码导入 ============ -->
-        <template v-if="view === 'share-import'">
-          <div class="share-header">
-            <button class="share-back" type="button" @click="view = 'options'">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M15 6l-6 6 6 6" />
-              </svg>
-            </button>
-            <p class="share-title">{{ t('goods.addMethod.importFromShare') }}</p>
+        <!-- 批量添加 -->
+        <button class="sheet-option" type="button" @click="onBatchAdd">
+          <span class="option-icon option-icon--batch">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <path d="M17.5 14v7M14 17.5h7" />
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('goods.addMethod.batchAdd') }}</p>
+            <p class="option-desc">{{ t('goods.addMethod.batchAddDesc') }}</p>
           </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
 
-          <!-- 输入区域 -->
-          <div v-if="!sharePayload" class="share-input-area">
-            <div class="share-input-card">
-              <span class="share-input-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-                </svg>
-              </span>
-              <div class="share-input-body">
-                <div class="share-input-row">
-                  <input
-                    ref="codeInputRef"
-                    v-model="codeInput"
-                    type="text"
-                    class="share-code-input"
-                    :placeholder="t('goods.addMethod.pasteShareCode')"
-                    autocapitalize="off"
-                    autocomplete="off"
-                    autocorrect="off"
-                    spellcheck="false"
-                    @keydown.enter.prevent="handleFetch"
-                  />
-                  <button class="share-fetch-btn" type="button" :disabled="shareFetching || !codeInput.trim()" @click="handleFetch">
-                    {{ shareFetching ? t('goods.addMethod.fetching') : t('goods.addMethod.fetch') }}
-                  </button>
-                </div>
-                <p v-if="shareError" class="share-error">{{ shareError }}</p>
-              </div>
-            </div>
+        <div class="sheet-divider" />
+
+        <!-- 从米游铺导入 -->
+        <button class="sheet-option" type="button" @click="onImport">
+          <span class="option-icon option-icon--import">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l3 3" />
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('goods.addMethod.importFromMihoyo') }}</p>
+            <p class="option-desc">{{ t('goods.addMethod.importFromMihoyoDesc') }}</p>
           </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
 
-          <!-- Loading -->
-          <div v-if="shareFetching" class="share-loading">
-            <span class="share-spinner" />
-            <p class="share-loading-text">{{ t('goods.addMethod.fetchingShareData') }}</p>
+        <div class="sheet-divider" />
+
+        <!-- 从分享码导入 -->
+        <button class="sheet-option" type="button" @click="view = 'share-import'">
+          <span class="option-icon option-icon--share">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('goods.addMethod.importFromShare') }}</p>
+            <p class="option-desc">{{ t('goods.addMethod.importFromShareDesc') }}</p>
           </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
 
-          <!-- 预览 & 导入 -->
-          <template v-if="sharePayload && !shareFetching">
-            <div v-if="shareDisabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
-            <div class="share-preview-head">
-              <p class="share-preview-count">{{ t('goods.addMethod.goodsCount', { count: sharePayload.goods.length }) }}</p>
-              <p v-if="sharePayload.sharedAt" class="share-preview-date">{{ formatSharedAt(sharePayload.sharedAt) }}</p>
-            </div>
+        <div v-if="props.showTaobaoImport" class="sheet-divider" />
 
-            <div class="share-goods-list">
-              <div
-                v-for="(item, idx) in sharePayload.goods"
-                :key="idx"
-                class="share-goods-card"
-                :class="{ 'share-goods-card--imported': shareImportedIndexes.has(idx) }"
-              >
-                <div class="share-goods-thumb">
-                  <img
-                    v-if="getItemCover(item)"
-                    :src="getItemCover(item)"
-                    class="share-goods-img"
-                    loading="lazy"
-                  />
-                  <span v-else class="share-goods-initial">{{ (item.name || '?').charAt(0) }}</span>
-                </div>
-                <div class="share-goods-info">
-                  <p class="share-goods-name">{{ item.name }}</p>
-                  <div class="share-goods-meta">
-                    <span v-if="item.ip" class="share-meta-tag share-meta-tag--ip">{{ item.ip }}</span>
-                    <span v-if="item.category" class="share-meta-tag">{{ item.category }}</span>
-                    <span v-if="item.variant" class="share-meta-tag">{{ item.variant }}</span>
-                    <span v-if="item.price" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
-                    <span v-if="item.actualPrice" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
-                    <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
-                  </div>
-                </div>
-                <span v-if="shareImportedIndexes.has(idx)" class="share-imported-badge">{{ t('goods.addMethod.imported') }}</span>
-              </div>
-            </div>
+        <!-- 从淘宝订单导入 -->
+        <button v-if="props.showTaobaoImport" class="sheet-option" type="button" @click="onTaobaoImport">
+          <span class="option-icon option-icon--taobao">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9h18M9 3v18M3 3h18v18H3z" stroke-width="1.6"/>
+              <path d="M15 13l2 2 4-4" stroke-width="2"/>
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('goods.addMethod.importFromTaobao') }}</p>
+            <p class="option-desc">{{ t('goods.addMethod.importFromTaobaoDesc') }}</p>
+          </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
+          </svg>
+        </button>
+      </div>
 
-            <div class="import-target-switch" role="tablist" :aria-label="t('common.importToCollection') + '/' + t('common.importToWishlist')">
-              <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
-              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'collection' }" role="tab" :aria-selected="importTarget === 'collection'" @click="importTarget = 'collection'">{{ t('common.importToCollection') }}</button>
-              <button type="button" class="import-target-tab" :class="{ active: importTarget === 'wishlist' }" role="tab" :aria-selected="importTarget === 'wishlist'" @click="importTarget = 'wishlist'">{{ t('common.importToWishlist') }}</button>
-            </div>
+      <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
+    </template>
 
-            <div v-if="shareRemainingCount > 0" class="share-import-footer">
-              <button class="share-import-btn" :disabled="shareImporting" @click="handleImport">
-                {{ shareImporting ? t('goods.addMethod.importing') : t('goods.addMethod.importAll', { count: shareRemainingCount }) }}
+    <!-- ============ 分享码导入 ============ -->
+    <template v-if="view === 'share-import'">
+      <div class="share-header">
+        <button class="share-back" type="button" @click="view = 'options'">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M15 6l-6 6 6 6" />
+          </svg>
+        </button>
+        <p class="share-title">{{ t('goods.addMethod.importFromShare') }}</p>
+      </div>
+
+      <!-- 输入区域 -->
+      <div v-if="!sharePayload" class="share-input-area">
+        <div class="share-input-card">
+          <span class="share-input-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </span>
+          <div class="share-input-body">
+            <div class="share-input-row">
+              <input
+                ref="codeInputRef"
+                v-model="codeInput"
+                type="text"
+                class="share-code-input"
+                :placeholder="t('goods.addMethod.pasteShareCode')"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                spellcheck="false"
+                @keydown.enter.prevent="handleFetch"
+              />
+              <button class="share-fetch-btn" type="button" :disabled="shareFetching || !codeInput.trim()" @click="handleFetch">
+                {{ shareFetching ? t('goods.addMethod.fetching') : t('goods.addMethod.fetch') }}
               </button>
             </div>
-          </template>
-        </template>
+            <p v-if="shareError" class="share-error">{{ shareError }}</p>
+          </div>
+        </div>
       </div>
-    </Transition>
-  </Teleport>
+
+      <!-- Loading -->
+      <div v-if="shareFetching" class="share-loading">
+        <span class="share-spinner" />
+        <p class="share-loading-text">{{ t('goods.addMethod.fetchingShareData') }}</p>
+      </div>
+
+      <!-- 预览 & 导入 -->
+      <template v-if="sharePayload && !shareFetching">
+        <div v-if="shareDisabledNote" class="share-disabled-note">{{ t('share.disabledOwnerNote') }}</div>
+        <div class="share-preview-head">
+          <p class="share-preview-count">{{ t('goods.addMethod.goodsCount', { count: sharePayload.goods.length }) }}</p>
+          <p v-if="sharePayload.sharedAt" class="share-preview-date">{{ formatSharedAt(sharePayload.sharedAt) }}</p>
+        </div>
+
+        <div class="share-goods-list">
+          <div
+            v-for="(item, idx) in sharePayload.goods"
+            :key="idx"
+            class="share-goods-card"
+            :class="{ 'share-goods-card--imported': shareImportedIndexes.has(idx) }"
+          >
+            <div class="share-goods-thumb">
+              <img
+                v-if="getItemCover(item)"
+                :src="getItemCover(item)"
+                class="share-goods-img"
+                loading="lazy"
+              />
+              <span v-else class="share-goods-initial">{{ (item.name || '?').charAt(0) }}</span>
+            </div>
+            <div class="share-goods-info">
+              <p class="share-goods-name">{{ item.name }}</p>
+              <div class="share-goods-meta">
+                <span v-if="item.ip" class="share-meta-tag share-meta-tag--ip">{{ item.ip }}</span>
+                <span v-if="item.category" class="share-meta-tag">{{ item.category }}</span>
+                <span v-if="item.variant" class="share-meta-tag">{{ item.variant }}</span>
+                <span v-if="item.price" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.price, item.currency) }}</span>
+                <span v-if="item.actualPrice" class="share-meta-tag share-meta-tag--price">{{ formatCurrency(item.actualPrice, item.actualPriceCurrency || item.currency) }}</span>
+                <span v-if="item.quantity > 1" class="share-meta-tag">x{{ item.quantity }}</span>
+              </div>
+            </div>
+            <span v-if="shareImportedIndexes.has(idx)" class="share-imported-badge">{{ t('goods.addMethod.imported') }}</span>
+          </div>
+        </div>
+
+        <div class="import-target-switch" role="tablist" :aria-label="t('common.importToCollection') + '/' + t('common.importToWishlist')">
+          <div class="import-target-indicator" :class="{ right: importTarget === 'wishlist' }" />
+          <button type="button" class="import-target-tab" :class="{ active: importTarget === 'collection' }" role="tab" :aria-selected="importTarget === 'collection'" @click="importTarget = 'collection'">{{ t('common.importToCollection') }}</button>
+          <button type="button" class="import-target-tab" :class="{ active: importTarget === 'wishlist' }" role="tab" :aria-selected="importTarget === 'wishlist'" @click="importTarget = 'wishlist'">{{ t('common.importToWishlist') }}</button>
+        </div>
+
+        <div v-if="shareRemainingCount > 0" class="share-import-footer">
+          <button class="share-import-btn" :disabled="shareImporting" @click="handleImport">
+            {{ shareImporting ? t('goods.addMethod.importing') : t('goods.addMethod.importAll', { count: shareRemainingCount }) }}
+          </button>
+        </div>
+      </template>
+    </template>
+  </AppSheet>
 </template>
 
 <script setup>
@@ -233,6 +228,7 @@ import { useI18n } from 'vue-i18n'
 import { useShareImport } from '@/composables/share/useShareImport'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
@@ -327,46 +323,11 @@ function onTaobaoImport() {
 </script>
 
 <style scoped>
-/* ---- 遮罩 ---- */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-/* ---- 面板 ---- */
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 90;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 90dvh;
-  overflow-y: auto;
-}
-
-/* 顶部手柄 */
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .add-method-sheet.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 /* 标题 */
@@ -891,37 +852,9 @@ function onTaobaoImport() {
   opacity: 0.4;
 }
 
-/* ── 平板：居中对话框替代底部抽屉 ── */
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-    max-height: 90dvh;
-    overflow-y: auto;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
-
-  .sheet-cancel {
-    display: none;
-  }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
-}
-
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
+/* 宽屏 center 时隐藏取消按钮（与原 900px 断点行为一致） */
+:global(.app-sheet-overlay--center) .sheet-cancel {
+  display: none;
 }
 
 :global(html.theme-dark) .sheet-options,

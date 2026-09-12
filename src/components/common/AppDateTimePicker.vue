@@ -1,13 +1,9 @@
 <template>
-  <Popup
-    v-model:show="showProxy"
-    teleport="body"
+  <AppSheet
+    v-model="showProxy"
     :z-index="zIndex"
-    :lock-scroll="true"
     :position="popupPosition"
-    :round="!isTablet"
-    transition="sheet-pop"
-    :class="['picker-popup', { 'picker-popup--center': isTablet }]"
+    sheet-class="picker-popup"
   >
     <div class="dt-picker">
       <div class="dt-picker-toolbar">
@@ -45,13 +41,14 @@
         />
       </div>
     </div>
-  </Popup>
+  </AppSheet>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { DatePicker, TimePicker, Popup } from 'vant'
+import { DatePicker, TimePicker } from 'vant'
+import AppSheet from '@/components/common/AppSheet.vue'
 import { usePickerWheel } from '@/composables/usePickerWheel'
 
 const props = defineProps({
@@ -141,10 +138,6 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-.dt-picker {
-  padding-bottom: env(safe-area-inset-bottom, 0);
-}
-
 .dt-picker-toolbar {
   display: flex;
   align-items: center;

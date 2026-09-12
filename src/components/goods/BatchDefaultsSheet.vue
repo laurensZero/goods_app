@@ -1,40 +1,37 @@
 <template>
-  <Teleport to="body">
-    <Transition name="sheet-pop">
-      <div v-if="modelValue" class="sheet-backdrop" @click="close" />
-    </Transition>
-    <Transition name="sheet-pop" @after-leave="onAfterLeave">
-      <div v-if="modelValue" class="sheet-panel" role="dialog" aria-modal="true" :aria-label="t('common.aria.setDefaults')">
-        <div class="sheet-handle" aria-hidden="true" />
-        <p class="sheet-title">{{ t('common.aria.setDefaults') }}</p>
+  <AppSheet
+    :model-value="modelValue"
+    sheet-class="batch-defaults-sheet"
+    @update:model-value="(v) => { if (!v) close() }"
+  >
+    <p class="sheet-title">{{ t('common.aria.setDefaults') }}</p>
 
-        <div class="sheet-options">
-          <label class="field">
-            <span class="field-label">IP</span>
-            <AppSelect v-model="local.ip" :options="ipOptions" :placeholder="t('goods.editor.ipPlaceholder')" />
-          </label>
-          <label class="field">
-            <span class="field-label">{{ t('common.category') }}</span>
-            <AppSelect v-model="local.category" :options="categoryOptions" :placeholder="t('goods.editor.categoryPlaceholder')" />
-          </label>
-          <label class="field">
-            <span class="field-label">{{ t('common.price') }}</span>
-            <input v-model="local.price" type="text" inputmode="decimal" placeholder="0.00" />
-          </label>
-        </div>
+    <div class="sheet-options">
+      <label class="field">
+        <span class="field-label">IP</span>
+        <AppSelect v-model="local.ip" :options="ipOptions" :placeholder="t('goods.editor.ipPlaceholder')" />
+      </label>
+      <label class="field">
+        <span class="field-label">{{ t('common.category') }}</span>
+        <AppSelect v-model="local.category" :options="categoryOptions" :placeholder="t('goods.editor.categoryPlaceholder')" />
+      </label>
+      <label class="field">
+        <span class="field-label">{{ t('common.price') }}</span>
+        <input v-model="local.price" type="text" inputmode="decimal" placeholder="0.00" />
+      </label>
+    </div>
 
-        <p class="sheet-hint">{{ t('goods.batch.defaultsScopeHint') }}</p>
+    <p class="sheet-hint">{{ t('goods.batch.defaultsScopeHint') }}</p>
 
-        <button class="sheet-apply" type="button" @click="apply">{{ t('goods.batch.applyChanges') }}</button>
-        <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
-      </div>
-    </Transition>
-  </Teleport>
+    <button class="sheet-apply" type="button" @click="apply">{{ t('goods.batch.applyChanges') }}</button>
+    <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
+  </AppSheet>
 </template>
 
 <script setup>
 import { reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import AppSheet from '@/components/common/AppSheet.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
@@ -65,8 +62,6 @@ function close() {
 
 useDialogBackButton(close, () => props.modelValue)
 
-function onAfterLeave() {}
-
 function apply() {
   emit('apply', { ip: local.ip, category: local.category, price: local.price })
   close()
@@ -74,51 +69,11 @@ function apply() {
 </script>
 
 <style scoped>
-/* ---- 遮罩 ---- */
-.sheet-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 80;
-  background: var(--app-overlay);
-  backdrop-filter: blur(14px) saturate(120%);
-  -webkit-backdrop-filter: blur(14px) saturate(120%);
-}
+/* 外壳由 AppSheet 提供；此处只保留内容样式 */
 
-/* ---- 面板 ---- */
-.sheet-panel {
-  position: fixed;
-  left: 50%;
-  bottom: 0;
-  transform: translateX(-50%);
-  width: min(100vw, 480px);
-  z-index: 90;
-  background: color-mix(in srgb, var(--app-glass-strong) 92%, var(--app-surface));
-  border: 1px solid var(--app-glass-border);
-  box-shadow:
-    0 22px 54px color-mix(in srgb, var(--app-text) 14%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--app-text) 4%, transparent);
-  border-radius: 24px 24px 0 0;
-  padding: 12px 16px max(24px, env(safe-area-inset-bottom));
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  max-height: 90dvh;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.sheet-panel::-webkit-scrollbar {
-  display: none;
-}
-
-/* 顶部手柄 */
-.sheet-handle {
-  width: 36px;
-  height: 4px;
-  border-radius: 4px;
-  background: rgba(142, 142, 147, 0.28);
-  margin: 0 auto 16px;
-  flex-shrink: 0;
+/* 宽屏 center 时覆盖 AppSheet 默认宽度（原 480px） */
+:global(.app-sheet-overlay--center .batch-defaults-sheet.app-sheet--center) {
+  width: min(480px, calc(100vw - 48px)) !important;
 }
 
 /* 标题 */
@@ -222,44 +177,12 @@ function apply() {
   background: rgba(142, 142, 147, 0.18);
 }
 
-/* ── 平板：居中对话框 ── */
-@media (min-width: 900px) {
-  .sheet-panel {
-    bottom: auto;
-    top: 50%;
-    transform: translateX(-50%) translateY(-50%);
-    border-radius: 24px;
-    max-height: 90dvh;
-    overflow: visible;
-  }
-
-  .sheet-options {
-    overflow: visible;
-  }
-
-  .sheet-handle {
-    display: none;
-  }
-
-  .sheet-cancel {
-    display: none;
-  }
-
-  .sheet-slide-enter-from,
-  .sheet-slide-leave-to {
-    transform: translateX(-50%) translateY(-50%) scale(0.94);
-    opacity: 0;
-  }
+/* 宽屏 center 时隐藏取消按钮（与原 900px 断点行为一致） */
+:global(.app-sheet-overlay--center) .sheet-cancel {
+  display: none;
 }
 
 /* ---- 暗色模式 ---- */
-:global(html.theme-dark) .sheet-panel {
-  background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
-  box-shadow:
-    0 24px 56px rgba(0, 0, 0, 0.42),
-    0 0 0 1px rgba(255, 255, 255, 0.04);
-}
-
 :global(html.theme-dark) .sheet-options {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
