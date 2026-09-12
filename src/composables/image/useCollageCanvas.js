@@ -11,7 +11,7 @@ import {
 } from '@/utils/image/collageLayout'
 import { computeAlignDelta } from '@/utils/image/collageSnap'
 import { createCollageAlignGuidelines } from '@/composables/image/createCollageAlignGuidelines'
-import { collageCanvasToBlob, collageFileName, exportCollageDataUrlToBlob, resolveCollageExportEdge } from '@/composables/image/useCollageExport'
+import { collageFileName, exportCanvasToBlob, resolveCollageExportEdge } from '@/composables/image/useCollageExport'
 
 function configureControls(object) {
   object.set({
@@ -493,13 +493,13 @@ export function useCollageCanvas() {
     try {
       canvas.discardActiveObject()
       canvas.requestRenderAll()
-      await nextTick()
+      // 给一帧让 selection overlay 清掉，避免画进导出
       await new Promise((resolve) => requestAnimationFrame(() => resolve()))
 
       const edge = resolveCollageExportEdge(maxEdge || exportEdge.value)
       const fabricW = canvas.getWidth() || 1
       const fabricH = canvas.getHeight() || 1
-      const { width: outW, height: outH, scale: k } = resolveExportPixelSize(fabricW, fabricH, edge)
+      const { scale: k } = resolveExportPixelSize(fabricW, fabricH, edge)
 
       let out = null
       try {
@@ -509,6 +509,7 @@ export function useCollageCanvas() {
       }
 
       if (!out || out.width < 1 || out.height < 1) {
+        const { width: outW, height: outH } = resolveExportPixelSize(fabricW, fabricH, edge)
         out = document.createElement('canvas')
         out.width = outW
         out.height = outH
@@ -533,30 +534,28 @@ export function useCollageCanvas() {
         ctx.setTransform(1, 0, 0, 1, 0, 0)
       }
 
-      const blob = await collageCanvasToBlob(out, 'image/png', 1)
-      let finalBlob = blob
-      let finalWidth = out.width
-      let finalHeight = out.height
+      // 单次编码：JPEG 直接出；PNG 默认一次，过大再低成本转 JPEG（不再 Image 二次解码）
+      const wantJpeg = format === 'image/jpeg'
+      const jpegQuality = edge >= 2048 ? 0.86 : 0.92
+      let encoded = await exportCanvasToBlob(out, {
+        format: wantJpeg ? 'image/jpeg' : 'image/png',
+        quality: jpegQuality,
+        fillColor: backgroundColor.value || '#ffffff'
+      })
+      let finalBlob = encoded.blob
+      let finalWidth = encoded.width
+      let finalHeight = encoded.height
 
-      if (format === 'image/jpeg') {
-        const jpeg = await exportCollageDataUrlToBlob(blob, { format: 'jpeg', maxEdge: edge })
-        finalBlob = jpeg.blob
-        finalWidth = jpeg.width
-        finalHeight = jpeg.height
-      } else if (finalBlob.size > 1.5 * 1024 * 1024) {
-        try {
-          const jpeg = await exportCollageDataUrlToBlob(blob, {
-            format: 'jpeg',
-            quality: 0.92,
-            maxEdge: edge
-          })
-          if (jpeg.blob.size < finalBlob.size * 0.6) {
-            finalBlob = jpeg.blob
-            finalWidth = jpeg.width
-            finalHeight = jpeg.height
-          }
-        } catch {
-          // keep png
+      if (!wantJpeg && finalBlob.size > 1.5 * 1024 * 1024) {
+        const jpeg = await exportCanvasToBlob(out, {
+          format: 'image/jpeg',
+          quality: jpegQuality,
+          fillColor: backgroundColor.value || '#ffffff'
+        })
+        if (jpeg.blob.size < finalBlob.size * 0.6) {
+          finalBlob = jpeg.blob
+          finalWidth = jpeg.width
+          finalHeight = jpeg.height
         }
       }
 

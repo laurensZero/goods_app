@@ -36,6 +36,50 @@ export function resolveCollageExportEdge(value) {
   return COLLAGE_EXPORT_EDGES[1]
 }
 
+/**
+ * 直接从已合成的 canvas 导出，避免 blob→Image→再画一遍的二次编码。
+ */
+export async function exportCanvasToBlob(canvas, {
+  format = 'image/png',
+  quality = 0.92,
+  fillColor = '#ffffff'
+} = {}) {
+  const isJpeg = format === 'image/jpeg'
+  if (!isJpeg) {
+    return {
+      blob: await canvasToBlob(canvas, 'image/png', 1),
+      width: canvas.width,
+      height: canvas.height
+    }
+  }
+
+  // JPEG 不支持透明：有透明时先垫底色（小 canvas 复制成本可忽略，大图也只画一次）
+  let source = canvas
+  const ctxSample = canvas.getContext('2d', { willReadFrequently: true })
+  let needsFlatten = false
+  try {
+    // 快速探测四角是否透明；失败则始终垫白
+    const { data } = ctxSample.getImageData(0, 0, Math.min(canvas.width, 8), Math.min(canvas.height, 8))
+    needsFlatten = data.some((v, i) => i % 4 === 3 && v < 255)
+  } catch {
+    needsFlatten = true
+  }
+
+  if (needsFlatten) {
+    source = createCanvas(canvas.width, canvas.height)
+    const ctx = source.getContext('2d')
+    ctx.fillStyle = fillColor || '#ffffff'
+    ctx.fillRect(0, 0, source.width, source.height)
+    ctx.drawImage(canvas, 0, 0)
+  }
+
+  return {
+    blob: await canvasToBlob(source, 'image/jpeg', quality),
+    width: source.width,
+    height: source.height
+  }
+}
+
 export async function exportCollageDataUrlToBlob(source, { format = 'image/png', quality = 0.92, maxEdge } = {}) {
   let image
   let objectUrl = ''
