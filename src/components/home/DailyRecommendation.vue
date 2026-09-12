@@ -2,6 +2,7 @@
   <AppSheet
     :model-value="modelValue"
     sheet-class="daily-rec-sheet"
+    glass-blur
     @update:model-value="(v) => { if (!v) close() }"
   >
     <div class="sheet-header">
