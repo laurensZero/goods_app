@@ -47,14 +47,28 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWideViewport } from '@/composables/useWideViewport'
 
-let openSeq = 0
 const BASE_Z = 90
 const Z_STEP = 10
+/** 全局单调递增的面板 z 水位：后开的一定压住先开的（含嵌套弹层） */
+let topZ = BASE_Z
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
+  /**
+   * 弹出方向（一条参数）：
+   * - auto（默认）：手机底部上滑，平板/宽屏居中
+   * - top / bottom / left / right / center：强制指定
+   */
+  placement: {
+    type: String,
+    default: 'auto',
+    validator: (v) => ['auto', 'top', 'bottom', 'left', 'right', 'center'].includes(v)
+  },
+  /** @deprecated 请改用 placement="center" */
   forceCenter: { type: Boolean, default: false },
+  /** @deprecated 请改用 placement="bottom" */
   forceBottom: { type: Boolean, default: false },
+  /** @deprecated 请改用 placement */
   position: { type: String, default: '' },
   closeOnOverlay: { type: Boolean, default: true },
   size: { type: String, default: 'dialog' },
@@ -76,6 +90,7 @@ onMounted(() => {
 })
 
 const placement = computed(() => {
+  if (props.placement && props.placement !== 'auto') return props.placement
   if (props.position) return props.position
   if (props.forceCenter) return 'center'
   if (props.forceBottom) return 'bottom'
@@ -83,7 +98,8 @@ const placement = computed(() => {
 })
 
 const isCentered = computed(() => placement.value === 'center')
-const showHandle = computed(() => !isCentered.value)
+/** 把手只给从边缘滑入的面板；居中/左右侧滑不需要 */
+const showHandle = computed(() => ['top', 'bottom'].includes(placement.value))
 
 const localZ = ref(props.zIndex != null ? props.zIndex : BASE_Z)
 
@@ -123,9 +139,10 @@ watch(
   () => props.modelValue,
   async (open) => {
     if (open) {
-      openSeq += 1
       if (props.zIndex == null) {
-        localZ.value = BASE_Z + openSeq * Z_STEP
+        // 单调抬高：嵌套打开历史/设置时一定盖住宿主弹层
+        topZ = Math.max(topZ, localZ.value) + Z_STEP
+        localZ.value = topZ
       }
       lockBody()
       overlayVisible.value = true
@@ -140,7 +157,10 @@ watch(
       unlockBody()
       // 等面板 leave 动画结束再藏壳
       window.setTimeout(() => {
-        if (!props.modelValue) overlayVisible.value = false
+        if (!props.modelValue) {
+          overlayVisible.value = false
+          emit('closed')
+        }
       }, 300)
     }
   },
@@ -181,6 +201,18 @@ defineExpose({ isWide, isCentered, placement })
 .app-sheet-overlay--center {
   align-items: center;
   padding: 24px;
+}
+
+.app-sheet-overlay--left {
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.app-sheet-overlay--right {
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
 }
 
 .app-sheet-scrim {
@@ -241,6 +273,26 @@ defineExpose({ isWide, isCentered, placement })
   border-bottom: 1px solid var(--app-glass-border);
 }
 
+/* 左右侧滑：占满高度，窄栏 */
+.app-sheet-overlay--left .app-sheet,
+.app-sheet-overlay--right .app-sheet {
+  height: 100%;
+  max-height: 100dvh;
+  width: min(88vw, 360px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
+}
+
+.app-sheet-overlay--left .app-sheet {
+  border-radius: 0 var(--radius-large) var(--radius-large) 0;
+  border-left: none;
+}
+
+.app-sheet-overlay--right .app-sheet {
+  border-radius: var(--radius-large) 0 0 var(--radius-large);
+  border-right: none;
+}
+
 .app-sheet--mobile {
   max-height: min(calc(100dvh - var(--tabbar-height, 94px) - env(safe-area-inset-bottom)), 90vh);
 }
@@ -262,8 +314,13 @@ defineExpose({ isWide, isCentered, placement })
   flex-shrink: 0;
 }
 
+/* flex:1 + 列向 flex：宿主可用 flex:1/min-height:0 钉住输入栏；
+   默认内容仍按自然高度撑开并由本层滚动 */
 .app-sheet__scroll {
+  flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -277,7 +334,7 @@ defineExpose({ isWide, isCentered, placement })
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
 }
 
-/* 旧版 sheet-pop：面板 spring 上滑 + 淡入 */
+/* sheet-pop：按 placement 方向滑入 + 淡入 */
 :global(.sheet-pop-enter-active.app-sheet),
 :global(.sheet-pop-leave-active.app-sheet) {
   transition: transform 0.28s var(--motion-ease-spring), opacity 0.24s ease;
@@ -285,7 +342,36 @@ defineExpose({ isWide, isCentered, placement })
 
 :global(.sheet-pop-enter-from.app-sheet),
 :global(.sheet-pop-leave-to.app-sheet) {
+  opacity: 0;
+}
+
+:global(.sheet-pop-enter-from.app-sheet--bottom),
+:global(.sheet-pop-leave-to.app-sheet--bottom) {
   transform: translateY(26px);
+  opacity: 0;
+}
+
+:global(.sheet-pop-enter-from.app-sheet--top),
+:global(.sheet-pop-leave-to.app-sheet--top) {
+  transform: translateY(-26px);
+  opacity: 0;
+}
+
+:global(.sheet-pop-enter-from.app-sheet--left),
+:global(.sheet-pop-leave-to.app-sheet--left) {
+  transform: translateX(-28%);
+  opacity: 0;
+}
+
+:global(.sheet-pop-enter-from.app-sheet--right),
+:global(.sheet-pop-leave-to.app-sheet--right) {
+  transform: translateX(28%);
+  opacity: 0;
+}
+
+:global(.sheet-pop-enter-from.app-sheet--center),
+:global(.sheet-pop-leave-to.app-sheet--center) {
+  transform: translateY(12px) scale(0.98);
   opacity: 0;
 }
 
