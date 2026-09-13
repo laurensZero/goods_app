@@ -204,9 +204,14 @@
 
           <button
             type="button"
-            class="entry-card"
+            class="entry-card entry-card--pull"
             :disabled="syncStore.isSyncing || !syncStore.isConfigured || syncBlockedByMaintenance || !authStore.isLoggedIn"
-            @click="handlePull"
+            @click="handlePullClick"
+            @pointerdown="startPullLongPress"
+            @pointerup="cancelPullLongPress"
+            @pointercancel="cancelPullLongPress"
+            @pointerleave="cancelPullLongPress"
+            @contextmenu.prevent
           >
             <span class="entry-icon pull-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -395,6 +400,17 @@
         @confirm="handleReset"
       />
 
+      <!-- 长按拉取：强制全量同步确认 -->
+      <DangerConfirmDialog
+        :show="showForcePullConfirm"
+        :z-index="1200"
+        :title="t('sync.forcePullTitle')"
+        :description="t('sync.forcePullDesc')"
+        :confirm-text="t('sync.forcePullConfirm')"
+        @update:show="(v) => { if (!v) showForcePullConfirm = false }"
+        @confirm="handleForcePullConfirm"
+      />
+
       <!-- 拉取冲突确认（内容较多，size=wide） -->
       <AppSheet :model-value="showPullConflict" size="wide" :z-index="1200" :close-on-overlay="false" @update:model-value="(v) => { if (!v) handlePullConflict(false) }">
         <h3 class="dialog-title">{{ t('sync.remoteDataDetected') }}</h3>
@@ -503,7 +519,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useSyncStore } from '@/stores/sync'
 import {
   PHASE_ENSURE_CLOUD, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
@@ -527,6 +543,7 @@ const authStore = useAuthStore()
 
 const pageBodyRef = ref(null)
 const showResetConfirm = ref(false)
+const showForcePullConfirm = ref(false)
 const showPullConflict = ref(false)
 const showSyncConflict = ref(false)
 const syncConflictData = ref({})
@@ -925,6 +942,73 @@ async function handlePull() {
     showToast(syncStore.syncSuggestion || t('sync.pullFailed', { error: error.message }))
   }
 }
+
+// ── 长按「拉取远端数据」→ 强制全量同步（与管理员强制重同步同路径）──
+const PULL_LONG_PRESS_MS = 500
+const pullLongPressTriggered = ref(false)
+let pullLongPressTimer = 0
+
+function cancelPullLongPress() {
+  if (!pullLongPressTimer) return
+  window.clearTimeout(pullLongPressTimer)
+  pullLongPressTimer = 0
+}
+
+function startPullLongPress() {
+  if (syncStore.isSyncing) return
+  cancelPullLongPress()
+  pullLongPressTriggered.value = false
+  pullLongPressTimer = window.setTimeout(() => {
+    pullLongPressTimer = 0
+    pullLongPressTriggered.value = true
+    try {
+      navigator.vibrate?.(50)
+    } catch {
+      // ignore vibration failures
+    }
+    showForcePullConfirm.value = true
+  }, PULL_LONG_PRESS_MS)
+}
+
+function handlePullClick() {
+  if (pullLongPressTriggered.value) {
+    pullLongPressTriggered.value = false
+    return
+  }
+  handlePull()
+}
+
+async function handleForcePullConfirm() {
+  showForcePullConfirm.value = false
+  if (syncStore.isSyncing) return
+  if (!authStore.isLoggedIn) {
+    showToast(t('sync.error.loginRequired'))
+    return
+  }
+
+  try {
+    const result = await syncStore.pull({ forceFull: true })
+    if (!result || result.action === 'skipped') {
+      if (result?.reason === 'not_logged_in') {
+        showToast(t('sync.error.loginRequired'))
+      }
+      return
+    }
+
+    const parts = buildPullResultParts(result)
+    const message = parts.length > 0
+      ? `${t('sync.forcePullComplete')}，${parts.join('，')}`
+      : t('sync.forcePullComplete')
+    showToast(message, 3500)
+    await loadCloudInfo()
+  } catch (error) {
+    showToast(syncStore.syncSuggestion || t('sync.pullFailed', { error: error.message }))
+  }
+}
+
+onBeforeUnmount(() => {
+  cancelPullLongPress()
+})
 
 async function handlePullConflict(confirm) {
   showPullConflict.value = false
