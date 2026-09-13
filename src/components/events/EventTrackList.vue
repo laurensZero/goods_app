@@ -44,6 +44,7 @@
           <span v-if="track.artist && track.album"> · </span>
           <span v-if="track.album">{{ track.album }}</span>
         </p>
+        <p v-if="track.note" class="track-list__note">{{ track.note }}</p>
         <div v-if="activeTrackId === track.identity" class="track-list__inline-progress">
           <span class="track-list__inline-progress-bar" :style="{ width: progressPercent }" />
         </div>
@@ -419,6 +420,15 @@ function handleTrackClick(track, event) {
   color: var(--app-text-secondary);
   font-size: 13px;
   line-height: 1.6;
+}
+
+.track-list__note {
+  margin-top: 4px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .track-list__inline-progress {

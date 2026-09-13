@@ -25,7 +25,8 @@ export function normalizeTracks(tracks) {
       qqSongId: String(item?.qqSongId || '').trim(),
       bilibiliVideoId: String(item?.bilibiliVideoId || '').trim(),
       lyricSource: String(item?.lyricSource || '').trim(),
-      lyricSongId: String(item?.lyricSongId || '').trim()
+      lyricSongId: String(item?.lyricSongId || '').trim(),
+      note: String(item?.note || '').trim()
     }))
     .filter((item) => item.title || item.artist || item.album || item.neteaseSongId || item.qqSongId || item.bilibiliVideoId)
 }

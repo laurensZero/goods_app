@@ -216,6 +216,8 @@
   "events.tracks.loading": "読み込み中",
   "events.tracks.manualAdd": "トラックを手動追加",
   "events.tracks.netease": "NetEase",
+  "events.tracks.note": "メモ",
+  "events.tracks.notePlaceholder": "任意。アンコール、座席からの見え方、ライブ感想など",
   "events.tracks.noMoreResults": "これ以上の結果はありません",
   "events.tracks.noResults": "インポート可能な曲が見つかりません",
   "events.tracks.noTracks": "トラックはまだありません。手動で追加するか、NetEaseまたはQQ Musicから検索・インポートできます。",

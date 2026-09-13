@@ -216,6 +216,8 @@
   "events.tracks.loading": "Loading",
   "events.tracks.manualAdd": "Add Track Manually",
   "events.tracks.netease": "NetEase",
+  "events.tracks.note": "Note",
+  "events.tracks.notePlaceholder": "Optional, e.g. encore, seat view, live reaction",
   "events.tracks.noMoreResults": "No more results",
   "events.tracks.noResults": "No importable songs found",
   "events.tracks.noTracks": "No tracks yet. You can add manually, or search/import from NetEase or QQ Music.",
