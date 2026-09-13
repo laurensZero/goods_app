@@ -94,6 +94,16 @@ describe('normalizeTracks', () => {
     expect(result).toHaveLength(1)
   })
 
+  it('preserves note and trims whitespace', () => {
+    const result = normalizeTracks([{ title: 'Song', note: '  encore!  ' }])
+    expect(result[0].note).toBe('encore!')
+  })
+
+  it('defaults note to empty string', () => {
+    const result = normalizeTracks([{ title: 'Song' }])
+    expect(result[0].note).toBe('')
+  })
+
   it('handles multiple tracks', () => {
     const result = normalizeTracks([
       { title: 'Song A' },

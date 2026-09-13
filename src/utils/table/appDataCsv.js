@@ -62,7 +62,7 @@ export const CSV_SCHEMAS = {
   ],
   event_tracks: [
     'eventId', 'id', 'title', 'artist', 'album', 'coverUrl', 'durationMs',
-    'source', 'neteaseSongId', 'qqSongId', 'bilibiliVideoId', 'lyricSource', 'lyricSongId'
+    'source', 'neteaseSongId', 'qqSongId', 'bilibiliVideoId', 'lyricSource', 'lyricSongId', 'note'
   ],
   recharge: [
     'id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'deleted', 'updatedAt'

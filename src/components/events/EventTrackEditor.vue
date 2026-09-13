@@ -150,22 +150,27 @@
             <div class="track-editor__fields">
               <label class="track-editor__field">
                 <span>{{ t('events.tracks.trackName') }}</span>
-                <input :value="track.title || ''" type="text" :placeholder="t('events.tracks.trackNamePlaceholder')" @input="updateField(sourceIndex, 'title', $event.target.value)" />
+                <input :value="track.title || ''" type="text" :placeholder="t('events.tracks.trackNamePlaceholder')" @input="updateField(sourceIndex, 'title', $event.target.value)" @blur="trimFieldOnBlur(sourceIndex, 'title')" />
               </label>
 
               <label class="track-editor__field">
                 <span>{{ t('events.tracks.artist') }}</span>
-                <input :value="track.artist || ''" type="text" :placeholder="t('events.tracks.artistPlaceholder')" @input="updateField(sourceIndex, 'artist', $event.target.value)" />
+                <input :value="track.artist || ''" type="text" :placeholder="t('events.tracks.artistPlaceholder')" @input="updateField(sourceIndex, 'artist', $event.target.value)" @blur="trimFieldOnBlur(sourceIndex, 'artist')" />
               </label>
 
               <label class="track-editor__field">
                 <span>{{ t('events.tracks.album') }}</span>
-                <input :value="track.album || ''" type="text" :placeholder="t('events.tracks.albumPlaceholder')" @input="updateField(sourceIndex, 'album', $event.target.value)" />
+                <input :value="track.album || ''" type="text" :placeholder="t('events.tracks.albumPlaceholder')" @input="updateField(sourceIndex, 'album', $event.target.value)" @blur="trimFieldOnBlur(sourceIndex, 'album')" />
               </label>
 
               <label class="track-editor__field">
                 <span>{{ t('events.tracks.duration') }}</span>
                 <input :value="formatEditableDuration(track.durationMs)" type="text" :placeholder="t('events.tracks.durationPlaceholder')" @input="updateDuration(sourceIndex, $event.target.value)" />
+              </label>
+
+              <label class="track-editor__field track-editor__field--note">
+                <span>{{ t('events.tracks.note') }}</span>
+                <input :value="track.note || ''" type="text" :placeholder="t('events.tracks.notePlaceholder')" @input="updateField(sourceIndex, 'note', $event.target.value)" @blur="trimFieldOnBlur(sourceIndex, 'note')" />
               </label>
             </div>
           </div>
@@ -440,7 +445,8 @@ function buildManualTrack() {
     source: 'manual',
     neteaseSongId: '',
     qqSongId: '',
-    bilibiliVideoId: ''
+    bilibiliVideoId: '',
+    note: ''
   }
 }
 
@@ -461,7 +467,8 @@ function normalizeTrack(track = {}) {
     source: String(track.source || (track.neteaseSongId ? 'netease' : track.qqSongId ? 'qq' : bilibiliVideoId ? 'bilibili' : 'manual')),
     neteaseSongId: String(track.neteaseSongId || '').trim(),
     qqSongId: String(track.qqSongId || '').trim(),
-    bilibiliVideoId
+    bilibiliVideoId,
+    note: String(track.note || '').trim()
   }
 }
 
@@ -500,12 +507,22 @@ function removeTrack(index) {
 }
 
 function updateField(index, key, value) {
+  // 输入过程中保留原始字符串（含尾随空格），避免 normalizeTrack 的 trim 把空格吃掉
+  const raw = String(value ?? '')
   const next = tracks.value.map((item, currentIndex) => (
     currentIndex === index
-      ? { ...item, [key]: String(value || '') }
+      ? { ...item, [key]: raw }
       : item
   ))
-  updateTracks(next)
+  emit('update:modelValue', next)
+}
+
+function trimFieldOnBlur(index, key) {
+  const item = tracks.value[index]
+  if (!item) return
+  const trimmed = String(item[key] ?? '').trim()
+  if (trimmed === item[key]) return
+  updateField(index, key, trimmed)
 }
 
 function formatEditableDuration(durationMs) {
@@ -533,7 +550,8 @@ function updateDuration(index, value) {
       ? { ...item, durationMs: parseDurationInput(value) }
       : item
   ))
-  updateTracks(next)
+  // 同 updateField：避免整表 normalize 时把其它字段正在输入的空格裁掉
+  emit('update:modelValue', next)
 }
 
 async function runSongSearch() {
@@ -1032,6 +1050,10 @@ async function importPlaylist() {
   flex-direction: column;
   gap: 8px;
   min-width: 0;
+}
+
+.track-editor__field--note {
+  grid-column: 1 / -1;
 }
 
 .track-editor__empty {

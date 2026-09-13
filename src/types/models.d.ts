@@ -31,6 +31,7 @@ export interface TrackItem {
   neteaseSongId: string
   qqSongId: string
   bilibiliVideoId: string
+  note?: string
 }
 
 /** 活动封面图片数据 */
