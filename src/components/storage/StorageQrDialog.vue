@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    force-center
+    placement="center"
     size="wide"
     sheet-class="qr-dialog"
     @update:model-value="(v) => { if (!v) close() }"

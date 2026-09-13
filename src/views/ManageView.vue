@@ -207,7 +207,7 @@
 
       <AppSheet
         v-model="showExportPicker"
-        :position="exportPickerPosition"
+        placement="auto"
         sheet-class="picker-popup"
       >
         <div class="export-picker-body">
@@ -360,9 +360,7 @@ const {
 
 // ---- viewport ----
 const windowWidth = ref(window.innerWidth)
-const isTabletViewport = computed(() => windowWidth.value >= 900)
 const isDesktopSettingsViewport = computed(() => windowWidth.value >= 1200)
-const exportPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const selectedManageKey = ref('categories')
 
 // 子页面（如「米游铺有货监控」是「通知设置」的子页面，嵌入右面板但不占侧栏）

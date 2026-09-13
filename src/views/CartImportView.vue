@@ -2,7 +2,7 @@
   <div class="page cart-import-page">
     <NavBar :title="pageTitle" show-back />
     <!-- 普通提示对话框 -->
-    <AppSheet :model-value="showErrorDialog" force-center @update:model-value="(v) => { if (!v) closeErrorDialog() }">
+    <AppSheet :model-value="showErrorDialog" placement="center" @update:model-value="(v) => { if (!v) closeErrorDialog() }">
       <p class="dialog-label">Import Notice</p>
       <h3 class="dialog-title">{{ errorDialogTitle }}</h3>
       <p class="dialog-desc">{{ errorDialogMessage }}</p>

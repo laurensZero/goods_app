@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    :position="isMobile ? 'bottom' : 'center'"
+    :placement="isMobile ? 'bottom' : 'center'"
     sheet-class="ranking-popup"
     @update:model-value="$emit('update:show', $event)"
   >

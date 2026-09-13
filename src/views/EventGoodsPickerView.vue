@@ -88,7 +88,7 @@
 
     <AppSheet
       v-model="showSortSheet"
-      :position="popupPosition"
+      placement="auto"
     >
       <div class="sort-sheet__panel">
         <div class="sort-sheet__head">
@@ -137,7 +137,6 @@ defineOptions({ name: 'EventGoodsPickerView' })
 
 const SORT_STORAGE_KEY = 'goods-app:event-picker-sort-mode'
 const SORT_DIRECTION_STORAGE_KEY = 'goods-app:event-picker-sort-direction'
-const TABLET_BREAKPOINT = 900
 const GRID_BREAKPOINTS = [
   { minWidth: 900, cols: 6 },
   { minWidth: 0, cols: 3 }
@@ -160,8 +159,6 @@ const sortDirection = ref(readStoredSortDirection())
 const displayDensity = ref('standard')
 const windowWidth = ref(typeof window === 'undefined' ? 390 : window.innerWidth)
 
-const isTablet = computed(() => windowWidth.value >= TABLET_BREAKPOINT)
-const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 const currentSortOption = computed(() => (
   SORT_OPTIONS.value.find((option) => option.value === sortMode.value) || SORT_OPTIONS.value[0]
 ))

@@ -235,8 +235,8 @@
       </div>
     </AppSheet>
 
-    <!-- 危险确认：恢复内置 force-center -->
-    <AppSheet :model-value="showWebUpdateResetDialog" force-center @update:model-value="(v) => { if (!v) showWebUpdateResetDialog = false }">
+    <!-- 危险确认：placement="center" -->
+    <AppSheet :model-value="showWebUpdateResetDialog" placement="center" @update:model-value="(v) => { if (!v) showWebUpdateResetDialog = false }">
       <h3 class="dialog-title">{{ t('about.restoreBuiltinTitle') }}</h3>
       <p class="dialog-desc">{{ t('about.restoreBuiltinDesc') }}</p>
       <div class="dialog-actions dialog-actions__right">

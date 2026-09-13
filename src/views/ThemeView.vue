@@ -258,7 +258,7 @@
     <AppSheet
       v-model="colorPicker.show"
       :z-index="2200"
-      :position="pickerPopupPosition"
+      placement="auto"
       sheet-class="theme-color-popup"
     >
       <div class="theme-color-sheet">
@@ -300,7 +300,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/constants/themes'
 import NavBar from '@/components/common/NavBar.vue'
 import HslColorPicker from '@/components/common/HslColorPicker.vue'
@@ -337,11 +337,8 @@ const CUSTOM_THEME_FIELDS = [
   { key: 'text', label: t('theme.text') }
 ]
 
-const TABLET_BREAKPOINT = 768
-
 const themeStore = useThemeStore()
 const pageBodyRef = ref(null)
-const viewportWidth = ref(typeof window === 'undefined' ? 0 : window.innerWidth)
 const colorPicker = reactive({
   show: false,
   mode: 'light',
@@ -358,8 +355,6 @@ const visibleThemeOptions = computed(() => {
 })
 
 const isCustomThemeActive = computed(() => themeStore.themeId === 'custom')
-const isTabletViewport = computed(() => viewportWidth.value >= TABLET_BREAKPOINT)
-const pickerPopupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const activePickerFieldLabel = computed(() => (
   CUSTOM_THEME_FIELDS.find((field) => field.key === colorPicker.field)?.label || t('theme.colorPicker')
 ))
@@ -545,11 +540,6 @@ function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
-function updateViewportWidth() {
-  if (typeof window === 'undefined') return
-  viewportWidth.value = window.innerWidth
-}
-
 function openColorPicker(mode, fieldKey) {
   pickerHex.value = getCustomColorValue(mode, fieldKey) || '#ffffff'
 
@@ -568,15 +558,8 @@ function applyColorPicker() {
 }
 
 onMounted(() => {
-  updateViewportWidth()
-  window.addEventListener('resize', updateViewportWidth, { passive: true })
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
-})
-
-onBeforeUnmount(() => {
-  if (typeof window === 'undefined') return
-  window.removeEventListener('resize', updateViewportWidth)
 })
 </script>
 

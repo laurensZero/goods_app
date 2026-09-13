@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     v-model="showProxy"
-    :position="popupPosition"
+    placement="auto"
     sheet-class="group-sheet-popup"
   >
     <div class="group-sheet">
@@ -133,7 +133,7 @@
     <!-- Cover picker -->
     <AppSheet
       v-model="showCoverPicker"
-      :position="popupPosition"
+      placement="auto"
       sheet-class="group-sheet-popup"
     >
       <div class="group-sheet">
@@ -166,7 +166,6 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
-import { useWideViewport } from '@/composables/useWideViewport'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { CURRENCIES } from '@/constants/currencies'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -180,9 +179,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:show', 'update', 'remove-member', 'reorder', 'delete-group'])
 const { t } = useI18n()
-const { isWide } = useWideViewport()
 
-const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)

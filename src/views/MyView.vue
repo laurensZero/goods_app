@@ -354,7 +354,7 @@
     </AppSheet>
 
     <!-- 危险确认：手机平板都居中 -->
-    <AppSheet v-model="showLogoutDialog" force-center size="wide" @update:model-value="(v) => { if (!v) closeLogoutDialog() }">
+    <AppSheet v-model="showLogoutDialog" placement="center" size="wide" @update:model-value="(v) => { if (!v) closeLogoutDialog() }">
       <h2 class="login-sheet__title">{{ t('my.logout') }}</h2>
       <p class="login-sheet__desc">
         {{ t('my.authLogoutDesc') }}
@@ -612,7 +612,7 @@
     <QQBindingSheet :show="showQQBindingSheet" @close="closeQQBindingSheet" @bound="onQQBound" />
 
     <!-- Delete Account Dialog：危险确认始终居中 -->
-    <AppSheet v-model="showDeleteAccountSheet" force-center size="wide" @update:model-value="(v) => { if (!v) closeDeleteAccountSheet() }">
+    <AppSheet v-model="showDeleteAccountSheet" placement="center" size="wide" @update:model-value="(v) => { if (!v) closeDeleteAccountSheet() }">
       <h2 class="login-sheet__title login-sheet__title--danger">{{ t('my.deleteAccountTitle') }}</h2>
       <p class="login-sheet__desc login-sheet__desc--danger">{{ t('my.deleteAccountDesc') }}</p>
 

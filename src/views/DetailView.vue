@@ -225,7 +225,7 @@
       :description="t('goods.detail.notFoundDesc')"
     />
 
-    <!-- 危险确认：回收站删除 force-center -->
+    <!-- 危险确认：回收站删除 placement="center" -->
     <DangerConfirmDialog
       v-model:show="showDeleteDialog"
       :title="t('common.moveToTrash')"

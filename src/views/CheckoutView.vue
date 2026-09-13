@@ -210,7 +210,7 @@
 
     <AppSheet
       v-model="showLeaveConfirm"
-      :position="leaveConfirmPosition"
+      placement="auto"
       :close-on-overlay="false"
     >
       <div class="leave-confirm">
@@ -231,7 +231,6 @@
 
     <CheckoutQueueManager
       v-model:show="showQueueManager"
-      :position="queueManagerPosition"
       :is-tablet-viewport="isTabletViewport"
       :display-queue-items="displayQueueItems"
       :failed-queue-items="failedQueueItems"
@@ -245,7 +244,6 @@
 
     <CheckoutQueueDetail
       v-model:show="showQueueDetail"
-      :position="queueDetailPosition"
       :is-tablet-viewport="isTabletViewport"
       :active-queue-detail="activeQueueDetail"
       :format-queue-time="formatQueueTime"
@@ -258,7 +256,6 @@
 
     <CheckoutCartPicker
       v-model:show="showCartPicker"
-      :position="cartPickerPosition"
       :is-tablet-viewport="isTabletViewport"
       :cookie="cookie"
       :add-items-from-cart="addItemsFromCart"
@@ -960,10 +957,6 @@ function buildOrderSnapshot() {
 
 /* ── 从购物车选择 ── */
 const { isTabletViewport } = useTabletViewport()
-const cartPickerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-const queueManagerPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-const queueDetailPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-const leaveConfirmPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
 const showCartPicker = ref(false)
 
 function handleCartAdded(added) {

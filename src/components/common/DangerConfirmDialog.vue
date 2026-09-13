@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    force-center
+    placement="center"
     :z-index="zIndex"
     @update:model-value="handleCancel"
   >

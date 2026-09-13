@@ -2,7 +2,7 @@
   <AppSheet
     v-model="showProxy"
     :z-index="zIndex"
-    :position="popupPosition"
+    :placement="isTablet ? 'center' : 'bottom'"
     sheet-class="picker-popup"
   >
     <div class="dt-picker">
@@ -76,8 +76,6 @@ const { onWheel: onDateWheel } = usePickerWheel(dateValue, {
 const { onWheel: onTimeWheel } = usePickerWheel(timeValue, {
   mode: 'time'
 })
-
-const popupPosition = computed(() => (props.isTablet ? 'center' : 'bottom'))
 
 const showProxy = computed({
   get: () => props.show,
