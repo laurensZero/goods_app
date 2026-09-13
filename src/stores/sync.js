@@ -872,7 +872,7 @@ export const useSyncStore = defineStore('sync', () => {
     return doSync(opts)
   }
 
-  async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false } = {}) {
+  async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false, forceFull = false } = {}) {
     if (syncPaused.value && source !== 'manual') {
       console.log('[sync] pull paused, skipping auto pull (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
@@ -938,6 +938,18 @@ export const useSyncStore = defineStore('sync', () => {
           publishSyncNotice({ source, level: 'warning', message: msg })
         }
         return { action: 'skipped', reason: 'maintenance_mode' }
+      }
+
+      // 用户主动触发的强制全量同步（长按拉取）：与管理员强制重同步同一路径
+      // （全量重拉 + forceReapply + 不弹冲突）。本地独有行不会被删除。
+      if (forceFull) {
+        const result = await withRetry(
+          () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+          { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
+        )
+        if (runGen !== syncGeneration) return result
+        syncStatus.value = translateStatusMessage(result)
+        return result
       }
 
       // 格式版本升级：全量回填优先于本次增量拉取
