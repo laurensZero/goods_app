@@ -2,7 +2,7 @@
   <AppSheet
     v-model="showProxy"
     :z-index="210"
-    :position="popupPosition"
+    placement="auto"
     sheet-class="batch-edit-popup"
   >
     <div class="batch-edit-sheet">
@@ -320,7 +320,6 @@ const showProxy = computed({
 
 const { isWide } = useWideViewport()
 const isTablet = isWide
-const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 
 function hasPriceInput(value) {
   return value !== '' && value !== null && value !== undefined

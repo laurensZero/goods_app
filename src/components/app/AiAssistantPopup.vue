@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    :position="isTabletViewport ? 'center' : 'top'"
+    :placement="isTabletViewport ? 'center' : 'top'"
     sheet-class="ai-assistant-popup"
     @update:model-value="onUpdateShow"
   >

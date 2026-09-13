@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="visible"
-    force-center
+    placement="center"
     size="wide"
     :z-index="1200"
     @update:model-value="onSheetUpdate"

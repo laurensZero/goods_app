@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    :position="position"
+    placement="auto"
     :lock-scroll="false"
     @update:model-value="$emit('update:show', $event)"
   >
@@ -62,7 +62,6 @@ import { fetchCartList } from '@/utils/mihoyo/index'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  position: { type: String, default: 'bottom' },
   isTabletViewport: { type: Boolean, default: false },
   cookie: { type: String, default: '' },
   addItemsFromCart: { type: Function, required: true },

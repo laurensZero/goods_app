@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     v-model="showProxy"
-    :position="popupPosition"
+    placement="auto"
     sheet-class="group-sheet-popup"
   >
     <div class="group-sheet">
@@ -119,10 +119,9 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
-import { useTabletViewport } from '@/composables/useTabletViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goodsGroup'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
@@ -141,10 +140,7 @@ const emit = defineEmits(['update:show', 'add'])
 const { t } = useI18n()
 const goodsStore = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
-const { isTabletViewport: isTablet, updateViewport } = useTabletViewport()
-onMounted(() => updateViewport())
 
-const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)

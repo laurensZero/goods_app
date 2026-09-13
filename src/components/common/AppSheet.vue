@@ -64,12 +64,6 @@ const props = defineProps({
     default: 'auto',
     validator: (v) => ['auto', 'top', 'bottom', 'left', 'right', 'center'].includes(v)
   },
-  /** @deprecated 请改用 placement="center" */
-  forceCenter: { type: Boolean, default: false },
-  /** @deprecated 请改用 placement="bottom" */
-  forceBottom: { type: Boolean, default: false },
-  /** @deprecated 请改用 placement */
-  position: { type: String, default: '' },
   closeOnOverlay: { type: Boolean, default: true },
   size: { type: String, default: 'dialog' },
   zIndex: { type: Number, default: undefined },
@@ -90,10 +84,7 @@ onMounted(() => {
 })
 
 const placement = computed(() => {
-  if (props.placement && props.placement !== 'auto') return props.placement
-  if (props.position) return props.position
-  if (props.forceCenter) return 'center'
-  if (props.forceBottom) return 'bottom'
+  if (props.placement !== 'auto') return props.placement
   return isWide.value ? 'center' : 'bottom'
 })
 

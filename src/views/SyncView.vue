@@ -384,7 +384,7 @@
         </article>
       </section>
 
-      <!-- 危险确认：force-center -->
+      <!-- 危险确认：placement="center" -->
       <DangerConfirmDialog
         :show="showResetConfirm"
         :z-index="1200"

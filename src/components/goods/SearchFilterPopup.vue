@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     v-model="showProxy"
-    :position="popupPosition"
+    placement="auto"
     :sheet-class="['search-filter-popup-popup', { 'search-filter-popup-popup--tablet': isTablet }]"
   >
     <div class="filter-popup">
@@ -474,8 +474,6 @@ watch(showProxy, async (visible) => {
     lockedIsTablet.value = null
   }
 })
-
-const popupPosition = computed(() => isTablet.value ? 'center' : 'bottom')
 
 const presetEditorVisible = ref(false)
 const presetDraftName = ref('')

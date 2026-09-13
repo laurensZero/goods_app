@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="showDialog"
-    force-center
+    placement="center"
     size="wide"
     :z-index="1100"
     :close-on-overlay="!updateStore.isForceUpdate"

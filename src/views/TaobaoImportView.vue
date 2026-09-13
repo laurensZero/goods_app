@@ -197,7 +197,7 @@
     <!-- ========== 编辑商品信息底部弹窗（键盘跟随小卡：bottom + 不锁滚动） ========== -->
     <AppSheet
       :model-value="showEditSheet"
-      position="bottom"
+      placement="bottom"
       :lock-scroll="false"
       sheet-class="taobao-edit-sheet"
       @update:model-value="(v) => { if (!v) closeEdit() }"

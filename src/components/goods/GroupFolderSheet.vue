@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     v-model="showProxy"
-    :position="popupPosition"
+    placement="auto"
     :instant="skipOpenAnimation"
     sheet-class="group-folder-popup"
     @opened="onSheetOpened"
@@ -99,7 +99,6 @@ const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const { isWide } = useWideViewport()
 const { toastMsg, showToast } = useToast()
-const popupPosition = computed(() => isWide.value ? 'center' : 'bottom')
 const showProxy = computed({
   get: () => props.show,
   set: (v) => emit('update:show', v)

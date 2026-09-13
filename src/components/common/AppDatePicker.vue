@@ -2,7 +2,7 @@
   <AppSheet
     v-model="showProxy"
     :z-index="zIndex"
-    :position="popupPosition"
+    :placement="isTablet ? 'center' : 'bottom'"
     sheet-class="picker-popup"
   >
     <div class="picker-wheel-root" @wheel="onWheel">
@@ -86,8 +86,6 @@ const emit = defineEmits(['update:show', 'update:modelValue', 'cancel', 'confirm
 const pickerRef = ref(null)
 // 本地草稿：滑动期间不写回父组件，避免滚动卡顿和确认时被旧值覆盖
 const innerValue = ref([])
-
-const popupPosition = computed(() => (props.isTablet ? 'center' : 'bottom'))
 
 const showProxy = computed({
   get: () => props.show,

@@ -91,7 +91,7 @@
 
   <AppSheet
     v-model="showSortSheet"
-    :position="popupPosition"
+    placement="auto"
     sheet-class="sort-sheet"
   >
     <div class="sort-sheet__panel">
@@ -142,14 +142,13 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
 
 const LONG_PRESS_DELAY_MS = 420
-const TABLET_BREAKPOINT = 900
 
 const props = defineProps({
   sectionLabel: { type: String, default: '我的收藏' },
@@ -171,17 +170,10 @@ const props = defineProps({
 const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec'])
 
 const showSortSheet = ref(false)
-const windowWidth = ref(window.innerWidth)
-const isTablet = computed(() => windowWidth.value >= TABLET_BREAKPOINT)
-const popupPosition = computed(() => (isTablet.value ? 'center' : 'bottom'))
 const timelinePulsing = ref(false)
 let sortLongPressTimer = 0
 let suppressNextSortClick = false
 let timelinePulseTimer = 0
-
-function handleResize() {
-  windowWidth.value = window.innerWidth
-}
 
 // 点击时钟按钮时指针转一圈的小动效
 function handleTimelineClick() {
@@ -276,17 +268,12 @@ function selectGroupDisplayMode(value) {
   showSortSheet.value = false
 }
 
-onMounted(() => {
-  window.addEventListener('resize', handleResize, { passive: true })
-})
-
 onBeforeUnmount(() => {
   clearSortLongPressTimer()
   if (timelinePulseTimer) {
     window.clearTimeout(timelinePulseTimer)
     timelinePulseTimer = 0
   }
-  window.removeEventListener('resize', handleResize)
 })
 </script>
 

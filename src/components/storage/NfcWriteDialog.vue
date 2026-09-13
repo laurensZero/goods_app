@@ -1,7 +1,7 @@
 <template>
   <AppSheet
     :model-value="show"
-    force-center
+    placement="center"
     sheet-class="nfc-dialog"
     @update:model-value="(v) => { if (!v) cancel() }"
   >

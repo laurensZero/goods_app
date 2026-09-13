@@ -191,7 +191,7 @@
       </section>
     </main>
 
-    <!-- 危险确认：force-center；z-index 高于播放器浮窗（2200） -->
+    <!-- 危险确认：placement="center"；z-index 高于播放器浮窗（2200） -->
     <DangerConfirmDialog
       v-model:show="showDeleteDialog"
       :z-index="2400"
