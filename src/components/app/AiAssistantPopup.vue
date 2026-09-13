@@ -84,6 +84,11 @@ defineExpose({ close })
   min-height: min(70dvh, 640px);
 }
 
+/* 平板居中：左右拉宽（默认 center 仅 420px，聊天对话偏窄） */
+:global(.app-sheet-overlay--center .ai-assistant-popup) {
+  width: min(92vw, 640px) !important;
+}
+
 .ai-assistant-head {
   flex-shrink: 0;
   display: flex;

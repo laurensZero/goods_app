@@ -438,9 +438,11 @@
       :photos="previewPhotos"
     />
 
+    <!-- 嵌套在 AiAssistantPopup 内时抬高 z，避免盖住宿主弹层 -->
     <AppSheet
       v-model="showSettings"
-      :position="popupPosition"
+      :placement="popupPlacement"
+      :z-index="nestedSheetZ"
       sheet-class="ai-settings-popup"
     >
       <div class="ai-settings-body">
@@ -481,7 +483,8 @@
 
     <AppSheet
       v-model="showHistory"
-      :position="popupPosition"
+      :placement="popupPlacement"
+      :z-index="nestedSheetZ"
       sheet-class="ai-history-popup"
     >
       <div class="ai-history-body">
@@ -565,6 +568,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
+import { useWideViewport } from '@/composables/useWideViewport'
 import { normalizeBaseUrl } from '@/services/ai/chatClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
@@ -646,11 +650,11 @@ function toggleReasoning(msg) {
   manualThinkState.set(msg.id, !isThinkOpen(msg))
 }
 
-// 平板（≥900px）弹窗居中展示，手机为底部弹层（与 ManageView 的 picker-popup 约定一致）
-const windowWidth = ref(window.innerWidth)
-const isTabletViewport = computed(() => windowWidth.value >= 900)
-const popupPosition = computed(() => (isTabletViewport.value ? 'center' : 'bottom'))
-function handleResize() { windowWidth.value = window.innerWidth }
+// 手机底部上滑 / 平板居中（与 AppSheet placement=auto 同一套像素判定）
+const { isWide } = useWideViewport()
+const popupPlacement = computed(() => (isWide.value ? 'center' : 'bottom'))
+/** 宿主弹层（AiAssistantPopup）之上固定一层，避免嵌套历史/设置被压在下面 */
+const nestedSheetZ = 3000
 
 // 桌面端回车发送；触屏设备保留换行。Shift+Enter 始终换行
 const isTouchDevice = window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches ?? false
@@ -704,7 +708,6 @@ function onDocumentPointerDown(event) {
 }
 
 onMounted(() => {
-  window.addEventListener('resize', handleResize, { passive: true })
   document.addEventListener('pointerdown', onDocumentPointerDown, { passive: true })
   // 打开面板/从其他页面回来时（会话状态在 store 里持续更新），落底查看最新消息。
   // 助手消息的 Markdown 是异步渲染的，首滚后稍等再补一次，兜底长内容变高
@@ -712,7 +715,6 @@ onMounted(() => {
   bottomFallbackTimer = window.setTimeout(() => scrollToBottom(), 400)
 })
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize)
   document.removeEventListener('pointerdown', onDocumentPointerDown)
   if (bottomFallbackTimer) {
     clearTimeout(bottomFallbackTimer)
