@@ -115,7 +115,7 @@ defineProps({
   pickingColor: { type: Boolean, default: false }
 })
 
-defineEmits([
+const emit = defineEmits([
   'update:whiteBgEnabled',
   'update:whiteBgStyle',
   'update:whiteBgScalePercent',
