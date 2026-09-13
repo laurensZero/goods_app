@@ -69,7 +69,7 @@ defineProps({
   modelValue: { type: String, default: 'falcon' }
 })
 
-defineEmits(['run', 'update:modelValue'])
+const emit = defineEmits(['run', 'update:modelValue'])
 
 const { t } = useI18n()
 
