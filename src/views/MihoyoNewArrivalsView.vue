@@ -110,8 +110,8 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="inWishlistGoodsIds.has(item.goods_id)" class="goods-card__wished">
-                    {{ t('mihoyoNew.inWishlist') }}
+                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                    {{ wishlistBadgeText(item) }}
                   </span>
                   <span class="goods-card__gift">{{ t('mihoyoNew.giftBadge') }}</span>
                 </span>
@@ -148,8 +148,8 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="inWishlistGoodsIds.has(item.goods_id)" class="goods-card__wished">
-                    {{ t('mihoyoNew.inWishlist') }}
+                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                    {{ wishlistBadgeText(item) }}
                   </span>
                   <span v-if="item.is_new" class="goods-card__cloud-new">
                     {{ t('mihoyoNew.cloudNew') }}
@@ -199,8 +199,8 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="inWishlistGoodsIds.has(item.goods_id)" class="goods-card__wished">
-                    {{ t('mihoyoNew.inWishlist') }}
+                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                    {{ wishlistBadgeText(item) }}
                   </span>
                   <span class="goods-card__released">{{ t('mihoyoNew.releasedBadge') }}</span>
                 </span>
@@ -341,13 +341,19 @@
                 :key="sku.key"
                 type="button"
                 class="sku-chip"
-                :class="{ 'sku-chip--selected': selectedSku?.key === sku.key }"
+                :class="{
+                  'sku-chip--selected': selectedSku?.key === sku.key,
+                  'sku-chip--wished': isSkuInWishlist(activeItem?.goods_id, sku),
+                }"
                 @click="selectSku(sku)"
               >
                 <span v-if="sku.cover_url" class="sku-chip__thumb">
                   <img :src="sku.cover_url" :alt="sku.text" loading="lazy" />
                 </span>
                 <span class="sku-chip__text">{{ sku.text }}</span>
+                <span v-if="isSkuInWishlist(activeItem?.goods_id, sku)" class="sku-chip__wished">
+                  {{ t('mihoyoNew.skuWished') }}
+                </span>
                 <span class="sku-chip__check">
                   <svg v-if="selectedSku?.key === sku.key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                     <polyline points="20 6 9 17 4 12" />
@@ -363,7 +369,7 @@
           <button
             type="button"
             class="confirm-btn"
-            :disabled="adding"
+            :disabled="adding || selectedSkuAlreadyWished"
             @click="confirmAddToWishlist"
           >
             <svg v-if="adding" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -372,7 +378,8 @@
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
             </svg>
-            <span>{{ selectedSku ? t('mihoyoNew.confirmAddSku') : t('mihoyoNew.addWhole') }}</span>
+            <span v-if="selectedSkuAlreadyWished">{{ t('mihoyoNew.skuAlreadyWished') }}</span>
+            <span v-else>{{ selectedSku ? t('mihoyoNew.confirmAddSku') : t('mihoyoNew.addWhole') }}</span>
           </button>
 
           <button type="button" class="sheet-cancel" @click="closeSkuSheet">
@@ -403,6 +410,9 @@ import {
   fetchMihoyoGiftArrivals,
 } from '@/utils/mihoyo/newArrivals'
 import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName } from '@/utils/mihoyo'
+import { resolveMihoyoImportDraft } from '@/utils/mihoyo/importResolver'
+import { normalizeGoodsVariant, getGoodsVariant } from '@/utils/goods/identity'
+import { normalizeCharacterName, isLikelyCharName } from '@/utils/variantText'
 
 defineOptions({ name: 'MihoyoNewArrivalsView' })
 
@@ -464,12 +474,55 @@ const pointItems = computed(() =>
   activeCatalog.value === 'point' ? filteredItems.value.filter((item) => !item.is_gift) : [],
 )
 
-const inWishlistGoodsIds = computed(() => {
-  const set = new Set()
+/** 比对用：去掉【预售】等后缀，避免同一款因文案差被当成两套 */
+function wishlistVariantKey(text) {
+  return normalizeGoodsVariant(text) || String(text || '').trim()
+}
+
+/** goodsId -> { variants: Set<规范款式>, hasWhole: boolean, count: 心愿单款式数 } */
+const wishlistByGoodsId = computed(() => {
+  const map = new Map()
   for (const item of goodsStore.list) {
-    if (item?.isWishlist && item.goodsId) set.add(String(item.goodsId))
+    if (!item?.isWishlist || !item.goodsId) continue
+    const id = String(item.goodsId)
+    if (!map.has(id)) {
+      map.set(id, { variants: new Set(), hasWhole: false, count: 0 })
+    }
+    const slot = map.get(id)
+    // 优先用 normalize 后的 variant；兼容角色拼接的旧数据
+    const raw = String(item.variant || item.style || '').trim()
+    const key = wishlistVariantKey(raw) || wishlistVariantKey(getGoodsVariant(item))
+    if (!key) {
+      slot.hasWhole = true
+      continue
+    }
+    if (!slot.variants.has(key)) {
+      slot.variants.add(key)
+      slot.count += 1
+    }
   }
-  return set
+  return map
+})
+
+function wishlistBadgeText(item) {
+  const slot = wishlistByGoodsId.value.get(String(item?.goods_id || ''))
+  if (!slot) return ''
+  if (slot.count > 0) return t('mihoyoNew.inWishlistCount', { count: slot.count })
+  if (slot.hasWhole) return t('mihoyoNew.inWishlist')
+  return ''
+}
+
+function isSkuInWishlist(goodsId, sku) {
+  const slot = wishlistByGoodsId.value.get(String(goodsId || ''))
+  if (!slot || !sku?.text) return false
+  const key = wishlistVariantKey(sku.text)
+  if (!key) return false
+  return slot.variants.has(key)
+}
+
+const selectedSkuAlreadyWished = computed(() => {
+  if (!selectedSku.value || !activeItem.value) return false
+  return isSkuInWishlist(activeItem.value.goods_id, selectedSku.value)
 })
 
 const partialErrorText = computed(() => {
@@ -517,6 +570,7 @@ function ensureDetailSlot(goodsId) {
       loaded: false,
       error: '',
       variants: [],
+      skuCharacters: [],
       coverUrl: '',
     }
   }
@@ -616,6 +670,9 @@ async function loadVariants(item) {
     }
     const productCover = String(result.coverUrl || item.cover_url || '')
     slot.coverUrl = productCover
+    slot.skuCharacters = Array.isArray(result.skuCharacters)
+      ? result.skuCharacters.filter(Boolean)
+      : []
     slot.variants = (result.skuVariants || [])
       .filter((v) => v && v.key)
       .map((v) => ({
@@ -635,12 +692,14 @@ async function loadVariants(item) {
 function buildWishlistPayload(item, sku = null) {
   const { ip: parsedIp, name: nameFromTitle } = parseTitleIpName(item.name)
   const name = cleanGoodsName(nameFromTitle || item.name)
-  const variantText = sku?.text || ''
+  const variantText = normalizeGoodsVariant(sku?.text || '') || String(sku?.text || '').trim()
   const category = parseCategoryFromName(`${name} ${variantText}`)
   const cover = sku?.cover_url || itemDetailMap[item.goods_id]?.coverUrl || item.cover_url || ''
   const priceYuan = item.catalog === 'shop' && item.price_cents > 0
     ? item.price_cents / 100
     : null
+  const detail = itemDetailMap[item.goods_id]
+  const ip = parsedIp || shopLabel(item.shop_code)
 
   const notes = []
   if (item.catalog === 'point' && item.point > 0) {
@@ -648,14 +707,39 @@ function buildWishlistPayload(item, sku = null) {
   }
   // 款式只进 variant 字段，不写入备注
 
+  // 与米游铺导入一致：skuCharacters / 款式 / 标签建议 解析角色
+  const preferredRaw = sku?.text || ''
+  const preferredCharacter = isLikelyCharName(normalizeCharacterName(preferredRaw))
+    ? normalizeCharacterName(preferredRaw)
+    : ''
+  const draft = resolveMihoyoImportDraft(
+    {
+      name,
+      ip,
+      goodsId: String(item.goods_id || '').trim(),
+      variant: variantText,
+      category,
+      image: cover,
+      images: cover ? [cover] : [],
+      price: priceYuan != null ? String(priceYuan) : '',
+      notes: notes.join(' · '),
+      source: t('mihoyoNew.source'),
+      skuCharacters: detail?.skuCharacters || [],
+      variants: detail?.variants || [],
+      isWishlist: true,
+    },
+    { preferredCharacter },
+  )
+
   return {
-    name,
-    category,
-    ip: parsedIp || shopLabel(item.shop_code),
+    name: draft.name || name,
+    category: draft.category || category,
+    ip: draft.ip || ip,
+    characters: Array.isArray(draft.characters) ? draft.characters : [],
     goodsId: String(item.goods_id || '').trim(),
-    variant: variantText,
-    image: cover,
-    images: cover ? [cover] : [],
+    variant: draft.variant || variantText,
+    image: cover || draft.image || '',
+    images: cover ? [cover] : (draft.images || []),
     price: priceYuan,
     points: item.catalog === 'point' ? item.point : undefined,
     saleAt: item.sale_time ? formatSaleAt(item.sale_time) : '',
@@ -1282,7 +1366,7 @@ onMounted(() => {
 
 .sku-chip {
   display: grid;
-  grid-template-columns: 36px 1fr 20px;
+  grid-template-columns: 36px 1fr auto 20px;
   gap: 8px;
   align-items: center;
   min-height: 52px;
@@ -1299,6 +1383,21 @@ onMounted(() => {
   border-color: var(--app-chip-accent-border);
   background: var(--app-chip-accent-bg);
   color: var(--app-chip-accent-text);
+}
+
+.sku-chip--wished:not(.sku-chip--selected) {
+  border-color: color-mix(in srgb, #2f9e5e 35%, transparent);
+}
+
+.sku-chip__wished {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(47, 158, 94, 0.14);
+  color: #2f9e5e;
+  white-space: nowrap;
 }
 
 .sku-chip__thumb {
