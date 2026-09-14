@@ -252,7 +252,7 @@
               </label>
             </div>
 
-            <div class="settings-item">
+            <div v-if="mihoyoFeaturesStore.enabled" class="settings-item">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--mihoyo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -278,7 +278,7 @@
               </label>
             </div>
 
-            <div v-if="qqStore.isBound" class="settings-item settings-item--column">
+            <div v-if="mihoyoFeaturesStore.enabled && qqStore.isBound" class="settings-item settings-item--column">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--mihoyo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -313,7 +313,7 @@
               </p>
             </div>
 
-            <div v-if="qqStore.isBound" class="settings-item settings-item--column">
+            <div v-if="mihoyoFeaturesStore.enabled && qqStore.isBound" class="settings-item settings-item--column">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--ship">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -348,7 +348,7 @@
               </p>
             </div>
 
-            <div class="settings-item settings-item--link" @click="openStockMonitor">
+            <div v-if="mihoyoFeaturesStore.enabled" class="settings-item settings-item--link" @click="openStockMonitor">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--mihoyo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -367,7 +367,7 @@
               </svg>
             </div>
 
-            <div class="settings-item settings-item--link" @click="openNewArrivals">
+            <div v-if="mihoyoFeaturesStore.enabled" class="settings-item settings-item--link" @click="openNewArrivals">
               <div class="settings-item__info">
                 <span class="settings-item__icon settings-item__icon--mihoyo">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -602,6 +602,7 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useToast } from '@/composables/useToast'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { useQQBindingStore } from '@/stores/qqBinding'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 
 defineOptions({ name: 'NotifySettingsView' })
 
@@ -611,6 +612,7 @@ const { toastMsg, showToast } = useToast()
 
 const notifySettingsStore = useNotifySettingsStore()
 const qqStore = useQQBindingStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const pageBodyRef = ref(null)
 

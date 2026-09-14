@@ -7,7 +7,7 @@
           <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
-          <button v-if="checkoutAllowed" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
+          <button v-if="checkoutAllowed && mihoyoFeaturesStore.enabled" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
@@ -276,7 +276,7 @@
             </div>
 <!-- 自助下单队列：仅在有待处理/失败订单时展示，点击进入队列管理 -->
             <div
-              v-if="activeQueueItems.length"
+              v-if="activeQueueItems.length && mihoyoFeaturesStore.enabled"
               class="detail-row detail-row--clickable"
               @click="openCheckoutQueue"
             >
@@ -815,6 +815,7 @@ import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useFeaturePermission } from '@/composables/permission/useFeaturePermission'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 
 defineOptions({ name: 'MyView' })
@@ -826,6 +827,7 @@ const authStore = useAuthStore()
 const checkoutPermission = useFeaturePermission('checkout')
 // 模板 v-if 需用顶层 ref（嵌套属性读取到的是 ref 对象，恒为真，无法隐藏）
 const { allowed: checkoutAllowed } = checkoutPermission
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const checkoutQueue = useCheckoutOrderQueue()
 const activeQueueItems = checkoutQueue.activeQueueItems
 const failedQueueItems = checkoutQueue.failedQueueItems

@@ -52,6 +52,7 @@
   "toast.operationFailed": "操作失敗",
   "toast.operationSuccess": "操作成功",
   "toast.parameterError": "参數错誤",
+  "toast.mihoyoFeaturesDisabled": "米遊鋪功能已關閉",
   "toast.pleaseLoginMihoyo": "請先在購物車导入頁面登錄米游铺",
   "toast.pleaseWait": "請稍候...",
   "toast.rateLimited": "GitHub API 访問頻率受限。請先在「雲端同步」里配置 GitHub Token 后重試",

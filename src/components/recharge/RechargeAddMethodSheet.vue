@@ -23,23 +23,25 @@
         </svg>
       </button>
 
-      <div class="sheet-divider" />
+      <template v-if="mihoyoFeaturesStore.enabled">
+        <div class="sheet-divider" />
 
-      <button class="sheet-option" type="button" @click="onPreset">
-        <span class="option-icon option-icon--import">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="8" />
-            <path d="M12 8v4l3 3" />
+        <button class="sheet-option" type="button" @click="onPreset">
+          <span class="option-icon option-icon--import">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l3 3" />
+            </svg>
+          </span>
+          <div class="option-body">
+            <p class="option-title">{{ t('recharge.addMethod.preset.title') }}</p>
+            <p class="option-desc">{{ t('recharge.addMethod.preset.desc') }}</p>
+          </div>
+          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M9 6l6 6-6 6" />
           </svg>
-        </span>
-        <div class="option-body">
-          <p class="option-title">{{ t('recharge.addMethod.preset.title') }}</p>
-          <p class="option-desc">{{ t('recharge.addMethod.preset.desc') }}</p>
-        </div>
-        <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path d="M9 6l6 6-6 6" />
-        </svg>
-      </button>
+        </button>
+      </template>
     </div>
 
     <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
@@ -53,9 +55,11 @@ const props = defineProps({
 
 import { useI18n } from 'vue-i18n'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import AppSheet from '@/components/common/AppSheet.vue'
 
 const { t } = useI18n()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const emit = defineEmits(['update:modelValue', 'manual', 'preset'])
 

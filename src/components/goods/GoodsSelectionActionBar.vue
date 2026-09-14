@@ -15,7 +15,7 @@
           </svg>
           {{ deleteLabel }}
         </button>
-        <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
+        <button v-if="mihoyoFeaturesStore.enabled" class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="9" cy="21" r="1" />
             <circle cx="20" cy="21" r="1" />
@@ -60,8 +60,10 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 
 const { t } = useI18n()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const props = defineProps({
   show: { type: Boolean, default: false },

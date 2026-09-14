@@ -192,6 +192,7 @@ import RecordCard from '@/components/recharge/RecordCard.vue'
 import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/stores/recharge'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
@@ -201,6 +202,7 @@ import { pinyinIncludes } from '@/utils/pinyin'
 const emit = defineEmits(['selection-change', 'open-month-card'])
 const { t } = useI18n()
 const rechargeStore = useRechargeStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const log = createLogger('recharge-ui')
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
@@ -402,6 +404,11 @@ function toggleSearch() {
 
 function openAddMethodSheet() {
   editingRecord.value = null
+  // 米游铺功能关闭时跳过选择面板，直接进手动录入
+  if (!mihoyoFeaturesStore.enabled) {
+    openCreateManual()
+    return
+  }
   showAddMethodSheet.value = true
   log.debug('add-method:open')
 }

@@ -151,7 +151,7 @@
               {
                 'settings-embedded--about': activeManageContentKey === 'about',
                 'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'mihoyoFeatures', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey),
                 'settings-embedded--ai-chat': activeManageContentKey === 'aiChat'
               }
@@ -333,6 +333,7 @@ const SurveyListView = defineAsyncComponent(() => import('@/views/SurveyListView
 const MihoyoStockMonitorView = defineAsyncComponent(() => import('@/views/MihoyoStockMonitorView.vue'))
 const MihoyoNewArrivalsView = defineAsyncComponent(() => import('@/views/MihoyoNewArrivalsView.vue'))
 const McpSettingsView = defineAsyncComponent(() => import('@/views/McpSettingsView.vue'))
+const MihoyoFeaturesView = defineAsyncComponent(() => import('@/views/MihoyoFeaturesView.vue'))
 const AiChatView = defineAsyncComponent(() => import('@/views/AiChatView.vue'))
 
 defineOptions({ name: 'ManageView' })
@@ -402,7 +403,7 @@ const manageComponentMap = {
   categories: CategoryManageView, eventTypes: EventTypeManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView, mcp: McpSettingsView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
+  notifications: NotifySettingsView, mcp: McpSettingsView, mihoyoFeatures: MihoyoFeaturesView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
   mihoyoStockMonitor: MihoyoStockMonitorView,
   mihoyoNewArrivals: MihoyoNewArrivalsView
 }

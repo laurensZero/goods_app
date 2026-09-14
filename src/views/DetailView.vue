@@ -262,7 +262,7 @@
     <Teleport to="body">
       <div v-if="showMoreSheet" class="more-popover-overlay" @click="showMoreSheet = false" />
       <div v-if="showMoreSheet" class="more-popover" :style="morePopoverStyle">
-        <button v-if="item?.goodsId" class="more-popover__item" type="button" :disabled="cartLoading" @click="showMoreSheet = false; handleAddToCart()">
+        <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" :disabled="cartLoading" @click="showMoreSheet = false; handleAddToCart()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="9" cy="21" r="1" />
             <circle cx="20" cy="21" r="1" />
@@ -270,7 +270,7 @@
           </svg>
           <span>{{ cartLoading ? t('common.loading') : t('detail.addToCart', '加入购物车') }}</span>
         </button>
-        <button v-if="item?.goodsId" class="more-popover__item" type="button" @click="showMoreSheet = false; openMihoyoGoods()">
+        <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" @click="showMoreSheet = false; openMihoyoGoods()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
             <polyline points="15 3 21 3 21 9" />
@@ -278,7 +278,7 @@
           </svg>
           <span>{{ t('detail.mihoyoshop', '米游铺') }}</span>
         </button>
-        <button v-if="item?.goodsId" class="more-popover__item" type="button" :disabled="stockMonitorAdding" @click="showMoreSheet = false; handleAddToStockMonitor()">
+        <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" :disabled="stockMonitorAdding" @click="showMoreSheet = false; handleAddToStockMonitor()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
             <circle cx="12" cy="12" r="3" />
@@ -372,6 +372,7 @@ import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
 import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { resolveMonitorSkuByVariant } from '@/services/mihoyoStockMonitorService'
 import { useToast } from '@/composables/useToast'
 
@@ -386,6 +387,7 @@ const router = useRouter()
 const store = useGoodsStore()
 const exchangeRate = useExchangeRateStore()
 const stockMonitorStore = useMihoyoStockMonitorStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const pageBodyRef = ref(null)
 const coverCardRef = ref(null)
 const coverMediaVisible = ref(false)

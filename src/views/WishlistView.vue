@@ -77,7 +77,7 @@
         :density-modes="densityModes"
         :show-timeline-toggle="false"
         :show-daily-rec-button="false"
-        :show-new-arrivals-button="true"
+        :show-new-arrivals-button="mihoyoFeaturesStore.enabled"
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"
@@ -259,6 +259,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
 import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
 import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { prepareGoodsHeroForward, isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
@@ -270,6 +271,7 @@ import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
 defineOptions({ name: 'WishlistView' })
 
 const { t } = useI18n()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const HOME_MODE_STORAGE_KEY = 'goods_home_mode_v1'
 const HOME_MODE_EVENT = 'goods-app:home-mode-change'

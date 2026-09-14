@@ -52,6 +52,7 @@
   "toast.operationFailed": "Operation failed",
   "toast.operationSuccess": "Operation successful",
   "toast.parameterError": "Parameter error",
+  "toast.mihoyoFeaturesDisabled": "Mihoyo Shop features are disabled",
   "toast.pleaseLoginMihoyo": "Please login to miHoYo store first",
   "toast.pleaseWait": "Please wait...",
   "toast.rateLimited": "GitHub API rate limited. Please configure a GitHub Token in Cloud Sync first.",
