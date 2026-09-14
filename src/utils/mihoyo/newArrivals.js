@@ -1,7 +1,7 @@
 /**
  * 米游铺「上新」列表 —— 公开列表多页 + 本地缓存合并
  *
- * - shop：search_goods_spu_list，show_sale_type=2（即将上新，count≈50）按 online_time 翻几页
+ * - shop：search_goods_spu_list，show_sale_type=2（即将上新）+ 高 limit 一次拉全
  * - type=3 是现货+预约（几百件），会把真正的新品挤出前几页，不能用
  * - 点卡片再用 goods_id 调 goods/detail 取 SKU（列表本身没有 SKU）
  * - 封面用列表 cover_url
@@ -25,9 +25,9 @@ const SHOP_RELEASED_DAYS = 7
 const POINT_RELEASED_DAYS = 14
 const CACHE_PREFIX = 'goods-app:mihoyo-new-arrivals:'
 const CACHE_MAX_ITEMS = 200
-/** 列表页：与网页上新一致，按 online_time 翻到拉完（type=2 约 50 条/店） */
-const SHOP_PAGE_LIMIT = 16
-const SHOP_MAX_PAGES = 8
+/** 列表页：limit 拉满基本可一次取完（type=2 每店约几十条），不必翻页 */
+const SHOP_PAGE_LIMIT = 100
+const SHOP_MAX_PAGES = 1
 /** 本机 first_seen：多久内算「新品」 */
 const NEW_FLAG_DAYS = 7
 const FIRST_SEEN_KEY = 'goods-app:mihoyo-arrivals-first-seen'
