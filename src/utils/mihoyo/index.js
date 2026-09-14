@@ -43,18 +43,14 @@ const SHOP_CODE_TO_IP = Object.fromEntries(
   Object.entries(MIHOYO_SHOP_CODE_BY_IP).map(([ipName, code]) => [String(code || '').trim(), ipName])
 )
 
-// 常出现在【】中但不属于 IP 的词缀
-const PSEUDO_IP_SET = new Set([
-  '积分兑换', '积分', '兑换', 
-  '限定商品', '限定', 
-  '赠品', '满赠', 
-  '预售', '现货', '包邮', '周边'
-])
-
+// 常出现在【】中但不属于 IP 的词缀（营销/渠道标注）
 const NOISE_TITLE_PREFIX_SET = new Set([
   '赠品', '礼品', '礼包', '福袋', '特典', '随机', '加购', '满赠',
   '积分兑换', '积分', '兑换', '限定商品', '限定', '预售', '现货', '包邮', '周边'
 ])
+
+// 标题前缀若为噪音词，不得被 parseTitleIpName 当作 IP
+const PSEUDO_IP_SET = NOISE_TITLE_PREFIX_SET
 
 function stripNoiseTitlePrefixes(value) {
   let result = String(value || '')
@@ -712,12 +708,11 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     []
 
   // IP 优先从店铺名推断；其次从商品名解析
-  // 如果名称前缀是「积分兑换」等非 IP 标识，则不作为 IP
-  const PSEUDO_IP = new Set(['积分兑换', '积分', '兑换', '限定商品', '限定'])
+  // 如果名称前缀是「积分兑换」「特典」等非 IP 标识，则不作为 IP
   const shopName = order.shop?.shop_name || goods.shop_name || ''
   const ipFromShop = shopToIp(shopName)
   const { ip: ipFromName, name } = parseTitleIpName(rawName)
-  const ipFromNameFiltered = PSEUDO_IP.has(ipFromName) ? '' : ipFromName
+  const ipFromNameFiltered = PSEUDO_IP_SET.has(ipFromName) ? '' : ipFromName
   const ip = ipFromShop || ipFromNameFiltered
   // 是否积分兑换订单：以商品名前缀「积分兑换」为准（最可靠，API 会显式标注）
   // order_type 在列表/详情接口值不同（4 vs 401），不单独依赖
