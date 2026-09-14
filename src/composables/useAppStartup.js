@@ -4,6 +4,7 @@ import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAuthStore } from '@/stores/auth'
 import { useEventsStore } from '@/stores/events'
+import { useLegalStore } from '@/stores/legal'
 import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
@@ -17,8 +18,12 @@ export function useAppStartup() {
   const webUpdateStore = useWebUpdateStore()
   const syncStore = useSyncStore()
   const authStore = useAuthStore()
+  const legalStore = useLegalStore()
 
   onMounted(async () => {
+    // 用户协议/隐私政策门禁：本地检查、离线可弹；未同意前阻塞公告等后续弹窗
+    const legalReady = legalStore.checkGate()
+
     void appUpdateStore.init()
     void webUpdateStore.init()
     void announcementStore.init()
@@ -54,6 +59,9 @@ export function useAppStartup() {
     // 冷启动心跳：上报设备存活与当前 APK/bundle 版本（fire-and-forget）。
     // 未登录时静默跳过；即使下方启动拉取被跳过/失败，也保证启动时上报一次。
     syncStore.reportHeartbeat()
+
+    // 等待用户协议门禁关闭后再检查公告/生日，避免弹窗叠加
+    await legalReady
 
     // 公告检查；结束后再检查角色生日彩蛋（公告弹窗未关时等它关闭，避免弹窗叠加）
     void announcementStore.checkAndDecide().catch(() => {

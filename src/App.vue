@@ -15,6 +15,7 @@
     </div>
     <TabBar v-if="showTabBar" />
     <FloatingAudioPlayer :with-tab-bar="showTabBar" />
+    <TermsPrivacyDialog />
     <AnnouncementDialog />
     <WebUpdateDialog />
     <AppUpdateDialog />
@@ -33,6 +34,7 @@ import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
+import TermsPrivacyDialog from '@/components/app/TermsPrivacyDialog.vue'
 import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
 import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
 import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
@@ -64,17 +66,19 @@ const appUpdateStore = useAppUpdateStore()
 const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()
 
-// Survey popup
+// Survey popup（等用户协议门禁通过后再弹，避免叠加）
 import { useSurveyStore } from '@/stores/survey'
+import { useLegalStore } from '@/stores/legal'
 const surveyStore = useSurveyStore()
+const legalStore = useLegalStore()
 const surveyPopupRef = ref(null)
 
-watch(() => surveyStore.isLoaded, (loaded) => {
-  if (loaded) {
-    setTimeout(() => {
-      surveyPopupRef.value?.checkPopup()
-    }, 800)
-  }
+watch(() => surveyStore.isLoaded, async (loaded) => {
+  if (!loaded) return
+  await legalStore.gateReady
+  setTimeout(() => {
+    surveyPopupRef.value?.checkPopup()
+  }, 800)
 }, { immediate: true })
 
 // 监听测试通知事件

@@ -223,6 +223,27 @@
         </div>
       </section>
 
+      <section class="content-section">
+        <div class="section-head">
+          <p class="section-label">Legal</p>
+          <h2 class="section-title">{{ t('about.legalSection') }}</h2>
+        </div>
+
+        <div class="info-grid">
+          <button type="button" class="info-card info-card--action" @click="legalStore.openViewer('terms')">
+            <p class="info-kicker">Terms</p>
+            <h3 class="info-value">{{ t('manage.terms') }}</h3>
+            <p class="info-desc">{{ t('manage.termsMeta') }}</p>
+          </button>
+
+          <button type="button" class="info-card info-card--action" @click="legalStore.openViewer('privacy')">
+            <p class="info-kicker">Privacy</p>
+            <h3 class="info-value">{{ t('manage.privacy') }}</h3>
+            <p class="info-desc">{{ t('manage.privacyMeta') }}</p>
+          </button>
+        </div>
+      </section>
+
     </main>
 
     <!-- Web 更新重启确认（普通确认） -->
@@ -261,6 +282,7 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useSyncStore } from '@/stores/sync'
+import { useLegalStore } from '@/stores/legal'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -277,6 +299,7 @@ const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()
 const syncStore = useSyncStore()
 const updateStore = useAppUpdateStore()
+const legalStore = useLegalStore()
 const webUpdateStore = useWebUpdateStore()
 const pageBodyRef = ref(null)
 const showWebUpdateRestartDialog = ref(false)
