@@ -77,6 +77,7 @@
         :density-modes="densityModes"
         :show-timeline-toggle="false"
         :show-daily-rec-button="false"
+        :show-new-arrivals-button="true"
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"
@@ -84,6 +85,7 @@
         @set-sort-mode="setSortMode"
         @set-density="setDisplayDensityWithFlip"
         @set-group-display-mode="setGroupDisplayMode"
+        @open-arrivals="goToNewArrivals"
       />
 
       <GoodsListSkeleton v-if="!store.isReady" />
@@ -901,6 +903,13 @@ function openDetail(id) {
 
 function openSearch() {
   showSearchPopup.value = true
+}
+
+function goToNewArrivals() {
+  runWithRouteTransition(
+    () => router.push('/mihoyo-new-arrivals'),
+    { direction: 'forward' }
+  )
 }
 
 function handleSearchUpdateKeyword(value) { searchFilters.keyword = value }

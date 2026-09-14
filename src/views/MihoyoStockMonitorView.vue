@@ -479,16 +479,31 @@ function handleSubmit() {
   }
 }
 
-// URL / 商品 ID 输入：解析后进入 SKU 选择流程
+// URL / 商品 ID 输入：解析后进入 SKU 选择流程；赠品活动链接会展开为全部赠品入队
 async function handleAdd() {
   const raw = inputValue.value.trim()
   if (!raw || adding.value) return
   adding.value = true
   search.resetSearchState()
   try {
-    // 兼容直接粘贴 19 位 goods_id 与完整商品链接
+    // 兼容直接粘贴 19 位 goods_id 与完整商品/赠品链接
     const url = /^\d{6,}$/.test(raw) ? `https://www.mihoyogift.com/goods/${raw}` : raw
     const parsed = await parseMihoyoUrl(url)
+
+    if (parsed.kind === 'giveaway' && Array.isArray(parsed.gifts) && parsed.gifts.length) {
+      for (const gift of parsed.gifts) {
+        enqueueGoods({
+          goodsId: gift.goods_id,
+          name: gift.name,
+          priceCents: 0,
+          coverUrl: gift.cover_url || '',
+        })
+      }
+      inputValue.value = ''
+      showToast(t('mihoyoStock.giveawayQueued', { count: parsed.gifts.length }))
+      return
+    }
+
     enqueueGoods({
       goodsId: parsed.goodsId,
       name: parsed.name,

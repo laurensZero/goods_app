@@ -151,7 +151,7 @@
               {
                 'settings-embedded--about': activeManageContentKey === 'about',
                 'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor'].includes(activeManageContentKey),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey),
                 'settings-embedded--ai-chat': activeManageContentKey === 'aiChat'
               }
@@ -331,6 +331,7 @@ const NotifySettingsView = defineAsyncComponent(() => import('@/views/NotifySett
 const FeedbackView = defineAsyncComponent(() => import('@/views/FeedbackView.vue'))
 const SurveyListView = defineAsyncComponent(() => import('@/views/SurveyListView.vue'))
 const MihoyoStockMonitorView = defineAsyncComponent(() => import('@/views/MihoyoStockMonitorView.vue'))
+const MihoyoNewArrivalsView = defineAsyncComponent(() => import('@/views/MihoyoNewArrivalsView.vue'))
 const McpSettingsView = defineAsyncComponent(() => import('@/views/McpSettingsView.vue'))
 const AiChatView = defineAsyncComponent(() => import('@/views/AiChatView.vue'))
 
@@ -402,11 +403,13 @@ const manageComponentMap = {
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
   notifications: NotifySettingsView, mcp: McpSettingsView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
-  mihoyoStockMonitor: MihoyoStockMonitorView
+  mihoyoStockMonitor: MihoyoStockMonitorView,
+  mihoyoNewArrivals: MihoyoNewArrivalsView
 }
 
 const manageSubPageTitles = {
-  mihoyoStockMonitor: () => t('mihoyoStock.title')
+  mihoyoStockMonitor: () => t('mihoyoStock.title'),
+  mihoyoNewArrivals: () => t('mihoyoNew.title')
 }
 
 const activeManageContentKey = computed(() => manageSubPageKey.value || activeManageEntry.value?.key || '')

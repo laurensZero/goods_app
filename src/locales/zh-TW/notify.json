@@ -70,7 +70,9 @@
     "shipReminderDay": "{days} 天",
     "shipReminderNeedPick": "請至少選擇一個天數檔位",
     "mihoyoStockMonitor": "米遊鋪有貨監控",
-    "mihoyoStockMonitorDesc": "監控米遊鋪商品庫存，有貨時透過 QQ 提醒你"
+    "mihoyoStockMonitorDesc": "監控米遊鋪商品庫存，有貨時透過 QQ 提醒你",
+    "mihoyoNewArrivals": "米遊鋪上新速覽",
+    "mihoyoNewArrivalsDesc": "瀏覽即將上架 / 積分兌換新品，一鍵加入心願單"
   },
   "notify.saleTimeReached": "已到開售時間",
   "notify.saleCountdown": "距離開售"

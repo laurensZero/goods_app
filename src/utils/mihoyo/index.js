@@ -24,6 +24,7 @@ const API_GOODS_SPU_LIST = '/common/homeishop/v1/goods/search_goods_spu_list'
 const API_CATEGORY_LIST = '/common/homeishop/v1/category/get_category_list'
 const API_GOODS_ITEM_DETAIL = '/common/homeishop/v1/goods/detail'
 const API_CART_ADD = '/common/homeishop/v1/shop_car/add_goods_to_shop_car'
+const API_GIFT_ACTIVITY = '/common/homeishop/v1/activity/gift'
 const log = createLogger('mihoyo')
 
 const MIHOYO_SHOP_CODE_BY_IP = {
@@ -102,27 +103,37 @@ export function parseTitleIpName(title) {
 
 const MIHOYO_GIFT_HOST = 'mihoyogift.com'
 
-// 从 URL 提取 goods_id，支持桌面页和移动页：
+// 从 URL 提取 id，支持商品页与赠品活动页：
 // - https://www.mihoyogift.com/goods/123
 // - https://www.mihoyogift.com/m/goods/123?...
-// - www.mihoyogift.com/goods/123（无协议头，自动补全）
-function extractGoodsId(url) {
+// - https://www.mihoyogift.com/giveaway/123
+// - https://www.mihoyogift.com/m/giveaway/123?order=comprehensive
+function extractMihoyoLinkId(url) {
   try {
-    // 若用户粘贴时省略了协议头，自动补全 https:// 再解析
     const normalized = /^https?:\/\//i.test(url) ? url : `https://${url}`
     const parsed = new URL(normalized)
     if (!parsed.hostname.endsWith(MIHOYO_GIFT_HOST)) return null
 
-    const match = parsed.pathname.match(/^\/(?:m\/)?goods\/(\d+)(?:\/)?$/)
-    return match ? match[1] : null
+    const goodsMatch = parsed.pathname.match(/^\/(?:m\/)?goods\/(\d+)(?:\/)?$/)
+    if (goodsMatch) return { type: 'goods', id: goodsMatch[1] }
+
+    const giveawayMatch = parsed.pathname.match(/^\/(?:m\/)?giveaway\/(\d+)(?:\/)?$/)
+    if (giveawayMatch) return { type: 'giveaway', id: giveawayMatch[1] }
+
+    return null
   } catch {
     return null
   }
 }
 
-// 验证是否是米游铺商品链接
+function _extractGoodsId(url) {
+  const hit = extractMihoyoLinkId(url)
+  return hit && hit.type === 'goods' ? hit.id : null
+}
+
+// 验证是否是米游铺商品/赠品活动链接
 export function isMihoyoGiftUrl(url) {
-  return extractGoodsId(url) != null
+  return extractMihoyoLinkId(url) != null
 }
 
 function normalizeSaleAttrText(text) {
@@ -260,16 +271,116 @@ function buildSkuVariantsFromDetail(detail) {
 }
 
 /**
- * 解析米游铺商品链接
+ * 公开拉取满赠活动（无需登录 Cookie）。giveaway 页 ID 即 activity_id。
+ */
+export async function fetchGiftActivityPublic(activityId) {
+  const id = String(activityId || '').trim()
+  if (!id) {
+    return { ok: false, activityId: '', name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+  }
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+  try {
+    const json = await mihoyoRequest(`${API_GIFT_ACTIVITY}?activity_id=${id}`, { headers: reqHeaders })
+    if (json.retcode !== 0) {
+      return { ok: false, activityId: id, name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+    }
+    const data = json?.data || {}
+    const byGoodsId = new Map()
+    for (const stage of (data.stages || [])) {
+      for (const gift of (stage.gifts || [])) {
+        const goodsId = String(gift?.goods_id || '').trim()
+        if (!goodsId || byGoodsId.has(goodsId)) continue
+        byGoodsId.set(goodsId, {
+          goods_id: goodsId,
+          name: String(gift?.name || '').trim(),
+          cover_url: String(gift?.cover_url || gift?.img_url || '').trim(),
+          stock: Number(gift?.stock ?? gift?.quantity ?? -1),
+        })
+      }
+    }
+    return {
+      ok: true,
+      activityId: id,
+      name: String(data.name || '').trim(),
+      shopCode: String(data.shop?.shop_code || '').trim(),
+      startTime: Number(data.start_time) || 0,
+      endTime: Number(data.end_time) || 0,
+      gifts: [...byGoodsId.values()],
+    }
+  } catch {
+    return { ok: false, activityId: id, name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+  }
+}
+
+/**
+ * 从商品详情的 promotion.gift_activities 收集满赠活动 ID（赠品页入口）。
+ */
+export async function fetchGoodsGiftActivityIds(goodsId) {
+  const id = String(goodsId || '').trim()
+  if (!id) return []
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+  try {
+    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${id}`, { headers: reqHeaders })
+    const promotion =
+      json?.data?.goods?.promotion ||
+      json?.data?.promotion ||
+      json?.data?.goods?.detail?.promotion ||
+      {}
+    const list = Array.isArray(promotion.gift_activities) ? promotion.gift_activities : []
+    return list
+      .map((item) => ({
+        activity_id: String(item?.activity_id || '').trim(),
+        promotion_text: String(item?.promotion_text || '').trim(),
+      }))
+      .filter((item) => item.activity_id)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 解析米游铺商品链接 / 赠品活动链接
  * - 原生 Android/iOS：使用 CapacitorHttp（直连，无 CORS 限制）
  * - 浏览器 Web（开发）：使用 fetch + Vite 代理 /mihoyo-api（绕过 CORS）
  */
 export async function parseMihoyoUrl(url) {
-  if (!isMihoyoGiftUrl(url)) {
-    throw new Error('请输入米游铺商品链接，例如：https://www.mihoyogift.com/goods/... 或 https://www.mihoyogift.com/m/goods/...')
+  const link = extractMihoyoLinkId(url)
+  if (!link) {
+    throw new Error('请输入米游铺商品/赠品链接，例如：https://www.mihoyogift.com/m/goods/... 或 https://www.mihoyogift.com/m/giveaway/...')
   }
 
-  const urlGoodsId = extractGoodsId(url)
+  if (link.type === 'giveaway') {
+    const activity = await fetchGiftActivityPublic(link.id)
+    if (!activity.ok || !activity.gifts.length) {
+      throw new Error('未能识别赠品活动，请确认链接有效')
+    }
+    const first = activity.gifts[0]
+    const { ip, name: cleanedName } = parseTitleIpName(first.name)
+    return {
+      kind: 'giveaway',
+      activityId: activity.activityId,
+      activityName: activity.name,
+      shopCode: activity.shopCode,
+      raw: first.name,
+      name: cleanedName,
+      ip: ip || SHOP_CODE_TO_IP[activity.shopCode] || '',
+      price: 0,
+      image: first.cover_url || '',
+      banners: [],
+      goodsId: first.goods_id,
+      variants: [],
+      skuCharacters: [],
+      gifts: activity.gifts,
+    }
+  }
+
+  const urlGoodsId = link.id
   if (!urlGoodsId) throw new Error('无法解析商品 ID，请检查链接')
 
   const reqHeaders = {
@@ -277,7 +388,7 @@ export async function parseMihoyoUrl(url) {
     'x-rpc-language': 'zh-cn',
   }
 
-  const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, { headers: reqHeaders })
+const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, { headers: reqHeaders })
 
   if (json.retcode !== 0) {
     throw new Error(`接口返回错误：${json.message || json.retcode}`)
@@ -444,6 +555,42 @@ export async function fetchGoodsVariants(goodsId) {
     return buildSaleAttrVariants(detail?.sale_attrs)
   } catch {
     return []
+  }
+}
+
+/**
+ * 轻量商品摘要：给「上新速览」在已知 goods_id 时拉名称/封面/价格/开售时间。
+ * @param {string} goodsId
+ * @returns {Promise<{ok: boolean, goodsId: string, name: string, cover_url: string, price_cents: number, sale_time: number, point: number}>}
+ */
+export async function fetchGoodsBrief(goodsId) {
+  const id = String(goodsId || '').trim()
+  if (!id) {
+    return { ok: false, goodsId: '', name: '', cover_url: '', price_cents: 0, sale_time: 0, point: 0 }
+  }
+  const reqHeaders = {
+    'Referer': 'https://www.mihoyogift.com/',
+    'x-rpc-language': 'zh-cn',
+  }
+  try {
+    const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${id}`, { headers: reqHeaders })
+    if (json.retcode !== 0) {
+      return { ok: false, goodsId: id, name: '', cover_url: '', price_cents: 0, sale_time: 0, point: 0 }
+    }
+    const detail = json?.data?.detail || {}
+    const rawPrice = Number(detail.price)
+    const rawPoint = Number(detail.point ?? detail.points)
+    return {
+      ok: true,
+      goodsId: String(detail.goods_id || id),
+      name: String(detail.name || '').trim(),
+      cover_url: String(detail.cover_url || '').trim(),
+      price_cents: Number.isFinite(rawPrice) ? rawPrice : 0,
+      sale_time: Number(detail.sale_time) || 0,
+      point: Number.isFinite(rawPoint) ? rawPoint : 0,
+    }
+  } catch {
+    return { ok: false, goodsId: id, name: '', cover_url: '', price_cents: 0, sale_time: 0, point: 0 }
   }
 }
 

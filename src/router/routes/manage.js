@@ -90,6 +90,12 @@ export default [
     meta: { titleKey: 'nav.mihoyoStockMonitor' }
   },
   {
+    path: '/mihoyo-new-arrivals',
+    name: 'mihoyo-new-arrivals',
+    component: () => import('@/views/MihoyoNewArrivalsView.vue'),
+    meta: { titleKey: 'nav.mihoyoNewArrivals' }
+  },
+  {
     path: '/manage/surveys',
     name: 'manage-surveys',
     component: () => import('@/views/SurveyListView.vue'),

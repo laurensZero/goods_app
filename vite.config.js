@@ -118,6 +118,14 @@ export default defineConfig({
               proxyReq.setHeader('cookie', decodeURIComponent(fwd))
               proxyReq.removeHeader('x-cookie-forward')
             }
+            // 积分商城列表接口要求移动端请求特征；浏览器无法自设 UA，由代理补齐
+            if (String(req.url || '').includes('/common/hm_app/v1/goods/point_goods_list')) {
+              proxyReq.setHeader(
+                'user-agent',
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
+              )
+              proxyReq.setHeader('referer', 'https://mihoyogift.com/m/point')
+            }
           })
         }
       },
