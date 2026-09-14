@@ -52,6 +52,7 @@
   "toast.operationFailed": "작업 실패",
   "toast.operationSuccess": "작업 성공",
   "toast.parameterError": "매개변수 오류",
+  "toast.mihoyoFeaturesDisabled": "미호요 샵 기능이 꺼져 있습니다",
   "toast.pleaseLoginMihoyo": "먼저 miHoYo 스토어에 로그인하세요",
   "toast.pleaseWait": "잠시 기다려 주세요...",
   "toast.rateLimited": "GitHub API 요청 제한에 도달했습니다. 먼저 클라우드 동기화에서 GitHub Token을 설정하세요.",

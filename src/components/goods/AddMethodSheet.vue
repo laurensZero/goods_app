@@ -55,24 +55,25 @@
           </svg>
         </button>
 
-        <div class="sheet-divider" />
-
         <!-- 从米游铺导入 -->
-        <button class="sheet-option" type="button" @click="onImport">
-          <span class="option-icon option-icon--import">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="12" cy="12" r="8" />
-              <path d="M12 8v4l3 3" />
+        <template v-if="mihoyoFeaturesStore.enabled">
+          <div class="sheet-divider" />
+          <button class="sheet-option" type="button" @click="onImport">
+            <span class="option-icon option-icon--import">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle cx="12" cy="12" r="8" />
+                <path d="M12 8v4l3 3" />
+              </svg>
+            </span>
+            <div class="option-body">
+              <p class="option-title">{{ t('goods.addMethod.importFromMihoyo') }}</p>
+              <p class="option-desc">{{ t('goods.addMethod.importFromMihoyoDesc') }}</p>
+            </div>
+            <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
             </svg>
-          </span>
-          <div class="option-body">
-            <p class="option-title">{{ t('goods.addMethod.importFromMihoyo') }}</p>
-            <p class="option-desc">{{ t('goods.addMethod.importFromMihoyoDesc') }}</p>
-          </div>
-          <svg class="option-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M9 6l6 6-6 6" />
-          </svg>
-        </button>
+          </button>
+        </template>
 
         <div class="sheet-divider" />
 
@@ -230,8 +231,10 @@ import { extractIdsFromInput } from '@/utils/share/goods'
 import { formatCurrency } from '@/utils/format'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 
 const { t } = useI18n()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const props = defineProps({
   modelValue: {

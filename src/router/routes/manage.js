@@ -78,6 +78,12 @@ export default [
     meta: { titleKey: 'nav.mcpService' }
   },
   {
+    path: '/manage/mihoyo-features',
+    name: 'mihoyo-features',
+    component: () => import('@/views/MihoyoFeaturesView.vue'),
+    meta: { titleKey: 'nav.mihoyoFeatures' }
+  },
+  {
     path: '/manage/ai-chat',
     name: 'manage-ai-chat',
     component: () => import('@/views/AiChatView.vue'),
@@ -87,13 +93,15 @@ export default [
     path: '/manage/mihoyo-stock-monitor',
     name: 'mihoyo-stock-monitor',
     component: () => import('@/views/MihoyoStockMonitorView.vue'),
-    meta: { titleKey: 'nav.mihoyoStockMonitor' }
+    meta: { titleKey: 'nav.mihoyoStockMonitor' },
+    beforeEnter: () => ensureMihoyoFeaturesEnabled()
   },
   {
     path: '/mihoyo-new-arrivals',
     name: 'mihoyo-new-arrivals',
     component: () => import('@/views/MihoyoNewArrivalsView.vue'),
-    meta: { titleKey: 'nav.mihoyoNewArrivals' }
+    meta: { titleKey: 'nav.mihoyoNewArrivals' },
+    beforeEnter: () => ensureMihoyoFeaturesEnabled()
   },
   {
     path: '/manage/surveys',
@@ -126,3 +134,14 @@ export default [
     meta: { titleKey: 'nav.monthCardCalendar' }
   }
 ]
+
+/** 米游铺功能总开关关闭时拦截相关路由；开启时返回 undefined 放行（不能 return false，会取消导航） */
+async function ensureMihoyoFeaturesEnabled() {
+  const { useMihoyoFeaturesStore } = await import('@/stores/mihoyoFeatures')
+  const store = useMihoyoFeaturesStore()
+  if (store.enabled) return
+  const { showGlobalToast } = await import('@/utils/globalToast')
+  const { default: i18n } = await import('@/locales')
+  showGlobalToast(i18n.global.t('toast.mihoyoFeaturesDisabled'))
+  return '/home'
+}

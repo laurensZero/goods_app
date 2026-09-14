@@ -151,6 +151,9 @@
                   <span v-if="inWishlistGoodsIds.has(item.goods_id)" class="goods-card__wished">
                     {{ t('mihoyoNew.inWishlist') }}
                   </span>
+                  <span v-if="item.is_new" class="goods-card__cloud-new">
+                    {{ t('mihoyoNew.cloudNew') }}
+                  </span>
                 </span>
                 <span class="goods-card__body">
                   <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
@@ -164,9 +167,6 @@
                     </span>
                     <span v-else-if="item.price_cents > 0" class="price">
                       {{ formatYuan(item.price_cents) }}{{ t('mihoyoNew.priceUnit') }}
-                    </span>
-                    <span v-if="saleTimeText(item.sale_time)" class="sale-time">
-                      {{ saleTimeText(item.sale_time) }}
                     </span>
                   </span>
                 </span>
@@ -216,9 +216,6 @@
                     </span>
                     <span v-else-if="item.price_cents > 0" class="price">
                       {{ formatYuan(item.price_cents) }}{{ t('mihoyoNew.priceUnit') }}
-                    </span>
-                    <span v-if="saleTimeText(item.sale_time)" class="sale-time">
-                      {{ saleTimeText(item.sale_time) }}
                     </span>
                   </span>
                 </span>
@@ -556,10 +553,7 @@ async function loadCatalog(catalog, { force = false } = {}) {
       return
     }
 
-    const { items, errors } = await fetchMihoyoNewArrivals(catalog, MIHOYO_NEW_ARRIVAL_SHOPS, {
-      limit: 30,
-      maxPages: 1,
-    })
+    const { items, errors } = await fetchMihoyoNewArrivals(catalog, MIHOYO_NEW_ARRIVAL_SHOPS)
     itemsByCatalog[catalog] = items.filter((item) => !item?.is_gift)
     loadedCatalogs[catalog] = true
     partialShops.value = errors.map((e) => e.shopCode)
@@ -652,7 +646,7 @@ function buildWishlistPayload(item, sku = null) {
   if (item.catalog === 'point' && item.point > 0) {
     notes.push(`${item.point}${t('mihoyoNew.pointUnit')}`)
   }
-  if (variantText) notes.push(variantText)
+  // 款式只进 variant 字段，不写入备注
 
   return {
     name,
@@ -954,6 +948,42 @@ onMounted(() => {
   font-size: 10px;
   font-weight: 600;
   line-height: 1.3;
+}
+
+
+.goods-card__sku-new {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(47, 127, 211, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.goods-card__cloud-new {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(227, 106, 46, 0.95);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.goods-card__sku-hint {
+  font-size: 11px;
+  color: #2070c0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ── 满赠独立区 ── */

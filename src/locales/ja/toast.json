@@ -52,6 +52,7 @@
   "toast.operationFailed": "操作失敗",
   "toast.operationSuccess": "操作成功",
   "toast.parameterError": "パラメータエラー",
+  "toast.mihoyoFeaturesDisabled": "米遊舗機能はオフです",
   "toast.pleaseLoginMihoyo": "先にmiHoYoストアにログインしてください",
   "toast.pleaseWait": "お待ちください...",
   "toast.rateLimited": "GitHub API のレート制限に達しました。先にクラウド同期で GitHub Token を設定してください。",

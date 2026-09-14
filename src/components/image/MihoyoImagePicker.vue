@@ -88,6 +88,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
 import { saveLocalImage } from '@/utils/image/localImage'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 
 const props = defineProps({
@@ -99,6 +100,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 const { t } = useI18n()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const inputRef = ref(null)
 const fileInputRef = ref(null)
@@ -176,6 +178,14 @@ async function handleQuickEditorSave(result) {
 }
 
 async function tryFetch(url) {
+  if (!mihoyoFeaturesStore.enabled) {
+    variants.value = []
+    fetchState.value = ''
+    selectedKey.value = ''
+    pickedCover.value = ''
+    lastParsedUrl = ''
+    return
+  }
   if (!isMihoyoGiftUrl(url)) {
     if (variants.value.length || fetchState.value) {
       variants.value = []

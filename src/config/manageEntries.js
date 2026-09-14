@@ -213,6 +213,18 @@ export function useManageEntries() {
       stats: []
     },
     {
+      key: 'mihoyoFeatures', group: 'app', title: t('manage.mihoyoFeatures'), kicker: 'MiHoYo',
+      meta: t('manage.mihoyoFeaturesDesc'),
+      detail: t('manage.mihoyoFeaturesDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'mihoyo-icon',
+      iconPaths: ['M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z', 'M7 7h.01'],
+      path: '/manage/mihoyo-features',
+      stats: []
+    },
+    {
       key: 'mcp', group: 'app', title: t('nav.mcpService'), kicker: 'MCP',
       meta: t('mcp.entryMeta'),
       detail: t('mcp.entryMeta'),

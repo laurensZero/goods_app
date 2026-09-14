@@ -1,13 +1,17 @@
 /**
- * 米游铺「上新」列表 —— 直连公开列表 + 本地缓存合并
+ * 米游铺「上新」列表 —— 公开列表多页 + 本地缓存合并
  *
- * - shop：show_sale_type=3（现货+预约）按 online_time
- * - point：积分兑换（手机头）
- * 保留策略：列表接口只保证前几页；开售后被挤出时靠本机缓存再留一段时间。
- * 不读 mihoyo_monitor_seen（只有键，展示还要 N 次 detail，比列表慢）。
+ * - shop：search_goods_spu_list，show_sale_type=2（即将上新，count≈50）按 online_time 翻几页
+ * - type=3 是现货+预约（几百件），会把真正的新品挤出前几页，不能用
+ * - 点卡片再用 goods_id 调 goods/detail 取 SKU（列表本身没有 SKU）
+ * - 封面用列表 cover_url
+ * 保留策略：开售后被挤出时靠本机缓存再留一段时间。
  */
 import { mihoyoRequest } from '@/utils/mihoyo/request'
-import { fetchGoodsGiftActivityIds, fetchGiftActivityPublic } from '@/utils/mihoyo'
+import {
+  fetchGoodsGiftActivityIds,
+  fetchGiftActivityPublic,
+} from '@/utils/mihoyo'
 import { Capacitor } from '@capacitor/core'
 
 const SHOP_LIST_PATH = '/common/homeishop/v1/goods/search_goods_spu_list'
@@ -21,6 +25,13 @@ const SHOP_RELEASED_DAYS = 7
 const POINT_RELEASED_DAYS = 14
 const CACHE_PREFIX = 'goods-app:mihoyo-new-arrivals:'
 const CACHE_MAX_ITEMS = 200
+/** 列表页：与网页上新一致，按 online_time 翻到拉完（type=2 约 50 条/店） */
+const SHOP_PAGE_LIMIT = 16
+const SHOP_MAX_PAGES = 8
+/** 本机 first_seen：多久内算「新品」 */
+const NEW_FLAG_DAYS = 7
+const FIRST_SEEN_KEY = 'goods-app:mihoyo-arrivals-first-seen'
+const FIRST_SEEN_MAX = 400
 
 const SHOP_HEADERS = {
   Referer: 'https://www.mihoyogift.com/',
@@ -49,7 +60,6 @@ function mapListItem(item, shopCode, catalog) {
     price_cents: Number.isFinite(rawPrice) ? rawPrice : 0,
     point: catalog === 'point' && Number.isFinite(rawPoint) ? rawPoint : 0,
     sale_time: Number(item?.sale_time) || 0,
-    is_sold_out: Boolean(item?.is_sold_out),
     shop_code: shopCode,
     catalog,
   }
@@ -147,7 +157,75 @@ function mergeWithCache(catalog, liveItems) {
   return [...merged.values()]
 }
 
-async function fetchNewArrivalPage(catalog, shopCode, { limit = 40, maxPages = 1 } = {}) {
+function loadFirstSeenMap() {
+  try {
+    const raw = localStorage.getItem(FIRST_SEEN_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveFirstSeenMap(map) {
+  try {
+    const cutoff = Date.now() - NEW_FLAG_DAYS * 86_400_000
+    const entries = Object.entries(map)
+      .filter(([, at]) => (Number(at) || 0) >= cutoff)
+      .sort((a, b) => (Number(b[1]) || 0) - (Number(a[1]) || 0))
+      .slice(0, FIRST_SEEN_MAX)
+    localStorage.setItem(FIRST_SEEN_KEY, JSON.stringify(Object.fromEntries(entries)))
+  } catch {
+    // 配额满等忽略
+  }
+}
+
+/**
+ * 本机 first_seen 打「新品」标：
+ * - 首次建库：只记基线，不把整页都标成新品
+ * - 之后新出现的 goods_id 记 now 并标 is_new
+ * - 已见过且仍在 NEW_FLAG_DAYS 内继续标
+ */
+function applyLocalNewFlags(items) {
+  const map = loadFirstSeenMap()
+  const hasBaseline = Object.keys(map).length > 0
+  const now = Date.now()
+  const cutoff = now - NEW_FLAG_DAYS * 86_400_000
+  let changed = false
+
+  for (const item of items || []) {
+    const id = String(item?.goods_id || '').trim()
+    if (!id || item.is_gift) continue
+    const prev = Number(map[id]) || 0
+    if (!hasBaseline) {
+      map[id] = now
+      changed = true
+      // 首次建库：不亮标
+      continue
+    }
+    if (!prev) {
+      map[id] = now
+      changed = true
+      item.is_new = true
+      item.first_seen_at = new Date(now).toISOString()
+      continue
+    }
+    if (prev >= cutoff) {
+      item.is_new = true
+      item.first_seen_at = new Date(prev).toISOString()
+    }
+  }
+
+  if (changed || Object.keys(map).length) saveFirstSeenMap(map)
+  return items
+}
+
+async function fetchNewArrivalPage(
+  catalog,
+  shopCode,
+  { limit = SHOP_PAGE_LIMIT, maxPages = SHOP_MAX_PAGES } = {},
+) {
   const normalizedShop = String(shopCode || '').trim()
   if (!normalizedShop) return []
 
@@ -164,10 +242,10 @@ async function fetchNewArrivalPage(catalog, shopCode, { limit = 40, maxPages = 1
       shop_code: normalizedShop,
     })
     if (!isPoint) {
-      q.set('category_id', '0')
       q.set('order_by', 'online_time')
-      // 3 = 现货+预约：开售后仍可能留在按上新排序的前几页
-      q.set('show_sale_type', '3')
+      // 2 = 即将上新（与网页上新一致）；3 是现货+预约，会淹没新品
+      q.set('show_sale_type', '2')
+      q.set('hide_sold_out', 'false')
     }
 
     const json = await mihoyoRequest(`${path}?${q.toString()}`, { headers })
@@ -176,6 +254,7 @@ async function fetchNewArrivalPage(catalog, shopCode, { limit = 40, maxPages = 1
     }
     const list = Array.isArray(json?.data?.list) ? json.data.list : []
     if (!list.length) break
+    // 封面直接用列表 cover_url，不另拉详情
     items.push(...list.map((item) => mapListItem(item, normalizedShop, catalog)))
     if (list.length < limit) break
     page += 1
@@ -247,6 +326,8 @@ export async function fetchMihoyoNewArrivals(
   }
 
   const items = mergeWithCache(catalog, liveItems)
+  // 本机 first_seen：同步打标（无网络），不拖慢列表
+  applyLocalNewFlags(items)
   return { items: sortArrivals(catalog, items), errors }
 }
 
@@ -267,7 +348,9 @@ export async function fetchMihoyoGiftArrivals(
 
   const errors = []
   const emittedByGoodsId = new Map()
-  const emittedGiftKeys = new Set()
+  /** dedupeKey -> { goodsId, members: string[] }：A/B 系列合并成一条展示 */
+  const seriesAgg = new Map()
+  const seenGoodsIds = new Set()
   const seenActivityIds = new Set()
   const pending = new Set()
 
@@ -280,24 +363,34 @@ export async function fetchMihoyoGiftArrivals(
     if (!activity?.ok) return
     let changed = false
     for (const gift of activity.gifts || []) {
-      if (!gift?.goods_id || emittedByGoodsId.has(gift.goods_id)) continue
+      if (!gift?.goods_id || seenGoodsIds.has(gift.goods_id)) continue
+      seenGoodsIds.add(gift.goods_id)
       const gKey = giftDedupeKey(gift.name) || gift.goods_id
-      if (emittedGiftKeys.has(gKey)) continue
-      emittedGiftKeys.add(gKey)
-      emittedByGoodsId.set(gift.goods_id, {
+
+      if (seriesAgg.has(gKey)) {
+        const agg = seriesAgg.get(gKey)
+        agg.members.push(gift.goods_id)
+        continue
+      }
+
+      const item = {
         goods_id: gift.goods_id,
         name: gift.name,
         cover_url: gift.cover_url,
         price_cents: 0,
         point: 0,
         sale_time: 0,
-        is_sold_out: Number(gift.stock) === 0,
         shop_code: activity.shopCode || '',
         catalog: 'gift',
         is_gift: true,
         gift_activity_id: activity.activityId,
         gift_activity_name: activity.name,
+      }
+      seriesAgg.set(gKey, {
+        goodsId: gift.goods_id,
+        members: [gift.goods_id],
       })
+      emittedByGoodsId.set(gift.goods_id, item)
       changed = true
     }
     if (changed) emit()
