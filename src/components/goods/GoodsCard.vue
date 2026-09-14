@@ -356,7 +356,13 @@ const showCategory = computed(() => props.density !== 'compact' && !!props.item.
 const showIp = computed(() => props.density !== 'compact' && !!props.item.ip)
 const allCharacters = computed(() => props.item.characters || [])
 const allCustomTags = computed(() => props.item.tags || [])
-const showCharacters = computed(() => props.density === 'comfortable' && allCharacters.value.length > 0)
+// 舒适模式始终显示；标准模式在平板上也显示角色
+const showCharacters = computed(() => {
+  if (!allCharacters.value.length) return false
+  if (props.density === 'comfortable') return true
+  if (props.density === 'standard' && isTablet.value) return true
+  return false
+})
 const showCustomTags = computed(() => props.density === 'comfortable' && allCustomTags.value.length > 0)
 const showTags = computed(() => showCategory.value || showIp.value || showCharacters.value || showCustomTags.value)
 // 使用父组件传入的 windowWidth prop，避免每个卡片独立维护 resize 监听器
