@@ -366,6 +366,23 @@
                 <polyline points="9 18 15 12 9 6" />
               </svg>
             </div>
+
+            <div class="settings-item settings-item--link" @click="openNewArrivals">
+              <div class="settings-item__info">
+                <span class="settings-item__icon settings-item__icon--mihoyo">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3l2.2 4.5 5 .7-3.6 3.5.9 5-4.5-2.4L7.5 16.7l.9-5L4.8 8.2l5-.7L12 3z" />
+                  </svg>
+                </span>
+                <div>
+                  <span class="settings-item__title">{{ t('notifySettings.mihoyoNewArrivals') }}</span>
+                  <span class="settings-item__desc">{{ t('notifySettings.mihoyoNewArrivalsDesc') }}</span>
+                </div>
+              </div>
+              <svg class="settings-item__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
           </div>
         </div>
       </section>
@@ -719,6 +736,15 @@ function openStockMonitor() {
     return
   }
   runWithRouteTransition(() => router.push('/manage/mihoyo-stock-monitor'), { direction: 'forward' })
+}
+
+// 打开「米游铺上新速览」（商品/积分，可一键加入心愿单）
+function openNewArrivals() {
+  if (typeof openManageSubPage === 'function') {
+    openManageSubPage('mihoyoNewArrivals')
+    return
+  }
+  runWithRouteTransition(() => router.push('/mihoyo-new-arrivals'), { direction: 'forward' })
 }
 
 // 更新位置

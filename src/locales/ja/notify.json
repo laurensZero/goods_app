@@ -70,7 +70,9 @@
     "shipReminderDay": "{days} 日",
     "shipReminderNeedPick": "日数を1つ以上選択してください",
     "mihoyoStockMonitor": "米遊舗在庫モニター",
-    "mihoyoStockMonitorDesc": "米遊舗の在庫を監視し、在庫ありになったら QQ で通知します"
+    "mihoyoStockMonitorDesc": "米遊舗の在庫を監視し、在庫ありになったら QQ で通知します",
+    "mihoyoNewArrivals": "米遊舗新着速報",
+    "mihoyoNewArrivalsDesc": "まもなく発売 / ポイント交換の新着を確認し、ウィッシュリストに追加"
   },
   "notify.saleTimeReached": "発売時刻になりました",
   "notify.saleCountdown": "発売まで"

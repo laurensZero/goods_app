@@ -8,6 +8,18 @@
 
       <div class="goods-header-btns">
         <button
+          v-if="showNewArrivalsButton"
+          type="button"
+          class="sort-toggle arrivals-toggle"
+          :aria-label="t('mihoyoNew.openEntry')"
+          @click="$emit('open-arrivals')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+          </svg>
+        </button>
+
+        <button
           v-if="showDailyRecButton"
           type="button"
           class="daily-rec-btn"
@@ -162,12 +174,13 @@ const props = defineProps({
   densityModes: { type: Array, required: true },
   showTimelineToggle: { type: Boolean, default: true },
   showDailyRecButton: { type: Boolean, default: true },
+  showNewArrivalsButton: { type: Boolean, default: false },
   activeFilterCount: { type: Number, default: 0 },
   groupDisplayMode: { type: String, default: 'pinned' },
   groupDisplayOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals'])
 
 const showSortSheet = ref(false)
 const timelinePulsing = ref(false)
@@ -465,6 +478,7 @@ onBeforeUnmount(() => {
 }
 
 .timeline-toggle svg,
+.arrivals-toggle svg,
 .sort-toggle__icon {
   width: 18px;
   height: 18px;

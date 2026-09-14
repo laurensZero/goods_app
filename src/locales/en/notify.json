@@ -70,7 +70,9 @@
     "shipReminderDay": "{days} days",
     "shipReminderNeedPick": "Pick at least one day option",
     "mihoyoStockMonitor": "Mihoyo Shop Stock Monitor",
-    "mihoyoStockMonitorDesc": "Track mihoyo shop stock and get a QQ reminder when items are back in stock"
+    "mihoyoStockMonitorDesc": "Track mihoyo shop stock and get a QQ reminder when items are back in stock",
+    "mihoyoNewArrivals": "Mihoyo New Arrivals",
+    "mihoyoNewArrivalsDesc": "Browse upcoming and point-shop drops, then add items to your wishlist"
   },
   "notify.saleTimeReached": "Sale time reached",
   "notify.saleCountdown": "Until sale"

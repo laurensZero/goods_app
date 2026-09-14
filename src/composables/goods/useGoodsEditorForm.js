@@ -283,6 +283,7 @@ export function useGoodsEditorForm(options = {}) {
         form.variant = item.variant ?? ''
         form.category = item.category ?? ''
         form.ip = item.ip ?? ''
+        form.goodsId = item.goodsId ?? ''
         form.isWishlist = Boolean(item.isWishlist)
         form.characters = item.characters ? [...item.characters] : []
         form.tags = item.tags ? [...item.tags] : []
