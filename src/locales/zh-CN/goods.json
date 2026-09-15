@@ -8,6 +8,7 @@
   "goods.addMethod.goodsCount": "{count} 件谷子",
   "goods.addMethod.importAll": "导入全部 ({count})",
   "goods.addMethod.importFromMihoyo": "从米游铺导入",
+  "goods.mihoyoshop": "米游铺",
   "goods.addMethod.importFromMihoyoDesc": "粘贴商品链接，自动填充信息",
   "goods.addMethod.importFromShare": "从分享码导入",
   "goods.addMethod.importFromShareDesc": "粘贴好友分享的谷子链接或分享码",

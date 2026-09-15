@@ -39,6 +39,7 @@ function createStores() {
 describe('writeUndo', () => {
   it('可撤回工具集合覆盖谷子/充值/活动', () => {
     expect(isUndoableWriteTool('goods_add')).toBe(true)
+    expect(isUndoableWriteTool('goods_update_many')).toBe(true)
     expect(isUndoableWriteTool('recharge_update')).toBe(true)
     expect(isUndoableWriteTool('recharge_delete')).toBe(true)
     expect(isUndoableWriteTool('events_add')).toBe(true)
@@ -46,7 +47,27 @@ describe('writeUndo', () => {
     expect(isUndoableWriteTool('events_delete')).toBe(true)
     expect(isUndoableWriteTool('navigate')).toBe(false)
     expect(isUndoableWriteTool('goods_search')).toBe(false)
+    expect(isUndoableWriteTool('goods_purge')).toBe(false)
     expect(UNDOABLE_WRITE_TOOLS.has('events_delete')).toBe(true)
+  })
+
+  it('goods_update_many 捕获多条字段快照并可撤回', async () => {
+    const deps = createStores()
+    deps.goodsStore.list.value[0].storageLocation = 'B 柜'
+    deps.goodsStore.list.value.push({ id: 'g2', name: '立牌', storageLocation: 'C 柜', statusTimeline: [] })
+    const before = await captureUndoBefore('goods_update_many', {
+      ids: ['g1', 'g2'],
+      storageLocation: 'A 柜'
+    }, deps)
+    expect(before.items).toHaveLength(2)
+    expect(before.items[0].fields.storageLocation).toBe('B 柜')
+    expect(before.items[1].fields.storageLocation).toBe('C 柜')
+
+    const entry = buildUndoEntry('goods_update_many', { ids: ['g1', 'g2'] }, before, { ok: true })
+    expect(entry.id).toBe('many-2')
+    await applyUndoEntry(entry, deps)
+    expect(deps.goodsStore.updateGoods).toHaveBeenCalledWith('g1', expect.objectContaining({ storageLocation: 'B 柜' }))
+    expect(deps.goodsStore.updateGoods).toHaveBeenCalledWith('g2', expect.objectContaining({ storageLocation: 'C 柜' }))
   })
 
   it('goods_update 捕获改动字段并可撤回写回', async () => {

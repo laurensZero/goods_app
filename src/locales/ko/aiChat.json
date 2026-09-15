@@ -4,6 +4,7 @@
   "aiChat.inputPlaceholder": "컬렉션에 대해 물어보세요…",
   "aiChat.inputPlaceholderQueued": "답변 중 — 계속 입력하면 대기열에 쌓입니다",
   "aiChat.send": "보내기",
+  "aiChat.sendQueued": "대기열에 추가",
   "aiChat.stopGeneration": "생성 중지",
   "aiChat.queued": "대기열에 추가되었습니다. 이번 답변 후 전송됩니다",
   "aiChat.queueCount": "대기열 {count}개",

@@ -141,15 +141,31 @@ function sanitizeWritable(args, options = {}) {
  * @typedef {Object} GoodsStoreLike
  * @property {(data: any) => Promise<any>} addGoods
  * @property {(id: string, data: any) => Promise<any>} updateGoods
+ * @property {(ids: string[] | Set<string>, data: any) => Promise<any>} [updateMultipleGoods]
  * @property {(id: string) => Promise<void>} removeGoods
  * @property {(id: string) => Promise<any>} restoreTrashItem
+ * @property {() => Promise<void>} [emptyTrash]
+ * @property {(ids: string[] | Set<string>) => Promise<void>} [deleteGoodsPermanently]
  * @property {any} list 条目列表（真实 store 解包为数组，单测可为 ref 形状）
  * @property {any} trashList 回收站列表（同上）
  */
 
 /**
+ * @typedef {Object} GoodsGroupStoreLike
+ * @property {(data: any) => Promise<any>} addGroup
+ * @property {(id: string, data: any) => Promise<any>} updateGroup
+ * @property {(id: string) => Promise<void>} removeGroup
+ * @property {(groupId: string, goodsIds: string[]) => Promise<any[]>} addItemsToGroup
+ * @property {(goodsIds: string[]) => Promise<void>} removeItemsFromGroup
+ * @property {(goodsId: string, targetGroupId: string) => Promise<any>} moveItemToGroup
+ * @property {any} groupList
+ * @property {any} groupItemList
+ */
+
+/**
  * @param {{
  *  goodsStore: GoodsStoreLike,
+ *  goodsGroupStore?: GoodsGroupStoreLike | null,
  *  presetsStore?: any,
  *  themeStore?: any,
  *  notifyStore?: any,
@@ -166,6 +182,7 @@ function sanitizeWritable(args, options = {}) {
  */
 export function createMcpWriteToolHandlers({
   goodsStore,
+  goodsGroupStore = null,
   presetsStore,
   themeStore,
   notifyStore,
@@ -245,6 +262,200 @@ export function createMcpWriteToolHandlers({
       }
       await goodsStore.restoreTrashItem(targetId)
       return { ok: true, id: targetId }
+    },
+
+    /**
+     * 批量部分更新：字段白名单与 goods_update 一致。
+     * @param {Record<string, any>} args
+     */
+    async goods_update_many(args) {
+      const ids = Array.isArray(args?.ids)
+        ? args.ids.map((/** @type {unknown} */ id) => String(id || '').trim()).filter(Boolean)
+        : []
+      if (ids.length === 0) throw new Error('ids 至少需要 1 个条目 id')
+      if (ids.length > 50) throw new Error('ids 一次最多 50 个，请分批处理')
+
+      const active = listOf(goodsStore.list)
+      const activeIds = new Set(active.map((item) => item?.id))
+      const missing = ids.filter((id) => !activeIds.has(id))
+      if (missing.length > 0) {
+        throw new Error(`以下 id 不在收藏中（回收站请先 goods_restore）：${missing.join('、')}`)
+      }
+
+      const { ids: _ignored, ...rest } = args || {}
+      const data = sanitizeWritable(rest)
+      if (Object.keys(data).length === 0) throw new Error('没有可更新的字段')
+      if (typeof goodsStore.updateMultipleGoods !== 'function') {
+        // 退化路径：逐条更新，保证单测/旧 store 兼容
+        for (const id of ids) {
+          await goodsStore.updateGoods(id, data)
+        }
+      } else {
+        await goodsStore.updateMultipleGoods(ids, data)
+      }
+      return { ok: true, updated: ids.length, ids, fields: Object.keys(data) }
+    },
+
+    /**
+     * 永久删除回收站条目 / 清空回收站（不可恢复）。调用方须先经用户确认。
+     * @param {Record<string, any>} args
+     */
+    async goods_purge(args) {
+      if (!goodsStore || !listOf(goodsStore.trashList)) {
+        throw new Error('回收站数据不可用')
+      }
+      const trash = listOf(goodsStore.trashList)
+      const emptyAll = args?.emptyTrash === true
+      const ids = Array.isArray(args?.ids)
+        ? args.ids.map((/** @type {unknown} */ id) => String(id || '').trim()).filter(Boolean)
+        : []
+
+      if (emptyAll) {
+        if (trash.length === 0) return { ok: true, purged: 0, note: '回收站本来就是空的' }
+        if (typeof goodsStore.emptyTrash !== 'function') throw new Error('当前环境不支持清空回收站')
+        await goodsStore.emptyTrash()
+        return { ok: true, purged: trash.length, emptyTrash: true }
+      }
+
+      if (ids.length === 0) throw new Error('需要 ids 或 emptyTrash: true')
+      const trashIds = new Set(trash.map((item) => item?.id))
+      const missing = ids.filter((id) => !trashIds.has(id))
+      if (missing.length > 0) {
+        throw new Error(`回收站中未找到：${missing.join('、')}`)
+      }
+      if (typeof goodsStore.deleteGoodsPermanently === 'function') {
+        await goodsStore.deleteGoodsPermanently(ids)
+      } else if (typeof goodsStore.emptyTrash === 'function' && ids.length === trash.length) {
+        await goodsStore.emptyTrash()
+      } else {
+        throw new Error('当前环境不支持永久删除指定条目')
+      }
+      return { ok: true, purged: ids.length, ids }
+    },
+
+    /**
+     * 分组（套组）管理：增删改分组与成员。
+     * @param {Record<string, any>} args
+     */
+    async groups_manage(args) {
+      if (!goodsGroupStore) throw new Error('分组模块不可用')
+      const action = String(args?.action || '').trim()
+      const groupId = String(args?.groupId || '').trim()
+      const listOfGroups = listOf(goodsGroupStore.groupList)
+      const requireGroup = () => {
+        if (!groupId) throw new Error('groupId 必填')
+        const hit = listOfGroups.find((group) => group?.id === groupId && !group?.deleted)
+        if (!hit) throw new Error(`未找到分组 ${groupId}`)
+        return hit
+      }
+
+      if (action === 'create') {
+        const name = String(args?.name || '').trim()
+        if (!name) throw new Error('create 需要 name')
+        const type = args?.type === 'wishlist' ? 'wishlist' : 'collection'
+        const summaryMode = args?.summaryMode === 'manual' ? 'manual' : 'auto'
+        const created = await goodsGroupStore.addGroup({
+          name,
+          type,
+          summaryMode,
+          totalAmount: Number(args?.totalAmount) || 0,
+          currency: String(args?.currency || 'CNY').trim() || 'CNY',
+          note: String(args?.note || '')
+        })
+        if (!created?.id) throw new Error('新建分组失败')
+        return {
+          ok: true,
+          action,
+          groupId: created.id,
+          group: {
+            id: created.id,
+            name: created.name,
+            type: created.type,
+            summaryMode: created.summaryMode,
+            totalAmount: Number(created.totalAmount) || 0,
+            currency: created.currency
+          },
+          note: '可接着用 add_members 往分组里加谷子'
+        }
+      }
+
+      if (action === 'update') {
+        requireGroup()
+        /** @type {Record<string, any>} */
+        const patch = {}
+        if (args?.name !== undefined) {
+          const name = String(args.name).trim()
+          if (name) patch.name = name
+        }
+        if (args?.summaryMode !== undefined) {
+          const mode = String(args.summaryMode).trim()
+          if (mode !== 'auto' && mode !== 'manual') throw new Error('summaryMode 需为 auto/manual')
+          patch.summaryMode = mode
+        }
+        if (args?.totalAmount !== undefined) {
+          const amount = Number(args.totalAmount)
+          if (!Number.isFinite(amount) || amount < 0) throw new Error('totalAmount 需为不小于 0 的数字')
+          patch.totalAmount = amount
+        }
+        if (args?.currency !== undefined) patch.currency = String(args.currency).trim() || 'CNY'
+        if (args?.note !== undefined) patch.note = String(args.note)
+        if (Object.keys(patch).length === 0) throw new Error('没有可更新的字段')
+        await goodsGroupStore.updateGroup(groupId, patch)
+        return { ok: true, action, groupId, fields: Object.keys(patch) }
+      }
+
+      if (action === 'remove') {
+        requireGroup()
+        await goodsGroupStore.removeGroup(groupId)
+        return {
+          ok: true,
+          action,
+          groupId,
+          note: '已删除分组（谷子条目仍在收藏中，仅移出该组）'
+        }
+      }
+
+      if (action === 'add_members' || action === 'remove_members') {
+        requireGroup()
+        const goodsIds = Array.isArray(args?.goodsIds)
+          ? args.goodsIds.map((/** @type {unknown} */ id) => String(id || '').trim()).filter(Boolean)
+          : []
+        if (goodsIds.length === 0) throw new Error('goodsIds 至少需要 1 个')
+        if (goodsIds.length > 50) throw new Error('goodsIds 一次最多 50 个')
+
+        if (action === 'add_members') {
+          const activeIds = new Set(listOf(goodsStore.list).map((item) => item?.id))
+          const missing = goodsIds.filter((id) => !activeIds.has(id))
+          if (missing.length > 0) {
+            throw new Error(`以下 id 不在收藏中：${missing.join('、')}`)
+          }
+          const created = await goodsGroupStore.addItemsToGroup(groupId, goodsIds)
+          const skipped = goodsIds.length - created.length
+          return {
+            ok: true,
+            action,
+            groupId,
+            added: created.length,
+            skipped,
+            note: skipped > 0 ? `${skipped} 件已在该组或重复，已跳过` : ''
+          }
+        }
+
+        await goodsGroupStore.removeItemsFromGroup(goodsIds)
+        return { ok: true, action, groupId, removedFromAnyGroup: goodsIds.length }
+      }
+
+      if (action === 'move_member') {
+        requireGroup()
+        const goodsId = String(args?.goodsId || '').trim()
+        if (!goodsId) throw new Error('move_member 需要 goodsId')
+        const activeIds = new Set(listOf(goodsStore.list).map((item) => item?.id))
+        if (!activeIds.has(goodsId)) throw new Error(`未找到 id 为 ${goodsId} 的收藏条目`)
+        await goodsGroupStore.moveItemToGroup(goodsId, groupId)
+        return { ok: true, action, groupId, goodsId }
+      }
+
+      throw new Error(`未知 action：${action}；可选 create/update/remove/add_members/remove_members/move_member`)
     },
 
     /**

@@ -12,6 +12,7 @@
 export const UNDOABLE_WRITE_TOOLS = new Set([
   'goods_add',
   'goods_update',
+  'goods_update_many',
   'goods_delete',
   'goods_restore',
   'goods_sell',
@@ -123,6 +124,26 @@ export async function captureUndoBefore(tool, args, deps) {
       }
       return { tool, id, fields }
     }
+    case 'goods_update_many': {
+      const ids = Array.isArray(args?.ids)
+        ? args.ids.map((/** @type {unknown} */ id) => String(id || '').trim()).filter(Boolean)
+        : []
+      if (ids.length === 0) return null
+      const changedKeys = Object.keys(pickFields(args, GOODS_UPDATE_KEYS))
+      const items = []
+      for (const id of ids) {
+        const item = findGoodsItem(deps.goodsStore, id)
+        if (!item) return null
+        const fields = pickFields(item, changedKeys)
+        if ('collectStatus' in fields || 'acquiredAt' in fields || 'quantity' in fields) {
+          fields.statusTimeline = cloneJson(item.statusTimeline)
+        }
+        // 目标字段原本就不存在时 fields 可能为空，撤回无事可做
+        if (Object.keys(fields).length > 0) items.push({ id, fields })
+      }
+      if (items.length === 0) return null
+      return { tool, items }
+    }
     case 'goods_sell': {
       const id = String(args?.id || '').trim()
       const item = findGoodsItem(deps.goodsStore, id)
@@ -202,6 +223,10 @@ export function buildUndoEntry(tool, args, before, result) {
     case 'goods_update':
     case 'goods_sell':
       return { tool, id: before.id, fields: before.fields, label, undone: false }
+    case 'goods_update_many': {
+      if (!Array.isArray(before?.items) || before.items.length === 0) return null
+      return { tool, id: `many-${before.items.length}`, items: before.items, label, undone: false }
+    }
     case 'recharge_add': {
       const id = String(result?.id || '').trim()
       if (!id) return null
@@ -243,6 +268,8 @@ function undoLabelFor(tool, args, result) {
       return `新增「${String(result?.item?.name || args?.name || '谷子')}」`
     case 'goods_update':
       return `修改「${String(args?.id || '')}」`
+    case 'goods_update_many':
+      return `批量修改 ${Array.isArray(args?.ids) ? args.ids.length : 0} 件`
     case 'goods_delete':
       return `删除「${String(args?.id || '')}」`
     case 'goods_restore':
@@ -329,6 +356,20 @@ export async function applyUndoEntry(entry, deps) {
         throw new Error('撤回缺少字段快照')
       }
       await goodsStore.updateGoods(id, fields)
+      return
+    }
+    case 'goods_update_many': {
+      if (!goodsStore) throw new Error('谷子模块不可用')
+      const items = Array.isArray(entry?.items) ? entry.items : []
+      if (items.length === 0) throw new Error('撤回缺少批量字段快照')
+      for (const row of items) {
+        const targetId = String(row?.id || '').trim()
+        const fields = row?.fields && typeof row.fields === 'object' ? row.fields : null
+        if (!targetId || !fields || Object.keys(fields).length === 0) {
+          throw new Error('撤回缺少批量字段快照')
+        }
+        await goodsStore.updateGoods(targetId, fields)
+      }
       return
     }
     case 'recharge_add': {

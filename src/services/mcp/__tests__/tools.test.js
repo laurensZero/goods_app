@@ -77,11 +77,26 @@ function createFakeDb() {
     { id: 'r2', game: '初音速报', itemName: '月卡', amount: 30, chargedAt: '2024-12-01', note: '连续包月', deleted: false },
     { id: 'r3', game: '已删', itemName: '', amount: 999, chargedAt: '2025-02-01', note: '', deleted: true }
   ]
+  const groups = [
+    {
+      id: 'grp1', name: '初音套组', type: 'collection', summaryMode: 'auto',
+      totalAmount: 0, currency: 'CNY', note: '', deleted: false
+    },
+    {
+      id: 'grp2', name: '已删组', type: 'collection', summaryMode: 'auto',
+      totalAmount: 0, currency: 'CNY', note: '', deleted: true
+    }
+  ]
+  const groupItems = [
+    { id: 'gi1', groupId: 'grp1', goodsId: 'g1', sortOrder: 1, deleted: false }
+  ]
   return {
     getItems: vi.fn(async () => items.filter((item) => !item.trashed)),
     getTrashedItems: vi.fn(async () => items.filter((item) => item.trashed)),
     getEvents: vi.fn(async () => events),
-    getRechargeRecords: vi.fn(async () => recharge)
+    getRechargeRecords: vi.fn(async () => recharge),
+    getGroups: vi.fn(async () => groups),
+    getGroupItems: vi.fn(async () => groupItems)
   }
 }
 
@@ -144,6 +159,31 @@ describe('mcp tool handlers', () => {
     expect(trashed.note).toBe('')
 
     await expect(handlers.goods_detail({ id: 'nope' })).rejects.toThrow('未找到')
+  })
+
+  it('groups_list 返回未删除分组与成员概况', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const all = await handlers.groups_list({})
+    expect(all.total).toBe(1)
+    expect(all.groups[0]).toMatchObject({ id: 'grp1', name: '初音套组', memberCount: 1 })
+
+    const withMembers = await handlers.groups_list({ includeMembers: true, query: '初音' })
+    expect(withMembers.groups[0].members[0]).toMatchObject({ goodsId: 'g1', name: '初音未来 吧唧' })
+
+    const filtered = await handlers.groups_list({ type: 'wishlist' })
+    expect(filtered.total).toBe(0)
+  })
+
+  it('trash_list 列出回收站条目并支持关键词', async () => {
+    const handlers = createMcpToolHandlers(createFakeDb())
+
+    const all = await handlers.trash_list({})
+    expect(all.total).toBe(1)
+    expect(all.items[0]).toMatchObject({ id: 'g4', name: '旧吧唧（已丢）' })
+
+    const miss = await handlers.trash_list({ query: '明日方舟' })
+    expect(miss.total).toBe(0)
   })
 
   it('goods_search hasTracks 筛选带曲目条目并输出 tracksSummary', async () => {

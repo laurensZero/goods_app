@@ -21,6 +21,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
   '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
   '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；活动增删改用 events_add/events_update/events_delete；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
+  '分组/套组用 groups_list 总览、groups_manage 增删改与成员管理；回收站列表用 trash_list，永久清理用 goods_purge；批量改字段用 goods_update_many；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
   '吃谷预算用 budget_overview 看超支情况、budget_set 修改；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
@@ -274,6 +275,85 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     }
   },
   {
+    name: 'goods_update_many',
+    description:
+      '批量部分更新多条谷子：ids 一次最多 50 个，其余字段与 goods_update 相同，只传需要修改的字段，未传字段保持不变。' +
+      '适用于「把所有 IP=原神 的吧唧改成收纳到 A 柜」这类批量整理；先用 goods_search 拿 id 再调用。不可用于回收站条目。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 1,
+          maxItems: 50,
+          description: '要更新的谷子 id 列表，来自 goods_search'
+        },
+        name: { type: 'string', description: '名称（一般不批量改）' },
+        category: { type: 'string', description: '类别' },
+        ip: { type: 'string', description: 'IP（作品名）' },
+        characters: { type: 'array', items: { type: 'string' }, description: '关联角色列表' },
+        tags: { type: 'array', items: { type: 'string' }, description: '标签列表' },
+        variant: { type: 'string', description: '款式/版本' },
+        storageLocation: { type: 'string', description: '存放位置' },
+        price: { type: 'string', description: '标价（字符串数字）' },
+        actualPrice: { type: 'string', description: '实付价（字符串数字）' },
+        currency: { type: 'string', description: '标价币种' },
+        actualPriceCurrency: { type: 'string', description: '实付价币种' },
+        quantity: { type: 'integer', minimum: 1, description: '数量' },
+        acquiredAt: { type: 'string', description: '入手日期 YYYY-MM-DD' },
+        isWishlist: { type: 'boolean', description: '是否愿望单' },
+        note: { type: 'string', description: '备注' },
+        collectStatus: { type: 'string', description: '收集状态' }
+      },
+      required: ['ids']
+    }
+  },
+  {
+    name: 'goods_purge',
+    description:
+      '永久删除回收站中的谷子（不可恢复，没有一键撤回）。ids 指定条目，或 emptyTrash: true 清空整个回收站。' +
+      '禁止在用户未明确确认时调用；确认时优先用 ask_user。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ids: {
+          type: 'array',
+          items: { type: 'string' },
+          description: '要永久删除的回收站条目 id（来自 trash_list）；与 emptyTrash 二选一'
+        },
+        emptyTrash: { type: 'boolean', description: '为 true 时清空整个回收站（需用户明确确认）' }
+      }
+    }
+  },
+  {
+    name: 'groups_manage',
+    description:
+      '管理收藏/愿望单分组（套组）：create 新建、update 改名/手写总额等、remove 删除整组（软删除）、' +
+      'add_members 把谷子加入分组、remove_members 把谷子移出所在分组、move_member 把单件挪到目标分组。' +
+      'groupId 来自 groups_list。删除分组前先向用户确认；删除的是分组本身，谷子条目不会进回收站。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: {
+          type: 'string',
+          enum: ['create', 'update', 'remove', 'add_members', 'remove_members', 'move_member'],
+          description: '操作类型'
+        },
+        groupId: { type: 'string', description: '分组 id（update/remove/add_members/move_member 必填，来自 groups_list）' },
+        name: { type: 'string', description: '分组名称（create 必填；update 可改）' },
+        type: { type: 'string', enum: ['collection', 'wishlist'], description: 'create 时：collection=收藏套组，wishlist=心愿单组，默认 collection' },
+        summaryMode: { type: 'string', enum: ['auto', 'manual'], description: '汇总方式：auto=按成员合计，manual=用 totalAmount 手写' },
+        totalAmount: { type: 'number', description: 'summaryMode=manual 时的手写总额' },
+        currency: { type: 'string', description: '手写总额币种，默认 CNY' },
+        note: { type: 'string', description: '备注' },
+        goodsIds: { type: 'array', items: { type: 'string' }, description: 'add_members / remove_members 的谷子 id 列表（来自 goods_search）' },
+        goodsId: { type: 'string', description: 'move_member 时要挪动的单件谷子 id' }
+      },
+      required: ['action']
+    }
+  },
+  {
     name: 'settings_overview',
     description: '查看应用当前设置：主题外观、通知开关、预设清单（分类/IP/角色/收纳位置/活动类型的完整名称列表）。修改任何设置前先用本工具了解现状。',
     inputSchema: { type: 'object', properties: {} }
@@ -416,8 +496,8 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/goods_detail/goods_edit/event_detail/event_edit' },
-        id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id）' }
+        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/group_detail/goods_detail/goods_edit/event_detail/event_edit' },
+        id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id，group_detail 传分组 id）' }
       },
       required: ['page']
     }
@@ -592,6 +672,34 @@ export const MCP_TOOL_DEFINITIONS = [
         limit: { type: 'integer', minimum: 1, maximum: 20, default: 8, description: '每源返回条数上限' }
       },
       required: ['keyword']
+    }
+  },
+  {
+    name: 'groups_list',
+    description:
+      '列出收藏/愿望单分组（套组）：名称、类型、汇总方式、手写总额、成员数与示例成员名。' +
+      '回答「我有哪些套组」「原神组里有什么」类问题使用；要改分组用 groups_manage。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['collection', 'wishlist'], description: '只看某类分组；缺省两类都返回' },
+        query: { type: 'string', description: '按分组名关键词过滤' },
+        includeMembers: { type: 'boolean', default: false, description: '为 true 时附带成员谷子 id/名称列表（上限 20）' }
+      }
+    }
+  },
+  {
+    name: 'trash_list',
+    description:
+      '列出回收站中的谷子条目（软删除、尚未永久清除）。支持关键词与分页。' +
+      '回答「回收站里还有什么」使用；恢复用 goods_restore；永久删除用 goods_purge（需用户确认）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '关键词，匹配名称/IP/角色/类别/备注' },
+        limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+        offset: { type: 'integer', minimum: 0, default: 0 }
+      }
     }
   },
   {

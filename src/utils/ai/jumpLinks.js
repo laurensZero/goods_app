@@ -35,7 +35,8 @@ export const NAVIGATE_PAGES_WITH_ID = {
   goods_detail: 'detail',
   goods_edit: 'edit',
   event_detail: 'event-detail',
-  event_edit: 'event-edit'
+  event_edit: 'event-edit',
+  group_detail: 'group-detail'
 }
 
 /** app:// 协议前缀 */

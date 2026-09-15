@@ -34,15 +34,35 @@ vi.mock('@/utils/events/geocodeCity', () => ({
 
 function createFakeStore() {
   return {
-    list: { value: [{ id: 'g1', name: '已有条目' }] },
+    list: { value: [{ id: 'g1', name: '已有条目' }, { id: 'g2', name: '另一条' }] },
     trashList: { value: [{ id: 't1', name: '回收站条目' }] },
     addGoods: vi.fn(async (data) => ({ id: 'new-1', name: data.name, isWishlist: Boolean(data.isWishlist), quantity: data.quantity ?? 1 })),
     updateGoods: vi.fn(async (id, data) => id + ':' + JSON.stringify(data)),
+    updateMultipleGoods: vi.fn(async (ids, data) => ({ ids, data })),
     removeGoods: vi.fn(async () => {}),
     restoreTrashItem: vi.fn(async () => {}),
+    emptyTrash: vi.fn(async () => {}),
+    deleteGoodsPermanently: vi.fn(async () => {}),
     replaceCategoryName: vi.fn(async () => {}),
     replaceIpName: vi.fn(async () => {}),
     replaceCharacterName: vi.fn(async () => {})
+  }
+}
+
+function createFakeGroupStore() {
+  return {
+    groupList: {
+      value: [
+        { id: 'grp1', name: '原神套组', type: 'collection', summaryMode: 'auto', totalAmount: 0, currency: 'CNY', note: '', deleted: false }
+      ]
+    },
+    groupItemList: { value: [] },
+    addGroup: vi.fn(async (data) => ({ id: 'grp-new', ...data })),
+    updateGroup: vi.fn(async (id, data) => ({ id, ...data })),
+    removeGroup: vi.fn(async () => {}),
+    addItemsToGroup: vi.fn(async (groupId, goodsIds) => goodsIds.map((id) => ({ id: `gi-${id}`, groupId, goodsId: id }))),
+    removeItemsFromGroup: vi.fn(async () => {}),
+    moveItemToGroup: vi.fn(async () => ({}))
   }
 }
 
@@ -172,6 +192,60 @@ describe('mcp write tool handlers', () => {
     expect(store.removeGoods).toHaveBeenCalledWith('g1')
 
     await expect(handlers.goods_delete({ id: 'nope' })).rejects.toThrow('未找到')
+  })
+
+  it('goods_update_many 批量更新并校验 id / 字段', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+
+    const result = await handlers.goods_update_many({
+      ids: ['g1', 'g2'],
+      storageLocation: 'A 柜',
+      trashed: true
+    })
+    expect(result).toMatchObject({ ok: true, updated: 2, fields: ['storageLocation'] })
+    expect(store.updateMultipleGoods).toHaveBeenCalledWith(['g1', 'g2'], { storageLocation: 'A 柜' })
+
+    await expect(handlers.goods_update_many({ ids: [] })).rejects.toThrow('至少')
+    await expect(handlers.goods_update_many({ ids: ['g1'] })).rejects.toThrow('没有可更新的字段')
+    await expect(handlers.goods_update_many({ ids: ['nope'], note: 'x' })).rejects.toThrow('不在收藏中')
+  })
+
+  it('goods_purge 支持按 ids 永久删除与 emptyTrash 清空', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+
+    const one = await handlers.goods_purge({ ids: ['t1'] })
+    expect(one).toMatchObject({ ok: true, purged: 1 })
+    expect(store.deleteGoodsPermanently).toHaveBeenCalledWith(['t1'])
+
+    const all = await handlers.goods_purge({ emptyTrash: true })
+    expect(all).toMatchObject({ ok: true, purged: 1, emptyTrash: true })
+    expect(store.emptyTrash).toHaveBeenCalled()
+
+    await expect(handlers.goods_purge({})).rejects.toThrow('ids 或 emptyTrash')
+    await expect(handlers.goods_purge({ ids: ['nope'] })).rejects.toThrow('回收站中未找到')
+  })
+
+  it('groups_manage 支持 create/add_members/remove', async () => {
+    const store = createFakeStore()
+    const groupStore = createFakeGroupStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, goodsGroupStore: groupStore })
+
+    const created = await handlers.groups_manage({ action: 'create', name: 'CP 展战利品', type: 'collection' })
+    expect(created).toMatchObject({ ok: true, groupId: 'grp-new' })
+    expect(groupStore.addGroup).toHaveBeenCalledWith(expect.objectContaining({ name: 'CP 展战利品', type: 'collection' }))
+
+    const added = await handlers.groups_manage({ action: 'add_members', groupId: 'grp1', goodsIds: ['g1', 'g2'] })
+    expect(added).toMatchObject({ ok: true, added: 2, skipped: 0 })
+    expect(groupStore.addItemsToGroup).toHaveBeenCalledWith('grp1', ['g1', 'g2'])
+
+    const removed = await handlers.groups_manage({ action: 'remove', groupId: 'grp1' })
+    expect(removed.ok).toBe(true)
+    expect(groupStore.removeGroup).toHaveBeenCalledWith('grp1')
+
+    await expect(handlers.groups_manage({ action: 'add_members', groupId: 'nope', goodsIds: ['g1'] })).rejects.toThrow('未找到分组')
+    await expect(handlers.groups_manage({ action: 'create', name: '' })).rejects.toThrow('name')
   })
 
   it('goods_sell 记录成交并写入出售信息', async () => {

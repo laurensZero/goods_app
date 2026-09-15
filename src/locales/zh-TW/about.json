@@ -185,8 +185,6 @@
   "about.syncStatusNotSynced": "未同步",
   "about.recentSync": "最近同步：{time}",
   "about.configureSync": "可在設置頁中配置雲端同步。",
-  "about.rateLimitExceeded": "GitHub API 訪問頻率受限。請配置 GitHub 同步 token 後重試。",
-  "about.checkTimeout": "檢查更新逾時，請稍後再試。",
   "about.missingRepoInfo": "缺少儲存庫資訊，無法檢查更新。",
   "about.noReleaseAvailable": "目前儲存庫還沒有可用的 Release。",
   "about.unsupportedUpdateSource": "不支援的更新源：{source}",

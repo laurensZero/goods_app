@@ -1271,6 +1271,115 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
   }
 
   /**
+   * 列出收藏/愿望单分组，附带成员数与可选成员明细。
+   * @param {Record<string, any>} args
+   */
+  async function groupsList(args) {
+    const getGroups = typeof dbApi.getGroups === 'function' ? dbApi.getGroups : null
+    const getGroupItems = typeof dbApi.getGroupItems === 'function' ? dbApi.getGroupItems : null
+    if (!getGroups || !getGroupItems) {
+      return { total: 0, groups: [], note: '当前环境未提供分组数据接口' }
+    }
+
+    const typeFilter = asText(args?.type).trim()
+    if (typeFilter && typeFilter !== 'collection' && typeFilter !== 'wishlist') {
+      throw new Error('type 需为 collection 或 wishlist')
+    }
+    const query = asText(args?.query).trim().toLowerCase()
+    const includeMembers = args?.includeMembers === true
+
+    const [groups, groupItems, goods] = await Promise.all([
+      getGroups(),
+      getGroupItems(),
+      includeMembers ? getItems() : Promise.resolve([])
+    ])
+    const goodsMap = new Map(goods.map((item) => [item.id, item]))
+    const goodsById = new Map([
+      ...goods,
+      ...(await getTrashedItems())
+    ].map((item) => [item.id, item]))
+
+    const activeGroups = groups.filter((group) => {
+      if (group?.deleted) return false
+      if (typeFilter && asText(group.type).trim() !== typeFilter) return false
+      if (query && !asText(group.name).toLowerCase().includes(query)) return false
+      return true
+    })
+
+    const rows = activeGroups.map((group) => {
+      const memberRows = groupItems.filter((item) => item.groupId === group.id && !item.deleted)
+      const sample = memberRows
+        .slice(0, 20)
+        .map((member) => {
+          const detail = goodsById.get(member.goodsId) || goodsMap.get(member.goodsId)
+          return {
+            goodsId: member.goodsId,
+            name: asText(detail?.name).trim() || '(已删除或不在当前列表)',
+            isWishlist: Boolean(detail?.isWishlist)
+          }
+        })
+      return {
+        id: group.id,
+        name: group.name,
+        type: asText(group.type).trim() || 'collection',
+        summaryMode: asText(group.summaryMode).trim() || 'auto',
+        totalAmount: Number(group.totalAmount) || 0,
+        currency: asText(group.currency).trim() || 'CNY',
+        note: truncate(group.note),
+        memberCount: memberRows.length,
+        ...(includeMembers ? { members: sample, membersTruncated: memberRows.length > sample.length } : {})
+      }
+    })
+
+    return {
+      total: rows.length,
+      groups: rows,
+      hint: '单件谷子最多属于一个分组；操作分组用 groups_manage，详情跳转用 [查看分组](app://group_detail/<id>)'
+    }
+  }
+
+  /**
+   * 列出回收站条目（软删除、尚未永久清除）。
+   * @param {Record<string, any>} args
+   */
+  async function trashList(args) {
+    const query = asText(args?.query).trim().toLowerCase()
+    const limit = Math.min(Math.max(asInt(args?.limit) || 50, 1), 100)
+    const offset = Math.max(asInt(args?.offset), 0)
+
+    const trashed = await getTrashedItems()
+    const matched = trashed.filter((item) => {
+      if (!query) return true
+      const haystack = [
+        item.name, item.ip, item.category, item.variant, item.note,
+        ...(Array.isArray(item.characters) ? item.characters : [])
+      ].map((part) => asText(part).toLowerCase())
+      return haystack.some((part) => part.includes(query))
+    })
+
+    const page = matched
+      .slice(offset, offset + limit)
+      .map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        ip: item.ip,
+        quantity: Number(item.quantity) || 1,
+        collectStatus: item.collectStatus,
+        isWishlist: Boolean(item.isWishlist),
+        note: truncate(item.note),
+        updatedAt: Number(item.updatedAt) || 0
+      }))
+
+    return {
+      total: matched.length,
+      items: page,
+      hasMore: offset + page.length < matched.length,
+      hint: '恢复用 goods_restore(id)；永久删除用 goods_purge（不可恢复，需用户明确确认）'
+    }
+  }
+
+  /**
    * 吃谷预算总览：当前预算、本月/今年进度、按月/按年花费与超支标记。
    * 花费口径与「我的-吃谷预算」一致（官方逐件口径）。
    */
@@ -1347,6 +1456,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     music_search: musicSearch,
     recharge_summary: rechargeSummary,
     recharge_search: rechargeSearch,
+    groups_list: groupsList,
+    trash_list: trashList,
     budget_overview: budgetOverview
   }
 }

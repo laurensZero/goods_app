@@ -8,6 +8,7 @@
   "goods.addMethod.goodsCount": "{count}개",
   "goods.addMethod.importAll": "모두 가져오기 ({count})",
   "goods.addMethod.importFromMihoyo": "miHoYo샵에서 가져오기",
+  "goods.mihoyoshop": "미호요샵",
   "goods.addMethod.importFromMihoyoDesc": "상품 링크를 붙여넣어 정보 자동 입력",
   "goods.addMethod.importFromShare": "공유 코드에서 가져오기",
   "goods.addMethod.importFromShareDesc": "친구의 공유 링크 또는 코드를 붙여넣기",
