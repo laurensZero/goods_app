@@ -1,6 +1,7 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { getSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
+import { createLogger } from '@/utils/logger'
 
 /**
  * Supabase Realtime 订阅 composable
@@ -15,6 +16,7 @@ const REBUILD_MAX_MS = 60_000
 const HEALTH_CHECK_MS = 30_000
 
 export function useRealtimeSync({ syncStore }) {
+  const log = createLogger('realtime')
   const channel = ref(null)
   const isConnected = ref(false)
   let pullDebounceTimer = null
@@ -98,7 +100,7 @@ export function useRealtimeSync({ syncStore }) {
     if (!canOperate()) return
     isRebuilding = true
     try {
-      console.log('[realtime] rebuilding channel:', reason, 'attempt', rebuildAttempt + 1)
+      log.info('rebuilding channel:', reason, 'attempt', rebuildAttempt + 1)
       unsubscribe()
       // 静默断连/错误后刷新客户端，避免复用已死的 WebSocket / 过期 DNS 缓存
       if (reason !== 'health' && reason !== 'subscribe-failed') {
@@ -122,7 +124,7 @@ export function useRealtimeSync({ syncStore }) {
     const delay = Math.round(jitter)
     rebuildAttempt = Math.min(rebuildAttempt + 1, 6)
 
-    console.log('[realtime] schedule rebuild:', reason, `in ${delay}ms`)
+    log.info('schedule rebuild:', reason, `in ${delay}ms`)
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null
       void rebuildChannel(reason)
@@ -155,7 +157,7 @@ export function useRealtimeSync({ syncStore }) {
       }
       channel.value = builder.subscribe((status) => {
         isConnected.value = status === 'SUBSCRIBED'
-        console.log('[realtime] channel status:', status)
+        log.info('channel status:', status)
         if (status === 'SUBSCRIBED') {
           rebuildAttempt = 0
           clearRebuildTimer()

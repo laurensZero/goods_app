@@ -24,6 +24,7 @@ import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { getDeviceInfo } from '@/utils/platform/deviceInfo'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 import { isFeatureBlocked, FEATURE_KEYS } from '@/services/maintenanceModeService'
+import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
 import {
   IMAGE_FILE_PREFIX,
@@ -97,6 +98,7 @@ export const useSyncStore = defineStore('sync', () => {
   // 避免双管道并发互相覆盖
   let syncGeneration = 0
   const STALE_SYNC_MESSAGE = 'SYNC_STALE_GENERATION'
+  const log = createLogger('sync')
 
   // ── Device ──
   const deviceId = ref('')
@@ -751,7 +753,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
     if (syncPaused.value && source !== 'manual') {
-      console.log('[sync] sync paused, skipping auto sync (source:', source, ')')
+      log.info('sync paused, skipping auto sync (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
     }
     
@@ -874,7 +876,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   async function pull({ tables, since, silent = false, source = 'manual', maxRetries = 1, forceRecharge = false, forceFull = false } = {}) {
     if (syncPaused.value && source !== 'manual') {
-      console.log('[sync] pull paused, skipping auto pull (source:', source, ')')
+      log.info('pull paused, skipping auto pull (source:', source, ')')
       return { action: 'skipped', reason: 'paused' }
     }
 
