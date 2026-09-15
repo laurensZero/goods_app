@@ -16,8 +16,9 @@ export const termsContent = {
 - 本地数据的导入、导出与备份
 - 可选的云端同步、账号登录与跨设备数据同步
 - 图片存储、分享链接、反馈与问卷等附加能力
+- 内置 AI 助手（需您自行在设置中绑定第三方模型服务的 API Key；对话将发送至您所选的服务商）
 
-本应用为个人向工具软件，**不提供**金融支付、借贷、医疗、法律或任何需要法定许可的经营性服务。
+本应用为个人向工具软件，**不提供**金融支付、借贷、医疗、法律或任何需要法定许可的经营性服务，**也不提供** AI 模型服务本身。
 
 ## 二、账号与访问
 
@@ -44,6 +45,8 @@ export const termsContent = {
 
 同时，您不得对本应用进行反向工程、恶意破解、批量爬取接口、干扰服务器正常运行，或利用本应用侵害第三方合法权益。
 
+通过分享链接公开的内容（含您选择导出的条目字段与图片），**持有链接者均可访问**。请勿在分享内容中包含真实姓名、住址、电话、账号密码、米游铺 Cookie 等敏感信息；因您自行公开分享导致的信息暴露，除法律另有规定外由您自行负责。
+
 ## 四、数据与内容权属
 
 - 您在本应用中录入的收藏、活动、充值等业务数据，**权利归您所有**。
@@ -56,11 +59,18 @@ export const termsContent = {
 
 若您使用米游铺相关功能（订单/购物车导入、有货监控、下单辅助等），需自行提供米游铺 Cookie；相关请求由米游铺/米哈游服务器处理，并适用其用户协议与隐私政策。本应用不对米游铺侧的库存、价格、订单结果作任何保证。
 
+**非官方声明**：本应用与米哈游、米游铺**无官方关联**，不是米哈游/米游铺官方客户端，不代表其立场。使用米游铺相关功能产生的浏览、加购、下单等行为，均在官方渠道完成；**本应用不是买卖合同当事人**，不对交易能否成立、发货、退款、售后等承担责任。您不得利用本应用及米游铺 Cookie 从事批量爬取、恶意刷单、破坏交易秩序或侵害第三方合法权益的行为。
+
+AI 助手由**您自行配置**的第三方模型服务提供能力：您在设置中填写 API Key 并选定服务商；本应用不提供、不代管模型服务。使用 AI 助手即表示您理解并同意，对话内容（及助手为回答问题而引用的必要收藏信息）将发送至您所选的服务商，适用其条款与隐私政策。
+
 ## 六、免责声明
 
 - 本应用按「现状」提供。在法律允许的范围内，我们不对因使用或无法使用本应用而导致的任何间接损失、数据丢失或业务中断承担责任。
-- 请您定期通过导出功能自行备份重要数据。因设备损坏、系统故障、误操作、刷机或卸载等导致的数据丢失，除法律强制规定外，我们不承担责任。
-- 本应用展示的汇率、价格、活动时间等信息可能来自第三方或用户输入，仅供整理参考，不构成任何专业建议或交易承诺。
+- 请您定期通过导出功能自行备份重要数据，并自行校验导出文件是否完整可用。因设备损坏、系统故障、误操作、刷机或卸载等导致的数据丢失，除法律强制规定外，我们不承担责任。
+- 本应用展示的汇率、价格、活动时间等信息可能来自第三方或用户输入，仅供整理参考，不构成购物建议、专业意见或交易承诺；亦不保证抢购/开售相关提醒绝对及时或成功。
+- AI 助手输出由**您所配置的模型服务商**生成，可能有误或不完整，仅供辅助参考，不构成专业建议。您与该服务商之间的权利义务适用其条款；因您自行填写的 API Key、服务商故障或内容引起的争议，由您与该服务商依法处理。
+- 应用内公告、帮助说明等处可能含有跳转第三方网站/页面的外部链接。跳转后的内容、安全性与隐私实践由对应服务方负责，本应用不控制亦不背书；请您自行判断风险。
+- 我们可能停止维护、更新本应用，或关闭云同步等在线服务。停止后，本机已存数据原则上仍可继续查看与导出，但相关在线能力将不可用；如有可能，我们会尽量通过应用内公告提前告知。
 - 若您不同意本协议的任何条款，应立即停止使用并卸载本应用。
 
 ## 七、协议的修改
@@ -89,8 +99,9 @@ export const termsContent = {
 - 本機資料的匯入、匯出與備份
 - 可選的雲端同步、帳號登入與跨裝置資料同步
 - 圖片儲存、分享連結、回饋與問卷等附加能力
+- 內建 AI 助手（需您自行在設定中綁定第三方模型服務的 API Key；對話將發送至您所選的服務商）
 
-本應用為個人向工具軟體，**不提供**金融支付、借貸、醫療、法律或任何需要法定許可的經營性服務。
+本應用為個人向工具軟體，**不提供**金融支付、借貸、醫療、法律或任何需要法定許可的經營性服務，**也不提供** AI 模型服務本身。
 
 ## 二、帳號與訪問
 
@@ -117,6 +128,8 @@ export const termsContent = {
 
 同時，您不得對本應用進行逆向工程、惡意破解、批量爬取介面、干擾伺服器正常運行，或利用本應用侵害第三方合法權益。
 
+透過分享連結公開的內容（含您選擇匯出的條目欄位與圖片），**持有連結者均可存取**。請勿在分享內容中包含真實姓名、住址、電話、帳號密碼、米游鋪 Cookie 等敏感資訊；因您自行公開分享導致的資訊暴露，除法律另有規定外由您自行負責。
+
 ## 四、資料與內容權屬
 
 - 您在本應用中錄入的收藏、活動、儲值等業務資料，**權利歸您所有**。
@@ -129,11 +142,18 @@ export const termsContent = {
 
 若您使用米游鋪相關功能（訂單/購物車匯入、有貨監控、下單輔助等），需自行提供米游鋪 Cookie；相關請求由米游鋪/米哈遊伺服器處理，並適用其用戶協定與隱私政策。本應用不對米游鋪側的庫存、價格、訂單結果作任何保證。
 
+**非官方聲明**：本應用與米哈遊、米游鋪**無官方關聯**，不是米哈遊/米游鋪官方客戶端，不代表其立場。使用米游鋪相關功能產生的瀏覽、加購、下單等行為，均在官方管道完成；**本應用不是買賣合同當事人**，不對交易能否成立、發貨、退款、售後等承擔責任。您不得利用本應用及米游鋪 Cookie 從事批量爬取、惡意刷單、破壞交易秩序或侵害第三方合法權益的行為。
+
+AI 助手由**您自行配置**的第三方模型服務提供能力：您在設定中填寫 API Key 並選定服務商；本應用不提供、不代管模型服務。使用 AI 助手即表示您理解並同意，對話內容（及助手為回答問題而引用的必要收藏資訊）將發送至您所選的服務商，適用其條款與隱私政策。
+
 ## 六、免責聲明
 
 - 本應用按「現狀」提供。在法律允許的範圍內，我們不對因使用或無法使用本應用而導致的任何間接損失、資料遺失或業務中斷承擔責任。
-- 請您定期透過匯出功能自行備份重要資料。因裝置損壞、系統故障、誤操作、刷機或解除安裝等導致的資料遺失，除法律強制規定外，我們不承擔責任。
-- 本應用展示的匯率、價格、活動時間等資訊可能來自第三方或用戶輸入，僅供整理參考，不構成任何專業建議或交易承諾。
+- 請您定期透過匯出功能自行備份重要資料，並自行校驗匯出檔案是否完整可用。因裝置損壞、系統故障、誤操作、刷機或解除安裝等導致的資料遺失，除法律強制規定外，我們不承擔責任。
+- 本應用展示的匯率、價格、活動時間等資訊可能來自第三方或用戶輸入，僅供整理參考，不構成購物建議、專業意見或交易承諾；亦不保證搶購/開售相關提醒絕對及時或成功。
+- AI 助手輸出由**您所配置的模型服務商**生成，可能有誤或不完整，僅供輔助參考，不構成專業建議。您與該服務商之間的權利義務適用其條款；因您自行填寫的 API Key、服務商故障或內容引起的爭議，由您與該服務商依法處理。
+- 應用內公告、幫助說明等處可能含有跳轉第三方網站/頁面的外部連結。跳轉後的內容、安全性與隱私實踐由對應服務方負責，本應用不控制亦不背書；請您自行判斷風險。
+- 我們可能停止維護、更新本應用，或關閉雲端同步等線上服務。停止後，本機已存資料原則上仍可繼續查看與匯出，但相關線上能力將不可用；如有可能，我們會盡量透過應用內公告提前告知。
 - 若您不同意本協議的任何條款，應立即停止使用並解除安裝本應用。
 
 ## 七、協議的修改
@@ -162,8 +182,9 @@ The App primarily offers the following features (subject to the actual version):
 - Local data import, export, and backup
 - Optional cloud sync, account sign-in, and cross-device data synchronization
 - Image storage, share links, in-app feedback, surveys, and related utilities
+- Built-in AI assistant (you must bind a third-party model provider API key yourself in Settings; chats are sent to the provider you choose)
 
-The App is a personal utility. It does **not** provide financial payment, lending, medical, legal, or any licensed commercial services.
+The App is a personal utility. It does **not** provide financial payment, lending, medical, legal, or any licensed commercial services, and does **not** provide the AI model service itself.
 
 ## 2. Accounts and Access
 
@@ -190,6 +211,8 @@ You agree not to use the App to create, copy, publish, or disseminate content th
 
 You also agree not to reverse-engineer, tamper with, scrape at scale, disrupt normal operation of servers, or otherwise infringe the lawful rights of third parties through the App.
 
+Content published via share links (including item fields and images you choose to export) is **accessible to anyone who holds the link**. Do not include real names, addresses, phone numbers, account passwords, miHoYo Shop Cookies, or other sensitive information in shared content; except where liability cannot be excluded by law, you are responsible for exposure caused by your own public sharing.
+
 ## 4. Data and Content Ownership
 
 - Business data you enter in the App (collections, events, recharges, etc.) is **yours**.
@@ -202,11 +225,18 @@ The App may include open-source components under their respective licenses. Clou
 
 If you use miHoYo Shop features (order/cart import, stock monitoring, checkout assistance, etc.), you must provide your own miHoYo Shop Cookie; related requests are processed by miHoYo Shop / miHoYo servers under their terms and privacy policy. The App does not guarantee shop-side stock, prices, or order outcomes.
 
+**Unofficial notice**: The App has **no official affiliation** with miHoYo or miHoYo Shop and is not an official client; it does not represent their positions. Browsing, adding to cart, or placing orders via miHoYo Shop features occurs on official channels; **the App is not a party to any sales contract** and is not liable for whether a transaction is concluded, shipping, refunds, or after-sales. You must not use the App and miHoYo Shop Cookies for mass scraping, malicious order flooding, disruption of trade order, or infringement of third-party rights.
+
+The AI assistant is powered by a third-party model service **you configure yourself**: you enter an API key and choose a provider in Settings; the App does not provide or manage the model service. Using the AI assistant means you understand and agree that chat content (and necessary collection context the assistant uses to answer) is sent to the provider you chose under its terms and privacy policy.
+
 ## 6. Disclaimer
 
 - The App is provided "as is". To the fullest extent permitted by law, we are not liable for indirect damages, data loss, or service interruption arising from use of or inability to use the App.
-- Please export and back up important data regularly. We are not responsible for data loss caused by device failure, system errors, user error, flashing, or uninstallation, except where liability cannot be excluded by law.
-- Exchange rates, prices, event times, and similar information shown in the App may come from third parties or user input and are for personal organization only; they are not professional advice or offers.
+- Please export and back up important data regularly, and verify that exported files are complete and usable. We are not responsible for data loss caused by device failure, system errors, user error, flashing, or uninstallation, except where liability cannot be excluded by law.
+- Exchange rates, prices, event times, and similar information shown in the App may come from third parties or user input and are for personal organization only; they are not shopping advice, professional opinions, or offers, and do not guarantee that sale/opening reminders are always timely or successful.
+- AI assistant output is generated by **the model provider you configured**, may be incorrect or incomplete, and is for reference only; it is not professional advice. Your rights and obligations with that provider are governed by its terms; disputes arising from API keys you entered, provider outages, or provider content are handled between you and that provider under applicable law.
+- Announcements and help content in the App may contain external links to third-party sites/pages. After leaving the App, content, security, and privacy practices are the responsibility of the corresponding provider; the App neither controls nor endorses them. Assess risks yourself.
+- We may stop maintaining or updating the App, or shut down online services such as cloud sync. After shutdown, local data generally remains viewable and exportable, but related online capabilities will be unavailable; where possible, we will try to notify you in-app in advance.
 - If you do not agree to any term of this Agreement, stop using and uninstall the App immediately.
 
 ## 7. Amendments
@@ -235,8 +265,9 @@ For questions about this Agreement or the App, please contact us via the in-app 
 - ローカルデータのインポート・エクスポート・バックアップ
 - 任意のクラウド同期、アカウントログイン、デバイス間同期
 - 画像保存、共有リンク、フィードバック、アンケートなどの付帯機能
+- 内蔵 AI アシスタント（設定でご自身が第三者モデルサービスの API キーを紐付ける必要があります。チャットは選択したサービスへ送信されます）
 
-本アプリは個人向けユーティリティであり、金融決済・貸付・医療・法務その他免許制の事業サービスは**提供しません**。
+本アプリは個人向けユーティリティであり、金融決済・貸付・医療・法務その他免許制の事業サービスは**提供しません**。AI モデルサービス自体も**提供しません**。
 
 ## 2. アカウントとアクセス
 
@@ -263,6 +294,8 @@ For questions about this Agreement or the App, please contact us via the in-app 
 
 また、リバースエンジニアリング、悪意ある破解、大量スクレイピング、サーバー運営の妨害、第三者の合法的権利の侵害を行わないことに同意します。
 
+共有リンクで公開した内容（エクスポートに選択した項目フィールドや画像を含む）は、**リンクを知るすべての者が閲覧できます**。共有内容に本名、住所、電話番号、パスワード、miHoYo Shop Cookie 等の機密情報を含めないでください。ご自身の公開共有により生じた情報漏えいは、法令で責任を認められない場合を除きご自身の責任です。
+
 ## 4. データとコンテンツの権利
 
 - 本アプリに入力したコレクション・イベント・チャージ等の業務データの**権利はあなたに帰属**します。
@@ -275,11 +308,18 @@ For questions about this Agreement or the App, please contact us via the in-app 
 
 miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫監視、注文補助など）を利用する場合は、お客様ご自身で miHoYo Shop Cookie を提供する必要があります。当該リクエストは miHoYo Shop / miHoYo のサーバーで処理され、その利用規約・プライバシーポリシーが適用されます。本アプリは店舗側の在庫・価格・注文結果を保証しません。
 
+**非公式声明**：本アプリは miHoYo / miHoYo Shop と**公式な関係はなく**、公式クライアントではなく、その立場を代表しません。miHoYo Shop 関連機能による閲覧・カート追加・注文等は公式チャネル上で行われます。**本アプリは売買契約の当事者ではなく**、取引の成立・発送・返金・アフターサービス等の責任を負いません。本アプリと miHoYo Shop Cookie を大量スクレイピング、悪意ある注文 flooding、取引秩序の破壊、第三者権利侵害に利用してはなりません。
+
+AI アシスタントは**お客様ご自身が設定した**第三者モデルサービスが機能を提供します。設定で API キーを入力しサービスを選択します。本アプリはモデルサービスを提供・管理しません。AI アシスタントの利用は、対話内容（および回答に必要な範囲で参照されるコレクション情報）が選択したサービスへ送信され、その条項とプライバシーポリシーが適用されることを理解・同意したものとみなされます。
+
 ## 6. 免責事項
 
 - 本アプリは「現状有姿」で提供されます。法令上認められる最大限の範囲で、本アプリの利用または利用不能により生じた間接損害・データ喪失・業務中断について責任を負いません。
-- 重要データは定期的にエクスポートしてバックアップしてください。端末故障、システム障害、誤操作、再フラッシュ、アンインストール等によるデータ喪失について、法令で責任を認められない場合を除き責任を負いません。
-- 為替・価格・イベント時刻等の情報は第三者入力またはユーザー入力を含む場合があり、個人整理用の参考情報であり、専門的助言や取引の確約ではありません。
+- 重要データは定期的にエクスポートしてバックアップし、エクスポートファイルの完全性はご自身で確認してください。端末故障、システム障害、誤操作、再フラッシュ、アンインストール等によるデータ喪失について、法令で責任を認められない場合を除き責任を負いません。
+- 為替・価格・イベント時刻等の情報は第三者入力またはユーザー入力を含む場合があり、個人整理用の参考情報であり、買い物の助言・専門的意見・取引の確約ではなく、セール開始リマインダーの適時性や成功を保証するものではありません。
+- AI アシスタントの出力は**お客様が設定したモデルサービス**が生成し、誤りや不完全さを含む可能性があり、参考情報にすぎず専門的助言ではありません。お客様と当該サービス提供者との権利義務は各規約に従います。ご自身が入力した API キー、サービス障害、コンテンツに起因する紛争は法令に従いお客様と当該サービスの間で処理されます。
+- アプリ内お知らせやヘルプ等に第三者サイトへ遷移する外部リンクが含まれる場合があります。遷移後の内容・安全性・プライバシープラクティスは各サービス提供者の責任であり、本アプリは管理も推奨もしません。リスクはご自身で判断してください。
+- 本アプリのメンテナンス・更新の停止、またはクラウド同期等オンラインサービスの終了を行う場合があります。停止後も端末内の保存データは原則として閲覧・エクスポート可能ですが、関連するオンライン機能は利用不能になります。可能であればアプリ内お知らせで事前にお知らせします。
 - 本契約のいずれかに同意できない場合は、直ちに利用を停止しアンインストールしてください。
 
 ## 7. 契約の変更
@@ -308,8 +348,9 @@ miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫�
 - 로컬 데이터 가져오기·내보내기·백업
 - 선택적 클라우드 동기화, 계정 로그인, 기기 간 동기화
 - 이미지 저장, 공유 링크, 피드백, 설문 등 부가 기능
+- 내장 AI 어시스턴트(설정에서 본인이 제3자 모델 서비스 API 키를 직접 연동해야 하며, 대화는 선택한 서비스로 전송)
 
-본 앱은 개인용 유틸리티이며, 금융 결제·대출·의료·법률 등 면허가 필요한 영리 서비스는 **제공하지 않습니다**.
+본 앱은 개인용 유틸리티이며, 금융 결제·대출·의료·법률 등 면허가 필요한 영리 서비스는 **제공하지 않습니다**. AI 모델 서비스 자체도 **제공하지 않습니다**.
 
 ## 2. 계정 및 접근
 
@@ -336,6 +377,8 @@ miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫�
 
 또한 리버스 엔지니어링, 악의적 해제, 대량 스크래핑, 서버 운영 방해, 제3자 합법적 권리 침해를 하지 않는 데 동의합니다.
 
+공유 링크로 공개된 내용(내보내기로 선택한 항목 필드와 이미지 포함)은 **링크를 가진 누구나 접근할 수 있습니다**. 공유 내용에 실명, 주소, 전화번호, 계정 비밀번호, miHoYo Shop Cookie 등 민감 정보를 포함하지 마세요. 본인의 공개 공유로 발생한 정보 노출은 법령상 책임을 질 수 없는 경우를 제외하고 본인 책임입니다.
+
 ## 4. 데이터 및 콘텐츠 권리
 
 - 본 앱에 입력한 컬렉션·일정·충전 등 업무 데이터의 **권리는 귀하에게** 있습니다.
@@ -348,11 +391,18 @@ miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫�
 
 miHoYo Shop(米游铺) 기능(주문/장바구니 가져오기, 재고 모니터링, 주문 보조 등)을 사용하려면 본인이 miHoYo Shop Cookie를 제공해야 하며, 관련 요청은 miHoYo Shop / miHoYo 서버에서 처리되고 해당 약관·개인정보 처리방침이 적용됩니다. 본 앱은 매장 측 재고·가격·주문 결과를 보장하지 않습니다.
 
+**비공식 고지**: 본 앱은 miHoYo / miHoYo Shop과 **공식 제휴가 없으며** 공식 클라이언트가 아니고, 그 입장을 대변하지 않습니다. miHoYo Shop 관련 기능으로 이루어진 열람·장바구니 담기·주문 등은 공식 채널에서 수행됩니다. **본 앱은 매매 계약 당사자가 아니며** 거래 성립·배송·환불·A/S 등에 책임지지 않습니다. 본 앱과 miHoYo Shop Cookie를 대량 스크래핑, 악의적 주문 플러딩, 거래 질서 훼손, 제3자 권리 침해에 사용해서는 안 됩니다.
+
+AI 어시스턴트는 **본인이 직접 구성한** 제3자 모델 서비스가 기능을 제공합니다. 설정에서 API 키를 입력하고 서비스를 선택하며, 본 앱은 모델 서비스를 제공·대행하지 않습니다. AI 어시스턴트 이용은 대화 내용(및 답변에 필요한 범위에서 참조되는 컬렉션 정보)이 선택한 서비스로 전송되고 해당 약관·개인정보 처리방침이 적용됨을 이해·동의한 것으로 봅니다.
+
 ## 6. 책임의 한계
 
 - 본 앱은 "있는 그대로" 제공됩니다. 법이 허용하는 최대 범위에서 본 앱 이용 또는 이용 불능으로 인한 간접 손해, 데이터 손실, 서비스 중단에 책임지지 않습니다.
-- 중요 데이터는 정기적으로 내보내기로 백업하세요. 기기 고장, 시스템 오류, 사용자 과실, 재플래싱, 삭제 등으로 인한 데이터 손실에 대해 법적으로 책임을 질 수 없는 경우를 제외하고는 책임지지 않습니다.
-- 환율, 가격, 일정 시간 등 정보는 제3자 또는 사용자 입력일 수 있으며 개인 정리용 참고일 뿐 전문 조언이나 거래 확약이 아닙니다.
+- 중요 데이터는 정기적으로 내보내기로 백업하고, 내보낸 파일의 완전성은 본인이 확인하세요. 기기 고장, 시스템 오류, 사용자 과실, 재플래싱, 삭제 등으로 인한 데이터 손실에 대해 법적으로 책임을 질 수 없는 경우를 제외하고는 책임지지 않습니다.
+- 환율, 가격, 일정 시간 등 정보는 제3자 또는 사용자 입력일 수 있으며 개인 정리용 참고일 뿐 쇼핑 조언·전문 의견·거래 확약이 아니고, 세일/판매 시작 알림의 적시성이나 성공을 보장하지 않습니다.
+- AI 어시스턴트 출력은 **본인이 구성한 모델 서비스**가 생성하며, 오류나 불완전함이 있을 수 있고 참고일 뿐 전문 조언이 아닙니다. 본인과 해당 서비스 제공자 간의 권리·의무는 각 약관을 따릅니다. 본인이 입력한 API 키, 서비스 장애, 콘텐츠로 인한 분쟁은 법령에 따라 본인과 해당 서비스 사이에서 처리됩니다.
+- 앱 내 공지나 도움말 등에 제3자 사이트로 이동하는 외부 링크가 포함될 수 있습니다. 이동 후 내용·보안·개인정보 처리는 해당 제공자 책임이며, 본 앱은 통제하지도 권장하지도 않습니다. 위험은 본인이 판단하세요.
+- 본 앱의 유지보수·업데이트 중단 또는 클라우드 동기화 등 온라인 서비스 종료를 할 수 있습니다. 중단 후에도 기기 저장 데이터는 원칙적으로 조회·내보내기 가능하나 관련 온라인 기능은 사용할 수 없게 됩니다. 가능하면 앱 내 공지로 사전에 알립니다.
 - 본 계약 조항에 동의하지 않으면 즉시 이용을 중단하고 삭제하세요.
 
 ## 7. 계약 변경
