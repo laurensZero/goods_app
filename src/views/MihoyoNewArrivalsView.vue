@@ -382,11 +382,6 @@
                     {{ t('mihoyoNew.skuOwned') }}
                   </span>
                 </span>
-                <span class="sku-chip__check">
-                  <svg v-if="selectedSku?.key === sku.key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </span>
               </button>
             </div>
             <p v-else class="sku-sheet__empty">{{ t('mihoyoNew.noSku') }}</p>
@@ -1498,8 +1493,8 @@ onMounted(() => {
 
 .sku-chip {
   display: grid;
-  grid-template-columns: 36px 1fr auto 20px;
-  gap: 8px;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 6px;
   align-items: center;
   min-height: 52px;
   padding: 6px 8px;
@@ -1527,17 +1522,19 @@ onMounted(() => {
 
 .sku-chip__flags {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 4px;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .sku-chip__wished {
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
-  padding: 3px 6px;
+  padding: 2px 5px;
   border-radius: 999px;
   background: rgba(47, 158, 94, 0.14);
   color: #2f9e5e;
@@ -1548,7 +1545,7 @@ onMounted(() => {
   font-size: 10px;
   font-weight: 600;
   line-height: 1;
-  padding: 3px 6px;
+  padding: 2px 5px;
   border-radius: 999px;
   background: rgba(47, 127, 211, 0.14);
   color: #2f7fd3;
@@ -1597,18 +1594,6 @@ onMounted(() => {
 
 .sku-chip--selected .sku-chip__price {
   color: var(--app-chip-accent-text);
-}
-
-.sku-chip__check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--app-chip-accent-text);
-}
-
-.sku-chip__check svg {
-  width: 16px;
-  height: 16px;
 }
 
 .whole-btn,
