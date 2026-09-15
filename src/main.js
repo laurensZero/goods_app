@@ -21,7 +21,7 @@ import { useFilterPresetsStore } from './stores/filterPresets'
 import { useThemeStore } from './stores/theme'
 import { useExchangeRateStore } from './stores/exchangeRate'
 import { useRechargeStore } from './stores/recharge'
-import { useGoodsGroupStore } from './stores/goodsGroup'
+import { useGoodsGroupStore } from './stores/goods/goodsGroup'
 import { useSurveyStore } from './stores/survey'
 import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { hasOverlays } from './composables/useDialogBackButton'
@@ -243,7 +243,7 @@ async function bootstrap() {
   setupAndroidBackButton()
   setupAndroidResumeListener(theme)
   void cleanupImageCache()
-  import('./utils/saleReminder').then(({ registerSaleReminderNotificationNavigation, watchSaleReminderNotifications }) => {
+  import('./utils/goods/saleReminder').then(({ registerSaleReminderNotificationNavigation, watchSaleReminderNotifications }) => {
     registerSaleReminderNotificationNavigation()
     watchSaleReminderNotifications(store)
   }).catch((e) => { log.warn('saleReminder:init:failed', e) })

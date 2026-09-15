@@ -287,8 +287,8 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
-import packageJson from '../../package.json'
-import capacitorConfig from '../../capacitor.config.json'
+import packageJson from '../../../package.json'
+import capacitorConfig from '../../../capacitor.config.json'
 import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
 
 const { t } = useI18n()
