@@ -109,7 +109,7 @@
                     :alt="item.name"
                     loading="lazy"
                   />
-                  <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
+                  <span v-else class="goods-card__media-fallback">{{ (displayName(item.name) || '谷').charAt(0) }}</span>
                   <span class="goods-card__badges">
                     <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
                       {{ wishlistBadgeText(item) }}
@@ -122,7 +122,7 @@
                 </span>
                 <span class="goods-card__body">
                   <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
-                  <span class="goods-card__name">{{ item.name || t('mihoyoNew.unnamed') }}</span>
+                  <span class="goods-card__name">{{ displayName(item.name) || t('mihoyoNew.unnamed') }}</span>
                 </span>
               </button>
             </article>
@@ -152,7 +152,7 @@
                     :alt="item.name"
                     loading="lazy"
                   />
-                  <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
+                  <span v-else class="goods-card__media-fallback">{{ (displayName(item.name) || '谷').charAt(0) }}</span>
                   <span class="goods-card__badges">
                     <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
                       {{ wishlistBadgeText(item) }}
@@ -167,7 +167,7 @@
                 </span>
                 <span class="goods-card__body">
                   <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
-                  <span class="goods-card__name">{{ item.name || t('mihoyoNew.unnamed') }}</span>
+                  <span class="goods-card__name">{{ displayName(item.name) || t('mihoyoNew.unnamed') }}</span>
                   <span class="goods-card__foot">
                     <span v-if="item.catalog === 'point'" class="price price--point">
                       {{ item.point }}{{ t('mihoyoNew.pointUnit') }}
@@ -208,7 +208,7 @@
                     :alt="item.name"
                     loading="lazy"
                   />
-                  <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
+                  <span v-else class="goods-card__media-fallback">{{ (displayName(item.name) || '谷').charAt(0) }}</span>
                   <span class="goods-card__badges">
                     <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
                       {{ wishlistBadgeText(item) }}
@@ -221,7 +221,7 @@
                 </span>
                 <span class="goods-card__body">
                   <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
-                  <span class="goods-card__name">{{ item.name || t('mihoyoNew.unnamed') }}</span>
+                  <span class="goods-card__name">{{ displayName(item.name) || t('mihoyoNew.unnamed') }}</span>
                   <span class="goods-card__foot">
                     <span v-if="item.catalog === 'point'" class="price price--point">
                       {{ item.point }}{{ t('mihoyoNew.pointUnit') }}
@@ -262,7 +262,7 @@
                   :alt="item.name"
                   loading="lazy"
                 />
-                <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
+                <span v-else class="goods-card__media-fallback">{{ (displayName(item.name) || '谷').charAt(0) }}</span>
                 <span class="goods-card__badges">
                   <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
                     {{ wishlistBadgeText(item) }}
@@ -274,7 +274,7 @@
               </span>
               <span class="goods-card__body">
                 <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
-                <span class="goods-card__name">{{ item.name || t('mihoyoNew.unnamed') }}</span>
+                <span class="goods-card__name">{{ displayName(item.name) || t('mihoyoNew.unnamed') }}</span>
                 <span class="goods-card__foot">
                   <span class="price price--point">
                     {{ item.point }}{{ t('mihoyoNew.pointUnit') }}
@@ -313,13 +313,13 @@
                 :alt="activeItem.name"
                 loading="lazy"
               />
-              <span v-else>{{ (activeItem.name || '谷').charAt(0) }}</span>
+              <span v-else>{{ (displayName(activeItem.name) || '谷').charAt(0) }}</span>
             </span>
             <div class="sku-sheet__info">
               <p class="sku-sheet__shop">{{ shopLabel(activeItem.shop_code) }}</p>
-              <h2 class="sku-sheet__name">{{ activeItem.name || t('mihoyoNew.unnamed') }}</h2>
+              <h2 class="sku-sheet__name">{{ displayName(activeItem.name) || t('mihoyoNew.unnamed') }}</h2>
               <p v-if="selectedSku?.text" class="sku-sheet__selected">
-                {{ t('mihoyoNew.selectedSku', { name: selectedSku.text }) }}
+                {{ t('mihoyoNew.selectedSku', { name: displaySkuText(selectedSku.text) }) }}
               </p>
               <p class="sku-sheet__meta">
                 <span v-if="activeItem.catalog === 'point'" class="price price--point">
@@ -501,6 +501,18 @@ const releasedItems = computed(() => shopMainItems.value.filter((item) => isRele
 const pointItems = computed(() =>
   activeCatalog.value === 'point' ? filteredItems.value.filter((item) => !item.is_gift) : [],
 )
+
+/** 展示用商品名：去掉【预售】等营销/状态标签 */
+function displayName(text) {
+  const cleaned = cleanGoodsName(text)
+  return cleaned || String(text || '').trim()
+}
+
+/** 展示用 SKU：去掉【预售】等后缀 */
+function displaySkuText(text) {
+  const cleaned = normalizeGoodsVariant(text)
+  return cleaned || String(text || '').trim()
+}
 
 /** 比对用：去掉【预售】等后缀，避免同一款因文案差被当成两套 */
 function variantKey(text) {
@@ -771,8 +783,9 @@ async function loadVariants(item) {
       .map((v) => {
         const rawPrice = v.price ?? skuPrices[v.key]
         const price = rawPrice != null && Number(rawPrice) > 0 ? Number(rawPrice) : null
+        const rawText = String(v.text || v.key)
         return {
-          text: String(v.text || v.key),
+          text: displaySkuText(rawText),
           key: String(v.key),
           cover_url: String(result.skuCovers?.[v.key] || v.cover_url || v.img_url || productCover),
           price,

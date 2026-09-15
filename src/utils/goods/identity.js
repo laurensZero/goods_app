@@ -2,13 +2,28 @@ export function normalizeGoodsName(name) {
   return String(name || '').trim()
 }
 
-const VARIANT_SALE_KEYWORD_RE = /(?:(?:第?\d+|[一二三四五六七八九十两]+)(?:批|批次)?\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售|以规格标注为准)/
+/** 批次前缀：一批次/二批/第2批次/两期… */
+const BATCH_PREFIX = String.raw`(?:(?:第?\d+|[一二三四五六七八九十两]+)\s*(?:批|批次|期)\s*)?`
+/** 销售状态词：预售/现货/补款…（可与批次组合，如「二批次预售」） */
+const SALE_WORDS = String.raw`(?:预售|预计|现货|补款|尾款|发货|到仓|开售|以规格标注为准)`
+const VARIANT_SALE_KEYWORD_RE = new RegExp(
+  String.raw`${BATCH_PREFIX}${SALE_WORDS}|${SALE_WORDS}\s*(?:第?\d+|[一二三四五六七八九十两]+)?\s*(?:批|批次|期)?`,
+)
 const VARIANT_SALE_MARKER_PATTERNS = [
   /【[^】]*】/g,
   /（[^）]*）/g,
   /\([^)]*\)/g,
 ]
-const VARIANT_TRAILING_SALE_NOTE_RE = /\s*[，,、;；]\s*.*?(?:(?:第?\d+|[一二三四五六七八九十两]+)(?:批|批次)?\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售|以规格标注为准).*$/g
+/** 逗号后的销售备注：「兹白，二批次预售」 */
+const VARIANT_TRAILING_SALE_NOTE_RE = new RegExp(
+  String.raw`\s*[，,、;；]\s*.*?${BATCH_PREFIX}${SALE_WORDS}.*$`,
+  'g',
+)
+/** 末尾裸标签（无逗号）：「兹白一批次预售」「芙宁娜一批次预售中」 */
+const VARIANT_TRAILING_SALE_TAG_RE = new RegExp(
+  String.raw`\s*(?:(?:第?\d+|[一二三四五六七八九十两]+)\s*(?:批|批次|期)\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售)(?:[^\s，,、;；/／]*)?$`,
+  'g',
+)
 
 function stripVariantSaleMarkers(value) {
   return VARIANT_SALE_MARKER_PATTERNS.reduce((result, pattern) => (
@@ -23,6 +38,22 @@ function isVariantSaleSegment(segment) {
   if (!match) return false
   const prefix = value.slice(0, match.index).replace(/[\s，,、;；:：|／/（）()【】\[\]-—]+/g, '')
   return !prefix
+}
+
+/** 去掉文本里的【一批次预售】/「二批次预售」等销售标签（不含整段角色清洗） */
+export function stripGoodsSaleTags(text) {
+  let value = stripVariantSaleMarkers(text).trim()
+  if (!value) return ''
+  let previous = ''
+  while (value && value !== previous) {
+    previous = value
+    value = value
+      .replace(VARIANT_TRAILING_SALE_NOTE_RE, '')
+      .replace(VARIANT_TRAILING_SALE_TAG_RE, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  }
+  return value
 }
 
 export function normalizeGoodsVariant(variant) {
@@ -40,6 +71,7 @@ export function normalizeGoodsVariant(variant) {
 
     value = parts.join(' / ')
       .replace(VARIANT_TRAILING_SALE_NOTE_RE, '')
+      .replace(VARIANT_TRAILING_SALE_TAG_RE, '')
       .replace(/\s{2,}/g, ' ')
       .replace(/^\s*[-—:：|]+\s*/g, '')
       .replace(/\s*[-—:：|]+\s*$/g, '')

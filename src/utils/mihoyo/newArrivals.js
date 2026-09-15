@@ -284,9 +284,13 @@ function sortArrivals(catalog, items) {
  */
 export function giftDedupeKey(name) {
   let s = String(name || '').trim()
-  s = s.replace(/【(?:预售|预计|现货)[^】]*】/g, '')
-  s = s.replace(/（(?:预售|预计|现货)[^）]*）/g, '')
-  s = s.replace(/\((?:预售|预计|现货)[^)]*\)/g, '')
+  s = s.replace(/【[^】]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^】]*】/g, '')
+  s = s.replace(/（[^）]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^）]*）/g, '')
+  s = s.replace(/\([^)]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^)]*\)/g, '')
+  s = s.replace(
+    /\s*(?:(?:第?\d+|[一二三四五六七八九十两]+)\s*(?:批|批次|期)\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售)(?:[^\s（）()【】\[\]]*)?$/g,
+    '',
+  )
   s = s.replace(/[A-E]$/, '')
   return s.trim()
 }
