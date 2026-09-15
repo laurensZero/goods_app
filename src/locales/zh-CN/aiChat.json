@@ -69,5 +69,14 @@
   "aiChat.undoFailed": "撤回失败，部分数据可能已改动",
   "aiChat.undoSending": "AI 回复中，稍后再撤回",
   "aiChat.undoDone": "本轮修改已撤回",
-  "aiChat.jumpToBottom": "回到底部"
+  "aiChat.jumpToBottom": "回到底部",
+  "aiChat.asrModel": "语音识别模型（可选）",
+  "aiChat.asrModelPlaceholder": "默认 whisper-1",
+  "aiChat.asrNotice": "点麦克风说话，识别结果会填入输入框。调用同一接口地址的 /audio/transcriptions；部分网关可能未开放该路径。",
+  "aiChat.voiceStart": "语音输入",
+  "aiChat.voiceStop": "停止录音",
+  "aiChat.voiceRecording": "正在录音，再点一次结束…",
+  "aiChat.voiceTranscribing": "识别中…",
+  "aiChat.voiceFailed": "语音识别失败，请重试",
+  "aiChat.voiceUnsupported": "当前环境不支持录音"
 }

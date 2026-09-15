@@ -69,5 +69,14 @@
   "aiChat.undoFailed": "취소에 실패했습니다. 일부 데이터가 변경되었을 수 있습니다",
   "aiChat.undoSending": "AI가 응답 중입니다. 잠시 후 다시 취소해 주세요",
   "aiChat.undoDone": "이번 턴 변경을 취소했습니다",
-  "aiChat.jumpToBottom": "맨 아래로"
+  "aiChat.jumpToBottom": "맨 아래로",
+  "aiChat.asrModel": "음성 인식 모델 (선택)",
+  "aiChat.asrModelPlaceholder": "기본: whisper-1",
+  "aiChat.asrNotice": "마이크를 눌러 말하면 인식 결과가 입력창에 채워집니다. 동일 baseURL의 /audio/transcriptions를 사용합니다. 일부 게이트웨이는 미지원일 수 있습니다.",
+  "aiChat.voiceStart": "음성 입력",
+  "aiChat.voiceStop": "녹음 중지",
+  "aiChat.voiceRecording": "녹음 중 — 다시 눌러 종료…",
+  "aiChat.voiceTranscribing": "인식 중…",
+  "aiChat.voiceFailed": "음성 인식에 실패했습니다. 다시 시도해 주세요",
+  "aiChat.voiceUnsupported": "현재 환경에서는 녹음을 지원하지 않습니다"
 }

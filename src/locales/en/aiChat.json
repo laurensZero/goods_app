@@ -69,5 +69,14 @@
   "aiChat.undoFailed": "Undo failed; some data may still be changed",
   "aiChat.undoSending": "AI is still replying — try undo later",
   "aiChat.undoDone": "Changes from this turn were undone",
-  "aiChat.jumpToBottom": "Jump to bottom"
+  "aiChat.jumpToBottom": "Jump to bottom",
+  "aiChat.asrModel": "Speech recognition model (optional)",
+  "aiChat.asrModelPlaceholder": "Default: whisper-1",
+  "aiChat.asrNotice": "Tap the mic to dictate; the transcript fills the input box. Uses /audio/transcriptions on the same base URL — some gateways may not expose this path.",
+  "aiChat.voiceStart": "Voice input",
+  "aiChat.voiceStop": "Stop recording",
+  "aiChat.voiceRecording": "Recording — tap again to stop…",
+  "aiChat.voiceTranscribing": "Transcribing…",
+  "aiChat.voiceFailed": "Speech recognition failed, please try again",
+  "aiChat.voiceUnsupported": "Recording is not supported in this environment"
 }

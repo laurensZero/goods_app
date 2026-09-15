@@ -22,7 +22,9 @@ export const DEFAULT_AI_CONFIG = Object.freeze({
   visionModel: '',
   apiKey: '',
   /** 可选：Tavily 搜索 Key（tvly-…）；留空则不启用 web_search */
-  searchApiKey: ''
+  searchApiKey: '',
+  /** 可选：语音识别模型；留空默认 whisper-1 */
+  asrModel: ''
 })
 
 /** HTTP/服务端错误，带状态码与原始响应文本便于排障 */
