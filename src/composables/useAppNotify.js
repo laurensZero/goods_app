@@ -63,7 +63,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     }
   }
 
-  function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key, forceAutoClose } = {}) {
+  function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key, forceAutoClose, notes } = {}) {
     if (!text) return
 
     // 检查通知是否启用
@@ -87,7 +87,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       duration: effectiveDuration,
       actions: actions || [],
       persistent: !!persistent,
-      progress: null
+      progress: null,
+      notes: truncateNotesForToast(notes)
     }
 
     // 使用设置中的最大显示数量
@@ -368,6 +369,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       stopAppDownloadWatch?.()
     }
 
+    // 保留通知上的更新日志，下载进度更新时不清空
+    const currentNotes = notifications.value.find((n) => n.id === notifyId)?.notes || ''
     let sawDownloading = false
     let finished = false
 
@@ -399,7 +402,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             subText: parts.join(' · '),
             progress: percent,
             persistent: true,
-            actions: []
+            actions: [],
+            notes: currentNotes
           })
           return
         }
@@ -418,7 +422,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             subText: kind === 'web' ? '即将应用更新' : '正在启动安装…',
             progress: 100,
             persistent: true,
-            actions: []
+            actions: [],
+            notes: currentNotes
           })
           setTimeout(() => dismiss(notifyId), 2800)
         }
@@ -511,6 +516,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             iconType: 'update',
             text: '发现新版本',
             subText: webUpdateStore.latestVersion ? `v${webUpdateStore.latestVersion} 可用` : '有新的资源更新',
+            notes: webUpdateStore.releaseNotesPreview || '',
             duration: 10000,
             actions: [
               {
@@ -551,6 +557,7 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
             iconType: 'update',
             text: '发现新版本',
             subText: appUpdateStore.latestVersion ? `v${appUpdateStore.latestVersion} 可用` : '有新的应用更新',
+            notes: appUpdateStore.releaseNotesPreview || '',
             duration: 10000,
             actions: [
               {
@@ -620,6 +627,22 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     start,
     stop
   }
+}
+
+// Toast 空间有限：限制行数与长度，避免长 release body 撑爆通知
+function truncateNotesForToast(notes) {
+  const text = String(notes || '').trim()
+  if (!text) return ''
+
+  const maxLines = 8
+  const maxLength = 420
+  const lines = text.split(/\r?\n/)
+  let result = lines.slice(0, maxLines).join('\n').trim()
+  if (lines.length > maxLines) result += '\n…'
+  if (result.length > maxLength) {
+    result = `${result.slice(0, maxLength).trimEnd()}…`
+  }
+  return result
 }
 
 function formatOffsetText(minutes) {

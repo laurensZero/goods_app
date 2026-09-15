@@ -24,6 +24,21 @@
           <div v-if="typeof item.progress === 'number'" class="app-notify-progress" role="progressbar" :aria-valuenow="item.progress" aria-valuemin="0" aria-valuemax="100">
             <span class="app-notify-progress__bar" :style="{ transform: `scaleX(${(item.progress || 0) / 100})` }" />
           </div>
+          <div v-if="item.notes" class="app-notify-notes" @click.stop>
+            <button type="button" class="app-notify-notes__toggle" @click.stop="toggleNotes(item.id)">
+              <span>{{ t('common.updateNotes') }}</span>
+              <span class="app-notify-notes__chevron" :class="{ 'app-notify-notes__chevron--open': expandedNotes[item.id] }">›</span>
+            </button>
+            <div
+              v-show="expandedNotes[item.id]"
+              class="app-notify-notes__body"
+              :class="{ 'app-notify-notes__body--expanded': expandedNotes[item.id] }"
+            >{{ item.notes }}</div>
+            <div
+              v-if="!expandedNotes[item.id]"
+              class="app-notify-notes__preview"
+            >{{ item.notes }}</div>
+          </div>
           <div v-if="item.saleAt && countdowns[item.id]" class="app-notify-countdown-text">{{ countdowns[item.id] }}</div>
           <div v-if="item.actions?.length" class="app-notify-actions">
             <button
@@ -259,6 +274,12 @@ function dismiss(id) {
   emit('dismiss', id)
 }
 
+const expandedNotes = reactive({})
+
+function toggleNotes(id) {
+  expandedNotes[id] = !expandedNotes[id]
+}
+
 function handleClick(item) {
   if (item.goodsId && !item.actions?.length) {
     router.push(`/detail/${encodeURIComponent(item.goodsId)}`).catch(() => {})
@@ -360,6 +381,76 @@ function handleAction(item, action) {
   background: var(--app-chip-accent-text);
   transform-origin: left;
   transition: transform 0.2s ease;
+}
+
+.app-notify-notes {
+  margin-top: 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--app-text) 5%, transparent);
+  overflow: hidden;
+  cursor: default;
+}
+
+.app-notify-notes__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.app-notify-notes__toggle:active {
+  opacity: 0.7;
+}
+
+.app-notify-notes__chevron {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  transform: rotate(90deg);
+  transition: transform 0.18s ease;
+}
+
+.app-notify-notes__chevron--open {
+  transform: rotate(-90deg);
+}
+
+.app-notify-notes__preview {
+  padding: 0 8px 8px;
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.app-notify-notes__body {
+  padding: 0 8px 8px;
+  color: var(--app-text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.app-notify-notes__body--expanded {
+  max-height: 140px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .app-notify-countdown-text {
