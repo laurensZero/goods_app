@@ -12,7 +12,8 @@
 
 import { Readable } from 'node:stream'
 
-const MAX_BODY_BYTES = 4 * 1024 * 1024
+/** 聊天 JSON 与语音 multipart 共用；对齐 Whisper 约 25MB 上限，留一点余量 */
+const MAX_BODY_BYTES = 26 * 1024 * 1024
 
 /**
  * @param {import('http').IncomingMessage} req
@@ -57,7 +58,10 @@ export function aiProxyPlugin() {
           const body = await readBody(req)
 
           /** @type {Record<string, string>} */
-          const headers = { 'Content-Type': 'application/json' }
+          // multipart（语音识别）必须透传 Content-Type（含 boundary），不能写死 JSON
+          const headers = {
+            'Content-Type': String(req.headers['content-type'] || 'application/json')
+          }
           if (req.headers.authorization) headers.Authorization = String(req.headers.authorization)
 
           const upstream = await fetch(upstreamUrl, { method: 'POST', headers, body })

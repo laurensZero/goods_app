@@ -69,5 +69,14 @@
   "aiChat.undoFailed": "取り消しに失敗しました。一部のデータが変更されている可能性があります",
   "aiChat.undoSending": "AI が返答中です。しばらくしてから取り消してください",
   "aiChat.undoDone": "この回の変更は取り消されました",
-  "aiChat.jumpToBottom": "一番下へ"
+  "aiChat.jumpToBottom": "一番下へ",
+  "aiChat.asrModel": "音声認識モデル（任意）",
+  "aiChat.asrModelPlaceholder": "既定: whisper-1",
+  "aiChat.asrNotice": "マイクをタップして話すと、認識結果が入力欄に入ります。同じベース URL の /audio/transcriptions を使用します。一部のゲートウェイでは未対応の場合があります。",
+  "aiChat.voiceStart": "音声入力",
+  "aiChat.voiceStop": "録音を停止",
+  "aiChat.voiceRecording": "録音中 — もう一度タップで停止…",
+  "aiChat.voiceTranscribing": "認識中…",
+  "aiChat.voiceFailed": "音声認識に失敗しました。もう一度お試しください",
+  "aiChat.voiceUnsupported": "この環境では録音できません"
 }

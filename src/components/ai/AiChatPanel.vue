@@ -360,12 +360,34 @@
             </button>
           </div>
         </div>
+        <button
+          class="chat-compose__mic"
+          type="button"
+          :class="{
+            'chat-compose__mic--recording': voiceState === 'recording',
+            'chat-compose__mic--busy': voiceState === 'transcribing'
+          }"
+          :disabled="voiceState === 'transcribing' || aiChat.sending"
+          :aria-label="voiceState === 'recording' ? t('aiChat.voiceStop') : t('aiChat.voiceStart')"
+          :title="voiceState === 'recording' ? t('aiChat.voiceStop') : t('aiChat.voiceStart')"
+          @click="toggleVoiceInput"
+        >
+          <svg v-if="voiceState !== 'recording'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="3" width="6" height="11" rx="3" />
+            <path d="M5 11a7 7 0 0 0 14 0" />
+            <path d="M12 18v3" />
+          </svg>
+          <svg v-else viewBox="0 0 24 24" fill="currentColor" stroke="none">
+            <rect x="7" y="7" width="10" height="10" rx="2" />
+          </svg>
+        </button>
         <textarea
           ref="inputRef"
           v-model="inputText"
           class="chat-compose__input"
           rows="1"
-          :placeholder="aiChat.sending ? t('aiChat.inputPlaceholderQueued') : t('aiChat.inputPlaceholder')"
+          :placeholder="voicePlaceholder"
+          :disabled="voiceState === 'transcribing'"
           @input="autoGrow"
           @keydown.enter="handleEnterKey"
         />
@@ -461,6 +483,10 @@
           <input v-model.trim="settingsDraft.visionModel" type="text" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.visionModelPlaceholder')" />
         </label>
         <label class="settings-field">
+          <span class="settings-field__label">{{ t('aiChat.asrModel') }}</span>
+          <input v-model.trim="settingsDraft.asrModel" type="text" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.asrModelPlaceholder')" />
+        </label>
+        <label class="settings-field">
           <span class="settings-field__label">{{ t('aiChat.apiKey') }}</span>
           <input v-model.trim="settingsDraft.apiKey" type="password" autocomplete="off" spellcheck="false" />
         </label>
@@ -477,6 +503,7 @@
         <p class="ai-settings-body__hint">{{ t('aiChat.apiKeyHint') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.searchNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.visionNotice') }}</p>
+        <p class="ai-settings-body__hint">{{ t('aiChat.asrNotice') }}</p>
         <p class="ai-settings-body__hint">{{ t('aiChat.writeNotice') }}</p>
       </div>
     </AppSheet>
@@ -570,6 +597,7 @@ import { useAiChatStore } from '@/stores/aiChat'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { useWideViewport } from '@/composables/viewport/useWideViewport'
 import { normalizeBaseUrl } from '@/services/ai/chatClient'
+import { transcribeAudio } from '@/services/ai/asrClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
@@ -592,10 +620,21 @@ const inputRef = ref(null)
 const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
 const showHistory = ref(false)
-const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '' })
+const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '', asrModel: '' })
 const maxAttachments = MAX_ATTACHMENTS
 /** 流式中输入区是否已有可入队内容（文字或附件） */
 const canQueueSend = computed(() => Boolean(inputText.value.trim()) || aiChat.attachments.length > 0)
+/** 语音输入状态：空闲 / 录音中 / 识别中 */
+const voiceState = ref('')
+/** MediaRecorder 最长录音时长（防止误触长录撑爆上传） */
+const MAX_VOICE_MS = 120000
+/** @type {{ recorder: MediaRecorder | null, stream: MediaStream | null, timer: number | null, mimeType: string }} */
+const voiceSession = { recorder: null, stream: null, timer: null, mimeType: '' }
+const voicePlaceholder = computed(() => {
+  if (voiceState.value === 'recording') return t('aiChat.voiceRecording')
+  if (voiceState.value === 'transcribing') return t('aiChat.voiceTranscribing')
+  return aiChat.sending ? t('aiChat.inputPlaceholderQueued') : t('aiChat.inputPlaceholder')
+})
 const attachMenuOpen = ref(false)
 const tableFileInputRef = ref(null)
 /** 正在撤回中的消息 id */
@@ -720,6 +759,7 @@ onBeforeUnmount(() => {
     clearTimeout(bottomFallbackTimer)
     bottomFallbackTimer = 0
   }
+  stopVoiceSession()
 })
 
 // 示例问题池：空状态每次出现（进入页面 / 新建对话 / 清空）随机轮换 3 条
@@ -1175,6 +1215,7 @@ function openSettings() {
   settingsDraft.visionModel = aiChat.config.visionModel || ''
   settingsDraft.apiKey = aiChat.config.apiKey
   settingsDraft.searchApiKey = aiChat.config.searchApiKey || ''
+  settingsDraft.asrModel = aiChat.config.asrModel || ''
   showSettings.value = true
 }
 
@@ -1184,10 +1225,133 @@ function saveSettings() {
     model: settingsDraft.model,
     visionModel: settingsDraft.visionModel,
     apiKey: settingsDraft.apiKey,
-    searchApiKey: settingsDraft.searchApiKey
+    searchApiKey: settingsDraft.searchApiKey,
+    asrModel: settingsDraft.asrModel
   })
   showSettings.value = false
   showToast(t('aiChat.saved'))
+}
+
+function stopVoiceSession() {
+  if (voiceSession.timer) {
+    clearTimeout(voiceSession.timer)
+    voiceSession.timer = null
+  }
+  if (voiceSession.recorder && voiceSession.recorder.state !== 'inactive') {
+    try {
+      voiceSession.recorder.stop()
+    } catch {
+      /* ignore */
+    }
+  }
+  voiceSession.recorder = null
+  if (voiceSession.stream) {
+    for (const track of voiceSession.stream.getTracks()) {
+      try {
+        track.stop()
+      } catch {
+        /* ignore */
+      }
+    }
+    voiceSession.stream = null
+  }
+}
+
+/** 选一个 WebView/浏览器能录的 MIME */
+function pickRecorderMimeType() {
+  const candidates = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg;codecs=opus'
+  ]
+  if (typeof MediaRecorder === 'undefined') return ''
+  for (const mime of candidates) {
+    if (MediaRecorder.isTypeSupported?.(mime)) return mime
+  }
+  return ''
+}
+
+/** 开始录音；返回「等 onstop 产出 Blob」的 Promise（用户再点停止或到时触发） */
+function beginVoiceRecording() {
+  /** @type {Blob[]} */
+  const chunks = []
+  return new Promise((resolve, reject) => {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+      const mimeType = pickRecorderMimeType()
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream)
+      voiceSession.recorder = recorder
+      voiceSession.stream = stream
+      voiceSession.mimeType = recorder.mimeType || mimeType || ''
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) chunks.push(event.data)
+      }
+      recorder.onerror = () => {
+        stopVoiceSession()
+        reject(new Error(t('aiChat.voiceFailed')))
+      }
+      recorder.onstop = () => {
+        const type = voiceSession.mimeType || chunks[0]?.type || 'audio/webm'
+        stopVoiceSession()
+        resolve(new Blob(chunks, { type }))
+      }
+
+      recorder.start(250)
+      voiceState.value = 'recording'
+      voiceSession.timer = window.setTimeout(() => {
+        if (voiceSession.recorder?.state === 'recording') voiceSession.recorder.stop()
+      }, MAX_VOICE_MS)
+    }).catch(reject)
+  })
+}
+
+async function startVoiceRecording() {
+  if (!aiChat.config.baseUrl || !aiChat.config.apiKey) {
+    showToast(t('aiChat.errorNoConfig'))
+    return
+  }
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+    showToast(t('aiChat.voiceUnsupported'))
+    return
+  }
+
+  try {
+    const blob = await beginVoiceRecording()
+    if (!blob || blob.size === 0) {
+      voiceState.value = ''
+      return
+    }
+
+    voiceState.value = 'transcribing'
+    const text = await transcribeAudio({
+      config: aiChat.config,
+      blob,
+      mimeType: voiceSession.mimeType || blob.type
+    })
+    const next = inputText.value.trim()
+    inputText.value = next ? `${next}\n${text}` : text
+    await nextTick()
+    autoGrow()
+    inputRef.value?.focus()
+  } catch (e) {
+    console.warn('[ai-chat:view] voice input failed', e)
+    showToast(e instanceof Error && e.message ? e.message : t('aiChat.voiceFailed'))
+  } finally {
+    stopVoiceSession()
+    voiceState.value = ''
+  }
+}
+
+async function toggleVoiceInput() {
+  if (voiceState.value === 'transcribing') return
+  if (voiceState.value === 'recording') {
+    if (voiceSession.recorder?.state === 'recording') {
+      voiceSession.recorder.stop()
+    }
+    return
+  }
+  await startVoiceRecording()
 }
 
 function clearChat() {
@@ -2258,6 +2422,56 @@ function removeSession(id) {
 
 .chat-compose__input:disabled {
   opacity: 0.55;
+}
+
+.chat-compose__mic {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: 0 2px 0 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.chat-compose__mic:not(:disabled):hover {
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-compose__mic:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.chat-compose__mic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.chat-compose__mic svg {
+  width: 18px;
+  height: 18px;
+}
+
+.chat-compose__mic--recording {
+  background: #e5484d;
+  color: #fff;
+  animation: mic-pulse 1.2s ease-in-out infinite;
+}
+
+.chat-compose__mic--busy {
+  opacity: 0.7;
+  cursor: progress;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, 0.35); }
+  50% { box-shadow: 0 0 0 6px rgba(229, 72, 77, 0); }
 }
 
 .chat-compose__send {

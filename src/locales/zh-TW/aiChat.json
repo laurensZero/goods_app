@@ -69,5 +69,14 @@
   "aiChat.undoFailed": "撤回失敗，部分資料可能已變動",
   "aiChat.undoSending": "AI 回覆中，稍後再撤回",
   "aiChat.undoDone": "本輪修改已撤回",
-  "aiChat.jumpToBottom": "回到底部"
+  "aiChat.jumpToBottom": "回到底部",
+  "aiChat.asrModel": "語音辨識模型（可選）",
+  "aiChat.asrModelPlaceholder": "預設 whisper-1",
+  "aiChat.asrNotice": "點麥克風說話，辨識結果會填入輸入框。使用同一介面位址的 /audio/transcriptions；部分閘道可能未開放此路徑。",
+  "aiChat.voiceStart": "語音輸入",
+  "aiChat.voiceStop": "停止錄音",
+  "aiChat.voiceRecording": "正在錄音，再點一次結束…",
+  "aiChat.voiceTranscribing": "辨識中…",
+  "aiChat.voiceFailed": "語音辨識失敗，請重試",
+  "aiChat.voiceUnsupported": "目前環境不支援錄音"
 }
