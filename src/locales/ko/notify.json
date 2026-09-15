@@ -75,5 +75,9 @@
     "mihoyoNewArrivalsDesc": "곧 출시 / 포인트 교환 신상품을 보고 위시리스트에 빠르게 추가"
   },
   "notify.saleTimeReached": "판매 시간이 되었습니다",
-  "notify.saleCountdown": "판매까지"
+  "notify.saleCountdown": "판매까지",
+  "notify.postageTimeReached": "배송비 마감 시간이 되었습니다",
+  "notify.postageCountdown": "배송비 마감까지",
+  "notify.paymentTimeReached": "잔금 마감 시간이 되었습니다",
+  "notify.paymentCountdown": "잔금 마감까지"
 }

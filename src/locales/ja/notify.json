@@ -75,5 +75,9 @@
     "mihoyoNewArrivalsDesc": "まもなく発売 / ポイント交換の新着を確認し、ウィッシュリストに追加"
   },
   "notify.saleTimeReached": "発売時刻になりました",
-  "notify.saleCountdown": "発売まで"
+  "notify.saleCountdown": "発売まで",
+  "notify.postageTimeReached": "送料支払期限になりました",
+  "notify.postageCountdown": "送料支払まで",
+  "notify.paymentTimeReached": "残金支払期限になりました",
+  "notify.paymentCountdown": "残金支払まで"
 }
