@@ -6,7 +6,7 @@ import {
   displayVariantText,
   normalizeCharacterName,
   isLikelyCharName,
-} from '@/utils/variantText'
+} from '@/utils/goods/variantText'
 
 const MIN_CATEGORY_SCORE = 0.6
 const MIN_IP_SCORE = 0.6

@@ -3,7 +3,7 @@ import { useRouter } from 'vue-router'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import { extractIdsFromInput } from '@/utils/share/goods'
-import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
+import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
 

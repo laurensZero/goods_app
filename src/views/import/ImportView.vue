@@ -639,7 +639,7 @@ import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
@@ -660,7 +660,7 @@ import { resizeTextarea } from '@/utils/textarea'
 import {
   displayVariantText,
   normalizeCharacterName,
-} from '@/utils/variantText'
+} from '@/utils/goods/variantText'
 import {
   addMihoyoImportContextItem,
   applyMihoyoVariantMedia,

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { reactive, ref, watch } from 'vue'
 import { useGoodsStore } from './goods'
-import { useGoodsGroupStore } from './goodsGroup'
+import { useGoodsGroupStore } from './goods/goodsGroup'
 import { usePresetsStore } from './presets'
 import { useThemeStore } from './theme'
 import { useNotifySettingsStore } from './notifySettings'

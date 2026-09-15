@@ -1,6 +1,6 @@
 import { saveItems } from '@/utils/db/index'
 import { normalizeCharacterName } from '@/stores/presets'
-import { normalizeCharacterList } from '@/stores/goodsHelpers'
+import { normalizeCharacterList } from '@/stores/goods/goodsHelpers'
 
 async function replaceCategoryName(oldName, newName, list, trashList, triggerSync) {
   const previous = String(oldName || '').trim()

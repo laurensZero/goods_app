@@ -38,7 +38,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
-import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 
 const props = defineProps({
   show: { type: Boolean, default: false },

@@ -3,7 +3,7 @@ import {
   isStorageLocationUnderPrefix,
   normalizeStorageLocationValue,
   replaceStorageLocationPrefix as replaceStorageLocationPathPrefix
-} from '@/utils/storageLocations'
+} from '@/utils/storage/storageLocations'
 
 async function replaceStorageLocationPrefix(oldPrefix, newPrefix, list, triggerSync) {
   const normalizedOldPrefix = normalizeStorageLocationValue(oldPrefix)

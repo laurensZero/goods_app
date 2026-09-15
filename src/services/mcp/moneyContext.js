@@ -11,7 +11,7 @@
  */
 
 import { useExchangeRateStore } from '@/stores/exchangeRate'
-import { computePriceFields } from '@/stores/goodsViewList'
+import { computePriceFields } from '@/stores/goods/goodsViewList'
 
 export function createMoneyEnrichers() {
   const exchangeRate = useExchangeRateStore()

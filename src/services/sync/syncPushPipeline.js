@@ -3,7 +3,7 @@
 
 import { normalizeBudgetValue } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
-import { computeBucketDiff } from './supabaseAdapter/helpers'
+import { computeBucketDiff } from '../supabaseAdapter/helpers'
 
 /**
  * Build sync payloads (image upload is deferred to doPush).

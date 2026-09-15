@@ -10,7 +10,7 @@ vi.mock('@/utils/image/localImage', () => ({
   isLocalImageUri: vi.fn(() => false),
   collectManagedLocalImagePathsFromGoodsItem: vi.fn(() => new Set())
 }))
-vi.mock('@/utils/saleReminder', () => ({
+vi.mock('@/utils/goods/saleReminder', () => ({
   cancelSaleReminderNotifications: vi.fn(async () => {})
 }))
 

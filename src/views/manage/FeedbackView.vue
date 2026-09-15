@@ -128,7 +128,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import FeedbackDialog from '@/components/app/FeedbackDialog.vue'
 import FeedbackDetailView from '@/views/manage/FeedbackDetailView.vue'
-import { listMyFeedbacks, checkUnreadUpdates } from '@/services/feedbackService'
+import { listMyFeedbacks, checkUnreadUpdates } from '@/services/feedback/feedbackService'
 import { useAuthStore } from '@/stores/auth'
 
 const FEEDBACK_REPO_OWNER = 'laurensZero'

@@ -13,7 +13,7 @@ import {
   removeMonitoredGoods,
   checkGoodsAvailability,
   updateMonitoredGoodsStatus,
-} from '@/services/mihoyoStockMonitorService'
+} from '@/services/mihoyo/mihoyoStockMonitorService'
 
 // 手动全量重检时相邻两个商品的请求间隔：逐个串行拉米游铺 detail，降低触发接口限流概率
 const RECHECK_INTERVAL_MS = 600

@@ -3,7 +3,7 @@
 
 import { camelToSnake, toSnakeCase } from '@/utils/sync/columnMapping'
 import { asyncBuildComparableRecordMap, getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
-import { withRetry } from '@/services/syncRetry'
+import { withRetry } from '@/services/sync/syncRetry'
 import i18n from '@/locales'
 
 // ── Column definitions ──

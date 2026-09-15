@@ -960,7 +960,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
-import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay } from '@/utils/saleReminder'
+import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay } from '@/utils/goods/saleReminder'
 
 const { t } = useI18n()
 

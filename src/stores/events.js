@@ -6,9 +6,9 @@ import { normalizeTracks } from '@/utils/music/tracks'
 import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { aliasCachedImage } from '@/utils/image/cache'
-import { parseNumericPrice } from '@/stores/goodsHelpers'
+import { parseNumericPrice } from '@/stores/goods/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
-import { replaceEventBase64WithPublicUrls } from '@/stores/goodsMigrations'
+import { replaceEventBase64WithPublicUrls } from '@/stores/goods/goodsMigrations'
 import {
   normalizeDayTicketList,
   resolveCompleteDayTicketTotal

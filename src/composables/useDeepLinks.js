@@ -3,7 +3,7 @@ import { App as CapApp } from '@capacitor/app'
 import { Capacitor } from '@capacitor/core'
 import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-router'
 import { useClipboardImport } from '@/composables/useClipboardImport'
-import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storageQr'
+import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { appLog } from '@/utils/logger'
 

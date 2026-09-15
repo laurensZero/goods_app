@@ -234,7 +234,7 @@ export function createSyncOrchestrator({
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
-            const { cleanupBase64Images } = await import('@/stores/goodsSync')
+            const { cleanupBase64Images } = await import('@/stores/goods/goodsSync')
             await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
           }
         },
@@ -533,7 +533,7 @@ export function createSyncOrchestrator({
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
-            const { cleanupBase64Images } = await import('@/stores/goodsSync')
+            const { cleanupBase64Images } = await import('@/stores/goods/goodsSync')
             await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
           }
         },
@@ -715,7 +715,7 @@ export function createSyncOrchestrator({
 
     // Clean up any remaining base64 images in SQLite (skip files whose upload failed)
     if (be.getImagePublicUrl) {
-      const { cleanupBase64Images } = await import('@/stores/goodsSync')
+      const { cleanupBase64Images } = await import('@/stores/goods/goodsSync')
       await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be, { skipFiles: failedImageFiles }).catch(() => {})
     }
 

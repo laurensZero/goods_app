@@ -152,7 +152,7 @@ export async function collectDeviceLog() {
   lines.push(`Platform: ${navigator.platform}`)
   lines.push(`User Agent: ${navigator.userAgent}`)
   try {
-    const { getDeviceInfo } = await import('@/utils/deviceInfo')
+    const { getDeviceInfo } = await import('@/utils/platform/deviceInfo')
     const di = await getDeviceInfo()
     if (di?.label) lines.push(`Device Model: ${di.label}`)
     if (di?.manufacturer) lines.push(`Manufacturer: ${di.manufacturer}`)

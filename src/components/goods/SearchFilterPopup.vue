@@ -406,7 +406,7 @@
 import { computed, ref, watch } from 'vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useI18n } from 'vue-i18n'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import SearchBar from '@/components/common/SearchBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'

@@ -50,7 +50,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { resolveRechargePresetImage } from '@/utils/rechargeImages'
+import { resolveRechargePresetImage } from '@/utils/recharge/rechargeImages'
 
 const props = defineProps({
   record: {

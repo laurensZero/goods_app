@@ -48,7 +48,7 @@
 import { reactive, watch, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { parseSaleAt } from '@/utils/saleReminder'
+import { parseSaleAt } from '@/utils/goods/saleReminder'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 
 const props = defineProps({

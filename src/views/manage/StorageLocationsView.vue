@@ -111,7 +111,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { isStorageLocationUnderPrefix } from '@/utils/storageLocations'
+import { isStorageLocationUnderPrefix } from '@/utils/storage/storageLocations'
 import NavBar from '@/components/common/NavBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
@@ -119,7 +119,7 @@ import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
 import StorageLocationTreeNode from '@/components/storage/StorageLocationTreeNode.vue'
 import NfcWriteDialog from '@/components/storage/NfcWriteDialog.vue'
 import StorageQrDialog from '@/components/storage/StorageQrDialog.vue'
-import { buildStorageDeepLink } from '@/utils/storageQr'
+import { buildStorageDeepLink } from '@/utils/storage/storageQr'
 
 const { t } = useI18n()
 const store = useGoodsStore()

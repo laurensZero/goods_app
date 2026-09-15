@@ -10,7 +10,7 @@ import {
   normalizeWishlistFlag,
   resolveEffectivePriceValue,
   resolveCollectionTotalValue
-} from '@/stores/goodsHelpers'
+} from '@/stores/goods/goodsHelpers'
 import { buildSearchText } from '@/utils/goods/filters'
 import {
   resolvePrimaryCollectStatus,

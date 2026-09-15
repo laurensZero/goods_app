@@ -525,7 +525,7 @@ import {
   PHASE_ENSURE_CLOUD, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_DIFF,
   PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
-} from '@/services/syncError'
+} from '@/services/sync/syncError'
 import { getSupabaseClient, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'

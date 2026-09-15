@@ -6,7 +6,7 @@ import {
   buildStorageLocationPath,
   normalizeStorageLocationValue,
   splitStorageLocationPath
-} from '@/utils/storageLocations'
+} from '@/utils/storage/storageLocations'
 import { isBuiltinEventType } from '@/constants/eventTypes'
 
 const STORAGE_KEY_CAT = 'goods_presets_categories'

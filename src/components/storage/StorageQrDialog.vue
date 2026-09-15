@@ -59,7 +59,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { Capacitor } from '@capacitor/core'
 import { Filesystem, Directory } from '@capacitor/filesystem'
-import { buildStorageQrUrl } from '@/utils/storageQr'
+import { buildStorageQrUrl } from '@/utils/storage/storageQr'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()

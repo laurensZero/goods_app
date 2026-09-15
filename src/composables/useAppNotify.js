@@ -5,7 +5,7 @@ import {
   normalizeSaleReminderEnabled,
   normalizeSaleReminderOffsets,
   SALE_REMINDER_DEFAULT_OFFSETS
-} from '@/utils/saleReminder'
+} from '@/utils/goods/saleReminder'
 import { formatDate } from '@/utils/format'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { Capacitor } from '@capacitor/core'

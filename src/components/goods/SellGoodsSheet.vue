@@ -134,7 +134,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useWideViewport } from '@/composables/useWideViewport'
+import { useWideViewport } from '@/composables/viewport/useWideViewport'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { appendStatusTimelineEntry } from '@/utils/goods/statusTimeline'

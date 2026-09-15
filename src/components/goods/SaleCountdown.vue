@@ -8,7 +8,7 @@
 <script setup>
 import { ref, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { parseSaleAt } from '@/utils/saleReminder'
+import { parseSaleAt } from '@/utils/goods/saleReminder'
 
 const { t } = useI18n()
 
