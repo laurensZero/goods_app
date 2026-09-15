@@ -10,7 +10,7 @@ import {
   GOODS_FILTER_SPECIAL_VALUES,
   GOODS_FILTER_DATE_PRESET_OPTIONS
 } from '@/utils/goods/filters'
-import { normalizeStorageLocationValue, splitStorageLocationPath, buildStorageLocationPath } from '@/utils/storageLocations'
+import { normalizeStorageLocationValue, splitStorageLocationPath, buildStorageLocationPath } from '@/utils/storage/storageLocations'
 import { writePersisted } from '@/utils/platform/storage'
 
 // 关键词匹配偏好（拼音/大小写/备注）跨会话记住上次选择

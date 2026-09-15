@@ -4,7 +4,7 @@
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { Capacitor } from '@capacitor/core'
-import { getDeviceId } from '@/utils/feedbackDevice'
+import { getDeviceId } from '@/utils/feedback/feedbackDevice'
 
 const FEEDBACKS_TABLE = 'feedbacks'
 

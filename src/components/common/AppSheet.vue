@@ -45,7 +45,7 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useWideViewport } from '@/composables/useWideViewport'
+import { useWideViewport } from '@/composables/viewport/useWideViewport'
 
 const BASE_Z = 90
 const Z_STEP = 10

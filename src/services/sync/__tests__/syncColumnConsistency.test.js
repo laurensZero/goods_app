@@ -8,7 +8,7 @@ import {
   GOODS_GROUP_ITEM_BUSINESS_KEYS, GOODS_GROUP_ITEM_COLS, GOODS_GROUP_ITEM_SELECT_COLS
 } from '@/services/supabaseAdapter/helpers'
 import { normalizeEvent } from '@/stores/events'
-import { normalizeGoodsInput } from '@/stores/goodsHelpers'
+import { normalizeGoodsInput } from '@/stores/goods/goodsHelpers'
 
 // 同步列三方一致性：各表唯一登记处（*BUSINESS_KEYS）
 // ↔ push 白名单（*COLS / store 归一化函数）↔ pull 显式 select（*_SELECT_COLS）。

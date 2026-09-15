@@ -294,7 +294,7 @@ import { POINT_SHOP_OPTIONS, useCheckoutPoints } from '@/composables/checkout/us
 import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { receiveCoupon, submitCheckoutOrder } from '@/utils/mihoyo/checkout'
 import { canUseNativeMihoyoImport, getNativeMihoyoCookie, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { formatPrice, formatDate } from '@/utils/format'

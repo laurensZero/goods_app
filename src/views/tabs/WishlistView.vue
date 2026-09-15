@@ -226,7 +226,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'

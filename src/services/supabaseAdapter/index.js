@@ -1,9 +1,9 @@
 // src/services/supabaseAdapter/index.js
 // Factory that assembles the Supabase backend adapter from modular parts
 
-import { createSyncBackendAdapter } from '@/services/syncBackendAdapter'
+import { createSyncBackendAdapter } from '@/services/sync/syncBackendAdapter'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
-import { withRetry } from '@/services/syncRetry'
+import { withRetry } from '@/services/sync/syncRetry'
 import { createStorageOps } from './storage'
 import { createReader } from './reader'
 import { createWriter } from './writer'

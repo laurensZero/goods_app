@@ -11,8 +11,8 @@ import {
   normalizeTrashItem,
   mergeGoodsRecord,
   diffRemovedManagedImagePaths
-} from '@/stores/goodsHelpers'
-import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/saleReminder'
+} from '@/stores/goods/goodsHelpers'
+import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 import {
   applyAcquiredAtToTimeline,
   bootstrapAcquisitionStatus,

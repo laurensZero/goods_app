@@ -5,7 +5,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { useEventsStore } from '@/stores/events'
 import { usePresetsStore } from '@/stores/presets'
 import { useRechargeStore } from '@/stores/recharge'
-import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { appLog } from '@/utils/logger'
 import {
   buildAppCsvFiles,

@@ -133,7 +133,7 @@ import { useEventsStore } from '@/stores/events'
 import { useThemeStore } from '@/stores/theme'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import { normalizeCityName, resolveCityCoords } from '@/utils/events/cityCoordinates'
-import { loadAmap } from '@/utils/amap'
+import { loadAmap } from '@/utils/ai/amap'
 import { playRouteSceneSlide, runWithRouteTransition } from '@/utils/routeTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 

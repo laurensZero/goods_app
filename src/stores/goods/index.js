@@ -2,9 +2,9 @@
 import { defineStore } from 'pinia'
 import { ref, shallowRef, computed } from 'vue'
 import { getItems, getTrashedItems } from '@/utils/db/index'
-import { normalizeStorageLocationValue } from '@/utils/storageLocations'
+import { normalizeStorageLocationValue } from '@/utils/storage/storageLocations'
 import { createByIdLookup, createAutoPush } from '@/stores/storeCore'
-import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goodsHelpers'
+import { normalizeGoodsInput, normalizeTrashItem } from '@/stores/goods/goodsHelpers'
 import {
   readPersistedPurgedTrashIds,
   writePersistedPurgedTrashIds,
@@ -16,20 +16,20 @@ import {
   writeVariantMigrationFlag,
   readBase64UrlMigrationFlag,
   writeBase64UrlMigrationFlag
-} from '@/stores/goodsPersistence'
+} from '@/stores/goods/goodsPersistence'
 import {
   normalizeExistingCharacters,
   normalizeExistingVariants,
   backfillLegacyImages,
   replaceBase64WithPublicUrls,
   migratePreferencesTrashToDb
-} from '@/stores/goodsMigrations'
+} from '@/stores/goods/goodsMigrations'
 import {
   replaceCategoryName as _replaceCategoryName,
   replaceIpName as _replaceIpName,
   replaceCharacterName as _replaceCharacterName,
   syncCharacterIp as _syncCharacterIp
-} from '@/stores/goodsBatchRename'
+} from '@/stores/goods/goodsBatchRename'
 import {
   addMultipleGoods as _addMultipleGoods,
   refreshList as _refreshList,
@@ -38,17 +38,17 @@ import {
   importTrashBackup as _importTrashBackup,
   updateTrashBackup as _updateTrashBackup,
   markImagesAsRemote as _markImagesAsRemote
-} from '@/stores/goodsSync'
+} from '@/stores/goods/goodsSync'
 import {
   replaceStorageLocationPrefix as _replaceStorageLocationPrefix,
   clearStorageLocationPrefix as _clearStorageLocationPrefix
-} from '@/stores/goodsStorageOps'
+} from '@/stores/goods/goodsStorageOps'
 import {
   createViewList,
   createTrashViewList,
   createFilteredViewLists
-} from '@/stores/goodsViewList'
-import * as crud from '@/stores/goodsCrud'
+} from '@/stores/goods/goodsViewList'
+import * as crud from '@/stores/goods/goodsCrud'
 
 export const useGoodsStore = defineStore('goods', () => {
   /** @type {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} */

@@ -1,7 +1,7 @@
 import { getItems, saveItems } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
-import { cancelSaleReminderNotifications } from '@/utils/saleReminder'
+import { cancelSaleReminderNotifications } from '@/utils/goods/saleReminder'
 import { triggerRef } from 'vue'
 import {
   normalizeGoodsInput,
@@ -10,7 +10,7 @@ import {
   shouldApplyRemoteBackup,
   restoreImportedGoodsItem,
   diffRemovedManagedImagePaths
-} from '@/stores/goodsHelpers'
+} from '@/stores/goods/goodsHelpers'
 import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'

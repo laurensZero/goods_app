@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { toGoodsRows } from '../supabaseAdapter/helpers'
+import { toGoodsRows } from '../../supabaseAdapter/helpers'
 import { toCamelCase } from '@/utils/sync/columnMapping'
-import { normalizeGoodsInput } from '@/stores/goodsHelpers'
+import { normalizeGoodsInput } from '@/stores/goods/goodsHelpers'
 
 // 模拟 Supabase 同步回环:本地 item → 上传行(snake_case) → 拉取转换(camelCase) → 归一化入库
 describe('supabase sync round-trip preserves sell* columns', () => {

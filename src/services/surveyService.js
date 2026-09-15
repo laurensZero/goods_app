@@ -2,7 +2,7 @@
 // Supabase-based survey CRUD, response submission, and condition evaluation
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
-import { getDeviceId } from '@/utils/feedbackDevice'
+import { getDeviceId } from '@/utils/feedback/feedbackDevice'
 import { readPersisted } from '@/utils/platform/storage'
 
 const SURVEYS_TABLE = 'surveys'

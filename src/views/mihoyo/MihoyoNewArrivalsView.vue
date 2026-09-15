@@ -424,7 +424,7 @@ import AppSheet from '@/components/common/AppSheet.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import { useToast } from '@/composables/useToast'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useGoodsStore } from '@/stores/goods'
 import {
@@ -435,7 +435,7 @@ import {
 import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName } from '@/utils/mihoyo'
 import { resolveMihoyoImportDraft } from '@/utils/mihoyo/importResolver'
 import { normalizeGoodsVariant, getGoodsVariant } from '@/utils/goods/identity'
-import { normalizeCharacterName, isLikelyCharName } from '@/utils/variantText'
+import { normalizeCharacterName, isLikelyCharName } from '@/utils/goods/variantText'
 
 defineOptions({ name: 'MihoyoNewArrivalsView' })
 

@@ -6,7 +6,7 @@ vi.mock('@/utils/db/index', () => ({
   saveItems: vi.fn(async () => {}),
   deleteItems: vi.fn(async () => {})
 }))
-vi.mock('@/utils/saleReminder', () => ({
+vi.mock('@/utils/goods/saleReminder', () => ({
   cancelSaleReminderNotifications: vi.fn(async () => {}),
   scheduleSaleReminderForItem: vi.fn(async () => {})
 }))
@@ -23,7 +23,7 @@ vi.mock('@/stores/presets', () => ({
 import { removeGoods, removeMultipleGoods, restoreTrashItem, emptyTrash } from '../goodsCrud'
 import { addItem, deleteItems, saveItems } from '@/utils/db/index'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
-import { scheduleSaleReminderForItem } from '@/utils/saleReminder'
+import { scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 
 function makeItem(id) {
   return {

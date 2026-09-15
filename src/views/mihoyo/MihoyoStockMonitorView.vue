@@ -297,7 +297,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
 import { useMihoyoGoodsSearch } from '@/composables/import/useMihoyoGoodsSearch'
 import { useMihoyoGoodsQueue } from '@/composables/import/useMihoyoGoodsQueue'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { parseMihoyoUrl, isMihoyoGiftUrl } from '@/utils/mihoyo'
 
 defineOptions({ name: 'MihoyoStockMonitorView' })

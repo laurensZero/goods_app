@@ -2,7 +2,7 @@
 // Supabase write operations: pushAll, writeManifest, writePresets
 
 import { toSnakeCase } from '@/utils/sync/columnMapping'
-import { withRetry } from '@/services/syncRetry'
+import { withRetry } from '@/services/sync/syncRetry'
 import i18n from '@/locales'
 import {
   syncTableRows,

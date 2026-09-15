@@ -1,6 +1,6 @@
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { normalizeCharacterName, displayVariantText } from '@/utils/variantText'
+import { normalizeCharacterName, displayVariantText } from '@/utils/goods/variantText'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { fetchGoodsDetail } from '@/utils/mihoyo/index'
 import { normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'

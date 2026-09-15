@@ -2,7 +2,7 @@ import { triggerRef } from 'vue'
 import { saveItems, deleteItems, saveEvents } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
-import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goodsHelpers'
+import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goods/goodsHelpers'
 import { GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET } from '@/services/supabaseAdapter/storage'
 import { readSyncKey } from '@/utils/sync/storage'
 import { aliasCachedImage } from '@/utils/image/cache'
@@ -11,7 +11,7 @@ import {
   removeTrashStorage,
   readTrashSameTableMigrationFlag,
   writeTrashSameTableMigrationFlag
-} from '@/stores/goodsPersistence'
+} from '@/stores/goods/goodsPersistence'
 
 const SUPABASE_URL_KEY = 'sync_supabase_url'
 

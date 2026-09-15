@@ -1,4 +1,4 @@
-import { isStorageLocationUnderPrefix, normalizeStorageLocationValue } from '@/utils/storageLocations'
+import { isStorageLocationUnderPrefix, normalizeStorageLocationValue } from '@/utils/storage/storageLocations'
 import { toPinyinSearchText } from '@/utils/pinyin'
 import { validatePrice } from '@/utils/validate'
 import { getCollectStatusEntries, resolvePrimaryCollectStatus } from '@/utils/goods/status'

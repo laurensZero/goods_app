@@ -273,7 +273,7 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
-import { useGoodsGroupStore } from '@/stores/goodsGroup'
+import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -315,7 +315,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
-import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storageQr'
+import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storage/storageQr'
 import { showGlobalToast } from '@/utils/globalToast'
 
 defineOptions({ name: 'HomeView' })

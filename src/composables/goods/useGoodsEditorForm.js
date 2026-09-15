@@ -14,7 +14,7 @@ import { commitActiveInput } from '@/utils/commitActiveInput'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries } from '@/utils/goods/statusTimeline'
 import {
@@ -22,7 +22,7 @@ import {
   ensureSaleReminderPermission,
   normalizeSaleAt,
   normalizeSaleReminderOffsets
-} from '@/utils/saleReminder'
+} from '@/utils/goods/saleReminder'
 
 const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 

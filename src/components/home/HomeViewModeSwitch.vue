@@ -33,7 +33,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useTabletViewport } from '@/composables/useTabletViewport'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 
 const { t } = useI18n()
 

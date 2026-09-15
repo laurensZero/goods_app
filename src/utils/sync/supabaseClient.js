@@ -2,7 +2,7 @@
 import i18n from '@/locales'
 import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
-import { getDeviceId } from '@/utils/feedbackDevice'
+import { getDeviceId } from '@/utils/feedback/feedbackDevice'
 
 let supabase = null
 

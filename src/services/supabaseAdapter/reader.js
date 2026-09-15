@@ -2,7 +2,7 @@
 // Supabase read operations: pullAll, readPresets
 
 import { toCamelCase } from '@/utils/sync/columnMapping'
-import { withRetry } from '@/services/syncRetry'
+import { withRetry } from '@/services/sync/syncRetry'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
