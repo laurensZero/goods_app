@@ -492,6 +492,9 @@ function mergeGoodsRecord(existing, incoming) {
     name: existing.name || incoming.name,
     category: existing.category || incoming.category,
     ip: existing.ip || incoming.ip,
+    // 米游铺商品号只在导入时写入、编辑器无 UI；合并时用 incoming 回填 existing 的空值，
+    // 否则「同名同款再导入」会把已有 goodsId 丢掉或永远补不上
+    goodsId: String(existing.goodsId || incoming.goodsId || '').trim(),
     isWishlist: normalizeWishlistFlag(existing.isWishlist),
     characters: existing.characters?.length ? existing.characters : incoming.characters,
     tags: normalizeTagList([...(existing.tags || []), ...(incoming.tags || [])]),
@@ -525,6 +528,8 @@ function mergeGoodsRecord(existing, incoming) {
     coverImage: getPrimaryGoodsImageUrl(images, existing.coverImage || incoming.coverImage),
     images,
     note: stripVariantFromNote(existing.note || '') || stripVariantFromNote(incoming.note || ''),
+    // CD/专辑曲目：同 goodsId，existing 空时用 incoming 回填（...existing 会把空数组盖在前面）
+    tracks: existing.tracks?.length ? existing.tracks : (incoming.tracks?.length ? incoming.tracks : []),
     collectStatus: existing.collectStatus || incoming.collectStatus,
     shippingFee: mergedShippingFee,
     shippingEvents: mergedShippingEvents,
