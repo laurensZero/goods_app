@@ -37,4 +37,11 @@ describe('cleanGoodsName + parseTitleIpName mihoyo flow', () => {
     expect(ip).toBe('')
     expect(cleanGoodsName(rawName)).toBe('流萤亚克力立牌')
   })
+
+  it('strips batch presale tags from product names', () => {
+    expect(cleanGoodsName('【二批次预售】流萤立牌')).toBe('流萤立牌')
+    expect(cleanGoodsName('【一批次预售】流萤立牌')).toBe('流萤立牌')
+    expect(cleanGoodsName('流萤立牌【二批次预售】')).toBe('流萤立牌')
+    expect(cleanGoodsName('流萤立牌一批次预售')).toBe('流萤立牌')
+  })
 })

@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeGoodsName,
   normalizeGoodsVariant,
+  stripGoodsSaleTags,
   extractVariantFromNote,
   stripVariantFromNote,
   buildNoteWithVariant,
@@ -46,6 +47,17 @@ describe('normalizeGoodsVariant', () => {
     expect(normalizeGoodsVariant('兹白（男）')).toBe('兹白（男）')
   })
 
+  it('strips batch presale tags in brackets', () => {
+    expect(normalizeGoodsVariant('流萤【二批次预售】')).toBe('流萤')
+    expect(normalizeGoodsVariant('流萤【一批次预售】')).toBe('流萤')
+  })
+
+  it('strips bare trailing batch presale tags', () => {
+    expect(normalizeGoodsVariant('流萤一批次预售')).toBe('流萤')
+    expect(normalizeGoodsVariant('芙宁娜立牌二批次预售')).toBe('芙宁娜立牌')
+    expect(normalizeGoodsVariant('芙宁娜立牌预售二批')).toBe('芙宁娜立牌')
+  })
+
   it('strips sale segments from slash-separated values', () => {
     // Both '现货' and '预售' are sale keywords, result is empty
     expect(normalizeGoodsVariant('现货/预售')).toBe('')
@@ -61,6 +73,17 @@ describe('normalizeGoodsVariant', () => {
 
   it('trims and cleans', () => {
     expect(normalizeGoodsVariant('  兹白  ')).toBe('兹白')
+  })
+})
+
+describe('stripGoodsSaleTags', () => {
+  it('keeps non-sale text', () => {
+    expect(stripGoodsSaleTags('兹白（男）')).toBe('兹白（男）')
+  })
+
+  it('strips batch sale tags without touching characters', () => {
+    expect(stripGoodsSaleTags('二周年贺图一批次预售')).toBe('二周年贺图')
+    expect(stripGoodsSaleTags('【二批次预售】流萤')).toBe('流萤')
   })
 })
 
