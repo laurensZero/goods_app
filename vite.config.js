@@ -56,7 +56,10 @@ export default defineConfig({
             const requestUrl = new URL(req.url || '', 'http://localhost')
             const targetUrl = requestUrl.searchParams.get('url')
             const target = targetUrl ? new URL(targetUrl) : null
-            if (!target || !/(^|\.)bilivideo\.com$/i.test(target.hostname)) {
+            // B 站播放地址除 bilivideo.com 外，近年还会下发 bilivideo.cn（mcdn）与
+            // mountaintoys.cn；白名单过窄会让 /bilibili-media 直接 400，
+            // 浏览器端表现为 MEDIA_ERR_SRC_NOT_SUPPORTED（no supported source）。
+            if (!target || !/(^|\.)(bilivideo\.(com|cn)|mountaintoys\.cn)$/i.test(target.hostname)) {
               res.statusCode = 400
               res.end('Invalid Bilibili media URL')
               return
