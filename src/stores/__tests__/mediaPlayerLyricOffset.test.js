@@ -21,20 +21,20 @@ vi.mock('@/utils/platform/backgroundAudio', () => ({
   stopBackgroundAudio: vi.fn()
 }))
 
-vi.mock('@/utils/neteaseMusic', () => ({
+vi.mock('@/utils/music/neteaseMusic', () => ({
   fetchNeteaseLyrics: vi.fn(),
   fetchNeteasePlayableUrl: vi.fn(),
   fetchNeteaseSongCoverMap: vi.fn(async () => ({})),
   formatTrackDuration: vi.fn((ms) => `${Math.round((Number(ms) || 0) / 1000)}s`)
 }))
 
-vi.mock('@/utils/qqMusic', () => ({
+vi.mock('@/utils/music/qqMusic', () => ({
   fetchQQLyrics: vi.fn(),
   fetchQQPlayableUrl: vi.fn(),
   fetchQQSongCoverMap: vi.fn(async () => ({}))
 }))
 
-vi.mock('@/utils/bilibiliMusic', () => ({
+vi.mock('@/utils/music/bilibiliMusic', () => ({
   fetchBilibiliPlayableUrl: vi.fn()
 }))
 
@@ -45,7 +45,7 @@ vi.mock('@/utils/platform/bilibiliPlayer', () => ({
   playBilibiliNative: vi.fn()
 }))
 
-vi.mock('@/utils/musicLyricMatch', () => ({
+vi.mock('@/utils/music/musicLyricMatch', () => ({
   matchLyricsByTitle: vi.fn()
 }))
 
@@ -59,7 +59,7 @@ vi.mock('@/stores/events', () => ({
   }))
 }))
 
-import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 import { useEventsStore } from '@/stores/events'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 
@@ -236,7 +236,7 @@ describe('mediaPlayer lyric offset', () => {
     expect(store.lyricsFromMatch).toBe(true)
 
     // 网易云原生歌词 → 非 matched
-    const { fetchNeteaseLyrics } = vi.mocked(await import('@/utils/neteaseMusic'))
+    const { fetchNeteaseLyrics } = vi.mocked(await import('@/utils/music/neteaseMusic'))
     fetchNeteaseLyrics.mockResolvedValue({ lines: [{ timeMs: 0, text: 'native' }] })
     const neteaseTrack = {
       id: 'netease_1', title: '晴天', artist: '周杰伦', durationMs: 269000,
@@ -291,7 +291,7 @@ describe('mediaPlayer lyric offset', () => {
     store.queue = [neteaseTrack]
     store.currentIndex = 0
 
-    const { fetchNeteaseLyrics } = vi.mocked(await import('@/utils/neteaseMusic'))
+    const { fetchNeteaseLyrics } = vi.mocked(await import('@/utils/music/neteaseMusic'))
     fetchNeteaseLyrics.mockResolvedValue({ lines: [], hasLyric: false })
 
     await store.resolveLyrics(neteaseTrack)
@@ -333,7 +333,7 @@ describe('mediaPlayer lyric offset', () => {
   })
 
   it('uses a stored lyricSource/lyricSongId to fetch lyrics directly', async () => {
-    const { fetchQQLyrics } = vi.mocked(await import('@/utils/qqMusic'))
+    const { fetchQQLyrics } = vi.mocked(await import('@/utils/music/qqMusic'))
     fetchQQLyrics.mockResolvedValue({ lines: [{ timeMs: 0, text: 'direct' }] })
 
     const store = useMediaPlayerStore()

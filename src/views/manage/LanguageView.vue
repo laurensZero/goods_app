@@ -96,4 +96,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped src="../assets/views/LanguageView.css"></style>
+<style scoped src="@/assets/views/LanguageView.css"></style>

@@ -1,9 +1,9 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchNeteaseLyrics, fetchNeteasePlayableUrl, fetchNeteaseSongCoverMap } from '@/utils/neteaseMusic'
-import { fetchQQPlayableUrl, fetchQQLyrics, fetchQQSongCoverMap } from '@/utils/qqMusic'
-import { fetchBilibiliPlayableUrl } from '@/utils/bilibiliMusic'
-import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { fetchNeteaseLyrics, fetchNeteasePlayableUrl, fetchNeteaseSongCoverMap } from '@/utils/music/neteaseMusic'
+import { fetchQQPlayableUrl, fetchQQLyrics, fetchQQSongCoverMap } from '@/utils/music/qqMusic'
+import { fetchBilibiliPlayableUrl } from '@/utils/music/bilibiliMusic'
+import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 import { useEventsStore } from '@/stores/events'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
 import {

@@ -127,7 +127,7 @@ import { useToast } from '@/composables/useToast'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import FeedbackDialog from '@/components/app/FeedbackDialog.vue'
-import FeedbackDetailView from '@/views/FeedbackDetailView.vue'
+import FeedbackDetailView from '@/views/manage/FeedbackDetailView.vue'
 import { listMyFeedbacks, checkUnreadUpdates } from '@/services/feedbackService'
 import { useAuthStore } from '@/stores/auth'
 
@@ -213,4 +213,4 @@ function onFeedbackSubmitted() {
 onMounted(loadMyFeedbacks)
 </script>
 
-<style scoped src="../assets/views/FeedbackView.css"></style>
+<style scoped src="@/assets/views/FeedbackView.css"></style>

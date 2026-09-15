@@ -7,9 +7,9 @@
  * 播放器场景请继续用 mediaPlayer（带缓存与写回），这里不做缓存。
  */
 
-import { fetchNeteaseLyrics } from '@/utils/neteaseMusic'
-import { fetchQQLyrics } from '@/utils/qqMusic'
-import { matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { fetchNeteaseLyrics } from '@/utils/music/neteaseMusic'
+import { fetchQQLyrics } from '@/utils/music/qqMusic'
+import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 
 /**
  * @typedef {Object} TrackLyricsResult

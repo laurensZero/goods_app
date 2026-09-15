@@ -9,13 +9,13 @@ const { fetchTrackLyricsMock, searchNeteaseMock, searchQQMock, searchBiliMock, f
   searchBiliMock: vi.fn(),
   fetchNeteaseCoverMapMock: vi.fn()
 }))
-vi.mock('@/utils/trackLyrics', () => ({ fetchTrackLyrics: fetchTrackLyricsMock }))
-vi.mock('@/utils/neteaseMusic', () => ({
+vi.mock('@/utils/music/trackLyrics', () => ({ fetchTrackLyrics: fetchTrackLyricsMock }))
+vi.mock('@/utils/music/neteaseMusic', () => ({
   searchNeteaseSongs: searchNeteaseMock,
   fetchNeteaseSongCoverMap: fetchNeteaseCoverMapMock
 }))
-vi.mock('@/utils/qqMusic', () => ({ searchQQSongs: searchQQMock }))
-vi.mock('@/utils/bilibiliMusic', () => ({ searchBilibiliVideos: searchBiliMock }))
+vi.mock('@/utils/music/qqMusic', () => ({ searchQQSongs: searchQQMock }))
+vi.mock('@/utils/music/bilibiliMusic', () => ({ searchBilibiliVideos: searchBiliMock }))
 
 /** 内存假 db：固定数据集，覆盖单位价、多币种、愿望单、回收站等分支 */
 function createFakeDb() {

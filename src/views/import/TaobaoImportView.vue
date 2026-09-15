@@ -568,4 +568,4 @@ watch(() => editForm.price, () => {
 })
 </script>
 
-<style scoped src="../assets/views/TaobaoImportView.css"></style>
+<style scoped src="@/assets/views/TaobaoImportView.css"></style>

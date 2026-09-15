@@ -234,7 +234,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
-import { formatTrackDuration } from '@/utils/neteaseMusic'
+import { formatTrackDuration } from '@/utils/music/neteaseMusic'
 
 defineProps({
   withTabBar: { type: Boolean, default: false }

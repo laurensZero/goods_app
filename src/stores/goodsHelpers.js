@@ -14,7 +14,7 @@ import {
 } from '@/utils/image/localImage'
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeStorageLocationValue } from '@/utils/storageLocations'
-import { normalizeTracks } from '@/utils/tracks'
+import { normalizeTracks } from '@/utils/music/tracks'
 
 const VALID_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮', '已拥有', '丢失', '已赠出', '想出', '已出', '在售'])
 

@@ -1,5 +1,5 @@
-import { searchNeteaseSongs, fetchNeteaseLyrics } from '@/utils/neteaseMusic'
-import { searchQQSongs, fetchQQLyrics } from '@/utils/qqMusic'
+import { searchNeteaseSongs, fetchNeteaseLyrics } from '@/utils/music/neteaseMusic'
+import { searchQQSongs, fetchQQLyrics } from '@/utils/music/qqMusic'
 
 const BRACKET_BLOCK_RE = /【[^】]*】|〔[^〕]*〕|\[[^\]]*\]/g
 const TITLE_SEPARATOR_RE = /(?:\s*[-–—|/]\s*)|(?:\s+by\s+)/i

@@ -18,7 +18,7 @@ import {
   selectBilibiliAudioStream,
   isTransientNetworkError,
   fetchBilibiliPlayableUrl
-} from '@/utils/bilibiliMusic'
+} from '@/utils/music/bilibiliMusic'
 
 const DETAIL_RESPONSE = { status: 200, data: JSON.stringify({ code: 0, data: { cid: '123456' } }) }
 const PLAYURL_RESPONSE = {

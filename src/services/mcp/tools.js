@@ -11,11 +11,11 @@ import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, g
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
 import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats'
 import { getItemSpendEntries } from '../../utils/goods/statistics'
-import { fetchTrackLyrics } from '../../utils/trackLyrics'
+import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
-import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/neteaseMusic'
-import { searchQQSongs } from '../../utils/qqMusic'
-import { searchBilibiliVideos } from '../../utils/bilibiliMusic'
+import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/music/neteaseMusic'
+import { searchQQSongs } from '../../utils/music/qqMusic'
+import { searchBilibiliVideos } from '../../utils/music/bilibiliMusic'
 import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
 
 /**

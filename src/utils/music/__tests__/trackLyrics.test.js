@@ -6,9 +6,9 @@ const { fetchNetease, fetchQQ, matchTitle } = vi.hoisted(() => ({
   matchTitle: vi.fn()
 }))
 
-vi.mock('@/utils/neteaseMusic', () => ({ fetchNeteaseLyrics: fetchNetease }))
-vi.mock('@/utils/qqMusic', () => ({ fetchQQLyrics: fetchQQ }))
-vi.mock('@/utils/musicLyricMatch', () => ({ matchLyricsByTitle: matchTitle }))
+vi.mock('@/utils/music/neteaseMusic', () => ({ fetchNeteaseLyrics: fetchNetease }))
+vi.mock('@/utils/music/qqMusic', () => ({ fetchQQLyrics: fetchQQ }))
+vi.mock('@/utils/music/musicLyricMatch', () => ({ matchLyricsByTitle: matchTitle }))
 
 import { fetchTrackLyrics } from '../trackLyrics'
 

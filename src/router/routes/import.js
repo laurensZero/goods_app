@@ -2,28 +2,28 @@ export default [
   {
     path: '/import',
     name: 'import',
-    component: () => import('@/views/ImportView.vue'),
+    component: () => import('@/views/import/ImportView.vue'),
     meta: { titleKey: 'nav.importFromMihoyo' },
     beforeEnter: () => ensureMihoyoFeaturesEnabled()
   },
   {
     path: '/cart-import',
     name: 'cart-import',
-    component: () => import('@/views/CartImportView.vue'),
+    component: () => import('@/views/import/CartImportView.vue'),
     meta: { titleKey: 'nav.cartImport' },
     beforeEnter: () => ensureMihoyoFeaturesEnabled()
   },
   {
     path: '/account-import',
     name: 'account-import',
-    component: () => import('@/views/AccountImportView.vue'),
+    component: () => import('@/views/import/AccountImportView.vue'),
     meta: { titleKey: 'nav.accountImport' },
     beforeEnter: () => ensureMihoyoFeaturesEnabled()
   },
   {
     path: '/checkout',
     name: 'checkout',
-    component: () => import('@/views/CheckoutView.vue'),
+    component: () => import('@/views/import/CheckoutView.vue'),
     meta: { titleKey: 'checkout.title' },
     // 白名单安全兜底：未登录或无权限时拦截，回退到来源页（避免被 / 重定向到默认 Tab）
     beforeEnter: async (to, from) => {
@@ -48,13 +48,13 @@ export default [
   {
     path: '/taobao-import',
     name: 'taobao-import',
-    component: () => import('@/views/TaobaoImportView.vue'),
+    component: () => import('@/views/import/TaobaoImportView.vue'),
     meta: { titleKey: 'nav.taobaoImport' }
   },
   {
     path: '/share/:shareId?',
     name: 'share-import',
-    component: () => import('@/views/ShareImportView.vue'),
+    component: () => import('@/views/import/ShareImportView.vue'),
     meta: { titleKey: 'nav.importShare' },
     props: true
   }

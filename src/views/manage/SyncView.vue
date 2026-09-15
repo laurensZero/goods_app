@@ -1131,7 +1131,7 @@ onMounted(async () => {
 })
 </script>
 
-<style scoped src="../assets/views/SyncView.css"></style>
+<style scoped src="@/assets/views/SyncView.css"></style>
 
 <style scoped>
 /* Backend selection grid and card highlight */
