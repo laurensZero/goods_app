@@ -15,10 +15,6 @@ export const COLLECT_STATUSES = ['待发货', '待补款', '待补邮', '已拥�
 
 const CURRENCY_OPTIONS = CURRENCY_CODES.map((code) => ({ value: code, label: code }))
 const COLLECT_STATUS_OPTIONS = COLLECT_STATUSES.map((s) => ({ value: s, label: s }))
-const BOOLEAN_OPTIONS = [
-  { value: 1, label: '是' },
-  { value: 0, label: '否' }
-]
 
 export const DATA_KINDS = {
   goods: {

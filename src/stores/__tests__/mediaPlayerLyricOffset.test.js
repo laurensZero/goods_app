@@ -60,7 +60,6 @@ vi.mock('@/stores/events', () => ({
 }))
 
 import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
-import { useEventsStore } from '@/stores/events'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 
 const OFFSETS_KEY = 'goods_media_player_lyric_offsets'

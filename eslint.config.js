@@ -108,10 +108,11 @@ export default [
   },
 
   // ---------- Vitest 测试文件（vitest.config.js 开了 globals: true） ----------
+  // 测试在 Node 中跑，会用 process / Buffer 等 node 全局
   {
     files: ['src/**/__tests__/**/*.test.js', 'src/test-utils/**/*.js'],
     languageOptions: {
-      globals: { ...globals.vitest }
+      globals: { ...globals.vitest, ...globals.node }
     }
   }
 ]
