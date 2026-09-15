@@ -72,16 +72,29 @@ defineExpose({ close })
 .ai-assistant-body {
   display: flex;
   flex-direction: column;
-  /* 手机顶部滑入：占满 AppSheet 可滚动区域 */
-  height: min(88dvh, 840px);
+  /* 占满 AppSheet 内容区：高度由 sheet max-height + padding 约束。
+     不要用固定 88dvh——会与 sheet 的 padding 叠加溢出，底部输入栏被 overflow:hidden 裁切 */
+  flex: 1;
+  min-height: 0;
+  height: auto;
   color: var(--app-text);
   background: transparent;
 }
 
 /* 平板/居中弹窗：贴合 AppSheet 居中限高，避免内容溢出 */
 .ai-assistant-body--tablet {
-  height: 100%;
+  flex: 1;
   min-height: min(70dvh, 640px);
+}
+
+/* 手机顶滑：限制 sheet 本身高度，保持原先约 88dvh 的观感 */
+:global(.app-sheet.ai-assistant-popup.app-sheet--top) {
+  height: min(88dvh, 840px);
+}
+
+/* AppSheet 已含 safe-area 底距；输入栏再叠一层 env() 会多出一截空白 */
+:global(.ai-assistant-popup) :deep(.chat-compose) {
+  margin-bottom: 12px;
 }
 
 /* 平板居中：左右拉宽（默认 center 仅 420px，聊天对话偏窄） */
