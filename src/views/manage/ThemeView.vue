@@ -563,4 +563,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped src="../assets/views/ThemeView.css"></style>
+<style scoped src="@/assets/views/ThemeView.css"></style>

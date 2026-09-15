@@ -1,18 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-vi.mock('@/utils/neteaseMusic', () => ({
+vi.mock('@/utils/music/neteaseMusic', () => ({
   searchNeteaseSongs: vi.fn(),
   fetchNeteaseLyrics: vi.fn()
 }))
 
-vi.mock('@/utils/qqMusic', () => ({
+vi.mock('@/utils/music/qqMusic', () => ({
   searchQQSongs: vi.fn(),
   fetchQQLyrics: vi.fn()
 }))
 
-import { searchNeteaseSongs, fetchNeteaseLyrics } from '@/utils/neteaseMusic'
-import { searchQQSongs, fetchQQLyrics } from '@/utils/qqMusic'
-import { extractCoreTitle, matchLyricsByTitle } from '@/utils/musicLyricMatch'
+import { searchNeteaseSongs, fetchNeteaseLyrics } from '@/utils/music/neteaseMusic'
+import { searchQQSongs, fetchQQLyrics } from '@/utils/music/qqMusic'
+import { extractCoreTitle, matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 
 const makeLine = (timeMs, text) => ({ timeMs, text })
 

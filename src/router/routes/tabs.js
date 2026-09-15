@@ -1,8 +1,8 @@
-const HomeView = () => import('@/views/HomeView.vue')
-const RechargeView = () => import('@/views/RechargeView.vue')
-const WishlistView = () => import('@/views/WishlistView.vue')
-const MyView = () => import('@/views/MyView.vue')
-const EventsView = () => import('@/views/EventsView.vue')
+const HomeView = () => import('@/views/tabs/HomeView.vue')
+const RechargeView = () => import('@/views/tabs/RechargeView.vue')
+const WishlistView = () => import('@/views/tabs/WishlistView.vue')
+const MyView = () => import('@/views/tabs/MyView.vue')
+const EventsView = () => import('@/views/tabs/EventsView.vue')
 
 const COLLECTION_TAB_STORAGE_KEY = 'goods_collection_tab_v1'
 

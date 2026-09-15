@@ -1207,4 +1207,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped src="../assets/views/ImportView.css"></style>
+<style scoped src="@/assets/views/ImportView.css"></style>

@@ -187,10 +187,10 @@
 <script setup>
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/neteaseMusic'
-import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/qqMusic'
-import { searchBilibiliVideos } from '@/utils/bilibiliMusic'
-import { mergeNeteaseTrackCovers } from '@/utils/tracks'
+import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/music/neteaseMusic'
+import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/music/qqMusic'
+import { searchBilibiliVideos } from '@/utils/music/bilibiliMusic'
+import { mergeNeteaseTrackCovers } from '@/utils/music/tracks'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()

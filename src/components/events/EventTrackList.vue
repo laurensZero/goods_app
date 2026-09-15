@@ -116,9 +116,9 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/neteaseMusic'
-import { fetchQQSongCoverMap, openQQSong } from '@/utils/qqMusic'
-import { buildBilibiliWebUrl, fetchBilibiliCoverMap } from '@/utils/bilibiliMusic'
+import { fetchNeteaseSongCoverMap, formatTrackDuration, openNeteaseSong } from '@/utils/music/neteaseMusic'
+import { fetchQQSongCoverMap, openQQSong } from '@/utils/music/qqMusic'
+import { buildBilibiliWebUrl, fetchBilibiliCoverMap } from '@/utils/music/bilibiliMusic'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 

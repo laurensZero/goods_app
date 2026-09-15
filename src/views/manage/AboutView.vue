@@ -668,5 +668,5 @@ async function handleClearUpdateCache() {
 
 </script>
 
-<style scoped src="../assets/views/AboutView.css"></style>
+<style scoped src="@/assets/views/AboutView.css"></style>
 

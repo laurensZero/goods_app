@@ -629,4 +629,4 @@ function getStatusClass(text) {
 
 </script>
 
-<style scoped src="../assets/views/AccountImportView.css"></style>
+<style scoped src="@/assets/views/AccountImportView.css"></style>

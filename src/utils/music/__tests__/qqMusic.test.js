@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { resolveQQCoverUrl } from '@/utils/qqMusic'
+import { resolveQQCoverUrl } from '@/utils/music/qqMusic'
 
 describe('QQ Music cover resolution', () => {
   it('uses a song-level cover when the song has no album', () => {

@@ -2,7 +2,7 @@
 import { defineStore } from 'pinia'
 import { computed, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
-import { normalizeTracks } from '@/utils/tracks'
+import { normalizeTracks } from '@/utils/music/tracks'
 import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
 import { aliasCachedImage } from '@/utils/image/cache'

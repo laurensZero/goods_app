@@ -1495,4 +1495,4 @@ onBeforeRouteLeave(() => {
 }
 </style>
 
-<style src="../assets/views/hero.css"></style>
+<style src="@/assets/views/hero.css"></style>
