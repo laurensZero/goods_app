@@ -660,17 +660,17 @@ onBeforeUnmount(() => {
   padding: 0 12px;
   border: none;
   border-radius: 999px;
-  background: var(--app-surface-soft);
-  color: var(--app-text-secondary);
+  background: color-mix(in srgb, var(--app-surface-soft) 84%, white);
+  color: var(--app-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
 .sort-sheet__divider {
   height: 1px;
   margin: 14px 0;
-  background: var(--app-border);
+  background: rgba(142, 142, 147, 0.15);
 }
 
 .sort-sheet__section-label {
@@ -679,9 +679,10 @@ onBeforeUnmount(() => {
   margin-bottom: 10px;
 }
 
+/* 选项直接透在 AppSheet 玻璃表面上，不再叠一层实心卡片 */
 .sort-sheet__options {
-  display: grid;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
   max-height: min(60vh, 520px);
   overflow: auto;
 }
@@ -692,17 +693,22 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 14px 16px;
-  border: 1px solid var(--app-border);
-  border-radius: 16px;
-  background: var(--app-surface);
+  min-height: 56px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
   color: var(--app-text);
   text-align: left;
+  transition: background 0.14s ease;
+}
+
+.sort-sheet__option:active {
+  background: rgba(142, 142, 147, 0.12);
 }
 
 .sort-sheet__option--active {
-  border-color: color-mix(in srgb, var(--app-text) 24%, transparent);
-  background: color-mix(in srgb, var(--app-text) 6%, var(--app-surface));
+  background: color-mix(in srgb, var(--app-surface-soft) 84%, white);
 }
 
 .sort-sheet__option-name {
@@ -740,6 +746,10 @@ onBeforeUnmount(() => {
 
 :global(html.theme-dark) .sort-sheet__dir-btn,
 :global(html.theme-dark) .sort-sheet__option--active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:global(html.theme-dark) .sort-sheet__divider {
   background: rgba(255, 255, 255, 0.08);
 }
 
