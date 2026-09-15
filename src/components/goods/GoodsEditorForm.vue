@@ -754,7 +754,11 @@
                     >
                       {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t(saleAtSelectKey) }}
                     </button>
-                    <SaleCountdown v-if="form.saleAt && form.saleReminderEnabled" :sale-at="form.saleAt" />
+                    <SaleCountdown
+                      v-if="form.saleAt && form.saleReminderEnabled"
+                      :sale-at="form.saleAt"
+                      :kind="saleReminderKind"
+                    />
                   </label>
 
                   <div class="sale-reminder-offsets" :class="{ 'sale-reminder-offsets--disabled': !form.saleReminderEnabled }">

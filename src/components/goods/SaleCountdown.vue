@@ -13,11 +13,25 @@ import { parseSaleAt } from '@/utils/goods/saleReminder'
 const { t } = useI18n()
 
 const props = defineProps({
-  saleAt: { type: String, default: '' }
+  saleAt: { type: String, default: '' },
+  // sale=开售 / postage=补邮 / payment=补款
+  kind: { type: String, default: 'sale' }
 })
 
 const text = ref('')
 let timer = null
+
+function countdownLabelKey(kind) {
+  if (kind === 'postage') return 'notify.postageCountdown'
+  if (kind === 'payment') return 'notify.paymentCountdown'
+  return 'notify.saleCountdown'
+}
+
+function reachedLabelKey(kind) {
+  if (kind === 'postage') return 'notify.postageTimeReached'
+  if (kind === 'payment') return 'notify.paymentTimeReached'
+  return 'notify.saleTimeReached'
+}
 
 function update() {
   const date = parseSaleAt(props.saleAt)
@@ -25,7 +39,7 @@ function update() {
 
   const diff = date.getTime() - Date.now()
   if (diff <= 0) {
-    text.value = t('notify.saleTimeReached')
+    text.value = t(reachedLabelKey(props.kind))
     return
   }
 
@@ -41,7 +55,7 @@ function update() {
   if (minutes > 0) parts.push(`${minutes} ${t('common.minutesUnit')}`)
   if (days === 0) parts.push(`${seconds} ${t('common.secondsUnit')}`)
 
-  text.value = `${t('notify.saleCountdown')} ${parts.join(' ')}`
+  text.value = `${t(countdownLabelKey(props.kind))} ${parts.join(' ')}`
 }
 
 function startTimer() {

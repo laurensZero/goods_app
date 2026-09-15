@@ -13,7 +13,9 @@ export const MANIFEST_VERSION = 1
 // 重放相等时间戳的远端行，回填旧版本提前吸收（字段被丢弃、水位线已越过）的字段。
 // v4: statusTimeline 条目新增 unitIndexes（多件归属数组），旧版 normalizeStatusTimeline 会丢弃
 // v5: events.tracks 条目新增 note（曲目备注），旧版 normalizeTracks 会丢弃
-export const SYNC_SCHEMA_VERSION = 5
+// v6: 收藏品待补邮/待补款复用 saleAt/saleReminder* 字段；旧版 normalizeGoodsInput 对非心愿单
+//     行会清空这三项，升级后需全量回填才能恢复本地副本
+export const SYNC_SCHEMA_VERSION = 6
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

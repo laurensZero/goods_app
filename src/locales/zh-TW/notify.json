@@ -75,5 +75,9 @@
     "mihoyoNewArrivalsDesc": "瀏覽即將上架 / 積分兌換新品，一鍵加入心願單"
   },
   "notify.saleTimeReached": "已到開售時間",
-  "notify.saleCountdown": "距離開售"
+  "notify.saleCountdown": "距離開售",
+  "notify.postageTimeReached": "已到補郵時間",
+  "notify.postageCountdown": "距離補郵",
+  "notify.paymentTimeReached": "已到補款時間",
+  "notify.paymentCountdown": "距離補款"
 }

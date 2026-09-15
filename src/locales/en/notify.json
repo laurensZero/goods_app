@@ -75,5 +75,9 @@
     "mihoyoNewArrivalsDesc": "Browse upcoming and point-shop drops, then add items to your wishlist"
   },
   "notify.saleTimeReached": "Sale time reached",
-  "notify.saleCountdown": "Until sale"
+  "notify.saleCountdown": "Until sale",
+  "notify.postageTimeReached": "Postage due time reached",
+  "notify.postageCountdown": "Until postage due",
+  "notify.paymentTimeReached": "Balance due time reached",
+  "notify.paymentCountdown": "Until balance due"
 }
