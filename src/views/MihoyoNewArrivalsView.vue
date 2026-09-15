@@ -110,8 +110,13 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
-                    {{ wishlistBadgeText(item) }}
+                  <span class="goods-card__badges">
+                    <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                      {{ wishlistBadgeText(item) }}
+                    </span>
+                    <span v-if="ownedBadgeText(item)" class="goods-card__owned">
+                      {{ ownedBadgeText(item) }}
+                    </span>
                   </span>
                   <span class="goods-card__gift">{{ t('mihoyoNew.giftBadge') }}</span>
                 </span>
@@ -148,8 +153,13 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
-                    {{ wishlistBadgeText(item) }}
+                  <span class="goods-card__badges">
+                    <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                      {{ wishlistBadgeText(item) }}
+                    </span>
+                    <span v-if="ownedBadgeText(item)" class="goods-card__owned">
+                      {{ ownedBadgeText(item) }}
+                    </span>
                   </span>
                   <span v-if="item.is_new" class="goods-card__cloud-new">
                     {{ t('mihoyoNew.cloudNew') }}
@@ -199,8 +209,13 @@
                     loading="lazy"
                   />
                   <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
-                    {{ wishlistBadgeText(item) }}
+                  <span class="goods-card__badges">
+                    <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                      {{ wishlistBadgeText(item) }}
+                    </span>
+                    <span v-if="ownedBadgeText(item)" class="goods-card__owned">
+                      {{ ownedBadgeText(item) }}
+                    </span>
                   </span>
                   <span class="goods-card__released">{{ t('mihoyoNew.releasedBadge') }}</span>
                 </span>
@@ -248,8 +263,13 @@
                   loading="lazy"
                 />
                 <span v-else class="goods-card__media-fallback">{{ (item.name || '谷').charAt(0) }}</span>
-                <span v-if="inWishlistGoodsIds.has(item.goods_id)" class="goods-card__wished">
-                  {{ t('mihoyoNew.inWishlist') }}
+                <span class="goods-card__badges">
+                  <span v-if="wishlistBadgeText(item)" class="goods-card__wished">
+                    {{ wishlistBadgeText(item) }}
+                  </span>
+                  <span v-if="ownedBadgeText(item)" class="goods-card__owned">
+                    {{ ownedBadgeText(item) }}
+                  </span>
                 </span>
               </span>
               <span class="goods-card__body">
@@ -354,8 +374,13 @@
                     {{ formatYuanValue(sku.price) }}{{ t('mihoyoNew.priceUnit') }}
                   </span>
                 </span>
-                <span v-if="isSkuInWishlist(activeItem?.goods_id, sku)" class="sku-chip__wished">
-                  {{ t('mihoyoNew.skuWished') }}
+                <span class="sku-chip__flags">
+                  <span v-if="isSkuInWishlist(activeItem?.goods_id, sku)" class="sku-chip__wished">
+                    {{ t('mihoyoNew.skuWished') }}
+                  </span>
+                  <span v-if="isSkuOwned(activeItem?.goods_id, sku)" class="sku-chip__owned">
+                    {{ t('mihoyoNew.skuOwned') }}
+                  </span>
                 </span>
                 <span class="sku-chip__check">
                   <svg v-if="selectedSku?.key === sku.key" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -478,15 +503,15 @@ const pointItems = computed(() =>
 )
 
 /** 比对用：去掉【预售】等后缀，避免同一款因文案差被当成两套 */
-function wishlistVariantKey(text) {
+function variantKey(text) {
   return normalizeGoodsVariant(text) || String(text || '').trim()
 }
 
-/** goodsId -> { variants: Set<规范款式>, hasWhole: boolean, count: 心愿单款式数 } */
-const wishlistByGoodsId = computed(() => {
+/** goodsId -> { variants: Set<规范款式>, hasWhole: boolean, count: 款式数 } */
+function buildGoodsIdVariantMap(filterFn) {
   const map = new Map()
   for (const item of goodsStore.list) {
-    if (!item?.isWishlist || !item.goodsId) continue
+    if (!filterFn(item) || !item.goodsId) continue
     const id = String(item.goodsId)
     if (!map.has(id)) {
       map.set(id, { variants: new Set(), hasWhole: false, count: 0 })
@@ -494,7 +519,7 @@ const wishlistByGoodsId = computed(() => {
     const slot = map.get(id)
     // 优先用 normalize 后的 variant；兼容角色拼接的旧数据
     const raw = String(item.variant || item.style || '').trim()
-    const key = wishlistVariantKey(raw) || wishlistVariantKey(getGoodsVariant(item))
+    const key = variantKey(raw) || variantKey(getGoodsVariant(item))
     if (!key) {
       slot.hasWhole = true
       continue
@@ -505,7 +530,14 @@ const wishlistByGoodsId = computed(() => {
     }
   }
   return map
-})
+}
+
+const wishlistByGoodsId = computed(() =>
+  buildGoodsIdVariantMap((item) => Boolean(item?.isWishlist)),
+)
+const ownedByGoodsId = computed(() =>
+  buildGoodsIdVariantMap((item) => !item?.isWishlist),
+)
 
 function wishlistBadgeText(item) {
   const slot = wishlistByGoodsId.value.get(String(item?.goods_id || ''))
@@ -515,10 +547,26 @@ function wishlistBadgeText(item) {
   return ''
 }
 
+function ownedBadgeText(item) {
+  const slot = ownedByGoodsId.value.get(String(item?.goods_id || ''))
+  if (!slot) return ''
+  if (slot.count > 0) return t('mihoyoNew.inOwnedCount', { count: slot.count })
+  if (slot.hasWhole) return t('mihoyoNew.inOwned')
+  return ''
+}
+
 function isSkuInWishlist(goodsId, sku) {
   const slot = wishlistByGoodsId.value.get(String(goodsId || ''))
   if (!slot || !sku?.text) return false
-  const key = wishlistVariantKey(sku.text)
+  const key = variantKey(sku.text)
+  if (!key) return false
+  return slot.variants.has(key)
+}
+
+function isSkuOwned(goodsId, sku) {
+  const slot = ownedByGoodsId.value.get(String(goodsId || ''))
+  if (!slot || !sku?.text) return false
+  const key = variantKey(sku.text)
   if (!key) return false
   return slot.variants.has(key)
 }
@@ -1213,10 +1261,18 @@ onMounted(() => {
   color: var(--app-text-tertiary);
 }
 
-.goods-card__wished {
+.goods-card__badges {
   position: absolute;
   top: 8px;
   left: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  z-index: 1;
+}
+
+.goods-card__wished {
   padding: 3px 8px;
   border-radius: 999px;
   background: rgba(194, 65, 90, 0.92);
@@ -1224,6 +1280,18 @@ onMounted(() => {
   font-size: 10px;
   font-weight: 600;
   line-height: 1.3;
+  white-space: nowrap;
+}
+
+.goods-card__owned {
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(47, 127, 211, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .goods-card__gift {
@@ -1440,6 +1508,18 @@ onMounted(() => {
   border-color: color-mix(in srgb, #2f9e5e 35%, transparent);
 }
 
+.sku-chip:has(.sku-chip__owned):not(.sku-chip--selected) {
+  border-color: color-mix(in srgb, #2f7fd3 35%, transparent);
+}
+
+.sku-chip__flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+  min-width: 0;
+}
+
 .sku-chip__wished {
   font-size: 10px;
   font-weight: 600;
@@ -1448,6 +1528,17 @@ onMounted(() => {
   border-radius: 999px;
   background: rgba(47, 158, 94, 0.14);
   color: #2f9e5e;
+  white-space: nowrap;
+}
+
+.sku-chip__owned {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(47, 127, 211, 0.14);
+  color: #2f7fd3;
   white-space: nowrap;
 }
 
