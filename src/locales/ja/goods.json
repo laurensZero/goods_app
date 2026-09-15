@@ -202,6 +202,8 @@
   "goods.editor.recordNewCollection": "新しいコレクションアイテムを登録",
   "goods.editor.remindBefore": "リマインダー時間",
   "goods.editor.reminderAtSale": "発売時刻",
+  "goods.editor.reminderAtPostage": "送料支払時",
+  "goods.editor.reminderAtPayment": "残金支払時",
   "goods.editor.reminderBeforeDays": "{count}日前",
   "goods.editor.reminderBeforeHours": "{count}時間前",
   "goods.editor.reminderBeforeMinutes": "{count}分前",
