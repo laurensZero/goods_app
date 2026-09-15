@@ -129,13 +129,21 @@ async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
   const results = await Promise.all(candidates.map(async (remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
     const restoredRemote = await restoreImportedGoodsItem(remoteItem)
+    // goodsId 是稀疏字段（仅米游铺导入写入、无编辑 UI）：远端空串不得覆盖本地非空，
+    // 否则任一设备推过一次空 goodsId 就会经 LWW 把全端清空。
+    // 保留本地值时 bump updatedAt，让本机下次推送把正确 goodsId 写回云端。
+    const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
+    const localGoodsId = String(localItem?.goodsId || '').trim()
+    const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
+    const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
     const normalized = normalizeGoodsInput({
       ...localItem,
       ...restoredRemote,
+      ...(keepLocalGoodsId ? { goodsId: localGoodsId } : {}),
       __imagesExplicit: true,
       image: '',
       coverImage: '',
-      updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
+      updatedAt: keepLocalGoodsId ? Math.max(remoteTs, Date.now()) : remoteTs,
     }, remoteItem.id)
     const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
     return { normalized, removedPaths, id: remoteItem.id }
@@ -236,13 +244,19 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forc
   const results = await Promise.all(candidates.map(async (remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
     const restoredRemote = await restoreImportedGoodsItem(remoteItem)
+    // 同 updateGoodsBackup：远端空 goodsId 不得覆盖本地非空，保留时 bump updatedAt 以便回推
+    const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
+    const localGoodsId = String(localItem?.goodsId || '').trim()
+    const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
+    const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
     const normalized = normalizeTrashItem({
       ...localItem,
       ...restoredRemote,
+      ...(keepLocalGoodsId ? { goodsId: localGoodsId } : {}),
       __imagesExplicit: true,
       image: '',
       coverImage: '',
-      updatedAt: remoteItem.updatedAt || restoredRemote.updatedAt || 0,
+      updatedAt: keepLocalGoodsId ? Math.max(remoteTs, Date.now()) : remoteTs,
     }, remoteItem.id)
     const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
     return { normalized, removedPaths, id: remoteItem.id }

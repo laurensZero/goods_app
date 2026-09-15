@@ -71,3 +71,51 @@ describe('updateGoodsBackup forceReapply（同步格式版本升级回填）', (
     expect(saveItems).toHaveBeenCalledWith([trashList.value[0]])
   })
 })
+
+describe('updateGoodsBackup 保护稀疏字段 goodsId（LWW 空串不覆盖非空）', () => {
+  beforeEach(() => {
+    saveItems.mockReset()
+    saveItems.mockResolvedValue(undefined)
+  })
+
+  it('远端更新但 goodsId 为空串 → 保留本地 goodsId 并 bump updatedAt', async () => {
+    const list = shallowRef([makeItem('a', 100, {
+      goodsId: '20211489070319602763088',
+      name: 'local-with-goods-id'
+    })])
+    const remote = [makeItem('a', 200, {
+      goodsId: '',
+      name: 'remote-newer-empty-goods-id'
+    })]
+
+    const updated = await updateGoodsBackup(remote, list)
+
+    expect(updated).toBe(1)
+    expect(list.value[0].name).toBe('remote-newer-empty-goods-id')
+    expect(list.value[0].goodsId).toBe('20211489070319602763088')
+    // 保留本地 goodsId 时 bump，确保下次推送把正确值写回云端
+    expect(list.value[0].updatedAt).toBeGreaterThan(200)
+  })
+
+  it('远端有 goodsId → 正常 LWW 用远端覆盖', async () => {
+    const list = shallowRef([makeItem('a', 100, { goodsId: 'old-id' })])
+    const remote = [makeItem('a', 200, { goodsId: 'new-id' })]
+
+    await updateGoodsBackup(remote, list)
+
+    expect(list.value[0].goodsId).toBe('new-id')
+  })
+
+  it('回收站条目同样保护本地 goodsId', async () => {
+    const trashList = shallowRef([makeItem('t1', 100, {
+      goodsId: '20211489070319602763088',
+      trashed: true
+    })])
+    const remote = [makeItem('t1', 200, { goodsId: '', trashed: true })]
+
+    const updated = await updateTrashBackup(remote, trashList)
+
+    expect(updated).toBe(1)
+    expect(trashList.value[0].goodsId).toBe('20211489070319602763088')
+  })
+})

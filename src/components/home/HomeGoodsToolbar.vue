@@ -187,13 +187,34 @@ const timelinePulsing = ref(false)
 let sortLongPressTimer = 0
 let suppressNextSortClick = false
 let timelinePulseTimer = 0
+let timelinePulseRaf = 0
+let timelineToggleRaf = 0
+
+function clearTimelinePulseRafs() {
+  if (timelinePulseRaf) {
+    cancelAnimationFrame(timelinePulseRaf)
+    timelinePulseRaf = 0
+  }
+  if (timelineToggleRaf) {
+    cancelAnimationFrame(timelineToggleRaf)
+    timelineToggleRaf = 0
+  }
+}
 
 // 点击时钟按钮时指针转一圈的小动效
+// 收藏页切换时间线会整表重挂载（网格 ↔ HomeTimelineSection，量级远大于活动页列表）。
+// 若与 emit 同帧切换，重渲染会吃掉动画首帧导致指针卡一下；
+// 先让动画拿到绘制帧，再触发密度切换。
 function handleTimelineClick() {
-  emit('toggle-timeline')
+  clearTimelinePulseRafs()
   timelinePulsing.value = false
-  requestAnimationFrame(() => {
+  timelinePulseRaf = requestAnimationFrame(() => {
+    timelinePulseRaf = 0
     timelinePulsing.value = true
+    timelineToggleRaf = requestAnimationFrame(() => {
+      timelineToggleRaf = 0
+      emit('toggle-timeline')
+    })
   })
   if (timelinePulseTimer) {
     window.clearTimeout(timelinePulseTimer)
@@ -283,6 +304,7 @@ function selectGroupDisplayMode(value) {
 
 onBeforeUnmount(() => {
   clearSortLongPressTimer()
+  clearTimelinePulseRafs()
   if (timelinePulseTimer) {
     window.clearTimeout(timelinePulseTimer)
     timelinePulseTimer = 0
@@ -538,6 +560,8 @@ onBeforeUnmount(() => {
 .timeline-toggle--animating .clock-hand {
   /* 首尾均为 0°/360°，与静止态重合：起止无跳变，且视觉上完整转满一圈 */
   animation: home-clock-spin 640ms cubic-bezier(0.5, 0.05, 0.35, 1);
+  /* 提升到合成层：列表重挂载阻塞主线程时，指针动画仍应在合成线程走帧 */
+  will-change: transform;
 }
 
 @keyframes home-clock-spin {
