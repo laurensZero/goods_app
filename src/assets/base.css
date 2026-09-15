@@ -482,12 +482,12 @@ img {
   will-change: transform;
 }
 
+/* .sort-sheet__panel 不再叠 backdrop-filter：AppSheet 表面已有毛玻璃，嵌套滤镜会压成实心灰框 */
 body :is(
   .sheet-panel,
   .edit-sheet,
   .dialog,
-  .app-select__panel,
-  .sort-sheet__panel
+  .app-select__panel
 ) {
   backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate)) !important;
   -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate)) !important;

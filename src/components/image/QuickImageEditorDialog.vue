@@ -1279,7 +1279,7 @@ onBeforeUnmount(() => {
   position: relative;
   min-height: 200px;
   max-height: 50vh;
-  border-radius: var(--radius-card, 18px);
+  border-radius: 0;
   overflow: hidden;
   background:
     repeating-conic-gradient(rgba(0, 0, 0, 0.04) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
@@ -1302,22 +1302,55 @@ onBeforeUnmount(() => {
 }
 
 .editor-preview :deep(.cropper-view-box) {
-  outline: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 0 0 9999px rgba(20, 20, 22, 0.4);
+  outline: 1.5px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 9999px rgba(20, 20, 22, 0.55);
+}
+
+/* 三分线：画在 face 上（face 覆盖整个裁切框） */
+.editor-preview :deep(.cropper-face) {
+  opacity: 1;
+  background-color: transparent;
+  background-image:
+    linear-gradient(
+      to right,
+      transparent calc(100% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(100% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(100% / 3 + 0.5px),
+      transparent calc(100% / 3 + 0.5px)
+    ),
+    linear-gradient(
+      to right,
+      transparent calc(200% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(200% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(200% / 3 + 0.5px),
+      transparent calc(200% / 3 + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(100% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(100% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(100% / 3 + 0.5px),
+      transparent calc(100% / 3 + 0.5px)
+    ),
+    linear-gradient(
+      to bottom,
+      transparent calc(200% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(200% / 3 - 0.5px),
+      rgba(255, 255, 255, 0.7) calc(200% / 3 + 0.5px),
+      transparent calc(200% / 3 + 0.5px)
+    );
 }
 
 .editor-preview :deep(.cropper-line) {
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: transparent;
 }
 
+/* 边中点：隐藏视觉但保留拖拽热区 */
 .editor-preview :deep(.cropper-point) {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: #ffffff;
+  border-radius: 0;
+  background: transparent;
   opacity: 1;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  box-shadow: none;
   overflow: visible;
 }
 
@@ -1325,8 +1358,54 @@ onBeforeUnmount(() => {
   content: '';
   position: absolute;
   inset: -10px;
-  border-radius: 999px;
+  border-radius: 0;
   background: transparent;
+}
+
+/* 四角 L 形黑色角标：粗臂 + 白描边，保证浅色图上也醒目 */
+.editor-preview :deep(.cropper-point.point-nw),
+.editor-preview :deep(.cropper-point.point-ne),
+.editor-preview :deep(.cropper-point.point-sw),
+.editor-preview :deep(.cropper-point.point-se) {
+  width: 28px;
+  height: 28px;
+  opacity: 1 !important;
+  filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff);
+}
+
+.editor-preview :deep(.cropper-point.point-nw) {
+  top: -2px;
+  left: -2px;
+  border-top: 5px solid #111;
+  border-left: 5px solid #111;
+}
+
+.editor-preview :deep(.cropper-point.point-ne) {
+  top: -2px;
+  right: -2px;
+  border-top: 5px solid #111;
+  border-right: 5px solid #111;
+}
+
+.editor-preview :deep(.cropper-point.point-sw) {
+  bottom: -2px;
+  left: -2px;
+  border-bottom: 5px solid #111;
+  border-left: 5px solid #111;
+}
+
+.editor-preview :deep(.cropper-point.point-se) {
+  bottom: -2px;
+  right: -2px;
+  border-bottom: 5px solid #111;
+  border-right: 5px solid #111;
+}
+
+.editor-preview :deep(.cropper-point.point-nw::before),
+.editor-preview :deep(.cropper-point.point-ne::before),
+.editor-preview :deep(.cropper-point.point-sw::before),
+.editor-preview :deep(.cropper-point.point-se::before) {
+  inset: -12px;
 }
 
 .editor-preview--plain :deep(.cropper-crop-box),
@@ -1564,12 +1643,6 @@ onBeforeUnmount(() => {
     max-height: 55vh;
   }
 
-  .editor-preview :deep(.cropper-point) {
-    width: 16px;
-    height: 16px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.22);
-  }
-
   .editor-preview :deep(.cropper-point::before) {
     inset: -14px;
   }
@@ -1578,15 +1651,19 @@ onBeforeUnmount(() => {
   .editor-preview :deep(.cropper-point.point-sw),
   .editor-preview :deep(.cropper-point.point-ne),
   .editor-preview :deep(.cropper-point.point-nw) {
-    width: 20px;
-    height: 20px;
+    width: 32px;
+    height: 32px;
+    border-top-width: 6px;
+    border-bottom-width: 6px;
+    border-left-width: 6px;
+    border-right-width: 6px;
   }
 
   .editor-preview :deep(.cropper-point.point-se::before),
   .editor-preview :deep(.cropper-point.point-sw::before),
   .editor-preview :deep(.cropper-point.point-ne::before),
   .editor-preview :deep(.cropper-point.point-nw::before) {
-    inset: -16px;
+    inset: -14px;
   }
 
   .editor-panels {
