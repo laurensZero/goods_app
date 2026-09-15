@@ -15,6 +15,7 @@ import {
   buildBilibiliWebUrl,
   md5,
   parseBilibiliVideoId,
+  pickBilibiliMediaUrl,
   selectBilibiliAudioStream,
   isTransientNetworkError,
   fetchBilibiliPlayableUrl
@@ -62,6 +63,29 @@ describe('Bilibili music helpers', () => {
       { id: 30280, bandwidth: 600000, mimeType: 'audio/mp4; codecs="mp4a.40.2"' },
       { id: 30232, bandwidth: 300000, mimeType: 'audio/mp4; codecs="mp4a.40.2"' }
     ])?.id).toBe(30232)
+  })
+
+  it('prefers bilivideo.com CDN over mcdn/mountaintoys candidates', () => {
+    expect(pickBilibiliMediaUrl([
+      'https://xy36x150x3x5xy.mcdn.bilivideo.cn/audio.m4s',
+      'https://edge.example.edge.mountaintoys.cn/audio.m4s',
+      'https://cn-hbwh-cm-01-01.bilivideo.com/audio.m4s'
+    ])).toBe('https://cn-hbwh-cm-01-01.bilivideo.com/audio.m4s')
+  })
+
+  it('still accepts bilivideo.cn and mountaintoys.cn hosts when no .com is present', () => {
+    expect(pickBilibiliMediaUrl([
+      'https://edge.a.mountaintoys.cn/a.m4s',
+      'https://xy.mcdn.bilivideo.cn/a.m4s'
+    ])).toBe('https://edge.a.mountaintoys.cn/a.m4s')
+    expect(pickBilibiliMediaUrl(['http://xy.mcdn.bilivideo.cn/a.m4s']))
+      .toBe('https://xy.mcdn.bilivideo.cn/a.m4s')
+  })
+
+  it('normalizes protocol-relative and empty candidates', () => {
+    expect(pickBilibiliMediaUrl(['//upos-sz-mirrorcos.bilivideo.com/a.m4s', '', null]))
+      .toBe('https://upos-sz-mirrorcos.bilivideo.com/a.m4s')
+    expect(pickBilibiliMediaUrl([])).toBe('')
   })
 })
 

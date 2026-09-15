@@ -152,6 +152,51 @@ async function prepareBilibiliMediaUrl(url) {
   return normalizedUrl
 }
 
+// 开发代理 /bilibili-media 需能识别的 B 站媒体域名（与 vite.config.js 白名单保持一致）。
+const BILIBILI_MEDIA_HOST_PATTERNS = [
+  /(^|\.)bilivideo\.com$/i,
+  /(^|\.)bilivideo\.cn$/i,
+  /(^|\.)mountaintoys\.cn$/i
+]
+
+function isBilibiliMediaHost(hostname) {
+  return BILIBILI_MEDIA_HOST_PATTERNS.some((pattern) => pattern.test(String(hostname || '')))
+}
+
+/**
+ * 在多个候选播放地址里挑一条：
+ * 1) 优先 https
+ * 2) 优先 bilivideo.com（相对更稳的官方备份 CDN）
+ * 3) 其次其它可识别的 B 站媒体域
+ * 4) 其余原样保留（原生端可播任意域名）
+ */
+export function pickBilibiliMediaUrl(candidates = []) {
+  const urls = Array.isArray(candidates) ? candidates : [candidates]
+  const normalized = []
+  const seen = new Set()
+  for (const candidate of urls) {
+    const url = toHttpsUrl(candidate)
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+    let host = ''
+    try {
+      host = new URL(url).hostname
+    } catch {
+      continue
+    }
+    normalized.push({ url, host })
+  }
+  if (!normalized.length) return ''
+
+  const score = ({ url, host }) => {
+    let value = url.startsWith('https://') ? 2 : 1
+    if (/(^|\.)bilivideo\.com$/i.test(host)) value += 4
+    else if (isBilibiliMediaHost(host)) value += 2
+    return value
+  }
+  return normalized.sort((left, right) => score(right) - score(left))[0].url
+}
+
 async function getWbiQuery(params) {
   if (!wbiKeyCache || Date.now() - wbiKeyCache.time > 6 * 60 * 60 * 1000) {
     // 未登录时 nav 可能返回 code=-101（账号未登录），但 data.wbi_img 仍可用于搜索签名。
@@ -235,7 +280,13 @@ export async function fetchBilibiliPlayableUrl(bvid) {
       fnval: 0,
       fourk: 1
     })
-    const legacyUrl = toHttpsUrl(webPlayData?.durl?.[0]?.url || webPlayData?.durl?.[0]?.backup_url)
+    // backup_url 是数组；primary 缺失时不能直接 String(backup_url)
+    const durlItem = webPlayData?.durl?.[0] || {}
+    const legacyCandidates = [
+      durlItem.url,
+      ...(Array.isArray(durlItem.backup_url) ? durlItem.backup_url : [])
+    ]
+    const legacyUrl = pickBilibiliMediaUrl(legacyCandidates)
     if (legacyUrl) return { url: await prepareBilibiliMediaUrl(legacyUrl), code: 0 }
   }
   const playData = await biliJson('/x/player/playurl', {
@@ -251,14 +302,18 @@ export async function fetchBilibiliPlayableUrl(bvid) {
   if (!audioStreams.length) throw new Error('该 Bilibili 视频没有可用音频流')
   const bestAudio = selectBilibiliAudioStream(audioStreams)
   const baseUrl = bestAudio?.baseUrl || bestAudio?.base_url
-  const backupUrls = (bestAudio?.backupUrl || bestAudio?.backup_url || [])
+  const backupUrls = (Array.isArray(bestAudio?.backupUrl) ? bestAudio.backupUrl
+    : Array.isArray(bestAudio?.backup_url) ? bestAudio.backup_url
+      : [])
     .map((candidate) => toHttpsUrl(candidate))
     .filter(Boolean)
-  const url = toHttpsUrl(baseUrl || backupUrls[0])
+  // mcdn/bilivideo.cn 与 mountaintoys 有时可用但不稳；优先 bilivideo.com 备份
+  const candidates = [baseUrl, ...backupUrls].map((candidate) => toHttpsUrl(candidate)).filter(Boolean)
+  const url = pickBilibiliMediaUrl(candidates)
   if (!url) throw new Error('Bilibili 音频流地址为空')
   return {
     url: await prepareBilibiliMediaUrl(url),
-    fallbackUrls: backupUrls.filter((candidate) => candidate !== url),
+    fallbackUrls: candidates.filter((candidate) => candidate !== url),
     code: 0
   }
 }
