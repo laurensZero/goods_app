@@ -1,13 +1,16 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import i18n from '@/locales'
 import {
+  allowsCollectSaleReminder,
   buildSaleReminderNotifications,
   formatReminderOffset,
   formatSaleAtDisplay,
+  getSaleReminderKind,
   getSaleReminderPendingNotificationIds,
   getSaleReminderNotificationId,
   normalizeSaleAt,
-  normalizeSaleReminderOffsets
+  normalizeSaleReminderOffsets,
+  shouldScheduleSaleReminder
 } from '../saleReminder'
 
 beforeAll(() => {
@@ -78,5 +81,73 @@ describe('saleReminder', () => {
     expect(formatReminderOffset(60)).toBe('还有 1 h 就要开售')
     expect(formatReminderOffset(10)).toBe('还有 10 分钟')
     expect(formatReminderOffset(0)).toBe('开售时')
+    expect(formatReminderOffset(0, 'postage')).toBe('补邮时')
+    expect(formatReminderOffset(0, 'payment')).toBe('补款时')
+  })
+
+  it('allows collection reminders only for pending postage/payment', () => {
+    expect(allowsCollectSaleReminder({ isWishlist: true })).toBe(true)
+    expect(allowsCollectSaleReminder({ isWishlist: false, collectStatus: '待补邮' })).toBe(true)
+    expect(allowsCollectSaleReminder({ isWishlist: false, collectStatus: '待补款' })).toBe(true)
+    expect(allowsCollectSaleReminder({ isWishlist: false, collectStatus: '已拥有' })).toBe(false)
+    expect(allowsCollectSaleReminder({
+      isWishlist: false,
+      collectStatus: '已拥有',
+      unitCollectStatusList: ['已拥有', '待补邮']
+    })).toBe(true)
+  })
+
+  it('schedules collection reminders for future pending statuses only', () => {
+    const future = new Date(Date.now() + 30 * 60000)
+    const pad = (n) => String(n).padStart(2, '0')
+    const saleAt = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`
+    const base = {
+      id: 'g1',
+      saleAt,
+      saleReminderEnabled: true,
+      saleReminderOffsets: [10, 0]
+    }
+
+    expect(shouldScheduleSaleReminder({ ...base, isWishlist: false, collectStatus: '待补邮' })).toBe(true)
+    expect(shouldScheduleSaleReminder({ ...base, isWishlist: false, collectStatus: '待补款' })).toBe(true)
+    expect(shouldScheduleSaleReminder({ ...base, isWishlist: false, collectStatus: '已拥有' })).toBe(false)
+    expect(shouldScheduleSaleReminder({
+      ...base,
+      isWishlist: false,
+      collectStatus: '已拥有',
+      unitCollectStatusList: ['待补款']
+    })).toBe(true)
+  })
+
+  it('resolves reminder kind from wishlist and collect status', () => {
+    expect(getSaleReminderKind({ isWishlist: true, collectStatus: '已拥有' })).toBe('sale')
+    expect(getSaleReminderKind({ isWishlist: false, collectStatus: '待补邮' })).toBe('postage')
+    expect(getSaleReminderKind({ isWishlist: false, collectStatus: '待补款' })).toBe('payment')
+    expect(getSaleReminderKind({
+      isWishlist: false,
+      collectStatus: '待补款',
+      unitCollectStatusList: ['待补邮']
+    })).toBe('postage')
+  })
+
+  it('builds collection notifications with postage wording', () => {
+    const future = new Date(Date.now() + 15 * 60000)
+    const pad = (n) => String(n).padStart(2, '0')
+    const saleAt = `${future.getFullYear()}-${pad(future.getMonth() + 1)}-${pad(future.getDate())}T${pad(future.getHours())}:${pad(future.getMinutes())}`
+
+    const notifications = buildSaleReminderNotifications({
+      id: 'goods-postage',
+      name: '测试谷子',
+      isWishlist: false,
+      collectStatus: '待补邮',
+      saleAt,
+      saleReminderEnabled: true,
+      saleReminderOffsets: [10, 0]
+    })
+
+    expect(notifications.length).toBeGreaterThan(0)
+    expect(notifications[0].body).toContain('补邮时间')
+    const atDue = notifications.find((n) => n.extra.offsetMinutes === 0)
+    expect(atDue?.title).toContain('补邮')
   })
 })

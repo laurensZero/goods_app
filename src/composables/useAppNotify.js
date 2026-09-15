@@ -2,8 +2,9 @@ import { ref, watch, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   parseSaleAt,
-  normalizeSaleReminderEnabled,
   normalizeSaleReminderOffsets,
+  shouldScheduleSaleReminder,
+  getSaleReminderKind,
   SALE_REMINDER_DEFAULT_OFFSETS
 } from '@/utils/goods/saleReminder'
 import { formatDate } from '@/utils/format'
@@ -153,9 +154,8 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     const now = Date.now()
 
     for (const item of list) {
-      if (!item?.isWishlist) continue
-      if (!normalizeSaleReminderEnabled(item.saleReminderEnabled)) continue
-
+      if (!shouldScheduleSaleReminder(item)) continue
+      // shouldScheduleSaleReminder 已校验未来时间；轮询窗口再对齐一次
       const saleDate = parseSaleAt(item.saleAt)
       if (!saleDate) continue
 
@@ -182,12 +182,15 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     const name = String(item.name || '谷子').trim() || '谷子'
     const offsetText = formatOffsetText(offsetMinutes)
     const isAtSaleTime = offsetMinutes <= 0
+    const kind = getSaleReminderKind(item)
+    const kindLabel = kind === 'postage' ? '补邮' : kind === 'payment' ? '补款' : '开售'
+    const atLabel = kind === 'postage' ? '补邮时间' : kind === 'payment' ? '补款时间' : '开售时间'
 
     push({
       goodsId: item.id,
       iconType: 'bell',
-      text: isAtSaleTime ? `${name} 开售了` : `${name} ${offsetText}`,
-      subText: isAtSaleTime ? '现在到开售时间了' : `开售时间：${formatSaleTime(item.saleAt)}`,
+      text: isAtSaleTime ? `${name} ${kindLabel}了` : `${name} ${offsetText}`,
+      subText: isAtSaleTime ? `现在到${kindLabel}时间了` : `${atLabel}：${formatSaleTime(item.saleAt)}`,
       saleAt: isAtSaleTime ? '' : item.saleAt,
       actions: isAtSaleTime
         ? [

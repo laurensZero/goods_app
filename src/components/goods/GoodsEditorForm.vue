@@ -728,11 +728,11 @@
                   </div>
                 </label>
 
-                <section v-if="form.isWishlist" class="field sale-reminder-field">
+                <section v-if="showSaleReminderSection" class="field sale-reminder-field">
                   <div class="sale-reminder-head">
                     <div>
-                      <span class="field-label">{{ t('goods.editor.saleReminder') }}</span>
-                      <p class="field-hint">{{ t('goods.editor.saleReminderDesc') }}</p>
+                      <span class="field-label">{{ t(saleReminderTitleKey) }}</span>
+                      <p class="field-hint">{{ t(saleReminderDescKey) }}</p>
                     </div>
                     <button
                       type="button"
@@ -745,14 +745,14 @@
                   </div>
 
                   <label class="unit-date-field">
-                    <span class="field-label">{{ t('goods.editor.saleAt') }}</span>
+                    <span class="field-label">{{ t(saleAtLabelKey) }}</span>
                     <button
                       type="button"
                       class="sale-datetime-display"
                       :disabled="!form.saleReminderEnabled"
                       @click="openSaleDateTimePicker"
                     >
-                      {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t('goods.editor.selectSaleTime') }}
+                      {{ form.saleAt ? formatSaleAtDisplay(form.saleAt) : t(saleAtSelectKey) }}
                     </button>
                     <SaleCountdown v-if="form.saleAt && form.saleReminderEnabled" :sale-at="form.saleAt" />
                   </label>
@@ -960,7 +960,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
-import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay } from '@/utils/goods/saleReminder'
+import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
 
 const { t } = useI18n()
 
@@ -1189,13 +1189,48 @@ const customSaleReminderMinutes = ref('')
 const customSaleReminderOffsets = computed(() =>
   form.saleReminderOffsets.filter((offset) => !saleReminderPresetOffsets.includes(offset))
 )
+
+// 心愿单=开售提醒；收藏待补邮/待补款=补邮/补款提醒（复用 saleAt 字段）
+const saleReminderKind = computed(() =>
+  getSaleReminderKind({
+    isWishlist: form.isWishlist,
+    collectStatus: form.collectStatus,
+    unitCollectStatusList: form.unitCollectStatusList
+  })
+)
+const showSaleReminderSection = computed(() => form.isWishlist || saleReminderKind.value !== 'sale')
+const saleReminderTitleKey = computed(() => {
+  if (saleReminderKind.value === 'postage') return 'goods.editor.pendingPostageReminder'
+  if (saleReminderKind.value === 'payment') return 'goods.editor.pendingPaymentReminder'
+  return 'goods.editor.saleReminder'
+})
+const saleReminderDescKey = computed(() => {
+  if (saleReminderKind.value === 'postage') return 'goods.editor.pendingPostageReminderDesc'
+  if (saleReminderKind.value === 'payment') return 'goods.editor.pendingPaymentReminderDesc'
+  return 'goods.editor.saleReminderDesc'
+})
+const saleAtLabelKey = computed(() => {
+  if (saleReminderKind.value === 'postage') return 'goods.editor.pendingPostageAt'
+  if (saleReminderKind.value === 'payment') return 'goods.editor.pendingPaymentAt'
+  return 'goods.editor.saleAt'
+})
+const saleAtSelectKey = computed(() => {
+  if (saleReminderKind.value === 'postage') return 'goods.editor.selectPendingPostageTime'
+  if (saleReminderKind.value === 'payment') return 'goods.editor.selectPendingPaymentTime'
+  return 'goods.editor.selectSaleTime'
+})
+
 function formatSaleReminderOffset(offset) {
   const minutes = Number(offset)
+  if (minutes === 0) {
+    if (saleReminderKind.value === 'postage') return t('goods.editor.reminderAtPostage')
+    if (saleReminderKind.value === 'payment') return t('goods.editor.reminderAtPayment')
+    return t('goods.editor.reminderAtSale')
+  }
   const key = {
     1440: 'goods.editor.reminderBeforeOneDay',
     60: 'goods.editor.reminderBeforeOneHour',
-    10: 'goods.editor.reminderBeforeTenMinutes',
-    0: 'goods.editor.reminderAtSale'
+    10: 'goods.editor.reminderBeforeTenMinutes'
   }[minutes]
   if (key) return t(key)
   if (minutes % 1440 === 0) return t('goods.editor.reminderBeforeDays', { count: minutes / 1440 })

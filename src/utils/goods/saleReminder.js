@@ -79,11 +79,40 @@ export function normalizeSaleReminderOffsets(value) {
   return [...new Set(normalized)].sort((a, b) => b - a)
 }
 
+const REMINDER_ELIGIBLE_COLLECT_STATUSES = new Set(['待补款', '待补邮'])
+
+export function allowsCollectSaleReminder(item) {
+  if (item?.isWishlist) return true
+  const status = String(item?.collectStatus || '').trim()
+  if (REMINDER_ELIGIBLE_COLLECT_STATUSES.has(status)) return true
+  return Array.isArray(item?.unitCollectStatusList)
+    && item.unitCollectStatusList.some((s) => REMINDER_ELIGIBLE_COLLECT_STATUSES.has(String(s || '').trim()))
+}
+
 export function shouldScheduleSaleReminder(item) {
-  if (!item?.id || !item?.isWishlist) return false
+  if (!item?.id) return false
+  if (!allowsCollectSaleReminder(item)) return false
   if (!normalizeSaleReminderEnabled(item.saleReminderEnabled)) return false
   const saleDate = parseSaleAt(item.saleAt)
   return !!saleDate && saleDate.getTime() > Date.now()
+}
+
+/** 提醒场景：sale=开售 / postage=补邮 / payment=补款 */
+export function getSaleReminderKind(item) {
+  if (item?.isWishlist) return 'sale'
+  const statuses = [
+    String(item?.collectStatus || '').trim(),
+    ...(Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList.map((s) => String(s || '').trim()) : [])
+  ]
+  if (statuses.includes('待补邮')) return 'postage'
+  if (statuses.includes('待补款')) return 'payment'
+  return 'sale'
+}
+
+export function formatReminderAtLabelKey(kind) {
+  if (kind === 'postage') return 'goods.editor.pendingPostageAt'
+  if (kind === 'payment') return 'goods.editor.pendingPaymentAt'
+  return 'goods.editor.saleAt'
 }
 
 export function formatSaleAtDisplay(value) {
@@ -93,9 +122,13 @@ export function formatSaleAtDisplay(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
-export function formatReminderOffset(offsetMinutes) {
+export function formatReminderOffset(offsetMinutes, kind = 'sale') {
   const minutes = Number(offsetMinutes)
-  if (!Number.isFinite(minutes) || minutes <= 0) return i18n.global.t('goods.editor.reminderAtSale')
+  if (!Number.isFinite(minutes) || minutes <= 0) {
+    if (kind === 'postage') return i18n.global.t('goods.editor.reminderAtPostage')
+    if (kind === 'payment') return i18n.global.t('goods.editor.reminderAtPayment')
+    return i18n.global.t('goods.editor.reminderAtSale')
+  }
   if (minutes % 1440 === 0) return i18n.global.t('goods.notification.reminderBeforeDays', { count: minutes / 1440 })
   if (minutes % 60 === 0) return i18n.global.t('goods.notification.reminderBeforeHours', { count: minutes / 60 })
   return i18n.global.t('goods.notification.reminderBeforeMinutes', { count: minutes })
@@ -220,18 +253,21 @@ export function buildSaleReminderNotifications(item) {
   const reminderOffsets = offsets.length ? offsets : SALE_REMINDER_DEFAULT_OFFSETS
   const saleTimeText = formatSaleAtDisplay(item.saleAt)
   const titleName = String(item.name || '谷子').trim() || '谷子'
+  const kind = getSaleReminderKind(item)
+  const kindLabel = kind === 'postage' ? '补邮' : kind === 'payment' ? '补款' : '开售'
+  const atLabel = kind === 'postage' ? '补邮时间' : kind === 'payment' ? '补款时间' : '开售时间'
 
   return reminderOffsets
     .map((offset) => {
       const triggerAt = new Date(saleTimeMs - (offset * 60000))
       if (triggerAt.getTime() <= Date.now() + NOTIFICATION_MARGIN_MS) return null
-      const offsetText = formatReminderOffset(offset)
-      const title = offset > 0 ? `${titleName} ${offsetText}` : `${titleName} 开售了`
+      const offsetText = formatReminderOffset(offset, kind)
+      const title = offset > 0 ? `${titleName} ${offsetText}` : `${titleName} ${kindLabel}了`
       return {
         id: getSaleReminderNotificationId(item.id, offset),
         title,
-        body: offset > 0 ? `开售时间：${saleTimeText}` : '现在到开售时间了。',
-        largeBody: `${titleName}\n开售时间：${saleTimeText}`,
+        body: offset > 0 ? `${atLabel}：${saleTimeText}` : `现在到${kindLabel}时间了。`,
+        largeBody: `${titleName}\n${atLabel}：${saleTimeText}`,
         summaryText: saleTimeText,
         channelId: SALE_REMINDER_CHANNEL_ID,
         group: SALE_REMINDER_NOTIFICATION_GROUP,
@@ -397,6 +433,9 @@ export async function createSaleCalendarEvent(item) {
   const reminderOffsets = offsets.length ? offsets : SALE_REMINDER_DEFAULT_OFFSETS
   const titleName = String(item.name || '谷子').trim() || '谷子'
   const saleTimeText = formatSaleAtDisplay(item.saleAt)
+  const kind = getSaleReminderKind(item)
+  const kindLabel = kind === 'postage' ? '补邮' : kind === 'payment' ? '补款' : '开售'
+  const atLabel = kind === 'postage' ? '补邮时间' : kind === 'payment' ? '补款时间' : '开售时间'
 
   // 先删旧的
   const existingId = getCalendarEventId(item.id)
@@ -408,8 +447,8 @@ export async function createSaleCalendarEvent(item) {
 
   try {
     const result = await cal.createEvent({
-      title: `🛒 ${titleName} 开售`,
-      description: `开售时间：${saleTimeText}\n由谷子收纳自动创建`,
+      title: `🛒 ${titleName} ${kindLabel}`,
+      description: `${atLabel}：${saleTimeText}\n由谷子收纳自动创建`,
       startDate: saleTimeMs,
       endDate: saleTimeMs + 30 * 60 * 1000,
       alerts
@@ -460,6 +499,7 @@ export function watchSaleReminderNotifications(goodsStore) {
     .map((item) => ({
       id: item.id,
       isWishlist: item.isWishlist,
+      collectStatus: String(item.collectStatus || ''),
       saleAt: normalizeSaleAt(item.saleAt),
       enabled: normalizeSaleReminderEnabled(item.saleReminderEnabled),
       offsets: normalizeSaleReminderOffsets(item.saleReminderOffsets)

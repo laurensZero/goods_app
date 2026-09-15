@@ -134,8 +134,8 @@
               <strong class="info-value">{{ acquiredAtDisplayText }}</strong>
             </article>
 
-            <article v-if="item.isWishlist && saleAtDisplayText" class="info-tile">
-              <span class="info-label">{{ t('goods.detail.saleAt') }}</span>
+            <article v-if="showSaleAtTile" class="info-tile">
+              <span class="info-label">{{ t(saleAtDetailLabelKey) }}</span>
               <strong class="info-value">{{ saleAtDisplayText }}</strong>
             </article>
 
@@ -349,7 +349,7 @@ import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList
 import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant, getDisplayGoodsVariant } from '@/utils/goods/identity'
-import { formatSaleAtDisplay } from '@/utils/goods/saleReminder'
+import { formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
 import { renderMarkdown } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
@@ -743,6 +743,18 @@ const acquiredAtDisplayText = computed(() => {
 })
 
 const saleAtDisplayText = computed(() => formatSaleAtDisplay(item.value?.saleAt || ''))
+const showSaleAtTile = computed(() => {
+  if (!saleAtDisplayText.value) return false
+  if (item.value?.isWishlist) return true
+  return getSaleReminderKind(item.value) !== 'sale'
+})
+const saleAtDetailLabelKey = computed(() => {
+  if (item.value?.isWishlist) return 'goods.detail.saleAt'
+  const kind = getSaleReminderKind(item.value)
+  if (kind === 'postage') return 'goods.detail.pendingPostageAt'
+  if (kind === 'payment') return 'goods.detail.pendingPaymentAt'
+  return 'goods.detail.saleAt'
+})
 
 const DETAIL_SCROLL_LOCK_CLASS = 'detail-route-scroll-lock'
 const DETAIL_ENTRY_SCROLL_LOCK_MS = 380
