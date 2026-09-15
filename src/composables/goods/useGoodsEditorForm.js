@@ -19,6 +19,7 @@ import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition
 import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries } from '@/utils/goods/statusTimeline'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
+  allowsCollectSaleReminder,
   ensureSaleReminderPermission,
   normalizeSaleAt,
   normalizeSaleReminderOffsets
@@ -240,15 +241,30 @@ export function useGoodsEditorForm(options = {}) {
         return
       }
 
-      form.saleReminderEnabled = false
-      form.saleAt = ''
-      form.saleReminderOffsets = []
+      // 心愿 → 收藏：默认清空提醒；若目标状态是待补邮/待补款则保留供编辑
+      if (!allowsCollectSaleReminder({ isWishlist: false, collectStatus: form.collectStatus, unitCollectStatusList: form.unitCollectStatusList })) {
+        form.saleReminderEnabled = false
+        form.saleAt = ''
+        form.saleReminderOffsets = []
+      }
 
       if (!form.acquiredAt && !hasCustomAcquiredAt.value) {
         form.acquiredAt = getToday()
       }
 
       syncUnitCharacterListLength()
+    }
+  )
+
+  // 收藏品状态切出待补邮/待补款 → 清空补邮/补款提醒（心愿单开售提醒不受影响）
+  watch(
+    () => [form.isWishlist, form.collectStatus, form.unitCollectStatusList?.join?.('|') || ''],
+    () => {
+      if (form.isWishlist) return
+      if (allowsCollectSaleReminder({ isWishlist: false, collectStatus: form.collectStatus, unitCollectStatusList: form.unitCollectStatusList })) return
+      form.saleReminderEnabled = false
+      form.saleAt = ''
+      form.saleReminderOffsets = []
     }
   )
 
@@ -414,11 +430,16 @@ export function useGoodsEditorForm(options = {}) {
     }
     priceError.value = ''
 
-    if (!form.isWishlist) {
+    const keepsCollectReminder = allowsCollectSaleReminder({
+      isWishlist: false,
+      collectStatus: form.collectStatus,
+      unitCollectStatusList: form.unitCollectStatusList
+    })
+    if (!form.isWishlist && !keepsCollectReminder) {
       form.saleAt = ''
       form.saleReminderEnabled = false
       form.saleReminderOffsets = []
-    } else {
+    } else if (form.isWishlist || keepsCollectReminder) {
       form.saleAt = normalizeSaleAt(form.saleAt)
       form.saleReminderOffsets = normalizeSaleReminderOffsets(form.saleReminderOffsets)
       if (form.saleReminderEnabled && form.saleReminderOffsets.length === 0) {

@@ -18,6 +18,15 @@ import { normalizeTracks } from '@/utils/music/tracks'
 
 const VALID_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮', '已拥有', '丢失', '已赠出', '想出', '已出', '在售'])
 
+// 待补邮/待补款：收藏品可设补邮/补款提醒时间（复用 saleAt 字段）
+const REMINDER_ELIGIBLE_COLLECT_STATUSES = new Set(['待补款', '待补邮'])
+
+function allowsCollectSaleReminder(collectStatus, unitCollectStatusList) {
+  if (REMINDER_ELIGIBLE_COLLECT_STATUSES.has(collectStatus)) return true
+  return Array.isArray(unitCollectStatusList)
+    && unitCollectStatusList.some((s) => REMINDER_ELIGIBLE_COLLECT_STATUSES.has(s))
+}
+
 function isValidYearMonth(value) {
   return /^\d{4}-\d{2}$/.test(value)
 }
@@ -423,9 +432,15 @@ function normalizeGoodsInput(data, fallbackId = '') {
     actualPrice: normalizedActualPrice,
     points: data.points != null && data.points !== '' ? Number(data.points) : undefined,
     acquiredAt: String(data.acquiredAt || data.purchaseDate || '').trim(),
-    saleAt: isWishlist ? normalizeSaleAtValue(data.saleAt || data.sale_at || '') : '',
-    saleReminderEnabled: isWishlist && normalizeBooleanFlag(data.saleReminderEnabled || data.sale_reminder_enabled),
-    saleReminderOffsets: isWishlist ? normalizeSaleReminderOffsetList(data.saleReminderOffsets || data.sale_reminder_offsets) : [],
+    // 收藏品仅在待补邮/待补款时保留提醒字段（复用 saleAt）；其余收藏态清空
+    saleAt: (isWishlist || allowsCollectSaleReminder(normalizeCollectStatus(data.collectStatus), unitCollectStatusList))
+      ? normalizeSaleAtValue(data.saleAt || data.sale_at || '')
+      : '',
+    saleReminderEnabled: (isWishlist || allowsCollectSaleReminder(normalizeCollectStatus(data.collectStatus), unitCollectStatusList))
+      && normalizeBooleanFlag(data.saleReminderEnabled || data.sale_reminder_enabled),
+    saleReminderOffsets: (isWishlist || allowsCollectSaleReminder(normalizeCollectStatus(data.collectStatus), unitCollectStatusList))
+      ? normalizeSaleReminderOffsetList(data.saleReminderOffsets || data.sale_reminder_offsets)
+      : [],
     unitAcquiredAtList: isWishlist
       ? []
       : normalizeUnitAcquiredAtList(data.unitAcquiredAtList || data.purchaseDateList, data.quantity),
