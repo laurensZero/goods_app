@@ -8,6 +8,7 @@
   "goods.addMethod.goodsCount": "{count}件",
   "goods.addMethod.importAll": "すべてインポート ({count})",
   "goods.addMethod.importFromMihoyo": "miHoYoショップからインポート",
+  "goods.mihoyoshop": "米遊舗",
   "goods.addMethod.importFromMihoyoDesc": "商品リンクを貼り付けて情報を自動入力",
   "goods.addMethod.importFromShare": "シェアコードからインポート",
   "goods.addMethod.importFromShareDesc": "友達からのシェアリンクまたはコードを貼り付け",

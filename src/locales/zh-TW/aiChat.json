@@ -4,6 +4,7 @@
   "aiChat.inputPlaceholder": "問問你的收藏…",
   "aiChat.inputPlaceholderQueued": "回覆中，可繼續輸入排隊…",
   "aiChat.send": "傳送",
+  "aiChat.sendQueued": "排隊發送",
   "aiChat.stopGeneration": "停止生成",
   "aiChat.queued": "已加入佇列，本輪回覆結束後自動發送",
   "aiChat.queueCount": "佇列中 {count} 條",

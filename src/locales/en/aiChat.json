@@ -4,6 +4,7 @@
   "aiChat.inputPlaceholder": "Ask about your collection…",
   "aiChat.inputPlaceholderQueued": "Replying — keep typing to queue…",
   "aiChat.send": "Send",
+  "aiChat.sendQueued": "Queue send",
   "aiChat.stopGeneration": "Stop generating",
   "aiChat.queued": "Queued — will send after this reply",
   "aiChat.queueCount": "{count} queued",

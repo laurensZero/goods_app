@@ -1,30 +1,3 @@
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import i18n from '@/locales'
-
-const GITHUB_API_BASE = 'https://api.github.com'
-const REQUEST_TIMEOUT_MS = 15000
-
-export class TokenExpiredError extends Error {
-  constructor(message) {
-    super(message || i18n.global.t('about.githubTokenExpired'))
-    this.name = 'TokenExpiredError'
-  }
-}
-
-function buildGitHubHeaders(token = '') {
-  const headers = {
-    Accept: 'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-  }
-
-  const authToken = String(token || '').trim()
-  if (authToken) {
-    headers.Authorization = `Bearer ${authToken}`
-  }
-
-  return headers
-}
-
 function normalizeBaseVersionPart(value) {
   const sanitized = String(value || '')
     .trim()
@@ -49,34 +22,6 @@ function parseVersion(version) {
   }
 }
 
-function normalizeReleaseAsset(asset) {
-  if (!asset || typeof asset !== 'object') return null
-
-  const browserDownloadUrl = asset.browser_download_url || asset.browserDownloadUrl || asset.download_url || ''
-  return {
-    ...asset,
-    browser_download_url: String(browserDownloadUrl || '').trim(),
-    name: String(asset.name || asset.file_name || '').trim()
-  }
-}
-
-function normalizeRelease(release, source = 'github') {
-  if (!release || typeof release !== 'object') return null
-
-  const assets = Array.isArray(release.assets)
-    ? release.assets.map((item) => normalizeReleaseAsset(item)).filter(Boolean)
-    : []
-
-  return {
-    ...release,
-    assets,
-    html_url: String(release.html_url || release.target_url || '').trim(),
-    tag_name: String(release.tag_name || release.tag || '').trim(),
-    body: String(release.body || release.description || '').trim(),
-    source
-  }
-}
-
 function normalizeReleaseTarget(platform = '') {
   const value = String(platform || '').trim().toLowerCase()
   if (!value) return ''
@@ -86,43 +31,6 @@ function normalizeReleaseTarget(platform = '') {
   if (value.includes('mac') || value.includes('darwin') || value.includes('osx')) return 'darwin'
   if (value.includes('linux')) return 'linux'
   return value
-}
-
-async function request(baseUrl, path, headers) {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-
-  try {
-    const response = await fetchWithPlatformBridge(`${baseUrl}${path}`, {
-      method: 'GET',
-      headers,
-      signal: controller.signal
-    })
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}))
-      const message = String(error?.message || `GitHub API error: ${response.status}`).trim()
-
-      if (response.status === 403 && /rate limit exceeded/i.test(message)) {
-        throw new Error(i18n.global.t('about.rateLimitExceeded'))
-      }
-
-      if (response.status === 401 || /bad credentials/i.test(message)) {
-        throw new TokenExpiredError()
-      }
-
-      throw new Error(message)
-    }
-
-    return response.json()
-  } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error(i18n.global.t('about.checkTimeout'))
-    }
-    throw error
-  } finally {
-    clearTimeout(timeoutId)
-  }
 }
 
 export function normalizeVersionTag(version) {
@@ -164,26 +72,6 @@ export function compareVersions(leftVersion, rightVersion) {
   return 0
 }
 
-export async function getLatestRelease(owner, repo, token = '') {
-  if (!owner || !repo) {
-    throw new Error(i18n.global.t('about.missingRepoInfo'))
-  }
-
-  try {
-    const release = await request(
-      GITHUB_API_BASE,
-      `/repos/${owner}/${repo}/releases/latest`,
-      buildGitHubHeaders(token)
-    )
-    return normalizeRelease(release, 'github')
-  } catch (error) {
-    if (String(error?.message || '').includes('404')) {
-      throw new Error(i18n.global.t('about.noReleaseAvailable'))
-    }
-    throw error
-  }
-}
-
 export function resolveReleaseTargetUrl(release, platform = '') {
   const preferredAsset = resolveReleaseAsset(release, platform)
 
@@ -210,14 +98,6 @@ export function resolveReleaseAsset(release, platform = '') {
   }
 
   return assets.find((asset) => !/\.(sig|json)$/i.test(asset?.name || '')) || assets[0]
-}
-
-const GITHUB_DOWNLOAD_PROXY = 'https://gh-proxy.com/'
-
-export function proxyGitHubDownloadUrl(url) {
-  if (!url || typeof url !== 'string') return url
-  if (!url.startsWith('https://github.com/')) return url
-  return `${GITHUB_DOWNLOAD_PROXY}${url}`
 }
 
 export function buildReleaseNotesPreview(body, lineLimit = 0) {

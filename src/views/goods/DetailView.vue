@@ -36,7 +36,7 @@
               v-if="activeImage?.uri"
               type="button"
               class="cover-zoom-btn"
-              :aria-label="t('common.aria.preview') || 'preview'"
+              :aria-label="t('common.aria.preview')"
               @click="openGoodsPreview()"
             >
               <LazyCachedImage
@@ -268,7 +268,7 @@
             <circle cx="20" cy="21" r="1" />
             <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
           </svg>
-          <span>{{ cartLoading ? t('common.loading') : t('detail.addToCart', '加入购物车') }}</span>
+          <span>{{ cartLoading ? t('common.loading') : t('common.addToCart') }}</span>
         </button>
         <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" @click="showMoreSheet = false; openMihoyoGoods()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -276,7 +276,7 @@
             <polyline points="15 3 21 3 21 9" />
             <line x1="10" y1="14" x2="21" y2="3" />
           </svg>
-          <span>{{ t('detail.mihoyoshop', '米游铺') }}</span>
+          <span>{{ t('goods.mihoyoshop') }}</span>
         </button>
         <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" :disabled="stockMonitorAdding" @click="showMoreSheet = false; handleAddToStockMonitor()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">

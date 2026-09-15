@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   normalizeVersionTag,
   compareVersions,
-  proxyGitHubDownloadUrl,
   buildReleaseNotesPreview,
   resolveReleaseAsset,
   resolveReleaseTargetUrl
@@ -47,19 +46,6 @@ describe('compareVersions', () => {
   })
 })
 
-describe('proxyGitHubDownloadUrl', () => {
-  it('proxies github.com URLs', () => {
-    expect(proxyGitHubDownloadUrl('https://github.com/o/r/releases/download/v1/app.apk'))
-      .toBe('https://gh-proxy.com/https://github.com/o/r/releases/download/v1/app.apk')
-  })
-
-  it('leaves non-github URLs alone', () => {
-    expect(proxyGitHubDownloadUrl('https://example.com/a.apk')).toBe('https://example.com/a.apk')
-    expect(proxyGitHubDownloadUrl('')).toBe('')
-    expect(proxyGitHubDownloadUrl(null)).toBe(null)
-  })
-})
-
 describe('buildReleaseNotesPreview', () => {
   it('returns empty for blank body', () => {
     expect(buildReleaseNotesPreview('')).toBe('')
@@ -78,7 +64,7 @@ describe('buildReleaseNotesPreview', () => {
 
 describe('resolveReleaseAsset / resolveReleaseTargetUrl', () => {
   const release = {
-    html_url: 'https://github.com/o/r/releases/tag/v1',
+    html_url: 'https://example.com/o/r/tag/v1',
     assets: [
       { name: 'checksums.sig', browser_download_url: 'https://x/sig' },
       { name: 'app-windows.exe', browser_download_url: 'https://x/exe' },
@@ -96,7 +82,7 @@ describe('resolveReleaseAsset / resolveReleaseTargetUrl', () => {
   })
 
   it('falls back to html_url when no assets match preferred and all filtered', () => {
-    const onlyMeta = { html_url: 'https://github.com/o/r/tag', assets: [{ name: 'a.sig' }, { name: 'b.json' }] }
-    expect(resolveReleaseTargetUrl(onlyMeta, 'android')).toBe('https://github.com/o/r/tag')
+    const onlyMeta = { html_url: 'https://example.com/tag', assets: [{ name: 'a.sig' }, { name: 'b.json' }] }
+    expect(resolveReleaseTargetUrl(onlyMeta, 'android')).toBe('https://example.com/tag')
   })
 })

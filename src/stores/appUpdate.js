@@ -8,14 +8,10 @@ import packageJson from '../../package.json'
 import {
   buildReleaseNotesPreview,
   compareVersions,
-  getLatestRelease,
   normalizeVersionTag,
   resolveReleaseAsset,
-  resolveReleaseTargetUrl,
-  proxyGitHubDownloadUrl,
-  TokenExpiredError
+  resolveReleaseTargetUrl
 } from '@/utils/github/release'
-import { readSyncKey } from '@/utils/sync/storage'
 import { normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import { SUPABASE_URL } from '@/config/supabase'
@@ -26,9 +22,6 @@ import { isDevVersionMockEnabled, resolveMockAppVersion } from '@/utils/dev/mock
 
 const log = createLogger('app-update')
 
-const UPDATE_REPO_OWNER = 'laurensZero'
-const UPDATE_REPO_NAME = 'goods_app'
-const SYNC_TOKEN_STORAGE_KEY = 'sync_github_token'
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
 const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
@@ -143,25 +136,9 @@ async function fetchLatestApkFromSupabase() {
 }
 
 async function fetchLatestRelease() {
-  // Android（含 PC dev 模拟）统一走 Supabase 检测 APK 更新；无记录时回退 GitHub
-  if (resolveUpdateTargetPlatform() === 'android') {
-    try {
-      const apkRelease = await fetchLatestApkFromSupabase()
-      if (apkRelease) return apkRelease
-    } catch (error) {
-      log.warn('check:supabase-apk-unavailable-fallback-github', { error: error?.message })
-    }
-  }
-
-  const token = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
-  try {
-    return await getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, token)
-  } catch (error) {
-    if (token && error instanceof TokenExpiredError) {
-      return getLatestRelease(UPDATE_REPO_OWNER, UPDATE_REPO_NAME, '')
-    }
-    throw error
-  }
+  // Android APK 更新统一走 Supabase ota_releases；其它平台当前无应用内安装包更新源
+  if (resolveUpdateTargetPlatform() !== 'android') return null
+  return fetchLatestApkFromSupabase()
 }
 
 export const useAppUpdateStore = defineStore('appUpdate', () => {
@@ -198,8 +175,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
   const supportsInAppDownload = computed(() => nativeAndroidDownloadEnabled.value || usingMockDownload.value)
   const releaseNotesPreview = computed(() => buildReleaseNotesPreview(latestRelease.value?.body))
   const releaseApkSha256 = computed(() => resolveApkSha256FromRelease(latestRelease.value))
-  const supabaseApkUrl = ref('')
-  const supabaseApkSha256 = ref('')
 
   const isForceUpdate = computed(() => hasUpdate.value && updateLevel.value === 'force')
   const isSilentUpdate = computed(() => hasUpdate.value && updateLevel.value === 'silent')
@@ -289,10 +264,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       return i18n.global.t('about.installPermissionDenied')
     }
 
-    if (raw.includes('bad credentials') || raw.includes('401') || error instanceof TokenExpiredError) {
-      return i18n.global.t('about.githubAuthFailed')
-    }
-
     return error?.message || i18n.global.t('about.downloadFailed')
   }
 
@@ -336,10 +307,9 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
     }
 
     const asset = releaseAsset.value
-    const rawDownloadUrl = asset?.browser_download_url
-    const downloadUrl = proxyGitHubDownloadUrl(rawDownloadUrl)
+    const downloadUrl = asset?.browser_download_url
 
-    if (!rawDownloadUrl) {
+    if (!downloadUrl) {
       downloadError.value = i18n.global.t('about.noDownloadableAsset')
       return false
     }
@@ -352,7 +322,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       const fileName = normalizePackageFilename(asset?.name)
       const filePath = `updates/${fileName}`
       const startedAt = Date.now()
-      const syncToken = String(await readSyncKey(SYNC_TOKEN_STORAGE_KEY) || '').trim()
 
       await Filesystem.mkdir({
         path: 'updates',
@@ -363,7 +332,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
       })
 
       progressListener = await Filesystem.addListener('progress', (status) => {
-        if (status?.url && status.url !== downloadUrl && status.url !== rawDownloadUrl) return
+        if (status?.url && status.url !== downloadUrl) return
 
         const downloadedBytes = Number(status?.bytes || 0)
         const totalBytes = Number(status?.contentLength || 0)
@@ -382,60 +351,35 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
       const expectedSha256 = releaseApkSha256.value
       if (!expectedSha256) {
-        console.warn('[appUpdate] release 未提供 apk_sha256，跳过完整性校验（旧版 release 兼容）')
+        log.warn('download:missing-apk-sha256')
       }
 
-      // 候选下载地址：Supabase 优先（国内快），代理次之，直连 GitHub 兜底
-      const candidateUrls = [
-        ...(supabaseApkUrl.value ? [supabaseApkUrl.value] : []),
-        ...(downloadUrl === rawDownloadUrl ? [downloadUrl] : [downloadUrl, rawDownloadUrl])
-      ]
-      let verified = false
-
-      for (const candidateUrl of candidateUrls) {
-        // 仅直连 GitHub 时携带同步 token（避免向代理泄露凭据）
-        const downloadHeaders = (syncToken && candidateUrl === rawDownloadUrl) ? { Authorization: `Bearer ${syncToken}` } : {}
-
-        let downloadAttempt = 0
-        while (downloadAttempt < 2) {
-          downloadAttempt += 1
-          try {
-            await Filesystem.downloadFile({
-              url: candidateUrl,
-              path: filePath,
-              directory: Directory.Cache,
-              progress: true,
-              recursive: true,
-              headers: downloadHeaders
-            })
-            break
-          } catch (downloadErr) {
-            if (downloadAttempt >= 2) throw downloadErr
-            await sleep(450)
-          }
-        }
-
-        // 旧版 release 无 apk_sha256：跳过校验
-        if (!expectedSha256) {
-          verified = true
+      let downloadAttempt = 0
+      while (downloadAttempt < 2) {
+        downloadAttempt += 1
+        try {
+          await Filesystem.downloadFile({
+            url: downloadUrl,
+            path: filePath,
+            directory: Directory.Cache,
+            progress: true,
+            recursive: true
+          })
           break
+        } catch (downloadErr) {
+          if (downloadAttempt >= 2) throw downloadErr
+          await sleep(450)
         }
+      }
 
-        // 下载完成后校验安装包完整性
+      if (expectedSha256) {
         downloadSpeed.value = i18n.global.t('about.apkVerifying')
         const actualSha256 = await computeFileSha256(filePath, Directory.Cache)
-        if (actualSha256 === expectedSha256) {
-          verified = true
-          break
+        if (actualSha256 !== expectedSha256) {
+          log.warn('download:sha256-mismatch', { url: downloadUrl })
+          await Filesystem.deleteFile({ path: filePath, directory: Directory.Cache }).catch(() => {})
+          throw new Error(i18n.global.t('about.apkHashMismatch'))
         }
-
-        // 校验失败：删除损坏文件；若还有直连候选地址则重试
-        log.warn('download:sha256-mismatch', { url: candidateUrl })
-        await Filesystem.deleteFile({ path: filePath, directory: Directory.Cache }).catch(() => {})
-      }
-
-      if (!verified) {
-        throw new Error(i18n.global.t('about.apkHashMismatch'))
       }
 
       const { uri } = await Filesystem.getUri({
@@ -450,7 +394,7 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
       downloadProgress.value = 100
       dialogVisible.value = false
-      log.info('download:done', { version: latestVersion.value, verified })
+      log.info('download:done', { version: latestVersion.value })
       return true
     } catch (error) {
       log.error('download:failed', { version: latestVersion.value, progress: downloadProgress.value }, error)
@@ -483,24 +427,6 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         latestRelease.value = release
         updateLevel.value = resolveUpdateLevelFromRelease(release)
         lastCheckedAt.value = new Date().toISOString()
-
-        // 同时查询 Supabase 是否有 APK（非阻塞，失败不影响主流程）
-        try {
-          const client = getSupabaseClient()
-          const { data: apkData } = await client
-            .from('ota_releases')
-            .select('storage_path, sha256')
-            .eq('type', 'apk')
-            .order('published_at', { ascending: false })
-            .limit(1)
-          if (apkData?.[0]?.storage_path) {
-            supabaseApkUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${apkData[0].storage_path}`
-            supabaseApkSha256.value = (apkData[0].sha256 || '').toLowerCase()
-          }
-        } catch {
-          supabaseApkUrl.value = ''
-          supabaseApkSha256.value = ''
-        }
 
         if (usingMockDownload.value && source === 'manual' && !hasUpdate.value && shouldForceMockDialog()) {
           forceMockDialog.value = true

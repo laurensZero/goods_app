@@ -4,6 +4,7 @@
   "aiChat.inputPlaceholder": "コレクションについて聞く…",
   "aiChat.inputPlaceholderQueued": "返答中 — 入力し続けるとキューに入ります",
   "aiChat.send": "送信",
+  "aiChat.sendQueued": "キューに入れて送信",
   "aiChat.stopGeneration": "生成を停止",
   "aiChat.queued": "キューに追加しました。この返答の後に送信されます",
   "aiChat.queueCount": "キュー {count} 件",

@@ -185,8 +185,6 @@
   "about.syncStatusNotSynced": "未同步",
   "about.recentSync": "最近同步：{time}",
   "about.configureSync": "可在设置页中配置云同步。",
-  "about.rateLimitExceeded": "GitHub API 访问频率受限。请配置 GitHub 同步 token 后重试。",
-  "about.checkTimeout": "检查更新超时，请稍后再试。",
   "about.missingRepoInfo": "缺少仓库信息，无法检查更新。",
   "about.noReleaseAvailable": "当前仓库还没有可用的 Release。",
   "about.unsupportedUpdateSource": "不支持的更新源：{source}",

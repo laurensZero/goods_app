@@ -8,6 +8,7 @@
   "goods.addMethod.goodsCount": "{count} items",
   "goods.addMethod.importAll": "Import All ({count})",
   "goods.addMethod.importFromMihoyo": "Import from miHoYo Shop",
+  "goods.mihoyoshop": "miHoYo Shop",
   "goods.addMethod.importFromMihoyoDesc": "Paste product link to auto-fill info",
   "goods.addMethod.importFromShare": "Import from Share Code",
   "goods.addMethod.importFromShareDesc": "Paste a share link or code from a friend",
