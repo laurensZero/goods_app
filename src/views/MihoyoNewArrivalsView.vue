@@ -304,12 +304,10 @@
               <p class="sku-sheet__meta">
                 <span v-if="activeItem.catalog === 'point'" class="price price--point">
                   {{ activeItem.point }}{{ t('mihoyoNew.pointUnit') }}
-                  <template v-if="activeItem.price_cents > 0">
-                    +{{ formatYuan(activeItem.price_cents) }}{{ t('mihoyoNew.priceUnit') }}
-                  </template>
+                  <template v-if="sheetMoneyText"> +{{ sheetMoneyText }}</template>
                 </span>
-                <span v-else-if="activeItem.price_cents > 0" class="price">
-                  {{ formatYuan(activeItem.price_cents) }}{{ t('mihoyoNew.priceUnit') }}
+                <span v-else-if="sheetMoneyText" class="price" :class="{ 'price--range': sheetHasPriceRange }">
+                  {{ sheetMoneyText }}
                 </span>
                 <span v-if="saleTimeText(activeItem.sale_time)" class="sale-time">
                   {{ saleTimeText(activeItem.sale_time) }}
@@ -350,7 +348,12 @@
                 <span v-if="sku.cover_url" class="sku-chip__thumb">
                   <img :src="sku.cover_url" :alt="sku.text" loading="lazy" />
                 </span>
-                <span class="sku-chip__text">{{ sku.text }}</span>
+                <span class="sku-chip__main">
+                  <span class="sku-chip__text">{{ sku.text }}</span>
+                  <span v-if="sheetHasPriceRange && sku.price != null" class="sku-chip__price">
+                    {{ formatYuanValue(sku.price) }}{{ t('mihoyoNew.priceUnit') }}
+                  </span>
+                </span>
                 <span v-if="isSkuInWishlist(activeItem?.goods_id, sku)" class="sku-chip__wished">
                   {{ t('mihoyoNew.skuWished') }}
                 </span>
@@ -538,6 +541,41 @@ const sheetDetail = computed(() => {
 
 const sheetVariants = computed(() => sheetDetail.value?.variants || [])
 
+/** 已加载款式里的价格（元）；有价差时弹层顶部显示区间 */
+const skuPriceRange = computed(() => {
+  const prices = (sheetVariants.value || [])
+    .map((sku) => {
+      const price = Number(sku?.price)
+      return Number.isFinite(price) && price > 0 ? price : null
+    })
+    .filter((price) => price != null)
+  if (!prices.length) return null
+  const min = Math.min(...prices)
+  const max = Math.max(...prices)
+  return { min, max, hasRange: min !== max }
+})
+
+const sheetHasPriceRange = computed(() => Boolean(skuPriceRange.value?.hasRange))
+
+const sheetMoneyText = computed(() => {
+  const unit = t('mihoyoNew.priceUnit')
+  const selectedPrice = Number(selectedSku.value?.price)
+  if (selectedSku.value?.price != null && Number.isFinite(selectedPrice) && selectedPrice > 0) {
+    return `${formatYuanValue(selectedPrice)}${unit}`
+  }
+  const range = skuPriceRange.value
+  if (range?.hasRange) {
+    return `${formatYuanValue(range.min)}~${formatYuanValue(range.max)}${unit}`
+  }
+  if (range) {
+    return `${formatYuanValue(range.min)}${unit}`
+  }
+  if (activeItem.value?.price_cents > 0) {
+    return `${formatYuan(activeItem.value.price_cents)}${unit}`
+  }
+  return ''
+})
+
 const previewCover = computed(() => {
   if (selectedSku.value?.cover_url) return selectedSku.value.cover_url
   if (sheetDetail.value?.coverUrl) return sheetDetail.value.coverUrl
@@ -554,6 +592,12 @@ function shopLabel(code) {
 function formatYuan(cents) {
   const yuan = (Number(cents) || 0) / 100
   return yuan % 1 === 0 ? yuan.toFixed(0) : yuan.toFixed(2)
+}
+
+/** SKU 价格单位已是元，不要再 ÷100 */
+function formatYuanValue(yuan) {
+  const n = Number(yuan) || 0
+  return n % 1 === 0 ? n.toFixed(0) : n.toFixed(2)
 }
 
 function saleTimeText(unixSec) {
@@ -669,18 +713,23 @@ async function loadVariants(item) {
       return
     }
     const productCover = String(result.coverUrl || item.cover_url || '')
+    const skuPrices = result.skuPrices || {}
     slot.coverUrl = productCover
     slot.skuCharacters = Array.isArray(result.skuCharacters)
       ? result.skuCharacters.filter(Boolean)
       : []
     slot.variants = (result.skuVariants || [])
       .filter((v) => v && v.key)
-      .map((v) => ({
-        text: String(v.text || v.key),
-        key: String(v.key),
-        cover_url: String(result.skuCovers?.[v.key] || v.cover_url || v.img_url || productCover),
-        price: v.price != null ? Number(v.price) : null,
-      }))
+      .map((v) => {
+        const rawPrice = v.price ?? skuPrices[v.key]
+        const price = rawPrice != null && Number(rawPrice) > 0 ? Number(rawPrice) : null
+        return {
+          text: String(v.text || v.key),
+          key: String(v.key),
+          cover_url: String(result.skuCovers?.[v.key] || v.cover_url || v.img_url || productCover),
+          price,
+        }
+      })
     slot.loaded = true
   } catch (e) {
     slot.error = e.message || t('common.failed')
@@ -695,9 +744,11 @@ function buildWishlistPayload(item, sku = null) {
   const variantText = normalizeGoodsVariant(sku?.text || '') || String(sku?.text || '').trim()
   const category = parseCategoryFromName(`${name} ${variantText}`)
   const cover = sku?.cover_url || itemDetailMap[item.goods_id]?.coverUrl || item.cover_url || ''
-  const priceYuan = item.catalog === 'shop' && item.price_cents > 0
+  const skuPriceYuan = sku?.price != null && Number(sku.price) > 0 ? Number(sku.price) : null
+  const listPriceYuan = item.catalog === 'shop' && item.price_cents > 0
     ? item.price_cents / 100
     : null
+  const priceYuan = skuPriceYuan ?? listPriceYuan
   const detail = itemDetailMap[item.goods_id]
   const ip = parsedIp || shopLabel(item.shop_code)
 
@@ -1415,6 +1466,13 @@ onMounted(() => {
   object-fit: cover;
 }
 
+.sku-chip__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .sku-chip__text {
   font-size: 12px;
   font-weight: 500;
@@ -1423,6 +1481,18 @@ onMounted(() => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.sku-chip__price {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--app-text);
+  white-space: nowrap;
+}
+
+.sku-chip--selected .sku-chip__price {
+  color: var(--app-chip-accent-text);
 }
 
 .sku-chip__check {
