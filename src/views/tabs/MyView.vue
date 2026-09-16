@@ -315,8 +315,15 @@
       :close-on-overlay="false"
       @update:model-value="(v) => { if (!v) cancelWebLoginConfirm() }"
     >
-      <h2 class="web-login-confirm__title">{{ t('my.authQrConfirmTitle') }}</h2>
-      <p class="web-login-confirm__desc">{{ t('my.authQrConfirmDesc') }}</p>
+      <h2 class="web-login-confirm__title">
+        {{ pendingWebLoginType === 'tablet' ? t('my.authQrConfirmTitleTablet') : t('my.authQrConfirmTitle') }}
+      </h2>
+      <p class="web-login-confirm__desc">
+        {{ pendingWebLoginName
+          ? t('my.authQrConfirmFrom', { name: pendingWebLoginName })
+          : (pendingWebLoginType === 'tablet' ? t('my.authQrConfirmDescTablet') : t('my.authQrConfirmDesc'))
+        }}
+      </p>
       <div class="web-login-confirm__actions">
         <button
           type="button"
@@ -907,7 +914,7 @@ const {
 const {
   scanning, scanError, showScanner, scannerReady,
   scannerVideoRef, scannerCanvasRef, scannerHint,
-  showWebLoginConfirm, isApprovingWebLogin,
+  showWebLoginConfirm, pendingWebLoginType, pendingWebLoginName, isApprovingWebLogin,
   openScanner, closeScanner, handleScannerGallery,
   onScannerVideoReady, resetScannerState,
   cancelWebLoginConfirm, confirmWebLogin

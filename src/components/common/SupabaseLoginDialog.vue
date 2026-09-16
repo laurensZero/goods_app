@@ -265,6 +265,7 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { showGlobalToast } from '@/utils/globalToast'
+import { getDeviceInfo } from '@/utils/platform/deviceInfo'
 import {
   applyWebLoginSession,
   buildWebLoginQrContent,
@@ -383,7 +384,9 @@ async function refreshQrChallenge() {
   try {
     const created = await createWebLoginChallenge()
     qrChallengeId.value = String(created.id || '')
-    const content = buildWebLoginQrContent(qrChallengeId.value)
+    const deviceType = Capacitor.isNativePlatform() ? 'tablet' : 'web'
+    const info = await getDeviceInfo().catch(() => ({ label: '' }))
+    const content = buildWebLoginQrContent(qrChallengeId.value, deviceType, info.label || '')
     qrDataUrl.value = await QRCode.toDataURL(content, {
       width: 220,
       margin: 2,

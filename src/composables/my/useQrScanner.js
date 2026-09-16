@@ -40,6 +40,8 @@ export function useQrScanner() {
   const scannerHint = ref('')
   const showWebLoginConfirm = ref(false)
   const pendingWebLoginId = ref('')
+  const pendingWebLoginType = ref('web')
+  const pendingWebLoginName = ref('')
   const isApprovingWebLogin = ref(false)
   let scannerStream = null
   let scannerTimer = 0
@@ -246,19 +248,23 @@ export function useQrScanner() {
     scheduleScannerTick(getNextScanDelay(performance.now() - startedAt), token)
   }
 
-  /** 扫到网页登录码：停摄像头，弹确认（不自动 approve） */
-  function beginWebLoginConfirm(challengeId) {
+  /** 扫到网页/平板登录码：停摄像头，弹确认（不自动 approve） */
+  function beginWebLoginConfirm(challengeId, deviceType = 'web', deviceName = '') {
     stopScanner()
     showScanner.value = false
     scanning.value = false
     scanError.value = ''
     pendingWebLoginId.value = challengeId
+    pendingWebLoginType.value = deviceType === 'tablet' ? 'tablet' : 'web'
+    pendingWebLoginName.value = String(deviceName || '').slice(0, 64)
     showWebLoginConfirm.value = true
   }
 
   function cancelWebLoginConfirm() {
     showWebLoginConfirm.value = false
     pendingWebLoginId.value = ''
+    pendingWebLoginType.value = 'web'
+    pendingWebLoginName.value = ''
     isApprovingWebLogin.value = false
   }
 
@@ -298,9 +304,9 @@ export function useQrScanner() {
     if (scannerResolved) return
     scannerResolved = true
 
-    const webLoginId = parseWebLoginQrContent(text)
-    if (webLoginId) {
-      beginWebLoginConfirm(webLoginId)
+    const webLogin = parseWebLoginQrContent(text)
+    if (webLogin.challengeId) {
+      beginWebLoginConfirm(webLogin.challengeId, webLogin.deviceType, webLogin.deviceName)
       return
     }
 
@@ -418,9 +424,9 @@ export function useQrScanner() {
           return
         }
 
-        const webLoginId = parseWebLoginQrContent(text)
-        if (webLoginId) {
-          beginWebLoginConfirm(webLoginId)
+        const webLogin = parseWebLoginQrContent(text)
+        if (webLogin.challengeId) {
+          beginWebLoginConfirm(webLogin.challengeId, webLogin.deviceType, webLogin.deviceName)
           return
         }
 
@@ -514,6 +520,8 @@ export function useQrScanner() {
     scannerHint,
     showWebLoginConfirm,
     pendingWebLoginId,
+    pendingWebLoginType,
+    pendingWebLoginName,
     isApprovingWebLogin,
     openScanner,
     closeScanner,

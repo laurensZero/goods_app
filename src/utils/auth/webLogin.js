@@ -35,14 +35,34 @@ async function callWebLogin(body, { accessToken = '' } = {}) {
   return payload || {}
 }
 
-export function buildWebLoginQrContent(challengeId) {
-  return `goodsapp://web-login/${challengeId}`
+/**
+ * 构造扫码登录二维码内容。
+ * @param {string} challengeId
+ * @param {'web'|'tablet'} [deviceType]
+ * @param {string} [deviceName] 展示用设备名
+ */
+export function buildWebLoginQrContent(challengeId, deviceType = 'web', deviceName = '') {
+  const params = new URLSearchParams()
+  params.set('d', deviceType === 'tablet' ? 'tablet' : 'web')
+  const name = String(deviceName || '').trim().slice(0, 64)
+  if (name) params.set('n', name)
+  return `goodsapp://web-login/${challengeId}?${params.toString()}`
 }
 
+/**
+ * 解析扫码内容。
+ * @returns {{ challengeId: string, deviceType: 'web'|'tablet', deviceName: string }}
+ */
 export function parseWebLoginQrContent(text) {
   const raw = String(text || '').trim()
-  const match = raw.match(/^goodsapp:\/\/web-login\/([0-9a-f-]{36})$/i)
-  return match?.[1] || ''
+  const match = raw.match(/^goodsapp:\/\/web-login\/([0-9a-f-]{36})(\?(.*))?$/i)
+  if (!match) return { challengeId: '', deviceType: 'web', deviceName: '' }
+
+  const challengeId = match[1]
+  const query = new URLSearchParams(match[3] || '')
+  const deviceType = query.get('d') === 'tablet' ? 'tablet' : 'web'
+  const deviceName = String(query.get('n') || '').trim().slice(0, 64)
+  return { challengeId, deviceType, deviceName }
 }
 
 export async function createWebLoginChallenge() {
