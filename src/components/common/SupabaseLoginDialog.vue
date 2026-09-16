@@ -252,6 +252,7 @@
         </button>
       </template>
     </div>
+    <AppToast :message="toastMsg" />
   </AppSheet>
 </template>
 
@@ -263,6 +264,7 @@ import QRCode from 'qrcode'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import AppSheet from '@/components/common/AppSheet.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import {
   applyWebLoginSession,
   buildWebLoginQrContent,
@@ -289,6 +291,19 @@ const magicLinkSent = ref(false)
 const resetSent = ref(false)
 const authError = ref('')
 const isLoading = ref(false)
+const toastMsg = ref('')
+let toastClearTimer = 0
+
+function showToast(message) {
+  const text = String(message || '').trim()
+  if (!text) return
+  emit('toast', text)
+  toastMsg.value = text
+  if (toastClearTimer) clearTimeout(toastClearTimer)
+  toastClearTimer = window.setTimeout(() => {
+    toastMsg.value = ''
+  }, 2600)
+}
 
 const showQrTab = computed(() => !Capacitor.isNativePlatform())
 const qrChallengeId = ref('')
@@ -307,6 +322,16 @@ const qrStatusText = computed(() => {
   if (qrState.value === 'error') return t('my.authQrError')
   return t('my.authQrWaiting')
 })
+
+function mapWebLoginError(code) {
+  const raw = String(code || '')
+  if (raw.includes('session_issue') || raw.includes('session_parse')) return t('my.authQrSessionIssue')
+  if (raw.includes('unauthorized') || raw.includes('missing_token')) return t('my.authQrNeedLogin')
+  if (raw.includes('invalid_status') || raw.includes('not_found') || raw.includes('expired')) return t('my.authQrExpired')
+  if (raw.includes('create_failed') || raw.includes('server_error')) return t('my.authQrError')
+  if (raw.includes('Failed to fetch') || raw.includes('NetworkError')) return t('my.authQrError')
+  return t('my.authQrError')
+}
 
 const qrCountdownText = computed(() => {
   if (!qrExpiresAt.value || qrState.value === 'approved') return ''
@@ -371,7 +396,7 @@ async function refreshQrChallenge() {
     scheduleQrTask(() => { void pollQrStatus() }, 1200)
   } catch (e) {
     qrState.value = 'error'
-    authError.value = e.message || t('my.authQrError')
+    showToast(mapWebLoginError(e.message))
     scheduleQrTask(() => { void refreshQrChallenge() }, 3000)
   } finally {
     qrLoading.value = false
@@ -414,6 +439,7 @@ function switchMode(mode) {
     void refreshQrChallenge()
   } else {
     stopQrPolling()
+    stopQrCountdown()
   }
 }
 
@@ -569,6 +595,7 @@ watch(() => props.modelValue, (val) => {
 onBeforeUnmount(() => {
   stopQrPolling()
   stopQrCountdown()
+  if (toastClearTimer) clearTimeout(toastClearTimer)
 })
 </script>
 

@@ -5,9 +5,8 @@
 //   approve → App 已登录用户扫码确认（需 Bearer access_token）
 //   consume → 网页用 status 返回的 session_payload 完成登录后作废（无需登录）
 //
-// 会话签发：App 确认后，用 service_role generateLink 拿 magiclink，
-// 跟随 verify 重定向解析 access_token/refresh_token，暂存到挑战行，
-// 网页轮询取走后标记 consumed。
+// 会话签发：generateLink(type=magiclink) 取 email_otp，再调 GoTrue /verify
+// 直接换 access_token/refresh_token（比跟随重定向稳），暂存到挑战行。
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -17,8 +16,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 }
-
-const CHALLENGE_TTL_MS = 5 * 60 * 1000
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -41,66 +38,109 @@ function extractBearer(req: Request): string {
   return (match?.[1] || "").trim()
 }
 
-async function parseTokensFromVerifyRedirect(actionLink: string) {
-  // GoTrue verify 会 302/303 到 redirect_to#access_token=...&refresh_token=...
-  const res = await fetch(actionLink, { redirect: "manual" })
-  const location =
-    res.headers.get("location") ||
-    res.headers.get("Location") ||
-    ""
-
-  if (!location) {
-    // 部分部署把 token 放在 HTML meta refresh 或 body，兜底再试一次跟随
-    const followed = await fetch(actionLink, { redirect: "follow" })
-    const finalUrl = followed.url || ""
-    const fromFinal = parseTokensFromUrl(finalUrl)
-    if (fromFinal) return fromFinal
-    const html = await followed.text()
-    return parseTokensFromHtml(html)
-  }
-
-  const fromLocation = parseTokensFromUrl(location)
-  if (fromLocation) return fromLocation
-  return parseTokensFromHtml(await res.text())
+type SessionTokens = {
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  token_type: string
 }
 
-function parseTokensFromUrl(url: string): { access_token: string; refresh_token: string; expires_in: number; token_type: string } | null {
-  try {
-    const u = new URL(url, "https://example.invalid")
-    const hash = u.hash.replace(/^#/, "")
-    const search = u.search.replace(/^\?/, "")
-    const params = new URLSearchParams(`${hash}&${search}`)
-    const access_token = params.get("access_token") || ""
-    const refresh_token = params.get("refresh_token") || ""
-    if (!access_token || !refresh_token) return null
+/** generateLink(recovery) → OTP → /verify 换会话 */
+async function issueSessionViaMagicOtp(email: string): Promise<{ session: SessionTokens | null; debug: string }> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!
+
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  })
+
+  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+    type: "recovery",
+    email,
+  })
+  if (linkError || !linkData) {
+    const msg = linkError?.message || "no_link_data"
+    console.error("web-login:generate-link", msg)
+    return { session: null, debug: `generate_link:${msg}` }
+  }
+
+  const linkObj = linkData as Record<string, unknown>
+  // 不同版本 supabase-js 可能是扁平字段，或嵌在 properties 下
+  const nested = (linkObj.properties || linkObj) as Record<string, unknown>
+  const keys = Object.keys(linkObj).join(",")
+  const nestedKeys = Object.keys(nested || {}).join(",")
+  console.error("web-login:generate-link-keys", keys, "nested:", nestedKeys)
+
+  let token = String(nested?.email_otp || linkObj.email_otp || "").trim()
+  let actionLink = String(nested?.action_link || linkObj.action_link || "").trim()
+  if (!token && actionLink) {
+    try {
+      const actionUrl = new URL(actionLink)
+      token = (actionUrl.searchParams.get("token") || "").trim()
+    } catch {
+      token = ""
+    }
+  }
+  if (!token) {
+    // 有时 hashed_token 就是 verify token
+    token = String(nested?.hashed_token || linkObj.hashed_token || "").trim()
+  }
+  if (!token) {
+    console.error("web-login:missing-otp", nestedKeys)
     return {
+      session: null,
+      debug: `missing_otp keys=${keys} nested=${nestedKeys} link=${actionLink.slice(0, 120)}`,
+    }
+  }
+
+  // verify type：recovery 的 OTP 对应 recovery；若来自 action_link 也是 recovery
+  const verifyType = "recovery"
+
+  const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+    },
+    body: JSON.stringify({
+      type: "email",
+      email,
+      token,
+      create_user: false,
+    }),
+  })
+
+  const payload = await verifyRes.json().catch(() => ({}))
+  if (!verifyRes.ok) {
+    const msg = String(payload?.msg || payload?.error_description || payload?.error || verifyRes.status)
+    console.error("web-login:verify-failed", verifyRes.status, msg)
+    return { session: null, debug: `verify:${verifyRes.status}:${msg}` }
+  }
+
+  const access_token = String(payload?.access_token || "")
+  const refresh_token = String(payload?.refresh_token || "")
+  if (!access_token || !refresh_token) {
+    const keys = Object.keys(payload || {}).join(",")
+    console.error("web-login:verify-missing-tokens", keys)
+    return { session: null, debug: `verify_missing_tokens:${keys}` }
+  }
+
+  return {
+    session: {
       access_token,
       refresh_token,
-      expires_in: Number(params.get("expires_in") || 3600),
-      token_type: params.get("token_type") || "bearer",
-    }
-  } catch {
-    return null
-  }
-}
-
-function parseTokensFromHtml(html: string): { access_token: string; refresh_token: string; expires_in: number; token_type: string } | null {
-  const accessMatch = html.match(/access_token=([^&"'\s]+)/)
-  const refreshMatch = html.match(/refresh_token=([^&"'\s]+)/)
-  if (!accessMatch || !refreshMatch) return null
-  const expiresInMatch = html.match(/expires_in=(\d+)/)
-  return {
-    access_token: decodeURIComponent(accessMatch[1]),
-    refresh_token: decodeURIComponent(refreshMatch[1]),
-    expires_in: Number(expiresInMatch?.[1] || 3600),
-    token_type: "bearer",
+      expires_in: Number(payload?.expires_in || 3600),
+      token_type: String(payload?.token_type || "bearer"),
+    },
+    debug: "ok",
   }
 }
 
 async function expireIfNeeded(admin: ReturnType<typeof getServiceClient>, id: string) {
   const { data } = await admin
     .from("web_login_challenges")
-    .select("id, status, expires_at")
+    .select("id, status, expires_at, session_payload")
     .eq("id", id)
     .maybeSingle()
 
@@ -114,6 +154,30 @@ async function expireIfNeeded(admin: ReturnType<typeof getServiceClient>, id: st
     return { ...data, status: "expired" }
   }
   return data
+}
+
+/** 顺手清理历史挑战，避免表膨胀；不影响进行中的 pending */
+async function cleanupOldChallenges(admin: ReturnType<typeof getServiceClient>) {
+  const now = Date.now()
+  const terminalCutoff = new Date(now - 15 * 60 * 1000).toISOString()
+  const orphanCutoff = new Date(now - 60 * 60 * 1000).toISOString()
+
+  try {
+    // 终态超过 15 分钟：consumed / denied / expired
+    await admin
+      .from("web_login_challenges")
+      .delete()
+      .in("status", ["consumed", "denied", "expired"])
+      .lt("created_at", terminalCutoff)
+
+    // 超过 1 小时仍未消费的残留（含 pending 超时、approved 未被网页取走）
+    await admin
+      .from("web_login_challenges")
+      .delete()
+      .lt("created_at", orphanCutoff)
+  } catch (e) {
+    console.error("web-login:cleanup", e)
+  }
 }
 
 serve(async (req) => {
@@ -135,6 +199,7 @@ serve(async (req) => {
 
   try {
     if (action === "create") {
+      await cleanupOldChallenges(admin)
       const { data, error } = await admin
         .from("web_login_challenges")
         .insert({ status: "pending" })
@@ -211,20 +276,11 @@ serve(async (req) => {
       }
 
       // 签发独立会话给网页（不复用手机 token）
-      const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-        type: "magiclink",
-        email,
-        options: { shouldCreateUser: false },
-      })
-      if (linkError || !linkData?.action_link) {
-        console.error("web-login:generate-link", linkError?.message)
-        return json({ error: "session_issue_failed" }, 502)
-      }
-
-      const session = await parseTokensFromVerifyRedirect(linkData.action_link)
+      const issued = await issueSessionViaMagicOtp(email)
+      const session = issued.session
       if (!session?.access_token || !session?.refresh_token) {
-        console.error("web-login:parse-session-failed")
-        return json({ error: "session_parse_failed" }, 502)
+        console.error("web-login:session-issue-failed", issued.debug)
+        return json({ error: "session_issue_failed", debug: issued.debug }, 502)
       }
 
       const { data: updated, error: updateError } = await admin
