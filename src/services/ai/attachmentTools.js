@@ -9,6 +9,7 @@
  */
 
 import { createGoodsImageId, normalizeGoodsImageList, GOODS_IMAGE_KIND_OPTIONS } from '@/utils/goods/images'
+import { isChatAttachmentUri, resolveChatAttachmentDataUrl } from '@/utils/image/chatAttachmentStore'
 
 const GOODS_KINDS = new Set(GOODS_IMAGE_KIND_OPTIONS.map((option) => option.value))
 const TARGETS = new Set(['goods_image', 'event_cover', 'event_photo'])
@@ -44,6 +45,22 @@ export const ATTACHMENT_TOOL_DEFINITIONS = [
 ]
 
 /**
+ * 把聊天附件短引用物化成可持久化地址（写入收藏/活动时用）。
+ * chat-att:// 只存在于会话附件仓，不能直接写进 goods/events。
+ * @param {{ uri: string, localPath?: string }} image
+ * @returns {Promise<{ uri: string, localPath?: string }>}
+ */
+async function materializeAttachmentImage(image) {
+  const uri = String(image?.uri || '').trim()
+  if (!isChatAttachmentUri(uri)) return image
+  const dataUrl = await resolveChatAttachmentDataUrl(uri)
+  if (!dataUrl || !dataUrl.startsWith('data:image/')) {
+    throw new Error('聊天附件已失效，请重新上传图片后再应用')
+  }
+  return { uri: dataUrl, localPath: '' }
+}
+
+/**
  * @param {Object} deps
  * @param {() => Array<{ id?: string, uri: string, localPath?: string }>} deps.getAttachments
  * @param {(token: string) => { uri: string, localPath?: string }} [deps.resolveSource]
@@ -68,7 +85,7 @@ export function createAttachmentToolHandlers({ getAttachments, resolveSource, go
     const id = String(args?.id || '').trim()
     if (!TARGETS.has(target)) throw new Error('target 需为 goods_image/event_cover/event_photo')
     if (!id) throw new Error('id 必填')
-    const image = pickImage(args?.image)
+    const image = await materializeAttachmentImage(pickImage(args?.image))
 
     if (target === 'goods_image') {
       return applyGoodsImage(id, image, args)

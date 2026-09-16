@@ -7,6 +7,7 @@
  */
 
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
+import { isChatAttachmentUri, resolveChatAttachmentDataUrl } from '@/utils/image/chatAttachmentStore'
 import { parseCloudImageUri } from '@/utils/goods/images'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
 
@@ -36,6 +37,13 @@ export async function resolveImageForVision(source) {
 
   if (uri.startsWith('data:image/')) {
     dataUrl = uri
+  } else if (isChatAttachmentUri(uri)) {
+    // 聊天附件短引用：仅在真正送视觉模型时物化成 data URL
+    const restored = await resolveChatAttachmentDataUrl(uri)
+    if (!restored || !restored.startsWith('data:image/')) {
+      throw new Error('聊天附件已失效，请重新上传图片')
+    }
+    dataUrl = restored
   } else if (uri.startsWith('cloud-image://') || uri.startsWith('gist-image://')) {
     const fileName = parseCloudImageUri(uri)
     if (!fileName) throw new Error('无法解析云端图片文件名')

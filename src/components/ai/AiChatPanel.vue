@@ -80,13 +80,14 @@
                 <span>{{ att.filename || 'table' }}</span>
               </div>
               <img
-                v-else
+                v-else-if="attachmentDisplaySrc(att)"
                 class="chat-attach-thumb"
-                :src="att.uri"
+                :src="attachmentDisplaySrc(att)"
                 alt=""
                 loading="lazy"
                 @click="previewImageList(msg.attachments, attIndex)"
               />
+              <div v-else class="chat-attach-thumb chat-attach-thumb--loading" />
             </template>
           </div>
           <button
@@ -312,7 +313,8 @@
               <span class="chat-compose__thumb-table-name">{{ att.filename || 'table' }}</span>
             </div>
           </template>
-          <img v-else class="chat-compose__thumb-img" :src="att.uri" alt="" />
+          <img v-else-if="attachmentDisplaySrc(att)" class="chat-compose__thumb-img" :src="attachmentDisplaySrc(att)" alt="" />
+          <div v-else class="chat-compose__thumb-img chat-compose__thumb-img--loading" />
           <button
             class="chat-compose__thumb-remove"
             type="button"
@@ -602,6 +604,12 @@ import { transcribeAudio } from '@/services/ai/asrClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
+import {
+  isChatAttachmentUri,
+  putChatAttachmentFromDataUrl,
+  putChatAttachmentFromFile,
+  resolveChatAttachmentDisplayUri
+} from '@/utils/image/chatAttachmentStore'
 import { isTableFilename } from '@/utils/table/parseTable'
 
 /** 单条消息最多附带的附件数（与 store MAX_ATTACHMENTS 对齐） */
@@ -859,24 +867,96 @@ const router = useRouter()
 const previewPhotos = ref([])
 const previewIndex = ref(-1)
 
-/** 打开全屏照片查看（与活动详情同一套缩放/滑动交互）；表格附件不参与预览 */
-function previewImageList(list, startIndex = 0) {
-  const photos = (Array.isArray(list) ? list : [])
-    .filter((item) => !(item && typeof item === 'object' && item.type === 'table'))
-    .map((item) => (typeof item === 'string' ? { uri: String(item || '').trim() } : {
-      uri: String(item?.uri || '').trim(),
-      caption: String(item?.caption || '')
-    }))
-    .filter((item) => item.uri)
+/**
+ * 附件缩略图展示地址：chat-att:// 短引用 → object URL；其余原样。
+ * 必须用 reactive 对象：解析是异步的，普通 Map 写入不会触发重渲染。
+ */
+const attachDisplayCache = reactive({})
+
+/**
+ * @param {{ id?: string, uri?: string, type?: string } | string | null | undefined} att
+ */
+function attachmentDisplaySrc(att) {
+  if (!att || typeof att === 'string') return typeof att === 'string' ? att : ''
+  if (att.type === 'table') return ''
+  const uri = String(att.uri || '').trim()
+  if (!uri) return ''
+  if (!isChatAttachmentUri(uri)) return uri
+  const id = String(att.id || uri)
+  const cached = attachDisplayCache[id]
+  if (cached) return cached
+  void resolveChatAttachmentDisplayUri(uri).then((url) => {
+    if (url) attachDisplayCache[id] = url
+  }).catch(() => {})
+  return ''
+}
+
+/** 待发附件入队后立刻解析 object URL，避免首帧 src="" 显示裂图 */
+watch(
+  () => aiChat.attachments.map((a) => `${a.id}:${a.uri}`).join('|'),
+  async () => {
+    for (const att of aiChat.attachments) {
+      if (att?.type === 'table') continue
+      const uri = String(att?.uri || '').trim()
+      if (!isChatAttachmentUri(uri)) continue
+      const id = String(att.id || uri)
+      if (attachDisplayCache[id]) continue
+      try {
+        const url = await resolveChatAttachmentDisplayUri(uri)
+        if (url) attachDisplayCache[id] = url
+      } catch {
+        // 解析失败保持空白，避免裂图
+      }
+    }
+  },
+  { immediate: true }
+)
+
+/**
+ * 打开全屏照片查看（与活动详情同一套缩放/滑动交互）；表格附件不参与预览。
+ * 先把 chat-att:// 解析成可显示地址，并按原始下标（含表格）换算到过滤后的图片列表。
+ * @param {Array<{ id?: string, uri?: string, type?: string, caption?: string } | string>} list
+ * @param {number} startIndex 原始 attachments 下标（含 table）
+ */
+async function previewImageList(list, startIndex = 0) {
+  const source = Array.isArray(list) ? list : []
+  /** @type {Array<{ uri: string, caption: string }>} */
+  const photos = []
+  /** @type {number[]} 原始下标 → photos 下标（-1 表示未进入预览） */
+  const indexMap = []
+  for (let i = 0; i < source.length; i += 1) {
+    const item = source[i]
+    if (item && typeof item === 'object' && item.type === 'table') {
+      indexMap[i] = -1
+      continue
+    }
+    const rawUri = typeof item === 'string'
+      ? String(item || '').trim()
+      : String(item?.uri || '').trim()
+    if (!rawUri) {
+      indexMap[i] = -1
+      continue
+    }
+    let displayUri = rawUri
+    if (isChatAttachmentUri(rawUri)) {
+      const id = typeof item === 'string' ? rawUri : String(item?.id || rawUri)
+      displayUri = attachDisplayCache[id] || (await resolveChatAttachmentDisplayUri(rawUri))
+      if (displayUri && displayUri !== rawUri) attachDisplayCache[id] = displayUri
+    }
+    if (!displayUri) {
+      indexMap[i] = -1
+      continue
+    }
+    indexMap[i] = photos.length
+    photos.push({
+      uri: displayUri,
+      caption: typeof item === 'string' ? '' : String(item?.caption || '')
+    })
+  }
   if (photos.length === 0) return
   previewPhotos.value = photos
-  // 原 startIndex 可能指向表格附件，换算到过滤后的图片列表
-  const imageItems = (Array.isArray(list) ? list : [])
-    .filter((item) => !(item && typeof item === 'object' && item.type === 'table') && (typeof item === 'string' ? item : item?.uri))
-  const raw = imageItems[startIndex]
-  const rawUri = typeof raw === 'string' ? raw : String(raw?.uri || '')
-  const mapped = photos.findIndex((p) => p.uri === rawUri)
-  previewIndex.value = mapped >= 0 ? mapped : 0
+  const mapped = Number(indexMap[startIndex])
+  previewIndex.value = Number.isInteger(mapped) && mapped >= 0 ? mapped : 0
 }
 
 /**
@@ -1163,14 +1243,28 @@ async function pickAttachments() {
     const room = MAX_ATTACHMENTS - aiChat.attachments.length
     const picked = await pickLinkedLocalImages(room)
     if (!picked?.length) return
-    aiChat.addAttachments(
-      picked.map((item) => ({
-        id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        uri: item.uri,
+    const items = []
+    for (const item of picked) {
+      const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      let uri = String(item.uri || '')
+      // Web / 内联 data: 大图改存 IndexedDB Blob，会话里只留 chat-att:// 短引用
+      if (uri.startsWith('data:image/') || item.file instanceof Blob) {
+        try {
+          uri = item.file instanceof Blob
+            ? await putChatAttachmentFromFile(item.file, id)
+            : await putChatAttachmentFromDataUrl(uri, id)
+        } catch (err) {
+          console.warn('[ai-chat:view] blob store failed, keep data url', err)
+        }
+      }
+      items.push({
+        id,
+        uri,
         localPath: item.localPath || '',
         type: 'image'
-      }))
-    )
+      })
+    }
+    aiChat.addAttachments(items)
   } catch (e) {
     console.warn('[ai-chat:view] pick attachment failed', e)
     showToast(t('aiChat.attachFailed'))
@@ -2147,6 +2241,24 @@ function removeSession(id) {
   cursor: zoom-in;
 }
 
+.chat-attach-thumb--loading {
+  cursor: default;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--app-text) 6%, transparent) 25%,
+      color-mix(in srgb, var(--app-text) 12%, transparent) 50%,
+      color-mix(in srgb, var(--app-text) 6%, transparent) 75%
+    );
+  background-size: 200% 100%;
+  animation: chat-att-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-att-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
 .chat-msg--user .chat-attach-thumb {
   border-color: color-mix(in srgb, var(--app-surface) 35%, transparent);
 }
@@ -2238,6 +2350,18 @@ function removeSession(id) {
   border-radius: 12px;
   border: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
+}
+
+.chat-compose__thumb-img--loading {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--app-text) 6%, transparent) 25%,
+      color-mix(in srgb, var(--app-text) 12%, transparent) 50%,
+      color-mix(in srgb, var(--app-text) 6%, transparent) 75%
+    );
+  background-size: 200% 100%;
+  animation: chat-att-shimmer 1.2s ease-in-out infinite;
 }
 
 .chat-compose__thumb-remove {
