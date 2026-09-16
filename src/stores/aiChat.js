@@ -778,7 +778,9 @@ export const useAiChatStore = defineStore('aiChat', () => {
           } catch {
             return null
           }
-        }
+        },
+        // 读当前轮停止信号：executorCache 跨轮复用，不能绑死某一次 currentAbort
+        getSignal: () => currentAbort?.signal ?? undefined
       })
       const attachmentHandlers = createAttachmentToolHandlers({
         getAttachments: () => listAttachments(),
@@ -797,7 +799,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
         presetsStore: usePresetsStore()
       })
       const webSearchHandlers = createWebSearchToolHandlers({
-        getConfig: () => config.value
+        getConfig: () => config.value,
+        getSignal: () => currentAbort?.signal ?? undefined
       })
       executorCache = {
         ...readHandlers,

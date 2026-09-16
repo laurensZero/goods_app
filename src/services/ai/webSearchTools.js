@@ -38,23 +38,56 @@ function asText(value) {
   return String(value ?? '')
 }
 
+/** @param {AbortSignal} [signal] */
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
+}
+
+/**
+ * 用户中止：立刻结束等待（原生 CapacitorHttp 无法真正 cancel 在途请求）。
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<T>}
+ */
+function raceWithAbort(promise, signal) {
+  if (!signal) return promise
+  throwIfAborted(signal)
+  let onAbort
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      onAbort = () => reject(new DOMException('已停止生成', 'AbortError'))
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+  ]).finally(() => {
+    if (onAbort) signal.removeEventListener('abort', onAbort)
+  })
+}
+
 /**
  * POST JSON。原生 CapacitorHttp 直连；Web 走 fetch（Tavily 支持浏览器 CORS）。
  * @param {string} url
  * @param {Record<string, string>} headers
  * @param {unknown} body
+ * @param {AbortSignal} [externalSignal]
  * @returns {Promise<any>}
  */
-async function postJson(url, headers, body) {
+async function postJson(url, headers, body, externalSignal) {
+  throwIfAborted(externalSignal)
+
   if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.request({
-      url,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers },
-      data: body,
-      connectTimeout: HTTP_TIMEOUT_MS,
-      readTimeout: HTTP_TIMEOUT_MS
-    })
+    const response = await raceWithAbort(
+      CapacitorHttp.request({
+        url,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        data: body,
+        connectTimeout: HTTP_TIMEOUT_MS,
+        readTimeout: HTTP_TIMEOUT_MS
+      }),
+      externalSignal
+    )
     const status = Number(response?.status || 0)
     const data = typeof response?.data === 'string' ? tryParseJson(response.data) : response?.data
     if (status >= 400) throw new Error(searchErrorDetail(status, data))
@@ -63,6 +96,11 @@ async function postJson(url, headers, body) {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), HTTP_TIMEOUT_MS)
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+  }
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -75,11 +113,13 @@ async function postJson(url, headers, body) {
     return data
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
+      if (externalSignal?.aborted) throw new DOMException('已停止生成', 'AbortError')
       throw new Error(`搜索超时（${HTTP_TIMEOUT_MS / 1000}s）`)
     }
     throw e
   } finally {
     clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -110,10 +150,14 @@ function searchErrorDetail(status, data) {
 /**
  * @param {Object} deps
  * @param {() => { searchApiKey?: string }} deps.getConfig
+ * @param {() => AbortSignal | undefined} [deps.getSignal] 当前轮停止信号（用户点停止生成）
  */
-export function createWebSearchToolHandlers({ getConfig }) {
+export function createWebSearchToolHandlers({ getConfig, getSignal }) {
   /** @param {Record<string, any>} args */
   async function web_search(args) {
+    const signal = typeof getSignal === 'function' ? getSignal() : undefined
+    if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
+
     const query = asText(args?.query).trim()
     if (!query) throw new Error('query 必填')
 
@@ -142,7 +186,8 @@ export function createWebSearchToolHandlers({ getConfig }) {
         search_depth: 'basic',
         include_answer: false,
         include_raw_content: false
-      }
+      },
+      signal
     )
 
     const rawResults = Array.isArray(data?.results) ? data.results : []

@@ -12,32 +12,66 @@ const VISION_TIMEOUT_MS = 120000
 export const DEFAULT_VISION_PROMPT =
   '请客观描述这张图片：主体内容、关键特征（颜色/文字/图案/物品类型），以及任何可识别的细节。如果是谷子/周边商品，请说明可能的角色、IP、品类与成色线索。'
 
+/** @param {AbortSignal} [signal] */
+function throwIfAborted(signal) {
+  if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
+}
+
+/**
+ * 用户中止：让调用方立刻结束等待（底层 HTTP 在原生端无法真正 cancel，只能放弃结果）。
+ * @template T
+ * @param {Promise<T>} promise
+ * @param {AbortSignal} [signal]
+ * @returns {Promise<T>}
+ */
+function raceWithAbort(promise, signal) {
+  if (!signal) return promise
+  throwIfAborted(signal)
+  let onAbort
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      onAbort = () => reject(new DOMException('已停止生成', 'AbortError'))
+      signal.addEventListener('abort', onAbort, { once: true })
+    })
+  ]).finally(() => {
+    if (onAbort) signal.removeEventListener('abort', onAbort)
+  })
+}
+
 /**
  * @param {string} url
  * @param {Record<string, string>} headers
  * @param {unknown} body
+ * @param {AbortSignal} [externalSignal]
  * @returns {Promise<any>}
  */
-async function postJson(url, headers, body) {
+async function postJson(url, headers, body, externalSignal) {
+  throwIfAborted(externalSignal)
+
   if (Capacitor.isNativePlatform()) {
     let timeoutId
     try {
-      const response = await Promise.race([
-        CapacitorHttp.request({
-          url,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...headers },
-          data: body,
-          connectTimeout: VISION_TIMEOUT_MS,
-          readTimeout: VISION_TIMEOUT_MS
-        }),
-        new Promise((_, reject) => {
-          timeoutId = setTimeout(
-            () => reject(new Error(`视觉请求超时（${VISION_TIMEOUT_MS / 1000}s）`)),
-            VISION_TIMEOUT_MS
-          )
-        })
-      ])
+      // CapacitorHttp 无法真正中断在途请求；race 外部 abort 让用户点停止后立刻放行
+      const response = await raceWithAbort(
+        Promise.race([
+          CapacitorHttp.request({
+            url,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            data: body,
+            connectTimeout: VISION_TIMEOUT_MS,
+            readTimeout: VISION_TIMEOUT_MS
+          }),
+          new Promise((_, reject) => {
+            timeoutId = setTimeout(
+              () => reject(new Error(`视觉请求超时（${VISION_TIMEOUT_MS / 1000}s）`)),
+              VISION_TIMEOUT_MS
+            )
+          })
+        ]),
+        externalSignal
+      )
       const status = Number(response?.status || 0)
       const data = typeof response?.data === 'string' ? tryParse(response.data) : response?.data
       if (status >= 400) throw new Error(`视觉请求失败（HTTP ${status}）：${extractDetail(data)}`)
@@ -49,6 +83,11 @@ async function postJson(url, headers, body) {
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), VISION_TIMEOUT_MS)
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true })
+  }
   try {
     const response = await fetch(url, {
       method: 'POST',
@@ -65,11 +104,13 @@ async function postJson(url, headers, body) {
     }
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError') {
+      if (externalSignal?.aborted) throw new DOMException('已停止生成', 'AbortError')
       throw new Error(`视觉请求超时（${VISION_TIMEOUT_MS / 1000}s）`)
     }
     throw e
   } finally {
     clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', onExternalAbort)
   }
 }
 
@@ -101,9 +142,11 @@ function extractDetail(data) {
  * @param {string} [options.visionModel] 留空则用 config.model
  * @param {string} options.imageUrl 已是 data:image/...;base64,... 或可公开访问的 http(s) URL
  * @param {string} [options.prompt] 用户想了解的内容；缺省用 DEFAULT_VISION_PROMPT
+ * @param {AbortSignal} [options.signal] 用户停止生成时中断等待（抛 AbortError）
  * @returns {Promise<string>} 模型对图片的描述文本
  */
-export async function runVisionCompletion({ config, visionModel, imageUrl, prompt }) {
+export async function runVisionCompletion({ config, visionModel, imageUrl, prompt, signal }) {
+  throwIfAborted(signal)
   const baseUrl = String(config?.baseUrl || '').trim().replace(/\/+$/, '')
   const model = String(visionModel || config?.model || '').trim()
   const apiKey = String(config?.apiKey || '').trim()
@@ -127,7 +170,8 @@ export async function runVisionCompletion({ config, visionModel, imageUrl, promp
         }
       ]
       // 刻意不传 max_tokens：部分推理/网关会把 tiny 上限整个烧在思考上返回空 content
-    }
+    },
+    signal
   )
 
   const choice = data?.choices?.[0]

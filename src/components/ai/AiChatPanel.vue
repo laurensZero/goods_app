@@ -593,6 +593,7 @@ import AppSheet from '@/components/common/AppSheet.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { useWideViewport } from '@/composables/viewport/useWideViewport'
@@ -694,6 +695,24 @@ const { isWide } = useWideViewport()
 const popupPlacement = computed(() => (isWide.value ? 'center' : 'bottom'))
 /** 宿主弹层（AiAssistantPopup）之上固定一层，避免嵌套历史/设置被压在下面 */
 const nestedSheetZ = 3000
+
+// Android 返回键：嵌套在 AiAssistantPopup 内时先关设置/历史/附件菜单，再关宿主弹层
+function closeSettings() {
+  showSettings.value = false
+}
+function closeHistory() {
+  if (editingSessionId.value) {
+    cancelRename()
+    return
+  }
+  showHistory.value = false
+}
+function closeAttachMenu() {
+  attachMenuOpen.value = false
+}
+useDialogBackButton(closeSettings, showSettings)
+useDialogBackButton(closeHistory, showHistory)
+useDialogBackButton(closeAttachMenu, attachMenuOpen)
 
 // 桌面端回车发送；触屏设备保留换行。Shift+Enter 始终换行
 const isTouchDevice = window.matchMedia?.('(hover: none), (pointer: coarse)')?.matches ?? false

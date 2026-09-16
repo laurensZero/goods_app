@@ -78,4 +78,29 @@ describe('webSearchTools', () => {
     const handlers = createWebSearchToolHandlers({ getConfig: () => ({ searchApiKey: 'bad' }) })
     await expect(handlers.web_search({ query: 'x' })).rejects.toThrow(/HTTP 401.*Invalid API key/)
   })
+
+  it('signal 已中止时不发请求', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const handlers = createWebSearchToolHandlers({
+      getConfig: () => ({ searchApiKey: 'tvly-x' }),
+      getSignal: () => controller.signal
+    })
+    await expect(handlers.web_search({ query: '初音' })).rejects.toThrow('已停止生成')
+    expect(capacitorHttpMock.request).not.toHaveBeenCalled()
+  })
+
+  it('请求途中用户中止：立刻 reject 已停止生成', async () => {
+    const controller = new AbortController()
+    capacitorHttpMock.request.mockImplementationOnce(() => new Promise(() => {}))
+    const handlers = createWebSearchToolHandlers({
+      getConfig: () => ({ searchApiKey: 'tvly-x' }),
+      getSignal: () => controller.signal
+    })
+
+    const promise = handlers.web_search({ query: '初音' })
+    const assertion = expect(promise).rejects.toThrow('已停止生成')
+    controller.abort()
+    await assertion
+  })
 })
