@@ -82,7 +82,16 @@ async function requestJson(path) {
   if (!response.ok) {
     throw new Error(`请求失败（${response.status}）`)
   }
-  return response.json()
+  const text = await response.text()
+  const trimmed = text.trim()
+  if (!trimmed || trimmed.startsWith('<')) {
+    throw new Error('网易云接口被拦截或返回异常页面，请稍后重试')
+  }
+  try {
+    return JSON.parse(trimmed)
+  } catch {
+    throw new Error('网易云音乐接口返回的数据格式异常')
+  }
 }
 
 function ensureSongList(payload) {
