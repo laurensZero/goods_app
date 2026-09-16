@@ -140,7 +140,7 @@
   "about.confirmRestore": "복원 확인",
   "about.restoringBuiltin": "내장 리소스 복원 중...",
   "about.restoreFailed": "복원 실패. 앱을 수동으로 다시 시작하세요.",
-  "about.webDevDisabled": "Web 개발 환경에서는 업데이트 확인이 비활성화됩니다",
+  "about.webDevDisabled": "웹 버전은 배포 시 자동 업데이트됩니다. 앱 내 확인은 필요 없습니다",
   "about.newVersionFound": "새 버전 v{version}을(를) 찾았습니다",
   "about.mockDownloadDone": "모의 다운로드 완료",
   "about.updateSourceChanged": "버전 업데이트 소스 변경: {source}",

@@ -353,7 +353,7 @@
   "goods.share.imageShare": "图片分享",
   "goods.share.linkLabel": "分享链接（可在聊天中点击打开）",
   "goods.share.linkShare": "链接分享",
-  "goods.share.loginRequired": "分享需要登录 GitHub 账号，将谷子数据保存到 Gist 后生成链接。",
+  "goods.share.loginRequired": "分享需要登录账号，登录后即可生成分享链接。",
   "goods.share.modeSwitchLabel": "分享形式切换",
   "goods.share.qrPoster": "二维码分享图",
   "goods.share.regenerate": "重新生成",

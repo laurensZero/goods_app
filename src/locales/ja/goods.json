@@ -353,7 +353,7 @@
   "goods.share.imageShare": "画像シェア",
   "goods.share.linkLabel": "シェアリンク（チャットアプリでクリック可能）",
   "goods.share.linkShare": "リンクシェア",
-  "goods.share.loginRequired": "共有にはGitHubアカウントが必要です。Gistにグッズデータを保存してリンクを生成してください。",
+  "goods.share.loginRequired": "共有にはアカウントのログインが必要です。ログイン後に共有リンクを生成できます。",
   "goods.share.modeSwitchLabel": "シェアモード切替",
   "goods.share.qrPoster": "QRコードポスター",
   "goods.share.regenerate": "再生成",

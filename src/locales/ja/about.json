@@ -140,7 +140,7 @@
   "about.confirmRestore": "復元を確認",
   "about.restoringBuiltin": "組み込みリソースを復元中...",
   "about.restoreFailed": "復元に失敗しました。アプリを手動で再起動してください。",
-  "about.webDevDisabled": "Web開発環境ではアップデート確認が無効です",
+  "about.webDevDisabled": "Web版はデプロイ時に自動更新されます。アプリ内確認は不要です",
   "about.newVersionFound": "新しいバージョン v{version} が見つかりました",
   "about.mockDownloadDone": "モックダウンロード完了",
   "about.updateSourceChanged": "バージョンアップデートソースを変更しました: {source}",

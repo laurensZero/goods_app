@@ -138,7 +138,7 @@
   "manage.trashDetail": "실수로 삭제한 항목을 확인하고 복원하거나, 확인 후 이력 삭제를 완전히 정리합니다.",
   "manage.exportDetail": "컬렉션, 위시리스트, 이벤트, 충전, 프리셋을 백업 파일로 내보내며 경량 및 사용자 정의 내보내기 옵션을 제공합니다.",
   "manage.importDetail": "JSON 백업 또는 표준 CSV/ZIP을 읽어 굿즈, 그룹, 이벤트, 충전, 프리셋을 병합합니다.",
-  "manage.syncDetail": "GitHub에 연결하여 기기 간 데이터를 동기화하고 Token, Gist, 원격 상태를 확인합니다.",
+  "manage.syncDetail": "로그인하여 기기 간 데이터를 동기화하고 클라우드 상태와 동기화 기록을 확인합니다.",
   "manage.shareDetail": "시작한 모든 공유 기록을 확인하고, 공유 링크를 복사하며, 필요 없는 공유를 비활성화하거나 삭제합니다.",
   "manage.aboutDetail": "버전, 데이터 설명, 동기화 사용법을 확인하여 참고 및 문제 해결에 활용합니다.",
   "manage.categorySummary": "먼저 명명을 정리한 후, 동의 카테고리를 단계적으로 통합하여 통계 분산을 방지하세요.",

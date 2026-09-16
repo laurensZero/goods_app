@@ -23,6 +23,23 @@ const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION ||
 
 let activeCheckPromise = null
 
+// 纯 Web 部署即最新：从 ota_releases 读当前最新 APK 版本，用作 app/bundle 版本条件
+async function fetchLatestPublishedVersion() {
+  try {
+    const db = getSupabaseClient()
+    const { data, error } = await db
+      .from('ota_releases')
+      .select('version')
+      .eq('type', 'apk')
+      .order('published_at', { ascending: false })
+      .limit(1)
+    if (error) return ''
+    return normalizeVersionTag(data?.[0]?.version || '') || ''
+  } catch {
+    return ''
+  }
+}
+
 function normalizeShowMode(value) {
   const normalized = String(value || '').trim().toLowerCase()
   if (normalized === 'daily' || normalized === 'per_version' || normalized === 'every_enter') return normalized
@@ -397,11 +414,13 @@ export const useAnnouncementStore = defineStore('announcement', () => {
           bundleVersion.value = ''
         }
       } else {
-        appVersion.value = FALLBACK_VERSION
-        bundleVersion.value = FALLBACK_VERSION
+        // 纯 Web：读云端最新发布版本，公告版本条件按「已是最新」匹配
+        const latest = await fetchLatestPublishedVersion()
+        appVersion.value = latest || FALLBACK_VERSION
+        bundleVersion.value = latest || FALLBACK_VERSION
         if (isDevVersionMockEnabled()) {
-          appVersion.value = resolveMockAppVersion() || FALLBACK_VERSION
-          bundleVersion.value = resolveMockBundleVersion() || FALLBACK_VERSION
+          appVersion.value = resolveMockAppVersion() || appVersion.value
+          bundleVersion.value = resolveMockBundleVersion() || bundleVersion.value
           console.info(
             `[announcement] dev 版本模拟 app=${appVersion.value} bundle=${bundleVersion.value}；`
             + `可用 localStorage 设置 ${MOCK_APP_VERSION_KEY} / ${MOCK_BUNDLE_VERSION_KEY} 覆盖，置空恢复默认最新`
@@ -409,11 +428,17 @@ export const useAnnouncementStore = defineStore('announcement', () => {
         }
       }
     } catch {
-      appVersion.value = FALLBACK_VERSION
-      bundleVersion.value = Capacitor.isNativePlatform() ? '' : FALLBACK_VERSION
+      if (Capacitor.isNativePlatform()) {
+        appVersion.value = FALLBACK_VERSION
+        bundleVersion.value = ''
+      } else {
+        const latest = await fetchLatestPublishedVersion()
+        appVersion.value = latest || FALLBACK_VERSION
+        bundleVersion.value = latest || FALLBACK_VERSION
+      }
       if (isDevVersionMockEnabled()) {
-        appVersion.value = resolveMockAppVersion() || FALLBACK_VERSION
-        bundleVersion.value = resolveMockBundleVersion() || FALLBACK_VERSION
+        appVersion.value = resolveMockAppVersion() || appVersion.value
+        bundleVersion.value = resolveMockBundleVersion() || bundleVersion.value
       }
     } finally {
       initialized.value = true

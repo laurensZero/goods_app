@@ -353,7 +353,7 @@
   "goods.share.imageShare": "圖片分享",
   "goods.share.linkLabel": "分享鏈接（可在聊天中點击打開）",
   "goods.share.linkShare": "鏈接分享",
-  "goods.share.loginRequired": "分享需要登錄 GitHub 賬号，将谷子數據儲存到 Gist 后生成鏈接。",
+  "goods.share.loginRequired": "分享需要登入帳號，登入後即可生成分享連結。",
   "goods.share.modeSwitchLabel": "分享形式切換",
   "goods.share.qrPoster": "二維碼分享圖",
   "goods.share.regenerate": "重新生成",

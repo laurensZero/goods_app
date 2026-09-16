@@ -138,7 +138,7 @@
   "manage.trashDetail": "查看誤删内容、恢復項目，或在確認后徹底清空歷史刪除項。",
   "manage.exportDetail": "把收藏、願望、活動、儲值和预設匯出为备份文件，支持轻量匯出和自定義匯出范围。",
   "manage.importDetail": "讀取 JSON 備份或標準 CSV/ZIP，合併收藏、谷子組、活動、儲值和預設信息。",
-  "manage.syncDetail": "連接 GitHub 后可在多設备之間同步數據，并檢查令牌、Gist 和遠端狀態。",
+  "manage.syncDetail": "登入後可在多設備之間同步資料，並檢查雲端狀態與同步記錄。",
   "manage.shareDetail": "查看所有已發起的分享記錄，複製分享鏈接、停用或刪除不再需要的分享。",
   "manage.aboutDetail": "查看版本、數據說明和同步使用方式，方便回顧規则和排查問題。",
   "manage.categorySummary": "适合先清理命名，再逐步收敛同義分類，避免后續统計分散。",

@@ -353,7 +353,7 @@
   "goods.share.imageShare": "이미지 공유",
   "goods.share.linkLabel": "공유 링크 (채팅 앱에서 클릭 가능)",
   "goods.share.linkShare": "링크 공유",
-  "goods.share.loginRequired": "공유에는 GitHub 계정이 필요합니다. Gist에 굿즈 데이터를 저장하여 링크를 생성하세요.",
+  "goods.share.loginRequired": "공유에는 로그인이 필요합니다. 로그인 후 공유 링크를 생성할 수 있습니다.",
   "goods.share.modeSwitchLabel": "공유 모드 전환",
   "goods.share.qrPoster": "QR코드 포스터",
   "goods.share.regenerate": "다시 생성",
