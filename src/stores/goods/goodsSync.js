@@ -1,6 +1,6 @@
 import { getItems, saveItems } from '@/utils/db/index'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
-import { deleteManagedLocalImages } from '@/utils/image/localImage'
+import { deleteManagedLocalImages, extractManagedLocalImagePath } from '@/utils/image/localImage'
 import { cancelSaleReminderNotifications } from '@/utils/goods/saleReminder'
 import { triggerRef } from 'vue'
 import {
@@ -342,14 +342,16 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
 }
 
 /**
- * Replace data:image/ base64 with public URLs for all items that have cloudFileName.
+ * After cloud confirms the file exists:
+ * - replace data:image/ base64 with public URL
+ * - delete managed local user-images files and clear localPath (frees disk)
  * Called after sync when backend is Supabase.
- * skipFiles: cloudFileNames whose upload failed — keep their base64 so the next sync retries.
+ * skipFiles: cloudFileNames whose upload failed — keep local refs so the next sync retries.
  */
 async function cleanupBase64Images(list, trashList, backend, { skipFiles = null } = {}) {
   if (!backend?.getImagePublicUrl) return
 
-  // 只清理云端确认存在的文件：base64 是本地唯一原图，
+  // 只清理云端确认存在的文件：base64/本地图是本地唯一原图，
   // 文件未落云就替换为 public URL 会造成图片永久丢失。
   // 列表获取失败时保守跳过本次清理（下次同步再清）。
   let cloudFiles = null
@@ -364,6 +366,7 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
 
   const allLists = [list, trashList]
   const updatedItems = []
+  const localPathsToDelete = new Set()
 
   for (const listRef of allLists) {
     for (let i = 0; i < listRef.value.length; i++) {
@@ -373,19 +376,46 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
 
       const nextImages = images.map((img) => {
         const uri = String(img?.uri || '').trim()
-        if (!uri.startsWith('data:image/')) return img
         const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
         if (!cloudFileName) return img
         if (skipFiles && skipFiles.has(cloudFileName)) return img
+        // 无云端列表时只处理 base64（沿用旧行为）；删本地文件必须有确认
         if (cloudFiles && !cloudFiles[cloudFileName]) return img
-        changed = true
-        const publicUrl = backend.getImagePublicUrl(cloudFileName)
-        aliasCachedImage(uri, publicUrl)
-        return { ...img, uri: publicUrl, storageMode: 'remote' }
+
+        let next = img
+        let publicUrl = ''
+
+        if (uri.startsWith('data:image/')) {
+          publicUrl = backend.getImagePublicUrl(cloudFileName)
+          aliasCachedImage(uri, publicUrl)
+          next = { ...next, uri: publicUrl, storageMode: 'remote' }
+          changed = true
+        }
+
+        // 云端已确认 → 删本地原图副本，仅保留远程引用
+        // 删文件前先把仍指向本地的 uri 改写到云端 URL，避免离线打开时引用已删文件
+        const managedPath = extractManagedLocalImagePath(next.localPath) || extractManagedLocalImagePath(next.uri)
+        if (cloudFiles && managedPath) {
+          localPathsToDelete.add(managedPath)
+          const isRemoteUri = /^https?:\/\//.test(String(next.uri || ''))
+          if (!isRemoteUri) {
+            publicUrl = publicUrl || backend.getImagePublicUrl(cloudFileName)
+            aliasCachedImage(next.uri, publicUrl)
+          }
+          next = {
+            ...next,
+            localPath: '',
+            uri: isRemoteUri ? next.uri : publicUrl,
+            storageMode: 'remote'
+          }
+          changed = true
+        }
+
+        return next
       })
 
       if (!changed) continue
-      // 纯本地的 base64→URL 表示替换，保持 updatedAt 不变：
+      // 纯本地的 base64→URL / localPath 清理，保持 updatedAt 不变：
       // bump 会被当成"本地已改"触发冗余推送，并在 LWW 中压过其他设备的同期真实编辑
       listRef.value[i] = { ...item, images: nextImages }
       updatedItems.push(listRef.value[i])
@@ -396,6 +426,9 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
     triggerRef(list)
     triggerRef(trashList)
     await saveItems(updatedItems)
+  }
+  if (localPathsToDelete.size > 0) {
+    await deleteManagedLocalImages(localPathsToDelete)
   }
 }
 
