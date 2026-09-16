@@ -5,6 +5,7 @@ import jsQR from 'jsqr'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
 import { parseWebLoginQrContent, approveWebLoginChallenge } from '@/utils/auth/webLogin'
+import { showGlobalToast } from '@/utils/globalToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
@@ -249,32 +250,22 @@ export function useQrScanner() {
     scanError.value = ''
 
     if (!authStore.isLoggedIn || !authStore.session?.access_token) {
-      scanError.value = t('my.authQrNeedLogin')
+      showGlobalToast(t('my.authQrNeedLogin'))
       return
     }
 
     try {
       await approveWebLoginChallenge(challengeId, authStore.session.access_token)
       scanError.value = ''
-      // 通过 toast 风格提示：扫码确认成功
-      window.setTimeout(() => {
-        // 组件可能已卸载，忽略
-      }, 0)
-      // 用全局轻提示：复用现有 showToast 若不可用则静默成功
-      try {
-        const { showToast } = await import('vant')
-        showToast(t('my.authQrApproved'))
-      } catch {
-        // ignore
-      }
+      showGlobalToast(t('my.authQrApproved'))
     } catch (e) {
       const msg = String(e?.message || '')
       if (msg.includes('unauthorized') || msg.includes('missing_token')) {
-        scanError.value = t('my.authQrNeedLogin')
-      } else if (msg.includes('invalid_status') || msg.includes('not_found')) {
-        scanError.value = t('my.authQrExpired')
+        showGlobalToast(t('my.authQrNeedLogin'))
+      } else if (msg.includes('invalid_status') || msg.includes('not_found') || msg.includes('session_issue')) {
+        showGlobalToast(msg.includes('session_issue') ? t('my.authQrSessionIssue') : t('my.authQrExpired'))
       } else {
-        scanError.value = t('my.authQrError')
+        showGlobalToast(t('my.authQrError'))
       }
     }
   }
