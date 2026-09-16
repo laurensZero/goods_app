@@ -33,118 +33,6 @@ import zhSale from './zh-CN/sale.json'
 import zhBirthday from './zh-CN/birthday.json'
 import zhCollage from './zh-CN/collage.json'
 
-import enCommon from './en/common.json'
-import enNav from './en/nav.json'
-import enGoods from './en/goods.json'
-import enHome from './en/home.json'
-import enSearch from './en/search.json'
-import enManage from './en/manage.json'
-import enEvents from './en/events.json'
-import enRecharge from './en/recharge.json'
-import enSync from './en/sync.json'
-import enTheme from './en/theme.json'
-import enImport from './en/import.json'
-import enAbout from './en/about.json'
-import enValidation from './en/validation.json'
-import enStatus from './en/status.json'
-import enToast from './en/toast.json'
-import enLeaderboard from './en/leaderboard.json'
-import enShare from './en/share.json'
-import enTrash from './en/trash.json'
-import enMy from './en/my.json'
-import enGoodsGroup from './en/goodsGroup.json'
-import enNotify from './en/notify.json'
-import enAiChat from './en/aiChat.json'
-import enMcp from './en/mcp.json'
-import enSurvey from './en/survey.json'
-import enSale from './en/sale.json'
-import enBirthday from './en/birthday.json'
-import enCollage from './en/collage.json'
-
-import jaCommon from './ja/common.json'
-import jaNav from './ja/nav.json'
-import jaGoods from './ja/goods.json'
-import jaHome from './ja/home.json'
-import jaSearch from './ja/search.json'
-import jaManage from './ja/manage.json'
-import jaEvents from './ja/events.json'
-import jaRecharge from './ja/recharge.json'
-import jaSync from './ja/sync.json'
-import jaTheme from './ja/theme.json'
-import jaImport from './ja/import.json'
-import jaAbout from './ja/about.json'
-import jaValidation from './ja/validation.json'
-import jaStatus from './ja/status.json'
-import jaToast from './ja/toast.json'
-import jaLeaderboard from './ja/leaderboard.json'
-import jaShare from './ja/share.json'
-import jaTrash from './ja/trash.json'
-import jaMy from './ja/my.json'
-import jaGoodsGroup from './ja/goodsGroup.json'
-import jaNotify from './ja/notify.json'
-import jaAiChat from './ja/aiChat.json'
-import jaMcp from './ja/mcp.json'
-import jaSurvey from './ja/survey.json'
-import jaSale from './ja/sale.json'
-import jaBirthday from './ja/birthday.json'
-import jaCollage from './ja/collage.json'
-
-import koCommon from './ko/common.json'
-import koNav from './ko/nav.json'
-import koGoods from './ko/goods.json'
-import koHome from './ko/home.json'
-import koSearch from './ko/search.json'
-import koManage from './ko/manage.json'
-import koEvents from './ko/events.json'
-import koRecharge from './ko/recharge.json'
-import koSync from './ko/sync.json'
-import koTheme from './ko/theme.json'
-import koImport from './ko/import.json'
-import koAbout from './ko/about.json'
-import koValidation from './ko/validation.json'
-import koStatus from './ko/status.json'
-import koToast from './ko/toast.json'
-import koLeaderboard from './ko/leaderboard.json'
-import koShare from './ko/share.json'
-import koTrash from './ko/trash.json'
-import koMy from './ko/my.json'
-import koGoodsGroup from './ko/goodsGroup.json'
-import koNotify from './ko/notify.json'
-import koAiChat from './ko/aiChat.json'
-import koMcp from './ko/mcp.json'
-import koSurvey from './ko/survey.json'
-import koSale from './ko/sale.json'
-import koBirthday from './ko/birthday.json'
-import koCollage from './ko/collage.json'
-
-import zhTWCommon from './zh-TW/common.json'
-import zhTWNav from './zh-TW/nav.json'
-import zhTWGoods from './zh-TW/goods.json'
-import zhTWHome from './zh-TW/home.json'
-import zhTWSearch from './zh-TW/search.json'
-import zhTWManage from './zh-TW/manage.json'
-import zhTWEvents from './zh-TW/events.json'
-import zhTWRecharge from './zh-TW/recharge.json'
-import zhTWSync from './zh-TW/sync.json'
-import zhTWTheme from './zh-TW/theme.json'
-import zhTWImport from './zh-TW/import.json'
-import zhTWAbout from './zh-TW/about.json'
-import zhTWValidation from './zh-TW/validation.json'
-import zhTWStatus from './zh-TW/status.json'
-import zhTWToast from './zh-TW/toast.json'
-import zhTWLeaderboard from './zh-TW/leaderboard.json'
-import zhTWShare from './zh-TW/share.json'
-import zhTWTrash from './zh-TW/trash.json'
-import zhTWMy from './zh-TW/my.json'
-import zhTWGoodsGroup from './zh-TW/goodsGroup.json'
-import zhTWNotify from './zh-TW/notify.json'
-import zhTWAiChat from './zh-TW/aiChat.json'
-import zhTWMcp from './zh-TW/mcp.json'
-import zhTWSurvey from './zh-TW/survey.json'
-import zhTWSale from './zh-TW/sale.json'
-import zhTWBirthday from './zh-TW/birthday.json'
-import zhTWCollage from './zh-TW/collage.json'
-
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
 const DEFAULT_LOCALE = 'zh-CN'
@@ -166,154 +54,379 @@ function detectLocale() {
   return DEFAULT_LOCALE
 }
 
-const zhCNMessages = {
-  ...zhCommon,
-  ...zhNav,
-  ...zhGoods,
-  ...zhHome,
-  ...zhSearch,
-  ...zhManage,
-  ...zhEvents,
-  ...zhRecharge,
-  ...zhSync,
-  ...zhTheme,
-  ...zhImport,
-  ...zhAbout,
-  ...zhValidation,
-  ...zhStatus,
-  ...zhToast,
-  ...zhLeaderboard,
-  ...zhShare,
-  ...zhTrash,
-  ...zhMy,
-  ...zhGoodsGroup,
-  ...zhNotify,
-  ...zhSale,
-  ...zhMcp,
-  ...zhAiChat,
-  ...zhCollage,
+function mergeMessages(parts) {
+  const {
+    common,
+    nav,
+    goods,
+    home,
+    search,
+    manage,
+    events,
+    recharge,
+    sync,
+    theme,
+    import: importMsgs,
+    about,
+    validation,
+    status,
+    toast,
+    leaderboard,
+    share,
+    trash,
+    my,
+    goodsGroup,
+    notify,
+    sale,
+    mcp,
+    aiChat,
+    collage,
+    survey,
+    birthday
+  } = parts
+
+  return {
+    ...common,
+    ...nav,
+    ...goods,
+    ...home,
+    ...search,
+    ...manage,
+    ...events,
+    ...recharge,
+    ...sync,
+    ...theme,
+    ...importMsgs,
+    ...about,
+    ...validation,
+    ...status,
+    ...toast,
+    ...leaderboard,
+    ...share,
+    ...trash,
+    ...my,
+    ...goodsGroup,
+    ...notify,
+    ...sale,
+    ...mcp,
+    ...aiChat,
+    ...collage,
+    survey,
+    birthday
+  }
+}
+
+// 默认/回退语言同步打进入口；其余语言按需 import，避免 5 份语言包全进首包
+const zhCNMessages = mergeMessages({
+  common: zhCommon,
+  nav: zhNav,
+  goods: zhGoods,
+  home: zhHome,
+  search: zhSearch,
+  manage: zhManage,
+  events: zhEvents,
+  recharge: zhRecharge,
+  sync: zhSync,
+  theme: zhTheme,
+  import: zhImport,
+  about: zhAbout,
+  validation: zhValidation,
+  status: zhStatus,
+  toast: zhToast,
+  leaderboard: zhLeaderboard,
+  share: zhShare,
+  trash: zhTrash,
+  my: zhMy,
+  goodsGroup: zhGoodsGroup,
+  notify: zhNotify,
+  sale: zhSale,
+  mcp: zhMcp,
+  aiChat: zhAiChat,
+  collage: zhCollage,
   survey: zhSurvey,
   birthday: zhBirthday
+})
+
+const localeLoaders = {
+  'zh-TW': async () => {
+    const [
+      common, nav, goods, home, search, manage, events, recharge, sync, theme,
+      importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday
+    ] = await Promise.all([
+      import('./zh-TW/common.json'),
+      import('./zh-TW/nav.json'),
+      import('./zh-TW/goods.json'),
+      import('./zh-TW/home.json'),
+      import('./zh-TW/search.json'),
+      import('./zh-TW/manage.json'),
+      import('./zh-TW/events.json'),
+      import('./zh-TW/recharge.json'),
+      import('./zh-TW/sync.json'),
+      import('./zh-TW/theme.json'),
+      import('./zh-TW/import.json'),
+      import('./zh-TW/about.json'),
+      import('./zh-TW/validation.json'),
+      import('./zh-TW/status.json'),
+      import('./zh-TW/toast.json'),
+      import('./zh-TW/leaderboard.json'),
+      import('./zh-TW/share.json'),
+      import('./zh-TW/trash.json'),
+      import('./zh-TW/my.json'),
+      import('./zh-TW/goodsGroup.json'),
+      import('./zh-TW/notify.json'),
+      import('./zh-TW/sale.json'),
+      import('./zh-TW/mcp.json'),
+      import('./zh-TW/aiChat.json'),
+      import('./zh-TW/collage.json'),
+      import('./zh-TW/survey.json'),
+      import('./zh-TW/birthday.json')
+    ])
+    return mergeMessages({
+      common: common.default,
+      nav: nav.default,
+      goods: goods.default,
+      home: home.default,
+      search: search.default,
+      manage: manage.default,
+      events: events.default,
+      recharge: recharge.default,
+      sync: sync.default,
+      theme: theme.default,
+      import: importMsgs.default,
+      about: about.default,
+      validation: validation.default,
+      status: status.default,
+      toast: toast.default,
+      leaderboard: leaderboard.default,
+      share: share.default,
+      trash: trash.default,
+      my: my.default,
+      goodsGroup: goodsGroup.default,
+      notify: notify.default,
+      sale: sale.default,
+      mcp: mcp.default,
+      aiChat: aiChat.default,
+      collage: collage.default,
+      survey: survey.default,
+      birthday: birthday.default
+    })
+  },
+  'en': async () => {
+    const [
+      common, nav, goods, home, search, manage, events, recharge, sync, theme,
+      importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday
+    ] = await Promise.all([
+      import('./en/common.json'),
+      import('./en/nav.json'),
+      import('./en/goods.json'),
+      import('./en/home.json'),
+      import('./en/search.json'),
+      import('./en/manage.json'),
+      import('./en/events.json'),
+      import('./en/recharge.json'),
+      import('./en/sync.json'),
+      import('./en/theme.json'),
+      import('./en/import.json'),
+      import('./en/about.json'),
+      import('./en/validation.json'),
+      import('./en/status.json'),
+      import('./en/toast.json'),
+      import('./en/leaderboard.json'),
+      import('./en/share.json'),
+      import('./en/trash.json'),
+      import('./en/my.json'),
+      import('./en/goodsGroup.json'),
+      import('./en/notify.json'),
+      import('./en/sale.json'),
+      import('./en/mcp.json'),
+      import('./en/aiChat.json'),
+      import('./en/collage.json'),
+      import('./en/survey.json'),
+      import('./en/birthday.json')
+    ])
+    return mergeMessages({
+      common: common.default,
+      nav: nav.default,
+      goods: goods.default,
+      home: home.default,
+      search: search.default,
+      manage: manage.default,
+      events: events.default,
+      recharge: recharge.default,
+      sync: sync.default,
+      theme: theme.default,
+      import: importMsgs.default,
+      about: about.default,
+      validation: validation.default,
+      status: status.default,
+      toast: toast.default,
+      leaderboard: leaderboard.default,
+      share: share.default,
+      trash: trash.default,
+      my: my.default,
+      goodsGroup: goodsGroup.default,
+      notify: notify.default,
+      sale: sale.default,
+      mcp: mcp.default,
+      aiChat: aiChat.default,
+      collage: collage.default,
+      survey: survey.default,
+      birthday: birthday.default
+    })
+  },
+  'ja': async () => {
+    const [
+      common, nav, goods, home, search, manage, events, recharge, sync, theme,
+      importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday
+    ] = await Promise.all([
+      import('./ja/common.json'),
+      import('./ja/nav.json'),
+      import('./ja/goods.json'),
+      import('./ja/home.json'),
+      import('./ja/search.json'),
+      import('./ja/manage.json'),
+      import('./ja/events.json'),
+      import('./ja/recharge.json'),
+      import('./ja/sync.json'),
+      import('./ja/theme.json'),
+      import('./ja/import.json'),
+      import('./ja/about.json'),
+      import('./ja/validation.json'),
+      import('./ja/status.json'),
+      import('./ja/toast.json'),
+      import('./ja/leaderboard.json'),
+      import('./ja/share.json'),
+      import('./ja/trash.json'),
+      import('./ja/my.json'),
+      import('./ja/goodsGroup.json'),
+      import('./ja/notify.json'),
+      import('./ja/sale.json'),
+      import('./ja/mcp.json'),
+      import('./ja/aiChat.json'),
+      import('./ja/collage.json'),
+      import('./ja/survey.json'),
+      import('./ja/birthday.json')
+    ])
+    return mergeMessages({
+      common: common.default,
+      nav: nav.default,
+      goods: goods.default,
+      home: home.default,
+      search: search.default,
+      manage: manage.default,
+      events: events.default,
+      recharge: recharge.default,
+      sync: sync.default,
+      theme: theme.default,
+      import: importMsgs.default,
+      about: about.default,
+      validation: validation.default,
+      status: status.default,
+      toast: toast.default,
+      leaderboard: leaderboard.default,
+      share: share.default,
+      trash: trash.default,
+      my: my.default,
+      goodsGroup: goodsGroup.default,
+      notify: notify.default,
+      sale: sale.default,
+      mcp: mcp.default,
+      aiChat: aiChat.default,
+      collage: collage.default,
+      survey: survey.default,
+      birthday: birthday.default
+    })
+  },
+  'ko': async () => {
+    const [
+      common, nav, goods, home, search, manage, events, recharge, sync, theme,
+      importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday
+    ] = await Promise.all([
+      import('./ko/common.json'),
+      import('./ko/nav.json'),
+      import('./ko/goods.json'),
+      import('./ko/home.json'),
+      import('./ko/search.json'),
+      import('./ko/manage.json'),
+      import('./ko/events.json'),
+      import('./ko/recharge.json'),
+      import('./ko/sync.json'),
+      import('./ko/theme.json'),
+      import('./ko/import.json'),
+      import('./ko/about.json'),
+      import('./ko/validation.json'),
+      import('./ko/status.json'),
+      import('./ko/toast.json'),
+      import('./ko/leaderboard.json'),
+      import('./ko/share.json'),
+      import('./ko/trash.json'),
+      import('./ko/my.json'),
+      import('./ko/goodsGroup.json'),
+      import('./ko/notify.json'),
+      import('./ko/sale.json'),
+      import('./ko/mcp.json'),
+      import('./ko/aiChat.json'),
+      import('./ko/collage.json'),
+      import('./ko/survey.json'),
+      import('./ko/birthday.json')
+    ])
+    return mergeMessages({
+      common: common.default,
+      nav: nav.default,
+      goods: goods.default,
+      home: home.default,
+      search: search.default,
+      manage: manage.default,
+      events: events.default,
+      recharge: recharge.default,
+      sync: sync.default,
+      theme: theme.default,
+      import: importMsgs.default,
+      about: about.default,
+      validation: validation.default,
+      status: status.default,
+      toast: toast.default,
+      leaderboard: leaderboard.default,
+      share: share.default,
+      trash: trash.default,
+      my: my.default,
+      goodsGroup: goodsGroup.default,
+      notify: notify.default,
+      sale: sale.default,
+      mcp: mcp.default,
+      aiChat: aiChat.default,
+      collage: collage.default,
+      survey: survey.default,
+      birthday: birthday.default
+    })
+  }
 }
 
-const enMessages = {
-  ...enCommon,
-  ...enNav,
-  ...enGoods,
-  ...enHome,
-  ...enSearch,
-  ...enManage,
-  ...enEvents,
-  ...enRecharge,
-  ...enSync,
-  ...enTheme,
-  ...enImport,
-  ...enAbout,
-  ...enValidation,
-  ...enStatus,
-  ...enToast,
-  ...enLeaderboard,
-  ...enShare,
-  ...enTrash,
-  ...enMy,
-  ...enGoodsGroup,
-  ...enNotify,
-  ...enSale,
-  ...enMcp,
-  ...enAiChat,
-  ...enCollage,
-  survey: enSurvey,
-  birthday: enBirthday
-}
+const loadedLocales = new Set([DEFAULT_LOCALE])
+const loadingLocales = new Map()
 
-const jaMessages = {
-  ...jaCommon,
-  ...jaNav,
-  ...jaGoods,
-  ...jaHome,
-  ...jaSearch,
-  ...jaManage,
-  ...jaEvents,
-  ...jaRecharge,
-  ...jaSync,
-  ...jaTheme,
-  ...jaImport,
-  ...jaAbout,
-  ...jaValidation,
-  ...jaStatus,
-  ...jaToast,
-  ...jaLeaderboard,
-  ...jaShare,
-  ...jaTrash,
-  ...jaMy,
-  ...jaGoodsGroup,
-  ...jaNotify,
-  ...jaSale,
-  ...jaMcp,
-  ...jaAiChat,
-  ...jaCollage,
-  survey: jaSurvey,
-  birthday: jaBirthday
-}
+async function ensureLocaleMessages(locale) {
+  if (!SUPPORTED_LOCALES.includes(locale) || loadedLocales.has(locale)) return
 
-const koMessages = {
-  ...koCommon,
-  ...koNav,
-  ...koGoods,
-  ...koHome,
-  ...koSearch,
-  ...koManage,
-  ...koEvents,
-  ...koRecharge,
-  ...koSync,
-  ...koTheme,
-  ...koImport,
-  ...koAbout,
-  ...koValidation,
-  ...koStatus,
-  ...koToast,
-  ...koLeaderboard,
-  ...koShare,
-  ...koTrash,
-  ...koMy,
-  ...koGoodsGroup,
-  ...koNotify,
-  ...koSale,
-  ...koMcp,
-  ...koAiChat,
-  ...koCollage,
-  survey: koSurvey,
-  birthday: koBirthday
-}
+  if (!loadingLocales.has(locale)) {
+    const loader = localeLoaders[locale]
+    if (!loader) return
+    const promise = loader()
+      .then((messages) => {
+        i18n.global.setLocaleMessage(locale, messages)
+        loadedLocales.add(locale)
+      })
+      .finally(() => {
+        loadingLocales.delete(locale)
+      })
+    loadingLocales.set(locale, promise)
+  }
 
-const zhTWMessages = {
-  ...zhTWCommon,
-  ...zhTWNav,
-  ...zhTWGoods,
-  ...zhTWHome,
-  ...zhTWSearch,
-  ...zhTWManage,
-  ...zhTWEvents,
-  ...zhTWRecharge,
-  ...zhTWSync,
-  ...zhTWTheme,
-  ...zhTWImport,
-  ...zhTWAbout,
-  ...zhTWValidation,
-  ...zhTWStatus,
-  ...zhTWToast,
-  ...zhTWLeaderboard,
-  ...zhTWShare,
-  ...zhTWTrash,
-  ...zhTWMy,
-  ...zhTWGoodsGroup,
-  ...zhTWNotify,
-  ...zhTWSale,
-  ...zhTWMcp,
-  ...zhTWAiChat,
-  ...zhTWCollage,
-  survey: zhTWSurvey,
-  birthday: zhTWBirthday
+  await loadingLocales.get(locale)
 }
 
 // 缺 key 监控：同一 locale+key 只上报一次，避免重复渲染刷爆日志缓冲
@@ -331,19 +444,17 @@ function handleMissingKey(locale, key) {
   }
 }
 
+const initialLocale = detectLocale()
+
 const i18n = createI18n({
   legacy: false,
-  locale: detectLocale(),
+  locale: initialLocale,
   fallbackLocale: FALLBACK_LOCALE,
   missing: (locale, key) => {
     handleMissingKey(locale, key)
   },
   messages: {
-    'zh-CN': zhCNMessages,
-    'zh-TW': zhTWMessages,
-    'en': enMessages,
-    'ja': jaMessages,
-    'ko': koMessages
+    'zh-CN': zhCNMessages
   }
 })
 
@@ -360,9 +471,18 @@ function syncVantLocale(locale) {
   Locale.use(vantConfig.locale, vantConfig.messages)
 }
 
+// 启动时若用户语言不是 zh-CN，后台预载对应语言包（不阻塞首屏）
+const i18nReady = initialLocale === DEFAULT_LOCALE
+  ? Promise.resolve()
+  : ensureLocaleMessages(initialLocale).catch((error) => {
+    appLog('warn', `i18n:preload-failed:${initialLocale}`, error)
+  })
+
 export async function setLocale(locale) {
   if (!SUPPORTED_LOCALES.includes(locale)) return
   if (i18n.global.locale.value === locale) return
+
+  await ensureLocaleMessages(locale)
 
   i18n.global.locale.value = locale
   document.documentElement.lang = locale
@@ -374,8 +494,8 @@ export function getLocale() {
   return i18n.global.locale.value
 }
 
-export { SUPPORTED_LOCALES }
+export { SUPPORTED_LOCALES, i18nReady }
 
-syncVantLocale(detectLocale())
+syncVantLocale(initialLocale)
 
 export default i18n

@@ -14,35 +14,27 @@
       </RouterView>
     </div>
     <TabBar v-if="showTabBar" />
-    <FloatingAudioPlayer :with-tab-bar="showTabBar" />
-    <TermsPrivacyDialog />
-    <AnnouncementDialog />
-    <WebUpdateDialog />
-    <AppUpdateDialog />
+    <AsyncFloatingAudioPlayer v-if="showFloatingPlayer" :with-tab-bar="showTabBar" />
+    <AsyncTermsPrivacyDialog v-if="shellReady" />
+    <AsyncAnnouncementDialog v-if="shellReady" />
+    <AsyncWebUpdateDialog v-if="shellReady" />
+    <AsyncAppUpdateDialog v-if="shellReady" />
 
-    <ClipboardDialog />
-    <AiAssistantPopup v-model:show="aiAssistantVisible" />
+    <AsyncClipboardDialog v-if="shellReady" />
+    <AsyncAiAssistantPopup v-if="aiAssistantVisible" v-model:show="aiAssistantVisible" />
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
     <AppToast :message="globalToastMsg" />
-    <SurveyPopupDialog ref="surveyPopupRef" />
-    <BirthdayEggDialog />
+    <AsyncSurveyPopupDialog v-if="shellReady" ref="surveyPopupRef" />
+    <AsyncBirthdayEggDialog v-if="shellReady" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import AnnouncementDialog from '@/components/app/AnnouncementDialog.vue'
-import TermsPrivacyDialog from '@/components/app/TermsPrivacyDialog.vue'
-import AppUpdateDialog from '@/components/app/AppUpdateDialog.vue'
-import FloatingAudioPlayer from '@/components/app/FloatingAudioPlayer.vue'
-import WebUpdateDialog from '@/components/app/WebUpdateDialog.vue'
-import ClipboardDialog from '@/components/app/ClipboardDialog.vue'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import AppToast from '@/components/common/AppToast.vue'
-import SurveyPopupDialog from '@/components/app/SurveyPopupDialog.vue'
-import BirthdayEggDialog from '@/components/app/BirthdayEggDialog.vue'
 import TabBar from '@/components/app/TabBar.vue'
 import { globalToastMsg } from '@/utils/globalToast'
 import { useSyncStore } from '@/stores/sync'
@@ -54,7 +46,64 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 import { usePullDownGesture } from '@/composables/usePullDownGesture'
-import AiAssistantPopup from '@/components/app/AiAssistantPopup.vue'
+import { createLogger } from '@/utils/logger'
+
+const shellLog = createLogger('app-shell')
+
+const AsyncTermsPrivacyDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/TermsPrivacyDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('terms-privacy:load-failed', error)
+})
+const AsyncFloatingAudioPlayer = defineAsyncComponent({
+  loader: () => import('@/components/app/FloatingAudioPlayer.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('floating-player:load-failed', error)
+})
+const AsyncAnnouncementDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/AnnouncementDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('announcement:load-failed', error)
+})
+const AsyncWebUpdateDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/WebUpdateDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('web-update:load-failed', error)
+})
+const AsyncAppUpdateDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/AppUpdateDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('app-update:load-failed', error)
+})
+const AsyncClipboardDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/ClipboardDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('clipboard:load-failed', error)
+})
+const AsyncSurveyPopupDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/SurveyPopupDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('survey:load-failed', error)
+})
+const AsyncBirthdayEggDialog = defineAsyncComponent({
+  loader: () => import('@/components/app/BirthdayEggDialog.vue'),
+  delay: 0,
+  timeout: 10000,
+  onError: (error) => shellLog.warn('birthday:load-failed', error)
+})
+const AsyncAiAssistantPopup = defineAsyncComponent({
+  loader: () => import('@/components/app/AiAssistantPopup.vue'),
+  delay: 0,
+  timeout: 15000,
+  onError: (error) => shellLog.warn('ai-assistant:load-failed', error)
+})
 
 const route = useRoute()
 const { t } = useI18n()
@@ -72,6 +121,10 @@ import { useLegalStore } from '@/stores/legal'
 const surveyStore = useSurveyStore()
 const legalStore = useLegalStore()
 const surveyPopupRef = ref(null)
+
+// 壳层弹窗等首屏挂载后再加载，避免把公告/问卷/更新检查等拖进首包关键路径
+const shellReady = ref(false)
+const showFloatingPlayer = ref(false)
 
 watch(() => surveyStore.isLoaded, async (loaded) => {
   if (!loaded) return
@@ -122,6 +175,16 @@ usePullDownGesture({
   }
 })
 useAppStartup()
+
+onMounted(() => {
+  // 双 rAF：确保首屏渲染完成后再拉壳层重组件，避免抢首包带宽
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      showFloatingPlayer.value = true
+      shellReady.value = true
+    })
+  })
+})
 </script>
 
 <style>

@@ -27,12 +27,20 @@
 // @ts-check
 // 全局 AI 助手弹窗：任意页面顶部下拉手势唤起。
 // 手机从顶部滑入（与下拉手势方向一致），平板（≥900px）居中弹窗。
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
-import AiChatPanel from '@/components/ai/AiChatPanel.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { createLogger } from '@/utils/logger'
+
+const aiLog = createLogger('ai-assistant')
+const AiChatPanel = defineAsyncComponent({
+  loader: () => import('@/components/ai/AiChatPanel.vue'),
+  delay: 0,
+  timeout: 15000,
+  onError: (error) => aiLog.warn('panel:load-failed', error)
+})
 
 const props = defineProps({
   show: { type: Boolean, default: false }

@@ -7,7 +7,7 @@ import { Preferences } from '@capacitor/preferences'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { createPinia } from 'pinia'
 import App from './App.vue'
-import i18n from './locales'
+import i18n, { i18nReady } from './locales'
 import router from './router'
 import 'vant/lib/index.css'
 import './assets/base.css'
@@ -161,6 +161,9 @@ async function bootstrap() {
   app.use(pinia)
   app.use(router)
 
+  // 非 zh-CN 启动时预载语言包（与后续初始化并行，不单独阻塞）
+  const i18nReadyTask = i18nReady.catch(() => {})
+
   // 全局错误捕获：组件错误带上组件名和生命周期钩子，导航错误（含动态 import 失败）单独记录
   app.config.errorHandler = (err, instance, info) => {
     const componentName = instance?.$options?.name || instance?.$options?.__name || 'anonymous'
@@ -235,7 +238,7 @@ async function bootstrap() {
 
   const t3 = performance.now()
   try {
-    await router.isReady()
+    await Promise.all([router.isReady(), i18nReadyTask])
   } catch (e) {
     log.error('router:ready:failed', e)
   }
