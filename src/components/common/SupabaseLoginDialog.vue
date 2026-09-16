@@ -262,6 +262,7 @@ import { Capacitor } from '@capacitor/core'
 import QRCode from 'qrcode'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { showGlobalToast } from '@/utils/globalToast'
 import {
@@ -299,7 +300,9 @@ function showToast(message) {
   showGlobalToast(text)
 }
 
-const showQrTab = computed(() => !Capacitor.isNativePlatform())
+const { isTabletViewport } = useTabletViewport()
+// Web 任意尺寸 + 平板原生（宽屏）都可出二维码，用手机扫码登录
+const showQrTab = computed(() => !Capacitor.isNativePlatform() || isTabletViewport.value)
 const qrChallengeId = ref('')
 const qrDataUrl = ref('')
 const qrLoading = ref(false)
