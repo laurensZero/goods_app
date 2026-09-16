@@ -45,7 +45,10 @@ type SessionTokens = {
   token_type: string
 }
 
-/** generateLink(recovery) → OTP → /verify 换会话 */
+/**
+ * generateLink(magiclink) → OTP → /verify 换会话。
+ * 不用 recovery：recovery 验证成功会按项目设置回收该用户其它设备的 session。
+ */
 async function issueSessionViaMagicOtp(email: string): Promise<{ session: SessionTokens | null; debug: string }> {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -56,7 +59,7 @@ async function issueSessionViaMagicOtp(email: string): Promise<{ session: Sessio
   })
 
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "recovery",
+    type: "magiclink",
     email,
   })
   if (linkError || !linkData) {
@@ -94,9 +97,8 @@ async function issueSessionViaMagicOtp(email: string): Promise<{ session: Sessio
     }
   }
 
-  // verify type：recovery 的 OTP 对应 recovery；若来自 action_link 也是 recovery
-  const verifyType = "recovery"
-
+  // GoTrue 对 generateLink 返回的 OTP：verify 用 type=email + email + token
+  // （magiclink/recovery 类型 verify 需要额外 redirect 参数，且 recovery 会回收 session）
   const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
     method: "POST",
     headers: {
