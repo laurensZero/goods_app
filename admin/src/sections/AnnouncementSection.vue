@@ -16,7 +16,10 @@ import AnnouncementForm from './announcement/AnnouncementForm.vue'
 const { items, loading, keyword, status, load, setStatus } = useAdminList({
   loader: async () => {
     const data = await supabaseRequest('/rest/v1/announcements', {
-      params: { select: 'id,enabled,priority,title,show_rule,created_at', order: 'priority.desc,created_at.desc' }
+      params: {
+        select: 'id,enabled,priority,title,message,cta,show_rule,image_url,custom_css,target_users,created_at',
+        order: 'priority.desc,created_at.desc'
+      }
     })
     return Array.isArray(data) ? data : []
   }
