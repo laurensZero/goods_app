@@ -9,8 +9,6 @@
       :class="{ 'tab-item--active': isTabActive(tab.key) }"
       :aria-current="isTabActive(tab.key) ? 'page' : undefined"
       @click="activateTab(tab.key)"
-      @pointerenter="prefetchTabChunkOnIntent(tab.key)"
-      @touchstart.passive="prefetchTabChunkOnIntent(tab.key)"
     >
       <svg class="tab-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path v-for="(path, index) in tab.paths" :key="index" :d="path" />
@@ -25,7 +23,6 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
-import { prefetchTabChunkOnIntent } from '@/utils/router/prefetchRoutes'
 
 const { t } = useI18n()
 
