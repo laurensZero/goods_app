@@ -138,7 +138,7 @@
   "manage.trashDetail": "View mistakenly deleted items, restore projects, or permanently clear history deletions after confirmation.",
   "manage.exportDetail": "Export collections, wishlist, events, recharge, and presets as backup files with lightweight and custom export options.",
   "manage.importDetail": "Read JSON backup or standard CSV/ZIP and merge goods, groups, events, recharge, and presets.",
-  "manage.syncDetail": "Connect to GitHub to sync data across devices and check tokens, Gist, and remote status.",
+  "manage.syncDetail": "Log in to sync data across devices and check cloud status and sync records.",
   "manage.shareDetail": "View all initiated share records, copy share links, disable or delete shares no longer needed.",
   "manage.aboutDetail": "View version, data description and sync usage for easy reference and troubleshooting.",
   "manage.categorySummary": "Start by cleaning up naming, then gradually consolidate synonymous categories to avoid fragmented statistics.",

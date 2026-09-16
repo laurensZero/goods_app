@@ -9,6 +9,10 @@ import { fileURLToPath, URL } from 'node:url'
 import { mcpDevServerPlugin } from './scripts/vite-plugin-mcp.mjs'
 import { aiProxyPlugin } from './scripts/vite-plugin-ai-proxy.mjs'
 import { ntpBridgePlugin } from './scripts/vite-plugin-ntp-bridge.mjs'
+import {
+  isAllowedBilibiliMediaHost,
+  rememberBilibiliMediaHostsFromPlayurl
+} from './scripts/bilibili-media-allowlist.mjs'
 
 function removeBundledCutoutWasm() {
   let outputDir = ''
@@ -51,15 +55,50 @@ export default defineConfig({
     {
       name: 'bilibili-media-proxy',
       configureServer(server) {
+        // playurl 会下发动态 CDN 域名（如 mountaintoys 边缘节点）。
+        // 在转发前抓一遍 JSON，把媒体 host 写进运行时白名单，避免写死域名被 B 站换掉后 400。
+        server.middlewares.use(async (req, res, next) => {
+          const rawUrl = req.originalUrl || req.url || ''
+          if (!rawUrl.startsWith('/bilibili-api/x/player/playurl')) return next()
+          try {
+            const requestUrl = new URL(rawUrl, 'http://localhost')
+            const target = new URL(`/x/player/playurl${requestUrl.search}`, 'https://api.bilibili.com')
+            const upstream = await fetch(target, {
+              headers: {
+                Referer: 'https://www.bilibili.com/',
+                'User-Agent':
+                  'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/120.0.0.0 Mobile Safari/537.36',
+                Accept: '*/*',
+                // 禁用压缩，便于直接 JSON.parse 学习 host
+                'Accept-Encoding': 'identity'
+              }
+            })
+            const text = await upstream.text()
+            try {
+              rememberBilibiliMediaHostsFromPlayurl(JSON.parse(text))
+            } catch {
+              // 非 JSON / 解析失败：仍原样转发，交给客户端
+            }
+            res.statusCode = upstream.status
+            const contentType = upstream.headers.get('content-type')
+            if (contentType) res.setHeader('Content-Type', contentType)
+            res.end(text)
+          } catch (error) {
+            // 学习失败不阻断业务：回落到常规代理
+            console.warn('[bilibili-media-proxy] playurl 预取失败，回落代理:', error?.message || error)
+            next()
+          }
+        })
+
         server.middlewares.use('/bilibili-media', async (req, res) => {
           try {
             const requestUrl = new URL(req.url || '', 'http://localhost')
             const targetUrl = requestUrl.searchParams.get('url')
             const target = targetUrl ? new URL(targetUrl) : null
-            // B 站播放地址除 bilivideo.com 外，近年还会下发 bilivideo.cn（mcdn）与
-            // mountaintoys.cn；白名单过窄会让 /bilibili-media 直接 400，
+            // 静态后缀 + playurl 动态登记的 host；仍拒绝内网地址，避免开放代理被滥用。
+            // 白名单过窄会让 /bilibili-media 直接 400，
             // 浏览器端表现为 MEDIA_ERR_SRC_NOT_SUPPORTED（no supported source）。
-            if (!target || !/(^|\.)(bilivideo\.(com|cn)|mountaintoys\.cn)$/i.test(target.hostname)) {
+            if (!target || !isAllowedBilibiliMediaHost(target.hostname)) {
               res.statusCode = 400
               res.end('Invalid Bilibili media URL')
               return

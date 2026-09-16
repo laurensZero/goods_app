@@ -23,8 +23,10 @@ import { isDevVersionMockEnabled, resolveMockAppVersion } from '@/utils/dev/mock
 const log = createLogger('app-update')
 
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
+// DEV 浏览器：保留 mock 下载流程用于测试更新 UI
 const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
-const SHOULD_SKIP_UPDATE_CHECK = import.meta.env.DEV && !Capacitor.isNativePlatform() && !SUPPORT_WEB_MOCK_DOWNLOAD
+// 生产纯 Web（Cloudflare Pages 等）：部署即最新，跳过 APK 更新检测
+const SHOULD_SKIP_UPDATE_CHECK = !import.meta.env.DEV && !Capacitor.isNativePlatform()
 // dev 浏览器强制弹出 mock 下载对话框的开关：默认关闭（保持与手机端一致的真实版本比较）；
 // 需要测试下载流程时设置 localStorage.setItem('goods_dev_mock_update_dialog', '1')
 const FORCE_MOCK_DIALOG_KEY = 'goods_dev_mock_update_dialog'

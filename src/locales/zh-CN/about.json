@@ -140,7 +140,7 @@
   "about.confirmRestore": "确认恢复",
   "about.restoringBuiltin": "正在恢复内置资源...",
   "about.restoreFailed": "恢复失败，请手动重启应用。",
-  "about.webDevDisabled": "Web 开发环境已禁用更新检查",
+  "about.webDevDisabled": "网页版随部署自动更新，无需应用内检查",
   "about.newVersionFound": "发现新版本 v{version}",
   "about.mockDownloadDone": "模拟下载完成",
   "about.updateSourceChanged": "已切换版本更新源：{source}",

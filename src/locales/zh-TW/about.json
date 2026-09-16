@@ -140,7 +140,7 @@
   "about.confirmRestore": "確認恢復",
   "about.restoringBuiltin": "正在恢復内置資源...",
   "about.restoreFailed": "恢復失敗，請手動重啟應用。",
-  "about.webDevDisabled": "Web 開發環境已停用更新檢查",
+  "about.webDevDisabled": "網頁版隨部署自動更新，無需應用內檢查",
   "about.newVersionFound": "發現新版本 v{version}",
   "about.mockDownloadDone": "模擬下载完成",
   "about.updateSourceChanged": "已切換版本更新源：{source}",

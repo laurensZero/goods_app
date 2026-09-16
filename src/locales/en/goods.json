@@ -353,7 +353,7 @@
   "goods.share.imageShare": "Image Share",
   "goods.share.linkLabel": "Share link (clickable in chat apps)",
   "goods.share.linkShare": "Link Share",
-  "goods.share.loginRequired": "Sharing requires a GitHub account. Save goods data to Gist to generate a link.",
+  "goods.share.loginRequired": "Sharing requires an account. Log in to generate a share link.",
   "goods.share.modeSwitchLabel": "Share mode switch",
   "goods.share.qrPoster": "QR Code Poster",
   "goods.share.regenerate": "Regenerate",

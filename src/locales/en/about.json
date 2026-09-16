@@ -140,7 +140,7 @@
   "about.confirmRestore": "Confirm Restore",
   "about.restoringBuiltin": "Restoring built-in resources...",
   "about.restoreFailed": "Restore failed. Please restart the app manually.",
-  "about.webDevDisabled": "Update check disabled in Web dev environment",
+  "about.webDevDisabled": "Web version updates automatically on deploy; no in-app check needed",
   "about.newVersionFound": "New version v{version} found",
   "about.mockDownloadDone": "Mock download complete",
   "about.updateSourceChanged": "Version update source changed: {source}",

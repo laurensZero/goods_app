@@ -138,7 +138,7 @@
   "manage.trashDetail": "查看误删内容、恢复项目，或在确认后彻底清空历史删除项。",
   "manage.exportDetail": "把收藏、心愿、谷子组、活动、充值和预设导出为 JSON 备份或 CSV 表格包。",
   "manage.importDetail": "读取备份 JSON 或标准 CSV/ZIP，合并收藏、谷子组、活动、充值和预设信息。",
-  "manage.syncDetail": "连接 GitHub 后可在多设备之间同步数据，并检查令牌、Gist 和远端状态。",
+  "manage.syncDetail": "登录后可在多设备之间同步数据，并检查云端状态与同步记录。",
   "manage.shareDetail": "查看所有已发起的分享记录，复制分享链接、停用或删除不再需要的分享。",
   "manage.aboutDetail": "查看版本、数据说明和同步使用方式，方便回顾规则和排查问题。",
   "manage.categorySummary": "适合先清理命名，再逐步收敛同义分类，避免后续统计分散。",

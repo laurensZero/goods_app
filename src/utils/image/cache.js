@@ -174,6 +174,30 @@ function isNative() {
   }
 }
 
+const PROXYABLE_IMAGE_HOSTS = new Set([
+  'zvqzicimowfqshgjsrri.supabase.co',
+  'y.gtimg.cn',
+  'p1.music.126.net',
+  'p2.music.126.net',
+  'p3.music.126.net',
+  'p4.music.126.net'
+])
+
+// 生产 Web：把可代理的远程图片改走 Cloudflare media-proxy，利用边缘缓存加速
+function toProxiedMediaUrl(rawUrl) {
+  const value = String(rawUrl || '').trim()
+  if (!value || isNative() || import.meta.env.DEV) return value
+  if (!value.startsWith('https://')) return value
+
+  try {
+    const parsed = new URL(value)
+    if (!PROXYABLE_IMAGE_HOSTS.has(parsed.hostname)) return value
+    return `/media-proxy/?url=${encodeURIComponent(value)}`
+  } catch {
+    return value
+  }
+}
+
 /**
  * 文件型 URI（capacitor:// / file: / _capacitor_file_ 转换地址）。
  * 这类地址 <img>/fetch 可由 WebView 网络栈直读本地文件，无需进入缓存管线——
@@ -592,6 +616,8 @@ export async function getCachedImage(url, options = {}) {
   if (import.meta.env.DEV && fetchUrl.includes('sdk-webstatic.mihoyo.com')) {
     fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
   }
+  // 生产 Web：Supabase / 封面 CDN 走 Cloudflare 边缘缓存
+  fetchUrl = toProxiedMediaUrl(fetchUrl)
 
   // 1: 内存（用原始 URL 作为 key）
   for (const key of cacheKeys) {
