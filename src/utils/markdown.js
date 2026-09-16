@@ -1,4 +1,3 @@
-import DOMPurify from 'dompurify'
 import { JUMP_HREF_PREFIX } from './ai/jumpLinks'
 import { getCachedImageThumb } from './image/thumb'
 
@@ -36,18 +35,33 @@ function buildBiliEmbed(id) {
   })
   const extra = params.toString() ? `&${params.toString()}` : ''
   const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
-  return `<div class="bili-embed"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe></div>`
+  return `<div class="bili-embed"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="0" framespacing="0" allowfullscreen="true"></iframe></div>`
 }
 
-// Only allow iframes pointing at the official Bilibili player, drop anything else.
-DOMPurify.addHook('uponSanitizeElement', (node, data) => {
-  if (data.tagName === 'iframe') {
-    const src = node.getAttribute('src') || ''
-    if (!/^https:\/\/player\.bilibili\.com\//.test(src)) {
-      if (node.parentNode) node.parentNode.removeChild(node)
-    }
+// DOMPurify 与 markdown-it 一样按需加载，避免法律弹窗/详情页把净化器打进首包
+let domPurifyPromise = null
+let domPurifyReady = false
+
+async function getDomPurify() {
+  if (!domPurifyPromise) {
+    domPurifyPromise = import('dompurify').then(({ default: DOMPurify }) => {
+      if (!domPurifyReady) {
+        // Only allow iframes pointing at the official Bilibili player, drop anything else.
+        DOMPurify.addHook('uponSanitizeElement', (node, data) => {
+          if (data.tagName === 'iframe') {
+            const src = node.getAttribute('src') || ''
+            if (!/^https:\/\/player\.bilibili\.com\//.test(src)) {
+              if (node.parentNode) node.parentNode.removeChild(node)
+            }
+          }
+        })
+        domPurifyReady = true
+      }
+      return DOMPurify
+    })
   }
-})
+  return domPurifyPromise
+}
 
 export function detectMarkdownContent(value) {
   const text = String(value || '').trim()
@@ -118,7 +132,7 @@ async function getMarkdownIt() {
 }
 
 export async function renderMarkdown(value) {
-  const md = await getMarkdownIt()
+  const [md, DOMPurify] = await Promise.all([getMarkdownIt(), getDomPurify()])
   const src = String(value || '')
   const { replaced, ids } = extractBiliTokens(src)
   let rendered = md.render(replaced)

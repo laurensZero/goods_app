@@ -234,7 +234,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
-import { formatTrackDuration } from '@/utils/music/neteaseMusic'
+import { formatTrackDuration } from '@/utils/music/formatTrackDuration'
 
 defineProps({
   withTabBar: { type: Boolean, default: false }
@@ -948,7 +948,8 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(26px) saturate(140%);
   -webkit-backdrop-filter: blur(26px) saturate(140%);
   overflow: hidden;
-  z-index: 96;
+  /* Teleport 到 body 后需盖过 .floating-player 的 2200，否则列表被压在播放器下面 */
+  z-index: 2210;
 }
 
 .floating-player__queue-head {
