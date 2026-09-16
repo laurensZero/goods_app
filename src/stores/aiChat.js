@@ -17,6 +17,12 @@ import { loadUserMemories } from '@/utils/ai/userMemory'
 import router from '@/router'
 import * as db from '@/utils/db'
 import { parseCloudImageUri } from '@/utils/goods/images'
+import {
+  deleteChatAttachmentBlob,
+  isChatAttachmentUri,
+  putChatAttachmentFromDataUrl,
+  pruneOrphanChatAttachments
+} from '@/utils/image/chatAttachmentStore'
 import { createMcpToolHandlers } from '@/services/mcp/tools'
 import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
@@ -472,6 +478,8 @@ export const useAiChatStore = defineStore('aiChat', () => {
         attachmentRegistry.set(att.id, att)
       }
     }
+    // 旧会话里的大 data: 图迁入 IndexedDB，避免 localStorage/内存继续扛 base64
+    void migrateHeavyDataUrlAttachments(session)
   }
 
   if (sessions.value.length === 0) {
@@ -535,6 +543,23 @@ export const useAiChatStore = defineStore('aiChat', () => {
       activateSession(sessions.value[0])
     }
     persistSessionsNow()
+    // 会话删除后回收孤儿 blob（chat-att 仅存在于会话附件里）
+    void pruneOrphanChatAttachments(collectSessionAttachmentIds())
+  }
+
+  /** 收集当前会话列表里全部附件 id（含非 chat-att，回收时只删库内存在的 key） */
+  function collectSessionAttachmentIds() {
+    /** @type {string[]} */
+    const ids = []
+    for (const session of sessions.value) {
+      for (const msg of session?.messages || []) {
+        for (const att of msg?.attachments || []) {
+          const id = String(att?.id || '').trim()
+          if (id) ids.push(id)
+        }
+      }
+    }
+    return ids
   }
 
   /** 手动重命名会话：标记 custom 后，AI 起名不再覆盖它 */
@@ -653,6 +678,38 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   /**
+   * 把会话消息里超长的 data:image 附件迁成 chat-att:// 短引用（异步、失败静默）。
+   * 阈值取 ~120KB base64，避免误伤极小内联图。
+   * @param {{ messages?: ChatMessage[] }} session
+   */
+  async function migrateHeavyDataUrlAttachments(session) {
+    const HEURISTIC_MIN_CHARS = 120 * 1024
+    const messages = Array.isArray(session?.messages) ? session.messages : []
+    let changed = false
+    for (const msg of messages) {
+      const list = Array.isArray(msg?.attachments) ? msg.attachments : []
+      for (let i = 0; i < list.length; i += 1) {
+        const att = list[i]
+        if (!att || att.type === 'table') continue
+        const uri = String(att.uri || '')
+        if (!uri.startsWith('data:image/') || uri.length < HEURISTIC_MIN_CHARS) continue
+        try {
+          const nextUri = await putChatAttachmentFromDataUrl(uri, att.id)
+          list[i] = { ...att, uri: nextUri }
+          attachmentRegistry.set(att.id, list[i])
+          changed = true
+        } catch (e) {
+          devLog('migrate-att:failed', { id: att.id, error: e instanceof Error ? e.message : String(e) })
+        }
+      }
+    }
+    if (changed) {
+      persistSessionsNow()
+      devLog('migrate-att:done', { sessionId: session?.id })
+    }
+  }
+
+  /**
    * vision_analyze 取图：序号 → 本轮附件；att:<id> → 注册表；其余当 URI。
    * @param {string} token
    */
@@ -714,7 +771,17 @@ export const useAiChatStore = defineStore('aiChat', () => {
    * @param {string} id
    */
   function removeAttachment(id) {
+    const hit = attachments.value.find((a) => a.id === id)
     attachments.value = attachments.value.filter((a) => a.id !== id)
+    // 待发附件从待发区移除时，若未进入任何会话消息，顺带清掉 IndexedDB blob
+    if (hit && isChatAttachmentUri(hit.uri)) {
+      const stillUsed = sessions.value.some((s) =>
+        (Array.isArray(s.messages) ? s.messages : []).some((m) =>
+          (Array.isArray(m.attachments) ? m.attachments : []).some((att) => att?.id === hit.id)
+        )
+      )
+      if (!stillUsed) void deleteChatAttachmentBlob(hit.id)
+    }
   }
 
   function clearAttachments() {
