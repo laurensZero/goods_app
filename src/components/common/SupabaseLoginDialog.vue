@@ -252,7 +252,6 @@
         </button>
       </template>
     </div>
-    <AppToast :message="toastMsg" />
   </AppSheet>
 </template>
 
@@ -264,7 +263,7 @@ import QRCode from 'qrcode'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import AppSheet from '@/components/common/AppSheet.vue'
-import AppToast from '@/components/common/AppToast.vue'
+import { showGlobalToast } from '@/utils/globalToast'
 import {
   applyWebLoginSession,
   buildWebLoginQrContent,
@@ -291,18 +290,13 @@ const magicLinkSent = ref(false)
 const resetSent = ref(false)
 const authError = ref('')
 const isLoading = ref(false)
-const toastMsg = ref('')
-let toastClearTimer = 0
 
 function showToast(message) {
   const text = String(message || '').trim()
   if (!text) return
   emit('toast', text)
-  toastMsg.value = text
-  if (toastClearTimer) clearTimeout(toastClearTimer)
-  toastClearTimer = window.setTimeout(() => {
-    toastMsg.value = ''
-  }, 2600)
+  // 走 App 根节点的全局玻璃 toast；弹层内嵌 AppToast 会被 sheet 变换上下文影响 fixed 定位
+  showGlobalToast(text)
 }
 
 const showQrTab = computed(() => !Capacitor.isNativePlatform())
@@ -595,7 +589,6 @@ watch(() => props.modelValue, (val) => {
 onBeforeUnmount(() => {
   stopQrPolling()
   stopQrCountdown()
-  if (toastClearTimer) clearTimeout(toastClearTimer)
 })
 </script>
 
