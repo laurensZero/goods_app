@@ -146,11 +146,12 @@ export async function signInWithOAuth(provider, options = {}) {
 }
 
 /**
- * Sign out
+ * Sign out（仅本设备）
+ * scope: 'local' 只清当前 session，避免踢掉手机/其它端登录
  */
 export async function signOut() {
   const client = getSupabaseClient()
-  const { error } = await client.auth.signOut()
+  const { error } = await client.auth.signOut({ scope: 'local' })
   if (error) throw error
 }
 
