@@ -69,3 +69,7 @@ verify_jwt = false
 
 [functions.storage-admin]
 verify_jwt = false
+
+# 网页版扫码登录：create/status/consume 无需 JWT；approve 需 App 侧 Bearer token
+[functions.web-login]
+verify_jwt = false

@@ -23,6 +23,15 @@
         {{ t('my.authTabMagic') }}
       </button>
       <button
+        v-if="showQrTab"
+        type="button"
+        class="auth-tab"
+        :class="{ 'auth-tab--active': activeMode === 'qr' }"
+        @click="switchMode('qr')"
+      >
+        {{ t('my.authTabQr') }}
+      </button>
+      <button
         type="button"
         class="auth-tab"
         :class="{ 'auth-tab--active': activeMode === 'social' }"
@@ -30,6 +39,17 @@
       >
         {{ t('my.authTabSocial') }}
       </button>
+    </div>
+
+    <!-- App 扫码登录（仅 Web） -->
+    <div v-if="activeMode === 'qr'" class="auth-qr-panel">
+      <p class="auth-desc">{{ t('my.authQrDesc') }}</p>
+      <div class="auth-qr-box">
+        <img v-if="qrDataUrl" :src="qrDataUrl" class="auth-qr-img" alt="QR" />
+        <div v-else class="auth-qr-placeholder">…</div>
+      </div>
+      <p class="auth-qr-status">{{ qrStatusText }}</p>
+      <p v-if="qrCountdownText" class="auth-qr-countdown">{{ qrCountdownText }}</p>
     </div>
 
     <!-- Email + Password Login -->
@@ -236,11 +256,20 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { Capacitor } from '@capacitor/core'
+import QRCode from 'qrcode'
 import { useAuthStore } from '@/stores/auth'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import AppSheet from '@/components/common/AppSheet.vue'
+import {
+  applyWebLoginSession,
+  buildWebLoginQrContent,
+  consumeWebLoginChallenge,
+  createWebLoginChallenge,
+  getWebLoginChallengeStatus
+} from '@/utils/auth/webLogin'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false }
@@ -261,11 +290,131 @@ const resetSent = ref(false)
 const authError = ref('')
 const isLoading = ref(false)
 
+const showQrTab = computed(() => !Capacitor.isNativePlatform())
+const qrChallengeId = ref('')
+const qrDataUrl = ref('')
+const qrLoading = ref(false)
+const qrState = ref('idle') // idle | waiting | approved | expired | error
+const qrExpiresAt = ref(0)
+const qrNow = ref(Date.now())
+let qrPollTimer = 0
+let qrCountdownTimer = 0
+
+const qrStatusText = computed(() => {
+  if (qrLoading.value) return t('my.authQrLoading')
+  if (qrState.value === 'approved') return t('my.authQrApproved')
+  if (qrState.value === 'expired') return t('my.authQrExpired')
+  if (qrState.value === 'error') return t('my.authQrError')
+  return t('my.authQrWaiting')
+})
+
+const qrCountdownText = computed(() => {
+  if (!qrExpiresAt.value || qrState.value === 'approved') return ''
+  const remainSec = Math.max(0, Math.ceil((qrExpiresAt.value - qrNow.value) / 1000))
+  const mm = String(Math.floor(remainSec / 60)).padStart(2, '0')
+  const ss = String(remainSec % 60).padStart(2, '0')
+  return t('my.authQrExpiresIn', { time: `${mm}:${ss}` })
+})
+
+function startQrCountdown(expiresAt) {
+  stopQrCountdown()
+  qrExpiresAt.value = expiresAt ? new Date(expiresAt).getTime() : Date.now() + 5 * 60 * 1000
+  qrNow.value = Date.now()
+  qrCountdownTimer = window.setInterval(() => {
+    qrNow.value = Date.now()
+    if (qrExpiresAt.value && qrNow.value >= qrExpiresAt.value && qrState.value === 'waiting') {
+      qrState.value = 'expired'
+      scheduleQrTask(() => { void refreshQrChallenge() }, 800)
+    }
+  }, 1000)
+}
+
+function stopQrCountdown() {
+  if (qrCountdownTimer) {
+    clearInterval(qrCountdownTimer)
+    qrCountdownTimer = 0
+  }
+  qrExpiresAt.value = 0
+}
+
+function stopQrPolling() {
+  if (qrPollTimer) {
+    clearTimeout(qrPollTimer)
+    qrPollTimer = 0
+  }
+}
+
+function scheduleQrTask(fn, delay = 1500) {
+  stopQrPolling()
+  qrPollTimer = window.setTimeout(fn, delay)
+}
+
+async function refreshQrChallenge() {
+  if (!showQrTab.value) return
+  stopQrPolling()
+  qrLoading.value = true
+  qrState.value = 'waiting'
+  qrDataUrl.value = ''
+  qrChallengeId.value = ''
+  authError.value = ''
+  stopQrCountdown()
+  try {
+    const created = await createWebLoginChallenge()
+    qrChallengeId.value = String(created.id || '')
+    const content = buildWebLoginQrContent(qrChallengeId.value)
+    qrDataUrl.value = await QRCode.toDataURL(content, {
+      width: 220,
+      margin: 2,
+      color: { dark: '#141416', light: '#ffffff' }
+    })
+    startQrCountdown(created.expires_at)
+    scheduleQrTask(() => { void pollQrStatus() }, 1200)
+  } catch (e) {
+    qrState.value = 'error'
+    authError.value = e.message || t('my.authQrError')
+    scheduleQrTask(() => { void refreshQrChallenge() }, 3000)
+  } finally {
+    qrLoading.value = false
+  }
+}
+
+async function pollQrStatus() {
+  if (!qrChallengeId.value || activeMode.value !== 'qr') return
+  try {
+    const result = await getWebLoginChallengeStatus(qrChallengeId.value)
+    const status = String(result?.status || '')
+    if (status === 'approved' && result?.session) {
+      qrState.value = 'approved'
+      await applyWebLoginSession(result.session)
+      await consumeWebLoginChallenge(qrChallengeId.value).catch(() => {})
+      await authStore.initializeAuth?.().catch?.(() => {})
+      emit('login-success', authStore.user)
+      emit('toast', t('my.authLoginSuccess'))
+      closeDialog()
+      return
+    }
+    if (status === 'expired' || status === 'denied' || status === 'consumed') {
+      qrState.value = 'expired'
+      scheduleQrTask(() => { void refreshQrChallenge() }, 1200)
+      return
+    }
+    qrState.value = 'waiting'
+    scheduleQrTask(() => { void pollQrStatus() }, 1500)
+  } catch {
+    scheduleQrTask(() => { void pollQrStatus() }, 2000)
+  }
+}
+
 function switchMode(mode) {
   activeMode.value = mode
   authError.value = ''
   magicLinkSent.value = false
   resetSent.value = false
+  if (mode === 'qr') {
+    void refreshQrChallenge()
+  } else {
+    stopQrPolling()
+  }
 }
 
 function closeDialog() {
@@ -276,6 +425,8 @@ function closeDialog() {
 useDialogBackButton(closeDialog, () => props.modelValue)
 
 function resetForm() {
+  stopQrPolling()
+  stopQrCountdown()
   email.value = ''
   password.value = ''
   confirmPassword.value = ''
@@ -285,6 +436,10 @@ function resetForm() {
   authError.value = ''
   isLoading.value = false
   activeMode.value = 'login-email'
+  qrChallengeId.value = ''
+  qrDataUrl.value = ''
+  qrLoading.value = false
+  qrState.value = 'idle'
 }
 
 async function handleEmailSubmit() {
@@ -405,6 +560,15 @@ async function handleOAuth(provider) {
 
 watch(() => props.modelValue, (val) => {
   if (val) resetForm()
+  else {
+    stopQrPolling()
+    stopQrCountdown()
+  }
+})
+
+onBeforeUnmount(() => {
+  stopQrPolling()
+  stopQrCountdown()
 })
 </script>
 
@@ -579,4 +743,49 @@ watch(() => props.modelValue, (val) => {
   cursor: pointer;
   text-decoration: underline;
 }
+
+.auth-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.auth-qr-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 240px;
+  height: 240px;
+  border-radius: var(--radius-small);
+  background: #fff;
+  border: 1px solid var(--app-border);
+}
+
+.auth-qr-img {
+  width: 220px;
+  height: 220px;
+}
+
+.auth-qr-placeholder {
+  color: var(--app-text-tertiary);
+  font-size: 18px;
+}
+
+.auth-qr-status {
+  margin: 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  text-align: center;
+}
+
+.auth-qr-countdown {
+  margin: 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+
 </style>
