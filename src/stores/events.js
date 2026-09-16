@@ -4,7 +4,7 @@ import { computed, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/music/tracks'
 import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
-import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages } from '@/utils/image/localImage'
+import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages, extractManagedLocalImagePath } from '@/utils/image/localImage'
 import { aliasCachedImage } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goods/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
@@ -488,6 +488,13 @@ export const useEventsStore = defineStore('events', () => {
     if (!(preparedMediaByEventId instanceof Map) || preparedMediaByEventId.size === 0) return
 
     const updatedRecords = []
+    const localPathsToDelete = new Set()
+
+    const collectCoverLocalPath = (data) => {
+      const path = extractManagedLocalImagePath(data?.localPath) || extractManagedLocalImagePath(data?.uri)
+      return path || ''
+    }
+
     for (let index = 0; index < list.value.length; index += 1) {
       const current = list.value[index]
       const payload = preparedMediaByEventId.get(current?.id)
@@ -505,24 +512,40 @@ export const useEventsStore = defineStore('events', () => {
         for (const photo of current.photos) {
           const fileName = String(photo?.cloudFileName || '').trim()
           if (fileName && !prevUriByFileName.has(fileName)) {
-            prevUriByFileName.set(fileName, String(photo?.uri || '').trim())
+            prevUriByFileName.set(fileName, {
+              uri: String(photo?.uri || '').trim(),
+              localPath: String(photo?.localPath || '').trim()
+            })
           }
         }
         nextPhotos = nextPhotos.map((photo) => {
           const fileName = String(photo?.cloudFileName || '').trim()
           const nextUri = String(photo?.uri || '').trim()
-          const prevUri = fileName ? prevUriByFileName.get(fileName) : ''
-          if (fileName && prevUri && nextUri && nextUri !== prevUri) {
-            aliasCachedImage(prevUri, nextUri)
+          const prev = fileName ? prevUriByFileName.get(fileName) : null
+          if (prev?.uri && nextUri && nextUri !== prev.uri) {
+            aliasCachedImage(prev.uri, nextUri)
+          }
+          // 该照片已换成云端 URI → 旧本地副本可删
+          if (prev && /^https?:\/\//.test(nextUri)) {
+            const path = extractManagedLocalImagePath(prev.localPath) || extractManagedLocalImagePath(prev.uri)
+            if (path) localPathsToDelete.add(path)
           }
           return photo
         })
       }
 
+      // 封面已换成云端 URI → 旧本地副本可删
+      const nextCoverData = payload.coverImageData ?? current.coverImageData
+      const nextCoverIsRemote = /^https?:\/\//.test(String(nextCoverImage || ''))
+      if (nextCoverIsRemote) {
+        const path = collectCoverLocalPath(current.coverImageData)
+        if (path) localPathsToDelete.add(path)
+      }
+
       const next = {
         ...current,
         coverImage: nextCoverImage,
-        coverImageData: payload.coverImageData ?? current.coverImageData,
+        coverImageData: nextCoverData,
         photos: nextPhotos
       }
 
@@ -533,6 +556,9 @@ export const useEventsStore = defineStore('events', () => {
     if (updatedRecords.length > 0) {
       await saveEvents(updatedRecords)
       triggerRef(list)
+    }
+    if (localPathsToDelete.size > 0) {
+      await deleteManagedLocalImages(localPathsToDelete)
     }
   }
 
