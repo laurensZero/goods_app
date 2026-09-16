@@ -268,6 +268,11 @@ async function bootstrap() {
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
 
+  // 空闲预取其余主 Tab / 详情 chunk，弱网下切页不再卡在下载
+  import('./utils/router/prefetchRoutes').then(({ prefetchCoreRouteChunksAfterIdle }) => {
+    prefetchCoreRouteChunksAfterIdle()
+  }).catch(() => {})
+
   // MCP 服务：dev 由 Vite dev server 提供入口（页面桥接）；
   // 原生端由 McpServer 插件（NanoHTTPD）提供入口（转发回页面协议层）
   if (import.meta.env.DEV) {
