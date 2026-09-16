@@ -81,15 +81,16 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
   padding: 0 20px;
   border: none;
   border-radius: 16px;
-  background: var(--app-primary);
-  color: #fff;
+  background: #141416;
+  color: #ffffff;
   font-size: 15px;
   font-weight: 600;
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, opacity 0.16s ease;
 }
 
-:global(html.theme-dark) .empty-action {
+:global(html.theme-dark .empty-action) {
+  background: #f5f5f7;
   color: #141416;
 }
 
