@@ -38,6 +38,9 @@ export function useQrScanner() {
   const scannerVideoRef = ref(null)
   const scannerCanvasRef = ref(null)
   const scannerHint = ref('')
+  const showWebLoginConfirm = ref(false)
+  const pendingWebLoginId = ref('')
+  const isApprovingWebLogin = ref(false)
   let scannerStream = null
   let scannerTimer = 0
   let scannerLoopToken = 0
@@ -243,30 +246,51 @@ export function useQrScanner() {
     scheduleScannerTick(getNextScanDelay(performance.now() - startedAt), token)
   }
 
-  async function approveWebLoginFromScanner(challengeId) {
+  /** 扫到网页登录码：停摄像头，弹确认（不自动 approve） */
+  function beginWebLoginConfirm(challengeId) {
     stopScanner()
     showScanner.value = false
     scanning.value = false
     scanError.value = ''
+    pendingWebLoginId.value = challengeId
+    showWebLoginConfirm.value = true
+  }
+
+  function cancelWebLoginConfirm() {
+    showWebLoginConfirm.value = false
+    pendingWebLoginId.value = ''
+    isApprovingWebLogin.value = false
+  }
+
+  async function confirmWebLogin() {
+    const challengeId = pendingWebLoginId.value
+    if (!challengeId || isApprovingWebLogin.value) return
 
     if (!authStore.isLoggedIn || !authStore.session?.access_token) {
+      cancelWebLoginConfirm()
       showGlobalToast(t('my.authQrNeedLogin'))
       return
     }
 
+    isApprovingWebLogin.value = true
     try {
       await approveWebLoginChallenge(challengeId, authStore.session.access_token)
-      scanError.value = ''
       showGlobalToast(t('my.authQrApproved'))
+      cancelWebLoginConfirm()
     } catch (e) {
       const msg = String(e?.message || '')
       if (msg.includes('unauthorized') || msg.includes('missing_token')) {
         showGlobalToast(t('my.authQrNeedLogin'))
-      } else if (msg.includes('invalid_status') || msg.includes('not_found') || msg.includes('session_issue')) {
-        showGlobalToast(msg.includes('session_issue') ? t('my.authQrSessionIssue') : t('my.authQrExpired'))
+      } else if (msg.includes('invalid_status') || msg.includes('not_found')) {
+        showGlobalToast(t('my.authQrExpired'))
+      } else if (msg.includes('session_issue')) {
+        showGlobalToast(t('my.authQrSessionIssue'))
       } else {
         showGlobalToast(t('my.authQrError'))
       }
+      cancelWebLoginConfirm()
+    } finally {
+      isApprovingWebLogin.value = false
     }
   }
 
@@ -276,7 +300,7 @@ export function useQrScanner() {
 
     const webLoginId = parseWebLoginQrContent(text)
     if (webLoginId) {
-      await approveWebLoginFromScanner(webLoginId)
+      beginWebLoginConfirm(webLoginId)
       return
     }
 
@@ -396,7 +420,7 @@ export function useQrScanner() {
 
         const webLoginId = parseWebLoginQrContent(text)
         if (webLoginId) {
-          await approveWebLoginFromScanner(webLoginId)
+          beginWebLoginConfirm(webLoginId)
           return
         }
 
@@ -488,10 +512,15 @@ export function useQrScanner() {
     scannerVideoRef,
     scannerCanvasRef,
     scannerHint,
+    showWebLoginConfirm,
+    pendingWebLoginId,
+    isApprovingWebLogin,
     openScanner,
     closeScanner,
     handleScannerGallery,
     onScannerVideoReady,
-    resetScannerState
+    resetScannerState,
+    cancelWebLoginConfirm,
+    confirmWebLogin
   }
 }

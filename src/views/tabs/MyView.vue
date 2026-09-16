@@ -308,6 +308,35 @@
       @video-ready="onScannerVideoReady"
     />
 
+    <AppSheet
+      :model-value="showWebLoginConfirm"
+      placement="center"
+      size="dialog"
+      :close-on-overlay="false"
+      @update:model-value="(v) => { if (!v) cancelWebLoginConfirm() }"
+    >
+      <h2 class="web-login-confirm__title">{{ t('my.authQrConfirmTitle') }}</h2>
+      <p class="web-login-confirm__desc">{{ t('my.authQrConfirmDesc') }}</p>
+      <div class="web-login-confirm__actions">
+        <button
+          type="button"
+          class="web-login-confirm__btn web-login-confirm__btn--secondary"
+          :disabled="isApprovingWebLogin"
+          @click="cancelWebLoginConfirm"
+        >
+          {{ t('my.authQrCancel') }}
+        </button>
+        <button
+          type="button"
+          class="web-login-confirm__btn web-login-confirm__btn--primary"
+          :disabled="isApprovingWebLogin"
+          @click="confirmWebLogin"
+        >
+          {{ isApprovingWebLogin ? '…' : t('my.authQrConfirm') }}
+        </button>
+      </div>
+    </AppSheet>
+
     <SupabaseLoginDialog
       v-model="showLoginDialog"
       @login-success="handleLoginSuccess"
@@ -878,8 +907,10 @@ const {
 const {
   scanning, scanError, showScanner, scannerReady,
   scannerVideoRef, scannerCanvasRef, scannerHint,
+  showWebLoginConfirm, isApprovingWebLogin,
   openScanner, closeScanner, handleScannerGallery,
-  onScannerVideoReady, resetScannerState
+  onScannerVideoReady, resetScannerState,
+  cancelWebLoginConfirm, confirmWebLogin
 } = useQrScanner()
 
 const CUSTOM_AVATAR_KEY = 'goods_custom_avatar'
@@ -3014,5 +3045,50 @@ onActivated(() => {
   border-top-color: var(--app-text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+/* ── 网页登录确认 ── */
+.web-login-confirm__title {
+  margin: 0 0 8px;
+  color: var(--app-text);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.web-login-confirm__desc {
+  margin: 0 0 20px;
+  color: var(--app-text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.web-login-confirm__actions {
+  display: flex;
+  gap: 10px;
+}
+
+.web-login-confirm__btn {
+  flex: 1;
+  min-height: 44px;
+  border-radius: var(--radius-small);
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.web-login-confirm__btn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.web-login-confirm__btn--secondary {
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  border-color: var(--app-border);
+}
+
+.web-login-confirm__btn--primary {
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 </style>
