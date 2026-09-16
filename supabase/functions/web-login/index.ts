@@ -1,12 +1,13 @@
 // supabase/functions/web-login/index.ts
-// 网页版扫码登录：
-//   create  → 网页生成挑战码（无需登录）
-//   status  → 网页轮询状态（无需登录，挑战码为随机 UUID）
-//   approve → App 已登录用户扫码确认（需 Bearer access_token）
-//   consume → 网页用 status 返回的 session_payload 完成登录后作废（无需登录）
+// 网页版扫码登录（业界 device-code 模型）：
+//   create  → 网页生成短时 ticket（无需登录）
+//   status  → 网页轮询；approved 时带回一次性 session
+//   approve → 手机已登录用户「确认」后提交（Bearer = 手机 access_token）
+//   consume → 网页取走 session 后作废 ticket
 //
-// 会话签发：generateLink(type=magiclink) 取 email_otp，再调 GoTrue /verify
-// 直接换 access_token/refresh_token（比跟随重定向稳），暂存到挑战行。
+// 会话签发：用 SUPABASE_JWT_SECRET 自签 access_token（HS256），
+// 不走 generateLink/verify —— 那条路可能回收同用户其它 session（手机会掉登录）。
+// 签发的 token 约 100 年有效（实际不过期）；无 refresh token。
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -16,6 +17,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 }
+
+// 实际不过期：JWT 必须有 exp，设为约 100 年
+const ACCESS_TOKEN_TTL_SECONDS = 100 * 365 * 24 * 60 * 60
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -38,104 +42,88 @@ function extractBearer(req: Request): string {
   return (match?.[1] || "").trim()
 }
 
-type SessionTokens = {
+function base64UrlEncode(bytes: Uint8Array): string {
+  let bin = ""
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")
+}
+
+async function signAccessToken(user: {
+  id: string
+  email?: string
+  app_metadata?: Record<string, unknown>
+  user_metadata?: Record<string, unknown>
+}): Promise<{ access_token: string; refresh_token: string; expires_in: number; debug?: string } | null> {
+  const secret = Deno.env.get("AUTH_JWT_SECRET") || Deno.env.get("JWT_SECRET") || ""
+  if (!secret) {
+    console.error("web-login:missing-jwt-secret")
+    return { access_token: "", refresh_token: "", expires_in: 0, debug: "missing_jwt_secret" }
+  }
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!
+  const admin = getServiceClient()
+
+  // 在 auth.sessions 建独立 session（不回收其它设备）
+  const { data: created, error: rpcError } = await admin.rpc("create_web_login_session", {
+    p_user_id: user.id,
+  })
+  if (rpcError || !created?.session_id || !created?.refresh_token) {
+    const dbg = rpcError?.message || "no_session_fields"
+    console.error("web-login:create-session-rpc", dbg)
+    return { access_token: "", refresh_token: "", expires_in: 0, debug: `rpc:${dbg}` }
+  }
+
+  const now = Math.floor(Date.now() / 1000)
+  const exp = now + ACCESS_TOKEN_TTL_SECONDS
+  const header = { alg: "HS256", typ: "JWT" }
+  const payload = {
+    iss: `${supabaseUrl}/auth/v1`,
+    sub: user.id,
+    aud: "authenticated",
+    exp,
+    iat: now,
+    email: user.email || "",
+    phone: "",
+    app_metadata: user.app_metadata || {},
+    user_metadata: user.user_metadata || {},
+    role: "authenticated",
+    aal: "aal1",
+    amr: [{ method: "password", timestamp: now }],
+    session_id: created.session_id,
+  }
+
+  const enc = new TextEncoder()
+  const headerB64 = base64UrlEncode(enc.encode(JSON.stringify(header)))
+  const payloadB64 = base64UrlEncode(enc.encode(JSON.stringify(payload)))
+  const data = `${headerB64}.${payloadB64}`
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  )
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(data))
+  const sigB64 = base64UrlEncode(new Uint8Array(sig))
+
+  return {
+    access_token: `${data}.${sigB64}`,
+    refresh_token: String(created.refresh_token),
+    expires_in: ACCESS_TOKEN_TTL_SECONDS,
+  }
+}
+
+type SessionPayload = {
   access_token: string
   refresh_token: string
   expires_in: number
   token_type: string
-}
-
-/**
- * generateLink(magiclink) → OTP → /verify 换会话。
- * 不用 recovery：recovery 验证成功会按项目设置回收该用户其它设备的 session。
- */
-async function issueSessionViaMagicOtp(email: string): Promise<{ session: SessionTokens | null; debug: string }> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!
-
-  const admin = createClient(supabaseUrl, serviceKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  })
-
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email,
-  })
-  if (linkError || !linkData) {
-    const msg = linkError?.message || "no_link_data"
-    console.error("web-login:generate-link", msg)
-    return { session: null, debug: `generate_link:${msg}` }
-  }
-
-  const linkObj = linkData as Record<string, unknown>
-  // 不同版本 supabase-js 可能是扁平字段，或嵌在 properties 下
-  const nested = (linkObj.properties || linkObj) as Record<string, unknown>
-  const keys = Object.keys(linkObj).join(",")
-  const nestedKeys = Object.keys(nested || {}).join(",")
-  console.error("web-login:generate-link-keys", keys, "nested:", nestedKeys)
-
-  let token = String(nested?.email_otp || linkObj.email_otp || "").trim()
-  let actionLink = String(nested?.action_link || linkObj.action_link || "").trim()
-  if (!token && actionLink) {
-    try {
-      const actionUrl = new URL(actionLink)
-      token = (actionUrl.searchParams.get("token") || "").trim()
-    } catch {
-      token = ""
-    }
-  }
-  if (!token) {
-    // 有时 hashed_token 就是 verify token
-    token = String(nested?.hashed_token || linkObj.hashed_token || "").trim()
-  }
-  if (!token) {
-    console.error("web-login:missing-otp", nestedKeys)
-    return {
-      session: null,
-      debug: `missing_otp keys=${keys} nested=${nestedKeys} link=${actionLink.slice(0, 120)}`,
-    }
-  }
-
-  // GoTrue 对 generateLink 返回的 OTP：verify 用 type=email + email + token
-  // （magiclink/recovery 类型 verify 需要额外 redirect 参数，且 recovery 会回收 session）
-  const verifyRes = await fetch(`${supabaseUrl}/auth/v1/verify`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: anonKey,
-    },
-    body: JSON.stringify({
-      type: "email",
-      email,
-      token,
-      create_user: false,
-    }),
-  })
-
-  const payload = await verifyRes.json().catch(() => ({}))
-  if (!verifyRes.ok) {
-    const msg = String(payload?.msg || payload?.error_description || payload?.error || verifyRes.status)
-    console.error("web-login:verify-failed", verifyRes.status, msg)
-    return { session: null, debug: `verify:${verifyRes.status}:${msg}` }
-  }
-
-  const access_token = String(payload?.access_token || "")
-  const refresh_token = String(payload?.refresh_token || "")
-  if (!access_token || !refresh_token) {
-    const keys = Object.keys(payload || {}).join(",")
-    console.error("web-login:verify-missing-tokens", keys)
-    return { session: null, debug: `verify_missing_tokens:${keys}` }
-  }
-
-  return {
-    session: {
-      access_token,
-      refresh_token,
-      expires_in: Number(payload?.expires_in || 3600),
-      token_type: String(payload?.token_type || "bearer"),
-    },
-    debug: "ok",
+  user: {
+    id: string
+    email: string
+    app_metadata: Record<string, unknown>
+    user_metadata: Record<string, unknown>
   }
 }
 
@@ -158,21 +146,18 @@ async function expireIfNeeded(admin: ReturnType<typeof getServiceClient>, id: st
   return data
 }
 
-/** 顺手清理历史挑战，避免表膨胀；不影响进行中的 pending */
 async function cleanupOldChallenges(admin: ReturnType<typeof getServiceClient>) {
   const now = Date.now()
   const terminalCutoff = new Date(now - 15 * 60 * 1000).toISOString()
   const orphanCutoff = new Date(now - 60 * 60 * 1000).toISOString()
 
   try {
-    // 终态超过 15 分钟：consumed / denied / expired
     await admin
       .from("web_login_challenges")
       .delete()
       .in("status", ["consumed", "denied", "expired"])
       .lt("created_at", terminalCutoff)
 
-    // 超过 1 小时仍未消费的残留（含 pending 超时、approved 未被网页取走）
     await admin
       .from("web_login_challenges")
       .delete()
@@ -186,10 +171,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405)
 
-  let body: {
-    action?: string
-    id?: string
-  }
+  let body: { action?: string; id?: string }
   try {
     body = await req.json()
   } catch {
@@ -237,7 +219,11 @@ serve(async (req) => {
 
       const { data: row } = await admin
         .from("web_login_challenges")
-        .update({ status: "consumed", consumed_at: new Date().toISOString(), session_payload: null })
+        .update({
+          status: "consumed",
+          consumed_at: new Date().toISOString(),
+          session_payload: null,
+        })
         .eq("id", id)
         .eq("status", "approved")
         .select("id")
@@ -252,7 +238,6 @@ serve(async (req) => {
       if (!id) return json({ error: "missing_id" }, 400)
       if (!token) return json({ error: "missing_token" }, 401)
 
-      // 校验 App 侧登录态
       const userClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
@@ -266,10 +251,6 @@ serve(async (req) => {
         return json({ error: "unauthorized" }, 401)
       }
       const user = userData.user
-      const email = String(user.email || "").trim()
-      if (!email) {
-        return json({ error: "user_missing_email" }, 400)
-      }
 
       const current = await expireIfNeeded(admin, id)
       if (!current) return json({ error: "not_found" }, 404)
@@ -277,12 +258,27 @@ serve(async (req) => {
         return json({ error: `invalid_status:${current.status}` }, 409)
       }
 
-      // 签发独立会话给网页（不复用手机 token）
-      const issued = await issueSessionViaMagicOtp(email)
-      const session = issued.session
-      if (!session?.access_token || !session?.refresh_token) {
-        console.error("web-login:session-issue-failed", issued.debug)
-        return json({ error: "session_issue_failed", debug: issued.debug }, 502)
+      const signed = await signAccessToken({
+        id: user.id,
+        email: user.email || "",
+        app_metadata: (user.app_metadata || {}) as Record<string, unknown>,
+        user_metadata: (user.user_metadata || {}) as Record<string, unknown>,
+      })
+      if (!signed?.access_token) {
+        return json({ error: "session_issue_failed", debug: signed?.debug || "sign_failed" }, 502)
+      }
+
+      const session: SessionPayload = {
+        access_token: signed.access_token,
+        refresh_token: signed.refresh_token,
+        expires_in: signed.expires_in,
+        token_type: "bearer",
+        user: {
+          id: user.id,
+          email: String(user.email || ""),
+          app_metadata: (user.app_metadata || {}) as Record<string, unknown>,
+          user_metadata: (user.user_metadata || {}) as Record<string, unknown>,
+        },
       }
 
       const { data: updated, error: updateError } = await admin
@@ -305,7 +301,7 @@ serve(async (req) => {
 
       return json({
         ok: true,
-        user: { id: user.id, email },
+        user: { id: user.id, email: user.email || "" },
       })
     }
 

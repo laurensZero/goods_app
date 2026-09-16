@@ -64,17 +64,48 @@ export async function consumeWebLoginChallenge(challengeId) {
   return callWebLogin({ action: 'consume', id: challengeId })
 }
 
-/** 将 Edge Function 签发的 session 写入本机 Supabase Auth */
+/**
+ * 将 Edge Function 签发的 session 写入本机 Supabase Auth。
+ * JWT 自签 token 无 refresh token；服务端签发约 100 年有效期（实际不过期）。
+ */
 export async function applyWebLoginSession(session) {
   const client = getSupabaseClient()
+  const expiresIn = Number(session.expires_in) || (100 * 365 * 24 * 60 * 60)
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresIn
+  const user = session.user || null
+
+  // supabase-js v2 会话存储格式（storageKey: sb-main-auth-token）
+  const storageKey = 'sb-main-auth-token'
+  const nextSession = {
+    access_token: session.access_token,
+    refresh_token: session.refresh_token || '',
+    expires_at: expiresAt,
+    expires_in: expiresIn,
+    token_type: session.token_type || 'bearer',
+    user
+  }
+
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(nextSession))
+  } catch {
+    // quota / private mode — 仍尝试 setSession
+  }
+
+  // setSession 会触发 onAuthStateChange；无 refresh 时依赖未过期 access_token
   const { error } = await client.auth.setSession({
     access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_in: Number(session.expires_in) || 3600,
+    refresh_token: session.refresh_token || '',
+    expires_in: expiresIn,
     token_type: session.token_type || 'bearer'
   })
+
+  // setSession 可能因空 refresh 失败；本地已写入则再 getSession 校验
   if (error) {
-    throw new Error(error.message || '扫码登录会话应用失败')
+    const { data, error: getSessionError } = await client.auth.getSession()
+    if (getSessionError || !data?.session?.access_token) {
+      throw new Error(error.message || '扫码登录会话应用失败')
+    }
   }
+
   return true
 }
