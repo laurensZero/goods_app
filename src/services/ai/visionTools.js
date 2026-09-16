@@ -46,10 +46,14 @@ export const VISION_TOOL_DEFINITIONS = [
  * @param {(token: string) => { uri: string, localPath?: string }} [deps.resolveSource]
  *   自定义取图（序号 / att:<id> / 原样 URI）；缺省时纯数字走 getAttachments，其余当 URI
  * @param {(cloudFileName: string) => Promise<string | null>} [deps.restoreCloud] 云端图片 → data URL
+ * @param {() => AbortSignal | undefined} [deps.getSignal] 当前轮停止信号（用户点停止生成）
  */
-export function createVisionToolHandlers({ getConfig, getAttachments, resolveSource, restoreCloud }) {
+export function createVisionToolHandlers({ getConfig, getAttachments, resolveSource, restoreCloud, getSignal }) {
   /** @param {Record<string, any>} args */
   async function vision_analyze(args) {
+    const signal = typeof getSignal === 'function' ? getSignal() : undefined
+    if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
+
     const raw = String(args?.image || '').trim()
     if (!raw) throw new Error('image 必填')
 
@@ -57,15 +61,19 @@ export function createVisionToolHandlers({ getConfig, getAttachments, resolveSou
       ? resolveSource(raw)
       : fallbackResolveSource(raw, getAttachments)
     const config = getConfig()
+    const imageUrl = await resolveImageForVision({
+      uri: source.uri,
+      localPath: source.localPath,
+      restoreCloud
+    })
+    if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
+
     const description = await runVisionCompletion({
       config,
       visionModel: config.visionModel,
-      imageUrl: await resolveImageForVision({
-        uri: source.uri,
-        localPath: source.localPath,
-        restoreCloud
-      }),
-      prompt: String(args?.question || '').trim()
+      imageUrl,
+      prompt: String(args?.question || '').trim(),
+      signal
     })
     return { description }
   }

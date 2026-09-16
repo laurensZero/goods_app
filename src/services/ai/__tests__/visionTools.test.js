@@ -96,4 +96,35 @@ describe('visionTools', () => {
       uri: 'cloud-image://goods-image__a__1.jpg'
     }))
   })
+
+  it('把 getSignal 的 AbortSignal 传给 runVisionCompletion', async () => {
+    const controller = new AbortController()
+    const handlers = createVisionToolHandlers({
+      getConfig: () => CONFIG,
+      getAttachments: () => [],
+      getSignal: () => controller.signal
+    })
+
+    await handlers.vision_analyze({ image: 'https://example.com/a.png' })
+
+    expect(runVisionCompletionMock).toHaveBeenCalledWith(expect.objectContaining({
+      signal: controller.signal
+    }))
+  })
+
+  it('signal 已中止时不发请求', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const handlers = createVisionToolHandlers({
+      getConfig: () => CONFIG,
+      getAttachments: () => [],
+      getSignal: () => controller.signal
+    })
+
+    await expect(
+      handlers.vision_analyze({ image: 'https://example.com/a.png' })
+    ).rejects.toThrow('已停止生成')
+    expect(resolveImageForVisionMock).not.toHaveBeenCalled()
+    expect(runVisionCompletionMock).not.toHaveBeenCalled()
+  })
 })

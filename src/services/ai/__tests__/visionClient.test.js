@@ -103,4 +103,32 @@ describe('visionClient', () => {
       imageUrl: 'data:image/jpeg;base64,AAA'
     })).rejects.toThrow('视觉模型返回了空回复')
   })
+
+  it('signal 已中止时不发请求', async () => {
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(runVisionCompletion({
+      config: CONFIG,
+      imageUrl: 'data:image/jpeg;base64,AAA',
+      signal: controller.signal
+    })).rejects.toThrow('已停止生成')
+    expect(CapacitorHttpMock).not.toHaveBeenCalled()
+  })
+
+  it('请求途中用户中止：立刻 reject 已停止生成（原生路径无法真正 cancel，但 UI 可放行）', async () => {
+    const controller = new AbortController()
+    CapacitorHttpMock.mockImplementationOnce(
+      () => new Promise(() => {}) // 永不返回，模拟卡死
+    )
+
+    const promise = runVisionCompletion({
+      config: CONFIG,
+      imageUrl: 'data:image/jpeg;base64,AAA',
+      signal: controller.signal
+    })
+    const assertion = expect(promise).rejects.toThrow('已停止生成')
+    controller.abort()
+    await assertion
+  })
 })

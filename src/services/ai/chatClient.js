@@ -425,6 +425,10 @@ export async function runChatCompletion(options) {
         if (!name) throw new Error('工具名为空')
         resultPayload = await executor(name, args)
       } catch (e) {
+        // 用户已停止：工具内的网络请求多半也被 abort 了，不要把中止当成工具失败继续下一轮
+        if (signal?.aborted || (e instanceof DOMException && e.name === 'AbortError')) {
+          throw new DOMException('已停止生成', 'AbortError')
+        }
         ok = false
         errorText = e instanceof Error ? e.message : String(e)
         resultPayload = { error: errorText }

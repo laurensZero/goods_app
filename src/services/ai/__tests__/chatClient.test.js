@@ -244,6 +244,32 @@ describe('chatClient', () => {
       .rejects.toThrow('空回复')
   })
 
+  it('工具抛 AbortError（用户停止）时整轮中断，不继续下一轮工具', async () => {
+    const controller = new AbortController()
+    CapacitorHttp.request.mockResolvedValueOnce(nativeResponse(200, {
+      choices: [{
+        message: {
+          role: 'assistant', content: null,
+          tool_calls: [{ id: 'c1', function: { name: 'vision_analyze', arguments: '{}' } }]
+        }
+      }]
+    }))
+    EXECUTOR.mockImplementationOnce(async () => {
+      controller.abort()
+      throw new DOMException('已停止生成', 'AbortError')
+    })
+
+    await expect(runChatCompletion({
+      config: CONFIG,
+      messages: [],
+      tools: TOOLS,
+      executor: EXECUTOR,
+      signal: controller.signal
+    })).rejects.toThrow('已停止生成')
+    // 只有第 1 轮请求；工具中止后不应再发后续 chat 请求
+    expect(CapacitorHttp.request).toHaveBeenCalledTimes(1)
+  })
+
   describe('流式（onDelta 提供 SSE 请求）', () => {
     const originalFetch = globalThis.fetch
 
