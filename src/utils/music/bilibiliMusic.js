@@ -114,7 +114,12 @@ async function biliJson(path, params = {}, options = {}) {
         status = Number(response.status || 0)
       } else {
         const response = await fetchWithPlatformBridge(`${BILIBILI_PROXY_PREFIX}${path}?${query.toString()}`, { headers: { Referer: BILIBILI_REFERER } })
-        payload = await response.json()
+        const text = await response.text()
+        const trimmed = text.trim()
+        if (!trimmed || trimmed.startsWith('<')) {
+          throw new Error('Bilibili 接口被风控拦截，请稍后重试或改用其他音乐源')
+        }
+        payload = JSON.parse(trimmed)
         status = response.status
       }
       break
@@ -140,7 +145,12 @@ async function biliSearchJson(query) {
     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data
   }
   const response = await fetchWithPlatformBridge(`${BILIBILI_PROXY_PREFIX}/x/web-interface/wbi/search/type?${query}`, { headers: { Referer: BILIBILI_REFERER } })
-  return response.json()
+  const text = await response.text()
+  const trimmed = text.trim()
+  if (!trimmed || trimmed.startsWith('<')) {
+    throw new Error('Bilibili 接口被风控拦截，请稍后重试或改用其他音乐源')
+  }
+  return JSON.parse(trimmed)
 }
 
 async function prepareBilibiliMediaUrl(url) {
