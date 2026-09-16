@@ -133,6 +133,7 @@
   "my.authQrExpired": "QR コードの有効期限が切れました。更新して再試行してください",
   "my.authQrExpiresIn": "残り {time}",
   "my.authQrError": "QR ログインに失敗しました。後でもう一度お試しください",
+  "my.authQrSessionIssue": "セッション発行に失敗しました。メールまたはマジックリンクでログインしてください",
   "my.authQrNeedLogin": "先にスマホアプリでログインしてください",
   "my.accountManage": "アカウント管理",
   "my.changePassword": "パスワード変更",

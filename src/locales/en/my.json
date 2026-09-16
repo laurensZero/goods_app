@@ -133,6 +133,7 @@
   "my.authQrExpired": "QR code expired. Please refresh and try again",
   "my.authQrExpiresIn": "Expires in {time}",
   "my.authQrError": "QR login failed. Please try again later",
+  "my.authQrSessionIssue": "Session issue failed. Please use email or magic link login",
   "my.authQrNeedLogin": "Please sign in on the phone app first",
   "my.accountManage": "Account Management",
   "my.changePassword": "Change Password",

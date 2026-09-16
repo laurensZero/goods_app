@@ -133,6 +133,7 @@
   "my.authQrExpired": "二维码已过期，请刷新后重试",
   "my.authQrExpiresIn": "{time} 后过期",
   "my.authQrError": "扫码登录失败，请稍后重试",
+  "my.authQrSessionIssue": "会话签发失败，请用邮箱或魔法链接登录",
   "my.authQrNeedLogin": "请先在手机 App 登录后再扫码",
   "my.accountManage": "账号管理",
   "my.changePassword": "修改密码",
