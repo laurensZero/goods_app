@@ -4,8 +4,10 @@ import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import jsQR from 'jsqr'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
+import { parseWebLoginQrContent, approveWebLoginChallenge } from '@/utils/auth/webLogin'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
+import { useAuthStore } from '@/stores/auth'
 
 const CAMERA_CONSTRAINTS = {
   video: {
@@ -26,6 +28,7 @@ const GALLERY_SCAN_MAX_EDGE = 1400
 export function useQrScanner() {
   const { t } = useI18n()
   const router = useRouter()
+  const authStore = useAuthStore()
 
   const scanning = ref(false)
   const scanError = ref('')
@@ -239,9 +242,52 @@ export function useQrScanner() {
     scheduleScannerTick(getNextScanDelay(performance.now() - startedAt), token)
   }
 
+  async function approveWebLoginFromScanner(challengeId) {
+    stopScanner()
+    showScanner.value = false
+    scanning.value = false
+    scanError.value = ''
+
+    if (!authStore.isLoggedIn || !authStore.session?.access_token) {
+      scanError.value = t('my.authQrNeedLogin')
+      return
+    }
+
+    try {
+      await approveWebLoginChallenge(challengeId, authStore.session.access_token)
+      scanError.value = ''
+      // 通过 toast 风格提示：扫码确认成功
+      window.setTimeout(() => {
+        // 组件可能已卸载，忽略
+      }, 0)
+      // 用全局轻提示：复用现有 showToast 若不可用则静默成功
+      try {
+        const { showToast } = await import('vant')
+        showToast(t('my.authQrApproved'))
+      } catch {
+        // ignore
+      }
+    } catch (e) {
+      const msg = String(e?.message || '')
+      if (msg.includes('unauthorized') || msg.includes('missing_token')) {
+        scanError.value = t('my.authQrNeedLogin')
+      } else if (msg.includes('invalid_status') || msg.includes('not_found')) {
+        scanError.value = t('my.authQrExpired')
+      } else {
+        scanError.value = t('my.authQrError')
+      }
+    }
+  }
+
   async function onScannerQRFound(text) {
     if (scannerResolved) return
     scannerResolved = true
+
+    const webLoginId = parseWebLoginQrContent(text)
+    if (webLoginId) {
+      await approveWebLoginFromScanner(webLoginId)
+      return
+    }
 
     const storagePath = parseStorageQrUrl(text)
     if (storagePath) {
@@ -354,6 +400,12 @@ export function useQrScanner() {
         if (!text) {
           scanError.value = t('my.scanNoQR')
           scanning.value = false
+          return
+        }
+
+        const webLoginId = parseWebLoginQrContent(text)
+        if (webLoginId) {
+          await approveWebLoginFromScanner(webLoginId)
           return
         }
 

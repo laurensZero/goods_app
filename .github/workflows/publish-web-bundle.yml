@@ -63,6 +63,7 @@ on:
       - '**/*.spec.vue'
       - 'tests/**'
       - 'android/**'
+      - 'functions/**'
 
 env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
