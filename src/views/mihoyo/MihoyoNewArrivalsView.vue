@@ -480,12 +480,11 @@ const giftItems = computed(() =>
   activeCatalog.value === 'gift' ? filteredItems.value : [],
 )
 
-/** sale_time 为北京墙钟 unix 秒，+8h 得真实开售 UTC；已过开售时刻 = 已上架 */
+/** sale_time 为标准 UTC unix 秒（remaining_time 与真实 epoch 对齐验证）；已过开售时刻 = 已上架 */
 function isReleasedItem(item) {
   const saleSec = Number(item?.sale_time) || 0
   if (!saleSec) return false
-  const saleMs = saleSec * 1000 + 8 * 3600_000
-  return saleMs <= Date.now()
+  return saleSec * 1000 <= Date.now()
 }
 
 const shopMainItems = computed(() =>
