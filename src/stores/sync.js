@@ -31,6 +31,7 @@ import {
   EVENT_COVER_PREFIX,
   EVENT_PHOTO_PREFIX,
   RECHARGE_IMAGE_PREFIX,
+  BATCH_DRAFT_IMAGE_PREFIX,
   IMAGE_FILE_SIZE_LIMIT,
   SYNC_SCHEMA_VERSION
 } from '@/constants/syncConstants'
@@ -282,7 +283,10 @@ export const useSyncStore = defineStore('sync', () => {
     imageFilePrefix: IMAGE_FILE_PREFIX,
     eventCoverPrefix: EVENT_COVER_PREFIX,
     eventPhotoPrefix: EVENT_PHOTO_PREFIX,
-    rechargeImagePrefix: RECHARGE_IMAGE_PREFIX
+    rechargeImagePrefix: RECHARGE_IMAGE_PREFIX,
+    // 新增同步域图片前缀时必须同步挂到这里，否则 collectSupabaseOrphanImageFiles
+    // 会直接 skip（matchedPrefix 为空），该域云端图永远无法回收
+    batchDraftImagePrefix: BATCH_DRAFT_IMAGE_PREFIX
   })
 
   const conflictService = createSyncConflictService({
@@ -297,6 +301,8 @@ export const useSyncStore = defineStore('sync', () => {
     buildRechargeSyncData, buildEventSyncData, getLatestLocalModifiedAt
   })
 
+  // TODO: payloadService 改为直接透传 createSyncPayloadService 的完整返回值，勿手工列方法。
+  // 2026-09 漏挂 buildBatchDraftSyncPayload 曾导致「payload.buildBatchDraftSyncPayload is not a function」、草稿推不上云。
   const payloadService = {
     buildSyncPayload, buildRechargeSyncData, buildBatchDraftSyncPayload,
     buildEventSyncPayload, buildManifest,

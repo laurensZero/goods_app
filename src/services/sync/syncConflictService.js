@@ -46,6 +46,9 @@ export function createSyncConflictService({
     const updatedGroups = groups.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
     const updatedGroupItems = groupItems.filter((item) => (Number(item.updatedAt) || 0) > timestamp).length
 
+    // TODO: batch_drafts 不在本函数扫描范围内（无 Pinia store，需 async 读 DB）。
+    // 冲突弹窗不会显示草稿变更数；推送侧已用 dirtyDomains + pull 后补推兜底。
+    // 若将来冲突 UI 要展示草稿，此处需扩展。
     return {
       updatedGoods,
       updatedTrash,
