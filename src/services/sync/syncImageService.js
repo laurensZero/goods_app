@@ -15,10 +15,17 @@ export function createSyncImageService({
   imageFilePrefix,
   eventCoverPrefix,
   eventPhotoPrefix,
-  rechargeImagePrefix
+  rechargeImagePrefix,
+  batchDraftImagePrefix
 }) {
   function resolveBackend() {
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
+  }
+
+  // 同步域图片前缀唯一枚举处：新增域必须在此登记，否则孤儿回收不会扫到该前缀的文件
+  function listManagedImagePrefixes() {
+    return [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix, rechargeImagePrefix, batchDraftImagePrefix]
+      .filter((p) => !!p)
   }
 
   async function resolveRemoteImageCloud(remoteManifest) {
@@ -264,7 +271,7 @@ export function createSyncImageService({
       refs.add(n.endsWith('.txt') ? n.slice(0, -4) : n)
     }
 
-    const prefixes = [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix, rechargeImagePrefix]
+    const prefixes = listManagedImagePrefixes()
     const orphans = []
     for (const [key, value] of Object.entries(existingImageCloud.files || {})) {
       if (orphans.length >= MAX_ORPHAN_DELETE_PER_SYNC) break
@@ -303,14 +310,10 @@ export function createSyncImageService({
       return {}
     }
 
+    const prefixes = listManagedImagePrefixes()
     const files = {}
     for (const filename of Object.keys(existingImageCloud?.files || {})) {
-      if (
-        !filename.startsWith(imageFilePrefix)
-        && !filename.startsWith(eventCoverPrefix)
-        && !filename.startsWith(eventPhotoPrefix)
-        && !filename.startsWith(rechargeImagePrefix)
-      ) continue
+      if (!prefixes.some((prefix) => filename.startsWith(prefix))) continue
       if (referencedImageFiles.has(filename)) continue
       files[filename] = null
     }

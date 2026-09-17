@@ -112,11 +112,13 @@ describe('createSyncImageService', () => {
       trackSyncStep: mockTrackSyncStep,
       imageFilePrefix: 'goods-image__',
       eventCoverPrefix: 'event-cover__',
-      eventPhotoPrefix: 'event-photo__'
+      eventPhotoPrefix: 'event-photo__',
+      rechargeImagePrefix: 'recharge-image__',
+      batchDraftImagePrefix: 'batch-draft-image__'
     })
 
     const OLD_CREATED_AT = '2020-01-01T00:00:00Z'
-    const ownedIds = () => new Set(['1712000000000', 'evt1'])
+    const ownedIds = () => new Set(['1712000000000', 'evt1', 'collection', 'wishlist'])
 
     function makeCloud(files, complete = true) {
       return { id: 'goods-images', files, complete }
@@ -131,6 +133,33 @@ describe('createSyncImageService', () => {
         ownedEntityIds: ownedIds()
       })
       expect(result).toEqual(['goods-image__1712000000000__img_a__1.jpg'])
+    })
+
+    it('reclaims unreferenced batch draft images (prefix must be registered)', () => {
+      // 回归：前缀未挂进 imageService 时，batch-draft-image__ 会被 matchedPrefix skip，云端草稿图永远无法回收
+      const cloud = makeCloud({
+        'batch-draft-image__collection__q1__1712000000000.jpg': {
+          name: 'batch-draft-image__collection__q1__1712000000000.jpg',
+          createdAt: OLD_CREATED_AT
+        }
+      })
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles: new Set(),
+        ownedEntityIds: ownedIds()
+      })
+      expect(result).toEqual(['batch-draft-image__collection__q1__1712000000000.jpg'])
+    })
+
+    it('keeps batch draft images still referenced by local draft rows', () => {
+      const name = 'batch-draft-image__collection__q1__1712000000000.jpg'
+      const cloud = makeCloud({
+        [name]: { name, createdAt: OLD_CREATED_AT }
+      })
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles: new Set([name]),
+        ownedEntityIds: ownedIds()
+      })
+      expect(result).toEqual([])
     })
 
     it('keeps referenced files', () => {
