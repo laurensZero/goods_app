@@ -14,7 +14,7 @@ import {
 } from '@/utils/github/release'
 import { normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
-import { SUPABASE_URL } from '@/config/supabase'
+import { toDirectStorageUrl, toProxiedStorageUrl } from '@/config/mediaProxy'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
@@ -117,7 +117,8 @@ async function fetchLatestApkFromSupabase() {
   const storagePath = String(record?.storage_path || '').trim()
   if (!version || !storagePath) return null
 
-  const downloadUrl = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${storagePath}`
+  const downloadUrl = toDirectStorageUrl(storagePath)
+  const fallbackDownloadUrl = toProxiedStorageUrl(storagePath)
   const fileName = storagePath.split('/').pop() || ''
 
   return {
@@ -131,6 +132,7 @@ async function fetchLatestApkFromSupabase() {
       ? [{
           name: fileName,
           browser_download_url: downloadUrl,
+          fallback_download_url: fallbackDownloadUrl,
           size: Number(record?.file_size || 0)
         }]
       : []
@@ -356,23 +358,25 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
         log.warn('download:missing-apk-sha256')
       }
 
-      let downloadAttempt = 0
-      while (downloadAttempt < 2) {
-        downloadAttempt += 1
+      const downloadUrls = [downloadUrl, asset?.fallback_download_url]
+        .filter((url, index, urls) => url && urls.indexOf(url) === index)
+      let downloaded = false
+      for (const sourceUrl of downloadUrls) {
         try {
           await Filesystem.downloadFile({
-            url: downloadUrl,
+            url: sourceUrl,
             path: filePath,
             directory: Directory.Cache,
             progress: true,
             recursive: true
           })
+          downloaded = true
           break
         } catch (downloadErr) {
-          if (downloadAttempt >= 2) throw downloadErr
-          await sleep(450)
+          log.warn('download:source-failed', { url: sourceUrl }, downloadErr)
         }
       }
+      if (!downloaded) throw new Error('所有更新下载源均不可用。')
 
       if (expectedSha256) {
         downloadSpeed.value = i18n.global.t('about.apkVerifying')
