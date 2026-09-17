@@ -14,6 +14,8 @@ import {
   rememberBilibiliMediaHostsFromPlayurl
 } from './scripts/bilibili-media-allowlist.mjs'
 
+// ONNX Runtime 与 wasm 均不进静态包：JS 走 CDN loader（见 scripts/ort-cdn-*.js），
+// 这里兜底删掉任何仍被 rollup 打出的 ort 产物，避免 APK 膨胀。
 function removeBundledCutoutWasm() {
   let outputDir = ''
   return {
@@ -27,7 +29,7 @@ function removeBundledCutoutWasm() {
       const fileNames = await readdir(assetDir).catch(() => [])
       await Promise.all(
         fileNames
-          .filter((fileName) => /^ort-wasm-.*\.wasm$/.test(fileName))
+          .filter((fileName) => /^(ort-wasm-.*\.wasm|ort\..*\.mjs|ort\..*\.js|ort\.bundle.*)$/.test(fileName))
           .map((fileName) => unlink(join(assetDir, fileName)).catch(() => undefined))
       )
     }
@@ -137,10 +139,22 @@ export default defineConfig({
   // Capacitor 打包时从 file:// 协议加载，必须用相对路径
   base: './',
   resolve: {
-    alias: {
+    alias: [
+      // WebGPU 入口更具体，需排在 onnxruntime-web 之前
+      {
+        find: /^onnxruntime-web\/webgpu$/,
+        replacement: fileURLToPath(new URL('./scripts/ort-cdn-webgpu-loader.js', import.meta.url))
+      },
+      {
+        find: /^onnxruntime-web$/,
+        replacement: fileURLToPath(new URL('./scripts/ort-cdn-loader.js', import.meta.url))
+      },
       // @ 指向 src，方便路径引用
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    }
+      {
+        find: '@',
+        replacement: fileURLToPath(new URL('./src', import.meta.url))
+      }
+    ]
   },
   server: {
     host: '0.0.0.0', // 允许局域网手机访问预览
@@ -216,6 +230,8 @@ export default defineConfig({
     }
   },
   build: {
+    // ORT CDN loader 使用顶层 await（imgly 动态 import onnxruntime-web）
+    target: 'es2022',
     // 按需生成 sourcemap（BUILD_SOURCEMAP=1 npm run build）：
     // 用于符号化反馈日志里的压缩堆栈；默认关闭，避免 .map 被打进 OTA zip/APK
     sourcemap: process.env.BUILD_SOURCEMAP === '1' ? 'hidden' : false,
