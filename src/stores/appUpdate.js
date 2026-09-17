@@ -12,9 +12,8 @@ import {
   resolveReleaseAsset,
   resolveReleaseTargetUrl
 } from '@/utils/github/release'
-import { normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, parseApkSha256FromText, toDirectStorageUrl } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
-import { resolveOtaStorageUrls } from '@/config/mediaProxy'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
@@ -117,7 +116,7 @@ async function fetchLatestApkFromSupabase() {
   const storagePath = String(record?.storage_path || '').trim()
   if (!version || !storagePath) return null
 
-  const { primary: downloadUrl, fallback: fallbackDownloadUrl } = resolveOtaStorageUrls(storagePath)
+  const downloadUrl = toDirectStorageUrl(storagePath)
   const fileName = storagePath.split('/').pop() || ''
 
   return {
@@ -131,7 +130,7 @@ async function fetchLatestApkFromSupabase() {
       ? [{
           name: fileName,
           browser_download_url: downloadUrl,
-          fallback_download_url: fallbackDownloadUrl,
+          fallback_download_url: '',
           size: Number(record?.file_size || 0)
         }]
       : []

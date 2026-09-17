@@ -39,7 +39,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
 
 defineOptions({ inheritAttrs: false })
@@ -288,12 +288,36 @@ function onImageError() {
   if (retryKey.value < MAX_AUTO_RETRY) {
     retryKey.value += 1
     isImageLoading.value = true
-    // blob: 可能已被内存 LRU / TTL revoke。只 bump retryKey 会用同一死 URL
-    // 重挂 <img>，时间线等高密度列表里会一直空白。必须清掉后重新 resolve。
-    if (String(resolvedSrc.value || '').startsWith('blob:')) {
+    const failed = String(resolvedSrc.value || '')
+
+    // blob: 已 revoke；file: 可能被 LRU 删掉或写坏；其余可能是失败时写入的原始 URL。
+    // 只 bump retryKey 会用同一死 src 反复挂载，最终落入永久占位且不再拉网。
+    if (failed.startsWith('blob:')) {
+      // 只清内存，保留 FS/Cache 持久层
+      void invalidateCachedImage(props.src)
+      if (failed !== props.src) void invalidateCachedImage(failed)
       resolvedSrc.value = ''
       void runLoad()
+      return
     }
+
+    if (isFileBackedUri(failed) || failed.includes('/_capacitor_file_/') || failed.includes('capacitor://')) {
+      void invalidateCachedImage(props.src, { deletePersistent: true })
+      if (failed && failed !== props.src) void invalidateCachedImage(failed, { deletePersistent: true })
+      resolvedSrc.value = ''
+      void runLoad()
+      return
+    }
+
+    // 缓存管线返回的原始远程 URL（下载失败后的回退值）：清掉可能的脏内存再重解析
+    if (props.useCache) {
+      void invalidateCachedImage(props.src)
+      if (failed && failed !== props.src) void invalidateCachedImage(failed)
+      resolvedSrc.value = ''
+      void runLoad()
+      return
+    }
+
     return
   }
   hasLoadError.value = true

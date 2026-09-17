@@ -1,6 +1,0 @@
-name = "goods-media-proxy"
-main = "src/index.js"
-compatibility_date = "2026-01-01"
-
-# 免费版即可；如需自定义域可在 CF 后台绑到该 Worker
-workers_dev = true
