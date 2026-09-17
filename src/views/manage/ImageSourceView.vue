@@ -101,6 +101,7 @@
               </div>
               <div class="speed-row__meta">
                 <span class="speed-row__ms">{{ result.msText }}</span>
+                <span v-if="result.bpsText" class="speed-row__bps">{{ result.bpsText }}</span>
                 <span v-if="result.isFastest" class="speed-row__tag">{{ t('manage.imageSourceFastest') }}</span>
               </div>
             </div>
@@ -131,6 +132,7 @@ import {
 } from '@/config/mediaProxy'
 import {
   extractSupabasePublicStoragePath,
+  formatThroughputBps,
   runImageSourceSpeedTest
 } from '@/utils/image/imageSourceSpeedTest'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -186,7 +188,10 @@ const resultRows = computed(() =>
         : t('manage.imageSourceUnreachable'),
       msText: result.ok && Number.isFinite(result.ms)
         ? t('manage.imageSourceLatency', { ms: result.ms })
-        : '—'
+        : '—',
+      bpsText: result.ok && Number.isFinite(result.bps)
+        ? formatThroughputBps(result.bps)
+        : ''
     }
   })
 )
@@ -215,8 +220,15 @@ function getSourceLabelKey(id) {
 
 function getSpeedText(sourceId) {
   const result = testResults.value.find((item) => item.sourceId === sourceId)
-  if (!result?.ok || !Number.isFinite(result.ms)) return ''
-  return t('manage.imageSourceLatency', { ms: result.ms })
+  if (!result?.ok) return ''
+  const parts = []
+  if (Number.isFinite(result.ms)) {
+    parts.push(t('manage.imageSourceLatency', { ms: result.ms }))
+  }
+  if (Number.isFinite(result.bps)) {
+    parts.push(formatThroughputBps(result.bps))
+  }
+  return parts.join(' · ')
 }
 
 function selectSource(id) {

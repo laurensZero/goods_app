@@ -345,6 +345,12 @@
   letter-spacing: -0.02em;
 }
 
+.speed-row__bps {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
 .speed-row__tag {
   display: inline-flex;
   align-items: center;
