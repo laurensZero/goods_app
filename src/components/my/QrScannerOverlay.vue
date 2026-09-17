@@ -13,17 +13,25 @@
           </div>
 
           <div class="scanner-viewport">
+            <!--
+              解码源：必须留在 DOM 里持续出帧，但永远不对用户可见。
+              Android WebView 会把空/销毁中的 <video> 画成原生播放按钮，因此不能用它做预览。
+            -->
             <video
               v-if="cameraActive"
               :ref="videoRef"
               class="scanner-video"
-              :class="{ 'is-ready': scannerReady }"
               autoplay
               playsinline
               muted
+              disablepictureinpicture
               @playing="emit('video-ready')"
             />
-            <canvas :ref="canvasRef" class="scanner-canvas" />
+            <canvas
+              :ref="canvasRef"
+              class="scanner-canvas"
+              :class="{ 'is-ready': scannerReady }"
+            />
 
             <div v-if="scannerReady" class="scanner-frame">
               <span class="scanner-corner scanner-corner--tl" />
@@ -139,25 +147,29 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   background: #0f0f10;
 }
 
+/* 屏内 1×1 不可见解码源：保持出帧，避免 display:none 在部分 WebView 里停解码 */
 .scanner-video {
   position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.scanner-video.is-ready {
-  opacity: 1;
+  left: 0;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0 !important;
+  pointer-events: none;
 }
 
 .scanner-canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
   opacity: 0;
+  transition: opacity 0.12s ease;
   pointer-events: none;
+}
+
+.scanner-canvas.is-ready {
+  opacity: 1;
 }
 
 .scanner-frame {

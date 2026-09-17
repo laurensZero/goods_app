@@ -10,21 +10,23 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 
+// 640×480：部分安卓 WebView 在更高分辨率下会走异常 YUV 路径（反色/发卡）。
 const CAMERA_CONSTRAINTS = {
   video: {
     facingMode: { ideal: 'environment' },
-    width: { ideal: 960 },
-    height: { ideal: 720 },
-    frameRate: { ideal: 24 }
+    width: { ideal: 640 },
+    height: { ideal: 480 }
   },
   audio: false
 }
 
-const NATIVE_SCAN_DELAY_MS = 220
+const NATIVE_SCAN_DELAY_MS = 240
 const CANVAS_SCAN_DELAY_MS = 420
 const VIDEO_CANVAS_SCAN_SIZE = 256
 const VIDEO_CROP_RATIO = 0.9
 const GALLERY_SCAN_MAX_EDGE = 1400
+const STREAM_TEARDOWN_DELAY_MS = 360
+const MAX_PREVIEW_DPR = 2
 
 export function useQrScanner() {
   const { t } = useI18n()
@@ -35,7 +37,7 @@ export function useQrScanner() {
   const scanError = ref('')
   const showScanner = ref(false)
   const scannerReady = ref(false)
-  // Android WebView 会给空 <video> 画原生播放按钮占位；仅在有相机流时才挂载视频。
+  // Android WebView 会给空/正在销毁的 <video> 画原生播放按钮；预览只走 canvas，视频常驻屏外。
   const cameraActive = ref(false)
   const scannerVideoRef = ref(null)
   const scannerCanvasRef = ref(null)
@@ -50,34 +52,48 @@ export function useQrScanner() {
   let scannerLoopToken = 0
   let scannerResolved = false
   let scannerBusy = false
-  let scannerCanvasContext = null
+  let decodeCanvas = null
+  let decodeCanvasContext = null
   let barcodeDetector = null
   let barcodeDetectorUnavailable = false
   let nativeVideoDetectorDisabled = false
   let nativeVideoMissCount = 0
+  let lastDecodeAt = 0
+  let videoFrameHandle = 0
+  let pendingStream = null
+  let pendingVideo = null
+  let streamTeardownTimer = 0
 
   function onScannerVideoReady() {
+    if (scannerReady.value) return
     scannerReady.value = true
+    drawPreviewFrame()
     startScannerLoop()
   }
 
-  function getCanvasContext(canvas) {
-    if (!canvas) return null
-    if (!scannerCanvasContext) {
-      scannerCanvasContext = canvas.getContext('2d', {
-        alpha: false,
-        willReadFrequently: true
-      })
-    }
-    return scannerCanvasContext
+  function ensureDecodeCanvas() {
+    if (decodeCanvas) return decodeCanvas
+    const canvas = document.createElement('canvas')
+    canvas.width = VIDEO_CANVAS_SCAN_SIZE
+    canvas.height = VIDEO_CANVAS_SCAN_SIZE
+    decodeCanvas = canvas
+    return decodeCanvas
   }
 
-  function setCanvasSize(canvas, size) {
-    if (!canvas) return
-    if (canvas.width === size && canvas.height === size) return
-    canvas.width = size
-    canvas.height = size
-    scannerCanvasContext = null
+  function getDecodeContext() {
+    const canvas = ensureDecodeCanvas()
+    if (!decodeCanvasContext) {
+      decodeCanvasContext = canvas.getContext('2d', {
+        alpha: false,
+        willReadFrequently: true,
+        colorSpace: 'srgb'
+      })
+    }
+    return decodeCanvasContext
+  }
+
+  function resetDecodeContext() {
+    decodeCanvasContext = null
   }
 
   async function getBarcodeDetector() {
@@ -159,37 +175,66 @@ export function useQrScanner() {
     return String(result?.data || '').trim()
   }
 
-  function decodeQrFromVideoFrameByCanvas(video, canvas) {
+  function drawPreviewFrame() {
+    const video = scannerVideoRef.value
+    const canvas = scannerCanvasRef.value
+    if (!video || !canvas) return
+
+    const vw = video.videoWidth
+    const vh = video.videoHeight
+    if (!vw || !vh) return
+
+    const host = canvas.parentElement
+    const cssW = Math.max(1, Math.round(host?.clientWidth || canvas.clientWidth || 0))
+    const cssH = Math.max(1, Math.round(host?.clientHeight || canvas.clientHeight || 0))
+    const dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_PREVIEW_DPR)
+    const width = Math.round(cssW * dpr)
+    const height = Math.round(cssH * dpr)
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width
+      canvas.height = height
+    }
+
+    const ctx = canvas.getContext('2d', { alpha: false, colorSpace: 'srgb' })
+    if (!ctx) return
+
+    const scale = Math.max(width / vw, height / vh)
+    const dw = vw * scale
+    const dh = vh * scale
+    const dx = (width - dw) / 2
+    const dy = (height - dh) / 2
+    ctx.drawImage(video, dx, dy, dw, dh)
+  }
+
+  function decodeQrFromVideoFrameByCanvas(video) {
     const vw = video.videoWidth
     const vh = video.videoHeight
     if (!vw || !vh) return ''
+
+    ensureDecodeCanvas()
+    const ctx = getDecodeContext()
+    if (!ctx) return ''
 
     const sourceSize = Math.floor(Math.min(vw, vh) * VIDEO_CROP_RATIO)
     const sx = Math.max(0, Math.floor((vw - sourceSize) / 2))
     const sy = Math.max(0, Math.floor((vh - sourceSize) / 2))
 
-    setCanvasSize(canvas, VIDEO_CANVAS_SCAN_SIZE)
-    const ctx = getCanvasContext(canvas)
-    if (!ctx) return ''
-
     ctx.drawImage(video, sx, sy, sourceSize, sourceSize, 0, 0, VIDEO_CANVAS_SCAN_SIZE, VIDEO_CANVAS_SCAN_SIZE)
     const imageData = ctx.getImageData(0, 0, VIDEO_CANVAS_SCAN_SIZE, VIDEO_CANVAS_SCAN_SIZE)
 
+    // 仅解码时允许反相识别；不要据此改预览 CSS，否则正常画面会被误反。
     const result = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert'
+      inversionAttempts: 'attemptBoth'
     })
-
     return String(result?.data || '').trim()
   }
 
   async function decodeQrFromVideoFrame() {
     if (scannerBusy || scannerResolved) return ''
     const video = scannerVideoRef.value
-    const canvas = scannerCanvasRef.value
-    if (!video || !canvas || video.readyState < 2) return ''
+    if (!video || video.readyState < 2) return ''
 
     scannerBusy = true
-
     try {
       if (!nativeVideoDetectorDisabled) {
         const nativeResult = await decodeQrWithNativeDetector(video)
@@ -202,13 +247,13 @@ export function useQrScanner() {
           nativeVideoMissCount += 1
           // Native detection is cheap enough for regular polling. Run the
           // jsQR fallback occasionally in case the WebView detector misses.
-          if (nativeVideoMissCount % 6 !== 0) return ''
+          if (nativeVideoMissCount % 10 !== 0) return ''
         } else {
           nativeVideoDetectorDisabled = true
         }
       }
 
-      return decodeQrFromVideoFrameByCanvas(video, canvas)
+      return decodeQrFromVideoFrameByCanvas(video)
     } finally {
       scannerBusy = false
     }
@@ -228,6 +273,56 @@ export function useQrScanner() {
     }, delayMs)
   }
 
+  function requestVideoFrame(token) {
+    const video = scannerVideoRef.value
+    if (!video || token !== scannerLoopToken || scannerResolved || !showScanner.value) return
+    if (typeof video.requestVideoFrameCallback !== 'function') return
+
+    try {
+      videoFrameHandle = video.requestVideoFrameCallback(() => {
+        videoFrameHandle = 0
+        void onVideoFrame(token)
+      })
+    } catch {
+      videoFrameHandle = 0
+    }
+  }
+
+  async function onVideoFrame(token) {
+    if (token !== scannerLoopToken || scannerResolved || !showScanner.value) return
+
+    if (document.visibilityState === 'hidden') {
+      scheduleScannerTick(700, token)
+      return
+    }
+
+    drawPreviewFrame()
+
+    const minGap = nativeVideoDetectorDisabled ? CANVAS_SCAN_DELAY_MS : NATIVE_SCAN_DELAY_MS
+    const now = performance.now()
+    if (now - lastDecodeAt >= minGap) {
+      lastDecodeAt = now
+      const startedAt = now
+      try {
+        const text = await decodeQrFromVideoFrame()
+        if (text) {
+          await onScannerQRFound(text)
+          return
+        }
+      } catch {
+        // skip frame errors
+      }
+
+      const wait = getNextScanDelay(performance.now() - startedAt)
+      if (wait > 0) {
+        scheduleScannerTick(wait, token)
+        return
+      }
+    }
+
+    requestVideoFrame(token)
+  }
+
   async function runScannerTick(token) {
     if (token !== scannerLoopToken || scannerResolved || !showScanner.value) return
 
@@ -236,7 +331,10 @@ export function useQrScanner() {
       return
     }
 
+    drawPreviewFrame()
+
     const startedAt = performance.now()
+    lastDecodeAt = startedAt
     try {
       const text = await decodeQrFromVideoFrame()
       if (text) {
@@ -350,7 +448,12 @@ export function useQrScanner() {
   function startScannerLoop() {
     stopScannerLoop()
     scannerLoopToken += 1
-    scheduleScannerTick(120, scannerLoopToken)
+    lastDecodeAt = 0
+    const token = scannerLoopToken
+    requestVideoFrame(token)
+    if (!videoFrameHandle) {
+      scheduleScannerTick(120, token)
+    }
   }
 
   function stopScannerLoop() {
@@ -359,26 +462,75 @@ export function useQrScanner() {
       clearTimeout(scannerTimer)
       scannerTimer = 0
     }
+    const video = scannerVideoRef.value
+    if (videoFrameHandle && video && typeof video.cancelVideoFrameCallback === 'function') {
+      try {
+        video.cancelVideoFrameCallback(videoFrameHandle)
+      } catch {
+        // ignore cancel errors
+      }
+    }
+    videoFrameHandle = 0
+  }
+
+  function flushPendingStreamTeardown() {
+    if (streamTeardownTimer) {
+      clearTimeout(streamTeardownTimer)
+      streamTeardownTimer = 0
+    }
+
+    const stream = pendingStream
+    const video = pendingVideo
+    pendingStream = null
+    pendingVideo = null
+
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop())
+    }
+    if (video) {
+      try {
+        video.srcObject = null
+      } catch {
+        // ignore detach errors
+      }
+    }
+  }
+
+  function hideScannerVideoEl(video) {
+    if (!video || !video.style) return
+    // 同步掐掉原生合成层，避免淡出期间闪播放按钮占位。
+    video.style.setProperty('opacity', '0', 'important')
+    video.style.setProperty('visibility', 'hidden', 'important')
+    video.style.setProperty('display', 'none', 'important')
+    video.setAttribute('aria-hidden', 'true')
   }
 
   function stopScanner() {
     stopScannerLoop()
     scannerReady.value = false
+    scannerResolved = true
+
     const video = scannerVideoRef.value
-    if (scannerStream) {
-      scannerStream.getTracks().forEach((track) => track.stop())
-      scannerStream = null
-    }
-    if (video) {
-      try {
-        video.pause()
-      } catch {
-        // ignore pause errors during teardown
-      }
-      video.srcObject = null
-    }
+    hideScannerVideoEl(video)
+
     cameraActive.value = false
-    scannerCanvasContext = null
+
+    const stream = scannerStream
+    scannerStream = null
+
+    flushPendingStreamTeardown()
+    pendingStream = stream
+    pendingVideo = video
+
+    // 等弹层淡出结束再拆流：过早 pause/srcObject=null 会在 WebView 里闪原生播放按钮。
+    if (stream || video) {
+      streamTeardownTimer = window.setTimeout(() => {
+        streamTeardownTimer = 0
+        flushPendingStreamTeardown()
+      }, STREAM_TEARDOWN_DELAY_MS)
+    }
+
+    resetDecodeContext()
   }
 
   function closeScanner() {
@@ -388,6 +540,9 @@ export function useQrScanner() {
   }
 
   async function openScanner() {
+    // 若 300ms 内重开，先立刻释放上一路相机，避免双流。
+    flushPendingStreamTeardown()
+
     scanning.value = true
     scanError.value = ''
     scannerResolved = false
@@ -404,11 +559,25 @@ export function useQrScanner() {
 
       const stream = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS)
       scannerStream = stream
+
+      const track = stream.getVideoTracks?.()[0]
+      if (track) {
+        try {
+          track.contentHint = 'detail'
+        } catch {
+          // contentHint unsupported — ignore
+        }
+      }
+
       cameraActive.value = true
       await nextTick()
-      if (scannerVideoRef.value) {
-        scannerVideoRef.value.srcObject = stream
-        await scannerVideoRef.value.play?.().catch(() => {})
+
+      const video = scannerVideoRef.value
+      if (video) {
+        video.muted = true
+        video.playsInline = true
+        video.srcObject = stream
+        await video.play?.().catch(() => {})
       }
       scannerHint.value = t('my.scannerHint')
     } catch {
@@ -519,6 +688,7 @@ export function useQrScanner() {
   // 组件销毁时清理摄像头流，防止泄漏
   onBeforeUnmount(() => {
     closeScanner()
+    flushPendingStreamTeardown()
   })
 
   return {
