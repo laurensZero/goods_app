@@ -562,8 +562,12 @@ export function useQrScanner() {
     }
     if (count === 0) return true
 
-    const cx = sumX / count
-    const cy = sumY / count
+    // ML Kit 插件返回的是原生屏幕坐标（Android 使用 displayMetrics 的物理像素，
+    // iOS 也按 UIScreen 的物理像素计算），而 getBoundingClientRect() 使用 CSS 像素。
+    // 不换算时，高 DPI 设备上的二维码中心点会被误判到取景框外，导致完全无法识别。
+    const pixelRatio = Math.max(1, Number(window.devicePixelRatio) || 1)
+    const cx = sumX / count / pixelRatio
+    const cy = sumY / count / pixelRatio
     const pad = 12
     return (
       cx >= rect.left - pad &&
