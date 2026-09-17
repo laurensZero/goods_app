@@ -14,7 +14,7 @@ import {
 } from '@/utils/github/release'
 import { normalizeUpdateLevel, parseApkSha256FromText } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
-import { toDirectStorageUrl, toProxiedStorageUrl } from '@/config/mediaProxy'
+import { resolveOtaStorageUrls } from '@/config/mediaProxy'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 import { createLogger } from '@/utils/logger'
@@ -117,8 +117,7 @@ async function fetchLatestApkFromSupabase() {
   const storagePath = String(record?.storage_path || '').trim()
   if (!version || !storagePath) return null
 
-  const downloadUrl = toDirectStorageUrl(storagePath)
-  const fallbackDownloadUrl = toProxiedStorageUrl(storagePath)
+  const { primary: downloadUrl, fallback: fallbackDownloadUrl } = resolveOtaStorageUrls(storagePath)
   const fileName = storagePath.split('/').pop() || ''
 
   return {

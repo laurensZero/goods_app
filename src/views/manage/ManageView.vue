@@ -327,6 +327,7 @@ const SyncView = defineAsyncComponent(() => import('@/views/manage/SyncView.vue'
 const AboutView = defineAsyncComponent(() => import('@/views/manage/AboutView.vue'))
 const ShareManageView = defineAsyncComponent(() => import('@/views/manage/ShareManageView.vue'))
 const LanguageView = defineAsyncComponent(() => import('@/views/manage/LanguageView.vue'))
+const ImageSourceView = defineAsyncComponent(() => import('@/views/manage/ImageSourceView.vue'))
 const NotifySettingsView = defineAsyncComponent(() => import('@/views/manage/NotifySettingsView.vue'))
 const FeedbackView = defineAsyncComponent(() => import('@/views/manage/FeedbackView.vue'))
 const SurveyListView = defineAsyncComponent(() => import('@/views/manage/SurveyListView.vue'))
@@ -402,7 +403,7 @@ const activeManageEntry = computed(() =>
 const manageComponentMap = {
   categories: CategoryManageView, eventTypes: EventTypeManageView, ips: IpManageView, characters: CharacterManageView,
   storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
-  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
+  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView, imageSource: ImageSourceView,
   notifications: NotifySettingsView, mcp: McpSettingsView, mihoyoFeatures: MihoyoFeaturesView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
   mihoyoStockMonitor: MihoyoStockMonitorView,
   mihoyoNewArrivals: MihoyoNewArrivalsView
@@ -692,6 +693,7 @@ onBeforeRouteLeave((to) => {
 .sync-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 .share-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .lang-icon { background: rgba(100, 200, 150, 0.12); color: #3db87a; }
+.image-source-icon { background: rgba(56, 189, 248, 0.12); color: #38bdf8; }
 .notify-icon { background: rgba(255, 149, 0, 0.12); color: #ff9500; }
 .mcp-icon { background: rgba(138, 122, 255, 0.14); color: #8a7aff; }
 .ai-chat-icon { background: rgba(52, 199, 89, 0.12); color: #34c759; }

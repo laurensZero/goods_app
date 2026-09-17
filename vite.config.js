@@ -14,8 +14,26 @@ import {
   rememberBilibiliMediaHostsFromPlayurl
 } from './scripts/bilibili-media-allowlist.mjs'
 
-// ONNX Runtime 与 wasm 均不进静态包：JS 走 CDN loader（见 scripts/ort-cdn-*.js），
+// ONNX Runtime 与 wasm 均不进静态包：imgly 的 `import("onnxruntime-web")`
+// 直接外链到 CDN（见 ortCdnPlugin），不再经带顶层 await 的中间 loader。
 // 这里兜底删掉任何仍被 rollup 打出的 ort 产物，避免 APK 膨胀。
+const ORT_CDN_ENTRIES = {
+  'onnxruntime-web': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.bundle.min.mjs',
+  'onnxruntime-web/webgpu': 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.webgpu.bundle.min.mjs'
+}
+
+function ortCdnPlugin() {
+  return {
+    name: 'ort-cdn-external',
+    enforce: 'pre',
+    resolveId(source) {
+      const url = ORT_CDN_ENTRIES[source]
+      // 浏览器原生动态 import 绝对 URL；不进 bundle，也无需顶层 await
+      if (url) return { id: url, external: true }
+      return null
+    }
+  }
+}
 function removeBundledCutoutWasm() {
   let outputDir = ''
   return {
@@ -40,6 +58,7 @@ function removeBundledCutoutWasm() {
 export default defineConfig({
   plugins: [
     vue(),
+    ortCdnPlugin(),
     removeBundledCutoutWasm(),
     // MCP dev 服务：AI 客户端经 HTTP 调用 App 收藏数据（token 说明见 scripts/vite-plugin-mcp.mjs）
     mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN, process.env.GOODS_MCP_ALLOW_WRITES === '1'),
@@ -140,21 +159,21 @@ export default defineConfig({
   base: './',
   resolve: {
     alias: [
-      // WebGPU 入口更具体，需排在 onnxruntime-web 之前
-      {
-        find: /^onnxruntime-web\/webgpu$/,
-        replacement: fileURLToPath(new URL('./scripts/ort-cdn-webgpu-loader.js', import.meta.url))
-      },
-      {
-        find: /^onnxruntime-web$/,
-        replacement: fileURLToPath(new URL('./scripts/ort-cdn-loader.js', import.meta.url))
-      },
       // @ 指向 src，方便路径引用
       {
         find: '@',
         replacement: fileURLToPath(new URL('./src', import.meta.url))
       }
     ]
+  },
+  // Dev/dep 预构建同样允许顶层 await（与 build.target 对齐）
+  esbuild: {
+    target: 'es2022'
+  },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'es2022'
+    }
   },
   server: {
     host: '0.0.0.0', // 允许局域网手机访问预览
@@ -230,7 +249,7 @@ export default defineConfig({
     }
   },
   build: {
-    // ORT CDN loader 使用顶层 await（imgly 动态 import onnxruntime-web）
+    // 允许顶层 await / 现代语法（含残留依赖产物）
     target: 'es2022',
     // 按需生成 sourcemap（BUILD_SOURCEMAP=1 npm run build）：
     // 用于符号化反馈日志里的压缩堆栈；默认关闭，避免 .map 被打进 OTA zip/APK

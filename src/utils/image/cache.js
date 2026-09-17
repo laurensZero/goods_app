@@ -7,7 +7,7 @@
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import { MEDIA_PROXY_ORIGIN } from '@/config/mediaProxy'
+import { MEDIA_PROXY_ORIGIN, getImageSourceMode } from '@/config/mediaProxy'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -181,10 +181,12 @@ const SUPABASE_HOST = 'zvqzicimowfqshgjsrri.supabase.co'
 const SUPABASE_PUBLIC_STORAGE_PREFIX = '/storage/v1/object/public/'
 
 // Dev 仍直连便于调试。缓存 key 继续用原始 URL；此处只改实际 fetch 地址。
+// 用户可在设置里切换图片源（proxy / direct）；默认仍走 Cloudflare 边缘代理。
 export function toProxiedMediaUrl(rawUrl) {
   const value = String(rawUrl || '').trim()
   if (!value || import.meta.env.DEV) return value
   if (!value.startsWith('https://')) return value
+  if (getImageSourceMode() === 'direct') return value
 
   try {
     const parsed = new URL(value)
