@@ -436,7 +436,16 @@ export function useQrScanner() {
     video.style.setProperty('display', 'none', 'important')
   }
 
-  async function stopMlkitScan() {
+  function setNativeScannerChrome(active) {
+    if (active) {
+      document.body.classList.add(NATIVE_SCANNER_BODY_CLASS)
+    } else {
+      document.body.classList.remove(NATIVE_SCANNER_BODY_CLASS)
+    }
+  }
+
+  async function stopMlkitScan(options = {}) {
+    const { keepChrome = false } = options
     if (mlkitListener) {
       try {
         await mlkitListener.remove()
@@ -453,7 +462,9 @@ export function useQrScanner() {
         // ignore
       }
     }
-    document.body.classList.remove(NATIVE_SCANNER_BODY_CLASS)
+    if (!keepChrome) {
+      setNativeScannerChrome(false)
+    }
   }
 
   function stopScanner() {
@@ -494,11 +505,23 @@ export function useQrScanner() {
     if (mlkitScanRunning) return
 
     try {
+      // 相册/权限页回来后可能丢掉透明层，重启前先恢复。
+      setNativeScannerChrome(true)
+
       mlkitListener = await BarcodeScanner.addListener('barcodesScanned', async (event) => {
-        const text = String(event?.barcodes?.[0]?.rawValue || '').trim()
-        if (!text || scannerResolved || !showScanner.value) return
+        if (scannerResolved || !showScanner.value) return
+
+        const barcodes = Array.isArray(event?.barcodes) ? event.barcodes : []
+        const match = barcodes.find((barcode) => {
+          const text = String(barcode?.rawValue || '').trim()
+          return Boolean(text) && isBarcodeInsideNativeFrame(barcode)
+        })
+        const text = String(match?.rawValue || '').trim()
+        if (!text) return
+
         scannerResolved = true
-        await stopMlkitScan()
+        // 先保留透明层：非法码要继续扫，关闭时由 stopScanner 统一拆。
+        await stopMlkitScan({ keepChrome: true })
         await handleScannedText(text)
       })
 
@@ -513,6 +536,41 @@ export function useQrScanner() {
       nativeMode.value = false
       await openWebScanner()
     }
+  }
+
+  /** 插件不支持原生识别区；用 cornerPoints 中心点卡在取景框内，避免框外误触发。 */
+  function isBarcodeInsideNativeFrame(barcode) {
+    const points = Array.isArray(barcode?.cornerPoints) ? barcode.cornerPoints : []
+    if (points.length === 0) return true
+
+    const viewport = document.querySelector('.scanner-viewport--native')
+    if (!viewport) return true
+
+    const rect = viewport.getBoundingClientRect()
+    if (rect.width <= 0 || rect.height <= 0) return true
+
+    let sumX = 0
+    let sumY = 0
+    let count = 0
+    for (const point of points) {
+      const x = Array.isArray(point) ? point[0] : point?.x
+      const y = Array.isArray(point) ? point[1] : point?.y
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return true
+      sumX += x
+      sumY += y
+      count += 1
+    }
+    if (count === 0) return true
+
+    const cx = sumX / count
+    const cy = sumY / count
+    const pad = 12
+    return (
+      cx >= rect.left - pad &&
+      cx <= rect.right + pad &&
+      cy >= rect.top - pad &&
+      cy <= rect.bottom + pad
+    )
   }
 
   async function tryOpenMlkitScanner() {
@@ -625,7 +683,8 @@ export function useQrScanner() {
   async function handleScannerGallery() {
     if (scannerResolved) return
     stopScannerLoop()
-    await stopMlkitScan()
+    // 只停相机，保留原生透明层；否则取消相册后会变成贴在页面上的空框。
+    await stopMlkitScan({ keepChrome: nativeMode.value })
 
     try {
       const photo = await Camera.getPhoto({
@@ -659,10 +718,11 @@ export function useQrScanner() {
       if (!message || !/cancel|canceled|cancelled/i.test(message)) {
         scanError.value = e?.message || t('my.galleryReadFailed')
       }
-      if (nativeMode.value) {
+      if (nativeMode.value && showScanner.value) {
         await startMlkitScan()
         return
       }
+      if (!showScanner.value) return
       startScannerLoop()
     }
   }

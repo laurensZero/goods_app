@@ -221,7 +221,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   background: transparent !important;
   border-radius: 16px;
   overflow: visible;
-  /* 挖孔：取景框透明，四周用超大阴影压暗其它区域 */
+  /* 挖孔：取景框透明，四周半透明压暗 */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52);
 }
 
