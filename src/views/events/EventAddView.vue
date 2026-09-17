@@ -4,7 +4,7 @@
     :class="{ 'event-add-page--navigating': isNavigatingToPicker, 'event-add-page--restoring': !pageDisplayReady }"
   >
     <main class="page-body">
-      <NavBar :title="isEdit ? t('events.addEdit.editTitle') : t('events.addEdit.addTitle')" show-back />
+      <NavBar :title="isEdit ? t('events.addEdit.editTitle') : t('events.addEdit.addTitle')" show-back @back="handleBack" />
       <form class="editor-form" @submit.prevent="handleSubmit">
         <section class="editor-shell">
           <aside class="preview-column">
@@ -471,6 +471,15 @@
       @save="onCoverEditorSave"
     />
 
+    <DangerConfirmDialog
+      v-model:show="showLeaveConfirm"
+      :title="t('common.unsavedLeaveTitle')"
+      :description="t('common.unsavedLeaveDesc')"
+      :confirm-text="t('common.unsavedLeaveConfirm')"
+      @confirm="confirmDiscardLeave"
+      @cancel="cancelLeaveConfirm"
+    />
+
   </div>
 </template>
 
@@ -504,6 +513,8 @@ import NavBar from '@/components/common/NavBar.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
+import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
@@ -589,6 +600,58 @@ const form = reactive({
   linkedGoodsIds: [],
   tags: []
 })
+
+const formBaseline = ref('')
+const formBaselineReady = ref(false)
+
+function serializeEventFormSnapshot() {
+  return JSON.stringify({
+    name: form.name,
+    type: form.type,
+    startDate: form.startDate,
+    endDate: form.endDate,
+    location: form.location,
+    city: form.city,
+    latitude: form.latitude,
+    longitude: form.longitude,
+    description: form.description,
+    coverImage: form.coverImage,
+    photos: form.photos,
+    tracks: form.tracks,
+    ticketPrice: form.ticketPrice,
+    ticketType: form.ticketType,
+    seatInfo: form.seatInfo,
+    dayTicketList: form.dayTicketList,
+    otherExpenses: form.otherExpenses,
+    linkedGoodsIds: form.linkedGoodsIds,
+    tags: form.tags
+  })
+}
+
+function captureEventFormBaseline() {
+  formBaseline.value = serializeEventFormSnapshot()
+  formBaselineReady.value = true
+}
+
+const hasUnsavedChanges = computed(() => {
+  if (!formBaselineReady.value) return false
+  return serializeEventFormSnapshot() !== formBaseline.value
+})
+
+const {
+  showLeaveConfirm,
+  requestLeave,
+  markLeaveAllowed,
+  confirmDiscard: confirmDiscardLeave,
+  cancelLeaveConfirm
+} = useUnsavedLeaveGuard({
+  isDirty: hasUnsavedChanges,
+  allowRoute: (to) => to?.name === 'event-link-goods'
+})
+
+function handleBack() {
+  requestLeave()
+}
 
 const isEdit = computed(() => !!props.id || !!route.params.id)
 const editId = computed(() => props.id || route.params.id)
@@ -1075,6 +1138,7 @@ async function handleSubmit() {
     }
   }
   sessionStorage.removeItem(EVENT_ADD_DRAFT_KEY)
+  markLeaveAllowed()
   const fallbackTarget = isEdit.value ? `/events/${editId.value}` : '/events'
   const targetPath = getReturnToRoute() || fallbackTarget
   runWithRouteTransition(
@@ -1199,6 +1263,7 @@ function removeLinkedGoods(id) {
 async function openGoodsPicker() {
   saveDraftForPicker()
   isNavigatingToPicker.value = true
+  markLeaveAllowed()
   await nextTick()
   runWithRouteTransition(
     () => router.push({
@@ -1282,15 +1347,16 @@ onMounted(() => {
       await goodsStore.init()
     }
 
-    if (isEdit.value && !String(form.name || '').trim()) {
+    if (isEdit.value) {
       await loadEditData()
     }
-  })()
 
-  void loadEditData()
-  restoreDraftFromPicker()
-  applyPickerSelectionResult()
-  isNavigatingToPicker.value = false
+    // 基线必须在草稿恢复之前：从选谷子页带回的输入仍视为未保存修改
+    captureEventFormBaseline()
+    restoreDraftFromPicker()
+    applyPickerSelectionResult()
+    isNavigatingToPicker.value = false
+  })()
 })
 
 onActivated(async () => {

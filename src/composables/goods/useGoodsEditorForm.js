@@ -1,4 +1,4 @@
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
@@ -48,6 +48,7 @@ export function useGoodsEditorForm(options = {}) {
   const editId = options.editId ?? ''
   const initialIsWishlist = Boolean(options.initialIsWishlist)
   const getMotionSourceEl = typeof options.getMotionSourceEl === 'function' ? options.getMotionSourceEl : null
+  const beforeNavigateAway = typeof options.beforeNavigateAway === 'function' ? options.beforeNavigateAway : null
 
   const { t } = useI18n()
   const router = useRouter()
@@ -90,6 +91,59 @@ export function useGoodsEditorForm(options = {}) {
     sellDate: '',
     unitSaleInfoList: [],
     statusTimeline: []
+  })
+
+  const formBaseline = ref('')
+  const formBaselineReady = ref(false)
+
+  function serializeGoodsFormSnapshot() {
+    return JSON.stringify({
+      name: form.name,
+      variant: form.variant,
+      category: form.category,
+      ip: form.ip,
+      goodsId: form.goodsId,
+      isWishlist: form.isWishlist,
+      characters: form.characters,
+      tags: form.tags,
+      storageLocation: form.storageLocation,
+      price: form.price,
+      actualPrice: form.actualPrice,
+      points: form.points,
+      acquiredAt: form.acquiredAt,
+      saleAt: form.saleAt,
+      saleReminderEnabled: form.saleReminderEnabled,
+      saleReminderOffsets: form.saleReminderOffsets,
+      images: form.images,
+      tracks: form.tracks,
+      note: form.note,
+      quantity: form.quantity,
+      unitAcquiredAtList: form.unitAcquiredAtList,
+      unitActualPriceList: form.unitActualPriceList,
+      unitCharacterList: form.unitCharacterList,
+      unitCollectStatusList: form.unitCollectStatusList,
+      currency: form.currency,
+      actualPriceCurrency: form.actualPriceCurrency,
+      collectStatus: form.collectStatus,
+      shippingFee: form.shippingFee,
+      shippingEvents: form.shippingEvents,
+      sellPrice: form.sellPrice,
+      sellPlatform: form.sellPlatform,
+      sellFee: form.sellFee,
+      sellDate: form.sellDate,
+      unitSaleInfoList: form.unitSaleInfoList,
+      statusTimeline: form.statusTimeline
+    })
+  }
+
+  function captureGoodsFormBaseline() {
+    formBaseline.value = serializeGoodsFormSnapshot()
+    formBaselineReady.value = true
+  }
+
+  const hasUnsavedChanges = computed(() => {
+    if (!formBaselineReady.value) return false
+    return serializeGoodsFormSnapshot() !== formBaseline.value
   })
 
   const showPointsInput = ref(false)
@@ -355,6 +409,10 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitCharacterListLength()
     syncUnitCollectStatusListLength()
     updateViewport()
+    // 系统同步逐份列表完成后再打基线，避免「打开即脏」
+    nextTick(() => {
+      captureGoodsFormBaseline()
+    })
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('touchstart', handleClickOutside)
   })
@@ -493,6 +551,7 @@ export function useGoodsEditorForm(options = {}) {
         showGlobalToast(t('goods.editor.saveFailedMissing'))
         // Should we always go to home or back?
         // But fade is requested.
+        beforeNavigateAway?.()
         runWithRouteTransition(() => router.replace('/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
         return
       }
@@ -539,6 +598,7 @@ export function useGoodsEditorForm(options = {}) {
       // 保存已发起：会话内新图片归商品所有，移出待清理集合
       sessionNewLocalImagePaths.clear()
       writeAddMotionRequest(motionId, event)
+      beforeNavigateAway?.()
       runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
       // 先播动画后落库：DB 写入失败时回滚内存条目并提示，避免"看似成功、重启后消失"
       void addPromise.catch(() => {
@@ -548,6 +608,7 @@ export function useGoodsEditorForm(options = {}) {
       return
     }
 
+    beforeNavigateAway?.()
     runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
   }
 
@@ -1060,6 +1121,8 @@ export function useGoodsEditorForm(options = {}) {
     disableActualPriceInput,
     isTabletViewport,
     datePickerPopupPosition,
+    hasUnsavedChanges,
+    captureGoodsFormBaseline,
     handleSubmit,
     validateName,
     toggleCharPicker,

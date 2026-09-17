@@ -935,6 +935,15 @@
       :max-date="maxDate"
       @confirm="onSellDateConfirm"
     />
+
+    <DangerConfirmDialog
+      v-model:show="showLeaveConfirm"
+      :title="t('common.unsavedLeaveTitle')"
+      :description="t('common.unsavedLeaveDesc')"
+      :confirm-text="t('common.unsavedLeaveConfirm')"
+      @confirm="confirmDiscardLeave"
+      @cancel="cancelLeaveConfirm"
+    />
   </div>
 </template>
 
@@ -944,9 +953,11 @@ import { useI18n } from 'vue-i18n'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
+import { useUnsavedLeaveGuard } from '@/composables/useUnsavedLeaveGuard'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppDateTimePicker from '@/components/common/AppDateTimePicker.vue'
 import SaleCountdown from '@/components/goods/SaleCountdown.vue'
+import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import FormTabNav from '@/components/goods/FormTabNav.vue'
@@ -959,9 +970,7 @@ import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
-import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
-import { useRouter } from 'vue-router'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
 import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
@@ -985,6 +994,7 @@ const props = defineProps({
 
 const previewMediaRef = ref(null)
 const formRootRef = ref(null)
+const leaveGuardSlot = { current: null }
 
 const {
   presets,
@@ -1031,6 +1041,7 @@ const {
   disableActualPriceInput,
   disableCollectStatusInput,
   isTabletViewport,
+  hasUnsavedChanges,
   handleSubmit,
   toggleCharPicker,
   toggleQuickCreate,
@@ -1070,12 +1081,21 @@ const {
   mode: props.mode,
   editId: props.editId,
   initialIsWishlist: props.initialIsWishlist,
-  getMotionSourceEl: () => previewMediaRef.value
+  getMotionSourceEl: () => previewMediaRef.value,
+  beforeNavigateAway: () => leaveGuardSlot.current?.markLeaveAllowed()
 })
 
-const router = useRouter()
+const leaveGuard = useUnsavedLeaveGuard({ isDirty: hasUnsavedChanges })
+leaveGuardSlot.current = leaveGuard
+const {
+  showLeaveConfirm,
+  requestLeave,
+  confirmDiscard: confirmDiscardLeave,
+  cancelLeaveConfirm
+} = leaveGuard
+
 function handleBack() {
-  runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
+  requestLeave()
 }
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
