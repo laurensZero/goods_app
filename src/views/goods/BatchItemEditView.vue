@@ -152,15 +152,6 @@
       :source-file="editorSourceFile"
       @save="onEditorSave"
     />
-
-    <!-- 深链等直接离开批量流程前确认：放弃会清除整批编辑与已复制图片 -->
-    <DangerConfirmDialog
-      v-model:show="showLeaveConfirm"
-      :title="t('goods.batch.leaveConfirmTitle')"
-      :description="t('goods.batch.leaveConfirmDesc')"
-      :confirm-text="t('goods.batch.leaveConfirm')"
-      @confirm="confirmLeave"
-    />
   </div>
 </template>
 
@@ -173,9 +164,8 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
-import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import { usePresetsStore } from '@/stores/presets'
-import { useBatchQueue } from '@/composables/batch/useBatchQueue'
+import { useBatchQueue, flushBatchDraft } from '@/composables/batch/useBatchQueue'
 import { pickLinkedLocalImages, readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -194,8 +184,7 @@ const {
   updateItem,
   markDirty,
   getItem,
-  replaceItemImage,
-  discardQueue
+  replaceItemImage
 } = useBatchQueue()
 
 const itemId = computed(() => route.params.id)
@@ -224,32 +213,17 @@ watch(() => form.price, () => {
   if (priceError.value) priceError.value = ''
 })
 
-const showLeaveConfirm = ref(false)
-let allowLeave = false
-let pendingLeavePath = ''
-
 onMounted(() => {
   if (currentItem.value) {
     syncFormFromItem(currentItem.value)
   }
 })
 
-// 从编辑页直接离开批量流程（如深链跳转）时同样清理队列；返回队列页或切换下一项不受影响
+// 离开批量流程（含深链）：静默保留草稿；落库不阻塞导航，避免拖住返回转场
 onBeforeRouteLeave((to) => {
   if (to.name === 'batch-add' || to.name === 'batch-edit') return
-  // 队列非空时先确认再放行，防止深链等入口把整批编辑与图片静默清掉
-  if (!allowLeave && totalCount.value > 0) {
-    pendingLeavePath = to.fullPath
-    showLeaveConfirm.value = true
-    return false
-  }
-  discardQueue()
+  void flushBatchDraft()
 })
-
-function confirmLeave() {
-  allowLeave = true
-  router.replace(pendingLeavePath)
-}
 
 function syncFormFromItem(item) {
   form.name = item.name || ''

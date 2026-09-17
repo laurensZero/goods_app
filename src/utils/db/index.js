@@ -172,6 +172,17 @@ const CREATE_GOODS_GROUP_ITEMS_TABLE_SQL = `
   );
 `
 
+const CREATE_BATCH_DRAFTS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS batch_drafts (
+    slot       TEXT PRIMARY KEY NOT NULL,
+    batchId    TEXT NOT NULL DEFAULT '',
+    isWishlist INTEGER DEFAULT 0,
+    items      TEXT NOT NULL DEFAULT '[]',
+    defaults   TEXT NOT NULL DEFAULT '{}',
+    updatedAt  INTEGER DEFAULT 0
+  );
+`
+
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
 // 取最后一项的 version 字段而非数组长度，避免两者脱钩时误判
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
@@ -535,6 +546,7 @@ async function _doInitDB() {
       CREATE_RECHARGE_TABLE_SQL,
       CREATE_GOODS_GROUPS_TABLE_SQL,
       CREATE_GOODS_GROUP_ITEMS_TABLE_SQL,
+      CREATE_BATCH_DRAFTS_TABLE_SQL,
       CREATE_VERSION_TABLE_SQL
     ].map(sql => sql.trim()).filter(Boolean).join(';\n') + ';'
 
@@ -1036,6 +1048,79 @@ export async function deleteGroupItemsByGoodsId(goodsId) {
     await db.run('DELETE FROM goods_group_items WHERE goodsId = ?', [goodsId])
   } catch (e) {
     console.error('[db] deleteGroupItemsByGoodsId failed:', e)
+    throw e
+  }
+}
+
+// ── Batch Drafts CRUD ──
+// 槽位主键：collection（收藏批量）| wishlist（心愿单批量）
+// items/defaults 为 JSON 字符串；图片只存 URI 引用，不把二进制塞进 DB
+
+const BATCH_DRAFT_INSERT_SQL = 'INSERT OR REPLACE INTO batch_drafts (slot,batchId,isWishlist,items,defaults,updatedAt) VALUES (?,?,?,?,?,?)'
+
+/**
+ * @param {string} slot
+ * @returns {Promise<{ slot: string, batchId: string, isWishlist: boolean, items: any[], defaults: Record<string, any>, updatedAt: number } | null>}
+ */
+export async function getBatchDraft(slot) {
+  if (!slot) return null
+  await initDB()
+  try {
+    const rows = await db.query('SELECT slot,batchId,isWishlist,items,defaults,updatedAt FROM batch_drafts WHERE slot = ?', [slot])
+    if (!rows.length) return null
+    const row = rows[0]
+    let items = []
+    let defaults = {}
+    try { items = JSON.parse(row.items || '[]') } catch { items = [] }
+    try { defaults = JSON.parse(row.defaults || '{}') } catch { defaults = {} }
+    if (!Array.isArray(items)) items = []
+    if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults)) defaults = {}
+    return {
+      slot: String(row.slot),
+      batchId: String(row.batchId || ''),
+      isWishlist: normalizeWishlistFlag(row.isWishlist),
+      items,
+      defaults,
+      updatedAt: Number(row.updatedAt) || 0
+    }
+  } catch (e) {
+    console.error('[db] getBatchDraft failed:', e)
+    throw e
+  }
+}
+
+/**
+ * @param {{ slot: string, batchId?: string, isWishlist?: boolean, items: any[], defaults?: Record<string, any>, updatedAt?: number }} draft
+ */
+export async function saveBatchDraft(draft) {
+  const slot = String(draft?.slot || '')
+  if (!slot) throw new Error('[db] saveBatchDraft: slot is required')
+  await initDB()
+  try {
+    const items = Array.isArray(draft.items) ? draft.items : []
+    const defaults = draft.defaults && typeof draft.defaults === 'object' && !Array.isArray(draft.defaults) ? draft.defaults : {}
+    await db.run(BATCH_DRAFT_INSERT_SQL, [
+      slot,
+      String(draft.batchId || ''),
+      draft.isWishlist ? 1 : 0,
+      JSON.stringify(items),
+      JSON.stringify(defaults),
+      Number(draft.updatedAt) || Date.now()
+    ])
+  } catch (e) {
+    console.error('[db] saveBatchDraft failed:', e)
+    throw e
+  }
+}
+
+/** @param {string} slot */
+export async function deleteBatchDraft(slot) {
+  if (!slot) return
+  await initDB()
+  try {
+    await db.run('DELETE FROM batch_drafts WHERE slot = ?', [slot])
+  } catch (e) {
+    console.error('[db] deleteBatchDraft failed:', e)
     throw e
   }
 }

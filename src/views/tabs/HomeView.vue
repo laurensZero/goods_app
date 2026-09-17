@@ -161,6 +161,13 @@
       @taobao-import="handleTaobaoImport"
     />
 
+    <BatchDraftResumeSheet
+      v-model="showDraftResume"
+      :count="draftResumeCount"
+      @continue="resumeBatchDraft"
+      @restart="restartBatchDraft"
+    />
+
     <DangerConfirmDialog
       v-model:show="showDeleteConfirm"
       :title="t('common.moveToTrash')"
@@ -299,8 +306,9 @@ import TimelineItemPopup from '@/components/home/TimelineItemPopup.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
+import BatchDraftResumeSheet from '@/components/goods/BatchDraftResumeSheet.vue'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
-import { createBatchId } from '@/composables/batch/useBatchQueue'
+import { createBatchId, getDraftMeta, clearDraft, BATCH_DRAFT_SLOTS } from '@/composables/batch/useBatchQueue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
@@ -426,6 +434,8 @@ let _lastSyncDensity = ''
 
 // 添加方式面板
 const showAddSheet = ref(false)
+const showDraftResume = ref(false)
+const draftResumeCount = ref(0)
 const showDailyRec = ref(false)
 const showTimelinePopup = ref(false)
 const popupTimelineItem = ref(null)
@@ -818,6 +828,19 @@ function handleTaobaoImport() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
+  // 有未完成草稿 → 先让用户选继续 / 重新开始
+  const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.COLLECTION)
+  if (draft) {
+    draftResumeCount.value = draft.count
+    // 等添加面板 leave 走起来再弹，避免两层 scrim 同帧叠开
+    await nextTick()
+    showDraftResume.value = true
+    return
+  }
+  await startBatchAddFlow()
+}
+
+async function startBatchAddFlow() {
   const images = await pickLinkedLocalImages(10)
   if (!images.length) return
   saveScrollPosition(true, 'home:handleBatchAdd')
@@ -828,6 +851,22 @@ async function handleBatchAdd() {
     }),
     { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
   )
+}
+
+function resumeBatchDraft() {
+  saveScrollPosition(true, 'home:handleBatchAdd')
+  homeDisplayReady.value = false
+  runWithRouteTransition(
+    () => router.push({ name: 'batch-add', state: { resumeDraft: true, isWishlist: false } }).catch(() => {
+      homeDisplayReady.value = true
+    }),
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
+  )
+}
+
+async function restartBatchDraft() {
+  await clearDraft(BATCH_DRAFT_SLOTS.COLLECTION)
+  await startBatchAddFlow()
 }
 
 function goToAdd() {
