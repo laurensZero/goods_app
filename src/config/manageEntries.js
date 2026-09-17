@@ -201,6 +201,18 @@ export function useManageEntries() {
       stats: []
     },
     {
+      key: 'imageSource', group: 'app', title: t('manage.imageSource'), kicker: 'Image / OTA',
+      meta: t('manage.imageSourceMeta'),
+      detail: t('manage.imageSourceDesc'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: '', secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'image-source-icon',
+      iconPaths: ['M3 3h18v18H3z', 'M8.5 8.5h.01', 'M21 15l-5-5L5 21'],
+      path: '/manage/image-source',
+      stats: []
+    },
+    {
       key: 'notifications', group: 'app', title: t('manage.notifications'), kicker: 'Notification',
       meta: t('manage.notificationsDesc'),
       detail: t('manage.notificationsDesc'),

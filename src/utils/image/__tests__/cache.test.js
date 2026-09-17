@@ -34,9 +34,15 @@ import {
 
 describe('utils/image/toProxiedMediaUrl', () => {
   const originalDev = import.meta.env.DEV
+  const originalMode = localStorage.getItem('goods_image_source_mode')
 
   afterEach(() => {
     import.meta.env.DEV = originalDev
+    if (originalMode == null) {
+      localStorage.removeItem('goods_image_source_mode')
+    } else {
+      localStorage.setItem('goods_image_source_mode', originalMode)
+    }
   })
 
   it('Dev 环境不改写', () => {
@@ -47,18 +53,28 @@ describe('utils/image/toProxiedMediaUrl', () => {
 
   it('生产：Supabase 公开 Storage 走 path 模式代理', () => {
     import.meta.env.DEV = false
+    localStorage.setItem('goods_image_source_mode', 'proxy')
     const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/uid/a.jpg'
     expect(toProxiedMediaUrl(url)).toBe('https://img.goodsapp.de5.net/goods-images/uid/a.jpg')
   })
 
+  it('生产：用户选择 direct 时不改写为代理', () => {
+    import.meta.env.DEV = false
+    localStorage.setItem('goods_image_source_mode', 'direct')
+    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/uid/a.jpg'
+    expect(toProxiedMediaUrl(url)).toBe(url)
+  })
+
   it('生产：音乐封面等第三方 CDN 不走代理', () => {
     import.meta.env.DEV = false
+    localStorage.setItem('goods_image_source_mode', 'proxy')
     const url = 'https://y.gtimg.cn/music/photo_new/T002R500x500M000001.jpg'
     expect(toProxiedMediaUrl(url)).toBe(url)
   })
 
   it('生产：非 Supabase host 保持原样', () => {
     import.meta.env.DEV = false
+    localStorage.setItem('goods_image_source_mode', 'proxy')
     const url = 'https://example.com/a.jpg'
     expect(toProxiedMediaUrl(url)).toBe(url)
   })

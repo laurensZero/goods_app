@@ -66,6 +66,12 @@ export default [
     meta: { titleKey: 'nav.language' }
   },
   {
+    path: '/manage/image-source',
+    name: 'manage-image-source',
+    component: () => import('@/views/manage/ImageSourceView.vue'),
+    meta: { titleKey: 'nav.imageSource' }
+  },
+  {
     path: '/manage/notifications',
     name: 'manage-notifications',
     component: () => import('@/views/manage/NotifySettingsView.vue'),
