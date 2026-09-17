@@ -215,7 +215,7 @@
                               <h3 class="month-title">{{ t('events.undated') }}</h3>
                             </template>
                             <template v-else>
-                              <span class="month-timeline-label">{{ monthGroup.month }} {{ t('events.monthSuffix') }}</span>
+                              <span class="month-timeline-label">{{ formatMonthLabel(monthGroup.month) }}</span>
                             </template>
                           </div>
                         </div>
@@ -325,7 +325,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { createPageScrollRestore } from '@/composables/scroll'
 import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
 import { useEventsStore } from '@/stores/events'
-import { formatPrice } from '@/utils/format'
+import { formatMonthLabel, formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
