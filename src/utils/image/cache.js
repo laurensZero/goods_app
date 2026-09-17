@@ -174,25 +174,35 @@ function isNative() {
   }
 }
 
-const PROXYABLE_IMAGE_HOSTS = new Set([
-  'zvqzicimowfqshgjsrri.supabase.co',
-  'y.gtimg.cn',
-  'p1.music.126.net',
-  'p2.music.126.net',
-  'p3.music.126.net',
-  'p4.music.126.net'
-])
+// Cloudflare Worker 边缘缓存代理：只代理本项目 Supabase 公开 Storage 图片。
+// 音乐封面等第三方 CDN 本来就快，不绕代理。
+const MEDIA_PROXY_ORIGIN = 'https://img.goodsapp.de5.net'
+const SUPABASE_HOST = 'zvqzicimowfqshgjsrri.supabase.co'
+const SUPABASE_PUBLIC_STORAGE_PREFIX = '/storage/v1/object/public/'
 
-// 生产 Web：把可代理的远程图片改走 Cloudflare media-proxy，利用边缘缓存加速
-function toProxiedMediaUrl(rawUrl) {
+// Dev 仍直连便于调试。缓存 key 继续用原始 URL；此处只改实际 fetch 地址。
+export function toProxiedMediaUrl(rawUrl) {
   const value = String(rawUrl || '').trim()
-  if (!value || isNative() || import.meta.env.DEV) return value
+  if (!value || import.meta.env.DEV) return value
   if (!value.startsWith('https://')) return value
 
   try {
     const parsed = new URL(value)
-    if (!PROXYABLE_IMAGE_HOSTS.has(parsed.hostname)) return value
-    return `/media-proxy/?url=${encodeURIComponent(value)}`
+
+    // 公开 Storage 走 path 模式：稳定、利于边缘缓存
+    // https://xxx.supabase.co/storage/v1/object/public/goods-images/a.jpg
+    //   → https://img.goodsapp.de5.net/goods-images/a.jpg
+    if (
+      parsed.hostname === SUPABASE_HOST
+      && parsed.pathname.startsWith(SUPABASE_PUBLIC_STORAGE_PREFIX)
+    ) {
+      const rest = parsed.pathname.slice(SUPABASE_PUBLIC_STORAGE_PREFIX.length)
+      if (rest && !rest.includes('..')) {
+        return `${MEDIA_PROXY_ORIGIN}/${rest}${parsed.search}${parsed.hash}`
+      }
+    }
+
+    return value
   } catch {
     return value
   }
@@ -616,7 +626,7 @@ export async function getCachedImage(url, options = {}) {
   if (import.meta.env.DEV && fetchUrl.includes('sdk-webstatic.mihoyo.com')) {
     fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
   }
-  // 生产 Web：Supabase / 封面 CDN 走 Cloudflare 边缘缓存
+  // Supabase / 封面 CDN 走 Cloudflare 边缘缓存（缓存 key 仍是原始 URL）
   fetchUrl = toProxiedMediaUrl(fetchUrl)
 
   // 1: 内存（用原始 URL 作为 key）
