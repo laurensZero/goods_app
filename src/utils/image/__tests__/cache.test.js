@@ -28,8 +28,41 @@ import {
   clearMemoryCache,
   getCachedImage,
   hasRecentlyDecodedImage,
-  peekCachedImage
+  peekCachedImage,
+  toProxiedMediaUrl
 } from '@/utils/image/cache'
+
+describe('utils/image/toProxiedMediaUrl', () => {
+  const originalDev = import.meta.env.DEV
+
+  afterEach(() => {
+    import.meta.env.DEV = originalDev
+  })
+
+  it('Dev 环境不改写', () => {
+    import.meta.env.DEV = true
+    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/a.jpg'
+    expect(toProxiedMediaUrl(url)).toBe(url)
+  })
+
+  it('生产：Supabase 公开 Storage 走 path 模式代理', () => {
+    import.meta.env.DEV = false
+    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/uid/a.jpg'
+    expect(toProxiedMediaUrl(url)).toBe('https://img.goodsapp.de5.net/goods-images/uid/a.jpg')
+  })
+
+  it('生产：音乐封面等第三方 CDN 不走代理', () => {
+    import.meta.env.DEV = false
+    const url = 'https://y.gtimg.cn/music/photo_new/T002R500x500M000001.jpg'
+    expect(toProxiedMediaUrl(url)).toBe(url)
+  })
+
+  it('生产：非 Supabase host 保持原样', () => {
+    import.meta.env.DEV = false
+    const url = 'https://example.com/a.jpg'
+    expect(toProxiedMediaUrl(url)).toBe(url)
+  })
+})
 
 describe('utils/image/cache aliasCachedImage', () => {
   beforeEach(() => {
