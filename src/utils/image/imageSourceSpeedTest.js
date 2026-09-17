@@ -8,6 +8,7 @@ import {
 
 const DEFAULT_TIMEOUT_MS = 8000
 const SAMPLE_ROUNDS = 3
+const HEAD_SAMPLE_BYTES = 8 * 1024
 const SUPABASE_HOST = 'zvqzicimowfqshgjsrri.supabase.co'
 const SUPABASE_PUBLIC_STORAGE_PREFIX = '/storage/v1/object/public/'
 
@@ -33,9 +34,13 @@ export function extractSupabasePublicStoragePath(rawUrl) {
   }
 }
 
-function withCacheBust(url) {
+/**
+ * 仅首轮加 cache-bust，确保测的是网络路径而不是浏览器本地缓存；
+ * 后续轮走真实缓存策略，更接近用户实际加载体验。
+ */
+function withCacheBust(url, enabled) {
   const value = String(url || '').trim()
-  if (!value) return value
+  if (!value || !enabled) return value
   try {
     const parsed = new URL(value, typeof window !== 'undefined' ? window.location.href : 'http://localhost')
     parsed.searchParams.set('_st', String(Date.now()))
@@ -46,12 +51,43 @@ function withCacheBust(url) {
   }
 }
 
+async function readLimitedBody(response, limitBytes) {
+  const body = response?.body
+  if (!body || typeof body.getReader !== 'function') {
+    // 兼容无 stream 的环境：仍避免整图读完可选；无 stream 时退回 blob
+    const blob = await response.blob()
+    return Number(blob?.size) || 0
+  }
+
+  const reader = body.getReader()
+  let received = 0
+  try {
+    while (received < limitBytes) {
+      const { done, value } = await reader.read()
+      if (done) break
+      received += Number(value?.length) || 0
+    }
+  } finally {
+    // 读满即取消，避免继续下完整图
+    try {
+      await reader.cancel()
+    } catch {
+      // ignore cancel errors
+    }
+  }
+  return received
+}
+
 /**
- * 测量单次下载延迟（含首字节与完整 body 读取）。
+ * 测量单次延迟：到响应头 + 读取前 N 字节（默认 8KB），不下载整图。
  * @returns {Promise<{ ok: boolean, ms: number, status: number, bytes: number, aborted?: boolean }>}
  */
-export async function measureImageSourceOnce(url, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
-  const target = withCacheBust(url)
+export async function measureImageSourceOnce(url, {
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  cacheBust = false,
+  sampleBytes = HEAD_SAMPLE_BYTES
+} = {}) {
+  const target = withCacheBust(url, cacheBust)
   const started = typeof performance !== 'undefined' ? performance.now() : Date.now()
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -61,13 +97,13 @@ export async function measureImageSourceOnce(url, { timeoutMs = DEFAULT_TIMEOUT_
       signal: controller.signal,
       cache: 'no-store'
     })
-    const blob = await response.blob()
+    const bytes = await readLimitedBody(response, sampleBytes)
     const ended = typeof performance !== 'undefined' ? performance.now() : Date.now()
     return {
       ok: !!response.ok,
       ms: Math.max(0, Math.round(ended - started)),
       status: Number(response.status) || 0,
-      bytes: Number(blob?.size) || 0
+      bytes
     }
   } catch (error) {
     const ended = typeof performance !== 'undefined' ? performance.now() : Date.now()
@@ -111,8 +147,11 @@ export async function testImageSource({ sourceId, storagePath, timeoutMs = DEFAU
 
   const samples = []
   for (let i = 0; i < rounds; i += 1) {
-    // 顺序多轮：避免并行抢带宽导致互相拖慢
-    samples.push(await measureImageSourceOnce(sampleUrl, { timeoutMs }))
+    // 顺序多轮：避免并行抢带宽导致互相拖慢；首轮 bust 缓存，后两轮看真实路径
+    samples.push(await measureImageSourceOnce(sampleUrl, {
+      timeoutMs,
+      cacheBust: i === 0
+    }))
   }
 
   const okSamples = samples.filter((item) => item.ok)
