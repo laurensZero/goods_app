@@ -1,8 +1,17 @@
 <template>
   <Teleport to="body">
     <Transition name="scanner-fade">
-      <div v-if="modelValue" class="scanner-overlay" @click.self="emit('close')">
-        <div class="scanner-dialog" @click.stop>
+      <div
+        v-if="modelValue"
+        class="scanner-overlay"
+        :class="{ 'scanner-overlay--native': nativeMode }"
+        @click.self="emit('close')"
+      >
+        <div
+          class="scanner-dialog"
+          :class="{ 'scanner-dialog--native': nativeMode }"
+          @click.stop
+        >
           <div class="scanner-dialog__head">
             <h2 class="scanner-dialog__title">{{ t('my.scanQR') }}</h2>
             <button class="scanner-dialog__close" type="button" :aria-label="t('my.close')" @click="emit('close')">
@@ -12,7 +21,10 @@
             </button>
           </div>
 
-          <div class="scanner-viewport">
+          <div
+            class="scanner-viewport"
+            :class="{ 'scanner-viewport--native': nativeMode }"
+          >
             <video
               v-if="cameraActive"
               :ref="videoRef"
@@ -23,7 +35,7 @@
               muted
               @playing="emit('video-ready')"
             />
-            <canvas :ref="canvasRef" class="scanner-canvas" />
+            <canvas v-if="!nativeMode" :ref="canvasRef" class="scanner-canvas" />
 
             <div v-if="scannerReady" class="scanner-frame">
               <span class="scanner-corner scanner-corner--tl" />
@@ -63,6 +75,7 @@ defineProps({
   modelValue: { type: Boolean, default: false },
   scannerReady: { type: Boolean, default: false },
   cameraActive: { type: Boolean, default: false },
+  nativeMode: { type: Boolean, default: false },
   scannerHint: { type: String, default: '' },
   videoRef: { type: [Function, Object], default: null },
   canvasRef: { type: [Function, Object], default: null }
@@ -158,6 +171,30 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   inset: 0;
   opacity: 0;
   pointer-events: none;
+}
+
+/* 原生 ML Kit：相机在 WebView 后面，取景区必须全透明 */
+.scanner-overlay--native {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.scanner-dialog--native {
+  max-width: 420px;
+  background: rgba(0, 0, 0, 0.42);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.scanner-viewport--native {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+:global(body.barcode-scanner-active #app) {
+  visibility: hidden;
+}
+
+:global(body.barcode-scanner-active) {
+  background: transparent;
 }
 
 .scanner-frame {
