@@ -603,6 +603,7 @@ import { normalizeBaseUrl } from '@/services/ai/chatClient'
 import { transcribeAudio } from '@/services/ai/asrClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
+import { fetchTrackMetaBySource } from '@/utils/music/trackMeta'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
 import {
   isChatAttachmentUri,
@@ -1206,15 +1207,30 @@ async function playMusicPreviewHref(source, id, label) {
   const src = String(source || '').trim()
   if (!trackId || !src) return
   const meta = normalizePreviewTrackMeta(label, '')
+
+  // 链接文案常只有歌名，歌手/封面/时长从音源按 id 补拉
+  let fetched = null
+  if (!meta.artist || meta.title === trackId) {
+    fetched = await fetchTrackMetaBySource(/** @type {'netease' | 'qq' | 'bilibili'} */ (src), trackId)
+  }
+
+  const title = meta.title && meta.title !== trackId
+    ? meta.title
+    : String(fetched?.title || meta.title || trackId)
+  const artist = meta.artist || String(fetched?.artist || '')
+  const album = String(fetched?.album || '')
+  const coverUrl = String(fetched?.coverUrl || '')
+  const durationMs = Math.max(0, Number(fetched?.durationMs) || 0)
+
   try {
     await Promise.race([
       playerStore.playTrack({
         id: trackId,
-        title: meta.title || trackId,
-        artist: meta.artist,
-        album: '',
-        coverUrl: '',
-        durationMs: 0,
+        title,
+        artist,
+        album,
+        coverUrl,
+        durationMs,
         source: src,
         neteaseSongId: src === 'netease' ? trackId : '',
         qqSongId: src === 'qq' ? trackId : '',

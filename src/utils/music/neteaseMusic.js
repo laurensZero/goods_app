@@ -187,6 +187,28 @@ export async function fetchNeteaseSongCoverMap(songIds) {
   }, {})
 }
 
+/**
+ * 按 songId 拉取歌曲元数据（歌手/专辑/封面等）。
+ * AI 试听链接文案可能只有歌名，播放器缺歌手时用它补全。
+ * @param {string} songId
+ * @returns {Promise<{ title: string, artist: string, album: string, coverUrl: string, durationMs: number } | null>}
+ */
+export async function fetchNeteaseSongMeta(songId) {
+  const id = String(songId || '').trim()
+  if (!id) return null
+  const songs = await fetchNeteaseSongDetails([id])
+  const song = songs.find((item) => String(item?.id || '') === id) || songs[0]
+  if (!song) return null
+  const track = mapSongToTrack(song)
+  return {
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    coverUrl: track.coverUrl,
+    durationMs: track.durationMs
+  }
+}
+
 export async function searchNeteaseSongs(keyword, limit = 30, offset = 0) {
   const trimmed = String(keyword || '').trim()
   if (!trimmed) return []

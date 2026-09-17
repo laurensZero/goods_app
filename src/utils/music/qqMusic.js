@@ -396,6 +396,32 @@ export async function fetchQQLyrics(songMid) {
   return { rawLyric: '', lines: [], hasLyric: false }
 }
 
+/**
+ * 按 songMid 拉取歌曲详情原始 track_info。
+ * @param {string} songMid
+ * @returns {Promise<Record<string, any> | null>}
+ */
+async function fetchQQSongDetailTrackInfo(songMid) {
+  const mid = String(songMid || '').trim()
+  if (!mid) return null
+  const requestData = {
+    songinfo: {
+      module: 'music.pf_song_detail_svr',
+      method: 'get_song_detail_yqq',
+      param: {
+        song_mid: mid
+      }
+    }
+  }
+  const params = new URLSearchParams({
+    format: 'json',
+    data: JSON.stringify(requestData)
+  })
+  const payload = await requestJson(`${QQ_MUSIC_API_BASE}/musicu.fcg?${params.toString()}`)
+  const data = payload?.songinfo?.data || payload?.data || payload
+  return data?.track_info || data || null
+}
+
 export async function fetchQQSongCoverMap(songMids) {
   const normalizedMids = Array.from(new Set(
     (Array.isArray(songMids) ? songMids : [])
@@ -410,22 +436,8 @@ export async function fetchQQSongCoverMap(songMids) {
   const coverMap = {}
   for (const mid of normalizedMids) {
     try {
-      const requestData = {
-        songinfo: {
-          module: 'music.pf_song_detail_svr',
-          method: 'get_song_detail_yqq',
-          param: {
-            song_mid: mid
-          }
-        }
-      }
-      const params = new URLSearchParams({
-        format: 'json',
-        data: JSON.stringify(requestData)
-      })
-      const payload = await requestJson(`${QQ_MUSIC_API_BASE}/musicu.fcg?${params.toString()}`)
-      const data = payload?.songinfo?.data || payload?.data || payload
-      const coverUrl = resolveQQCoverUrl(data?.track_info || data)
+      const trackInfo = await fetchQQSongDetailTrackInfo(mid)
+      const coverUrl = resolveQQCoverUrl(trackInfo)
       if (coverUrl) coverMap[mid] = coverUrl
     } catch {
       // skip this track
@@ -433,6 +445,27 @@ export async function fetchQQSongCoverMap(songMids) {
   }
 
   return coverMap
+}
+
+/**
+ * 按 songMid 拉取歌曲元数据（歌手/专辑/封面等）。
+ * AI 试听链接文案可能只有歌名，播放器缺歌手时用它补全。
+ * @param {string} songMid
+ * @returns {Promise<{ title: string, artist: string, album: string, coverUrl: string, durationMs: number } | null>}
+ */
+export async function fetchQQSongMeta(songMid) {
+  const mid = String(songMid || '').trim()
+  if (!mid) return null
+  const trackInfo = await fetchQQSongDetailTrackInfo(mid)
+  if (!trackInfo) return null
+  const track = mapSongToTrack(trackInfo)
+  return {
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    coverUrl: track.coverUrl,
+    durationMs: track.durationMs
+  }
 }
 
 export function extractQQPlaylistId(input) {
