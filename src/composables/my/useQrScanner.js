@@ -11,6 +11,7 @@ import { showGlobalToast } from '@/utils/globalToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const CAMERA_CONSTRAINTS = {
   video: {
@@ -499,6 +500,9 @@ export function useQrScanner() {
     showScanner.value = false
     scanning.value = false
   }
+
+  // Android 系统返回键优先关闭扫码弹窗，避免直接返回当前页面或退出应用。
+  useDialogBackButton(closeScanner, showScanner)
 
   async function startMlkitScan() {
     if (!showScanner.value || !nativeMode.value) return
