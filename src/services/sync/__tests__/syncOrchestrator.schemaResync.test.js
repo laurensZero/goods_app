@@ -5,6 +5,15 @@ vi.mock('@/utils/platform/storage', () => ({
   writePersisted: vi.fn(),
   removePersisted: vi.fn()
 }))
+vi.mock('@/utils/db', () => ({
+  getAllBatchDrafts: vi.fn(async () => []),
+  flushDbWrites: vi.fn(async () => {}),
+  saveItems: vi.fn(),
+  saveEvents: vi.fn(),
+  saveGroups: vi.fn(),
+  saveGroupItems: vi.fn(),
+  saveRechargeRecords: vi.fn()
+}))
 vi.mock('@/utils/logger', () => ({ createLogger: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }) }))
 vi.mock('@/locales', () => ({ default: { global: { t: (k) => k } } }))
 
@@ -98,7 +107,7 @@ describe('pull schemaResync（同步格式版本升级回填）', () => {
       expect.objectContaining({ hasChanges: true, changedGoodsIds: new Set(['g1']) })
     )
     expect(mergeToLocal).toHaveBeenCalledWith(
-      stores,
+      expect.objectContaining({ ...stores, batchDrafts: [] }),
       remoteData,
       expect.objectContaining({ forceReapply: true, reconcileMissing: false })
     )

@@ -281,4 +281,15 @@ export const MIGRATIONS = [
       `)
     }
   },
+  {
+    version: 17,
+    description: 'Add batch_drafts.deleted soft-delete tombstone for sync',
+    up: async (db) => {
+      // 清除草稿后需要墓碑同步到其它设备；硬删会在增量 pull 下「复活」对端草稿
+      const cols = await db.getTableColumns('batch_drafts')
+      if (!cols.has('deleted')) {
+        await db.run('ALTER TABLE batch_drafts ADD COLUMN deleted INTEGER DEFAULT 0')
+      }
+    }
+  },
 ]

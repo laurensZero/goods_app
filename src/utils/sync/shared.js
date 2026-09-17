@@ -11,6 +11,7 @@ const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
 const EVENT_PHOTO_PREFIX = 'event-photo__'
 export const RECHARGE_IMAGE_PREFIX = 'recharge-image__'
+export const BATCH_DRAFT_IMAGE_PREFIX = 'batch-draft-image__'
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -395,10 +396,11 @@ function resolveRefName(entry) {
   ).trim()
 }
 
-// 收集全量本地数据（收藏 + 回收站 + 活动，含已删除活动）的云端图片引用状态，
+// 收集全量本地数据（收藏 + 回收站 + 活动 + 充值 + 批量草稿）的云端图片引用状态，
 // 供孤儿图片回收使用：referencedFiles 为被引用的文件名集合，
 // ownedEntityIds 为当前用户拥有的实体 ID 集合（含原始与 sanitize 后两种形式）
-export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [] } = {}) {
+// batchDrafts 必须计入：未保存草稿的图若不在 referenced 里，会被 GC 误删（48h 宽限不够时）
+export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [], batchDrafts = [] } = {}) {
   const referencedFiles = new Set()
   const ownedEntityIds = new Set()
 
@@ -443,6 +445,17 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
       || parseCloudImageUri(record?.image)
       || parseStoragePublicImageUrl(record?.image)
     )
+  }
+
+  for (const draft of batchDrafts) {
+    addId(draft?.id || draft?.slot)
+    for (const item of (Array.isArray(draft?.items) ? draft.items : [])) {
+      addRef(
+        item?.cloudFileName
+        || parseCloudImageUri(item?.imageUri)
+        || parseStoragePublicImageUrl(item?.imageUri)
+      )
+    }
   }
 
   return { referencedFiles, ownedEntityIds }
@@ -544,6 +557,17 @@ export function buildRechargeImageFilename(record, mimeType) {
   const updatedAt = String(getItemTimestamp(record) || 0)
   const extension = resolveImageExtension(mimeType, record?.image || '')
   return `${RECHARGE_IMAGE_PREFIX}${recordId}__${updatedAt}.${extension}`
+}
+
+export function buildBatchDraftImageFilename(draft, entry, mimeType) {
+  const existingCloudFileName = String(entry?.cloudFileName || parseCloudImageUri(entry?.imageUri || entry?.uri) || '').trim()
+  if (existingCloudFileName) return existingCloudFileName
+
+  const slot = sanitizeFilenamePart(draft?.slot || draft?.id)
+  const imageId = sanitizeFilenamePart(entry?.id)
+  const updatedAt = String(getItemTimestamp(draft) || 0)
+  const extension = resolveImageExtension(mimeType, entry?.imageUri || entry?.uri || '')
+  return `${BATCH_DRAFT_IMAGE_PREFIX}${slot}__${imageId}__${updatedAt}.${extension}`
 }
 
 export function buildImageSyncStats() {

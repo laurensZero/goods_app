@@ -329,6 +329,22 @@ describe('shouldPullRechargeByManifest', () => {
 })
 
 describe('collectReferencedImageState', () => {
+  it('collects draft item cloudFileName and prevents GC of unsaved draft images', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      batchDrafts: [{
+        id: 'collection',
+        slot: 'collection',
+        items: [{
+          id: 'q1',
+          cloudFileName: 'batch-draft-image__collection__q1__1.jpg',
+          imageUri: 'cloud-image://batch-draft-image__collection__q1__1.jpg'
+        }]
+      }]
+    })
+    expect(referencedFiles.has('batch-draft-image__collection__q1__1.jpg')).toBe(true)
+    expect(ownedEntityIds.has('collection')).toBe(true)
+  })
+
   it('collects cloudFileName from goods images', () => {
     const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
       goods: [{

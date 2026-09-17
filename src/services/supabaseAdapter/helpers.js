@@ -43,6 +43,14 @@ export const EVENT_COLS = [...EVENT_BUSINESS_KEYS, 'syncedBy', 'userId']
 export const EVENT_JSON_KEYS = ['photos', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags']
 export const EVENT_SELECT_COLS = [...EVENT_BUSINESS_KEYS.map(camelToSnake), 'updated_at', 'created_at', 'user_id'].join(', ')
 
+// batch_drafts：批量添加草稿（collection / wishlist 两槽）。
+// deleted 不在 push 白名单——由 toBatchDraftRow 按桶显式写入；pull 侧 SELECT 读回分桶。
+// items 为 JSON 数组（队列项），reader 走 BATCH_DRAFT_JSON_KEYS；defaults 是对象，reader 单独解析。
+export const BATCH_DRAFT_BUSINESS_KEYS = ['id', 'slot', 'batchId', 'isWishlist', 'items', 'defaults']
+export const BATCH_DRAFT_COLS = [...BATCH_DRAFT_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const BATCH_DRAFT_JSON_KEYS = ['items']
+export const BATCH_DRAFT_SELECT_COLS = [...BATCH_DRAFT_BUSINESS_KEYS.map(camelToSnake), 'deleted', 'updated_at', 'user_id'].join(', ')
+
 // ── Primitive helpers ──
 
 export function pickCols(item, allowed) {
@@ -299,6 +307,28 @@ export function toGroupItemRows(items, deviceIdRef, userId, isTrash = false) {
     syncedBy: currentDeviceId,
     userId: userId || null
   }))
+}
+
+export function toBatchDraftRows(items, deviceIdRef, userId, isTrash = false) {
+  const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+  return (items || []).map(item => {
+    const slot = String(item?.slot || item?.id || '').trim()
+    if (!slot) return null
+    return toSnakeCase({
+      ...pickCols(item, BATCH_DRAFT_COLS),
+      // 槽位即主键：id 与 slot 同值，保证两设备同一草稿 LWW 合并
+      id: slot,
+      slot,
+      batchId: String(item?.batchId || '').trim(),
+      isWishlist: item?.isWishlist ? 1 : 0,
+      items: Array.isArray(item?.items) ? item.items : [],
+      defaults: item?.defaults && typeof item.defaults === 'object' && !Array.isArray(item.defaults) ? item.defaults : {},
+      deleted: isTrash ? 1 : (Number(item?.deleted) || 0),
+      updatedAt: toTimestamp(item.updatedAt),
+      syncedBy: currentDeviceId,
+      userId: userId || null
+    })
+  }).filter(Boolean)
 }
 
 // ── Diff helpers ──

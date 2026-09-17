@@ -179,6 +179,7 @@ const CREATE_BATCH_DRAFTS_TABLE_SQL = `
     isWishlist INTEGER DEFAULT 0,
     items      TEXT NOT NULL DEFAULT '[]',
     defaults   TEXT NOT NULL DEFAULT '{}',
+    deleted    INTEGER DEFAULT 0,
     updatedAt  INTEGER DEFAULT 0
   );
 `
@@ -1055,34 +1056,46 @@ export async function deleteGroupItemsByGoodsId(goodsId) {
 // ── Batch Drafts CRUD ──
 // 槽位主键：collection（收藏批量）| wishlist（心愿单批量）
 // items/defaults 为 JSON 字符串；图片只存 URI 引用，不把二进制塞进 DB
+// deleted：软删墓碑（一键清除 / saveAll 后标 1），同步域靠它传播「对端已清」；活跃读过滤 deleted=0
 
-const BATCH_DRAFT_INSERT_SQL = 'INSERT OR REPLACE INTO batch_drafts (slot,batchId,isWishlist,items,defaults,updatedAt) VALUES (?,?,?,?,?,?)'
+const BATCH_DRAFT_INSERT_SQL = 'INSERT OR REPLACE INTO batch_drafts (slot,batchId,isWishlist,items,defaults,deleted,updatedAt) VALUES (?,?,?,?,?,?,?)'
+
+function mapBatchDraftRow(row) {
+  let items = []
+  let defaults = {}
+  try { items = JSON.parse(row.items || '[]') } catch { items = [] }
+  try { defaults = JSON.parse(row.defaults || '{}') } catch { defaults = {} }
+  if (!Array.isArray(items)) items = []
+  if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults)) defaults = {}
+  return {
+    id: String(row.slot),
+    slot: String(row.slot),
+    batchId: String(row.batchId || ''),
+    isWishlist: normalizeWishlistFlag(row.isWishlist),
+    items,
+    defaults,
+    deleted: Number(row.deleted) === 1,
+    updatedAt: Number(row.updatedAt) || 0
+  }
+}
 
 /**
+ * 读活跃草稿（deleted=0 且 items 非空才视为可恢复）
  * @param {string} slot
- * @returns {Promise<{ slot: string, batchId: string, isWishlist: boolean, items: any[], defaults: Record<string, any>, updatedAt: number } | null>}
+ * @returns {Promise<object | null>}
  */
 export async function getBatchDraft(slot) {
   if (!slot) return null
   await initDB()
   try {
-    const rows = await db.query('SELECT slot,batchId,isWishlist,items,defaults,updatedAt FROM batch_drafts WHERE slot = ?', [slot])
+    const rows = await db.query(
+      'SELECT slot,batchId,isWishlist,items,defaults,deleted,updatedAt FROM batch_drafts WHERE slot = ?',
+      [slot]
+    )
     if (!rows.length) return null
-    const row = rows[0]
-    let items = []
-    let defaults = {}
-    try { items = JSON.parse(row.items || '[]') } catch { items = [] }
-    try { defaults = JSON.parse(row.defaults || '{}') } catch { defaults = {} }
-    if (!Array.isArray(items)) items = []
-    if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults)) defaults = {}
-    return {
-      slot: String(row.slot),
-      batchId: String(row.batchId || ''),
-      isWishlist: normalizeWishlistFlag(row.isWishlist),
-      items,
-      defaults,
-      updatedAt: Number(row.updatedAt) || 0
-    }
+    const draft = mapBatchDraftRow(rows[0])
+    if (draft.deleted) return null
+    return draft
   } catch (e) {
     console.error('[db] getBatchDraft failed:', e)
     throw e
@@ -1090,10 +1103,27 @@ export async function getBatchDraft(slot) {
 }
 
 /**
- * @param {{ slot: string, batchId?: string, isWishlist?: boolean, items: any[], defaults?: Record<string, any>, updatedAt?: number }} draft
+ * 同步 push 用：全量行（含 deleted=1 墓碑）
+ * @returns {Promise<object[]>}
+ */
+export async function getAllBatchDrafts() {
+  await initDB()
+  try {
+    const rows = await db.query(
+      'SELECT slot,batchId,isWishlist,items,defaults,deleted,updatedAt FROM batch_drafts ORDER BY slot ASC'
+    )
+    return rows.map(mapBatchDraftRow)
+  } catch (e) {
+    console.error('[db] getAllBatchDrafts failed:', e)
+    throw e
+  }
+}
+
+/**
+ * @param {{ slot: string, batchId?: string, isWishlist?: boolean, items: any[], defaults?: Record<string, any>, deleted?: boolean, updatedAt?: number }} draft
  */
 export async function saveBatchDraft(draft) {
-  const slot = String(draft?.slot || '')
+  const slot = String(draft?.slot || draft?.id || '')
   if (!slot) throw new Error('[db] saveBatchDraft: slot is required')
   await initDB()
   try {
@@ -1105,6 +1135,7 @@ export async function saveBatchDraft(draft) {
       draft.isWishlist ? 1 : 0,
       JSON.stringify(items),
       JSON.stringify(defaults),
+      draft.deleted ? 1 : 0,
       Number(draft.updatedAt) || Date.now()
     ])
   } catch (e) {
@@ -1113,7 +1144,63 @@ export async function saveBatchDraft(draft) {
   }
 }
 
-/** @param {string} slot */
+/**
+ * 软删墓碑：清 items、deleted=1、刷 updatedAt，供同步传播清除
+ * @param {string} slot
+ */
+export async function softDeleteBatchDraft(slot) {
+  if (!slot) return
+  await initDB()
+  try {
+    const existing = await db.query('SELECT slot FROM batch_drafts WHERE slot = ?', [slot])
+    if (!existing.length) return
+    await db.run(
+      'UPDATE batch_drafts SET deleted = 1, items = \'[]\', updatedAt = ? WHERE slot = ?',
+      [Date.now(), slot]
+    )
+  } catch (e) {
+    console.error('[db] softDeleteBatchDraft failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 同步 pull 合并入口：LWW 由调用方（mergeBatchDraftsFromRemote）保证后整行写入
+ * @param {object[]} drafts
+ */
+export async function saveBatchDrafts(drafts) {
+  if (!drafts || drafts.length === 0) return
+  await initDB()
+  try {
+    const stmts = drafts.map((draft) => {
+      const slot = String(draft?.slot || draft?.id || '')
+      if (!slot) return null
+      const items = Array.isArray(draft.items) ? draft.items : []
+      const defaults = draft.defaults && typeof draft.defaults === 'object' && !Array.isArray(draft.defaults) ? draft.defaults : {}
+      return {
+        statement: BATCH_DRAFT_INSERT_SQL,
+        values: [
+          slot,
+          String(draft.batchId || ''),
+          draft.isWishlist ? 1 : 0,
+          JSON.stringify(items),
+          JSON.stringify(defaults),
+          draft.deleted ? 1 : 0,
+          Number(draft.updatedAt) || Date.now()
+        ]
+      }
+    }).filter(Boolean)
+    if (stmts.length) await db.executeSet(stmts)
+  } catch (e) {
+    console.error('[db] saveBatchDrafts failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 硬删行——仅测试/损坏修复用；业务清除走 softDeleteBatchDraft
+ * @param {string} slot
+ */
 export async function deleteBatchDraft(slot) {
   if (!slot) return
   await initDB()

@@ -9,7 +9,7 @@ import { computeBucketDiff } from '../supabaseAdapter/helpers'
  * Build sync payloads (image upload is deferred to doPush).
  * Returns { syncData, rechargeSyncData, eventSyncData, imageStats, allReferencedImageFiles, imageUpdates }.
  */
-export async function buildPayloadAndUploadImages(payload, imageService, be, { existingImageCloud = null, dirtyIds = null, shouldWriteRecharge = true, shouldWriteEvent = true } = {}) {
+export async function buildPayloadAndUploadImages(payload, imageService, be, { existingImageCloud = null, dirtyIds = null, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWriteBatchDrafts = true } = {}) {
   // Build goods payload (includes image collection)
   const goodsResult = await payload.buildSyncPayload({ existingImageCloud, dirtyIds })
   const { syncData, imageStats, imageFiles, referencedImageFiles } = goodsResult
@@ -40,10 +40,27 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
     eventReferencedImageFiles = eventResult.referencedImageFiles || []
   }
 
+  // Build batch draft payload（槽位少，图片也少；本地文件只读不删）
+  let batchDraftSyncData = { batchDrafts: [], batchDraftsTrash: [] }
+  let batchDraftImageStats = { imageFileCount: 0 }
+  let batchDraftImageFiles = {}
+  let batchDraftReferencedImageFiles = new Set()
+  if (shouldWriteBatchDrafts) {
+    const draftResult = await payload.buildBatchDraftSyncPayload({ existingImageCloud })
+    batchDraftSyncData = draftResult.batchDraftSyncData || { batchDrafts: [], batchDraftsTrash: [] }
+    batchDraftImageStats = draftResult.batchDraftImageStats || { imageFileCount: 0 }
+    batchDraftImageFiles = draftResult.batchDraftImageFiles || {}
+    batchDraftReferencedImageFiles = draftResult.batchDraftReferencedImageFiles || new Set()
+  }
+
   // Merge image files and compute cleanup
-  const allReferencedImageFiles = new Set([...referencedImageFiles, ...eventReferencedImageFiles])
+  const allReferencedImageFiles = new Set([
+    ...referencedImageFiles,
+    ...eventReferencedImageFiles,
+    ...batchDraftReferencedImageFiles
+  ])
   const imageCleanupFiles = imageService.buildImageCleanupFiles(existingImageCloud, allReferencedImageFiles)
-  const imageUpdates = { ...imageFiles, ...eventImageFiles, ...imageCleanupFiles }
+  const imageUpdates = { ...imageFiles, ...eventImageFiles, ...batchDraftImageFiles, ...imageCleanupFiles }
 
   // NOTE: Image upload is deferred to doPush().
   // Data is written to remote FIRST, then images are uploaded.
@@ -81,17 +98,35 @@ export async function buildPayloadAndUploadImages(payload, imageService, be, { e
         record.image = be.getImagePublicUrl(cloudFileName)
       }
     }
+    // Replace batch draft item imageUri cloud refs with public URLs
+    for (const draft of [...(batchDraftSyncData.batchDrafts || []), ...(batchDraftSyncData.batchDraftsTrash || [])]) {
+      if (!Array.isArray(draft.items)) continue
+      for (const item of draft.items) {
+        const cloudFileName = String(item?.cloudFileName || parseCloudImageUri(item?.imageUri) || '').trim()
+        if (cloudFileName && allReferencedImageFiles.has(cloudFileName)) {
+          item.imageUri = be.getImagePublicUrl(cloudFileName)
+        }
+      }
+    }
   }
 
   const mergedImageStats = {
-    uploadedImages: (Number(imageStats.uploadedImages) || 0) + (Number(eventImageStats.uploadedImages) || 0),
-    reusedImages: (Number(imageStats.reusedImages) || 0) + (Number(eventImageStats.reusedImages) || 0),
-    restoredImages: (Number(imageStats.restoredImages) || 0) + (Number(eventImageStats.restoredImages) || 0),
+    uploadedImages: (Number(imageStats.uploadedImages) || 0) + (Number(eventImageStats.uploadedImages) || 0) + (Number(batchDraftImageStats.uploadedImages) || 0),
+    reusedImages: (Number(imageStats.reusedImages) || 0) + (Number(eventImageStats.reusedImages) || 0) + (Number(batchDraftImageStats.reusedImages) || 0),
+    restoredImages: (Number(imageStats.restoredImages) || 0) + (Number(eventImageStats.restoredImages) || 0) + (Number(batchDraftImageStats.restoredImages) || 0),
     imageFileCount: allReferencedImageFiles.size,
     imageUpdatedAt: Object.keys(imageUpdates).length > 0 ? new Date().toISOString() : ''
   }
 
-  return { syncData, rechargeSyncData, eventSyncData, imageStats: mergedImageStats, allReferencedImageFiles, imageUpdates }
+  return {
+    syncData,
+    rechargeSyncData,
+    eventSyncData,
+    batchDraftSyncData,
+    imageStats: mergedImageStats,
+    allReferencedImageFiles,
+    imageUpdates
+  }
 }
 
 /**
@@ -136,7 +171,7 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
 /**
  * Write data to remote backend via pushAll RPC.
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, manifest, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, batchDraftSyncData = { batchDrafts: [], batchDraftsTrash: [] }, manifest, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWriteBatchDrafts = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
   // Compute incremental diff when remoteData is available
   const localGoods = shouldWriteData ? (syncData.goods || []) : []
   const localTrash = shouldWriteData ? (syncData.trash || []) : []
@@ -148,12 +183,15 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
   const localRechargeTrash = shouldWriteRecharge ? (rechargeSyncData.rechargeTrash || []) : []
   const localEvents = shouldWriteEvent ? (eventSyncData.events || []) : []
   const localEventsTrash = shouldWriteEvent ? (eventSyncData.eventsTrash || []) : []
+  const localBatchDrafts = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDrafts || []) : []
+  const localBatchDraftsTrash = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDraftsTrash || []) : []
 
   let goods = localGoods, goodsTrash = localTrash
   let groups = localGroups, groupsTrash = localGroupsTrash
   let groupItems = localGroupItems, groupItemsTrash = localGroupItemsTrash
   let recharge = localRecharge, rechargeTrash = localRechargeTrash
   let events = localEvents, eventsTrash = localEventsTrash
+  let batchDrafts = localBatchDrafts, batchDraftsTrash = localBatchDraftsTrash
 
   if (remoteData) {
     // Incremental: only send changed items (diffs for upsert, never delete cloud rows)
@@ -182,14 +220,20 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
       events = e.active
       eventsTrash = e.trash
     }
+    if (shouldWriteBatchDrafts) {
+      const bd = await computeBucketDiff(localBatchDrafts, localBatchDraftsTrash, remoteData.batchDrafts || [], remoteData.batchDraftsTrash || [])
+      batchDrafts = bd.active
+      batchDraftsTrash = bd.trash
+    }
   }
 
   const pushResult = await be.pushAll({
     goods, goodsTrash, groups, groupsTrash, groupItems, groupItemsTrash,
     recharge, rechargeTrash, events, eventsTrash,
+    batchDrafts, batchDraftsTrash,
     presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
     deleteGoods: [], deleteGroups: [], deleteGroupItems: [],
-    deleteRecharge: [], deleteEvents: [],
+    deleteRecharge: [], deleteEvents: [], deleteBatchDrafts: [],
     deviceId: manifest?.deviceId || '',
     syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
     imageBucket: manifest?.imageCloudId || 'goods-images',
@@ -208,7 +252,7 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
  * Marks images as remote so future syncs can dedup.
  * Files listed in failedImageFiles keep their local refs so the next sync retries the upload.
  */
-export async function updateLocalRefs(goodsStore, eventsStore, rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles = null) {
+export async function updateLocalRefs(goodsStore, eventsStore, rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles = null, batchDraftSyncData = null) {
   const isUploadFailed = (name) => {
     const key = String(name || '').trim()
     return !!key && !!failedImageFiles && failedImageFiles.has(key)
@@ -266,6 +310,31 @@ export async function updateLocalRefs(goodsStore, eventsStore, rechargeStore, sy
     }
     if (rechargeImageMap.size > 0) {
       await rechargeStore.markImageAsRemote(rechargeImageMap)
+    }
+  }
+
+  // Update batch draft image refs — 只写 cloudFileName/URI，不删本地文件（杀进程后仍可恢复）
+  if (batchDraftSyncData && (batchDraftSyncData.batchDrafts || []).length > 0) {
+    const updatesBySlot = []
+    for (const draft of [...(batchDraftSyncData.batchDrafts || []), ...(batchDraftSyncData.batchDraftsTrash || [])]) {
+      const slot = String(draft?.slot || draft?.id || '').trim()
+      if (!slot) continue
+      const items = Array.isArray(draft.items) ? draft.items : []
+      const updatedItems = items.map((item) => {
+        const cloudFileName = String(item?.cloudFileName || '').trim()
+        if (!cloudFileName || isUploadFailed(cloudFileName)) return item
+        return {
+          ...item,
+          imageUri: be.getImagePublicUrl ? be.getImagePublicUrl(cloudFileName) : item.imageUri,
+          cloudFileName,
+          storageMode: item.storageMode || 'cloud-local'
+        }
+      })
+      updatesBySlot.push({ slot, items: updatedItems, deleted: !!draft.deleted, updatedAt: draft.updatedAt })
+    }
+    if (updatesBySlot.length > 0) {
+      const { markBatchDraftImagesAsRemote } = await import('@/composables/batch/useBatchQueue')
+      await markBatchDraftImagesAsRemote(updatesBySlot, be)
     }
   }
 }

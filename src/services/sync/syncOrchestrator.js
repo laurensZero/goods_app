@@ -7,7 +7,7 @@ import { compareStateSync } from '@/utils/sync/stateCompare'
 import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHASE_PUSH, PHASE_WRITE_DATA } from './syncError'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from './syncPushPipeline'
-import { flushDbWrites, saveItems, saveEvents, saveGroups, saveGroupItems, saveRechargeRecords } from '@/utils/db'
+import { flushDbWrites, saveItems, saveEvents, saveGroups, saveGroupItems, saveRechargeRecords, getAllBatchDrafts } from '@/utils/db'
 import { PULL_CLOCK_OVERLAP_MS } from '@/constants/syncConstants'
 
 // 增量拉取的 since 回退一个重叠窗口，吸收设备间时钟偏移（行内 updated_at 为客户端时间）；
@@ -112,6 +112,9 @@ export function createSyncOrchestrator({
     const { tables, since = 0, silent = false, schemaResync = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
+    let localBatchDrafts = []
+    try { localBatchDrafts = await getAllBatchDrafts() } catch { localBatchDrafts = [] }
+    const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
     const isIncremental = since > 0 && !!be.pullAll
     log.info('pull:start', { incremental: isIncremental, since, silent, tables: tables || 'all' })
 
@@ -146,7 +149,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(stores, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
           },
@@ -224,7 +227,7 @@ export function createSyncOrchestrator({
           if (be.getExistingImageCloud) await be.getExistingImageCloud().catch(() => {})
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
-          const merged = await mergeToLocal(stores, remoteData, {
+          const merged = await mergeToLocal(storesWithDrafts, remoteData, {
             reconcileMissing: !remoteData.isIncremental && !schemaResync, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             forceReapply: schemaResync,
@@ -404,7 +407,17 @@ export function createSyncOrchestrator({
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
     const isPresetsDirty = !dirty || dirty.has('presets')
     const isBudgetDirty = !dirty || dirty.has('budget')
+    const isBatchDraftDirty = !dirty || dirty.has('batchDrafts')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
+
+    // 读取本地草稿快照：供 diff/计数/GC 使用（不经过 Pinia store）
+    let localBatchDrafts = []
+    try {
+      localBatchDrafts = await getAllBatchDrafts()
+    } catch (e) {
+      log.warn('getAllBatchDrafts failed', e)
+    }
+    const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
 
     // 1. Read manifest — 直查 sync_manifest（manifest-only），
     // 避免 sync_pull 以 since=0 全量拉整库后只留清单丢弃数据行
@@ -442,6 +455,9 @@ export function createSyncOrchestrator({
     // 与行域 localSyncTime 混比会把增量拉取后的正常状态误判为远端领先
     const serverSyncTime = getServerSyncTimeMs(ctx)
     const localChanges = conflict.getLocalChangesSince(localSyncTime)
+    // getLocalChangesSince 不扫 batch_drafts：仅草稿 dirty 时不要伪装成冲突，
+    // 远端略领先会走「先 pull 再 push 草稿」路径（见下方 pull 分支）
+    const draftsDomainDirty = !!(dirty && dirty.has('batchDrafts'))
 
     let hasDataDiff = hasDirtyGoodsIds
     let goodsDiff = null
@@ -467,6 +483,14 @@ export function createSyncOrchestrator({
             || compareStateSync(localTrash, remoteData.eventsTrash || [], { incremental: false }).hasChanges
         })()
       : false
+    const hasBatchDraftDataDiff = isBatchDraftDirty
+      ? (() => {
+          const localActive = localBatchDrafts.filter(d => !d.deleted)
+          const localTrash = localBatchDrafts.filter(d => d.deleted)
+          return compareStateSync(localActive, remoteData.batchDrafts || [], { incremental: false }).hasChanges
+            || compareStateSync(localTrash, remoteData.batchDraftsTrash || [], { incremental: false }).hasChanges
+        })()
+      : false
     const localBudgetSettings = isBudgetDirty ? await readBudgetSettings() : null
     const hasBudgetDiff = isBudgetDirty && localBudgetSettings && (
       normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(remoteManifest?.budgetMonthly)
@@ -479,9 +503,9 @@ export function createSyncOrchestrator({
         hasPresetsDiff = JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
       } catch { hasPresetsDiff = true }
     }
-    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBudgetDiff || hasPresetsDiff
+    const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBatchDraftDataDiff || hasBudgetDiff || hasPresetsDiff
     log.info('sync:compare', {
-      hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff,
+      hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff, hasBudgetDiff, hasPresetsDiff,
       remoteTime, localSyncTime, serverSyncTime, localChanges: localChanges.hasChanges
     })
 
@@ -499,7 +523,7 @@ export function createSyncOrchestrator({
     if (remoteTime > serverSyncTime) {
       if (!remoteManifest) {
         // First sync — push local data
-        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true })
+        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasBatchDraftDataDiff: true, hasPresetsDiff: true })
       }
       if (localChanges.hasChanges) {
         log.warn('sync:conflict', { remoteTime: remoteManifest.lastSyncAt, remoteDevice: remoteManifest.deviceId, localTime: ctx.lastSyncedAt })
@@ -524,7 +548,7 @@ export function createSyncOrchestrator({
           if (be.getExistingImageCloud) await be.getExistingImageCloud().catch(() => {})
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
-          const merged = await mergeToLocal(stores, remoteData, {
+          const merged = await mergeToLocal(storesWithDrafts, remoteData, {
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
@@ -546,41 +570,65 @@ export function createSyncOrchestrator({
       await flushDbWrites().catch(() => {})
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       await saveServerWatermark(ctx, remoteManifest?.lastSyncAt)
+      // 拉取后本地仍有草稿脏域：立刻再推一次，避免 doSync 的 clearDirtyDomains 吞掉 batchDrafts
+      if (draftsDomainDirty || hasBatchDraftDataDiff) {
+        const pushAfterPull = await doPush(ctx, stores, be, {
+          hasDataDiff: false,
+          hasRechargeDataDiff: false,
+          hasEventDataDiff: false,
+          hasBatchDraftDataDiff: true,
+          hasPresetsDiff: false,
+          remoteData,
+          localBatchDrafts
+        })
+        return { ...pushAfterPull, pulledFirst: true, ...pullCounts }
+      }
       return { action: 'pulled', ...pullCounts }
     }
 
     // Push (incremental — only send changed items)
-    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData })
+    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData, localBatchDrafts })
   }
 
   // ── Push implementation ──
 
   /**
-   * Count all unique cloud-referenced image files across all goods + events.
+   * Count all unique cloud-referenced image files across all goods + events + drafts.
    */
-  function countAllReferencedImageFiles(goodsStore, eventsStore, rechargeStore) {
+  function countAllReferencedImageFiles(goodsStore, eventsStore, rechargeStore, batchDrafts = []) {
     const { referencedFiles } = collectReferencedImageState({
       goods: goodsStore.list,
       trash: goodsStore.trashList,
       events: eventsStore.list || [],
-      recharge: rechargeStore?.records || []
+      recharge: rechargeStore?.records || [],
+      batchDrafts
     })
     return referencedFiles.size
   }
 
   async function doPush(ctx, stores, be, opts = {}) {
-    const { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData } = opts
+    const {
+      hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff,
+      hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData,
+      localBatchDrafts = null
+    } = opts
+
+    let draftSnapshot = localBatchDrafts
+    if (!draftSnapshot) {
+      try { draftSnapshot = await getAllBatchDrafts() } catch { draftSnapshot = [] }
+    }
 
     // Build payload (without uploading images yet)
     let existingImageCloud = await be.getExistingImageCloud()
-    const { syncData, rechargeSyncData, eventSyncData, imageStats, imageUpdates } = await trackSyncStep(
+    const { syncData, rechargeSyncData, eventSyncData, batchDraftSyncData, imageStats, imageUpdates } = await trackSyncStep(
       i18n.global.t('sync.step.buildGoodsPayload'),
       () => buildPayloadAndUploadImages(
         payload, image, be, {
           existingImageCloud,
           dirtyIds: hasDirtyGoodsIds ? dirtyGoodsIds : null,
           shouldWriteRecharge: hasRechargeDataDiff,
-          shouldWriteEvent: hasEventDataDiff
+          shouldWriteEvent: hasEventDataDiff,
+          shouldWriteBatchDrafts: hasBatchDraftDataDiff
         }
       ),
       {
@@ -600,7 +648,7 @@ export function createSyncOrchestrator({
     // When only dirty items were processed, imageStats only counts their images.
     // The manifest needs the TOTAL image count across all items.
     if (hasDirtyGoodsIds) {
-      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore, stores.rechargeStore)
+      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore, stores.rechargeStore, draftSnapshot)
     }
 
     // Build manifest
@@ -623,12 +671,13 @@ export function createSyncOrchestrator({
       const writeResult = await trackSyncStep(
         i18n.global.t('sync.step.pushData'),
         () => writeRemoteData(be, {
-          syncData, rechargeSyncData, eventSyncData, manifest,
+          syncData, rechargeSyncData, eventSyncData, batchDraftSyncData, manifest,
           existingCloud: existingImageCloud,
           remoteData,
           shouldWriteData: hasDataDiff,
           shouldWriteRecharge: hasRechargeDataDiff,
           shouldWriteEvent: hasEventDataDiff,
+          shouldWriteBatchDrafts: hasBatchDraftDataDiff,
           shouldWritePresets: hasPresetsDiff,
           fullGoodsList: hasDirtyGoodsIds ? stores.goodsStore.list : null,
           fullTrashList: hasDirtyGoodsIds ? stores.goodsStore.trashList : null
@@ -645,6 +694,7 @@ export function createSyncOrchestrator({
     // Upload images AFTER data is safely written.
     // Track per-file success so local refs/base64 are only replaced for files that
     // actually reached the cloud — failed files keep their local copy and retry next sync.
+    // 杀进程场景：本地草稿图片文件与 localImageUri 均不因上传中断而删除。
     const failedImageFiles = new Set()
     const pendingUploadFiles = Object.keys(imageUpdates).filter((name) => imageUpdates[name]?.content)
     if (Object.keys(imageUpdates).length > 0) {
@@ -677,18 +727,25 @@ export function createSyncOrchestrator({
     }
 
     // Update local refs (skip images whose upload failed)
-    await updateLocalRefs(stores.goodsStore, stores.eventsStore, stores.rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles)
+    await updateLocalRefs(stores.goodsStore, stores.eventsStore, stores.rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles, batchDraftSyncData)
 
     // 孤儿图片回收（Supabase）：删除云端不再被引用、且归属当前用户的图片文件。
     // 必须放在 purgeSyncedDeleted 之前：已删除活动的墓碑引用此时仍在本地，其照片会被保留。
+    // batchDrafts 必须计入本地 + 本次推送 payload：刚上传但本地尚未写 cloudFileName 的图不能被 GC。
     // 整体 try/catch，回收失败绝不影响同步结果。
     if (be.getImagePublicUrl && typeof be.removeImages === 'function') {
       try {
+        const localDraftsForGc = draftSnapshot || []
+        const pushedDrafts = [
+          ...(batchDraftSyncData?.batchDrafts || []),
+          ...(batchDraftSyncData?.batchDraftsTrash || [])
+        ]
         const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
           goods: stores.goodsStore.list,
           trash: stores.goodsStore.trashList,
           events: stores.eventsStore.list || [],
-          recharge: stores.rechargeStore?.records || []
+          recharge: stores.rechargeStore?.records || [],
+          batchDrafts: [...localDraftsForGc, ...pushedDrafts]
         })
         const orphanFiles = image.collectSupabaseOrphanImageFiles(existingImageCloud, { referencedFiles, ownedEntityIds })
         if (orphanFiles.length > 0) {
@@ -743,6 +800,7 @@ export function createSyncOrchestrator({
       totalTrash: (syncData.trash || []).length,
       totalRecharge: (rechargeSyncData.recharge || []).length,
       totalEvents: (eventSyncData.events || []).length,
+      totalDrafts: (batchDraftSyncData?.batchDrafts || []).length + (batchDraftSyncData?.batchDraftsTrash || []).length,
       failedImages: failedImageFiles.size
     })
     return {
@@ -837,7 +895,8 @@ export function createSyncOrchestrator({
       }
       await bumpTimestampsForForcePush(stores, remoteData, toTimestampMs(ctx.conflictData?.remoteTime))
       return await doPush(ctx, stores, be, {
-        hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasPresetsDiff: true,
+        hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true,
+        hasBatchDraftDataDiff: true, hasPresetsDiff: true,
         remoteData
       })
     } catch (e) {
@@ -858,7 +917,7 @@ export function createSyncOrchestrator({
     return (counts.importedGoods || 0) + (counts.updatedGoods || 0) + (counts.importedTrash || 0)
       + (counts.importedRecharge || 0) + (counts.updatedRecharge || 0)
       + (counts.importedEvents || 0) + (counts.updatedEvents || 0)
-      + (counts.importedGroups || 0)
+      + (counts.importedGroups || 0) + (counts.importedDrafts || 0)
   }
 
   function buildConflictCounts(stores, remoteData, diff) {

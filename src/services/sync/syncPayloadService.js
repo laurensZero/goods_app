@@ -5,6 +5,7 @@ import {
   buildEventPhotoFilename,
   buildImageFilename,
   buildRechargeImageFilename,
+  buildBatchDraftImageFilename,
   buildImageSyncStats,
   getItemTimestamp,
   parseImageDataUrl,
@@ -13,7 +14,9 @@ import {
   normalizeBudgetValue,
   readBudgetSettings
 } from '@/utils/sync/shared'
-import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, sanitizeGoodsItemForSync } from '@/utils/goods/images'
+import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, parseStoragePublicImageUrl, sanitizeGoodsItemForSync } from '@/utils/goods/images'
+import { getAllBatchDrafts } from '@/utils/db'
+import { isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
 import {
   SYNC_PAYLOAD_VERSION,
   RECHARGE_PAYLOAD_VERSION,
@@ -575,6 +578,150 @@ export function createSyncPayloadService({
     }
   }
 
+  /**
+   * 构建 batch_drafts 同步载荷。
+   * 本地图片只读不删：上传失败/进程被杀时本地文件与 localImageUri 保留，下次同步重试。
+   * 成功准备后 item.imageUri 指向 cloud-image://，localImageUri 仍指向本地文件供清除使用。
+   */
+  async function prepareDraftItemForSync(draft, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+    if (!entry || typeof entry !== 'object') return entry
+    const imageUri = String(entry.imageUri || '').trim()
+    const existingCloud = String(
+      entry.cloudFileName
+      || parseCloudImageUri(imageUri)
+      || parseStoragePublicImageUrl(imageUri)
+    ).trim()
+
+    if (existingCloud) {
+      referencedImageFiles?.add(existingCloud)
+      const storageMode = inferGoodsImageStorageMode(imageUri, entry.storageMode)
+      if (storageMode === 'remote') {
+        return { ...entry, cloudFileName: existingCloud, storageMode: 'remote' }
+      }
+      if (existingImageFiles?.has(existingCloud)) {
+        if (imageStats) imageStats.reusedImages += 1
+        return {
+          ...entry,
+          imageUri: buildCloudImageUri(existingCloud),
+          cloudFileName: existingCloud,
+          storageMode: 'cloud-local',
+          localImageUri: entry.localImageUri || (isLocalFileLike(imageUri) ? imageUri : '')
+        }
+      }
+    }
+
+    if (!imageUri) return entry
+
+    const localSource = String(entry.localImageUri || imageUri).trim()
+    if (!isLocalFileLike(localSource) && !existingCloud) return entry
+
+    let imageDataUrl = await readLocalImageAsDataUrl(localSource).catch(() => null)
+    if (!imageDataUrl?.startsWith('data:image/')) {
+      // 本地读不到但已有云端引用时保留引用；否则原样返回，不阻塞整次同步
+      return entry
+    }
+
+    let parsedData = parseImageDataUrl(imageDataUrl)
+    if (!parsedData) return entry
+
+    if (parsedData.fileSize > imageFileSizeLimit) {
+      try {
+        const compressedBlob = await compressImageToBlob(imageDataUrl, {
+          maxBytes: imageFileSizeLimit - 1024,
+          maxEdge: 2048,
+          format: 'image/jpeg'
+        })
+        if (compressedBlob) {
+          const reader = new FileReader()
+          const compressedDataUrl = await new Promise((resolve, reject) => {
+            reader.onload = () => resolve(reader.result)
+            reader.onerror = reject
+            reader.readAsDataURL(compressedBlob)
+          })
+          const compressedParsed = parseImageDataUrl(compressedDataUrl)
+          if (compressedParsed) {
+            parsedData = compressedParsed
+            imageDataUrl = compressedDataUrl
+          }
+        }
+      } catch {
+        // 压缩失败用原图
+      }
+    }
+
+    const cloudFileName = existingCloud || buildBatchDraftImageFilename(draft, entry, parsedData.mimeType)
+    if (!cloudFileName) return entry
+    referencedImageFiles?.add(cloudFileName)
+
+    if (existingImageFiles?.has(cloudFileName)) {
+      if (imageStats) imageStats.reusedImages += 1
+    } else if (imageFiles) {
+      imageFiles[cloudFileName] = { content: imageDataUrl }
+      if (imageStats) imageStats.uploadedImages += 1
+    }
+    if (imageStats) imageStats.imageUpdatedAt = new Date().toISOString()
+
+    return {
+      ...entry,
+      imageUri: buildCloudImageUri(cloudFileName),
+      cloudFileName,
+      storageMode: 'cloud-local',
+      localImageUri: entry.localImageUri || (isLocalFileLike(imageUri) ? imageUri : ''),
+      mimeType: parsedData.mimeType,
+      fileSize: parsedData.fileSize
+    }
+  }
+
+  function isLocalFileLike(uri) {
+    const value = String(uri || '')
+    return value.startsWith('file:')
+      || value.startsWith('data:image/')
+      || value.startsWith('_capacitor_file_')
+      || value.includes('/user-images/')
+      || value.includes('\\user-images\\')
+      || (value && !/^https?:/i.test(value) && !value.startsWith('cloud-image://') && !value.startsWith('gist-image://'))
+  }
+
+  async function buildBatchDraftSyncPayload({ existingImageCloud = null } = {}) {
+    const imageStats = buildImageSyncStats()
+    const imageFiles = {}
+    const referencedImageFiles = new Set()
+    const existingImageFiles = new Map(Object.entries(existingImageCloud?.files || {}))
+
+    const allDrafts = await getAllBatchDrafts()
+    const processed = await processWithConcurrency(allDrafts, async (draft) => {
+      if (!draft?.slot) return null
+      const items = await processWithConcurrency(
+        Array.isArray(draft.items) ? draft.items : [],
+        (entry) => prepareDraftItemForSync(draft, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles),
+        6
+      )
+      return {
+        id: draft.slot,
+        slot: draft.slot,
+        batchId: String(draft.batchId || ''),
+        isWishlist: !!draft.isWishlist,
+        items,
+        defaults: draft.defaults && typeof draft.defaults === 'object' ? draft.defaults : {},
+        deleted: !!draft.deleted,
+        updatedAt: Number(draft.updatedAt) || 0
+      }
+    }, 4)
+
+    const valid = processed.filter(Boolean)
+    imageStats.imageFileCount = referencedImageFiles.size
+
+    return {
+      batchDraftSyncData: {
+        batchDrafts: valid.filter(d => !isBatchDraftDeleted(d)),
+        batchDraftsTrash: valid.filter(d => isBatchDraftDeleted(d))
+      },
+      batchDraftImageStats: imageStats,
+      batchDraftImageFiles: imageFiles,
+      batchDraftReferencedImageFiles: referencedImageFiles
+    }
+  }
+
   async function buildEventSyncPayload({ existingImageCloud = null } = {}) {
     const eventsStore = await ensureEventsStoreReady()
     const imageStats = buildImageSyncStats()
@@ -712,6 +859,7 @@ export function createSyncPayloadService({
     buildSyncPayload,
     buildSyncData,
     buildRechargeSyncData,
+    buildBatchDraftSyncPayload,
     buildEventSyncPayload,
     buildEventSyncData,
     buildComparableSyncStateFromData,

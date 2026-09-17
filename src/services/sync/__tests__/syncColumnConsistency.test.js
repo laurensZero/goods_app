@@ -5,10 +5,12 @@ import {
   GOODS_BUSINESS_KEYS, GOODS_COLS, GOODS_SELECT_COLS,
   RECHARGE_BUSINESS_KEYS, RECHARGE_COLS, RECHARGE_SELECT_COLS,
   GOODS_GROUP_BUSINESS_KEYS, GOODS_GROUP_COLS, GOODS_GROUP_SELECT_COLS,
-  GOODS_GROUP_ITEM_BUSINESS_KEYS, GOODS_GROUP_ITEM_COLS, GOODS_GROUP_ITEM_SELECT_COLS
+  GOODS_GROUP_ITEM_BUSINESS_KEYS, GOODS_GROUP_ITEM_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
+  BATCH_DRAFT_BUSINESS_KEYS, BATCH_DRAFT_COLS, BATCH_DRAFT_SELECT_COLS, BATCH_DRAFT_JSON_KEYS
 } from '@/services/supabaseAdapter/helpers'
 import { normalizeEvent } from '@/stores/events'
 import { normalizeGoodsInput } from '@/stores/goods/goodsHelpers'
+import { normalizeBatchDraft } from '@/stores/batchDraftHelpers'
 
 // 同步列三方一致性：各表唯一登记处（*BUSINESS_KEYS）
 // ↔ push 白名单（*COLS / store 归一化函数）↔ pull 显式 select（*_SELECT_COLS）。
@@ -22,7 +24,8 @@ const SERVER_COLS = {
   recharge_records: ['deleted', 'updated_at', 'user_id'],
   goods_groups: ['updated_at', 'created_at', 'user_id'],
   goods_group_items: ['updated_at', 'created_at', 'user_id'],
-  events: ['updated_at', 'created_at', 'user_id']
+  events: ['updated_at', 'created_at', 'user_id'],
+  batch_drafts: ['deleted', 'updated_at', 'user_id']
 }
 
 const TABLES = [
@@ -61,6 +64,13 @@ const TABLES = [
     cols: EVENT_COLS,
     selectCols: EVENT_SELECT_COLS,
     goldenSelect: 'id, name, type, start_date, end_date, location, city, latitude, longitude, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, day_ticket_list, other_expenses, tracks, linked_goods_ids, tags, deleted, updated_at, created_at, user_id'
+  },
+  {
+    name: 'batch_drafts',
+    businessKeys: BATCH_DRAFT_BUSINESS_KEYS,
+    cols: BATCH_DRAFT_COLS,
+    selectCols: BATCH_DRAFT_SELECT_COLS,
+    goldenSelect: 'id, slot, batch_id, is_wishlist, items, defaults, deleted, updated_at, user_id'
   }
 ]
 
@@ -94,6 +104,13 @@ describe('sync column spec consistency', () => {
     expect(EVENT_JSON_KEYS).not.toContain('coverImageData')
   })
 
+  it('BATCH_DRAFT_JSON_KEYS is a subset of the business keys', () => {
+    expect(BATCH_DRAFT_JSON_KEYS).toEqual(['items'])
+    for (const key of BATCH_DRAFT_JSON_KEYS) {
+      expect(BATCH_DRAFT_BUSINESS_KEYS).toContain(key)
+    }
+  })
+
   it('normalizeEvent whitelist matches the events spec exactly (order included)', () => {
     // createdAt/updatedAt 为本地生成列，不参与同步 spec
     const normalizedKeys = Object.keys(normalizeEvent({})).filter((key) => !['createdAt', 'updatedAt'].includes(key))
@@ -105,5 +122,10 @@ describe('sync column spec consistency', () => {
     const localOnlyKeys = ['coverImage', 'updatedAt', 'trashed']
     const normalizedKeys = Object.keys(normalizeGoodsInput({})).filter((key) => !localOnlyKeys.includes(key))
     expect([...normalizedKeys].sort()).toEqual([...GOODS_BUSINESS_KEYS].sort())
+  })
+
+  it('normalizeBatchDraft whitelist matches the batch_drafts business keys', () => {
+    const normalizedKeys = Object.keys(normalizeBatchDraft({})).filter((key) => !['deleted', 'updatedAt'].includes(key))
+    expect(normalizedKeys).toEqual(BATCH_DRAFT_BUSINESS_KEYS)
   })
 })
