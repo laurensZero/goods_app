@@ -65,10 +65,10 @@ function mapListItem(item, shopCode, catalog) {
   }
 }
 
-/** sale_time 是北京墙钟对应的 unix 秒，+8h 得真实开售 UTC 时刻 */
+/** sale_time 是标准 UTC unix 秒，直接转毫秒即可与 Date.now() 比较 */
 function saleUtcMs(saleTimeSec) {
   if (!saleTimeSec) return 0
-  return saleTimeSec * 1000 + 8 * 3600_000
+  return saleTimeSec * 1000
 }
 
 function isWithinWindow(saleTimeSec, days) {
