@@ -173,28 +173,91 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   pointer-events: none;
 }
 
-/* 原生 ML Kit：相机在 WebView 后面，取景区必须全透明 */
+/* 原生 ML Kit：相机在 WebView 后面，整条合成链必须透出画面 */
 .scanner-overlay--native {
-  background: rgba(0, 0, 0, 0.35);
+  background: transparent !important;
+  padding: 0 !important;
+  align-items: stretch !important;
+  justify-content: stretch !important;
 }
 
 .scanner-dialog--native {
-  max-width: 420px;
-  background: rgba(0, 0, 0, 0.42);
-  border-color: rgba(255, 255, 255, 0.14);
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  box-sizing: border-box;
+}
+
+.scanner-dialog--native .scanner-dialog__head {
+  padding: 0 0 12px;
+  flex-shrink: 0;
+}
+
+.scanner-dialog--native .scanner-dialog__title {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.scanner-dialog--native .scanner-dialog__close {
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
 }
 
 .scanner-viewport--native {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  flex: 0 0 auto;
+  width: min(72vw, 300px);
+  height: min(72vw, 300px);
+  max-width: none;
+  margin: auto;
+  align-self: center;
+  background: transparent !important;
+  border-radius: 16px;
+  overflow: visible;
+  /* 挖孔：取景框透明，四周用超大阴影压暗其它区域 */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52);
+}
+
+.scanner-dialog--native .scanner-hint {
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  margin: 14px 0 0;
+  flex-shrink: 0;
+}
+
+.scanner-dialog--native .scanner-dialog__foot {
+  padding: 12px 0 0;
+  flex-shrink: 0;
+}
+
+.scanner-dialog--native .scanner-foot-btn {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: none;
+}
+
+/* 扫码时 WebView 内除扫码层外全部让路，保证 native 相机能透出来 */
+:global(html:has(body.barcode-scanner-active)),
+:global(body.barcode-scanner-active) {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 :global(body.barcode-scanner-active #app) {
-  visibility: hidden;
+  visibility: hidden !important;
+  background: transparent !important;
 }
 
-:global(body.barcode-scanner-active) {
-  background: transparent;
+:global(body.barcode-scanner-active > :not(.scanner-overlay)) {
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .scanner-frame {
@@ -289,5 +352,10 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.48),
     0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+:global(html.theme-dark) .scanner-dialog--native {
+  background: transparent !important;
+  box-shadow: none !important;
 }
 </style>
