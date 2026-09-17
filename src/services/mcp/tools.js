@@ -808,7 +808,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       total,
       sources: results,
       ...(errors.length ? { partialErrors: errors } : {}),
-      hint: '纯搜歌/试听：把可播候选整理给用户，并在回复里输出试听链接 [▶歌名](app://play_music/<source>/<id>)（链接文案只写歌名，可加歌手；source=netease/qq/bilibili，id=对应 songId/bvid）；不要用 ask_user。用户要加到演出时：再用 ask_user（对象选项，带 title/artist/source/coverUrl/音源 id）让用户选，然后 event_tracks_manage。'
+      hint: '纯搜歌/试听：把可播候选整理给用户，并在回复里输出试听链接 [▶歌名 · 歌手](app://play_music/<source>/<id>)（链接文案写「歌名 · 歌手」；source=netease/qq/bilibili，id=对应 songId/bvid）；不要用 ask_user。用户要加到演出时：再用 ask_user（对象选项，带 title/artist/source/coverUrl/音源 id）让用户选，然后 event_tracks_manage。'
     }
   }
 

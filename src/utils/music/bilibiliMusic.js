@@ -277,6 +277,25 @@ export async function fetchBilibiliCoverMap(bvids) {
   return Object.fromEntries(entries.filter(Boolean))
 }
 
+/**
+ * 按 bvid 拉取视频元数据（UP 主/标题/封面等）。
+ * AI 试听链接文案可能只有歌名，播放器缺歌手时用它补全。
+ * @param {string} bvid
+ * @returns {Promise<{ title: string, artist: string, coverUrl: string, durationMs: number } | null>}
+ */
+export async function fetchBilibiliVideoMeta(bvid) {
+  const normalizedBvid = String(bvid || '').trim()
+  if (!normalizedBvid) return null
+  const detail = await biliJson('/x/web-interface/view', { bvid: normalizedBvid })
+  if (!detail) return null
+  return {
+    title: String(detail?.title || '').replace(/<[^>]+>/g, '').trim(),
+    artist: String(detail?.owner?.name || detail?.author || '').trim(),
+    coverUrl: toHttpsUrl(detail?.pic),
+    durationMs: Number(detail?.duration) > 0 ? Number(detail.duration) * 1000 : 0
+  }
+}
+
 export async function fetchBilibiliPlayableUrl(bvid) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) throw new Error('缺少 Bilibili 视频 BV 号')
