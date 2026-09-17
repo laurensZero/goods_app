@@ -7,8 +7,7 @@ import {
   compareVersions,
   normalizeVersionTag
 } from '@/utils/github/release'
-import { normalizeUpdateLevel } from '@/utils/updateHelpers'
-import { resolveOtaStorageUrls } from '@/config/mediaProxy'
+import { normalizeUpdateLevel, toDirectStorageUrl } from '@/utils/updateHelpers'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
@@ -255,9 +254,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const bundle = data[0]
         latestRelease.value = bundle
         latestVersion.value = normalizeVersionTag(bundle.version)
-        const otaUrls = resolveOtaStorageUrls(bundle.storage_path)
-        latestZipUrl.value = otaUrls.primary
-        latestZipFallbackUrl.value = otaUrls.fallback
+        latestZipUrl.value = toDirectStorageUrl(bundle.storage_path)
+        latestZipFallbackUrl.value = ''
         latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
         latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
         updateLevel.value = normalizeUpdateLevel(bundle.update_level)

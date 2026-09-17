@@ -7,7 +7,6 @@
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
-import { MEDIA_PROXY_ORIGIN, getImageSourceMode } from '@/config/mediaProxy'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -175,40 +174,7 @@ function isNative() {
   }
 }
 
-// Cloudflare Worker 边缘缓存代理：只代理本项目 Supabase 公开 Storage 图片。
-// 音乐封面等第三方 CDN 本来就快，不绕代理。
-const SUPABASE_HOST = 'zvqzicimowfqshgjsrri.supabase.co'
-const SUPABASE_PUBLIC_STORAGE_PREFIX = '/storage/v1/object/public/'
-
-// Dev 仍直连便于调试。缓存 key 继续用原始 URL；此处只改实际 fetch 地址。
-// 用户可在设置里切换图片源（proxy / direct）；默认仍走 Cloudflare 边缘代理。
-export function toProxiedMediaUrl(rawUrl) {
-  const value = String(rawUrl || '').trim()
-  if (!value || import.meta.env.DEV) return value
-  if (!value.startsWith('https://')) return value
-  if (getImageSourceMode() === 'direct') return value
-
-  try {
-    const parsed = new URL(value)
-
-    // 公开 Storage 走 path 模式：稳定、利于边缘缓存
-    // https://xxx.supabase.co/storage/v1/object/public/goods-images/a.jpg
-    //   → https://img.goodsapp.de5.net/goods-images/a.jpg
-    if (
-      parsed.hostname === SUPABASE_HOST
-      && parsed.pathname.startsWith(SUPABASE_PUBLIC_STORAGE_PREFIX)
-    ) {
-      const rest = parsed.pathname.slice(SUPABASE_PUBLIC_STORAGE_PREFIX.length)
-      if (rest && !rest.includes('..')) {
-        return `${MEDIA_PROXY_ORIGIN}/${rest}${parsed.search}${parsed.hash}`
-      }
-    }
-
-    return value
-  } catch {
-    return value
-  }
-}
+// 云图直连 Supabase / 第三方 CDN，不再经 Cloudflare Worker 改写地址。
 
 /**
  * 文件型 URI（capacitor:// / file: / _capacitor_file_ 转换地址）。
@@ -535,6 +501,8 @@ async function getFromCapacitorFS(url) {
           path: `${CAP_FOLDER}/${filename}`,
           directory: CAP_DIR
         })
+        // 空文件 = 写入中断/损坏；假命中会导致 <img> 黑图且永远不再走网络
+        if (!(Number(size) > 0)) continue
         const { uri } = await Filesystem.getUri({
           path: `${CAP_FOLDER}/${filename}`,
           directory: CAP_DIR
@@ -628,8 +596,6 @@ export async function getCachedImage(url, options = {}) {
   if (import.meta.env.DEV && fetchUrl.includes('sdk-webstatic.mihoyo.com')) {
     fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
   }
-  // Supabase / 封面 CDN 走 Cloudflare 边缘缓存（缓存 key 仍是原始 URL）
-  fetchUrl = toProxiedMediaUrl(fetchUrl)
 
   // 1: 内存（用原始 URL 作为 key）
   for (const key of cacheKeys) {
@@ -688,6 +654,7 @@ export async function getCachedImage(url, options = {}) {
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const blob = await response.blob()
+          if (!blob || !blob.size) throw new Error('empty image body')
           const objectUrl = URL.createObjectURL(blob)
           setMemoryCache(cacheKey, objectUrl)
           if (normalizedUrl && normalizedUrl !== cacheKey) {
@@ -700,10 +667,8 @@ export async function getCachedImage(url, options = {}) {
 
           return objectUrl
         } catch {
-          setMemoryCache(cacheKey, url)
-          if (normalizedUrl && normalizedUrl !== cacheKey) {
-            setMemoryCache(url, url)
-          }
+          // 失败不得写入内存：否则会把原始 URL 当「已缓存」短路，
+          // 后续不再走代理/重试，表现为又慢又容易黑图。
           return url
         }
     },
@@ -781,6 +746,55 @@ export function peekCachedImage(url) {
     if (cached) return cached
   }
   return ''
+}
+
+/**
+ * 作废某 URL 的缓存条目（内存必清；可选删持久层）。
+ * 用于 <img> 解码失败：blob 已 revoke、file 被 LRU 删掉、或失败时曾误写入原始 URL。
+ * @param {string} url
+ * @param {{ deletePersistent?: boolean }} [options]
+ */
+export async function invalidateCachedImage(url, { deletePersistent = false } = {}) {
+  if (!url) return
+  const keys = getCacheKeyCandidates(url)
+  const sharedBlobs = new Set()
+
+  for (const key of keys) {
+    const value = removeFromMemoryCache(key)
+    if (value && value.startsWith('blob:')) sharedBlobs.add(value)
+  }
+
+  // 同一 objectURL 可能挂在其它 key（normalized/raw 双写）
+  for (const [key, value] of [...memoryCache.entries()]) {
+    if (value && sharedBlobs.has(value)) removeFromMemoryCache(key)
+  }
+  for (const blob of sharedBlobs) {
+    if (![...memoryCache.values()].includes(blob)) {
+      try { URL.revokeObjectURL(blob) } catch { /* ignore */ }
+    }
+  }
+
+  if (!deletePersistent) return
+
+  if (supportsCacheAPI && !isNative()) {
+    try {
+      const cache = await caches.open(CACHE_NAME)
+      for (const key of keys) {
+        await cache.delete(key).catch(() => undefined)
+      }
+    } catch { /* ignore */ }
+  }
+
+  if (isNative()) {
+    for (const key of keys) {
+      try {
+        await Filesystem.deleteFile({
+          path: `${CAP_FOLDER}/${urlToFilename(key)}`,
+          directory: CAP_DIR
+        })
+      } catch { /* 文件不存在等情况忽略 */ }
+    }
+  }
 }
 
 /**

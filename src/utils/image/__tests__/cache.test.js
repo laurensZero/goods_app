@@ -28,63 +28,21 @@ import {
   clearMemoryCache,
   getCachedImage,
   hasRecentlyDecodedImage,
+  invalidateCachedImage,
   peekCachedImage,
-  toProxiedMediaUrl
 } from '@/utils/image/cache'
 
-describe('utils/image/toProxiedMediaUrl', () => {
-  const originalDev = import.meta.env.DEV
-  const originalMode = localStorage.getItem('goods_image_source_mode')
-
-  afterEach(() => {
-    import.meta.env.DEV = originalDev
-    if (originalMode == null) {
-      localStorage.removeItem('goods_image_source_mode')
-    } else {
-      localStorage.setItem('goods_image_source_mode', originalMode)
-    }
-  })
-
-  it('Dev 环境不改写', () => {
-    import.meta.env.DEV = true
-    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/a.jpg'
-    expect(toProxiedMediaUrl(url)).toBe(url)
-  })
-
-  it('生产：Supabase 公开 Storage 走 path 模式代理', () => {
-    import.meta.env.DEV = false
-    localStorage.setItem('goods_image_source_mode', 'proxy')
-    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/uid/a.jpg'
-    expect(toProxiedMediaUrl(url)).toBe('https://img.goodsapp.de5.net/goods-images/uid/a.jpg')
-  })
-
-  it('生产：用户选择 direct 时不改写为代理', () => {
-    import.meta.env.DEV = false
-    localStorage.setItem('goods_image_source_mode', 'direct')
-    const url = 'https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/goods-images/uid/a.jpg'
-    expect(toProxiedMediaUrl(url)).toBe(url)
-  })
-
-  it('生产：音乐封面等第三方 CDN 不走代理', () => {
-    import.meta.env.DEV = false
-    localStorage.setItem('goods_image_source_mode', 'proxy')
-    const url = 'https://y.gtimg.cn/music/photo_new/T002R500x500M000001.jpg'
-    expect(toProxiedMediaUrl(url)).toBe(url)
-  })
-
-  it('生产：非 Supabase host 保持原样', () => {
-    import.meta.env.DEV = false
-    localStorage.setItem('goods_image_source_mode', 'proxy')
-    const url = 'https://example.com/a.jpg'
-    expect(toProxiedMediaUrl(url)).toBe(url)
-  })
-})
-
 describe('utils/image/cache aliasCachedImage', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     clearMemoryCache()
     // 强制走「内存 → 网络」路径，排除 happy-dom 下 Cache API 实现差异
     vi.stubGlobal('caches', undefined)
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    fetchWithPlatformBridge.mockClear()
+    fetchWithPlatformBridge.mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(['image-bytes'], { type: 'image/jpeg' })
+    })
   })
 
   afterEach(() => {
@@ -138,5 +96,32 @@ describe('utils/image/cache aliasCachedImage', () => {
     const blobUrl = await getCachedImage(url)
     expect(() => aliasCachedImage(url, url)).not.toThrow()
     expect(peekCachedImage(url)).toBe(blobUrl)
+  })
+
+  it('下载失败不把原始 URL 写进内存（避免污染后续命中）', async () => {
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    fetchWithPlatformBridge.mockRejectedValueOnce(new Error('network down'))
+    const url = 'https://example.com/fail-once.jpg'
+    const returned = await getCachedImage(url)
+    expect(returned).toBe(url)
+    // 失败后不得把该 URL 标成已缓存
+    expect(peekCachedImage(url)).toBe('')
+    // 下一次应重新发起请求而不是内存短路
+    fetchWithPlatformBridge.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['ok'], { type: 'image/jpeg' })
+    })
+    const second = await getCachedImage(url)
+    expect(second.startsWith('blob:')).toBe(true)
+    expect(fetchWithPlatformBridge).toHaveBeenCalledTimes(2)
+  })
+
+  it('invalidateCachedImage 清除内存条目', async () => {
+    const url = 'https://example.com/invalidate-me.jpg'
+    const blobUrl = await getCachedImage(url)
+    expect(peekCachedImage(url)).toBe(blobUrl)
+    await invalidateCachedImage(url)
+    expect(peekCachedImage(url)).toBe('')
   })
 })

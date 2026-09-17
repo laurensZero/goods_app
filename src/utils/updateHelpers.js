@@ -1,3 +1,5 @@
+import { SUPABASE_URL } from '@/config/supabase'
+
 export const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
 export const AVAILABLE_UPDATE_SOURCES = Object.freeze(['auto', 'github'])
@@ -17,4 +19,11 @@ export function resolveSourceCandidates(source) {
 export function parseApkSha256FromText(text) {
   const match = String(text || '').match(/apk[_-]?sha256\s*[:=]\s*(?:sha256:)?([a-fA-F0-9]{64})\b/i)
   return match?.[1]?.toLowerCase() || ''
+}
+
+/** OTA 包 Supabase 公开 Storage 直连地址 */
+export function toDirectStorageUrl(storagePath) {
+  const path = String(storagePath || '').trim().replace(/^\/+/, '')
+  if (!path || path.includes('..')) return ''
+  return `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${path}`
 }
