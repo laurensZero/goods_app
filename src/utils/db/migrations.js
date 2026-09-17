@@ -265,4 +265,20 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 16,
+    description: 'Create batch_drafts table for local batch queue drafts',
+    up: async (db) => {
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS batch_drafts (
+          slot       TEXT PRIMARY KEY NOT NULL,
+          batchId    TEXT NOT NULL DEFAULT '',
+          isWishlist INTEGER DEFAULT 0,
+          items      TEXT NOT NULL DEFAULT '[]',
+          defaults   TEXT NOT NULL DEFAULT '{}',
+          updatedAt  INTEGER DEFAULT 0
+        );
+      `)
+    }
+  },
 ]

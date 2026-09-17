@@ -141,6 +141,13 @@
       @import="goToImport"
     />
 
+    <BatchDraftResumeSheet
+      v-model="showDraftResume"
+      :count="draftResumeCount"
+      @continue="resumeBatchDraft"
+      @restart="restartBatchDraft"
+    />
+
     <DangerConfirmDialog
       v-model:show="showDeleteConfirm"
       :title="t('common.moveToTrash')"
@@ -241,8 +248,9 @@ import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
+import BatchDraftResumeSheet from '@/components/goods/BatchDraftResumeSheet.vue'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
-import { createBatchId } from '@/composables/batch/useBatchQueue'
+import { createBatchId, getDraftMeta, clearDraft, BATCH_DRAFT_SLOTS } from '@/composables/batch/useBatchQueue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
@@ -325,6 +333,8 @@ const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
+const showDraftResume = ref(false)
+const draftResumeCount = ref(0)
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
@@ -995,15 +1005,45 @@ function goToManualAdd() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
+  // 有未完成草稿 → 先让用户选继续 / 重新开始
+  const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.WISHLIST)
+  if (draft) {
+    draftResumeCount.value = draft.count
+    // 等添加面板 leave 起来再弹，避免两层 scrim 同帧叠开
+    await nextTick()
+    showDraftResume.value = true
+    return
+  }
+  await startBatchAddFlow()
+}
+
+async function startBatchAddFlow() {
   const images = await pickLinkedLocalImages(10)
   if (!images.length) return
   saveScrollPosition(true, 'wishlist:handleBatchAdd')
   wishlistDisplayReady.value = false
-  try {
-    await router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), batchId: createBatchId(), isWishlist: true } })
-  } catch {
-    wishlistDisplayReady.value = true
-  }
+  runWithRouteTransition(
+    () => router.push({ name: 'batch-add', state: { batchImages: JSON.stringify(images), batchId: createBatchId(), isWishlist: true } }).catch(() => {
+      wishlistDisplayReady.value = true
+    }),
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
+  )
+}
+
+function resumeBatchDraft() {
+  saveScrollPosition(true, 'wishlist:handleBatchAdd')
+  wishlistDisplayReady.value = false
+  runWithRouteTransition(
+    () => router.push({ name: 'batch-add', state: { resumeDraft: true, isWishlist: true } }).catch(() => {
+      wishlistDisplayReady.value = true
+    }),
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
+  )
+}
+
+async function restartBatchDraft() {
+  await clearDraft(BATCH_DRAFT_SLOTS.WISHLIST)
+  await startBatchAddFlow()
 }
 
 function goToImport() {

@@ -12,6 +12,20 @@
             <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
+        <button
+          v-if="totalCount > 0"
+          class="nav-icon-btn nav-icon-btn--danger"
+          type="button"
+          :aria-label="t('goods.batch.clearDraft')"
+          @click="showClearDraftConfirm = true"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M3 6H21" />
+            <path d="M8 6V4H16V6" />
+            <path d="M19 6L18 20H6L5 6" />
+            <path d="M10 11V17M14 11V17" />
+          </svg>
+        </button>
       </template>
     </NavBar>
 
@@ -95,13 +109,13 @@
       @confirm="doSave"
     />
 
-    <!-- 离开流程前确认：放弃会清除整批编辑与已复制图片 -->
+    <!-- 一键清除草稿：删行 + 删本地图片，不可恢复 -->
     <DangerConfirmDialog
-      v-model:show="showLeaveConfirm"
-      :title="t('goods.batch.leaveConfirmTitle')"
-      :description="t('goods.batch.leaveConfirmDesc')"
-      :confirm-text="t('goods.batch.leaveConfirm')"
-      @confirm="confirmLeave"
+      v-model:show="showClearDraftConfirm"
+      :title="t('goods.batch.clearDraftConfirmTitle')"
+      :description="t('goods.batch.clearDraftConfirmDesc', { count: totalCount })"
+      :confirm-text="t('goods.batch.clearDraft')"
+      @confirm="confirmClearDraft"
     />
 
     <AppToast :message="toastMsg" />
@@ -109,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
@@ -120,7 +134,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
-import { useBatchQueue } from '@/composables/batch/useBatchQueue'
+import { useBatchQueue, flushBatchDraft, slotForWishlist } from '@/composables/batch/useBatchQueue'
 import { useToast } from '@/composables/useToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { showGlobalToast } from '@/utils/globalToast'
@@ -133,17 +147,15 @@ const { toastMsg, showToast } = useToast()
 
 const showDefaults = ref(false)
 const showMissingImageConfirm = ref(false)
-const showLeaveConfirm = ref(false)
+const showClearDraftConfirm = ref(false)
 const saving = ref(false)
 let allowLeave = false
-let pendingLeavePath = ''
 
 const {
   queue,
   defaults,
   batchId,
   isWishlist,
-  persistDegraded,
   completedCount,
   totalCount,
   canSaveAll,
@@ -153,7 +165,8 @@ const {
   appendImages,
   applyDefaults,
   saveAll,
-  discardQueue
+  clearDraft,
+  resumeDraft
 } = useBatchQueue()
 
 const progressPercent = computed(() => {
@@ -161,51 +174,42 @@ const progressPercent = computed(() => {
   return Math.round((completedCount.value / totalCount.value) * 100)
 })
 
-onMounted(() => {
+onMounted(async () => {
+  const stateWishlist = history.state?.isWishlist === true
+  const stateSlot = slotForWishlist(stateWishlist)
   const raw = history.state?.batchImages
-  if (!raw) return
   const stateBatchId = history.state?.batchId || ''
-  // 同一批次（硬件返回 / 页面刷新导致的重挂载）恢复已持久化的队列进度，不重建
-  if (stateBatchId && stateBatchId === batchId.value) return
-  try {
-    const images = JSON.parse(raw)
-    initQueue(images, { batchId: stateBatchId, isWishlist: history.state?.isWishlist === true })
-  } catch (e) {
-    console.warn('[BatchAddQueueView] failed to parse batchImages from state', e)
+  const isResume = history.state?.resumeDraft === true
+
+  if (raw) {
+    // 同一批次（硬件返回 / 页面刷新）且内存已有：不重建
+    if (stateBatchId && stateBatchId === batchId.value && queue.value.length > 0) return
+    try {
+      const images = JSON.parse(raw)
+      // 刷新后内存为空：先从 DB 恢复编辑进度，initQueue 对齐 URI 后会跳过重建
+      if (queue.value.length === 0) await resumeDraft(stateSlot)
+      if (stateBatchId && stateBatchId === batchId.value && queue.value.length > 0) return
+      await initQueue(images, { batchId: stateBatchId, isWishlist: stateWishlist })
+    } catch (e) {
+      console.warn('[BatchAddQueueView] failed to parse batchImages from state', e)
+    }
+    return
+  }
+
+  // 恢复入口（继续上次）或无 state 直达：从 DB 拉草稿
+  if (isResume || queue.value.length === 0) {
+    await resumeDraft(stateSlot)
   }
 })
 
-// Web 端 sessionStorage 配额不足时提示，进度仅保留在内存
-watch(persistDegraded, (degraded) => {
-  if (degraded) showToast(t('goods.batch.storageDegraded'))
-}, { immediate: true })
-
-// 离开批量添加流程（进入单项编辑除外）视为放弃：清理未保存队列与已复制图片
+// 离开批量流程：静默保留草稿；落库不阻塞导航，避免拖住返回转场
 onBeforeRouteLeave((to) => {
-  // 已明确放行（保存成功跳转 / 用户确认放弃）：清理后直接离开，不受 saving 时序影响
-  if (allowLeave) {
-    discardQueue()
-    return
-  }
   // 保存进行中禁止离开：此时放弃清理会误删正在写入商品行的图片文件
   if (saving.value) return false
   if (to.name === 'batch-edit') return
-  // 队列非空时先确认再放行，防止误触返回把整批编辑与图片静默清掉
-  if (totalCount.value > 0) {
-    pendingLeavePath = to.fullPath
-    showLeaveConfirm.value = true
-    return false
-  }
-  discardQueue()
+  if (allowLeave) return
+  void flushBatchDraft()
 })
-
-function confirmLeave() {
-  allowLeave = true
-  runWithRouteTransition(
-    () => router.replace(pendingLeavePath),
-    { direction: 'back', fallbackTransitionKind: 'detail-fade' }
-  )
-}
 
 function editItem(id) {
   runWithRouteTransition(
@@ -218,6 +222,17 @@ async function addMoreImages() {
   const picked = await pickLinkedLocalImages(10)
   if (!picked.length) return
   appendImages(picked)
+}
+
+function confirmClearDraft() {
+  const goWishlist = isWishlist.value
+  void clearDraft().then(() => {
+    allowLeave = true
+    runWithRouteTransition(
+      () => router.replace(goWishlist ? '/wishlist' : '/'),
+      { direction: 'back', fallbackTransitionKind: 'detail-fade' }
+    )
+  })
 }
 
 function handleSave() {
@@ -243,7 +258,10 @@ async function doSave() {
       goWishlist ? 'goods.batch.savedWishlistToast' : 'goods.batch.savedToast',
       { count }
     ))
-    router.replace(goWishlist ? '/wishlist' : '/')
+    runWithRouteTransition(
+      () => router.replace(goWishlist ? '/wishlist' : '/'),
+      { direction: 'back', fallbackTransitionKind: 'detail-fade' }
+    )
   } catch (e) {
     console.error('[BatchAddQueueView] save failed', e)
     showToast(t('goods.batch.saveFailed'))
@@ -306,6 +324,10 @@ async function doSave() {
 
 .nav-icon-btn:active {
   transform: scale(0.96);
+}
+
+.nav-icon-btn--danger {
+  color: #ff3b30;
 }
 
 /* Hero 进度区 */
