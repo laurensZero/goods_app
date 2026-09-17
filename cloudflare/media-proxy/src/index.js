@@ -1,4 +1,4 @@
-// Cloudflare Worker：Supabase Storage 图片边缘缓存代理
+// Cloudflare Worker：Supabase Storage 资源边缘缓存代理（图片、视频、OTA 更新包）
 // 部署：npx wrangler deploy
 // 用法：
 //   https://<worker>/goods-images/xxx.jpg
@@ -105,7 +105,7 @@ export default {
     }
 
     const target = resolveTarget(url)
-    if (!target) return jsonError(400, 'invalid image url')
+    if (!target) return jsonError(400, 'invalid storage path')
 
     const cache = caches.default
     const cacheKey = new Request(target, { method: 'GET' })
@@ -135,15 +135,22 @@ export default {
     }
 
     const contentType = upstream.headers.get('content-type') || ''
+    const isOtaAsset = url.pathname.startsWith('/ota-releases/')
     const cacheable =
       upstream.ok &&
       (contentType.startsWith('image/') ||
         contentType.startsWith('video/') ||
-        contentType === 'application/octet-stream')
+        contentType === 'application/octet-stream' ||
+        contentType === 'application/zip' ||
+        contentType === 'application/vnd.android.package-archive' ||
+        isOtaAsset)
 
     const headers = withCors(upstream.headers)
     if (cacheable) {
-      if (!headers.has('cache-control')) {
+      if (isOtaAsset) {
+        // OTA 路径按版本命名，发布后内容不会变，适合长期边缘缓存。
+        headers.set('cache-control', 'public, max-age=31536000, immutable')
+      } else if (!headers.has('cache-control')) {
         headers.set('cache-control', 'public, max-age=31536000, immutable')
       }
       headers.set('x-cache', 'MISS')

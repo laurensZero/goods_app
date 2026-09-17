@@ -7,6 +7,7 @@
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { MEDIA_PROXY_ORIGIN } from '@/config/mediaProxy'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -176,7 +177,6 @@ function isNative() {
 
 // Cloudflare Worker 边缘缓存代理：只代理本项目 Supabase 公开 Storage 图片。
 // 音乐封面等第三方 CDN 本来就快，不绕代理。
-const MEDIA_PROXY_ORIGIN = 'https://img.goodsapp.de5.net'
 const SUPABASE_HOST = 'zvqzicimowfqshgjsrri.supabase.co'
 const SUPABASE_PUBLIC_STORAGE_PREFIX = '/storage/v1/object/public/'
 

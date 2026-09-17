@@ -8,7 +8,7 @@ import {
   normalizeVersionTag
 } from '@/utils/github/release'
 import { normalizeUpdateLevel } from '@/utils/updateHelpers'
-import { SUPABASE_URL } from '@/config/supabase'
+import { toDirectStorageUrl, toProxiedStorageUrl } from '@/config/mediaProxy'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
@@ -85,6 +85,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const nativeVersion = ref('')
   const latestVersion = ref('')
   const latestZipUrl = ref('')
+  const latestZipFallbackUrl = ref('')
   const latestRelease = ref(null)
   const latestVersions = ref([])
   const latestBundleChecksum = ref('')
@@ -254,7 +255,8 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const bundle = data[0]
         latestRelease.value = bundle
         latestVersion.value = normalizeVersionTag(bundle.version)
-        latestZipUrl.value = `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${bundle.storage_path}`
+        latestZipUrl.value = toDirectStorageUrl(bundle.storage_path)
+        latestZipFallbackUrl.value = toProxiedStorageUrl(bundle.storage_path)
         latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
         latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
         updateLevel.value = normalizeUpdateLevel(bundle.update_level)
@@ -273,6 +275,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''
           latestZipUrl.value = ''
+          latestZipFallbackUrl.value = ''
           latestBundleChecksum.value = ''
           latestMinNativeVersion.value = ''
           lastStatus.value = 'missing-asset'
@@ -283,6 +286,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         if (!latestBundleChecksum.value) {
           latestVersion.value = ''
           latestZipUrl.value = ''
+          latestZipFallbackUrl.value = ''
           latestMinNativeVersion.value = ''
           throw new Error(String(bundle.sha256 || '').trim()
             ? '资源包 hash 格式无效，应为 64 位 SHA-256。'
@@ -363,13 +367,24 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
-      const downloadOptions = {
-        version: latestVersion.value,
-        url: latestZipUrl.value,
-        checksum: latestBundleChecksum.value
+      const downloadUrls = [latestZipUrl.value, latestZipFallbackUrl.value]
+        .filter((url, index, urls) => url && urls.indexOf(url) === index)
+      let bundle = null
+      let lastError = null
+      for (const downloadUrl of downloadUrls) {
+        try {
+          bundle = await CapacitorUpdater.download({
+            version: latestVersion.value,
+            url: downloadUrl,
+            checksum: latestBundleChecksum.value
+          })
+          break
+        } catch (error) {
+          lastError = error
+          log.warn('download:source-failed', { url: downloadUrl }, error)
+        }
       }
-
-      const bundle = await CapacitorUpdater.download(downloadOptions)
+      if (!bundle && lastError) throw lastError
 
       if (!bundle?.id) {
         throw new Error('资源包下载成功但未拿到 bundle id。')
@@ -470,6 +485,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
     latestVersion.value = ''
     latestZipUrl.value = ''
+    latestZipFallbackUrl.value = ''
     latestRelease.value = null
     latestVersions.value = []
     latestBundleChecksum.value = ''
