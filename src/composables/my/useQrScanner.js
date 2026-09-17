@@ -1,6 +1,8 @@
 import { nextTick, onBeforeUnmount, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { Capacitor } from '@capacitor/core'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import { BarcodeFormat, BarcodeScanner } from '@capacitor-mlkit/barcode-scanning'
 import jsQR from 'jsqr'
 import { extractIdsFromInput } from '@/utils/share/goods'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
@@ -27,6 +29,7 @@ const VIDEO_CROP_RATIO = 0.9
 const GALLERY_SCAN_MAX_EDGE = 1400
 // 关闭时等弹层淡出后再拆流：过早 pause/srcObject=null 会在 WebView 闪原生播放按钮。
 const STREAM_TEARDOWN_DELAY_MS = 360
+const NATIVE_SCANNER_BODY_CLASS = 'barcode-scanner-active'
 
 export function useQrScanner() {
   const { t } = useI18n()
@@ -39,6 +42,8 @@ export function useQrScanner() {
   const scannerReady = ref(false)
   // Android WebView 会给空 <video> 画原生播放按钮占位；仅在有相机流时才挂载视频。
   const cameraActive = ref(false)
+  // 原生 ML Kit 模式：相机在 WebView 后面，本组件只负责 UI 与结果处理。
+  const nativeMode = ref(false)
   const scannerVideoRef = ref(null)
   const scannerCanvasRef = ref(null)
   const scannerHint = ref('')
@@ -60,6 +65,12 @@ export function useQrScanner() {
   let pendingStream = null
   let pendingVideo = null
   let streamTeardownTimer = 0
+  let mlkitListener = null
+  let mlkitScanRunning = false
+
+  function isNativeScannerPlatform() {
+    return Capacitor.isNativePlatform()
+  }
 
   function onScannerVideoReady() {
     scannerReady.value = true
@@ -141,6 +152,19 @@ export function useQrScanner() {
   }
 
   async function decodeQrFromImageElement(image) {
+    if (isNativeScannerPlatform()) {
+      try {
+        const { barcodes } = await BarcodeScanner.readBarcodesFromImage({
+          path: image.src,
+          formats: [BarcodeFormat.QrCode]
+        })
+        const nativeText = String(barcodes?.[0]?.rawValue || '').trim()
+        if (nativeText) return nativeText
+      } catch {
+        // fall through to web decode
+      }
+    }
+
     const nativeResult = await decodeQrWithNativeDetector(image)
     if (nativeResult.text) return nativeResult.text
 
@@ -307,14 +331,25 @@ export function useQrScanner() {
     }
   }
 
-  async function onScannerQRFound(text) {
-    if (scannerResolved) return
-    scannerResolved = true
+  function resumeAfterInvalidQr(messageKey) {
+    scannerHint.value = t(messageKey)
+    setTimeout(() => {
+      if (!showScanner.value) return
+      scannerResolved = false
+      scannerHint.value = t('my.scannerHint')
+      if (nativeMode.value) {
+        void startMlkitScan()
+        return
+      }
+      startScannerLoop()
+    }, 1500)
+  }
 
+  async function handleScannedText(text) {
     const webLogin = parseWebLoginQrContent(text)
     if (webLogin.challengeId) {
       beginWebLoginConfirm(webLogin.challengeId, webLogin.deviceType, webLogin.deviceName)
-      return
+      return true
     }
 
     const storagePath = parseStorageQrUrl(text)
@@ -323,33 +358,37 @@ export function useQrScanner() {
       persistStorageQrFilter(storagePath)
       showScanner.value = false
       scanError.value = ''
+      scanning.value = false
       runWithRouteTransition(
         () => router.push('/home'),
         { direction: 'forward' }
       )
-      return
+      return true
     }
 
     const { shareId } = extractIdsFromInput(text)
 
     if (!shareId) {
-      stopScannerLoop()
-      scannerHint.value = t('my.scanInvalidQrCode')
-      setTimeout(() => {
-        scannerResolved = false
-        scannerHint.value = t('my.scannerHint')
-        startScannerLoop()
-      }, 1500)
-      return
+      scannerResolved = true
+      resumeAfterInvalidQr('my.scanInvalidQrCode')
+      return false
     }
 
     stopScanner()
     showScanner.value = false
     scanError.value = ''
+    scanning.value = false
     runWithRouteTransition(
       () => router.push({ name: 'share-import', params: { shareId } }),
       { direction: 'forward' }
     )
+    return true
+  }
+
+  async function onScannerQRFound(text) {
+    if (scannerResolved) return
+    scannerResolved = true
+    await handleScannedText(text)
   }
 
   function startScannerLoop() {
@@ -397,13 +436,35 @@ export function useQrScanner() {
     video.style.setProperty('display', 'none', 'important')
   }
 
+  async function stopMlkitScan() {
+    if (mlkitListener) {
+      try {
+        await mlkitListener.remove()
+      } catch {
+        // ignore
+      }
+      mlkitListener = null
+    }
+    if (mlkitScanRunning) {
+      mlkitScanRunning = false
+      try {
+        await BarcodeScanner.stopScan()
+      } catch {
+        // ignore
+      }
+    }
+    document.body.classList.remove(NATIVE_SCANNER_BODY_CLASS)
+  }
+
   function stopScanner() {
     stopScannerLoop()
     scannerReady.value = false
+    void stopMlkitScan()
 
     const video = scannerVideoRef.value
     hideScannerVideoEl(video)
     cameraActive.value = false
+    nativeMode.value = false
 
     const stream = scannerStream
     scannerStream = null
@@ -428,15 +489,71 @@ export function useQrScanner() {
     scanning.value = false
   }
 
-  async function openScanner() {
-    // 若上一路相机还在延迟拆流，先立刻释放，避免双流。
-    flushPendingStreamTeardown()
+  async function startMlkitScan() {
+    if (!showScanner.value || !nativeMode.value) return
+    if (mlkitScanRunning) return
+
+    try {
+      mlkitListener = await BarcodeScanner.addListener('barcodesScanned', async (event) => {
+        const text = String(event?.barcodes?.[0]?.rawValue || '').trim()
+        if (!text || scannerResolved || !showScanner.value) return
+        scannerResolved = true
+        await stopMlkitScan()
+        await handleScannedText(text)
+      })
+
+      mlkitScanRunning = true
+      await BarcodeScanner.startScan({
+        formats: [BarcodeFormat.QrCode]
+      })
+    } catch {
+      // 原生扫码失败时回退到 WebView 预览路径。
+      mlkitScanRunning = false
+      await stopMlkitScan()
+      nativeMode.value = false
+      await openWebScanner()
+    }
+  }
+
+  async function tryOpenMlkitScanner() {
+    if (!isNativeScannerPlatform()) return false
+
+    try {
+      const { supported } = await BarcodeScanner.isSupported()
+      if (!supported) return false
+
+      const permission = await BarcodeScanner.requestPermissions()
+      if (permission?.camera && permission.camera !== 'granted') {
+        return false
+      }
+    } catch {
+      return false
+    }
 
     scanning.value = true
     scanError.value = ''
     scannerResolved = false
     nativeVideoDetectorDisabled = false
     nativeVideoMissCount = 0
+    nativeMode.value = true
+    cameraActive.value = false
+    scannerReady.value = true
+    scannerHint.value = t('my.scannerHint')
+    showScanner.value = true
+    document.body.classList.add(NATIVE_SCANNER_BODY_CLASS)
+
+    await nextTick()
+    await startMlkitScan()
+    return true
+  }
+
+  async function openWebScanner() {
+    scanning.value = true
+    scanError.value = ''
+    scannerResolved = false
+    nativeVideoDetectorDisabled = false
+    nativeVideoMissCount = 0
+    nativeMode.value = false
     showScanner.value = true
 
     await nextTick()
@@ -480,35 +597,10 @@ export function useQrScanner() {
           return
         }
 
-        const webLogin = parseWebLoginQrContent(text)
-        if (webLogin.challengeId) {
-          beginWebLoginConfirm(webLogin.challengeId, webLogin.deviceType, webLogin.deviceName)
-          return
-        }
-
-        const storagePath = parseStorageQrUrl(text)
-        if (storagePath) {
-          persistStorageQrFilter(storagePath)
+        const handled = await handleScannedText(text)
+        if (!handled && !showScanner.value) {
           scanning.value = false
-          runWithRouteTransition(
-            () => router.push('/home'),
-            { direction: 'forward' }
-          )
-          return
         }
-
-        const { shareId } = extractIdsFromInput(text)
-        if (!shareId) {
-          scanError.value = t('my.scanInvalidQrContent')
-          scanning.value = false
-          return
-        }
-
-        scanning.value = false
-        runWithRouteTransition(
-          () => router.push({ name: 'share-import', params: { shareId } }),
-          { direction: 'forward' }
-        )
       } catch (e2) {
         const message = String(e2?.message || '')
         if (!message || !/cancel|canceled|cancelled/i.test(message)) {
@@ -519,9 +611,21 @@ export function useQrScanner() {
     }
   }
 
+  async function openScanner() {
+    // 若上一路相机还在延迟拆流，先立刻释放，避免双流。
+    flushPendingStreamTeardown()
+    await stopMlkitScan()
+
+    const usedNative = await tryOpenMlkitScanner()
+    if (usedNative) return
+
+    await openWebScanner()
+  }
+
   async function handleScannerGallery() {
     if (scannerResolved) return
     stopScannerLoop()
+    await stopMlkitScan()
 
     try {
       const photo = await Camera.getPhoto({
@@ -532,25 +636,32 @@ export function useQrScanner() {
       })
 
       const src = String(photo?.webPath || photo?.path || '').trim()
-      if (!src) { startScannerLoop(); return }
+      if (!src) {
+        if (nativeMode.value) {
+          await startMlkitScan()
+          return
+        }
+        startScannerLoop()
+        return
+      }
 
       const image = await loadImageFromSrc(src)
       const text = await decodeQrFromImageElement(image)
 
       if (text) {
-        await onScannerQRFound(text)
+        scannerResolved = true
+        await handleScannedText(text)
       } else {
-        scannerHint.value = t('my.scanNoQRRetry')
-        setTimeout(() => {
-          scannerResolved = false
-          scannerHint.value = t('my.scannerHint')
-          startScannerLoop()
-        }, 1500)
+        resumeAfterInvalidQr('my.scanNoQRRetry')
       }
     } catch (e) {
       const message = String(e?.message || '')
       if (!message || !/cancel|canceled|cancelled/i.test(message)) {
         scanError.value = e?.message || t('my.galleryReadFailed')
+      }
+      if (nativeMode.value) {
+        await startMlkitScan()
+        return
       }
       startScannerLoop()
     }
@@ -573,6 +684,7 @@ export function useQrScanner() {
     showScanner,
     scannerReady,
     cameraActive,
+    nativeMode,
     scannerVideoRef,
     scannerCanvasRef,
     scannerHint,

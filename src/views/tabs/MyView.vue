@@ -301,6 +301,7 @@
       v-model="showScanner"
       :scanner-ready="scannerReady"
       :camera-active="cameraActive"
+      :native-mode="nativeMode"
       :scanner-hint="scannerHint"
       :video-ref="(el) => { scannerVideoRef = el }"
       :canvas-ref="(el) => { scannerCanvasRef = el }"
@@ -913,7 +914,7 @@ const {
 } = useBudgetCalculation()
 
 const {
-  scanning, scanError, showScanner, scannerReady, cameraActive,
+  scanning, scanError, showScanner, scannerReady, cameraActive, nativeMode,
   scannerVideoRef, scannerCanvasRef, scannerHint,
   showWebLoginConfirm, pendingWebLoginType, pendingWebLoginName, isApprovingWebLogin,
   openScanner, closeScanner, handleScannerGallery,
