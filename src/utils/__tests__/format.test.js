@@ -2,7 +2,7 @@ vi.mock('@/locales', () => ({
   default: {
     global: {
       locale: { value: 'zh-CN' },
-      t: (key) => key
+      t: (key) => (key === 'events.monthSuffix' ? '月' : key)
     }
   }
 }))
@@ -18,7 +18,7 @@ vi.mock('@/constants/currencies', () => ({
 }))
 
 import { describe, it, expect } from 'vitest'
-import { formatDate, formatPrice, formatCurrency, formatCNYConverted } from '../format'
+import { formatDate, formatPrice, formatCurrency, formatCNYConverted, formatMonthLabel } from '../format'
 
 describe('formatDate', () => {
   it('formats with default pattern', () => {
@@ -142,5 +142,31 @@ describe('formatCNYConverted', () => {
   it('returns empty when conversion returns 0', () => {
     const zeroConvert = () => 0
     expect(formatCNYConverted(10, 'USD', zeroConvert)).toBe('')
+  })
+})
+
+describe('formatMonthLabel', () => {
+  it('formats Chinese month as number + suffix', () => {
+    expect(formatMonthLabel(9)).toBe('9月')
+    expect(formatMonthLabel('12')).toBe('12月')
+  })
+
+  it('formats English month as full month name', async () => {
+    const { default: i18n } = await import('@/locales')
+    const original = i18n.global.locale.value
+    i18n.global.locale.value = 'en'
+    try {
+      expect(formatMonthLabel(9)).toBe('September')
+      expect(formatMonthLabel(1)).toBe('January')
+    } finally {
+      i18n.global.locale.value = original
+    }
+  })
+
+  it('returns original value for invalid month', () => {
+    expect(formatMonthLabel('')).toBe('')
+    expect(formatMonthLabel(0)).toBe('0')
+    expect(formatMonthLabel(13)).toBe('13')
+    expect(formatMonthLabel('abc')).toBe('abc')
   })
 })

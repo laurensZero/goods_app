@@ -102,3 +102,18 @@ export function formatCompactNumber(value) {
   const s = n.toFixed(2).replace(/\.00$/, '').replace(/(\.[0-9]*?)0+$/, '$1')
   return s === '-0' ? '0' : s
 }
+
+/**
+ * 按当前语言格式化月份标签（只传 1-12 的月份数字）
+ * @param {number|string} month
+ * @returns {string} 英文 'September'，中文 '9月'，日文 '9月'，韩文 '9월'
+ */
+export function formatMonthLabel(month) {
+  const m = Number.parseInt(month, 10)
+  if (!Number.isInteger(m) || m < 1 || m > 12) return String(month ?? '')
+  const locale = i18n.global.locale.value || 'zh-CN'
+  if (locale.startsWith('en')) {
+    return new Intl.DateTimeFormat(locale, { month: 'long' }).format(new Date(2000, m - 1, 1))
+  }
+  return `${m}${i18n.global.t('events.monthSuffix')}`
+}

@@ -25,7 +25,7 @@
         </div>
         <div class="tl-month-content">
           <div class="tl-month-header">
-            <span class="tl-month-label">{{ monthGroup.month }}{{ t('events.monthSuffix') }}</span>
+            <span class="tl-month-label">{{ formatMonthLabel(monthGroup.month) }}</span>
             <div class="tl-month-meta">
               <span class="tl-month-count">{{ t('leaderboard.items', { count: monthGroup.count }) }}</span>
               <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
@@ -112,7 +112,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { formatPrice } from '@/utils/format'
+import { formatMonthLabel, formatPrice } from '@/utils/format'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
