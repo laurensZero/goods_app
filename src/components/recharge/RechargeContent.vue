@@ -81,39 +81,47 @@
 
       <section class="content-section">
         <div v-if="activeView === 'records'" class="timeline-list">
-          <article
-            v-for="(group, index) in monthGroups"
-            :key="group.key"
-            class="timeline-month"
-            :class="{ 'timeline-month--last': index === monthGroups.length - 1 }"
-          >
-            <div class="timeline-month__rail" aria-hidden="true">
-              <div class="timeline-month__dot" />
-              <div class="timeline-month__line" />
+          <div v-for="yearGroup in yearGroups" :key="yearGroup.year || 'undated'" class="timeline-year">
+            <div class="timeline-year__header">
+              <span v-if="!yearGroup.isUndated" class="timeline-year__num">{{ yearGroup.year }}</span>
+              <span class="timeline-year__meta">
+                {{ t('recharge.recordsCount', { count: yearGroup.yearCount }) }} / ¥{{ formatAmount(yearGroup.yearTotal) }}
+              </span>
             </div>
 
-            <div class="timeline-month__content">
-              <header class="timeline-month__head">
-                <div>
-                  <p class="timeline-month__label">{{ t('recharge.month') }}</p>
-                  <h3 class="timeline-month__title">{{ group.label }}</h3>
-                </div>
-                <p class="timeline-month__meta">¥{{ formatAmount(group.amount) }} · {{ t('recharge.recordsCount', { count: group.items.length }) }}</p>
-              </header>
-
-              <div class="record-list">
-                <RecordCard
-                  v-for="record in group.items"
-                  :key="record.id"
-                  :record="record"
-                  :selection-mode="selectionMode"
-                  :selected="selectedIds.has(record.id)"
-                  @hold="handleRecordHold"
-                  @click="handleRecordClick"
-                />
+            <article
+              v-for="(monthGroup, midx) in yearGroup.months"
+              :key="monthGroup.yearMonth"
+              class="timeline-month"
+              :class="{ 'timeline-month--last': midx === yearGroup.months.length - 1 }"
+            >
+              <div class="timeline-month__rail" aria-hidden="true">
+                <div class="timeline-month__dot" />
+                <div class="timeline-month__line" />
               </div>
-            </div>
-          </article>
+
+              <div class="timeline-month__content">
+                <header class="timeline-month__head">
+                  <span class="timeline-month__title">
+                    {{ monthGroup.isUndated ? t('recharge.unfilledDate') : formatMonthLabel(monthGroup.month) }}
+                  </span>
+                  <p class="timeline-month__meta">¥{{ formatAmount(monthGroup.amount) }} · {{ t('recharge.recordsCount', { count: monthGroup.items.length }) }}</p>
+                </header>
+
+                <div class="record-list">
+                  <RecordCard
+                    v-for="record in monthGroup.items"
+                    :key="record.id"
+                    :record="record"
+                    :selection-mode="selectionMode"
+                    :selected="selectedIds.has(record.id)"
+                    @hold="handleRecordHold"
+                    @click="handleRecordClick"
+                  />
+                </div>
+              </div>
+            </article>
+          </div>
         </div>
 
         <div v-else class="leaderboard-list">
@@ -195,6 +203,7 @@ import { useRechargeStore } from '@/stores/recharge'
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/recharge/rechargeImages'
+import { formatMonthLabel } from '@/utils/format'
 import { preloadImages } from '@/utils/image/cache'
 import { createLogger } from '@/utils/logger'
 import { pinyinIncludes } from '@/utils/pinyin'
@@ -316,26 +325,61 @@ const leaderboard = computed(() => {
 const topGameName = computed(() => leaderboard.value[0]?.game || t('common.noData'))
 const topGameAmount = computed(() => leaderboard.value[0]?.amount || 0)
 
-const monthGroups = computed(() => {
-  const groups = new Map()
+const yearGroups = computed(() => {
+  const monthMap = new Map()
 
   for (const item of filteredRecords.value) {
-    const key = String(item.chargedAt || '').slice(0, 7) || t('recharge.unfilledDate')
-    if (!groups.has(key)) {
-      groups.set(key, {
-        key,
-        label: key,
+    const raw = String(item.chargedAt || '').slice(0, 7)
+    const yearMonth = /^\d{4}-\d{2}$/.test(raw) ? raw : 'undated'
+    const isUndated = yearMonth === 'undated'
+
+    let monthGroup = monthMap.get(yearMonth)
+    if (!monthGroup) {
+      monthGroup = {
+        yearMonth,
+        year: isUndated ? '' : yearMonth.slice(0, 4),
+        month: isUndated ? '' : String(parseInt(yearMonth.slice(5, 7), 10)),
+        isUndated,
         items: [],
         amount: 0
-      })
+      }
+      monthMap.set(yearMonth, monthGroup)
     }
 
-    const current = groups.get(key)
-    current.items.push(item)
-    current.amount += Number(item.amount || 0)
+    monthGroup.items.push(item)
+    monthGroup.amount += Number(item.amount || 0)
   }
 
-  return Array.from(groups.values()).sort((a, b) => String(b.key).localeCompare(String(a.key)))
+  const months = Array.from(monthMap.values()).sort((a, b) => {
+    if (a.isUndated) return 1
+    if (b.isUndated) return -1
+    return String(b.yearMonth).localeCompare(String(a.yearMonth))
+  })
+
+  const yearMap = new Map()
+  const groups = []
+
+  for (const monthGroup of months) {
+    const yearKey = monthGroup.isUndated ? 'undated' : monthGroup.year
+    let yearGroup = yearMap.get(yearKey)
+    if (!yearGroup) {
+      yearGroup = {
+        year: monthGroup.year,
+        isUndated: monthGroup.isUndated,
+        months: [],
+        yearCount: 0,
+        yearTotal: 0
+      }
+      yearMap.set(yearKey, yearGroup)
+      groups.push(yearGroup)
+    }
+
+    yearGroup.months.push(monthGroup)
+    yearGroup.yearCount += monthGroup.items.length
+    yearGroup.yearTotal += monthGroup.amount
+  }
+
+  return groups
 })
 
 const viewCountText = computed(() => (
@@ -884,9 +928,41 @@ defineExpose({
   gap: 14px;
 }
 
+.timeline-list {
+  gap: 28px;
+}
+
 .record-list {
   margin-top: 14px;
   grid-template-columns: 1fr;
+}
+
+.timeline-year {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeline-year__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0 10px;
+}
+
+.timeline-year__num {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--app-text-secondary);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.timeline-year__meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--app-text-tertiary);
 }
 
 .timeline-month {
@@ -937,22 +1013,19 @@ defineExpose({
   gap: 10px;
 }
 
-.timeline-month__label {
-  color: var(--app-text-tertiary);
-  font-size: 12px;
-}
-
 .timeline-month__title {
-  margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 18px;
+  font-weight: 650;
   letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 
 .timeline-month__meta {
+  flex-shrink: 0;
   color: var(--app-text-secondary);
   font-size: 13px;
+  font-weight: 600;
 }
 
 .leaderboard-item {
