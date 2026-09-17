@@ -37,17 +37,31 @@ describe('measureImageSourceOnce', () => {
     fetchWithPlatformBridge.mockReset()
   })
 
-  it('成功响应返回延迟与体积', async () => {
+  it('成功响应返回延迟与体积（只读前几字节）', async () => {
+    const chunk = new Uint8Array([1, 2, 3])
     fetchWithPlatformBridge.mockResolvedValue({
       ok: true,
       status: 200,
-      blob: async () => new Blob(['x'], { type: 'image/jpeg' })
+      body: {
+        getReader() {
+          let done = false
+          return {
+            read: async () => {
+              if (done) return { done: true, value: undefined }
+              done = true
+              return { done: false, value: chunk }
+            },
+            cancel: async () => {}
+          }
+        }
+      },
+      blob: async () => new Blob([chunk], { type: 'image/jpeg' })
     })
 
     const result = await measureImageSourceOnce('https://img.goodsapp.de5.net/goods-images/a.jpg')
     expect(result.ok).toBe(true)
     expect(result.status).toBe(200)
-    expect(result.bytes).toBe(1)
+    expect(result.bytes).toBe(3)
     expect(Number.isFinite(result.ms)).toBe(true)
   })
 
@@ -92,7 +106,20 @@ describe('testImageSource / runImageSourceSpeedTest', () => {
       return {
         ok: true,
         status: 200,
-        blob: async () => new Blob(['img'], { type: 'image/jpeg' })
+        body: {
+          getReader() {
+            let done = false
+            return {
+              read: async () => {
+                if (done) return { done: true, value: undefined }
+                done = true
+                return { done: false, value: new Uint8Array([1]) }
+              },
+              cancel: async () => {}
+            }
+          }
+        },
+        blob: async () => new Blob([new Uint8Array([1])], { type: 'image/jpeg' })
       }
     })
 
