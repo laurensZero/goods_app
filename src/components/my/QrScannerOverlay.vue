@@ -14,6 +14,7 @@
 
           <div class="scanner-viewport">
             <video
+              v-if="cameraActive"
               :ref="videoRef"
               class="scanner-video"
               :class="{ 'is-ready': scannerReady }"
@@ -61,6 +62,7 @@ const { t } = useI18n()
 defineProps({
   modelValue: { type: Boolean, default: false },
   scannerReady: { type: Boolean, default: false },
+  cameraActive: { type: Boolean, default: false },
   scannerHint: { type: String, default: '' },
   videoRef: { type: [Function, Object], default: null },
   canvasRef: { type: [Function, Object], default: null }

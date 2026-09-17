@@ -300,6 +300,7 @@
     <QrScannerOverlay
       v-model="showScanner"
       :scanner-ready="scannerReady"
+      :camera-active="cameraActive"
       :scanner-hint="scannerHint"
       :video-ref="(el) => { scannerVideoRef = el }"
       :canvas-ref="(el) => { scannerCanvasRef = el }"
@@ -912,7 +913,7 @@ const {
 } = useBudgetCalculation()
 
 const {
-  scanning, scanError, showScanner, scannerReady,
+  scanning, scanError, showScanner, scannerReady, cameraActive,
   scannerVideoRef, scannerCanvasRef, scannerHint,
   showWebLoginConfirm, pendingWebLoginType, pendingWebLoginName, isApprovingWebLogin,
   openScanner, closeScanner, handleScannerGallery,

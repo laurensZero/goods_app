@@ -35,6 +35,8 @@ export function useQrScanner() {
   const scanError = ref('')
   const showScanner = ref(false)
   const scannerReady = ref(false)
+  // Android WebView 会给空 <video> 画原生播放按钮占位；仅在有相机流时才挂载视频。
+  const cameraActive = ref(false)
   const scannerVideoRef = ref(null)
   const scannerCanvasRef = ref(null)
   const scannerHint = ref('')
@@ -361,19 +363,26 @@ export function useQrScanner() {
 
   function stopScanner() {
     stopScannerLoop()
+    scannerReady.value = false
+    const video = scannerVideoRef.value
     if (scannerStream) {
       scannerStream.getTracks().forEach((track) => track.stop())
       scannerStream = null
     }
-    if (scannerVideoRef.value) {
-      scannerVideoRef.value.srcObject = null
+    if (video) {
+      try {
+        video.pause()
+      } catch {
+        // ignore pause errors during teardown
+      }
+      video.srcObject = null
     }
+    cameraActive.value = false
     scannerCanvasContext = null
   }
 
   function closeScanner() {
     stopScanner()
-    scannerReady.value = false
     showScanner.value = false
     scanning.value = false
   }
@@ -395,6 +404,8 @@ export function useQrScanner() {
 
       const stream = await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS)
       scannerStream = stream
+      cameraActive.value = true
+      await nextTick()
       if (scannerVideoRef.value) {
         scannerVideoRef.value.srcObject = stream
         await scannerVideoRef.value.play?.().catch(() => {})
@@ -515,6 +526,7 @@ export function useQrScanner() {
     scanError,
     showScanner,
     scannerReady,
+    cameraActive,
     scannerVideoRef,
     scannerCanvasRef,
     scannerHint,
