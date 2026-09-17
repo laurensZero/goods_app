@@ -154,6 +154,22 @@ CREATE TABLE IF NOT EXISTS goods_group_items (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- batch_drafts 表（批量添加草稿，collection / wishlist 两槽）
+CREATE TABLE IF NOT EXISTS batch_drafts (
+  id          TEXT PRIMARY KEY NOT NULL,
+  user_id     UUID REFERENCES auth.users(id),
+  slot        TEXT NOT NULL,
+  batch_id    TEXT DEFAULT '',
+  is_wishlist INTEGER DEFAULT 0,
+  items       JSONB DEFAULT '[]'::jsonb,
+  defaults    JSONB DEFAULT '{}'::jsonb,
+  deleted     INTEGER DEFAULT 0,
+  synced_by   TEXT DEFAULT '',
+  updated_at  TIMESTAMPTZ DEFAULT now(),
+  created_at  TIMESTAMPTZ DEFAULT now()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_batch_drafts_user_slot ON batch_drafts(user_id, slot);
+
 -- announcements 表（应用内公告，替代 Gist/GitHub Pages）
 CREATE TABLE IF NOT EXISTS announcements (
   id            TEXT PRIMARY KEY,
@@ -225,7 +241,7 @@ DO $realtime$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items'] LOOP
+  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items', 'batch_drafts'] LOOP
     BEGIN
       EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
     EXCEPTION WHEN duplicate_object THEN
@@ -249,6 +265,8 @@ CREATE INDEX IF NOT EXISTS idx_goods_group_items_group_id ON goods_group_items(g
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_goods_id ON goods_group_items(goods_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_user_id ON goods_group_items(user_id);
 CREATE INDEX IF NOT EXISTS idx_goods_group_items_updated_at ON goods_group_items(updated_at);
+CREATE INDEX IF NOT EXISTS idx_batch_drafts_updated_at ON batch_drafts(updated_at);
+CREATE INDEX IF NOT EXISTS idx_batch_drafts_user_id ON batch_drafts(user_id);
 
 -- ============================================================
 -- 5. updated_at 触发器
@@ -401,6 +419,26 @@ CREATE TRIGGER goods_groups_updated_at BEFORE INSERT OR UPDATE ON goods_groups F
 DROP TRIGGER IF EXISTS goods_group_items_updated_at ON goods_group_items;
 CREATE TRIGGER goods_group_items_updated_at BEFORE INSERT OR UPDATE ON goods_group_items FOR EACH ROW EXECUTE FUNCTION set_group_items_updated_at();
 
+CREATE OR REPLACE FUNCTION set_batch_drafts_updated_at() RETURNS TRIGGER AS $fn_bd$
+BEGIN
+  IF current_setting('app.is_sync_push', true) = 'true' THEN RETURN NEW; END IF;
+  IF TG_OP = 'INSERT' THEN NEW.updated_at = now(); RETURN NEW; END IF;
+  IF NEW.slot IS DISTINCT FROM OLD.slot
+    OR NEW.batch_id IS DISTINCT FROM OLD.batch_id
+    OR NEW.is_wishlist IS DISTINCT FROM OLD.is_wishlist
+    OR NEW.items IS DISTINCT FROM OLD.items
+    OR NEW.defaults IS DISTINCT FROM OLD.defaults
+    OR NEW.deleted IS DISTINCT FROM OLD.deleted
+  THEN NEW.updated_at = now();
+  ELSE NEW.updated_at = OLD.updated_at;
+  END IF;
+  RETURN NEW;
+END;
+$fn_bd$ LANGUAGE plpgsql SET search_path = public;
+
+DROP TRIGGER IF EXISTS batch_drafts_updated_at ON batch_drafts;
+CREATE TRIGGER batch_drafts_updated_at BEFORE INSERT OR UPDATE ON batch_drafts FOR EACH ROW EXECUTE FUNCTION set_batch_drafts_updated_at();
+
 -- sync_manifest.synced_at 强制服务器时间：客户端水位线取自它（sync_push 返回值 /
 -- sync_pull 的 manifest），全链路统一到服务器时间域，消除设备时钟偏移
 CREATE OR REPLACE FUNCTION set_manifest_synced_at() RETURNS TRIGGER AS $fn6$
@@ -425,6 +463,7 @@ ALTER TABLE sync_manifest ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sync_presets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goods_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goods_group_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE batch_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 
 -- 删除旧的宽松 policy（如果存在）
@@ -462,7 +501,7 @@ DO $drop_user_policies$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'sync_manifest', 'sync_presets', 'goods_groups', 'goods_group_items'] LOOP
+  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'sync_manifest', 'sync_presets', 'goods_groups', 'goods_group_items', 'batch_drafts'] LOOP
     EXECUTE format('DROP POLICY IF EXISTS "user_select_own" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "user_insert_own" ON %I', t);
     EXECUTE format('DROP POLICY IF EXISTS "user_update_own" ON %I', t);
@@ -505,6 +544,11 @@ CREATE POLICY "user_select_own" ON goods_group_items FOR SELECT USING (auth.uid(
 CREATE POLICY "user_insert_own" ON goods_group_items FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "user_update_own" ON goods_group_items FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "user_delete_own" ON goods_group_items FOR DELETE USING (auth.uid() = user_id);
+
+CREATE POLICY "user_select_own" ON batch_drafts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "user_insert_own" ON batch_drafts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "user_update_own" ON batch_drafts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "user_delete_own" ON batch_drafts FOR DELETE USING (auth.uid() = user_id);
 
 -- announcements: 公开读取（target_users 为空 = 所有人可见，有值 = 仅指定用户），service_role 写入
 CREATE POLICY "announcements_select" ON announcements FOR SELECT
@@ -672,6 +716,7 @@ REVOKE ALL ON public.sync_manifest FROM anon;
 REVOKE ALL ON public.sync_presets FROM anon;
 REVOKE ALL ON public.goods_groups FROM anon;
 REVOKE ALL ON public.goods_group_items FROM anon;
+REVOKE ALL ON public.batch_drafts FROM anon;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.events TO authenticated;
@@ -680,6 +725,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_manifest TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_presets TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_groups TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.goods_group_items TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.batch_drafts TO authenticated;
 
 -- surveys: 用户可读取启用的，anon 可提交回复
 GRANT SELECT ON public.surveys TO anon;
@@ -959,6 +1005,8 @@ BEGIN
       'recharge_trash',(SELECT COALESCE(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1 AND r.user_id = auth.uid()),
       'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND (e.deleted IS NULL OR e.deleted != 1) AND e.user_id = auth.uid()),
       'events_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.deleted = 1 AND e.user_id = auth.uid()),
+      'batch_drafts', (SELECT COALESCE(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND (bd.deleted IS NULL OR bd.deleted != 1) AND bd.user_id = auth.uid()),
+      'batch_drafts_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND bd.deleted = 1 AND bd.user_id = auth.uid()),
       'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.user_id = auth.uid())
     )
   );
@@ -973,6 +1021,7 @@ GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
 -- 返回 { synced_at: <服务器时间> } 供客户端作为本地水位线（消除设备时钟偏移）。
 -- 返回类型从 void 改为 jsonb，必须先 DROP 再 CREATE
 DROP FUNCTION IF EXISTS sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz);
+DROP FUNCTION IF EXISTS sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz);
 CREATE OR REPLACE FUNCTION sync_push(
   p_goods            jsonb DEFAULT '[]',
   p_goods_trash      jsonb DEFAULT '[]',
@@ -984,12 +1033,15 @@ CREATE OR REPLACE FUNCTION sync_push(
   p_recharge_trash   jsonb DEFAULT '[]',
   p_events           jsonb DEFAULT '[]',
   p_events_trash     jsonb DEFAULT '[]',
+  p_batch_drafts     jsonb DEFAULT '[]',
+  p_batch_drafts_trash jsonb DEFAULT '[]',
   p_presets          jsonb DEFAULT '{}',
   p_delete_goods     text[] DEFAULT '{}',
   p_delete_groups    text[] DEFAULT '{}',
   p_delete_group_items text[] DEFAULT '{}',
   p_delete_recharge  text[] DEFAULT '{}',
   p_delete_events    text[] DEFAULT '{}',
+  p_delete_batch_drafts text[] DEFAULT '{}',
   p_device_id        text DEFAULT '',
   p_synced_at        timestamptz DEFAULT now(),
   p_image_bucket     text DEFAULT 'goods-images',
@@ -1024,6 +1076,9 @@ BEGIN
   END IF;
   IF array_length(p_delete_events, 1) > 0 THEN
     DELETE FROM events WHERE id = ANY(p_delete_events);
+  END IF;
+  IF array_length(p_delete_batch_drafts, 1) > 0 THEN
+    DELETE FROM batch_drafts WHERE id = ANY(p_delete_batch_drafts);
   END IF;
 
   -- 2. Upsert goods
@@ -1215,6 +1270,32 @@ BEGIN
       WHERE events.updated_at <= EXCLUDED.updated_at;
   END IF;
 
+  -- 8c. Upsert batch_drafts
+  IF jsonb_array_length(p_batch_drafts) > 0 THEN
+    INSERT INTO batch_drafts
+    SELECT * FROM jsonb_populate_recordset(null::batch_drafts, p_batch_drafts)
+    ON CONFLICT (id) DO UPDATE SET
+      slot = EXCLUDED.slot, batch_id = EXCLUDED.batch_id,
+      is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
+      defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE batch_drafts.updated_at <= EXCLUDED.updated_at;
+  END IF;
+
+  -- 8d. Upsert batch_drafts_trash
+  IF jsonb_array_length(p_batch_drafts_trash) > 0 THEN
+    INSERT INTO batch_drafts
+    SELECT * FROM jsonb_populate_recordset(null::batch_drafts, p_batch_drafts_trash)
+    ON CONFLICT (id) DO UPDATE SET
+      slot = EXCLUDED.slot, batch_id = EXCLUDED.batch_id,
+      is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
+      defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
+      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
+      WHERE batch_drafts.updated_at <= EXCLUDED.updated_at;
+  END IF;
+
   -- 9. Upsert presets
   IF p_presets != '{}'::jsonb THEN
     INSERT INTO sync_presets (user_id, categories, ips, characters, storage_locations)
@@ -1272,14 +1353,16 @@ $fn$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE 再单独授权
 REVOKE ALL ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
-  text[], text[], text[], text[], text[],
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  jsonb, jsonb, jsonb,
+  text[], text[], text[], text[], text[], text[],
   text, timestamptz, text, real, real, timestamptz, timestamptz
 ) FROM PUBLIC, anon;
 
 GRANT EXECUTE ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
-  text[], text[], text[], text[], text[],
+  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
+  jsonb, jsonb, jsonb,
+  text[], text[], text[], text[], text[], text[],
   text, timestamptz, text, real, real, timestamptz, timestamptz
 ) TO authenticated;
 
@@ -1481,6 +1564,7 @@ ALTER TABLE events REPLICA IDENTITY FULL;
 ALTER TABLE recharge_records REPLICA IDENTITY FULL;
 ALTER TABLE goods_groups REPLICA IDENTITY FULL;
 ALTER TABLE goods_group_items REPLICA IDENTITY FULL;
+ALTER TABLE batch_drafts REPLICA IDENTITY FULL;
 
 
 -- ============================================================

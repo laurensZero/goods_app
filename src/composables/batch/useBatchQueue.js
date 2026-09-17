@@ -1,9 +1,10 @@
 // @ts-check
 import { computed, ref, shallowRef, watch } from 'vue'
-import { createGoodsImageId } from '@/utils/goods/images'
-import { deleteManagedLocalImages } from '@/utils/image/localImage'
+import { createGoodsImageId, buildCloudImageUri, parseCloudImageUri, parseStoragePublicImageUrl } from '@/utils/goods/images'
+import { deleteManagedLocalImages, isLocalImageUri } from '@/utils/image/localImage'
 import { appLog } from '@/utils/logger'
-import { deleteBatchDraft, getBatchDraft, saveBatchDraft } from '@/utils/db'
+import { getAllBatchDrafts, getBatchDraft, saveBatchDraft, saveBatchDrafts, softDeleteBatchDraft } from '@/utils/db'
+import { createAutoPush } from '@/stores/storeCore'
 
 /** @typedef {'collection' | 'wishlist'} BatchDraftSlot */
 
@@ -25,6 +26,21 @@ const activeSlot = ref(/** @type {BatchDraftSlot | ''} */ (''))
 let persistTimer = null
 // 写入串行化：防抖触发与 flush/saveAll/clear 竞争时保证最终一致
 let persistChain = Promise.resolve()
+// pull/updateLocalRefs 回写内存时置位，避免 watch 把远端内容再 persist 出去形成无意义推送环
+let suppressPersist = false
+// 草稿域自动推送（2s 防抖）；与 goods/recharge 同一条 dirtyDomains 通道
+const triggerBatchDraftSync = createAutoPush('batchDrafts')
+
+function withSuppressPersist(fn) {
+  suppressPersist = true
+  cancelPersistTimer()
+  try {
+    return fn()
+  } finally {
+    // 微任务后恢复：确保同步路径里的 watch 回调被吞掉
+    queueMicrotask(() => { suppressPersist = false })
+  }
+}
 
 /**
  * 生成批次标识（批量流程入口发起时调用，写入路由 state 用于识别同一批图片）
@@ -79,7 +95,10 @@ async function persistActiveDraft() {
   const slot = activeSlot.value
   if (!slot) return
   if (queue.value.length === 0) {
-    await deleteBatchDraft(slot)
+    // 空队列 = 草稿结束（saveAll / 逐项移除完）：软删墓碑让对端同步清除，不删本地图片
+    // （图片此时已归商品，或已被 removeItem 单独删过）
+    await softDeleteBatchDraft(slot)
+    triggerBatchDraftSync()
     return
   }
   await saveBatchDraft({
@@ -88,8 +107,10 @@ async function persistActiveDraft() {
     isWishlist: isWishlist.value,
     items: serializeItems(),
     defaults: { ...defaults.value },
+    deleted: false,
     updatedAt: Date.now()
   })
+  triggerBatchDraftSync()
 }
 
 /**
@@ -115,6 +136,7 @@ export function flushBatchDraft() {
 }
 
 function schedulePersist() {
+  if (suppressPersist) return
   cancelPersistTimer()
   persistTimer = setTimeout(() => {
     persistTimer = null
@@ -174,7 +196,8 @@ export async function resumeDraft(slot) {
       batchId.value = ''
       isWishlist.value = slot === BATCH_DRAFT_SLOTS.WISHLIST
       activeSlot.value = slot
-      if (draft) await deleteBatchDraft(slot)
+      // 空/墓碑行：标软删（若仍存在），避免脏行挡后续恢复
+      if (draft) await softDeleteBatchDraft(slot)
       return false
     }
     queue.value = deserializeItems(items)
@@ -205,7 +228,7 @@ export async function clearDraft(slot) {
   cancelPersistTimer()
   let uris = []
   if (activeSlot.value === target) {
-    uris = queue.value.map((item) => item?.imageUri).filter(Boolean)
+    uris = queue.value.map((item) => item.localImageUri || item.imageUri).filter(Boolean)
     queue.value = []
     defaults.value = { ip: '', category: '', price: '' }
     batchId.value = ''
@@ -215,19 +238,22 @@ export async function clearDraft(slot) {
     try {
       const draft = await getBatchDraft(target)
       if (draft && Array.isArray(draft.items)) {
-        uris = draft.items.map((item) => item?.imageUri).filter(Boolean)
+        uris = draft.items.map((item) => item?.localImageUri || item?.imageUri).filter(Boolean)
       }
     } catch (e) {
       console.warn('[useBatchQueue] clearDraft read failed', e)
     }
   }
   try {
-    await deleteBatchDraft(target)
+    await softDeleteBatchDraft(target)
   } catch (e) {
-    console.warn('[useBatchQueue] clearDraft delete failed', e)
+    console.warn('[useBatchQueue] clearDraft soft-delete failed', e)
   }
-  if (uris.length > 0) void deleteManagedLocalImages(uris)
-  appLog('info', 'batch-queue: draft cleared', { slot: target, count: uris.length })
+  // 只删本地文件；云端已上传副本由孤儿回收（48h 宽限）处理
+  const localUris = uris.filter((uri) => isLocalImageUri(uri) || String(uri).startsWith('file:') || String(uri).startsWith('data:image/'))
+  if (localUris.length > 0) void deleteManagedLocalImages(localUris)
+  triggerBatchDraftSync()
+  appLog('info', 'batch-queue: draft cleared', { slot: target, count: localUris.length })
 }
 
 /**
@@ -260,7 +286,9 @@ async function initQueue(images, meta = {}) {
   // 仅同槽位重建时清理旧未保存图片；跨槽切换时旧图归另一侧草稿所有，不能删
   if (!prevSlot || prevSlot === nextSlot) {
     const incomingSet = new Set(incomingUris)
-    const staleUris = currentUris.filter((uri) => uri && !incomingSet.has(uri))
+    const staleUris = currentUris
+      .map((uri, idx) => queue.value[idx]?.localImageUri || uri)
+      .filter((uri) => uri && !incomingSet.has(uri) && isLocalImageUri(uri))
     if (staleUris.length > 0) void deleteManagedLocalImages(staleUris)
     if (staleUris.length > 0 || currentUris.length > 0) {
       appLog('info', 'batch-queue: init', { batchId: batchId.value, count: images.length, isWishlist: nextWishlist, staleCleaned: staleUris.length })
@@ -272,6 +300,9 @@ async function initQueue(images, meta = {}) {
   queue.value = images.map((img) => ({
     id: createGoodsImageId(),
     imageUri: img.uri || img.localPath || '',
+    localImageUri: img.uri || img.localPath || '',
+    cloudFileName: '',
+    storageMode: '',
     name: '',
     category: '',
     ip: '',
@@ -318,8 +349,9 @@ function markDirty(id, field) {
  */
 function removeItem(id) {
   const item = queue.value.find((i) => i.id === id)
-  // 尚未保存为谷子，移除时同步删除已复制的本地文件
-  if (item?.imageUri) void deleteManagedLocalImages([item.imageUri])
+  // 尚未保存为谷子，移除时同步删除已复制的本地文件（云端副本交给孤儿回收）
+  const localUri = item?.localImageUri || (isLocalImageUri(item?.imageUri) ? item.imageUri : '')
+  if (localUri) void deleteManagedLocalImages([localUri])
   queue.value = queue.value.filter((i) => i.id !== id)
 }
 
@@ -331,9 +363,14 @@ function removeItem(id) {
 function replaceItemImage(id, newUri) {
   const item = queue.value.find((i) => i.id === id)
   if (!item) return
-  const oldUri = item.imageUri
-  if (oldUri && oldUri !== newUri) void deleteManagedLocalImages([oldUri])
-  updateItem(id, { imageUri: newUri })
+  const oldLocal = item.localImageUri || (isLocalImageUri(item.imageUri) ? item.imageUri : '')
+  if (oldLocal && oldLocal !== newUri) void deleteManagedLocalImages([oldLocal])
+  updateItem(id, {
+    imageUri: newUri,
+    localImageUri: newUri,
+    cloudFileName: '',
+    storageMode: ''
+  })
 }
 
 /**
@@ -341,17 +378,23 @@ function replaceItemImage(id, newUri) {
  * @param {Array} images
  */
 function appendImages(images) {
-  const newItems = images.map((img) => ({
-    id: createGoodsImageId(),
-    imageUri: img.uri || img.localPath || '',
-    name: '',
-    category: defaults.value.category || '',
-    ip: defaults.value.ip || '',
-    charactersText: '',
-    price: defaults.value.price || '',
-    date: new Date().toISOString().split('T')[0],
-    dirtyFields: new Set()
-  }))
+  const newItems = images.map((img) => {
+    const uri = img.uri || img.localPath || ''
+    return {
+      id: createGoodsImageId(),
+      imageUri: uri,
+      localImageUri: uri,
+      cloudFileName: '',
+      storageMode: '',
+      name: '',
+      category: defaults.value.category || '',
+      ip: defaults.value.ip || '',
+      charactersText: '',
+      price: defaults.value.price || '',
+      date: new Date().toISOString().split('T')[0],
+      dirtyFields: new Set()
+    }
+  })
   queue.value = [...queue.value, ...newItems]
 }
 
@@ -390,29 +433,49 @@ function getItem(id) {
 async function saveAll(goodsStore) {
   const wishlist = isWishlist.value
   const slot = activeSlot.value
-  const items = queue.value.map((item) => ({
-    name: item.name,
-    price: item.price ? parseFloat(item.price) : 0,
-    ip: item.ip,
-    category: item.category,
-    characters: item.charactersText
-      ? item.charactersText.split(/[,，]/).filter(Boolean)
-      : [],
-    images: [{ id: item.id, uri: item.imageUri }],
-    isWishlist: wishlist,
-    collectStatus: wishlist ? '' : '已拥有',
-    acquiredAt: wishlist ? '' : item.date
-  }))
+  const items = queue.value.map((item) => {
+    // 已上云的图：goods 侧直接复用 cloudFileName，避免二次上传与孤儿回收误删
+    const cloudFileName = String(item.cloudFileName || parseCloudImageUri(item.imageUri) || parseStoragePublicImageUrl(item.imageUri) || '').trim()
+    const images = cloudFileName
+      ? [{
+          id: item.id,
+          uri: item.imageUri || buildCloudImageUri(cloudFileName),
+          cloudFileName,
+          storageMode: item.storageMode || 'remote'
+        }]
+      : [{ id: item.id, uri: item.imageUri }]
+    return {
+      name: item.name,
+      price: item.price ? parseFloat(item.price) : 0,
+      ip: item.ip,
+      category: item.category,
+      characters: item.charactersText
+        ? item.charactersText.split(/[,，]/).filter(Boolean)
+        : [],
+      images,
+      isWishlist: wishlist,
+      collectStatus: wishlist ? '' : '已拥有',
+      acquiredAt: wishlist ? '' : item.date
+    }
+  })
   await goodsStore.addMultipleGoods(items)
   appLog('info', 'batch-queue: saved', { batchId: batchId.value, count: items.length, isWishlist: wishlist, slot })
-  // 保存成功后图片归商品所有：清空内存 + 删草稿行，不删图片文件；
-  // 保留 batchId 标记该批次已消费，避免历史返回时重建队列导致重复保存
+  // 保存成功后图片归商品所有：清空内存 + 软删草稿行。
+  // 本地文件：未上云的继续由 goods 管理；已上云的删除本地副本（云端已有）
   cancelPersistTimer()
+  for (const item of queue.value) {
+    const cloudFileName = String(item.cloudFileName || parseCloudImageUri(item.imageUri) || parseStoragePublicImageUrl(item.imageUri) || '').trim()
+    const localUri = item.localImageUri || (isLocalImageUri(item.imageUri) ? item.imageUri : '')
+    if (cloudFileName && localUri && isLocalImageUri(localUri)) {
+      void deleteManagedLocalImages([localUri])
+    }
+  }
   queue.value = []
   defaults.value = { ip: '', category: '', price: '' }
   if (slot) {
     try {
-      await deleteBatchDraft(slot)
+      await softDeleteBatchDraft(slot)
+      triggerBatchDraftSync()
     } catch (e) {
       console.warn('[useBatchQueue] clear draft after save failed', e)
     }
@@ -420,7 +483,7 @@ async function saveAll(goodsStore) {
 }
 
 /**
- * 清空内存队列并删当前槽草稿行（不删图片）。
+ * 清空内存队列并软删当前槽草稿（不删图片）。
  * 普通离开不要调；需要删图片的一键清除用 clearDraft。
  */
 function clearQueue() {
@@ -431,7 +494,9 @@ function clearQueue() {
   batchId.value = ''
   isWishlist.value = false
   activeSlot.value = ''
-  if (slot) void deleteBatchDraft(slot)
+  if (slot) {
+    void softDeleteBatchDraft(slot).then(() => triggerBatchDraftSync()).catch(() => {})
+  }
 }
 
 /**
@@ -441,6 +506,102 @@ function clearQueue() {
  */
 function discardQueue() {
   return clearDraft()
+}
+
+/**
+ * pull 合并写库后刷新当前编辑槽内存，避免 stale 队列在下次 persist 盖回远端。
+ * 仅当 activeSlot 有草稿时调用；无草稿/删除时清空对应内存。
+ */
+export async function refreshActiveSlotFromDb() {
+  const slot = activeSlot.value
+  if (!slot) return
+  try {
+    const draft = await getBatchDraft(slot)
+    const items = draft && Array.isArray(draft.items) ? draft.items : []
+    withSuppressPersist(() => {
+      if (items.length === 0) {
+        // 远端墓碑赢下 LWW：清空内存，但不删本地图片（清除语义由对端 clear 触发）
+        queue.value = []
+        defaults.value = { ip: '', category: '', price: '' }
+        batchId.value = ''
+        return
+      }
+      queue.value = deserializeItems(items)
+      defaults.value = {
+        ip: String(draft.defaults?.ip || ''),
+        category: String(draft.defaults?.category || ''),
+        price: String(draft.defaults?.price || '')
+      }
+      batchId.value = draft.batchId || ''
+      isWishlist.value = draft.isWishlist === true
+    })
+    appLog('info', 'batch-queue: refreshed active slot from remote', { slot, count: items.length })
+  } catch (e) {
+    console.warn('[useBatchQueue] refreshActiveSlotFromDb failed', e)
+  }
+}
+
+/**
+ * push 成功后把 cloudFileName 写回本地草稿行（不删本地文件）。
+ * 杀进程后下次同步仍能从 localImageUri 重试上传；孤儿 GC 靠 cloudFileName 保护云端文件。
+ * @param {Array<{ slot: string, items: any[], deleted?: boolean, updatedAt?: number }>} updates
+ */
+export async function markBatchDraftImagesAsRemote(updates) {
+  if (!Array.isArray(updates) || updates.length === 0) return
+  const toSave = []
+  for (const update of updates) {
+    const slot = String(update?.slot || '').trim()
+    if (!slot) continue
+    if (update.deleted) {
+      toSave.push({
+        slot,
+        batchId: '',
+        isWishlist: slot === BATCH_DRAFT_SLOTS.WISHLIST,
+        items: [],
+        defaults: { ip: '', category: '', price: '' },
+        deleted: true,
+        updatedAt: Number(update.updatedAt) || Date.now()
+      })
+      continue
+    }
+    try {
+      const existing = await getBatchDraft(slot)
+      if (!existing) continue
+      const byId = new Map((Array.isArray(update.items) ? update.items : []).map((item) => [item.id, item]))
+      const nextItems = existing.items.map((item) => {
+        const remote = byId.get(item.id)
+        if (!remote?.cloudFileName) return item
+        return {
+          ...item,
+          imageUri: remote.imageUri || buildCloudImageUri(remote.cloudFileName),
+          cloudFileName: remote.cloudFileName,
+          storageMode: remote.storageMode || 'cloud-local'
+          // localImageUri 保留：clearDraft / 保存失败重试仍依赖本地文件
+        }
+      })
+      toSave.push({
+        ...existing,
+        items: nextItems,
+        deleted: false,
+        // 不刷新 updatedAt：本次只是补云端引用，避免无意义地覆盖对端更新的行
+        updatedAt: existing.updatedAt || Date.now()
+      })
+    } catch (e) {
+      console.warn('[useBatchQueue] markBatchDraftImagesAsRemote read failed', e)
+    }
+  }
+  if (toSave.length === 0) return
+  await saveBatchDrafts(toSave)
+  // 若正是当前编辑槽，同步刷新内存，避免用旧 imageUri 再 persist
+  const slot = activeSlot.value
+  if (slot) {
+    const hit = toSave.find((d) => d.slot === slot)
+    if (hit && Array.isArray(hit.items)) {
+      withSuppressPersist(() => {
+        queue.value = deserializeItems(hit.items)
+      })
+    }
+  }
 }
 
 // 队列/默认值变更 → 防抖落库（离开静默保留的核心路径）
@@ -494,6 +655,9 @@ export function useBatchQueue() {
     resumeDraft,
     clearDraft,
     flushBatchDraft,
-    slotForWishlist
+    slotForWishlist,
+    getAllBatchDrafts,
+    refreshActiveSlotFromDb,
+    markBatchDraftImagesAsRemote
   }
 }

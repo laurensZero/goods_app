@@ -5,6 +5,8 @@ import { resolveGoodsTrashMaps, getItemTimestamp, normalizeBudgetValue, countWis
 import { parseCloudImageUri } from '@/utils/goods/images'
 import { compareStateSync } from '@/utils/sync/stateCompare'
 import { writePersisted } from '@/utils/platform/storage'
+import { getAllBatchDrafts, saveBatchDrafts } from '@/utils/db'
+import { normalizeBatchDraft, isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import i18n from '@/locales'
 
@@ -147,6 +149,28 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
     )
   }
 
+  // batch draft items：cloud-image:// → public URL（Supabase 无需下载）
+  if (be?.getImagePublicUrl) {
+    const resolveDraftUris = (list) => (list || []).map((draft) => {
+      if (!Array.isArray(draft?.items)) return draft
+      return {
+        ...draft,
+        items: draft.items.map((item) => {
+          const cloudFileName = String(item?.cloudFileName || parseCloudImageUri(item?.imageUri) || '').trim()
+          if (!cloudFileName) return item
+          return {
+            ...item,
+            imageUri: be.getImagePublicUrl(cloudFileName),
+            cloudFileName,
+            storageMode: item.storageMode || 'cloud-local'
+          }
+        })
+      }
+    })
+    remoteData.batchDrafts = resolveDraftUris(remoteData.batchDrafts)
+    remoteData.batchDraftsTrash = resolveDraftUris(remoteData.batchDraftsTrash)
+  }
+
   if (hydrationTasks.length > 0) await Promise.all(hydrationTasks)
   return imageStats
 }
@@ -195,6 +219,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   trackTs(remoteData.events); trackTs(remoteData.eventsTrash)
   trackTs(remoteData.groups); trackTs(remoteData.groupsTrash)
   trackTs(remoteData.groupItems); trackTs(remoteData.groupItemsTrash)
+  trackTs(remoteData.batchDrafts); trackTs(remoteData.batchDraftsTrash)
 
   // ── Goods ──
   const goods = remoteData.goods || []
@@ -279,6 +304,23 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems, { forceReapply })
   }
 
+  // ── Batch drafts ──
+  // LWW 整行覆盖；远端赢下当前编辑槽时刷新内存，避免下次 persist 用旧队列盖回去
+  const batchActive = remoteData.batchDrafts || []
+  const batchTrash = remoteData.batchDraftsTrash || []
+  const allBatchDrafts = [...batchActive, ...batchTrash]
+  if (allBatchDrafts.length > 0) {
+    const applied = await mergeBatchDraftsFromRemote(allBatchDrafts, { forceReapply })
+    if (applied > 0) {
+      try {
+        const { refreshActiveSlotFromDb } = await import('@/composables/batch/useBatchQueue')
+        await refreshActiveSlotFromDb()
+      } catch {
+        // 内存刷新失败不影响落库结果
+      }
+    }
+  }
+
   // ── Presets ──
   if (remoteData.presets && presetsStore) {
     await presetsStore.replacePresetsSnapshot(remoteData.presets)
@@ -300,6 +342,63 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
 }
 
 /**
+ * LWW 合并 batch_drafts 到本地 DB（含墓碑）。
+ * 返回实际落库条数。
+ */
+export async function mergeBatchDraftsFromRemote(remoteDrafts, { forceReapply = false } = {}) {
+  const localList = await getAllBatchDrafts()
+  const localMap = new Map(localList.map((d) => [String(d.slot || d.id), d]))
+  const toApply = []
+
+  for (const remote of (remoteDrafts || [])) {
+    const slot = String(remote?.slot || remote?.id || '').trim()
+    if (!slot) continue
+    const local = localMap.get(slot)
+    const remoteTs = getItemTimestamp(remote)
+    const localTs = getItemTimestamp(local)
+    const remoteDeleted = isBatchDraftDeleted(remote)
+
+    if (!local) {
+      const normalized = normalizeBatchDraft(remote)
+      toApply.push({
+        ...normalized,
+        deleted: remoteDeleted,
+        updatedAt: remoteTs || Date.now()
+      })
+      continue
+    }
+
+    if (remoteDeleted && remoteTs >= localTs) {
+      // 相等时间戳且本地已删 → 幂等空操作（重叠窗口）
+      if (local.deleted && remoteTs === localTs) continue
+      toApply.push({
+        id: slot,
+        slot,
+        batchId: local.batchId || '',
+        isWishlist: !!local.isWishlist,
+        items: [],
+        defaults: local.defaults || { ip: '', category: '', price: '' },
+        deleted: true,
+        updatedAt: remoteTs
+      })
+      continue
+    }
+
+    if (remoteTs > localTs || (forceReapply && remoteTs === localTs)) {
+      const normalized = normalizeBatchDraft(remote)
+      toApply.push({
+        ...normalized,
+        deleted: remoteDeleted,
+        updatedAt: remoteTs
+      })
+    }
+  }
+
+  if (toApply.length > 0) await saveBatchDrafts(toApply)
+  return toApply.length
+}
+
+/**
  * Count how many remote rows would actually change local state (LWW by timestamp).
  * Pure read — must run BEFORE the merge mutates the stores.
  */
@@ -310,7 +409,8 @@ function countAppliedChanges(stores, remoteData) {
     importedGoods: 0, updatedGoods: 0, importedTrash: 0,
     importedRecharge: 0, updatedRecharge: 0,
     importedEvents: 0, updatedEvents: 0,
-    importedGroups: 0
+    importedGroups: 0,
+    importedDrafts: 0
   }
 
   for (const g of (remoteData.goods || [])) {
@@ -365,6 +465,17 @@ function countAppliedChanges(stores, remoteData) {
   for (const gi of [...(remoteData.groupItems || []), ...(remoteData.groupItemsTrash || [])]) {
     const local = localGroupItems.get(gi.id)
     if (!local || getItemTimestamp(gi) > getItemTimestamp(local)) counts.importedGroups++
+  }
+
+  // batch_drafts：本地快照传入 stores.batchDrafts（可选），避免 count 函数做 IO
+  const localDrafts = new Map(
+    (stores.batchDrafts || []).map(d => [String(d.slot || d.id), d])
+  )
+  for (const d of [...(remoteData.batchDrafts || []), ...(remoteData.batchDraftsTrash || [])]) {
+    const slot = String(d?.slot || d?.id || '')
+    if (!slot) continue
+    const local = localDrafts.get(slot)
+    if (!local || getItemTimestamp(d) > getItemTimestamp(local)) counts.importedDrafts++
   }
 
   return counts

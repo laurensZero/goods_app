@@ -5,7 +5,7 @@ import { toCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/sync/syncRetry'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
-  GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
+  GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS, BATCH_DRAFT_SELECT_COLS, BATCH_DRAFT_JSON_KEYS,
   fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
 } from './helpers'
 
@@ -15,6 +15,30 @@ function parseEventJsonKeys(item) {
   for (const key of EVENT_JSON_KEYS) {
     item[key] = safeParseJsonArray(item[key])
   }
+  return item
+}
+
+function parseBatchDraftRow(row) {
+  const item = toCamelCase(row)
+  item.updatedAt = normalizeTimestamp(item.updatedAt)
+  item.isWishlist = Number(item.isWishlist) === 1
+  item.deleted = Number(row.deleted) === 1
+  for (const key of BATCH_DRAFT_JSON_KEYS) {
+    item[key] = safeParseJsonArray(item[key])
+  }
+  // defaults 是对象，safeParseJsonArray 不适用
+  if (typeof item.defaults === 'string') {
+    try {
+      const parsed = JSON.parse(item.defaults || '{}')
+      item.defaults = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+    } catch {
+      item.defaults = {}
+    }
+  } else if (!item.defaults || typeof item.defaults !== 'object' || Array.isArray(item.defaults)) {
+    item.defaults = {}
+  }
+  if (!item.slot) item.slot = item.id
+  if (!item.id) item.id = item.slot
   return item
 }
 
@@ -87,7 +111,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
   /**
    * Pull rows directly from Supabase, returning camelCase objects (no JSON wrapper).
    *
-   * @param {'goods'|'recharge'|'events'|'groups'|'groupItems'} domain
+   * @param {'goods'|'recharge'|'events'|'groups'|'groupItems'|'batchDrafts'} domain
    * @param {object} [opts]
    * @param {number} [opts.since] - incremental: only rows updated after this timestamp (ms)
    * @returns {Array|object} camelCase items (goods returns { goods, trash })
@@ -181,6 +205,15 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
         item.createdAt = normalizeTimestamp(item.createdAt)
         return item
       })
+    }
+
+    if (domain === 'batchDrafts') {
+      const data = await fetchRowsSince((sinceCol) => () => {
+        let query = db.from('batch_drafts').select(BATCH_DRAFT_SELECT_COLS)
+        if (sinceCol) query = query.gt(sinceCol, new Date(sinceMs).toISOString())
+        return query
+      }, sinceMs)
+      return (data || []).map(parseBatchDraftRow)
     }
 
     return []
@@ -289,6 +322,19 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       groupItemsTrash.push(item)
     }
 
+    const batchDrafts = []
+    const batchDraftsTrash = []
+    for (const row of (data.batch_drafts || [])) {
+      const item = parseBatchDraftRow(row)
+      if (item.deleted) batchDraftsTrash.push(item)
+      else batchDrafts.push(item)
+    }
+    for (const row of (data.batch_drafts_trash || [])) {
+      const item = parseBatchDraftRow(row)
+      item.deleted = true
+      batchDraftsTrash.push(item)
+    }
+
     const manifestRow = data.manifest
     const manifest = manifestRow ? (() => {
       const m = toCamelCase(manifestRow)
@@ -326,6 +372,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       groupsTrash,
       groupItems,
       groupItemsTrash,
+      batchDrafts,
+      batchDraftsTrash,
       presets
     }
   }

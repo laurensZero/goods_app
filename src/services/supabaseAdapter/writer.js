@@ -6,7 +6,7 @@ import { withRetry } from '@/services/sync/syncRetry'
 import i18n from '@/locales'
 import {
   syncTableRows,
-  toGoodsRows, toEventRows, toGroupRows, toGroupItemRows, toRechargeRow,
+  toGoodsRows, toEventRows, toGroupRows, toGroupItemRows, toRechargeRow, toBatchDraftRows,
   computeDiffRows, computeDeleteIds
 } from './helpers'
 
@@ -205,14 +205,35 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       })
       return
     }
+
+    if (domain === 'batchDrafts') {
+      let rowsToUpsert = toBatchDraftRows(localItems, deviceIdRef, currentUserId, isTrash)
+      let idsToDelete = deleteIds
+      let isIncremental = deleteIds !== null
+
+      if (remoteItems !== null && idsToDelete === null) {
+        const diffItems = await computeDiffRows(localItems, remoteItems)
+        rowsToUpsert = toBatchDraftRows(diffItems, deviceIdRef, currentUserId, isTrash)
+        idsToDelete = computeDeleteIds(localItems, remoteItems)
+        isIncremental = true
+      }
+
+      await syncTableRows(db, 'batch_drafts', rowsToUpsert, {
+        label: 'batch_drafts',
+        incremental: isIncremental,
+        deleteIds: idsToDelete || []
+      })
+      return
+    }
   }
 
   async function pushAll({
     goods = [], goodsTrash = [], groups = [], groupsTrash = [], groupItems = [], groupItemsTrash = [],
     recharge = [], rechargeTrash = [], events = [], eventsTrash = [],
+    batchDrafts = [], batchDraftsTrash = [],
     presets = null,
     deleteGoods = [], deleteGroups = [], deleteGroupItems = [],
-    deleteRecharge = [], deleteEvents = [],
+    deleteRecharge = [], deleteEvents = [], deleteBatchDrafts = [],
     deviceId = '', syncedAt = new Date().toISOString(),
     imageBucket = 'goods-images',
     budgetMonthly = 0, budgetYearly = 0,
@@ -233,6 +254,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true, currentUserId)).filter(Boolean),
       p_events: toEventRows(events, deviceIdRef, currentUserId, false),
       p_events_trash: toEventRows(eventsTrash, deviceIdRef, currentUserId, true),
+      p_batch_drafts: toBatchDraftRows(batchDrafts, deviceIdRef, currentUserId, false),
+      p_batch_drafts_trash: toBatchDraftRows(batchDraftsTrash, deviceIdRef, currentUserId, true),
       p_presets: presets ? {
         categories: JSON.stringify(presets.categories || []),
         ips: JSON.stringify(presets.ips || []),
@@ -245,6 +268,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       p_delete_group_items: deleteGroupItems || [],
       p_delete_recharge: deleteRecharge || [],
       p_delete_events: deleteEvents || [],
+      p_delete_batch_drafts: deleteBatchDrafts || [],
       p_device_id: currentDeviceId,
       p_synced_at: syncedAt,
       p_image_bucket: imageBucket,

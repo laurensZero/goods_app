@@ -10,11 +10,25 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/utils/image/localImage', () => ({
-  deleteManagedLocalImages: mocks.deleteManagedLocalImages
+  deleteManagedLocalImages: mocks.deleteManagedLocalImages,
+  isLocalImageUri: vi.fn((uri) => {
+    const value = String(uri || '')
+    return value.includes('_capacitor_file_') || value.includes('user-images') || value.startsWith('file:')
+  })
 }))
 
 vi.mock('@/utils/goods/images', () => ({
-  createGoodsImageId: vi.fn(() => `id_${++mocks.idCounter.n}`)
+  createGoodsImageId: vi.fn(() => `id_${++mocks.idCounter.n}`),
+  buildCloudImageUri: vi.fn((name) => (name ? `cloud-image://${name}` : '')),
+  parseCloudImageUri: vi.fn((uri) => {
+    const value = String(uri || '')
+    return value.startsWith('cloud-image://') ? value.slice('cloud-image://'.length) : ''
+  }),
+  parseStoragePublicImageUrl: vi.fn(() => '')
+}))
+
+vi.mock('@/stores/storeCore', () => ({
+  createAutoPush: vi.fn(() => vi.fn())
 }))
 
 vi.mock('@/utils/db', () => ({
@@ -22,6 +36,7 @@ vi.mock('@/utils/db', () => ({
     const row = mocks.draftStore.get(slot)
     return row ? structuredClone(row) : null
   }),
+  getAllBatchDrafts: vi.fn(async () => [...mocks.draftStore.values()].map((row) => structuredClone(row))),
   saveBatchDraft: vi.fn(async (draft) => {
     mocks.draftStore.set(draft.slot, {
       slot: draft.slot,
@@ -29,7 +44,32 @@ vi.mock('@/utils/db', () => ({
       isWishlist: draft.isWishlist === true,
       items: structuredClone(draft.items || []),
       defaults: structuredClone(draft.defaults || {}),
+      deleted: draft.deleted === true,
       updatedAt: draft.updatedAt || Date.now()
+    })
+  }),
+  saveBatchDrafts: vi.fn(async (drafts) => {
+    for (const draft of drafts || []) {
+      if (!draft?.slot) continue
+      mocks.draftStore.set(draft.slot, {
+        slot: draft.slot,
+        batchId: draft.batchId || '',
+        isWishlist: draft.isWishlist === true,
+        items: structuredClone(draft.items || []),
+        defaults: structuredClone(draft.defaults || {}),
+        deleted: draft.deleted === true,
+        updatedAt: draft.updatedAt || Date.now()
+      })
+    }
+  }),
+  softDeleteBatchDraft: vi.fn(async (slot) => {
+    const row = mocks.draftStore.get(slot)
+    if (!row) return
+    mocks.draftStore.set(slot, {
+      ...row,
+      items: [],
+      deleted: true,
+      updatedAt: Date.now()
     })
   }),
   deleteBatchDraft: vi.fn(async (slot) => {
@@ -58,6 +98,11 @@ async function flushPersist(q) {
 
 function makeGoodsStore() {
   return { addMultipleGoods: vi.fn().mockResolvedValue([]) }
+}
+
+/** 软删墓碑：行仍在，deleted=1、items 清空 */
+function isTombstone(row) {
+  return !!row && row.deleted === true && (!row.items || row.items.length === 0)
 }
 
 describe('useBatchQueue', () => {
@@ -90,8 +135,8 @@ describe('useBatchQueue', () => {
     expect(q.queue.value).toHaveLength(0)
     // 保存后图片归商品所有，不得删除文件
     expect(mocks.deleteManagedLocalImages).not.toHaveBeenCalled()
-    // 草稿行已清
-    expect(mocks.draftStore.has('collection')).toBe(false)
+    // 草稿软删墓碑（供同步传播清除）
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
   })
 
   it('saveAll 愿望单批次：isWishlist=true、collectStatus 为空、acquiredAt 为空，清 wishlist 槽', async () => {
@@ -113,7 +158,7 @@ describe('useBatchQueue', () => {
       collectStatus: '',
       acquiredAt: ''
     })
-    expect(mocks.draftStore.has('wishlist')).toBe(false)
+    expect(isTombstone(mocks.draftStore.get('wishlist'))).toBe(true)
     // collection 槽从未被触碰
     expect(mocks.draftStore.has('collection')).toBe(false)
   })
@@ -252,7 +297,7 @@ describe('useBatchQueue', () => {
 
     await q.clearDraft('collection')
 
-    expect(mocks.draftStore.has('collection')).toBe(false)
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
     expect(mocks.deleteManagedLocalImages).toHaveBeenCalledWith([URI_A, URI_B])
     expect(q.queue.value).toHaveLength(0)
     expect(q.batchId.value).toBe('')
@@ -269,8 +314,8 @@ describe('useBatchQueue', () => {
 
     await q.clearDraft('collection')
 
-    expect(mocks.draftStore.has('collection')).toBe(false)
-    expect(mocks.draftStore.has('wishlist')).toBe(true)
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
+    expect(mocks.draftStore.get('wishlist').deleted).toBeFalsy()
     expect(mocks.deleteManagedLocalImages).toHaveBeenCalledWith([URI_A])
     // 内存仍是 wishlist
     expect(q.queue.value).toHaveLength(1)
@@ -289,7 +334,7 @@ describe('useBatchQueue', () => {
     expect(mocks.deleteManagedLocalImages).toHaveBeenCalledWith([URI_A, URI_B])
     expect(q.queue.value).toHaveLength(0)
     expect(q.batchId.value).toBe('')
-    expect(mocks.draftStore.has('collection')).toBe(false)
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
   })
 
   it('initQueue 相同图片列表时跳过重建并保留编辑进度', async () => {
@@ -344,7 +389,7 @@ describe('useBatchQueue', () => {
     // removeItem 已删该图
     await flushPersist(q)
 
-    expect(mocks.draftStore.has('collection')).toBe(false)
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
     expect(mocks.deleteManagedLocalImages).toHaveBeenCalledWith([URI_A])
   })
 })

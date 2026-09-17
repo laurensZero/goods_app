@@ -263,6 +263,7 @@ export const useSyncStore = defineStore('sync', () => {
 
   const {
     buildSyncPayload, buildSyncData, buildRechargeSyncData,
+    buildBatchDraftSyncPayload,
     buildEventSyncPayload, buildEventSyncData,
     buildComparableSyncStateFromData, buildComparableRechargeStateFromData,
     buildComparableEventStateFromData, buildManifest
@@ -297,7 +298,8 @@ export const useSyncStore = defineStore('sync', () => {
   })
 
   const payloadService = {
-    buildSyncPayload, buildRechargeSyncData, buildEventSyncPayload, buildManifest,
+    buildSyncPayload, buildRechargeSyncData, buildBatchDraftSyncPayload,
+    buildEventSyncPayload, buildManifest,
     buildSyncData, buildEventSyncData,
     buildComparableSyncStateFromData, buildComparableRechargeStateFromData, buildComparableEventStateFromData
   }
