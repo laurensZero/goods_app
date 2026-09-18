@@ -145,7 +145,7 @@
           :months="allTimelineMonthList"
           :enabled="isHomeActive && goodsList.length > 0"
           root-selector=".home-page"
-          :get-section-el="() => timelineSectionRef.value?.sectionEl ?? null"
+          :get-section-el="getTimelineSectionEl"
           :get-scroll-el="getScrollEl"
           :month-at-offset="timelineMetrics.monthAtOffset"
           :offset-of-month="timelineMetrics.offsetOfMonth"
@@ -926,6 +926,10 @@ const timelineMetrics = useTimelineMetrics({
   fallbackYearHeaderHeight: 48
 })
 
+function getTimelineSectionEl() {
+  return timelineSectionRef.value?.sectionEl ?? null
+}
+
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (displayDensity.value === 'timeline') {
     currentGoodsScrollTop.value = Math.max(0, Number(scrollTop) || 0)
@@ -1138,6 +1142,7 @@ function handlePageScroll() {
     maybeLoadMoreGoods()
     if (displayDensity.value === 'timeline') {
       syncVisibleTimelineMonthCount(scrollTop)
+      timelineScrubberRef.value?.notifyScroll?.()
     }
     updateScrollTopButtonVisibility()
   })

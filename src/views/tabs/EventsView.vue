@@ -273,7 +273,7 @@
         :months="timelineScrubMonths"
         :enabled="isEventsActive && timelineScrubMonths.length > 0"
         root-selector=".events-page"
-        :get-section-el="() => eventsTimelineListRef ?? null"
+        :get-section-el="getEventsTimelineSectionEl"
         :get-scroll-el="getScrollEl"
       />
       <button
@@ -362,6 +362,10 @@ const pageBodyRef = ref(null)
 const isEventsActive = ref(true)
 const eventsTimelineListRef = ref(null)
 const eventsTimelineScrubberRef = ref(null)
+
+function getEventsTimelineSectionEl() {
+  return eventsTimelineListRef.value ?? null
+}
 const eventsDisplayReady = ref(false)
 const showDeleteConfirm = ref(false)
 const showSearch = ref(false)
@@ -854,6 +858,9 @@ function handlePageScroll() {
     if (isRouteLeaving) return
     rememberCurrentScrollPosition()
     if (selectionMode.value) updateSelectionHeaderPosition()
+    if (viewMode.value === 'timeline') {
+      eventsTimelineScrubberRef.value?.notifyScroll?.()
+    }
     updateScrollTopButtonVisibility()
   })
 }

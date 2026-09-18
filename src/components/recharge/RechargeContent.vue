@@ -191,7 +191,7 @@
       :months="timelineScrubMonths"
       :enabled="active && activeView === 'records' && !selectionMode && timelineScrubMonths.length > 0"
       root-selector=".recharge-view-page"
-      :get-section-el="() => rechargeTimelineListRef ?? null"
+      :get-section-el="getRechargeTimelineSectionEl"
       :get-scroll-el="getRechargeScrollEl"
     />
   </Teleport>
@@ -429,11 +429,14 @@ const timelineScrubMonths = computed(() => {
 
 function getRechargeScrollEl() {
   resolvePageBodyEl()
-  // 只认本页滚动容器，绝不再 querySelector 全局 .page-body
   if (isConnectedEl(pageBodyEl.value)) return pageBodyEl.value
   return rechargeRootRef.value?.closest?.('.page-body')
     || document.querySelector('.recharge-view-page .page-body')
     || null
+}
+
+function getRechargeTimelineSectionEl() {
+  return rechargeTimelineListRef.value ?? null
 }
 
 function isConnectedEl(el) {
@@ -682,7 +685,10 @@ function bindScrollListeners() {
   if (scrollListenerCleanup) return
 
   resolvePageBodyEl()
-  const handleScroll = () => updateScrollTopButtonVisibility()
+  const handleScroll = () => {
+    updateScrollTopButtonVisibility()
+    rechargeTimelineScrubberRef.value?.notifyScroll?.()
+  }
   const pageBody = pageBodyEl.value
   pageBody?.addEventListener('scroll', handleScroll, { passive: true })
   window.addEventListener('scroll', handleScroll, { passive: true })
