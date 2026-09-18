@@ -21,7 +21,6 @@ export function getCustomSortRegenerateBaseMode(baseMode) {
 
 /**
  * 列表排序依赖 view 层字段；store.list 原始行可能没有 acquiredTime/totalValueNumber。
- * 缺失时从 acquiredAt / 收藏总价兜底，避免重新生成时主排序键全为 0。
  * @param {Record<string, any>} item
  */
 function prepareItemForRegenerateSort(item) {
@@ -39,14 +38,13 @@ function prepareItemForRegenerateSort(item) {
     ...item,
     acquiredTime,
     totalValueNumber,
-    sortOrder: 0
+    // 重新生成只写 manualOrders.custom；排序时不读旧手动序
+    manualOrders: {}
   }
 }
 
 /**
- * 构建重新生成后的 goods id 序列。
- * 先将域内条目的 sortOrder 置 0 再按选定基准排序，确保旧自定义序被清除。
- * 传入项应优先来自 collectionViewList / wishlistViewList（含排序字段）。
+ * 构建重新生成后的 goods id 序列（用于写入 manualOrders.custom）。
  * @param {import('@/types/models').GoodsItem[]} items
  * @param {{ isWishlist?: boolean, baseMode?: string, sortDirection?: string }} [options]
  * @returns {string[]}
@@ -65,5 +63,6 @@ export function buildCustomSortRegenerateIds(items, { isWishlist, baseMode, sort
 
   const mode = getCustomSortRegenerateBaseMode(baseMode)
   const direction = sortDirection === 'asc' ? 'asc' : 'desc'
+  // 非 custom 主序键字段参与；次级键 sortOrder 已置 0，不会带回旧自定义序
   return sortHomeGoodsList(domain, mode, direction).map((item) => String(item.id))
 }

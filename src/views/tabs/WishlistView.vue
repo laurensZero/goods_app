@@ -727,14 +727,14 @@ const reorderEnabled = computed(() =>
 )
 
 async function seedCustomSortOrderFromCurrentList() {
-  const hasManual = store.list.some((item) => item.isWishlist && Number(item.sortOrder) > 0)
+  const hasManual = store.list.some((item) => item.isWishlist && Number(item.manualOrders?.custom) > 0)
   if (hasManual) return
   if (searchIsFiltering.value) return
   const ids = goodsList.value
     .filter((g) => g && g._type !== 'group' && g.id)
     .map((g) => String(g.id))
   if (ids.length === 0) return
-  await store.reorderGoods(ids)
+  await store.reorderGoods(ids, 'custom')
 }
 
 function setSortModeWithSeed(mode) {
@@ -774,7 +774,7 @@ async function confirmRegenerateCustomSort() {
   })
   if (ids.length === 0) return
   try {
-    await store.reorderGoods(ids)
+    await store.reorderGoods(ids, 'custom')
     setSortMode('custom')
   } catch (e) {
     console.error('[wishlist] regenerate custom sort failed:', e)
@@ -786,11 +786,11 @@ async function reverseCustomSortOrder() {
   const displayIds = goodsList.value
     .filter((g) => g && g._type !== 'group' && g.id)
     .map((g) => String(g.id))
-  const ids = buildReverseGoodsSortIds(store.list, true, displayIds)
+  const ids = buildReverseGoodsSortIds(store.list, true, displayIds, 'custom')
   if (ids.length < 2) return
   triggerSortAnimation()
   try {
-    await store.reorderGoods(ids)
+    await store.reorderGoods(ids, 'custom')
   } catch (e) {
     console.error('[wishlist] reverse custom sort failed:', e)
   }
@@ -825,7 +825,8 @@ const {
     return getGoodsSortGroupKey
   },
   onCommit: async (ids) => {
-    await store.reorderGoods(ids)
+    const mode = sortMode.value === 'custom' ? 'custom' : sortMode.value
+    await store.reorderGoods(ids, mode)
   }
 })
 

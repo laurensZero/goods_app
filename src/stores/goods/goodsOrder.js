@@ -1,40 +1,62 @@
 // @ts-check
 import { triggerRef } from 'vue'
 import { saveItems } from '@/utils/db/index'
-import { normalizeWishlistFlag } from '@/stores/goods/goodsHelpers'
+import { normalizeWishlistFlag, normalizeManualOrders, MANUAL_ORDER_MODES } from '@/stores/goods/goodsHelpers'
+
+/** @param {string} mode */
+function resolveOrderMode(mode) {
+  return MANUAL_ORDER_MODES.includes(mode) ? mode : 'custom'
+}
 
 /**
- * 目标列表（同 isWishlist）的下一个手动序号。
- * 空列表 → 0；已有条目时取 max+1（含从未手排的 0）。
+ * @param {import('@/types/models').GoodsItem} item
+ * @param {string} mode
+ */
+export function readManualOrder(item, mode) {
+  const key = resolveOrderMode(mode)
+  const map = item?.manualOrders
+  if (map && typeof map === 'object') {
+    const n = Number(map[key])
+    if (Number.isFinite(n)) return n
+  }
+  return 0
+}
+
+/**
+ * 目标列表（同 isWishlist）在指定模式上的下一个手动序号。
  * @param {import('@/types/models').GoodsItem[]} items
  * @param {boolean} isWishlist
  * @param {string} [excludeId]
+ * @param {string} [mode]
  */
-export function nextGoodsSortOrder(items, isWishlist, excludeId = '') {
+export function nextGoodsSortOrder(items, isWishlist, excludeId = '', mode = 'custom') {
   const target = normalizeWishlistFlag(isWishlist)
+  const key = resolveOrderMode(mode)
   let max = -1
   for (const item of items) {
     if (excludeId && item.id === excludeId) continue
     if (normalizeWishlistFlag(item.isWishlist) !== target) continue
-    const n = Number(item.sortOrder)
-    if (Number.isFinite(n) && n > max) max = n
+    const n = readManualOrder(item, key)
+    if (n > max) max = n
   }
   return max + 1
 }
 
 /**
- * 构建「单纯 reverse」后的 id 序列：按当前 sortOrder 升序取域内条目再整体反转。
+ * 构建「单纯 reverse」后的 id 序列。
  * @param {import('@/types/models').GoodsItem[]} items
  * @param {boolean} isWishlist
- * @param {string[]} [displayIds] 可选：当前展示序（自定义模式下的未分组 goods），优先使用
+ * @param {string[]} [displayIds]
+ * @param {string} [mode]
  * @returns {string[]}
  */
-export function buildReverseGoodsSortIds(items, isWishlist, displayIds) {
+export function buildReverseGoodsSortIds(items, isWishlist, displayIds, mode = 'custom') {
   if (Array.isArray(displayIds) && displayIds.length >= 2) {
     return displayIds.map((id) => String(id)).reverse()
   }
 
   const wish = normalizeWishlistFlag(isWishlist)
+  const key = resolveOrderMode(mode)
   const domain = []
   for (const item of items || []) {
     if (!item || !item.id) continue
@@ -43,7 +65,7 @@ export function buildReverseGoodsSortIds(items, isWishlist, displayIds) {
     domain.push(item)
   }
   domain.sort((a, b) => {
-    const so = (Number(a.sortOrder) || 0) - (Number(b.sortOrder) || 0)
+    const so = readManualOrder(a, key) - readManualOrder(b, key)
     if (so !== 0) return so
     return String(a.id).localeCompare(String(b.id))
   })
@@ -51,14 +73,15 @@ export function buildReverseGoodsSortIds(items, isWishlist, displayIds) {
 }
 
 /**
- * 按展示 id 序列重写 goods.sortOrder（下标即序号）。
- * 仅写入实际变更的行。
+ * 按展示 id 序列重写 manualOrders[mode]（下标即序号）。
  * @param {string[]} orderedGoodsIds
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
  * @param {(ids: string[]) => void} [onMutate]
+ * @param {string} [mode]
  */
-export async function reorderGoods(orderedGoodsIds, list, onMutate) {
+export async function reorderGoods(orderedGoodsIds, list, onMutate, mode = 'custom') {
   if (!Array.isArray(orderedGoodsIds) || orderedGoodsIds.length === 0) return
+  const key = resolveOrderMode(mode)
 
   const orderMap = new Map()
   for (let i = 0; i < orderedGoodsIds.length; i++) {
@@ -75,9 +98,10 @@ export async function reorderGoods(orderedGoodsIds, list, onMutate) {
   list.value = list.value.map((item) => {
     const nextOrder = orderMap.get(item.id)
     if (nextOrder === undefined) return item
-    const current = Number(item.sortOrder) || 0
+    const current = readManualOrder(item, key)
     if (current === nextOrder) return item
-    const next = { ...item, sortOrder: nextOrder, updatedAt: now }
+    const manualOrders = { ...normalizeManualOrders(item.manualOrders), [key]: nextOrder }
+    const next = { ...item, manualOrders, updatedAt: now }
     updatedItems.push(next)
     updatedIds.add(item.id)
     return next

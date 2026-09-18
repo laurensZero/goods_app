@@ -19,8 +19,11 @@ import i18n from '@/locales'
 
 // goods：业务字段。trashed 不在 push 白名单（由 toGoodsRows 的 isTrash 桶路由参数决定），
 // 但 pull 侧要读回分桶，归入 SELECT 的服务器生成列。
-export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'sortOrder']
+// goods：业务字段。手动序统一放在 manualOrders JSON：
+// { custom, createdAt, acquiredAt, name, price } —— custom=自定义完整序，其余=各模式同键次级序
+export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'manualOrders']
 export const GOODS_COLS = [...GOODS_BUSINESS_KEYS, 'syncedBy', 'userId']
+export const GOODS_JSON_OBJECT_KEYS = ['manualOrders']
 export const GOODS_SELECT_COLS = [...GOODS_BUSINESS_KEYS.map(camelToSnake), 'trashed', 'updated_at', 'user_id'].join(', ')
 
 // recharge：deleted 同 trashed——push 侧由 toRechargeRow 显式写入，pull 侧需要读回
@@ -84,6 +87,18 @@ export function safeParseJsonArray(value) {
     return Array.isArray(parsed) ? parsed : []
   } catch {
     return []
+  }
+}
+
+/** JSON 对象字段（如 goods.manualOrders） */
+export function safeParseJsonObject(value) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) return value
+  if (typeof value !== 'string' || !value.trim()) return {}
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
   }
 }
 
@@ -259,6 +274,9 @@ export function toGoodsRows(items, deviceIdRef, isTrash = false, userId) {
   const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
   return items.map(item => toSnakeCase({
     ...pickCols(item, GOODS_COLS),
+    manualOrders: (item.manualOrders && typeof item.manualOrders === 'object' && !Array.isArray(item.manualOrders))
+      ? item.manualOrders
+      : {},
     isWishlist: item.isWishlist ? 1 : 0,
     saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,
     saleReminderOffsets: Array.isArray(item.saleReminderOffsets) ? item.saleReminderOffsets : [],

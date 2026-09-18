@@ -47,6 +47,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWideViewport } from '@/composables/viewport/useWideViewport'
+import { lockBodyScroll, unlockBodyScroll } from '@/utils/platform/bodyScrollLock'
 
 const BASE_Z = 90
 const Z_STEP = 10
@@ -97,28 +98,19 @@ const localZ = ref(props.zIndex != null ? props.zIndex : BASE_Z)
 
 const overlayVisible = ref(false)
 
-let bodyLockDepth = 0
-let previousBodyOverflow = ''
+// 嵌套弹层必须共用模块级 depth：各实例自计会把 body.overflow 卡在 hidden
 let holdsBodyLock = false
 
 function lockBody() {
   if (!props.lockScroll || holdsBodyLock) return
   holdsBodyLock = true
-  bodyLockDepth += 1
-  if (bodyLockDepth === 1) {
-    previousBodyOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-  }
+  lockBodyScroll()
 }
 
 function unlockBody() {
   if (!holdsBodyLock) return
   holdsBodyLock = false
-  bodyLockDepth = Math.max(0, bodyLockDepth - 1)
-  if (bodyLockDepth === 0) {
-    document.body.style.overflow = previousBodyOverflow
-    previousBodyOverflow = ''
-  }
+  unlockBodyScroll()
 }
 
 const overlayStyle = computed(() => ({

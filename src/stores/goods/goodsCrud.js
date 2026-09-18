@@ -11,7 +11,8 @@ import {
   normalizeTrashItem,
   mergeGoodsRecord,
   diffRemovedManagedImagePaths,
-  normalizeWishlistFlag
+  normalizeWishlistFlag,
+  MANUAL_ORDER_MODES
 } from '@/stores/goods/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 import {
@@ -21,6 +22,16 @@ import {
   maintainTimelineOnGoodsUpdate
 } from '@/utils/goods/statusTimeline'
 import { nextGoodsSortOrder } from '@/stores/goods/goodsOrder'
+
+/** 新建/翻转心愿时：为 manualOrders 各模式 append 到目标池末尾 */
+function appendManualOrders(items, isWishlist, excludeId = '') {
+  /** @type {Record<string, number>} */
+  const out = {}
+  for (const mode of MANUAL_ORDER_MODES) {
+    out[mode] = nextGoodsSortOrder(items, isWishlist, excludeId, mode)
+  }
+  return out
+}
 
 /**
  * @param {object} data
@@ -51,8 +62,8 @@ export async function addGoods(data, list, onMutate) {
     return list.value[existingIndex]
   }
 
-  if (data?.sortOrder == null || data?.sortOrder === '') {
-    incoming.sortOrder = nextGoodsSortOrder(list.value, incoming.isWishlist)
+  if (data?.manualOrders == null) {
+    incoming.manualOrders = appendManualOrders(list.value, incoming.isWishlist)
   }
   const fresh = ensureInitialTimeline(incoming)
   list.value.unshift(fresh)
@@ -83,11 +94,11 @@ export async function addGoodsBatch(itemsData, list, onMutate) {
     const imagesExplicit = Array.isArray(data?.images)
     const itemNow = now + i
     const normalized = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: itemNow }, String(itemNow))
-    if (data?.sortOrder == null || data?.sortOrder === '') {
-      normalized.sortOrder = nextGoodsSortOrder(list.value, normalized.isWishlist)
+    if (data?.manualOrders == null) {
+      normalized.manualOrders = appendManualOrders(list.value, normalized.isWishlist)
     }
     incoming.push(ensureInitialTimeline(normalized))
-    // 同批后续条目也要看到前面刚加入的 sortOrder，避免同序
+    // 同批后续条目也要看到前面刚加入的 manualOrders，避免同序
     list.value.unshift(incoming[incoming.length - 1])
   }
 
@@ -121,9 +132,9 @@ export async function updateGoods(id, data, list, onMutate) {
   const timelineAware = maintainTimelineOnGoodsUpdate(previous, data)
   const imagesExplicit = Array.isArray(timelineAware?.images)
   const next = normalizeGoodsInput({ ...previous, ...timelineAware, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
-  // isWishlist 翻转：手动序 append 到目标列表末尾，避免旧值插进中段
+  // isWishlist 翻转：manualOrders 各模式 append 到目标列表末尾
   if (normalizeWishlistFlag(previous.isWishlist) !== normalizeWishlistFlag(next.isWishlist)) {
-    next.sortOrder = nextGoodsSortOrder(list.value, next.isWishlist, id)
+    next.manualOrders = appendManualOrders(list.value, next.isWishlist, id)
   }
   const removedPaths = diffRemovedManagedImagePaths(previous, next)
   list.value[idx] = next

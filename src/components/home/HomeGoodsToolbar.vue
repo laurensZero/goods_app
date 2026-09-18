@@ -172,6 +172,7 @@
     v-model="showRegenerateSheet"
     placement="auto"
     sheet-class="sort-sheet"
+    @closed="onRegenerateSheetClosed"
   >
     <div class="sort-sheet__panel">
       <div class="sort-sheet__head">
@@ -434,17 +435,27 @@ function pickRegenerateBase(mode) {
   regenerateStep.value = 'direction'
 }
 
+/** 等 regenerate sheet 关闭动画结束再通知 view 打开确认框，避免嵌套 body 锁/遮罩叠帧 */
+let pendingRegenerateEmit = null
+
 function pickRegenerateDirection(direction) {
   const baseMode = pendingRegenerateBaseMode.value
   if (!baseMode) return
   const nextDirection = direction === 'asc' ? 'asc' : 'desc'
   customVisualAsc.value = nextDirection === 'asc'
-  showRegenerateSheet.value = false
-  emit('regenerate-custom-sort', {
+  pendingRegenerateEmit = {
     baseMode,
     direction: nextDirection
-  })
+  }
+  showRegenerateSheet.value = false
   resetRegenerateSheetState()
+}
+
+function onRegenerateSheetClosed() {
+  if (!pendingRegenerateEmit) return
+  const payload = pendingRegenerateEmit
+  pendingRegenerateEmit = null
+  emit('regenerate-custom-sort', payload)
 }
 
 useDialogBackButton(() => {

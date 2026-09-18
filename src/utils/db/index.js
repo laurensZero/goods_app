@@ -93,8 +93,7 @@ const CREATE_TABLE_SQL = `
     sellFee    TEXT DEFAULT '',
     sellDate   TEXT DEFAULT '',
     unitSaleInfoList TEXT DEFAULT '[]',
-    statusTimeline TEXT DEFAULT '[]',
-    sortOrder INTEGER DEFAULT 0,
+    manualOrders TEXT DEFAULT '{}',
     updatedAt  INTEGER DEFAULT 0,
     trashed    INTEGER DEFAULT 0,
     deletedAt TEXT DEFAULT ''
@@ -238,7 +237,7 @@ const GOODS_REQUIRED_COLUMNS = [
   ['sellFee', "TEXT DEFAULT ''"],
   ['sellDate', "TEXT DEFAULT ''"],
   ['unitSaleInfoList', "TEXT DEFAULT '[]'"],
-  ['sortOrder', 'INTEGER DEFAULT 0'],
+  ['manualOrders', "TEXT DEFAULT '{}'"],
   ['updatedAt', 'INTEGER DEFAULT 0'],
   ['trashed', 'INTEGER DEFAULT 0'],
   ['deletedAt', "TEXT DEFAULT ''"]
@@ -363,7 +362,7 @@ function prepareGoodsRecord(item) {
     sellDate = '',
     unitSaleInfoList = [],
     statusTimeline = [],
-    sortOrder = 0,
+    manualOrders = {},
     trashed = false,
     deletedAt = ''
   } = item
@@ -406,7 +405,7 @@ function prepareGoodsRecord(item) {
     sellDate: String(sellDate || ''),
     unitSaleInfoStr: JSON.stringify(Array.isArray(unitSaleInfoList) ? unitSaleInfoList : []),
     statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : []),
-    sortOrder: Math.max(0, Math.floor(Number(sortOrder) || 0)),
+    manualOrdersStr: stringifyJsonObject(manualOrders, '{}'),
     trashed: trashed ? 1 : 0,
     deletedAt: String(deletedAt || '')
   }
@@ -420,13 +419,13 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,sortOrder,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 // SELECT 列清单须与 GOODS_INSERT_SQL 列保持一致，避免增列时漏改其中一边
-const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,sortOrder,trashed,deletedAt'
+const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,trashed,deletedAt'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.sortOrder, record.trashed, record.deletedAt]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.trashed, record.deletedAt]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,startDate,endDate,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,dayTicketList,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -504,9 +503,16 @@ async function _runMigrations() {
 
 async function _ensureTableColumns(tableName, columns) {
   const existingColumns = await db.getTableColumns(tableName)
+  const lower = new Set([...existingColumns].map((c) => String(c).toLowerCase()))
   for (const [columnName, columnDefinition] of columns) {
-    if (existingColumns.has(columnName)) continue
-    await db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`)
+    if (existingColumns.has(columnName) || lower.has(String(columnName).toLowerCase())) continue
+    try {
+      await db.run(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${columnDefinition}`)
+      lower.add(String(columnName).toLowerCase())
+    } catch (e) {
+      // 并发/历史建表已含该列时不要让整次 init 挂掉
+      if (!/duplicate column/i.test(String(e?.message || e))) throw e
+    }
   }
 }
 
@@ -678,7 +684,14 @@ function mapGoodsRow(r) {
     unitSaleInfoList: parseJsonArray(r.unitSaleInfoList),
     shippingEvents: parseJsonArray(r.shippingEvents),
     statusTimeline: parseJsonArray(r.statusTimeline),
-    sortOrder: Math.max(0, Math.floor(Number(r.sortOrder) || 0))
+    manualOrders: (() => {
+      try {
+        const parsed = typeof r.manualOrders === 'string' ? JSON.parse(r.manualOrders || '{}') : r.manualOrders
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+      } catch {
+        return {}
+      }
+    })()
   }
 }
 
