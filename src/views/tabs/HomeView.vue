@@ -137,6 +137,17 @@
           />
         </section>
       </Transition>
+
+      <Teleport to="body">
+        <TimelineMonthScrubber
+          v-if="displayDensity === 'timeline' && !selectionMode && store.isReady"
+          ref="timelineScrubberRef"
+          :months="allTimelineMonthList"
+          :enabled="isHomeActive && goodsList.length > 0"
+          :get-section-el="() => timelineSectionRef.value?.sectionEl ?? null"
+          :get-scroll-el="getScrollEl"
+        />
+      </Teleport>
     </main>
 
     <Teleport to="body">
@@ -318,6 +329,7 @@ import GroupFolderSheet from '@/components/goods/GroupFolderSheet.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
+import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -335,6 +347,7 @@ const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const timelineSectionRef = ref(null)
+const timelineScrubberRef = ref(null)
 const batchEditSheetRef = ref(null)
 const addMotionSnapshot = ref(null)
 const addMotionRequest = ref(null)
@@ -1186,6 +1199,11 @@ function handleAndroidBackButton(event) {
 
   if (showTimelinePopup.value) {
     showTimelinePopup.value = false
+    event.preventDefault()
+    return
+  }
+
+  if (timelineScrubberRef.value?.consumeBack?.()) {
     event.preventDefault()
     return
   }
