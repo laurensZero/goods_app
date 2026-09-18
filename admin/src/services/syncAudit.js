@@ -3,7 +3,9 @@ import { fetchUsersList } from './versionRules'
 
 /**
  * 同步操作审计日志：由 sync_push / sync_pull RPC 在服务端同事务写入 sync_audit_logs。
- * 管理台用 service_role 读取与清理。platform/apk/bundle 通过 devices 表按 device_id 关联。
+ * 管理台用 service_role 读取与清理。
+ * platform / apk / bundle / 机型不在审计表内——与设备管理页共用 devices 心跳，
+ * 按 device_id 关联展示；duration_ms 无服务端来源，不展示。
  */
 
 /**
