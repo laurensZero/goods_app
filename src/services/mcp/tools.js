@@ -24,6 +24,8 @@ import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
  * @property {() => Promise<any[]>} getTrashedItems
  * @property {() => Promise<any[]>} getEvents
  * @property {() => Promise<any[]>} getRechargeRecords
+ * @property {() => Promise<any[]>} [getGroups]
+ * @property {() => Promise<any[]>} [getGroupItems]
  */
 
 /** 单条输出字段上限，防止超长备注/描述把响应撑爆 */
@@ -273,6 +275,171 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
   }
 
   /**
+   * 读取并汇总谷子组（套组）。overview 与 groups_list 共用同一数据源。
+   * @param {'collection'|'|'wishlist'|null} [typeFilter] 只保留某类分组；null 两类都要
+   * @param {Map<string, any>} [goodsById] 用于填充成员示例名
+   */
+  async function loadGroupContext(typeFilter = null, goodsById = null) {
+    const canLoad = typeof dbApi.getGroups === 'function' && typeof dbApi.getGroupItems === 'function'
+    if (!canLoad) {
+      return {
+        available: false,
+        activeGroups: /** @type {any[]} */ ([]),
+        manualGroups: /** @type {any[]} */ ([]),
+        manualMemberIds: /** @type {Set<string>} */ (new Set()),
+        membersByGroup: /** @type {Map<string, any[]>} */ (new Map()),
+        summaries: /** @type {any[]} */ ([])
+      }
+    }
+
+    let rawGroups = []
+    let rawGroupItems = []
+    try {
+      ;[rawGroups, rawGroupItems] = await Promise.all([
+        Promise.resolve(dbApi.getGroups()),
+        Promise.resolve(dbApi.getGroupItems())
+      ])
+    } catch {
+      return {
+        available: false,
+        activeGroups: /** @type {any[]} */ ([]),
+        manualGroups: /** @type {any[]} */ ([]),
+        manualMemberIds: /** @type {Set<string>} */ (new Set()),
+        membersByGroup: /** @type {Map<string, any[]>} */ (new Map()),
+        summaries: /** @type {any[]} */ ([])
+      }
+    }
+
+    const groups = Array.isArray(rawGroups) ? rawGroups : []
+    const groupItems = Array.isArray(rawGroupItems) ? rawGroupItems : []
+    const activeGroups = groups.filter((group) => {
+      if (group?.deleted) return false
+      if (typeFilter && asText(group.type).trim() !== typeFilter) return false
+      return true
+    })
+    const activeGroupIds = new Set(activeGroups.map((group) => group.id))
+    const activeMemberRows = groupItems.filter((row) => !row?.deleted && activeGroupIds.has(row.groupId))
+
+    /** @type {Map<string, any[]>} */
+    const membersByGroup = new Map()
+    /** @type {Set<string>} */
+    const manualMemberIds = new Set()
+    for (const row of activeMemberRows) {
+      const list = membersByGroup.get(row.groupId) || []
+      list.push(row)
+      membersByGroup.set(row.groupId, list)
+    }
+
+    const manualGroups = activeGroups.filter((group) => asText(group.summaryMode).trim() === 'manual')
+    const manualGroupIds = new Set(manualGroups.map((group) => group.id))
+    for (const row of activeMemberRows) {
+      if (manualGroupIds.has(row.groupId)) manualMemberIds.add(row.goodsId)
+    }
+
+    const summaries = activeGroups.map((group) => {
+      const members = membersByGroup.get(group.id) || []
+      const summaryMode = asText(group.summaryMode).trim() || 'auto'
+      const currency = asText(group.currency).trim() || 'CNY'
+      const totalAmount = Number(group.totalAmount) || 0
+      const memberSamples = members.slice(0, 8).map((row) => {
+        const detail = goodsById?.get(row.goodsId)
+        return asText(detail?.name).trim() || row.goodsId
+      }).filter(Boolean)
+      return {
+        id: group.id,
+        name: asText(group.name).trim() || '（未命名分组）',
+        type: asText(group.type).trim() || 'collection',
+        summaryMode,
+        totalAmount,
+        currency,
+        memberCount: members.length,
+        memberSamples,
+        ...(summaryMode === 'manual' && convertToCNY
+          ? { totalCNY: roundMoney(convertToCNY(totalAmount, currency)) }
+          : {})
+      }
+    })
+
+    return {
+      available: true,
+      activeGroups,
+      manualGroups,
+      manualMemberIds,
+      membersByGroup,
+      summaries
+    }
+  }
+
+  /**
+   * 与收藏页 useHomeGoodsList / 愿望单页 _wishlistTotals 同口径的总价：
+   * 手动总价谷子组只计一次组总价，成员条目不再逐件累加；收藏侧排除已出/已赠出/丢失。
+   * 优先用 enrichItems 补齐的 totalValueNumber（页面同款字段），否则回退估算。
+   * @param {any[]} items 已过滤到收藏或愿望单的条目
+   * @param {ReturnType<typeof loadGroupContext> extends Promise<infer T> ? T : any} groupCtx
+   * @param {{ isWishlist: boolean }} options
+   */
+  function computePageAlignedTotals(items, groupCtx, { isWishlist }) {
+    const manualMemberIds = groupCtx?.manualMemberIds || new Set()
+    const manualGroups = groupCtx?.manualGroups || []
+    let value = 0
+    let quantity = 0
+    let count = 0
+    let hasNonCny = false
+    /** @type {Map<string, number>} */
+    const currencyTotals = new Map()
+
+    /**
+     * @param {string} currency
+     * @param {number} amount
+     */
+    function addCurrency(currency, amount) {
+      currencyTotals.set(currency, (currencyTotals.get(currency) || 0) + amount)
+      if (currency !== 'CNY') hasNonCny = true
+      if (convertToCNY) {
+        value += convertToCNY(amount, currency)
+      } else if (currency === 'CNY') {
+        value += amount
+      }
+    }
+
+    for (const item of items) {
+      if (!isWishlist && HOME_EXCLUDED_STATUSES.has(asText(item.collectStatus).trim())) continue
+      count += 1
+      quantity += Number(item.quantity) || 1
+      if (manualMemberIds.has(item.id)) continue
+
+      const currency = isWishlist
+        ? (asText(item.currency || 'CNY').trim() || 'CNY')
+        : (asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY')
+      const pageVal = item.totalValueNumber
+      if (pageVal !== undefined && pageVal !== null && Number.isFinite(Number(pageVal))) {
+        // 页面字段：enrichItems 后已是 CNY
+        currencyTotals.set('CNY', (currencyTotals.get('CNY') || 0) + Number(pageVal))
+        value += Number(pageVal)
+        continue
+      }
+      const raw = isWishlist
+        ? parseMoney(item.price) * (Number(item.quantity) || 1)
+        : estimateItemSpend(item)
+      addCurrency(currency, raw)
+    }
+
+    for (const group of manualGroups) {
+      const currency = asText(group.currency).trim() || 'CNY'
+      addCurrency(currency, Number(group.totalAmount) || 0)
+    }
+
+    const canCny = Boolean(convertToCNY) || !hasNonCny
+    return {
+      value: canCny ? roundMoney(value) : null,
+      quantity,
+      count,
+      currencyTotals,
+      hasNonCny
+    }
+  }
+
+  /**
    * @param {Record<string, any>} args
    */
   async function goodsSearch(args) {
@@ -407,45 +574,10 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     const items = await loadEnrichedItems()
     const collection = items.filter((item) => !item.isWishlist)
     const wishlist = items.filter((item) => item.isWishlist)
-
-    /** @type {Map<string, number>} */
-    const spendByCurrency = new Map()
-    for (const item of collection) {
-      const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
-      spendByCurrency.set(currency, (spendByCurrency.get(currency) || 0) + estimateItemSpend(item))
-    }
-
-    // 首页总金额口径：折算 CNY、排除已出/已赠出/丢失、手动总价谷子组只计一次组总价
-    let collectionTotalCNY = null
-    if (convertToCNY && dbApi.getGroups && dbApi.getGroupItems) {
-      try {
-        const [groups, groupItems] = await Promise.all([dbApi.getGroups(), dbApi.getGroupItems()])
-        const manualGroups = groups.filter((g) => !g.deleted && g.summaryMode === 'manual')
-        /** @type {Set<string>} */
-        const manualMemberIds = new Set()
-        if (manualGroups.length > 0) {
-          const manualIds = new Set(manualGroups.map((g) => g.id))
-          for (const groupItem of groupItems) {
-            if (!groupItem.deleted && manualIds.has(groupItem.groupId)) {
-              manualMemberIds.add(groupItem.goodsId)
-            }
-          }
-        }
-        let groupTotalsCNY = 0
-        for (const group of manualGroups) {
-          groupTotalsCNY += convertToCNY(Number(group.totalAmount) || 0, group.currency || 'CNY')
-        }
-        let itemsTotal = 0
-        for (const item of collection) {
-          if (manualMemberIds.has(item.id)) continue
-          if (HOME_EXCLUDED_STATUSES.has(asText(item.collectStatus).trim())) continue
-          itemsTotal += Number(item.totalValueNumber) || 0
-        }
-        collectionTotalCNY = roundMoney(itemsTotal + groupTotalsCNY)
-      } catch {
-        // 组数据异常时退化为逐件估算
-      }
-    }
+    const goodsMap = new Map(items.map((item) => [item.id, item]))
+    const groupCtx = await loadGroupContext('collection', goodsMap)
+    // 与收藏页顶部总价同口径（含手动总价谷子组，排除已出/已赠出/丢失）
+    const totals = computePageAlignedTotals(collection, groupCtx, { isWishlist: false })
 
     /**
      * @param {(item: any) => string} pick
@@ -479,31 +611,38 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     }
     acquiredDates.sort()
 
-    const collectionQuantity = collection.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
+    const canUsePageTotal = convertToCNY || (totals.value !== null && !totals.hasNonCny)
 
     return {
       // 字段名必须无歧义：collectionCount 是「非愿望单」条目数，grandTotal 才是全部
       grandTotal: items.length,
       collectionCount: collection.length,
-      collectionQuantity,
+      collectionQuantity: totals.quantity,
       wishlistCount: wishlist.length,
-      estimatedSpend: collectionTotalCNY !== null
+      groupCount: groupCtx.summaries.length,
+      groups: groupCtx.summaries,
+      // 与收藏页顶部总价同一条数（含谷子组）
+      totalValueCNY: canUsePageTotal ? totals.value : null,
+      estimatedSpend: canUsePageTotal
         ? [{
             currency: 'CNY',
-            amount: collectionTotalCNY,
-            note: '与首页总金额同口径：实付价+邮费（缺省回退标价×数量+邮费）、非 CNY 已折算、已出/已赠出/丢失不计、手动总价谷子组只计一次组总价'
+            amount: totals.value ?? 0,
+            note: '与收藏页总价同口径：已出/已赠出/丢失不计、手动总价谷子组只计一次组总价；分组明细见 groups'
           }]
-        : [...spendByCurrency.entries()].map(([currency, amount]) => ({
+        : [...totals.currencyTotals.entries()].map(([currency, amount]) => ({
             currency,
             amount: roundMoney(amount),
-            note: '估算值：优先按逐件价格求和，否则按 实付价×数量'
+            note: '估算值：优先按逐件价格求和，否则按 实付价×数量；手动总价谷子组按组总价计入对应币种'
           })),
       byCategory: topDistribution((item) => item.category),
       byIp: topDistribution((item) => item.ip),
       byAcquiredYear: [...byYear.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([year, count]) => ({ year, count })),
       acquiredDateRange: acquiredDates.length
         ? { earliest: acquiredDates[0], latest: acquiredDates[acquiredDates.length - 1] }
-        : null
+        : null,
+      note: groupCtx.available
+        ? 'groups=收藏套组；回答「收藏花了多少」用 totalValueCNY/estimatedSpend，不要绕开套组自己加总'
+        : '当前环境未提供分组数据接口'
     }
   }
 
@@ -1123,32 +1262,45 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
   }
 
   /**
-   * 愿望单概览：数量/期望花费/分布/最近加入/最贵条目。
+   * 愿望单概览：数量/期望花费/分布/最近加入/最贵条目 + 心愿单谷子组。
+   * 金额与愿望单页总价同口径：手动总价组只计组总价。
    * @param {Record<string, any>} _args
    */
   async function wishlistOverview(_args) {
-    const items = await getItems()
+    const items = await loadEnrichedItems()
     const wishlist = items.filter((item) => item.isWishlist)
+    const goodsMap = new Map(items.map((item) => [item.id, item]))
+    const groupCtx = await loadGroupContext('wishlist', goodsMap)
+    const totals = computePageAlignedTotals(wishlist, groupCtx, { isWishlist: true })
 
     const withExpected = wishlist.map((item) => {
       const currency = asText(item.currency || 'CNY').trim() || 'CNY'
       const quantity = Number(item.quantity) || 1
       const expected = parseMoney(item.price) * quantity
+      const inManualGroup = groupCtx.manualMemberIds.has(item.id)
       const expectedCNY = convertToCNY ? roundMoney(convertToCNY(expected, currency)) : null
-      return { item, currency, quantity, expected, expectedCNY }
+      return { item, currency, quantity, expected, expectedCNY, inManualGroup }
     })
 
     /** @type {Map<string, number>} */
     const expectedByCurrency = new Map()
     for (const row of withExpected) {
+      // 手动总价组成员不再逐件计入，组总价在下面单独加（与愿望单页一致）
+      if (row.inManualGroup) continue
       expectedByCurrency.set(row.currency, (expectedByCurrency.get(row.currency) || 0) + row.expected)
+    }
+    for (const group of groupCtx.manualGroups) {
+      const currency = asText(group.currency).trim() || 'CNY'
+      const amount = Number(group.totalAmount) || 0
+      expectedByCurrency.set(currency, (expectedByCurrency.get(currency) || 0) + amount)
     }
 
     // 最贵的几件：有汇率折算时按 CNY 排（跨币种可比），否则只能按原币数值近似
+    // 手动总价组成员仍按标价展示（代表单件价值），总价看 expectedSpendCNY / groups
     const mostExpensive = [...withExpected]
       .sort((a, b) => (b.expectedCNY ?? b.expected) - (a.expectedCNY ?? a.expected))
       .slice(0, 5)
-      .map(({ item, currency, quantity, expected, expectedCNY }) => ({
+      .map(({ item, currency, quantity, expected, expectedCNY, inManualGroup }) => ({
         id: item.id,
         name: item.name,
         ip: item.ip,
@@ -1157,11 +1309,12 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         price: item.price,
         quantity,
         expected: roundMoney(expected),
-        ...(expectedCNY !== null ? { expectedCNY } : {})
+        ...(expectedCNY !== null ? { expectedCNY } : {}),
+        ...(inManualGroup ? { inManualGroup: true } : {})
       }))
-    const expectedSpendCNY = convertToCNY
-      ? roundMoney(withExpected.reduce((sum, row) => sum + (row.expectedCNY ?? 0), 0))
-      : null
+
+    // 无汇率注入时保持 null（与既有测试/文档一致）；生产环境 money 注入后与愿望单页总价一致
+    const expectedSpendCNY = convertToCNY ? totals.value : null
 
     /**
      * @param {(item: any) => string} pick
@@ -1189,21 +1342,29 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         category: item.category,
         price: item.price,
         currency: asText(item.currency || 'CNY').trim() || 'CNY',
-        quantity: Number(item.quantity) || 1
+        quantity: Number(item.quantity) || 1,
+        ...(groupCtx.manualMemberIds.has(item.id) ? { inManualGroup: true } : {})
       }))
 
     return {
       total: wishlist.length,
+      groupCount: groupCtx.summaries.length,
+      groups: groupCtx.summaries,
+      // 与愿望单页总价同口径（含心愿单组；手动总价组只计组总价）
+      totalValueCNY: expectedSpendCNY,
       expectedSpend: [...expectedByCurrency.entries()].map(([currency, amount]) => ({
         currency,
         amount: Math.round(amount * 100) / 100,
-        note: '期望值：标价×数量，未含折扣；不同币种分开列出，禁止跨币种相加'
+        note: '期望值：标价×数量，未含折扣；手动总价谷子组按组总价计入；不同币种分开列出，禁止跨币种相加'
       })),
       expectedSpendCNY,
       mostExpensive,
       byIp: topDistribution((item) => item.ip),
       byCategory: topDistribution((item) => item.category),
-      recent
+      recent,
+      note: groupCtx.available
+        ? 'groups=心愿单谷子组；回答「愿望单要花多少」用 expectedSpendCNY/totalValueCNY，不要绕开套组自己加总'
+        : '当前环境未提供分组数据接口'
     }
   }
 
