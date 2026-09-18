@@ -80,7 +80,7 @@
       </section>
 
       <section class="content-section">
-        <div v-if="activeView === 'records'" class="timeline-list">
+        <div v-if="activeView === 'records'" ref="rechargeTimelineListRef" class="timeline-list">
           <div v-for="yearGroup in yearGroups" :key="yearGroup.year || 'undated'" class="timeline-year">
             <div class="timeline-year__header">
               <span v-if="!yearGroup.isUndated" class="timeline-year__num">{{ yearGroup.year }}</span>
@@ -94,6 +94,7 @@
               :key="monthGroup.yearMonth"
               class="timeline-month"
               :class="{ 'timeline-month--last': midx === yearGroup.months.length - 1 }"
+              :data-tl-month="monthGroup.isUndated ? 'undated' : monthGroup.yearMonth"
             >
               <div class="timeline-month__rail" aria-hidden="true">
                 <div class="timeline-month__dot" />
@@ -182,6 +183,17 @@
     @cancel="showDeleteConfirm = false"
     @confirm="confirmDelete"
   />
+
+  <Teleport to="body">
+    <TimelineMonthScrubber
+      v-if="activeView === 'records' && !selectionMode && hasVisibleRecords"
+      ref="rechargeTimelineScrubberRef"
+      :months="timelineScrubMonths"
+      :enabled="activeView === 'records' && !selectionMode && timelineScrubMonths.length > 0"
+      :get-section-el="() => rechargeTimelineListRef ?? null"
+      :get-scroll-el="getRechargeScrollEl"
+    />
+  </Teleport>
   </div>
 </template>
 
@@ -207,6 +219,7 @@ import { formatMonthLabel } from '@/utils/format'
 import { preloadImages } from '@/utils/image/cache'
 import { createLogger } from '@/utils/logger'
 import { pinyinIncludes } from '@/utils/pinyin'
+import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
 const { t } = useI18n()
@@ -226,6 +239,8 @@ const showDeleteConfirm = ref(false)
 const showScrollTopButton = ref(false)
 const rechargeRootRef = ref(null)
 const pageBodyEl = ref(null)
+const rechargeTimelineListRef = ref(null)
+const rechargeTimelineScrubberRef = ref(null)
 let removeAndroidBackListener = null
 let scrollListenerCleanup = null
 const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
@@ -387,6 +402,30 @@ const viewCountText = computed(() => (
     ? t('recharge.count.games', { count: leaderboard.value.length })
     : t('recharge.count.records', { count: filteredRecords.value.length })
 ))
+
+/** 充值时间线侧边选月：仅有效年月，与展示顺序一致 */
+const timelineScrubMonths = computed(() => {
+  const list = []
+  for (const yearGroup of yearGroups.value) {
+    for (const monthGroup of yearGroup.months) {
+      if (monthGroup.isUndated || !monthGroup.yearMonth) continue
+      list.push({
+        yearMonth: monthGroup.yearMonth,
+        year: monthGroup.year,
+        month: monthGroup.month,
+        count: monthGroup.items?.length || 0
+      })
+    }
+  }
+  return list
+})
+
+function getRechargeScrollEl() {
+  resolvePageBodyEl()
+  return pageBodyEl.value
+    || document.querySelector('.recharge-view-page .page-body')
+    || document.querySelector('.page-body')
+}
 
 const viewSwitchStyle = computed(() => ({
   '--view-switch-count': String(viewOptions.value.length),
@@ -644,6 +683,11 @@ function unbindScrollListeners() {
 }
 
 function handleAndroidBackButton(event) {
+  if (rechargeTimelineScrubberRef.value?.consumeBack?.()) {
+    event.preventDefault()
+    return
+  }
+
   if (showAddDialog.value) {
     showAddDialog.value = false
     event.preventDefault()
