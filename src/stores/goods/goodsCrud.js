@@ -10,7 +10,8 @@ import {
   normalizeGoodsInput,
   normalizeTrashItem,
   mergeGoodsRecord,
-  diffRemovedManagedImagePaths
+  diffRemovedManagedImagePaths,
+  normalizeWishlistFlag
 } from '@/stores/goods/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 import {
@@ -19,6 +20,7 @@ import {
   ensureInitialTimeline,
   maintainTimelineOnGoodsUpdate
 } from '@/utils/goods/statusTimeline'
+import { nextGoodsSortOrder } from '@/stores/goods/goodsOrder'
 
 /**
  * @param {object} data
@@ -49,6 +51,9 @@ export async function addGoods(data, list, onMutate) {
     return list.value[existingIndex]
   }
 
+  if (data?.sortOrder == null || data?.sortOrder === '') {
+    incoming.sortOrder = nextGoodsSortOrder(list.value, incoming.isWishlist)
+  }
   const fresh = ensureInitialTimeline(incoming)
   list.value.unshift(fresh)
   triggerRef(list)
@@ -71,14 +76,21 @@ export async function addGoods(data, list, onMutate) {
  */
 export async function addGoodsBatch(itemsData, list, onMutate) {
   const now = Date.now()
-  const incoming = itemsData.map((data, i) => {
+  /** @type {import('@/types/models').GoodsItem[]} */
+  const incoming = []
+  for (let i = 0; i < itemsData.length; i++) {
+    const data = itemsData[i]
     const imagesExplicit = Array.isArray(data?.images)
-    return ensureInitialTimeline(normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now + i }, String(now + i)))
-  })
-
-  for (const item of incoming) {
-    list.value.unshift(item)
+    const itemNow = now + i
+    const normalized = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: itemNow }, String(itemNow))
+    if (data?.sortOrder == null || data?.sortOrder === '') {
+      normalized.sortOrder = nextGoodsSortOrder(list.value, normalized.isWishlist)
+    }
+    incoming.push(ensureInitialTimeline(normalized))
+    // 同批后续条目也要看到前面刚加入的 sortOrder，避免同序
+    list.value.unshift(incoming[incoming.length - 1])
   }
+
   triggerRef(list)
 
   try {
@@ -109,6 +121,10 @@ export async function updateGoods(id, data, list, onMutate) {
   const timelineAware = maintainTimelineOnGoodsUpdate(previous, data)
   const imagesExplicit = Array.isArray(timelineAware?.images)
   const next = normalizeGoodsInput({ ...previous, ...timelineAware, id, __imagesExplicit: imagesExplicit, updatedAt: Date.now() }, id)
+  // isWishlist 翻转：手动序 append 到目标列表末尾，避免旧值插进中段
+  if (normalizeWishlistFlag(previous.isWishlist) !== normalizeWishlistFlag(next.isWishlist)) {
+    next.sortOrder = nextGoodsSortOrder(list.value, next.isWishlist, id)
+  }
   const removedPaths = diffRemovedManagedImagePaths(previous, next)
   list.value[idx] = next
   triggerRef(list)

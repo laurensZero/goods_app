@@ -16,7 +16,8 @@ export const MANIFEST_VERSION = 1
 // v6: 收藏品待补邮/待补款复用 saleAt/saleReminder* 字段；旧版 normalizeGoodsInput 对非心愿单
 //     行会清空这三项，升级后需全量回填才能恢复本地副本
 // v7: 新增 batch_drafts 同步域（批量添加草稿）；旧版 pull 完全不认识该表，会丢行并推水位线
-export const SYNC_SCHEMA_VERSION = 7
+// v8: goods.sortOrder 主列表手动排序；旧版 normalizeGoodsInput 不认识该字段会丢弃并推水位线
+export const SYNC_SCHEMA_VERSION = 8
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

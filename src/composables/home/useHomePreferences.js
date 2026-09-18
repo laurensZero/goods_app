@@ -224,6 +224,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     setDisplayDensity,
     toggleTimelineMode,
     toggleSortDirection,
+    triggerSortAnimation,
     setSortMode,
     setGroupDisplayMode,
     restoreDisplayDensity,

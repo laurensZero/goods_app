@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS goods (
   sell_fee TEXT DEFAULT '',
   sell_date TEXT DEFAULT '',
   unit_sale_info_list JSONB DEFAULT '[]',
+  sort_order INTEGER DEFAULT 0,
   synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -198,6 +199,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_platform TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_fee TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS sort_order INTEGER DEFAULT 0;
 -- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
 ALTER TABLE goods DROP COLUMN IF EXISTS image;
 
@@ -311,6 +313,7 @@ BEGIN
     OR NEW.sell_fee IS DISTINCT FROM OLD.sell_fee
     OR NEW.sell_date IS DISTINCT FROM OLD.sell_date
     OR NEW.unit_sale_info_list IS DISTINCT FROM OLD.unit_sale_info_list
+    OR NEW.sort_order IS DISTINCT FROM OLD.sort_order
   THEN NEW.updated_at = now();
   ELSE NEW.updated_at = OLD.updated_at;
   END IF;
@@ -1105,6 +1108,7 @@ BEGIN
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       shipping_events = EXCLUDED.shipping_events,
       status_timeline = EXCLUDED.status_timeline,
+      sort_order = EXCLUDED.sort_order,
       sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
       unit_sale_info_list = EXCLUDED.unit_sale_info_list,
@@ -1138,6 +1142,7 @@ BEGIN
       collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
       shipping_events = EXCLUDED.shipping_events,
       status_timeline = EXCLUDED.status_timeline,
+      sort_order = EXCLUDED.sort_order,
       sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
       sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
       unit_sale_info_list = EXCLUDED.unit_sale_info_list,

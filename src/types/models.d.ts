@@ -111,6 +111,8 @@ export interface GoodsItem {
   sellDate: string
   unitSaleInfoList: (UnitSaleInfo | null)[]
   statusTimeline: StatusTimelineEntry[]
+  /** 主列表自定义排序序号（0=未手排）；收藏/心愿各自在列表内比较 */
+  sortOrder: number
   /** 本地软删除标记：trashed=1 的行 getItems 不返回，回收站通过 Preferences 单独管理 */
   trashed: boolean
 }

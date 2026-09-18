@@ -292,4 +292,15 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 18,
+    description: 'Add goods.sortOrder column for collection/wishlist manual order',
+    up: async (db) => {
+      // 主列表自定义排序：0=尚未手排；新建/翻转 isWishlist 时 append 到目标列表末尾
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('sortOrder')) {
+        await db.run('ALTER TABLE goods ADD COLUMN sortOrder INTEGER DEFAULT 0')
+      }
+    }
+  },
 ]

@@ -1,5 +1,6 @@
 <template>
   <article
+    ref="cardRootRef"
     class="goods-card"
     :class="[
       `goods-card--${density || 'comfortable'}`,
@@ -7,9 +8,10 @@
       { 'goods-card--selected': selected },
       { 'goods-card--pending': isPending },
       { 'goods-card--exited': isExited },
-      { 'goods-card--motion': Boolean(motionStyle) }
+      { 'goods-card--motion': Boolean(motionStyle) },
+      { 'goods-card--reorder-dragging': isReorderDragging }
     ]"
-    :style="motionStyle || undefined"
+    :style="cardStyle"
     @touchstart="onTouchStart"
     @touchmove="onTouchMove"
     @touchend="onTouchEnd"
@@ -19,6 +21,7 @@
     @mouseup="onMouseUp"
     @mouseleave="onMouseLeave"
     @contextmenu.prevent
+    @dragstart.prevent
   >
     <Transition name="sel-overlay">
       <div v-if="selectionMode" class="selection-overlay">
@@ -49,6 +52,18 @@
         />
         <span v-if="!item.coverImage" class="cover-initial">{{ coverInitial }}</span>
       </div>
+      <button
+        v-if="selectionMode && reorderEnabled"
+        class="reorder-handle"
+        type="button"
+        :aria-label="t('home.reorder.handle')"
+        draggable="false"
+        @click.stop.prevent
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M8 7h8M8 12h8M8 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+      </button>
       <div
         v-if="item.isWishlist"
         :class="['wishlist-badge', { 'wishlist-badge--compact': density === 'compact' }]"
@@ -132,7 +147,10 @@ const props = defineProps({
   selected: { type: Boolean, default: false },
   selectionMode: { type: Boolean, default: false },
   motionStyle: { type: Object, default: null },
-  windowWidth: { type: Number, default: 0 }
+  windowWidth: { type: Number, default: 0 },
+  reorderEnabled: { type: Boolean, default: false },
+  isReorderDragging: { type: Boolean, default: false },
+  reorderStyle: { type: Object, default: null }
 })
 
 // Module-level low-perf detection (shared across all card instances)
@@ -145,6 +163,9 @@ const _isLowPerf = (typeof navigator !== 'undefined') && (
 const emit = defineEmits(['long-press', 'toggle-select', 'open-detail'])
 const tagsScrollerRef = ref(null)
 const coverEl = ref(null)
+const cardRootRef = ref(null)
+
+const cardStyle = computed(() => props.motionStyle || undefined)
 
 const longPressTimer = ref(null)
 const longPressTriggered = ref(false)
@@ -204,7 +225,8 @@ function onTouchMove(event) {
 
 function onTouchEnd(event) {
   cancelLongPress()
-  event.preventDefault()
+  // 滚动进行中 touchend 的 cancelable=false，preventDefault 会触发 Chrome Intervention
+  if (event.cancelable) event.preventDefault()
   if (longPressTriggered.value || gestureMoved.value) return
   handleTap()
 }
@@ -509,6 +531,54 @@ const priceCNYHint = computed(() => {
 .cover-wrap {
   position: relative;
   width: 100%;
+}
+
+.reorder-handle {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 4;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 20, 22, 0.72);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.reorder-handle svg {
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+.reorder-handle:active {
+  cursor: grabbing;
+  background: rgba(20, 20, 22, 0.88);
+}
+
+.goods-card--reorder-dragging {
+  z-index: 40 !important;
+  transition: none !important;
+  box-shadow: var(--app-shadow, 0 12px 28px rgba(0, 0, 0, 0.2));
+  cursor: grabbing;
+}
+
+/* 拖拽中压住 :active 的 scale，避免和跟手 transform 打架 */
+.goods-card--reorder-dragging:active {
+  transform: none;
+}
+
+.goods-card[style*="translate"] {
+  will-change: transform;
 }
 
 .wishlist-badge {
