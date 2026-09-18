@@ -193,6 +193,15 @@ export const SECTIONS = [
     icon: 'history',
     description: '后台高危操作留痕（发布/回档/删除等）',
     component: defineAsyncComponent(() => import('../sections/AuditLogSection.vue'))
+  },
+  {
+    id: 'syncaudit',
+    group: 'ops',
+    label: '同步日志',
+    short: '同步日志',
+    icon: 'sync',
+    description: '客户端 push/pull 操作审计（sync_audit_logs，RPC 服务端写入，管理员查询）',
+    component: defineAsyncComponent(() => import('../sections/SyncAuditSection.vue'))
   }
 ]
 

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useAdminTheme } from './composables/useAdminTheme'
 import { useAdminAuth } from './composables/useAdminAuth'
+import { useAdminNav } from './composables/useAdminNav'
 import { SECTIONS } from './config/sections'
 import AdminLogin from './components/AdminLogin.vue'
 import AdminSidebar from './components/layout/AdminSidebar.vue'
@@ -12,6 +13,7 @@ import ConfirmHost from './components/ui/ConfirmHost.vue'
 
 const { appearance, toggleDark } = useAdminTheme()
 const { authenticated } = useAdminAuth()
+const { activeSectionId, selectSection } = useAdminNav()
 
 // 侧栏展开/收起状态持久化
 const SIDEBAR_KEY = 'goods_admin_sidebar_collapsed'
@@ -26,29 +28,13 @@ function toggleSidebar() {
   }
 }
 
-// 始终只聚焦一个分区，无「全部」模式
-// 当前分区持久化：刷新后仍停留在上次打开的 section
-const SECTION_KEY = 'goods_admin_active_section'
-const savedSection = localStorage.getItem(SECTION_KEY)
-const activeSectionId = ref(
-  SECTIONS.some((s) => s.id === savedSection) ? savedSection : SECTIONS[0].id
-)
 const activeSection = computed(() =>
   SECTIONS.find((s) => s.id === activeSectionId.value) ?? SECTIONS[0]
 )
 
 const isDark = computed(() => appearance.value === 'dark')
 
-function selectSection(id) {
-  activeSectionId.value = id
-}
-
 watch(activeSectionId, (id) => {
-  try {
-    localStorage.setItem(SECTION_KEY, id)
-  } catch {
-    /* ignore */
-  }
   const el = document.getElementById(id)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 })
@@ -88,7 +74,7 @@ watch(activeSectionId, (id) => {
         <main class="admin-main">
           <section :id="activeSection.id" class="admin-section">
             <SectionCard :section="activeSection">
-              <component :is="activeSection.component" />
+              <component :is="activeSection.component" :key="activeSection.id" />
             </SectionCard>
           </section>
         </main>

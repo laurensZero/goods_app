@@ -237,7 +237,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     deviceId = '', syncedAt = new Date().toISOString(),
     imageBucket = 'goods-images',
     budgetMonthly = 0, budgetYearly = 0,
-    rechargeUpdatedAt = null, eventUpdatedAt = null
+    rechargeUpdatedAt = null, eventUpdatedAt = null,
+    source = ''
   } = {}) {
     const db = getDb()
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
@@ -275,7 +276,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       p_budget_monthly: budgetMonthly,
       p_budget_yearly: budgetYearly,
       p_recharge_updated_at: rechargeUpdatedAt || null,
-      p_event_updated_at: eventUpdatedAt || null
+      p_event_updated_at: eventUpdatedAt || null,
+      p_source: source || ''
     }))
 
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
@@ -290,5 +292,12 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     return { syncedAt: serverSyncedAt }
   }
 
-  return { writeManifest, writePresets, pushDomainRows, pushAll, writeDeviceHeartbeat, clearDeviceForceResync }
+  return {
+    writeManifest,
+    writePresets,
+    pushDomainRows,
+    pushAll,
+    writeDeviceHeartbeat,
+    clearDeviceForceResync
+  }
 }

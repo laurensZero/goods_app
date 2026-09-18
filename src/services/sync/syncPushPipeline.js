@@ -171,7 +171,7 @@ export function buildManifest(payload, imageStats, syncTimestamp, { syncData, re
 /**
  * Write data to remote backend via pushAll RPC.
  */
-export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, batchDraftSyncData = { batchDrafts: [], batchDraftsTrash: [] }, manifest, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWriteBatchDrafts = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null }) {
+export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyncData, batchDraftSyncData = { batchDrafts: [], batchDraftsTrash: [] }, manifest, remoteData, shouldWriteData = true, shouldWriteRecharge = true, shouldWriteEvent = true, shouldWriteBatchDrafts = true, shouldWritePresets = false, fullGoodsList = null, fullTrashList = null, source = '' }) {
   // Compute incremental diff when remoteData is available
   const localGoods = shouldWriteData ? (syncData.goods || []) : []
   const localTrash = shouldWriteData ? (syncData.trash || []) : []
@@ -243,7 +243,8 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     budgetMonthly: manifest?.budgetMonthly || 0,
     budgetYearly: manifest?.budgetYearly || 0,
     rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
-    eventUpdatedAt: manifest?.eventUpdatedAt || null
+    eventUpdatedAt: manifest?.eventUpdatedAt || null,
+    source: source || ''
   })
 
   // 服务器侧 synced_at（新版 RPC 返回），作为本地水位线消除时钟偏移；旧版 RPC 为 null

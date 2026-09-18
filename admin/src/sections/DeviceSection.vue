@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useAdminList } from '../composables/useAdminList'
+import { useAdminNav } from '../composables/useAdminNav'
 import { useConfirm } from '../composables/useConfirm'
 import { listDevices, forceDeviceResync } from '../services/device'
 import { logAudit } from '../services/audit'
@@ -10,11 +11,12 @@ import SearchInput from '../components/ui/SearchInput.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import Skeleton from '../components/ui/Skeleton.vue'
 
+const { goToSection, consumeSectionPayload } = useAdminNav()
+const { confirm } = useConfirm()
+
 const { items, loading, keyword, status, load } = useAdminList({
   loader: () => listDevices()
 })
-
-const { confirm } = useConfirm()
 
 function platformLabel(p) {
   return p === 'native' ? '原生' : p === 'web' ? '网页' : (p || '--')
@@ -78,11 +80,22 @@ async function doForceResync(device) {
   }
 }
 
+function openSyncLogs(device) {
+  goToSection('syncaudit', {
+    device_id: device.device_id,
+    userName: device.userName || device.user_id || device.device_id
+  })
+}
+
 function setStatus(text, type = 'default') {
   status.value = { text, type }
 }
 
-onMounted(load)
+onMounted(() => {
+  const payload = consumeSectionPayload('device')
+  if (payload?.keyword) keyword.value = payload.keyword
+  load()
+})
 </script>
 
 <template>
@@ -134,7 +147,7 @@ onMounted(load)
   </div>
 
   <p class="status-text" :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''">
-    {{ status.text }}
+    {{ status.text || '可从设备跳转到同步日志，按该设备筛选 push/pull 记录。' }}
   </p>
 
   <div class="list">
@@ -154,6 +167,9 @@ onMounted(load)
       </div>
       <div class="list-actions">
         <StatusPill :status="d.platform === 'native' ? 'ok' : 'info'" :label="platformLabel(d.platform)" />
+        <button class="btn btn--sm btn--soft" type="button" @click="openSyncLogs(d)">
+          同步日志
+        </button>
         <button
           class="btn btn--sm btn--soft"
           type="button"
@@ -241,5 +257,13 @@ onMounted(load)
 .list {
   display: grid;
   gap: 8px;
+}
+
+.list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
 }
 </style>
