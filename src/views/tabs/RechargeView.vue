@@ -24,6 +24,7 @@
 
       <RechargeContent
         ref="rechargeContentRef"
+        :active="isRechargeActive"
         @selection-change="handleRechargeSelectionChange"
         @open-month-card="openMonthCardCalendar"
       />

@@ -165,7 +165,9 @@ body {
   -webkit-font-smoothing: antialiased;
   color: var(--app-text);
   background-color: var(--app-bg);
-  scrollbar-gutter: stable;
+  /* 不预留系统滚动条凹槽，避免与时间线自定义指示条叠成双滚动条 */
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
 }
 
 body,
@@ -382,12 +384,30 @@ img {
   -webkit-overflow-scrolling: touch;
   padding-bottom: calc(var(--tabbar-height) + env(safe-area-inset-bottom));
   scrollbar-width: none;
+  scrollbar-gutter: auto;
   /* 虚拟列表手动维护首尾 spacer 高度，浏览器滚动锚定会与之互相补偿造成窜动 */
   overflow-anchor: none;
 }
 
-.page-body::-webkit-scrollbar {
-  display: none;
+.page-body::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
+/* Android WebView / 桌面 Chromium 滚动时的系统 overlay 滚动条 */
+.page-body,
+.page-body * {
+  scrollbar-width: none;
+}
+
+.page-body *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .goods-list--density-animating {

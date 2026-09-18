@@ -64,6 +64,8 @@ const props = defineProps({
   enabled: { type: Boolean, default: true },
   getSectionEl: { type: Function, default: () => null },
   getScrollEl: { type: Function, default: () => null },
+  /** 页面根选择器，KeepAlive 多页时用于限定查询范围，如 .home-page */
+  rootSelector: { type: String, default: '' },
   monthAtOffset: { type: Function, default: null },
   offsetOfMonth: { type: Function, default: null }
 })
@@ -76,9 +78,9 @@ const INDICATOR_HIDE_MS = 900
 const RAIL_TOP_RATIO = 0.1
 const RAIL_BOTTOM_RATIO = 0.12
 const SCROLL_TOP_PAD = 20
-const THUMB_H = 36
-const TRACK_TOP = 96
-const TRACK_BOTTOM = 120
+const THUMB_H = 44
+const TRACK_TOP = 88
+const TRACK_BOTTOM = 100
 
 const scrubbing = ref(false)
 const side = ref('right')
@@ -94,6 +96,35 @@ let lastJumpIndex = -1
 let hideTimer = 0
 let scrollRaf = 0
 let hasScrubMoved = false
+let boundScrollEls = []
+
+function isConnected(el) {
+  return Boolean(el && el.isConnected !== false)
+}
+
+/** 只解析「当前页」的滚动容器，避免 KeepAlive 下查到别的 .page-body */
+function resolveScroller() {
+  const fromProps = props.getScrollEl?.()
+  if (isConnected(fromProps)) return fromProps
+
+  const sectionEl = props.getSectionEl?.()
+  const fromSection = sectionEl?.closest?.('.page-body')
+  if (isConnected(fromSection)) return fromSection
+
+  if (props.rootSelector) {
+    return document.querySelector(`${props.rootSelector} .page-body`)
+  }
+  return null
+}
+
+function isWindowLikeScroller(el) {
+  return !el
+    || el === window
+    || el === document
+    || el === document.scrollingElement
+    || el === document.documentElement
+    || el === document.body
+}
 
 const activeMonth = computed(() => props.months[activeIndex.value] || props.months[0] || null)
 const activeYear = computed(() => activeMonth.value?.year || '')
@@ -169,23 +200,15 @@ function quoteAttr(value) {
 
 function findMonthEl(yearMonth) {
   const selector = `[data-tl-month="${quoteAttr(yearMonth)}"]`
-  return (
-    props.getSectionEl?.()?.querySelector?.(selector)
-    || document.querySelector(`.home-page ${selector}`)
-    || document.querySelector(selector)
-    || null
-  )
-}
-
-function collectScrollCandidates() {
-  const list = []
-  const push = (el) => {
-    if (el && !list.includes(el)) list.push(el)
+  // 只在本页时间线容器内查找，防止命中其它 KeepAlive 页的同名节点
+  const sectionEl = props.getSectionEl?.()
+  if (isConnected(sectionEl)) {
+    return sectionEl.querySelector(selector) || null
   }
-  push(props.getScrollEl?.())
-  push(document.querySelector('.home-page .page-body'))
-  push(document.querySelector('.page-body'))
-  return list
+  if (props.rootSelector) {
+    return document.querySelector(`${props.rootSelector} ${selector}`)
+  }
+  return null
 }
 
 /* ---- 平滑滚动：缓动插值，避免跳月生硬 ---- */
@@ -286,33 +309,53 @@ function setIndicatorProgress(progress, { smooth = true } = {}) {
   indicatorLerpRaf = window.requestAnimationFrame(tick)
 }
 
-/** 根据当前滚动位置推算月份索引与进度 */
+/** 根据当前滚动位置推算月份索引与进度（指示条须跟手跟随列表滚动） */
 function syncFromScroll() {
-  const scroller = props.getScrollEl?.()
+  const scroller = resolveScroller()
   const sectionEl = props.getSectionEl?.()
-  if (!scroller || !sectionEl || props.months.length === 0) return
+  if (!scroller || !isConnected(sectionEl) || props.months.length === 0) return
 
-  const scrollTop = scroller.scrollTop || 0
   const scrollRect = scroller.getBoundingClientRect()
   const sectionRect = sectionEl.getBoundingClientRect()
-  const sectionOffsetInContent = scrollTop + (sectionRect.top - scrollRect.top)
-  const offsetInSection = scrollTop - sectionOffsetInContent
+  // 视口顶在时间线内容坐标系中的偏移
+  const offsetInSection = scrollRect.top - sectionRect.top
   const sectionH = sectionEl.offsetHeight || 1
   const progress = Math.min(1, Math.max(0, offsetInSection / sectionH))
 
-  setIndicatorProgress(progress, { smooth: !scrubbing.value })
+  // 手动滚动时直接跟手，不用 lerp 拖尾
+  setIndicatorProgress(progress, { smooth: false })
 
   let index = 0
   if (typeof props.monthAtOffset === 'function') {
     index = props.monthAtOffset(Math.max(0, offsetInSection), props.months)
-  } else if (sectionRect.height > 0) {
-    index = monthIndexFromRailRatio(progress, props.months.length)
+  } else {
+    // 无 metrics 时用 DOM 月份块位置估算
+    index = monthIndexFromScroll(offsetInSection)
   }
   const maxIndex = props.months.length - 1
   activeIndex.value = Math.min(maxIndex, Math.max(0, index))
 }
 
+function monthIndexFromScroll(offsetInSection) {
+  const sectionEl = props.getSectionEl?.()
+  if (!isConnected(sectionEl) || props.months.length === 0) return 0
+  const sectionRect = sectionEl.getBoundingClientRect()
+  let best = 0
+  for (let i = 0; i < props.months.length; i++) {
+    const el = sectionEl.querySelector(`[data-tl-month="${quoteAttr(props.months[i].yearMonth)}"]`)
+    if (!el) continue
+    const top = el.getBoundingClientRect().top - sectionRect.top
+    if (top <= offsetInSection + 8) best = i
+    else break
+  }
+  return best
+}
+
 function showIndicator() {
+  if (!props.enabled) {
+    indicatorVisible.value = false
+    return
+  }
   indicatorVisible.value = true
   if (hideTimer) {
     window.clearTimeout(hideTimer)
@@ -330,22 +373,36 @@ function onScroll() {
   if (scrollRaf) return
   scrollRaf = window.requestAnimationFrame(() => {
     scrollRaf = 0
+    if (!props.enabled || scrubbing.value) return
     syncFromScroll()
     showIndicator()
   })
 }
 
 function bindScroll() {
-  const scroller = props.getScrollEl?.()
-  if (scroller) scroller.addEventListener('scroll', onScroll, { passive: true })
-  // 兜底：部分场景真正滚动的是 window
-  window.addEventListener('scroll', onScroll, { passive: true })
+  unbindScroll()
+  if (!props.enabled) return
+
+  const primary = resolveScroller()
+  const els = []
+  if (primary && !isWindowLikeScroller(primary)) {
+    els.push(primary)
+  } else {
+    // 滚动确实在 window 时才监听 window，避免其它 KeepAlive 页滚动误触发
+    els.push(window)
+  }
+
+  for (const el of els) {
+    el.addEventListener('scroll', onScroll, { passive: true })
+    boundScrollEls.push(el)
+  }
 }
 
 function unbindScroll() {
-  const scroller = props.getScrollEl?.()
-  if (scroller) scroller.removeEventListener('scroll', onScroll)
-  window.removeEventListener('scroll', onScroll)
+  for (const el of boundScrollEls) {
+    try { el.removeEventListener('scroll', onScroll) } catch {}
+  }
+  boundScrollEls = []
 }
 
 function rebindScroll() {
@@ -470,74 +527,64 @@ function jumpToIndex(index, { settle = false } = {}) {
   if (!yearMonth) return
 
   const monthEl = findMonthEl(yearMonth)
-
   if (monthEl) {
-    const candidates = collectScrollCandidates()
-    for (const scroller of candidates) {
-      const scrollHeight = scroller.scrollHeight || 0
-      const clientHeight = scroller.clientHeight || 0
-      if (scrollHeight <= clientHeight + 2) continue
-
-      const scrollerRect = scroller.getBoundingClientRect()
-      const monthRect = monthEl.getBoundingClientRect()
-      const delta = monthRect.top - scrollerRect.top - SCROLL_TOP_PAD
-      const next = Math.max(0, (scroller.scrollTop || 0) + delta)
-      animateScrollTo(scroller, next, { settle })
+    const scroller = monthEl.closest('.page-body') || resolveScroller()
+    if (!scroller || isWindowLikeScroller(scroller)) {
+      const winFrom = readWindowScrollTop()
+      const y = monthEl.getBoundingClientRect().top + winFrom - SCROLL_TOP_PAD
+      animateWindowTo(y, { settle })
       return
     }
 
-    // window 兜底：用同样的缓动
-    const winFrom = readWindowScrollTop()
-    const y = monthEl.getBoundingClientRect().top + winFrom - SCROLL_TOP_PAD
-    const fakeScroller = {
-      scrollTop: winFrom,
-      scrollHeight: document.documentElement.scrollHeight || y + 1,
-      clientHeight: window.innerHeight || 800,
-      getBoundingClientRect: () => ({ top: 0 })
-    }
-    // 直接动画写 window
-    cancelScrollAnim()
-    const to = Math.max(0, y)
-    const delta = to - winFrom
-    if (Math.abs(delta) < 0.8) return
-    const dist = Math.abs(delta)
-    const base = settle ? 200 : 140
-    const duration = Math.min(base + (settle ? 120 : 80), base + dist * 0.06)
-    const ease = settle ? easeOutQuint : easeOutCubic
-    const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
-    const step = (now) => {
-      if (!scrollAnimState) return
-      const t = Math.min(1, (now - start) / duration)
-      window.scrollTo(0, winFrom + delta * ease(t))
-      if (t < 1) scrollAnimState.raf = window.requestAnimationFrame(step)
-      else {
-        window.scrollTo(0, to)
-        scrollAnimState = null
-      }
-    }
-    scrollAnimState = { raf: window.requestAnimationFrame(step), scroller: fakeScroller }
+    const scrollHeight = scroller.scrollHeight || 0
+    const clientHeight = scroller.clientHeight || 0
+    if (scrollHeight <= clientHeight + 2) return
+
+    const scrollerRect = scroller.getBoundingClientRect()
+    const monthRect = monthEl.getBoundingClientRect()
+    const delta = monthRect.top - scrollerRect.top - SCROLL_TOP_PAD
+    const next = Math.max(0, (scroller.scrollTop || 0) + delta)
+    animateScrollTo(scroller, next, { settle })
     return
   }
 
   if (typeof props.offsetOfMonth === 'function') {
-    const offsetInSection = props.offsetOfMonth(index, props.months)
+    const scroller = resolveScroller()
     const sectionEl = props.getSectionEl?.()
-    const candidates = collectScrollCandidates()
-    for (const scroller of candidates) {
-      if (!scroller) continue
-      const scrollHeight = scroller.scrollHeight || 0
-      const clientHeight = scroller.clientHeight || 0
-      if (scrollHeight <= clientHeight + 2) continue
-      let base = 0
-      if (sectionEl) {
-        const scrollerRect = scroller.getBoundingClientRect()
-        const sectionRect = sectionEl.getBoundingClientRect()
-        base = (scroller.scrollTop || 0) + (sectionRect.top - scrollerRect.top)
-      }
-      animateScrollTo(scroller, base + offsetInSection - SCROLL_TOP_PAD, { settle })
-      return
+    if (!scroller || !isConnected(sectionEl)) return
+    const scrollHeight = scroller.scrollHeight || 0
+    const clientHeight = scroller.clientHeight || 0
+    if (scrollHeight <= clientHeight + 2) return
+    const offsetInSection = props.offsetOfMonth(index, props.months)
+    const scrollerRect = scroller.getBoundingClientRect()
+    const sectionRect = sectionEl.getBoundingClientRect()
+    const base = (scroller.scrollTop || 0) + (sectionRect.top - scrollerRect.top)
+    animateScrollTo(scroller, base + offsetInSection - SCROLL_TOP_PAD, { settle })
+  }
+}
+
+function animateWindowTo(targetY, { settle = false } = {}) {
+  cancelScrollAnim()
+  const winFrom = readWindowScrollTop()
+  const to = Math.max(0, targetY)
+  const delta = to - winFrom
+  if (Math.abs(delta) < 0.8) return
+  const dist = Math.abs(delta)
+  const base = settle ? 200 : 140
+  const duration = Math.min(base + (settle ? 120 : 80), base + dist * 0.06)
+  const ease = settle ? easeOutQuint : easeOutCubic
+  const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+  const step = (now) => {
+    if (!scrollAnimState) return
+    const t = Math.min(1, (now - start) / duration)
+    window.scrollTo(0, winFrom + delta * ease(t))
+    if (t < 1) scrollAnimState.raf = window.requestAnimationFrame(step)
+    else {
+      window.scrollTo(0, to)
+      scrollAnimState = null
     }
   }
+  scrollAnimState = { raf: window.requestAnimationFrame(step), scroller: window }
 }
 
 function endScrub() {
@@ -582,6 +629,10 @@ watch(() => props.enabled, () => {
     indicatorVisible.value = false
     cancelScrollAnim()
     endScrub()
+    unbindScroll()
+  } else {
+    // 重新进入本页时同步一次位置，避免指示条停在旧值
+    syncFromScroll()
   }
 }, { immediate: true })
 
@@ -609,36 +660,37 @@ onBeforeUnmount(() => {
 /* 右侧位置指示条：滚动时才出现，点按打开侧边年月条 */
 .tl-scrub-indicator {
   position: fixed;
-  right: 2px;
+  /* 贴边，拇指靠右；热区比视觉更宽，方便安卓点按 */
+  right: 0;
   z-index: 115;
-  width: 28px;
+  width: 36px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 4px;
+  padding-right: 2px;
   touch-action: none;
   cursor: pointer;
   opacity: 0.92;
   will-change: transform, opacity;
-  transition:
-    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 0.28s ease,
-    width 0.2s ease;
+  /* 位置由 JS 每帧写 translate3d，这里不做 transform 过渡，保证手动滚动跟手 */
+  transition: opacity 0.28s ease;
 }
 
 .tl-scrub-indicator__thumb {
-  width: 5px;
+  width: 6px;
   height: 100%;
+  min-height: 44px;
+  margin-right: 2px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--app-text) 38%, transparent);
+  background: color-mix(in srgb, var(--app-text) 42%, transparent);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--app-surface) 40%, transparent),
-    0 2px 8px rgba(0, 0, 0, 0.12);
+    0 0 0 1px color-mix(in srgb, var(--app-surface) 45%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.14);
   pointer-events: none;
   transition:
-    width 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    background 0.2s ease,
-    opacity 0.2s ease;
+    width 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.16s ease,
+    opacity 0.16s ease;
 }
 
 .tl-scrub-indicator--scrubbing {
@@ -646,7 +698,7 @@ onBeforeUnmount(() => {
 }
 
 .tl-scrub-indicator--scrubbing .tl-scrub-indicator__thumb {
-  width: 7px;
+  width: 8px;
   background: color-mix(in srgb, var(--app-text) 72%, transparent);
 }
 

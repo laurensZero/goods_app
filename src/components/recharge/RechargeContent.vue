@@ -186,10 +186,11 @@
 
   <Teleport to="body">
     <TimelineMonthScrubber
-      v-if="activeView === 'records' && !selectionMode && hasVisibleRecords"
+      v-if="active && activeView === 'records' && !selectionMode && hasVisibleRecords"
       ref="rechargeTimelineScrubberRef"
       :months="timelineScrubMonths"
-      :enabled="activeView === 'records' && !selectionMode && timelineScrubMonths.length > 0"
+      :enabled="active && activeView === 'records' && !selectionMode && timelineScrubMonths.length > 0"
+      root-selector=".recharge-view-page"
       :get-section-el="() => rechargeTimelineListRef ?? null"
       :get-scroll-el="getRechargeScrollEl"
     />
@@ -222,6 +223,12 @@ import { pinyinIncludes } from '@/utils/pinyin'
 import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 
 const emit = defineEmits(['selection-change', 'open-month-card'])
+
+defineProps({
+  /** 宿主页面是否处于激活态（KeepAlive），避免指示条跟到别的 tab */
+  active: { type: Boolean, default: true }
+})
+
 const { t } = useI18n()
 const rechargeStore = useRechargeStore()
 const mihoyoFeaturesStore = useMihoyoFeaturesStore()
@@ -422,9 +429,15 @@ const timelineScrubMonths = computed(() => {
 
 function getRechargeScrollEl() {
   resolvePageBodyEl()
-  return pageBodyEl.value
+  // 只认本页滚动容器，绝不再 querySelector 全局 .page-body
+  if (isConnectedEl(pageBodyEl.value)) return pageBodyEl.value
+  return rechargeRootRef.value?.closest?.('.page-body')
     || document.querySelector('.recharge-view-page .page-body')
-    || document.querySelector('.page-body')
+    || null
+}
+
+function isConnectedEl(el) {
+  return Boolean(el && el.isConnected !== false)
 }
 
 const viewSwitchStyle = computed(() => ({
@@ -650,7 +663,9 @@ function syncRechargeImagePreload(urls = []) {
 
 function resolvePageBodyEl() {
   const rechargeRoot = rechargeRootRef.value
-  pageBodyEl.value = rechargeRoot?.closest?.('.page-body') || document.querySelector('.page-body')
+  pageBodyEl.value = rechargeRoot?.closest?.('.page-body')
+    || document.querySelector('.recharge-view-page .page-body')
+    || null
 }
 
 function readScrollTop() {
