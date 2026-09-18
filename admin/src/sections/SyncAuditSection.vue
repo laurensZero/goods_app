@@ -294,7 +294,7 @@ onMounted(async () => {
     class="status-text"
     :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''"
   >
-    {{ status.text || '仅记录有变更的 push/pull；数量为 0 的同步不入库，设备活性看「设备管理」心跳。' }}
+    {{ status.text || '仅记录有变更的 push/pull；platform/APK/Bundle 从设备心跳（devices）按 device_id 关联展示。' }}
   </p>
 
   <div class="list">
@@ -320,7 +320,12 @@ onMounted(async () => {
           >
             {{ shortId(row.device_id) }}
           </button>
-          · {{ platformLabel(row.platform) }}
+          <template v-if="row.platform">
+            · {{ platformLabel(row.platform) }}
+          </template>
+          <template v-else>
+            · 心跳未上报平台
+          </template>
           <template v-if="row.model || row.manufacturer">
             · {{ row.manufacturer ? row.manufacturer + ' ' : '' }}{{ row.model || '' }}
           </template>
