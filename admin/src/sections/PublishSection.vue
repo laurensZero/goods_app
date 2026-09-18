@@ -1,14 +1,26 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { dispatchWorkflow, WEB_BUNDLE_WORKFLOW, APK_WORKFLOW, workflowUrl, fetchRecentCommits, formatBetaNotesFromCommits } from '../services/github'
+import {
+  dispatchWorkflow,
+  WEB_BUNDLE_WORKFLOW,
+  APK_WORKFLOW,
+  workflowUrl,
+  fetchRecentCommits,
+  formatBetaNotesFromCommits,
+  getLatestWorkflowRunNumber
+} from '../services/github'
 import { getGithubToken } from '../services/supabase'
 import { fetchLatestApkVersion } from '../services/channels'
 import { logAudit } from '../services/audit'
 import AppSelect from '../components/admin/AppSelect.vue'
+import WorkflowLivePanel from '../components/ui/WorkflowLivePanel.vue'
 import { CHANNEL_OPTIONS, UPDATE_LEVELS, APK_BUILD_TYPES } from '../constants'
 import { useConfirm } from '../composables/useConfirm'
+import { useWorkflowLive } from '../composables/useWorkflowLive'
 
 const { confirm } = useConfirm()
+const liveApi = useWorkflowLive()
+const { bundle: bundleLive, apk: apkLive } = liveApi
 
 const form = reactive({
   channel: 'beta',
@@ -27,9 +39,12 @@ const apk = reactive({
 
 const publishStatus = ref({ text: '等待操作', type: 'default' })
 const apkStatus = ref({ text: '等待操作', type: 'default' })
+const combinedStatus = ref({ text: '', type: 'default' })
 const notesPreview = ref('')
 const publishBusy = ref(false)
 const apkBusy = ref(false)
+const combinedBusy = ref(false)
+const combinedMode = ref(false)
 const notesBusy = ref(false)
 const latestApk = ref('')
 const channelHint = ref('')
@@ -47,6 +62,10 @@ function setApkStatus(text, type = 'default') {
   apkStatus.value = { text, type }
 }
 
+function setCombinedStatus(text, type = 'default') {
+  combinedStatus.value = { text, type }
+}
+
 function syncUpdateLevelByChannel() {
   if (form.channel === 'stable') {
     channelHint.value = 'stable 通道默认 prompt（留空时）'
@@ -57,6 +76,30 @@ function syncUpdateLevelByChannel() {
 
 function openWorkflow(target = WEB_BUNDLE_WORKFLOW) {
   window.open(workflowUrl(target), '_blank', 'noopener')
+}
+
+async function captureBaseline(workflowId) {
+  try {
+    return await getLatestWorkflowRunNumber(workflowId)
+  } catch {
+    return null
+  }
+}
+
+function onToggleJob(kind, jobId) {
+  liveApi.toggleJob(kind, jobId)
+}
+
+function onLoadLogs(kind, jobId) {
+  liveApi.loadJobLogs(kind, jobId)
+}
+
+function liveDoneStatus({ kind, live }) {
+  const ok = live.conclusion === 'success'
+  const reason = live.failureText || live.error || ''
+  const title = kind === 'apk' ? 'APK' : 'Web Bundle'
+  if (ok) return { text: `${title} 构建成功${live.runNumber ? `（#${live.runNumber}）` : ''}。`, type: 'ok' }
+  return { text: `${title} 失败：${reason || '见下方实时流程'}`, type: 'error' }
 }
 
 async function generateBetaNotes() {
@@ -97,6 +140,36 @@ function buildPublishInputs() {
   return inputs
 }
 
+function buildApkInputs() {
+  if (!getGithubToken()) throw new Error('请先填写 GitHub Token（需要 workflow 权限）。')
+  const inputs = {
+    build_type: apk.buildType,
+    update_level: String(apk.updateLevel || 'prompt').toLowerCase()
+  }
+  if (apk.buildType === 'release') {
+    const tag = String(apk.tag || '').trim().replace(/^[vV]/, 'v')
+    if (!tag) throw new Error('release 构建必须填写 Release Tag（如 v1.5.0）。')
+    inputs.release_tag = tag
+  }
+  return inputs
+}
+
+function handleLiveDone({ kind, live }) {
+  const status = liveDoneStatus({ kind, live })
+  if (kind === 'apk') setApkStatus(status.text, status.type)
+  else setPublishStatus(status.text, status.type)
+
+  const bothDone = bundleLive.phase === 'done' && apkLive.phase === 'done'
+  if (!combinedMode.value || !bothDone) return
+
+  const parts = [
+    liveDoneStatus({ kind: 'bundle', live: bundleLive }).text,
+    liveDoneStatus({ kind: 'apk', live: apkLive }).text
+  ]
+  const hasError = parts.some((p) => p.includes('失败'))
+  setCombinedStatus(parts.join(' ｜ '), hasError ? 'error' : 'ok')
+}
+
 async function triggerPublish() {
   try {
     const inputs = buildPublishInputs()
@@ -108,9 +181,17 @@ async function triggerPublish() {
     if (!ok) return
     publishBusy.value = true
     setPublishStatus('正在触发发布工作流…')
+    // dispatch 前记录 run_number，触发后按 > baseline 秒级定位
+    const baseline = await captureBaseline(WEB_BUNDLE_WORKFLOW)
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, inputs)
     logAudit('publish', inputs.version || `${inputs.channel} 通道`, { channel: inputs.channel })
-    setPublishStatus('已触发发布。请在 Actions 页面查看执行进度，完成后可刷新通道。', 'ok')
+    setPublishStatus('已触发发布，下方实时跟踪构建流程…', 'ok')
+    combinedMode.value = false
+    liveApi.start('bundle', {
+      workflowId: WEB_BUNDLE_WORKFLOW,
+      afterRunNumber: baseline,
+      onDone: handleLiveDone
+    })
   } catch (e) {
     setPublishStatus(e?.message || '触发发布失败。', 'error')
   } finally {
@@ -131,6 +212,7 @@ async function triggerRollback() {
     if (!ok) return
     publishBusy.value = true
     setPublishStatus(`正在回档 ${form.channel} -> ${version} …`)
+    const baseline = await captureBaseline(WEB_BUNDLE_WORKFLOW)
     await dispatchWorkflow(WEB_BUNDLE_WORKFLOW, {
       channel: form.channel,
       version: '',
@@ -140,7 +222,13 @@ async function triggerRollback() {
       rollback_version: version
     })
     logAudit('rollback', `${form.channel} -> ${version}`)
-    setPublishStatus(`已触发回档：${form.channel} -> ${version}。请到 Actions 查看进度。`, 'ok')
+    setPublishStatus(`已触发回档：${form.channel} -> ${version}，下方实时跟踪…`, 'ok')
+    combinedMode.value = false
+    liveApi.start('bundle', {
+      workflowId: WEB_BUNDLE_WORKFLOW,
+      afterRunNumber: baseline,
+      onDone: handleLiveDone
+    })
   } catch (e) {
     setPublishStatus(e?.message || '回档触发失败。', 'error')
   } finally {
@@ -150,13 +238,7 @@ async function triggerRollback() {
 
 async function triggerApkBuild() {
   try {
-    if (!getGithubToken()) throw new Error('请先填写 GitHub Token（需要 workflow 权限）。')
-    const inputs = { build_type: apk.buildType, update_level: String(apk.updateLevel || 'prompt').toLowerCase() }
-    if (apk.buildType === 'release') {
-      const tag = String(apk.tag || '').trim().replace(/^[vV]/, 'v')
-      if (!tag) throw new Error('release 构建必须填写 Release Tag（如 v1.5.0）。')
-      inputs.release_tag = tag
-    }
+    const inputs = buildApkInputs()
     const ok = await confirm({
       title: '触发 APK 构建',
       message: `确认触发 ${apk.buildType === 'release' ? 'release' : 'debug'} 构建${inputs.release_tag ? `（${inputs.release_tag}）` : ''}？`,
@@ -165,15 +247,81 @@ async function triggerApkBuild() {
     if (!ok) return
     apkBusy.value = true
     setApkStatus('正在触发 APK 构建工作流…')
+    const baseline = await captureBaseline(APK_WORKFLOW)
     await dispatchWorkflow(APK_WORKFLOW, inputs)
     logAudit('apk_build', inputs.release_tag || apk.buildType)
     const label = apk.buildType === 'release' ? `（${inputs.release_tag}）` : '（debug）'
-    setApkStatus(`已触发 APK 构建${label}。请到 Actions 页面查看执行进度。`, 'ok')
+    setApkStatus(`已触发 APK 构建${label}，下方实时跟踪构建流程…`, 'ok')
+    combinedMode.value = false
+    liveApi.start('apk', {
+      workflowId: APK_WORKFLOW,
+      afterRunNumber: baseline,
+      onDone: handleLiveDone
+    })
   } catch (e) {
     setApkStatus(e?.message || '触发 APK 构建失败。', 'error')
   } finally {
     apkBusy.value = false
   }
+}
+
+/** 一键：同时触发 Web Bundle + APK，失败原因分别回传。 */
+async function triggerCombinedBuild() {
+  try {
+    const publishInputs = buildPublishInputs()
+    const apkInputs = buildApkInputs()
+    const ok = await confirm({
+      title: '一键编译 Bundle + APK',
+      message: `将同时触发 ${publishInputs.channel} OTA Bundle 与 APK ${apkInputs.build_type}${apkInputs.release_tag ? `（${apkInputs.release_tag}）` : ''} 构建。任一方失败会在下方直接返回原因。`,
+      confirmText: '确认编译'
+    })
+    if (!ok) return
+    combinedBusy.value = true
+    combinedMode.value = true
+    publishBusy.value = true
+    apkBusy.value = true
+    setCombinedStatus('正在同时触发 Bundle 与 APK 构建…')
+    setPublishStatus('正在触发发布工作流…')
+    setApkStatus('正在触发 APK 构建工作流…')
+
+    const [bundleBaseline, apkBaseline] = await Promise.all([
+      captureBaseline(WEB_BUNDLE_WORKFLOW),
+      captureBaseline(APK_WORKFLOW)
+    ])
+    await Promise.all([
+      dispatchWorkflow(WEB_BUNDLE_WORKFLOW, publishInputs),
+      dispatchWorkflow(APK_WORKFLOW, apkInputs)
+    ])
+    logAudit('publish_combined', `${publishInputs.channel} + apk:${apkInputs.release_tag || apkInputs.build_type}`)
+
+    setPublishStatus('Bundle 已触发，实时跟踪中…', 'ok')
+    setApkStatus('APK 已触发，实时跟踪中…', 'ok')
+    setCombinedStatus('Bundle + APK 均已触发，下方可分别查看实时流程；失败将直接返回原因。', 'ok')
+
+    liveApi.start('bundle', {
+      workflowId: WEB_BUNDLE_WORKFLOW,
+      afterRunNumber: bundleBaseline,
+      onDone: handleLiveDone
+    })
+    liveApi.start('apk', {
+      workflowId: APK_WORKFLOW,
+      afterRunNumber: apkBaseline,
+      onDone: handleLiveDone
+    })
+  } catch (e) {
+    const msg = e?.message || '一键编译触发失败。'
+    setCombinedStatus(msg, 'error')
+    setPublishStatus(msg, 'error')
+    setApkStatus(msg, 'error')
+  } finally {
+    combinedBusy.value = false
+    publishBusy.value = false
+    apkBusy.value = false
+  }
+}
+
+async function refreshLive(kind) {
+  await liveApi.loadLatestRun(kind, { onDone: handleLiveDone })
 }
 
 onMounted(async () => {
@@ -189,12 +337,14 @@ onMounted(async () => {
 <template>
   <p class="status-text">
     触发 GitHub Actions workflow_dispatch。Web Bundle 使用 <code>publish-web-bundle.yml</code>（频道仅 stable / beta），
-    APK 使用 <code>build-apk.yml</code>。
+    APK 使用 <code>build-apk.yml</code>。触发后在本页跟踪实时流程；失败会直接返回步骤与原因。
   </p>
 
   <div class="scroll-row">
     <button class="btn btn--sm" type="button" @click="openWorkflow(WEB_BUNDLE_WORKFLOW)">打开 Web Bundle workflow</button>
     <button class="btn btn--sm" type="button" @click="openWorkflow(APK_WORKFLOW)">打开 APK workflow</button>
+    <button class="btn btn--sm" type="button" @click="refreshLive('bundle')">刷新 Bundle 进度</button>
+    <button class="btn btn--sm" type="button" @click="refreshLive('apk')">刷新 APK 进度</button>
   </div>
 
   <div class="grid">
@@ -248,6 +398,12 @@ onMounted(async () => {
         <button class="btn btn--soft" type="button" :disabled="publishBusy" @click="triggerRollback">回档</button>
       </div>
 
+      <WorkflowLivePanel
+        :live="bundleLive"
+        @toggle-job="(id) => onToggleJob('bundle', id)"
+        @load-logs="(id) => onLoadLogs('bundle', id)"
+      />
+
       <p v-if="notesPreview" class="preview">{{ notesPreview }}</p>
     </div>
 
@@ -282,9 +438,40 @@ onMounted(async () => {
           {{ apkBusy ? '触发中…' : '触发 APK 构建' }}
         </button>
       </div>
+
+      <WorkflowLivePanel
+        :live="apkLive"
+        @toggle-job="(id) => onToggleJob('apk', id)"
+        @load-logs="(id) => onLoadLogs('apk', id)"
+      />
     </div>
   </div>
 
+  <div class="card card--inner combined-card">
+    <div class="card-header">
+      <div>
+        <p class="card-kicker">Bundle + APK</p>
+        <h3 class="card-title">一键编译</h3>
+      </div>
+      <span class="state">双 workflow</span>
+    </div>
+    <p class="status-text">
+      按左侧 Bundle 表单 + 右侧 APK 表单同时触发。两边独立跟踪；任一方失败会在对应卡片与下方状态里直接返回原因。
+    </p>
+    <div class="actions">
+      <button class="btn btn--primary" type="button" :disabled="combinedBusy" @click="triggerCombinedBuild">
+        {{ combinedBusy ? '触发中…' : '一键编译 Bundle + APK' }}
+      </button>
+    </div>
+  </div>
+
+  <p
+    v-if="combinedStatus.text"
+    class="status-text"
+    :class="combinedStatus.type === 'ok' ? 'status-text--ok' : combinedStatus.type === 'error' ? 'status-text--error' : ''"
+  >
+    {{ combinedStatus.text }}
+  </p>
   <p class="status-text" :class="publishStatus.type === 'ok' ? 'status-text--ok' : publishStatus.type === 'error' ? 'status-text--error' : ''">
     {{ publishStatus.text }}
   </p>
@@ -302,6 +489,10 @@ onMounted(async () => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.combined-card {
+  margin-top: 0;
 }
 
 .preview {
