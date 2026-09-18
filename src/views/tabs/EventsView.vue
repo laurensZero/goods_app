@@ -173,7 +173,7 @@
             </div>
           </section>
 
-          <section v-else :key="viewMode" class="list-shell">
+          <section v-else :key="viewMode" class="list-shell" ref="eventsTimelineListRef">
             <template v-if="viewMode === 'grid'">
               <div class="event-grid">
                 <EventCard
@@ -199,9 +199,10 @@
                   </div>
 
                   <template v-for="(monthGroup, midx) in yearGroup.months" :key="monthGroup.yearMonth">
-                    <section 
+                    <section
                       class="month-section month-section--timeline"
                       :class="{ 'month-section--last': midx === yearGroup.months.length - 1 }"
+                      :data-tl-month="monthGroup.isUndated ? 'undated' : monthGroup.yearMonth"
                     >
                       <div class="month-rail" aria-hidden="true">
                         <div class="month-dot" />
@@ -266,6 +267,14 @@
 
     <Teleport v-if="isEventsActive" to="body">
       <ScrollTopButton :show="showScrollTopButton && !selectionMode" @click="scrollToTop" />
+      <TimelineMonthScrubber
+        v-if="viewMode === 'timeline' && !selectionMode && eventsStore.activeList.length > 0"
+        ref="eventsTimelineScrubberRef"
+        :months="timelineScrubMonths"
+        :enabled="isEventsActive && timelineScrubMonths.length > 0"
+        :get-section-el="() => eventsTimelineListRef ?? null"
+        :get-scroll-el="getScrollEl"
+      />
       <button
         v-if="!selectionMode"
         class="fab"
@@ -321,6 +330,7 @@ import EventCard from '@/components/events/EventCard.vue'
 import EventCountdownCard from '@/components/events/EventCountdownCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
+import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { createPageScrollRestore } from '@/composables/scroll'
 import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
@@ -349,6 +359,8 @@ const route = useRoute()
 const eventsStore = useEventsStore()
 const pageBodyRef = ref(null)
 const isEventsActive = ref(true)
+const eventsTimelineListRef = ref(null)
+const eventsTimelineScrubberRef = ref(null)
 const eventsDisplayReady = ref(false)
 const showDeleteConfirm = ref(false)
 const showSearch = ref(false)
@@ -367,6 +379,11 @@ let removeAndroidBackListener = null
 let lastDetailNavigationTime = 0
 
 function handleAndroidBackButton(event) {
+  if (eventsTimelineScrubberRef.value?.consumeBack?.()) {
+    event.preventDefault()
+    return
+  }
+
   if (selectionMode.value) {
     exitSelectionMode()
     event.preventDefault()
@@ -586,6 +603,23 @@ const groupedEvents = computed(() => {
     }
   }
   return result
+})
+
+/** 时间线侧边选月：仅含有效年月，与展示顺序一致 */
+const timelineScrubMonths = computed(() => {
+  const list = []
+  for (const yearGroup of groupedEventsByYear.value) {
+    for (const monthGroup of yearGroup.months) {
+      if (monthGroup.isUndated || !monthGroup.yearMonth) continue
+      list.push({
+        yearMonth: monthGroup.yearMonth,
+        year: monthGroup.year,
+        month: monthGroup.month,
+        count: monthGroup.count
+      })
+    }
+  }
+  return list
 })
 
 // Derive sortedEvents from groupedEvents for backward compatibility
