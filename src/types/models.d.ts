@@ -111,8 +111,14 @@ export interface GoodsItem {
   sellDate: string
   unitSaleInfoList: (UnitSaleInfo | null)[]
   statusTimeline: StatusTimelineEntry[]
-  /** 主列表自定义排序序号（0=未手排）；收藏/心愿各自在列表内比较 */
-  sortOrder: number
+  /** 主列表手动序 JSON：custom=自定义完整序；createdAt/acquiredAt/name/price=各模式同键次级序 */
+  manualOrders: {
+    custom?: number
+    createdAt?: number
+    acquiredAt?: number
+    name?: number
+    price?: number
+  }
   /** 本地软删除标记：trashed=1 的行 getItems 不返回，回收站通过 Preferences 单独管理 */
   trashed: boolean
 }

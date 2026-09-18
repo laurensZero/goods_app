@@ -1865,16 +1865,16 @@ const reorderEnabled = computed(() =>
   && isHomeSortReorderable(sortMode.value)
 )
 
-/** 首次进入自定义时：若尚未手排过，把当前展示顺序固化为 sortOrder，避免列表突然变序 */
+/** 首次进入自定义时：若尚未手排过，把当前展示顺序固化为 manualOrders.custom */
 async function seedCustomSortOrderFromCurrentList() {
-  const hasManual = store.list.some((item) => !item.isWishlist && Number(item.sortOrder) > 0)
+  const hasManual = store.list.some((item) => !item.isWishlist && Number(item.manualOrders?.custom) > 0)
   if (hasManual) return
   if (searchIsFiltering.value) return
   const ids = goodsList.value
     .filter((g) => g && g._type !== 'group' && g.id)
     .map((g) => String(g.id))
   if (ids.length === 0) return
-  await store.reorderGoods(ids)
+  await store.reorderGoods(ids, 'custom')
 }
 
 function setSortModeWithSeed(mode) {
@@ -1913,7 +1913,7 @@ async function confirmRegenerateCustomSort() {
   })
   if (ids.length === 0) return
   try {
-    await store.reorderGoods(ids)
+    await store.reorderGoods(ids, 'custom')
     setSortMode('custom')
   } catch (e) {
     console.error('[home] regenerate custom sort failed:', e)
@@ -1925,11 +1925,11 @@ async function reverseCustomSortOrder() {
   const displayIds = goodsList.value
     .filter((g) => g && g._type !== 'group' && g.id)
     .map((g) => String(g.id))
-  const ids = buildReverseGoodsSortIds(store.list, false, displayIds)
+  const ids = buildReverseGoodsSortIds(store.list, false, displayIds, 'custom')
   if (ids.length < 2) return
   triggerSortAnimation()
   try {
-    await store.reorderGoods(ids)
+    await store.reorderGoods(ids, 'custom')
   } catch (e) {
     console.error('[home] reverse custom sort failed:', e)
   }
@@ -1966,7 +1966,8 @@ const {
     return getGoodsSortGroupKey
   },
   onCommit: async (ids) => {
-    await store.reorderGoods(ids)
+    const mode = sortMode.value === 'custom' ? 'custom' : sortMode.value
+    await store.reorderGoods(ids, mode)
   }
 })
 

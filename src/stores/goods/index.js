@@ -327,8 +327,8 @@ export const useGoodsStore = defineStore('goods', () => {
     return _markImagesAsRemote(preparedImagesByItemId, list, trashList)
   }
 
-  function reorderGoods(orderedGoodsIds) {
-    return _reorderGoods(orderedGoodsIds, list, autoPushGoods)
+  function reorderGoods(orderedGoodsIds, mode = 'custom') {
+    return _reorderGoods(orderedGoodsIds, list, autoPushGoods, mode)
   }
 
   return {

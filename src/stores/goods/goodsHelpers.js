@@ -243,6 +243,25 @@ function normalizeWishlistFlag(value) {
   return false
 }
 
+/** 手动序 JSON 的合法键：custom=自定义完整序，其余为各排序模式同键次级序 */
+export const MANUAL_ORDER_MODES = ['custom', 'createdAt', 'acquiredAt', 'name', 'price']
+
+/**
+ * @param {any} value
+ * @returns {Record<string, number>}
+ */
+export function normalizeManualOrders(value) {
+  /** @type {Record<string, number>} */
+  const out = {}
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return out
+  for (const mode of MANUAL_ORDER_MODES) {
+    if (value[mode] == null || value[mode] === '') continue
+    const n = Math.floor(Number(value[mode]))
+    if (Number.isFinite(n) && n >= 0) out[mode] = n
+  }
+  return out
+}
+
 function normalizeCollectStatus(value) {
   const str = String(value || '').trim()
   return VALID_COLLECT_STATUSES.has(str) ? str : '已拥有'
@@ -465,7 +484,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
     sellDate: isWishlist ? '' : normalizeSellDateValue(data.sellDate),
     unitSaleInfoList: isWishlist ? [] : normalizeUnitSaleInfoList(data.unitSaleInfoList, data.quantity),
     statusTimeline: normalizeStatusTimeline(data.statusTimeline),
-    sortOrder: Math.max(0, Math.floor(Number(data.sortOrder) || 0)),
+    manualOrders: normalizeManualOrders(data.manualOrders),
     trashed: normalizeBooleanFlag(data.trashed)
   }
 }

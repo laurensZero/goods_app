@@ -294,12 +294,38 @@ export const MIGRATIONS = [
   },
   {
     version: 18,
-    description: 'Add goods.sortOrder column for collection/wishlist manual order',
+    description: 'Legacy goods.sortOrder column (pre-manualOrders)',
     up: async (db) => {
-      // 主列表自定义排序：0=尚未手排；新建/翻转 isWishlist 时 append 到目标列表末尾
       const cols = await db.getTableColumns('goods')
       if (!cols.has('sortOrder')) {
         await db.run('ALTER TABLE goods ADD COLUMN sortOrder INTEGER DEFAULT 0')
+      }
+    }
+  },
+  {
+    version: 19,
+    description: 'Add goods.manualOrders JSON for all list manual sort modes',
+    up: async (db) => {
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('manualOrders')) {
+        await db.run("ALTER TABLE goods ADD COLUMN manualOrders TEXT DEFAULT '{}'")
+      }
+      // 旧内测包可能只有 sortOrder / customSortOrder：尽量回填到 manualOrders.custom
+      if (cols.has('customSortOrder') || cols.has('sortOrder')) {
+        await db.run(`
+          UPDATE goods
+          SET manualOrders = json_object(
+            'custom',
+            CASE
+              WHEN customSortOrder IS NOT NULL AND customSortOrder > 0 THEN customSortOrder
+              WHEN sortOrder IS NOT NULL AND sortOrder > 0 THEN sortOrder
+              ELSE 0
+            END
+          )
+          WHERE manualOrders IS NULL OR manualOrders = '' OR manualOrders = '{}'
+        `).catch(async () => {
+          // json_object 不可用时忽略回填，业务会重新播种
+        })
       }
     }
   },

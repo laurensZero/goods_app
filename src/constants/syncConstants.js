@@ -11,13 +11,16 @@ export const MANIFEST_VERSION = 1
 // 白名单变化）使旧版本拉取时会丢弃新字段时，必须 bump 此版本。App 升级（APK 与 capgo OTA
 // 都会更新 JS bundle，此常量随之变化）后，若持久化版本低于当前版本，首次同步/拉取会强制全量
 // 重拉并按 >= 重放相等时间戳的远端行，回填旧版本提前吸收（字段被丢弃、水位线已越过）的字段。
-// v4: statusTimeline 条目新增 unitIndexes（多件归属数组），旧版 normalizeStatusTimeline 会丢弃
-// v5: events.tracks 条目新增 note（曲目备注），旧版 normalizeTracks 会丢弃
-// v6: 收藏品待补邮/待补款复用 saleAt/saleReminder* 字段；旧版 normalizeGoodsInput 对非心愿单
-//     行会清空这三项，升级后需全量回填才能恢复本地副本
-// v7: 新增 batch_drafts 同步域（批量添加草稿）；旧版 pull 完全不认识该表，会丢行并推水位线
-// v8: goods.sortOrder 主列表手动排序；旧版 normalizeGoodsInput 不认识该字段会丢弃并推水位线
-export const SYNC_SCHEMA_VERSION = 8
+// v4: statusTimeline.unitIndexes；v5: events.tracks.note
+// v6: 收藏待补邮/待补款复用 saleAt/saleReminder*
+// v7: batch_drafts 同步域
+// v8: （内测中间态，未上架）曾短暂规划 goods.sortOrder / customSortOrder 多列
+// v9: goods.manualOrders JSON —— 主列表手动序唯一字段
+//     { custom, createdAt, acquiredAt, name, price }
+//     发布前：supabase/supabase-migration-goods-manual-orders.sql
+//     + setup.sql 中含 manual_orders 的 sync_push。
+//     正式用户无中间列；守卫测试要求 BUSINESS_KEYS 变更时数值必须大于上次 bump。
+export const SYNC_SCHEMA_VERSION = 9
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

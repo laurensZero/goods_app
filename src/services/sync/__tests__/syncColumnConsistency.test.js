@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { camelToSnake } from '@/utils/sync/columnMapping'
 import {
   EVENT_BUSINESS_KEYS, EVENT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
-  GOODS_BUSINESS_KEYS, GOODS_COLS, GOODS_SELECT_COLS,
+  GOODS_BUSINESS_KEYS, GOODS_COLS, GOODS_SELECT_COLS, GOODS_JSON_OBJECT_KEYS,
   RECHARGE_BUSINESS_KEYS, RECHARGE_COLS, RECHARGE_SELECT_COLS,
   GOODS_GROUP_BUSINESS_KEYS, GOODS_GROUP_COLS, GOODS_GROUP_SELECT_COLS,
   GOODS_GROUP_ITEM_BUSINESS_KEYS, GOODS_GROUP_ITEM_COLS, GOODS_GROUP_ITEM_SELECT_COLS,
@@ -35,7 +35,7 @@ const TABLES = [
     cols: GOODS_COLS,
     selectCols: GOODS_SELECT_COLS,
     // 与改造前手写串逐字一致的现网值（golden）
-    goldenSelect: 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, shipping_events, sell_price, sell_platform, sell_fee, sell_date, unit_sale_info_list, status_timeline, sort_order, trashed, updated_at, user_id'
+    goldenSelect: 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, shipping_events, sell_price, sell_platform, sell_fee, sell_date, unit_sale_info_list, status_timeline, manual_orders, trashed, updated_at, user_id'
   },
   {
     name: 'recharge_records',
@@ -122,6 +122,11 @@ describe('sync column spec consistency', () => {
     const localOnlyKeys = ['coverImage', 'updatedAt', 'trashed']
     const normalizedKeys = Object.keys(normalizeGoodsInput({})).filter((key) => !localOnlyKeys.includes(key))
     expect([...normalizedKeys].sort()).toEqual([...GOODS_BUSINESS_KEYS].sort())
+  })
+
+  it('GOODS_JSON_OBJECT_KEYS is manualOrders only', () => {
+    expect(GOODS_JSON_OBJECT_KEYS).toEqual(['manualOrders'])
+    expect(GOODS_BUSINESS_KEYS).toContain('manualOrders')
   })
 
   it('normalizeBatchDraft whitelist matches the batch_drafts business keys', () => {

@@ -5,8 +5,9 @@ import { toCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/sync/syncRetry'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
+  GOODS_JSON_OBJECT_KEYS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS, BATCH_DRAFT_SELECT_COLS, BATCH_DRAFT_JSON_KEYS,
-  fetchAllRows, normalizeTimestamp, safeParseJsonArray, parsePresetsField
+  fetchAllRows, normalizeTimestamp, safeParseJsonArray, safeParseJsonObject, parsePresetsField
 } from './helpers'
 
 // events 行的 JSONB 数组列统一解析（coverImageData 是对象，单独处理）。
@@ -252,6 +253,9 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       item.unitCharacterList = safeParseJsonArray(item.unitCharacterList)
       item.unitCollectStatusList = safeParseJsonArray(item.unitCollectStatusList)
       item.unitSaleInfoList = safeParseJsonArray(item.unitSaleInfoList)
+      for (const key of GOODS_JSON_OBJECT_KEYS) {
+        item[key] = safeParseJsonObject(item[key])
+      }
       return item
     }
 

@@ -6,6 +6,12 @@ import Sortable from 'sortablejs'
  * 用 SortableJS 做收藏/心愿主列表网格重排。
  * 支持 custom 全量重排，以及 createdAt/acquiredAt 下「同一天内」小范围重排。
  *
+ * 手机端（如小米旗舰）掉帧主因：
+ * - 重排时关掉虚拟列表 → 整表 GoodsCard 进 DOM
+ * - forceFallback 拖影 + 每次 onChoose/onStart 扫全表改 style
+ * - 卡片 transition/阴影在拖动中持续触发合成
+ * 因此：自定义模式不做 O(n) 置灰；拖动中关动画；触控加短 delay 防和滚动手势抢。
+ *
  * @param {object} options
  * @param {() => HTMLElement | null} options.getGridEl
  * @param {() => Array<{ id: string, _type?: string }>} options.getItems 完整展示序列
@@ -20,6 +26,7 @@ export function useGoodsSortable(options) {
   /** @type {import('sortablejs').Sortable | null} */
   let sortable = null
   let syncing = false
+  let markedGroupId = false
 
   function readGoodsOrderFromDom(gridEl) {
     /** @type {string[]} */
@@ -53,21 +60,20 @@ export function useGoodsSortable(options) {
     const groupKeyFn = getDayKey?.()
     const gridEl = getGridEl()
     if (!gridEl) return
-    const nodes = gridEl.querySelectorAll('.goods-card[data-goods-id]')
 
+    // 自定义：全部可放。避免拖动起点扫全表改 style（大列表手机上明显掉帧）
     if (!groupKeyFn) {
-      // 自定义排序：全部可放，不置灰
-      document.body.classList.remove('goods-reorder-has-group')
-      nodes.forEach((n) => {
-        n.classList.remove('goods-sortable-drop-ok', 'goods-sortable-drop-no')
-        n.style.filter = ''
-        n.style.opacity = ''
-      })
+      if (markedGroupId) {
+        document.body.classList.remove('goods-reorder-has-group')
+        markedGroupId = false
+      }
       return
     }
 
-    const key = groupKeyFn(String(draggedId))
+    markedGroupId = true
     document.body.classList.add('goods-reorder-has-group')
+    const key = groupKeyFn(String(draggedId))
+    const nodes = gridEl.querySelectorAll('.goods-card[data-goods-id]')
 
     nodes.forEach((n) => {
       const id = String(n.getAttribute('data-goods-id') || '')
@@ -80,7 +86,6 @@ export function useGoodsSortable(options) {
         n.style.opacity = ''
         return
       }
-      // 行内样式兜底，避免注入 CSS 未刷新时看不到置灰
       if (ok) {
         n.style.filter = ''
         n.style.opacity = ''
@@ -93,8 +98,11 @@ export function useGoodsSortable(options) {
 
   function clearDropTargets() {
     document.body.classList.remove('goods-reorder-has-group')
+    markedGroupId = false
     const gridEl = getGridEl()
     if (!gridEl) return
+    // 无组限制时通常没写过 drop 样式，跳过多余全表清理
+    if (!getDayKey?.()) return
     gridEl.querySelectorAll('.goods-card[data-goods-id]').forEach((n) => {
       n.classList.remove('goods-sortable-drop-ok', 'goods-sortable-drop-no')
       n.style.filter = ''
@@ -122,8 +130,8 @@ export function useGoodsSortable(options) {
       draggable: '.goods-card',
       filter: '.goods-list-spacer',
       preventOnFilter: false,
-      animation: 150,
-      easing: 'cubic-bezier(0.2, 0, 0, 1)',
+      // 动画会和整表重排叠加，手机上拖动更卡
+      animation: 0,
       forceFallback: true,
       fallbackOnBody: true,
       fallbackClass: 'goods-sortable-fallback',
@@ -133,6 +141,14 @@ export function useGoodsSortable(options) {
       dataIdAttr: 'data-goods-id',
       swapThreshold: 0.65,
       invertSwap: false,
+      scroll: true,
+      scrollSensitivity: 48,
+      scrollSpeed: 14,
+      bubbleScroll: true,
+      // 触控短延迟：区分「拖把手」和「想滚列表」，减少误触与手势冲突
+      delayOnTouchOnly: true,
+      delay: 60,
+      touchStartThreshold: 6,
       onChoose(evt) {
         try { document.body.classList.add('goods-reorder-dragging') } catch {}
         const draggedId = String(evt?.item?.getAttribute?.('data-goods-id') || '')
@@ -202,12 +218,19 @@ body.goods-reorder-dragging,
 body.goods-reorder-dragging * {
   user-select: none !important;
   -webkit-user-select: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 body.goods-reorder-dragging {
   cursor: grabbing !important;
 }
 body.goods-reorder-dragging .goods-card {
   transition: none !important;
+  /* 拖动中降低合成压力 */
+  box-shadow: none !important;
+}
+body.goods-reorder-dragging .goods-card img {
+  pointer-events: none !important;
 }
 /* 有组限制时：不可放入的卡片置灰（行内 filter 为主，class 兜底） */
 body.goods-reorder-dragging.goods-reorder-has-group .goods-card.goods-sortable-drop-no {
@@ -223,13 +246,16 @@ body.goods-reorder-dragging.goods-reorder-has-group .group-card {
   opacity: 0.28 !important;
 }
 .goods-sortable-fallback {
-  opacity: 0.96 !important;
+  opacity: 0.92 !important;
   filter: none !important;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28) !important;
-  transform: scale(1.04);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22) !important;
+  transform: scale(1.03);
   cursor: grabbing !important;
   z-index: 1000 !important;
   pointer-events: none !important;
+  /* fallback 用合成层，减轻拖动时主线程重排 */
+  will-change: transform;
+  contain: layout style paint;
 }
 .goods-sortable-ghost {
   opacity: 0.2;

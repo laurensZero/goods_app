@@ -94,9 +94,18 @@ function compareName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hans-CN')
 }
 
-function parseSortOrder(item) {
-  const n = Number(item?.sortOrder)
-  return Number.isFinite(n) ? n : 0
+/**
+ * manualOrders[mode]；缺省 0
+ * @param {object} item
+ * @param {string} mode
+ */
+function parseManualOrder(item, mode) {
+  const map = item?.manualOrders
+  if (map && typeof map === 'object') {
+    const n = Number(map[mode])
+    if (Number.isFinite(n)) return n
+  }
+  return 0
 }
 
 export function sortHomeGoodsList(list, sortMode, sortDirection) {
@@ -106,16 +115,14 @@ export function sortHomeGoodsList(list, sortMode, sortDirection) {
 
   sorted.sort((a, b) => {
     if (normalizedSortMode === 'custom') {
-      // 手动序固定升序；组卡片等无 sortOrder 的项按 0 处理并靠后置稳定排序
-      return (parseSortOrder(a) - parseSortOrder(b))
+      return (parseManualOrder(a, 'custom') - parseManualOrder(b, 'custom'))
         || (Number(b?.updatedAt || b?.createdTime || 0) - Number(a?.updatedAt || a?.createdTime || 0))
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
     if (normalizedSortMode === 'name') {
-      // 主序：名称；同名内按 sortOrder
       return compareName(a, b) * directionFactor
-        || (parseSortOrder(a) - parseSortOrder(b))
+        || (parseManualOrder(a, 'name') - parseManualOrder(b, 'name'))
         || (parseAddedTime(b) - parseAddedTime(a))
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
@@ -123,26 +130,23 @@ export function sortHomeGoodsList(list, sortMode, sortDirection) {
     if (normalizedSortMode === 'price') {
       const priceA = Number(a?.totalValueNumber || 0)
       const priceB = Number(b?.totalValueNumber || 0)
-      // 主序：价格；同价内按 sortOrder
       return (priceA - priceB) * directionFactor
-        || (parseSortOrder(a) - parseSortOrder(b))
+        || (parseManualOrder(a, 'price') - parseManualOrder(b, 'price'))
         || (parseAddedTime(a) - parseAddedTime(b))
         || compareName(a, b)
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
     if (normalizedSortMode === 'acquiredAt') {
-      // 主序：购入日；同一天内按 sortOrder（手动小范围重排）
       return (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
-        || (parseSortOrder(a) - parseSortOrder(b))
+        || (parseManualOrder(a, 'acquiredAt') - parseManualOrder(b, 'acquiredAt'))
         || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
         || compareName(a, b)
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
-    // createdAt：主序添加时间；同一天内按 sortOrder
     return (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
-      || (parseSortOrder(a) - parseSortOrder(b))
+      || (parseManualOrder(a, 'createdAt') - parseManualOrder(b, 'createdAt'))
       || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
       || compareName(a, b)
       || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
@@ -156,7 +160,7 @@ export function isHomeSortDirectionLocked(sortMode) {
   return normalizeHomeSortMode(sortMode) === 'custom'
 }
 
-/** 日期/名称/价格主排序 + 同组 sortOrder 次级：允许在把手拖拽的排序模式 */
+/** 日期/名称/价格主排序 + 同模式 manualOrders 次级：允许在把手拖拽的排序模式 */
 export function isHomeSortReorderable(sortMode) {
   const mode = normalizeHomeSortMode(sortMode)
   return mode === 'custom'
@@ -170,11 +174,8 @@ export function isHomeSortReorderable(sortMode) {
  * 「同组才能互换」的分组键。
  * - createdAt/acquiredAt：同一天
  * - name：同名
- * - price：同价（totalValueNumber）
- * - custom：返回 null，表示不限制
- * @param {object} item
- * @param {string} sortMode
- * @returns {string | null}
+ * - price：同价
+ * - custom：null（不限制）
  */
 export function getHomeSortGroupKey(item, sortMode) {
   const mode = normalizeHomeSortMode(sortMode)
