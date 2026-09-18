@@ -261,14 +261,9 @@ export const useSyncStore = defineStore('sync', () => {
   }
 
   // ── Service wiring ──
-
-  const {
-    buildSyncPayload, buildSyncData, buildRechargeSyncData,
-    buildBatchDraftSyncPayload,
-    buildEventSyncPayload, buildEventSyncData,
-    buildComparableSyncStateFromData, buildComparableRechargeStateFromData,
-    buildComparableEventStateFromData, buildManifest
-  } = createSyncPayloadService({
+  // payloadService 必须整对象透传 createSyncPayloadService 的返回值。
+  // 2026-09 曾手工拼装漏挂 buildBatchDraftSyncPayload，导致草稿推不上云。
+  const payloadService = createSyncPayloadService({
     deviceIdRef: deviceId, imageCloudIdRef: ref(''), lastSyncedAtRef: lastSyncedAt,
     buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore, useGoodsGroupStore,
     readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
@@ -298,17 +293,10 @@ export const useSyncStore = defineStore('sync', () => {
     useEventsStore,
     useGoodsGroupStore,
     shouldApplyRemoteItem,
-    buildRechargeSyncData, buildEventSyncData, getLatestLocalModifiedAt
+    buildRechargeSyncData: payloadService.buildRechargeSyncData,
+    buildEventSyncData: payloadService.buildEventSyncData,
+    getLatestLocalModifiedAt
   })
-
-  // TODO: payloadService 改为直接透传 createSyncPayloadService 的完整返回值，勿手工列方法。
-  // 2026-09 漏挂 buildBatchDraftSyncPayload 曾导致「payload.buildBatchDraftSyncPayload is not a function」、草稿推不上云。
-  const payloadService = {
-    buildSyncPayload, buildRechargeSyncData, buildBatchDraftSyncPayload,
-    buildEventSyncPayload, buildManifest,
-    buildSyncData, buildEventSyncData,
-    buildComparableSyncStateFromData, buildComparableRechargeStateFromData, buildComparableEventStateFromData
-  }
 
   const orchestrator = createSyncOrchestrator({
     backend: activeBackend, payload: payloadService, image: imageService, conflict: conflictService,
@@ -394,6 +382,8 @@ export const useSyncStore = defineStore('sync', () => {
       ...(eventsStore.list || []).map((item) => Number(item?.updatedAt) || 0),
       ...(goodsGroupStore.groupList || []).map((item) => Number(item?.updatedAt) || 0),
       ...(goodsGroupStore.groupItemList || []).map((item) => Number(item?.updatedAt) || 0)
+      // batch_drafts 不计入：无 store 快照，避免 getLatestLocalModifiedAt 做异步 IO；
+      // 草稿脏域走 dirtyDomains / forcePush，不依赖本水位线
     ]
     let latest = 0
     for (const ts of timestamps) { if (ts > latest) latest = ts }
