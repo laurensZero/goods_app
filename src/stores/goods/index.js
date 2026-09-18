@@ -49,6 +49,7 @@ import {
   createFilteredViewLists
 } from '@/stores/goods/goodsViewList'
 import * as crud from '@/stores/goods/goodsCrud'
+import { reorderGoods as _reorderGoods } from '@/stores/goods/goodsOrder'
 
 export const useGoodsStore = defineStore('goods', () => {
   /** @type {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} */
@@ -326,6 +327,10 @@ export const useGoodsStore = defineStore('goods', () => {
     return _markImagesAsRemote(preparedImagesByItemId, list, trashList)
   }
 
+  function reorderGoods(orderedGoodsIds) {
+    return _reorderGoods(orderedGoodsIds, list, autoPushGoods)
+  }
+
   return {
     list,
     trashList,
@@ -365,6 +370,7 @@ export const useGoodsStore = defineStore('goods', () => {
     importTrashBackup,
     updateTrashBackup,
     markImagesAsRemote,
+    reorderGoods,
     refreshList
   }
 })

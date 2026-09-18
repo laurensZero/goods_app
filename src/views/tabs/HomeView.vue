@@ -75,7 +75,9 @@
         :group-display-options="groupDisplayOptions"
         @open-daily-rec="showDailyRec = true"
         @toggle-sort="toggleSortDirection"
-        @set-sort-mode="setSortMode"
+        @set-sort-mode="setSortModeWithSeed"
+        @regenerate-custom-sort="onRegenerateCustomSort"
+        @reverse-custom-sort="reverseCustomSortOrder"
         @toggle-timeline="toggleTimelineMode"
         @set-density="setDisplayDensityWithFlip"
         @set-group-display-mode="setGroupDisplayMode"
@@ -91,9 +93,9 @@
           :items="visibleDisplayList"
           :density="displayDensity"
           :grid-style="goodsGridStyle"
-          :index-offset="visibleGoodsStartIndex"
-          :before-spacer-height="visibleGoodsHeadSpacerHeight"
-          :after-spacer-height="visibleGoodsTailSpacerHeight"
+          :index-offset="reorderFullList ? 0 : visibleGoodsStartIndex"
+          :before-spacer-height="reorderFullList ? 0 : visibleGoodsHeadSpacerHeight"
+          :after-spacer-height="reorderFullList ? 0 : visibleGoodsTailSpacerHeight"
           :transitioning="isDensityAnimating"
           :is-sort-animating="isSortAnimating"
           :add-motion-snapshot="addMotionSnapshot"
@@ -104,6 +106,7 @@
           :selected-ids="selectedIds"
           :window-width="windowWidth"
           :filter-transition-active="filterTransitionActive"
+          :reorder-enabled="reorderEnabled"
           @long-press="enterSelectionMode"
           @toggle-select="toggleSelect"
           @open-detail="openDetail"
@@ -188,6 +191,14 @@
       :description="t('common.moveToTrashDesc')"
       :confirm-text="t('goods.delete.moveToTrash')"
       @confirm="confirmDelete"
+    />
+
+    <DangerConfirmDialog
+      v-model:show="showRegenerateCustomConfirm"
+      :title="t('home.sort.regenerateCustomTitle')"
+      :description="t('home.sort.regenerateCustomDesc', { method: regenerateCustomBaseLabel })"
+      :confirm-text="t('home.sort.regenerateCustomConfirm')"
+      @confirm="confirmRegenerateCustomSort"
     />
 
     <GoodsBatchEditSheet
@@ -298,6 +309,7 @@ import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useGoodsSortable, GOODS_SORTABLE_CSS } from '@/composables/goods/useGoodsSortable'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
@@ -306,7 +318,9 @@ import { useDensityGridViewport } from '@/composables/home/useDensityGridViewpor
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
-import { createHomeSortOptions, sortHomeGoodsList } from '@/utils/goods/homeSort'
+import { createHomeSortOptions, sortHomeGoodsList, isHomeSortReorderable, getHomeSortGroupKey } from '@/utils/goods/homeSort'
+import { buildCustomSortRegenerateIds, getCustomSortRegenerateBaseMode } from '@/utils/goods/customSortRegenerate'
+import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
 import { useTimelineMetrics } from '@/composables/home/useTimelineMetrics'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
@@ -509,6 +523,7 @@ const {
   setDisplayDensity,
   toggleTimelineMode,
   toggleSortDirection,
+  triggerSortAnimation,
   setSortMode,
   setGroupDisplayMode,
   restoreHomePreferences
@@ -1238,6 +1253,7 @@ function handleAndroidBackButton(event) {
   }
 
   if (selectionMode.value) {
+    try { destroyGoodsSortable() } catch {}
     exitSelectionMode()
     event.preventDefault()
   }
@@ -1518,16 +1534,25 @@ const displayList = computed(() => {
   }
 
   // When chronological, mix groups into the list following the main sort
+  // custom 模式下组无 goods.sortOrder，不混排，等同置顶
+  if (sortMode.value === 'custom') {
+    return [
+      ...groupViewItems.value,
+      ...goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
+    ]
+  }
   const groups = groupViewItems.value.map(g => ({ ...g, _isGroupView: true }))
   const ungroupedGoods = goodsList.value.filter(g => !groupedGoodsIds.value.has(g.id))
   const mixed = [...groups, ...ungroupedGoods]
   return sortHomeGoodsList(mixed, sortMode.value, sortDirection.value)
 })
-const visibleDisplayList = computed(() =>
-  displayDensity.value === 'timeline'
-    ? goodsList.value
-    : displayList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
-)
+const reorderFullList = ref(false)
+const visibleDisplayList = computed(() => {
+  if (displayDensity.value === 'timeline') return goodsList.value
+  // Sortable 重排时渲染完整列表，避免虚拟窗口导致只能在可见项内交换
+  if (reorderFullList.value) return displayList.value
+  return displayList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
+})
 const GROUP_RESTORE_KEY = '__groupRestore'
 const showGroupFolder = ref(false)
 const groupFolderSheetRef = ref(null)
@@ -1833,8 +1858,132 @@ const {
   restoreScrollTop: applyScrollPosition
 })
 
+const reorderEnabled = computed(() =>
+  selectionMode.value
+  && !searchIsFiltering.value
+  && displayDensity.value !== 'timeline'
+  && isHomeSortReorderable(sortMode.value)
+)
+
+/** 首次进入自定义时：若尚未手排过，把当前展示顺序固化为 sortOrder，避免列表突然变序 */
+async function seedCustomSortOrderFromCurrentList() {
+  const hasManual = store.list.some((item) => !item.isWishlist && Number(item.sortOrder) > 0)
+  if (hasManual) return
+  if (searchIsFiltering.value) return
+  const ids = goodsList.value
+    .filter((g) => g && g._type !== 'group' && g.id)
+    .map((g) => String(g.id))
+  if (ids.length === 0) return
+  await store.reorderGoods(ids)
+}
+
+function setSortModeWithSeed(mode) {
+  if (mode === 'custom') {
+    void seedCustomSortOrderFromCurrentList()
+  }
+  setSortMode(mode)
+}
+
+const showRegenerateCustomConfirm = ref(false)
+const regenerateCustomPayload = ref({ baseMode: 'createdAt', direction: 'desc' })
+
+function onRegenerateCustomSort(payload) {
+  regenerateCustomPayload.value = {
+    baseMode: getCustomSortRegenerateBaseMode(payload?.baseMode || 'createdAt'),
+    direction: payload?.direction === 'asc' ? 'asc' : 'desc'
+  }
+  showRegenerateCustomConfirm.value = true
+}
+
+const regenerateCustomBaseLabel = computed(() => {
+  const { baseMode, direction } = regenerateCustomPayload.value
+  const option = translatedSortOptions.value.find((item) => item.value === baseMode)
+  const modeLabel = option?.label || t('home.sort.createdAt')
+  const dirLabel = direction === 'asc' ? option?.ascLabel : option?.descLabel
+  return dirLabel ? `${modeLabel} · ${dirLabel}` : modeLabel
+})
+
+async function confirmRegenerateCustomSort() {
+  const { baseMode, direction } = regenerateCustomPayload.value
+  // 必须用 view 列表（含 acquiredTime/totalValueNumber），store.list 原始行没有这些排序字段
+  const ids = buildCustomSortRegenerateIds(store.collectionViewList, {
+    isWishlist: false,
+    baseMode,
+    sortDirection: direction
+  })
+  if (ids.length === 0) return
+  try {
+    await store.reorderGoods(ids)
+    setSortMode('custom')
+  } catch (e) {
+    console.error('[home] regenerate custom sort failed:', e)
+  }
+}
+
+async function reverseCustomSortOrder() {
+  if (sortMode.value !== 'custom') return
+  const displayIds = goodsList.value
+    .filter((g) => g && g._type !== 'group' && g.id)
+    .map((g) => String(g.id))
+  const ids = buildReverseGoodsSortIds(store.list, false, displayIds)
+  if (ids.length < 2) return
+  triggerSortAnimation()
+  try {
+    await store.reorderGoods(ids)
+  } catch (e) {
+    console.error('[home] reverse custom sort failed:', e)
+  }
+}
+
+function getGoodsSortGroupKey(id) {
+  const mode = sortMode.value
+  if (mode === 'custom') return null
+  const map = goodsById.value || new Map()
+  const item = map.get(id) || store.list.find((g) => g.id === id) || null
+  return getHomeSortGroupKey(item || { id }, mode)
+}
+
+if (typeof document !== 'undefined') {
+  // 始终刷新样式，避免 HMR 后仍是旧 CSS
+  let styleEl = document.getElementById('goods-sortable-css')
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = 'goods-sortable-css'
+    document.head.appendChild(styleEl)
+  }
+  styleEl.textContent = GOODS_SORTABLE_CSS
+}
+
+const {
+  sync: syncGoodsSortable,
+  destroy: destroyGoodsSortable
+} = useGoodsSortable({
+  getGridEl: () => goodsGridSectionRef.value?.goodsListEl?.value || goodsGridSectionRef.value?.goodsListEl || goodsGridSectionRef.value?.$el || null,
+  getItems: () => displayList.value,
+  canReorder: () => reorderEnabled.value,
+  getDayKey: () => {
+    if (sortMode.value === 'custom') return null
+    return getGoodsSortGroupKey
+  },
+  onCommit: async (ids) => {
+    await store.reorderGoods(ids)
+  }
+})
+
+watch(reorderEnabled, async (enabled) => {
+  reorderFullList.value = enabled
+  if (!enabled) {
+    destroyGoodsSortable()
+    return
+  }
+  await nextTick()
+  syncGoodsSortable(true)
+}, { immediate: false })
+
 watch(selectionMode, async (active) => {
   if (!active) {
+    reorderFullList.value = false
+    destroyGoodsSortable()
     selectionHeaderTop.value = 0
     return
   }

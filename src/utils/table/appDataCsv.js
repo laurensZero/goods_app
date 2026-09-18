@@ -41,7 +41,7 @@ export const CSV_SCHEMAS = {
     'coverImage', 'images', 'tracks', 'note',
     'collectStatus', 'shippingFee',
     'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList',
-    'statusTimeline', 'updatedAt'
+    'statusTimeline', 'sortOrder', 'updatedAt'
   ],
   trash: [
     'id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags',
@@ -51,7 +51,7 @@ export const CSV_SCHEMAS = {
     'coverImage', 'images', 'tracks', 'note',
     'collectStatus', 'shippingFee',
     'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList',
-    'statusTimeline', 'deletedAt', 'updatedAt'
+    'statusTimeline', 'sortOrder', 'deletedAt', 'updatedAt'
   ],
   events: [
     'id', 'name', 'type', 'startDate', 'endDate', 'location', 'city',

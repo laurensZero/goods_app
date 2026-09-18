@@ -37,7 +37,7 @@
         />
         <GoodsCard
           v-else
-          v-memo="[item, density, selectionMode, selectedIds?.has?.(item.id) ?? false, cardMotionStyles[item.id]]"
+          v-memo="[item, density, selectionMode, selectedIds?.has?.(item.id) ?? false, cardMotionStyles[item.id], reorderEnabled]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :class="{ 'goods-card-enter': filterTransitionActive }"
           :item="item"
@@ -50,6 +50,7 @@
           :data-scroll-index="index + indexOffset"
           :selected="selectedIds?.has?.(item.id) ?? false"
           :selection-mode="selectionMode"
+          :reorder-enabled="reorderEnabled && item._type !== 'group'"
           @long-press="emit('long-press', item.id)"
           @toggle-select="emit('toggle-select', item.id)"
           @open-detail="(payload) => emit('open-detail', payload || item.id)"
@@ -136,6 +137,10 @@ const props = defineProps({
     default: 0
   },
   filterTransitionActive: {
+    type: Boolean,
+    default: false
+  },
+  reorderEnabled: {
     type: Boolean,
     default: false
   }

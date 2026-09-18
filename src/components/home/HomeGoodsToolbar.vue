@@ -39,8 +39,9 @@
           :class="[
             'sort-toggle',
             {
-              'sort-toggle--asc': sortDirection === 'asc',
-              'sort-toggle--animating': isSortAnimating
+              'sort-toggle--asc': showSortAscVisual,
+              'sort-toggle--animating': isSortAnimating,
+              'sort-toggle--locked': sortDirectionLocked
             }
           ]"
           :aria-label="sortButtonLabel"
@@ -112,7 +113,13 @@
           <p class="sort-sheet__label">{{ t('home.toolbar.sortMethod') }}</p>
           <h3 class="sort-sheet__title">{{ currentSortOption.label }}</h3>
         </div>
-        <button class="sort-sheet__dir-btn" type="button" @click="handleDirectionToggle">
+        <button
+          class="sort-sheet__dir-btn"
+          type="button"
+          :class="{ 'sort-sheet__dir-btn--locked': sortDirectionLocked }"
+          :disabled="sortDirectionLocked"
+          @click="handleDirectionToggle"
+        >
           {{ currentDirectionLabel }}
         </button>
       </div>
@@ -123,11 +130,20 @@
           :key="option.value"
           type="button"
           :class="['sort-sheet__option', { 'sort-sheet__option--active': sortMode === option.value }]"
-          @click="selectSortMode(option.value)"
+          @click="handleSortOptionClick(option.value)"
+          @touchstart.passive="startSortOptionLongPress(option.value)"
+          @touchend="cancelSortOptionLongPress"
+          @touchcancel="cancelSortOptionLongPress"
+          @mousedown.left="startSortOptionLongPress(option.value)"
+          @mouseup="cancelSortOptionLongPress"
+          @mouseleave="cancelSortOptionLongPress"
+          @contextmenu.prevent="handleSortOptionContextMenu(option.value)"
         >
           <span class="sort-sheet__option-name">{{ option.label }}</span>
           <span class="sort-sheet__option-meta">
-            {{ sortDirection === 'asc' ? option.ascLabel : option.descLabel }}
+            {{ (sortMode === 'custom' || option.value === 'custom' || sortDirectionLocked)
+              ? (option.ascLabel || option.descLabel)
+              : (sortDirection === 'asc' ? option.ascLabel : option.descLabel) }}
           </span>
         </button>
       </div>
@@ -151,12 +167,72 @@
       </div>
     </div>
   </AppSheet>
+
+  <AppSheet
+    v-model="showRegenerateSheet"
+    placement="auto"
+    sheet-class="sort-sheet"
+  >
+    <div class="sort-sheet__panel">
+      <div class="sort-sheet__head">
+        <div>
+          <p class="sort-sheet__label">{{ t('home.sort.regenerateCustomTitle') }}</p>
+          <h3 class="sort-sheet__title">
+            {{ regenerateStep === 'mode'
+              ? t('home.sort.regenerateCustomPickBase')
+              : t('home.sort.regenerateCustomPickDirection') }}
+          </h3>
+        </div>
+        <button
+          v-if="regenerateStep === 'direction'"
+          class="sort-sheet__dir-btn"
+          type="button"
+          @click="regenerateStep = 'mode'"
+        >
+          {{ t('home.sort.regenerateCustomBack') }}
+        </button>
+      </div>
+
+      <div v-if="regenerateStep === 'mode'" class="sort-sheet__options">
+        <button
+          v-for="option in regenerateBaseOptions"
+          :key="option.value"
+          type="button"
+          class="sort-sheet__option"
+          @click="pickRegenerateBase(option.value)"
+        >
+          <span class="sort-sheet__option-name">{{ option.label }}</span>
+          <span class="sort-sheet__option-meta">{{ t('home.sort.regenerateCustomNextDirection') }}</span>
+        </button>
+      </div>
+
+      <div v-else class="sort-sheet__options">
+        <button
+          type="button"
+          class="sort-sheet__option"
+          @click="pickRegenerateDirection('desc')"
+        >
+          <span class="sort-sheet__option-name">{{ pendingRegenerateOption?.descLabel || t('home.toolbar.desc') }}</span>
+          <span class="sort-sheet__option-meta">{{ pendingRegenerateOption?.label || '' }}</span>
+        </button>
+        <button
+          type="button"
+          class="sort-sheet__option"
+          @click="pickRegenerateDirection('asc')"
+        >
+          <span class="sort-sheet__option-name">{{ pendingRegenerateOption?.ascLabel || t('home.toolbar.asc') }}</span>
+          <span class="sort-sheet__option-meta">{{ pendingRegenerateOption?.label || '' }}</span>
+        </button>
+      </div>
+    </div>
+  </AppSheet>
 </template>
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const { t } = useI18n()
 
@@ -180,12 +256,19 @@ const props = defineProps({
   groupDisplayOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
 
 const showSortSheet = ref(false)
+const showRegenerateSheet = ref(false)
+const regenerateStep = ref('mode')
+const pendingRegenerateBaseMode = ref('')
+/** 自定义模式：点按 reverse 时对调加深的上下箭头 */
+const customVisualAsc = ref(false)
 const timelinePulsing = ref(false)
 let sortLongPressTimer = 0
 let suppressNextSortClick = false
+let sortOptionLongPressTimer = 0
+let suppressNextSortOptionClick = false
 let timelinePulseTimer = 0
 let timelinePulseRaf = 0
 let timelineToggleRaf = 0
@@ -232,11 +315,24 @@ const currentSortOption = computed(() =>
     descLabel: t('home.toolbar.desc')
   }
 )
+const sortDirectionLocked = computed(() => props.sortMode === 'custom')
+const showSortAscVisual = computed(() => (
+  sortDirectionLocked.value
+    ? customVisualAsc.value
+    : props.sortDirection === 'asc'
+))
 const currentDirectionLabel = computed(() => (
-  props.sortDirection === 'asc' ? currentSortOption.value.ascLabel : currentSortOption.value.descLabel
+  sortDirectionLocked.value
+    ? (currentSortOption.value.ascLabel || t('home.toolbar.asc'))
+    : (props.sortDirection === 'asc' ? currentSortOption.value.ascLabel : currentSortOption.value.descLabel)
 ))
 const hasMultipleSortOptions = computed(() => props.sortOptions.length > 1)
 const sortButtonLabel = computed(() => {
+  if (sortDirectionLocked.value) {
+    return hasMultipleSortOptions.value
+      ? `${currentSortOption.value.label} · ${t('home.sort.customClickReverse')}`
+      : `${currentSortOption.value.label} · ${t('home.sort.customClickReverse')}`
+  }
   const dir = props.sortDirection === 'asc' ? t('home.toolbar.asc') : t('home.toolbar.desc')
   return hasMultipleSortOptions.value
     ? `${currentSortOption.value.label}${dir}`
@@ -284,17 +380,116 @@ function handleSortClick() {
     suppressNextSortClick = false
     return
   }
+  if (sortDirectionLocked.value) {
+    // 自定义：点按 = 纯 reverse，并对调加深的上下箭头
+    customVisualAsc.value = !customVisualAsc.value
+    emit('reverse-custom-sort')
+    return
+  }
 
   emit('toggle-sort')
 }
 
 function handleDirectionToggle() {
+  if (sortDirectionLocked.value) return
   emit('toggle-sort')
 }
 
 function selectSortMode(value) {
+  if (value === 'custom') {
+    customVisualAsc.value = props.sortDirection === 'asc'
+  }
   emit('set-sort-mode', value)
   showSortSheet.value = false
+}
+
+function clearSortOptionLongPressTimer() {
+  if (!sortOptionLongPressTimer) return
+  window.clearTimeout(sortOptionLongPressTimer)
+  sortOptionLongPressTimer = 0
+}
+
+const regenerateBaseOptions = computed(() =>
+  (props.sortOptions || []).filter((option) => option?.value && option.value !== 'custom')
+)
+const pendingRegenerateOption = computed(() =>
+  regenerateBaseOptions.value.find((option) => option.value === pendingRegenerateBaseMode.value) || null
+)
+
+function resetRegenerateSheetState() {
+  regenerateStep.value = 'mode'
+  pendingRegenerateBaseMode.value = ''
+}
+
+function openRegenerateSheet() {
+  clearSortOptionLongPressTimer()
+  suppressNextSortOptionClick = true
+  showSortSheet.value = false
+  resetRegenerateSheetState()
+  showRegenerateSheet.value = true
+}
+
+function pickRegenerateBase(mode) {
+  pendingRegenerateBaseMode.value = mode
+  regenerateStep.value = 'direction'
+}
+
+function pickRegenerateDirection(direction) {
+  const baseMode = pendingRegenerateBaseMode.value
+  if (!baseMode) return
+  const nextDirection = direction === 'asc' ? 'asc' : 'desc'
+  customVisualAsc.value = nextDirection === 'asc'
+  showRegenerateSheet.value = false
+  emit('regenerate-custom-sort', {
+    baseMode,
+    direction: nextDirection
+  })
+  resetRegenerateSheetState()
+}
+
+useDialogBackButton(() => {
+  if (regenerateStep.value === 'direction') {
+    regenerateStep.value = 'mode'
+    return
+  }
+  showRegenerateSheet.value = false
+  resetRegenerateSheetState()
+}, showRegenerateSheet)
+
+function requestRegenerateCustomSort() {
+  openRegenerateSheet()
+}
+
+function startSortOptionLongPress(value) {
+  if (value !== 'custom') return
+  clearSortOptionLongPressTimer()
+  sortOptionLongPressTimer = window.setTimeout(() => {
+    sortOptionLongPressTimer = 0
+    requestRegenerateCustomSort()
+  }, LONG_PRESS_DELAY_MS)
+}
+
+function cancelSortOptionLongPress() {
+  clearSortOptionLongPressTimer()
+}
+
+function handleSortOptionClick(value) {
+  if (suppressNextSortOptionClick) {
+    suppressNextSortOptionClick = false
+    return
+  }
+  selectSortMode(value)
+}
+
+function handleSortOptionContextMenu(value) {
+  if (value !== 'custom') return
+  // 触摸长按时 timer 可能已打开 regenerate sheet，这里避免二次触发
+  if (showRegenerateSheet.value || !showSortSheet.value) {
+    clearSortOptionLongPressTimer()
+    suppressNextSortOptionClick = true
+    return
+  }
+  requestRegenerateCustomSort()
 }
 
 function selectGroupDisplayMode(value) {
@@ -304,6 +499,7 @@ function selectGroupDisplayMode(value) {
 
 onBeforeUnmount(() => {
   clearSortLongPressTimer()
+  clearSortOptionLongPressTimer()
   clearTimelinePulseRafs()
   if (timelinePulseTimer) {
     window.clearTimeout(timelinePulseTimer)

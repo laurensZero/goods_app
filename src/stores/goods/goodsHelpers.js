@@ -465,6 +465,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
     sellDate: isWishlist ? '' : normalizeSellDateValue(data.sellDate),
     unitSaleInfoList: isWishlist ? [] : normalizeUnitSaleInfoList(data.unitSaleInfoList, data.quantity),
     statusTimeline: normalizeStatusTimeline(data.statusTimeline),
+    sortOrder: Math.max(0, Math.floor(Number(data.sortOrder) || 0)),
     trashed: normalizeBooleanFlag(data.trashed)
   }
 }
