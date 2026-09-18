@@ -322,9 +322,12 @@ describe('mcp tool handlers', () => {
     expect(overview.collectionCount).toBe(2)
     expect(overview.wishlistCount).toBe(1)
     expect(overview.grandTotal).toBe(3)
-    // g1 有逐件价格 → 25+26=51；g2 无实付价按 0 计
+    // g1 有逐件价格 → 25+26=51；g2 无实付价按 0 计；自动套组成员仍逐件计入
     const cny = overview.estimatedSpend.find((/** @type {any} */ s) => s.currency === 'CNY')
     expect(cny.amount).toBe(51)
+    // 收藏套组摘要（自动组）已返回
+    expect(overview.groupCount).toBe(1)
+    expect(overview.groups[0]).toMatchObject({ id: 'grp1', name: '初音套组', summaryMode: 'auto', memberCount: 1 })
     // 类别分布按条数排序
     expect(overview.byCategory[0]).toEqual({ name: '吧唧', count: 1, quantity: 2 })
     expect(overview.byAcquiredYear).toEqual([
@@ -504,6 +507,9 @@ describe('mcp tool handlers', () => {
 
     const result = await createMcpToolHandlers(db).wishlist_overview({})
     expect(result.total).toBe(3)
+    // 无心愿单组时 groups 为空数组
+    expect(result.groupCount).toBe(0)
+    expect(result.groups).toEqual([])
     const cny = result.expectedSpend.find((/** @type {any} */ s) => s.currency === 'CNY')
     const jpy = result.expectedSpend.find((/** @type {any} */ s) => s.currency === 'JPY')
     expect(cny.amount).toBe(659) // 599 + 30×2
@@ -514,6 +520,41 @@ describe('mcp tool handlers', () => {
     // 无折算注入：不产出 CNY 字段，mostExpensive 按原币数值近似排序
     expect(result.expectedSpendCNY).toBeNull()
     expect(result.mostExpensive.map((/** @type {any} */ m) => m.id)).toEqual(['w1', 'w3', 'w2'])
+  })
+
+  it('wishlist_overview 返回心愿单谷子组，手动总价只计组总价', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      { id: 'w1', name: '手办', isWishlist: true, ip: '初音未来', category: '手办', price: '599', currency: 'CNY', quantity: 1, updatedAt: 10 },
+      { id: 'w2', name: '吧唧', isWishlist: true, ip: '初音未来', category: '吧唧', price: '30', currency: 'CNY', quantity: 2, updatedAt: 20 },
+      { id: 'w3', name: '挂件', isWishlist: true, ip: '原神', category: '挂件', price: '88', currency: 'CNY', quantity: 1, updatedAt: 30 }
+    ])
+    db.getGroups = vi.fn(async () => [
+      { id: 'grpW', name: '原神心愿组', type: 'wishlist', summaryMode: 'manual', totalAmount: 66, currency: 'CNY', deleted: false },
+      { id: 'grpC', name: '收藏组', type: 'collection', summaryMode: 'manual', totalAmount: 999, currency: 'CNY', deleted: false }
+    ])
+    db.getGroupItems = vi.fn(async () => [
+      { id: 'giW', groupId: 'grpW', goodsId: 'w3', deleted: false }
+    ])
+
+    const handlers = createMcpToolHandlers(db, { convertToCNY: (/** @type {number} */ amount) => amount })
+    const result = await handlers.wishlist_overview({})
+
+    // 只返回 wishlist 类型分组
+    expect(result.groupCount).toBe(1)
+    expect(result.groups[0]).toMatchObject({
+      id: 'grpW',
+      name: '原神心愿组',
+      summaryMode: 'manual',
+      totalAmount: 66,
+      memberCount: 1,
+      totalCNY: 66
+    })
+    // 与愿望单页同口径：599 + 30×2 + 组总价 66（不再计 w3 标价 88）
+    expect(result.expectedSpendCNY).toBe(725)
+    expect(result.totalValueCNY).toBe(725)
+    const cny = result.expectedSpend.find((/** @type {any} */ s) => s.currency === 'CNY')
+    expect(cny.amount).toBe(725)
   })
 
   it('wishlist_overview 支持 CNY 折算：总额与 mostExpensive 跨币种可比', async () => {
@@ -528,8 +569,51 @@ describe('mcp tool handlers', () => {
 
     const result = await handlers.wishlist_overview({})
     expect(result.expectedSpendCNY).toBe(684) // 599 + 60 + 25
+    expect(result.totalValueCNY).toBe(684)
     expect(result.mostExpensive.map((/** @type {any} */ m) => m.id)).toEqual(['w1', 'w2', 'w3'])
     expect(result.mostExpensive[2]).toMatchObject({ id: 'w3', currency: 'JPY', expected: 500, expectedCNY: 25 })
+  })
+
+  it('collection_overview 返回收藏套组，总价对齐页面且不含心愿单组', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      {
+        id: 'c1', name: '吧唧', isWishlist: false, collectStatus: '已拥有', quantity: 2,
+        actualPrice: '25', actualPriceCurrency: 'CNY', currency: 'CNY',
+        unitActualPriceList: ['25', '25'], totalValueNumber: 50, updatedAt: 1
+      },
+      {
+        id: 'c2', name: '立牌', isWishlist: false, collectStatus: '已拥有', quantity: 1,
+        actualPrice: '40', actualPriceCurrency: 'CNY', currency: 'CNY',
+        unitActualPriceList: [], totalValueNumber: 40, updatedAt: 2
+      },
+      {
+        id: 'c3', name: '已出手办', isWishlist: false, collectStatus: '已出', quantity: 1,
+        actualPrice: '99', actualPriceCurrency: 'CNY', currency: 'CNY',
+        unitActualPriceList: [], totalValueNumber: 99, updatedAt: 3
+      }
+    ])
+    db.getGroups = vi.fn(async () => [
+      { id: 'grpM', name: '手动套组', type: 'collection', summaryMode: 'manual', totalAmount: 30, currency: 'CNY', deleted: false },
+      { id: 'grpA', name: '自动套组', type: 'collection', summaryMode: 'auto', totalAmount: 0, currency: 'CNY', deleted: false },
+      { id: 'grpW', name: '心愿手动组', type: 'wishlist', summaryMode: 'manual', totalAmount: 500, currency: 'CNY', deleted: false }
+    ])
+    db.getGroupItems = vi.fn(async () => [
+      { id: 'gi1', groupId: 'grpM', goodsId: 'c1', deleted: false },
+      { id: 'gi2', groupId: 'grpA', goodsId: 'c2', deleted: false }
+    ])
+
+    const handlers = createMcpToolHandlers(db, {
+      convertToCNY: (/** @type {number} */ amount) => amount,
+      enrichItems: (/** @type {any[]} */ list) => list
+    })
+    const overview = await handlers.collection_overview()
+
+    expect(overview.groupCount).toBe(2)
+    expect(overview.groups.map((/** @type {any} */ g) => g.id).sort()).toEqual(['grpA', 'grpM'])
+    // 页面口径：手动组成员 c1 不计 → c2 的 40 + 组总价 30；已出 c3 不计；心愿组 500 不混入
+    expect(overview.totalValueCNY).toBe(70)
+    expect(overview.estimatedSpend[0]).toMatchObject({ currency: 'CNY', amount: 70 })
   })
 
   it('sale_ledger 复用 saleStats 口径：回血=成交价-手续费，盈亏计入成本', async () => {

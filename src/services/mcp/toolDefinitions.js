@@ -20,6 +20,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '典型用法：了解收藏构成用 collection_overview；找具体物品用 goods_search（先粗后细，配合 limit/offset 分页）；',
   '需要单件详情（含多件拆分、出售信息、状态时间线）用 goods_detail；回答花费/月度消费用 spending_summary；',
   '角色维度统计用 character_leaderboard；收纳位置分布用 storage_locations；愿望单与预算用 wishlist_overview；',
+  '收藏/心愿总价与页面同口径（含谷子组）：collection_overview / wishlist_overview 已返回 groups 摘要与 totalValueCNY，不要绕开套组自己加总；',
   '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；活动增删改用 events_add/events_update/events_delete；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
   '分组/套组用 groups_list 总览、groups_manage 增删改与成员管理；回收站列表用 trash_list，永久清理用 goods_purge；批量改字段用 goods_update_many；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
@@ -571,7 +572,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'collection_overview',
-    description: '收藏总览统计。字段口径：collectionCount=已收藏条目数（非愿望单）；wishlistCount=愿望单条目数；grandTotal=两者合计。两者相加才等于 grandTotal，不要用 grandTotal 减 wishlistCount 推算收藏数。花费估算/类别与 IP 分布/年份分布均只统计已收藏部分。回答「我收藏了什么、花了多少」类问题时优先使用。',
+    description: '收藏总览统计。字段口径：collectionCount=已收藏条目数（非愿望单）；wishlistCount=愿望单条目数；grandTotal=两者合计。totalValueCNY/estimatedSpend 与收藏页顶部总价同口径（已出/已赠出/丢失不计，手动总价谷子组只计一次组总价）；groups/groupCount=收藏套组摘要（名称、成员数、汇总方式）。回答「我收藏了什么、花了多少」类问题时优先使用，金额直接用 totalValueCNY，不要绕开套组自己加总。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
@@ -601,7 +602,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'wishlist_overview',
-    description: '愿望单概览：条目数、按币种的期望花费合计（标价×数量，不同币种分开列，禁止跨币种相加，展示时必须带各自币种）、折算 CNY 总额（expectedSpendCNY）、最贵的 5 件（mostExpensive，含 expectedCNY 折算，回答「愿望单最贵的是哪几件」直接用它）、IP 与类别分布 Top5、最近加入的条目。回答「我还想买什么/愿望单要花多少钱」类问题使用。',
+    description: '愿望单概览：条目数、期望花费、心愿单谷子组、IP 与类别分布、最近加入、最贵条目。expectedSpendCNY/totalValueCNY 与愿望单页总价同口径（手动总价组只计组总价，成员标价不重复计入）；groups/groupCount=心愿单组摘要。按币种的 expectedSpend 合计不同币种分开列，禁止跨币种相加。回答「我还想买什么/愿望单要花多少钱」类问题时用 totalValueCNY，不要绕开套组自己加总。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
