@@ -101,6 +101,11 @@ async function persistActiveDraft() {
     triggerBatchDraftSync()
     return
   }
+  // 草稿采用 LWW。设备时钟可能比云端/另一台设备慢，因此不能只用
+  // Date.now()；否则二次编辑会被远端较大的 updatedAt 判定为旧数据。
+  const existing = await getBatchDraft(slot)
+  const knownUpdatedAt = Number(existing?.updatedAt) || 0
+  const updatedAt = Math.max(Date.now(), knownUpdatedAt + 1)
   await saveBatchDraft({
     slot,
     batchId: batchId.value,
@@ -108,7 +113,7 @@ async function persistActiveDraft() {
     items: serializeItems(),
     defaults: { ...defaults.value },
     deleted: false,
-    updatedAt: Date.now()
+    updatedAt
   })
   triggerBatchDraftSync()
 }
@@ -568,7 +573,13 @@ export async function markBatchDraftImagesAsRemote(updates) {
       const existing = await getBatchDraft(slot)
       if (!existing) continue
       const byId = new Map((Array.isArray(update.items) ? update.items : []).map((item) => [item.id, item]))
-      const nextItems = existing.items.map((item) => {
+      // 图片上传可能在草稿防抖落库之前完成。当前槽位以内存队列为准，
+      // 否则用旧的 DB 快照回写会把刚新增/刚编辑的条目从队列中删掉，
+      // 随后点击这些条目就会得到“未找到该条目”。
+      const baseItems = activeSlot.value === slot && queue.value.length > 0
+        ? serializeItems()
+        : existing.items
+      const nextItems = baseItems.map((item) => {
         const remote = byId.get(item.id)
         if (!remote?.cloudFileName) return item
         return {
@@ -592,13 +603,25 @@ export async function markBatchDraftImagesAsRemote(updates) {
   }
   if (toSave.length === 0) return
   await saveBatchDrafts(toSave)
-  // 若正是当前编辑槽，同步刷新内存，避免用旧 imageUri 再 persist
+  // 若正是当前编辑槽，只回写图片字段，不整体替换 queue。
+  // 整体替换会让上传完成时的旧 DB 快照覆盖当前编辑中的条目，
+  // 导致当前路由 id 在队列中消失并显示“未找到该条目”。
   const slot = activeSlot.value
   if (slot) {
     const hit = toSave.find((d) => d.slot === slot)
     if (hit && Array.isArray(hit.items)) {
+      const byId = new Map(hit.items.map((item) => [item.id, item]))
       withSuppressPersist(() => {
-        queue.value = deserializeItems(hit.items)
+        queue.value = queue.value.map((item) => {
+          const remote = byId.get(item.id)
+          if (!remote?.cloudFileName) return item
+          return {
+            ...item,
+            imageUri: remote.imageUri || buildCloudImageUri(remote.cloudFileName),
+            cloudFileName: remote.cloudFileName,
+            storageMode: remote.storageMode || 'cloud-local'
+          }
+        })
       })
     }
   }

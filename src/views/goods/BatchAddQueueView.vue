@@ -133,6 +133,7 @@ import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
+import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
 import { useBatchQueue, flushBatchDraft, slotForWishlist } from '@/composables/batch/useBatchQueue'
 import { useToast } from '@/composables/useToast'
@@ -143,6 +144,7 @@ const router = useRouter()
 const { t } = useI18n()
 const presetsStore = usePresetsStore()
 const goodsStore = useGoodsStore()
+const syncStore = useSyncStore()
 const { toastMsg, showToast } = useToast()
 
 const showDefaults = ref(false)
@@ -150,6 +152,7 @@ const showMissingImageConfirm = ref(false)
 const showClearDraftConfirm = ref(false)
 const saving = ref(false)
 let allowLeave = false
+let openingEdit = false
 
 const {
   queue,
@@ -211,7 +214,23 @@ onBeforeRouteLeave((to) => {
   void flushBatchDraft()
 })
 
-function editItem(id) {
+async function editItem(id) {
+  if (openingEdit) return
+  openingEdit = true
+  try {
+    // 先把当前内存队列落库，再检查云端，避免云端旧草稿覆盖本地刚编辑的内容。
+    await flushBatchDraft()
+    if (syncStore.isSupabaseMode()) {
+      await syncStore.sync({ source: 'batch-edit' })
+    }
+  } catch (e) {
+    // 云端检查失败不阻塞本地编辑；后续自动同步仍会重试。
+    console.warn('[BatchAddQueueView] cloud check before edit failed', e)
+  } finally {
+    openingEdit = false
+  }
+  // 同步可能刚刚拉取了远端删除，因此以最新内存队列重新确认条目仍存在。
+  if (!queue.value.some((item) => item.id === id)) return
   runWithRouteTransition(
     () => router.push({ name: 'batch-edit', params: { id } }),
     { direction: 'forward' }

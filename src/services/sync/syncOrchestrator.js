@@ -525,6 +525,21 @@ export function createSyncOrchestrator({
         // First sync — push local data
         return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasBatchDraftDataDiff: true, hasPresetsDiff: true })
       }
+      // Batch drafts are a temporary local editing workspace. If this device
+      // has a dirty draft, push it before pulling a newer remote manifest;
+      // otherwise mergeBatchDraftsFromRemote would let remote LWW erase the
+      // local edit/delete before the follow-up push gets a chance to run.
+      if (draftsDomainDirty) {
+        return doPush(ctx, stores, be, {
+          hasDataDiff: false,
+          hasRechargeDataDiff: false,
+          hasEventDataDiff: false,
+          hasBatchDraftDataDiff: true,
+          hasPresetsDiff: false,
+          remoteData,
+          localBatchDrafts
+        })
+      }
       if (localChanges.hasChanges) {
         log.warn('sync:conflict', { remoteTime: remoteManifest.lastSyncAt, remoteDevice: remoteManifest.deviceId, localTime: ctx.lastSyncedAt })
         return {
