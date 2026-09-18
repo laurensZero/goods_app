@@ -272,6 +272,7 @@
         ref="eventsTimelineScrubberRef"
         :months="timelineScrubMonths"
         :enabled="isEventsActive && timelineScrubMonths.length > 0"
+        root-selector=".events-page"
         :get-section-el="() => eventsTimelineListRef ?? null"
         :get-scroll-el="getScrollEl"
       />

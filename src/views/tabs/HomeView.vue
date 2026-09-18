@@ -144,6 +144,7 @@
           ref="timelineScrubberRef"
           :months="allTimelineMonthList"
           :enabled="isHomeActive && goodsList.length > 0"
+          root-selector=".home-page"
           :get-section-el="() => timelineSectionRef.value?.sectionEl ?? null"
           :get-scroll-el="getScrollEl"
           :month-at-offset="timelineMetrics.monthAtOffset"
