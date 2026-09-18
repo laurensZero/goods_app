@@ -1279,8 +1279,7 @@ BEGIN
       is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
       defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE batch_drafts.updated_at <= EXCLUDED.updated_at;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
 
   -- 8d. Upsert batch_drafts_trash
@@ -1292,8 +1291,7 @@ BEGIN
       is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
       defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
       updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE batch_drafts.updated_at <= EXCLUDED.updated_at;
+      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
   END IF;
 
   -- 9. Upsert presets

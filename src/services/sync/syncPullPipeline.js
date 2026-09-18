@@ -156,10 +156,15 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
       return {
         ...draft,
         items: draft.items.map((item) => {
+          // localImageUri is only meaningful on the source device.  Older
+          // payloads may contain a base64 data URL; never write that into the
+          // receiving device's draft database.
+          const remoteItem = { ...(item || {}) }
+          delete remoteItem.localImageUri
           const cloudFileName = String(item?.cloudFileName || parseCloudImageUri(item?.imageUri) || '').trim()
-          if (!cloudFileName) return item
+          if (!cloudFileName) return remoteItem
           return {
-            ...item,
+            ...remoteItem,
             imageUri: be.getImagePublicUrl(cloudFileName),
             cloudFileName,
             storageMode: item.storageMode || 'cloud-local'

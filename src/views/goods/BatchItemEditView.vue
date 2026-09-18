@@ -281,24 +281,27 @@ function saveForm() {
   }
 }
 
-function handleBack() {
+async function handleBack() {
   saveForm()
+  await flushBatchDraft()
   runWithRouteTransition(
     () => router.back(),
     { direction: 'back' }
   )
 }
 
-function saveAndBack() {
+async function saveAndBack() {
   saveForm()
+  await flushBatchDraft()
   runWithRouteTransition(
     () => router.back(),
     { direction: 'back' }
   )
 }
 
-function saveAndNext() {
+async function saveAndNext() {
   saveForm()
+  await flushBatchDraft()
   const nextIdx = currentIndex.value + 1
   if (nextIdx < totalCount.value) {
     const nextItem = queue.value[nextIdx]
@@ -316,10 +319,11 @@ function saveAndNext() {
   }
 }
 
-function saveAndPrev() {
+async function saveAndPrev() {
   const prevIdx = currentIndex.value - 1
   if (prevIdx < 0) return
   saveForm()
+  await flushBatchDraft()
   const prevItem = queue.value[prevIdx]
   runWithRouteTransition(
     () => router.replace({ name: 'batch-edit', params: { id: prevItem.id } }),

@@ -221,9 +221,12 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
       eventsTrash = e.trash
     }
     if (shouldWriteBatchDrafts) {
-      const bd = await computeBucketDiff(localBatchDrafts, localBatchDraftsTrash, remoteData.batchDrafts || [], remoteData.batchDraftsTrash || [])
-      batchDrafts = bd.active
-      batchDraftsTrash = bd.trash
+      // Batch drafts are a temporary editing workspace. When this domain is
+      // locally dirty, the local snapshot is authoritative; do not apply the
+      // normal timestamp LWW filter here. Otherwise a clock-skewed edit or a
+      // local delete can be filtered out while its images still upload.
+      batchDrafts = localBatchDrafts
+      batchDraftsTrash = localBatchDraftsTrash
     }
   }
 

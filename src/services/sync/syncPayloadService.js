@@ -585,6 +585,13 @@ export function createSyncPayloadService({
    */
   async function prepareDraftItemForSync(draft, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
     if (!entry || typeof entry !== 'object') return entry
+    // localImageUri is a device-local recovery/cleanup handle.  It can be a
+    // large data URL and must never be persisted in the remote draft JSON.
+    const withoutLocalImageUri = (item) => {
+      if (!item || typeof item !== 'object') return item
+      const { localImageUri, ...remoteItem } = item
+      return remoteItem
+    }
     const imageUri = String(entry.imageUri || '').trim()
     const existingCloud = String(
       entry.cloudFileName
@@ -596,33 +603,33 @@ export function createSyncPayloadService({
       referencedImageFiles?.add(existingCloud)
       const storageMode = inferGoodsImageStorageMode(imageUri, entry.storageMode)
       if (storageMode === 'remote') {
-        return { ...entry, cloudFileName: existingCloud, storageMode: 'remote' }
+        return withoutLocalImageUri({ ...entry, cloudFileName: existingCloud, storageMode: 'remote' })
       }
       if (existingImageFiles?.has(existingCloud)) {
         if (imageStats) imageStats.reusedImages += 1
-        return {
+        return withoutLocalImageUri({
           ...entry,
           imageUri: buildCloudImageUri(existingCloud),
           cloudFileName: existingCloud,
           storageMode: 'cloud-local',
           localImageUri: entry.localImageUri || (isLocalFileLike(imageUri) ? imageUri : '')
-        }
+        })
       }
     }
 
-    if (!imageUri) return entry
+    if (!imageUri) return withoutLocalImageUri(entry)
 
     const localSource = String(entry.localImageUri || imageUri).trim()
-    if (!isLocalFileLike(localSource) && !existingCloud) return entry
+    if (!isLocalFileLike(localSource) && !existingCloud) return withoutLocalImageUri(entry)
 
     let imageDataUrl = await readLocalImageAsDataUrl(localSource).catch(() => null)
     if (!imageDataUrl?.startsWith('data:image/')) {
       // 本地读不到但已有云端引用时保留引用；否则原样返回，不阻塞整次同步
-      return entry
+      return withoutLocalImageUri(entry)
     }
 
     let parsedData = parseImageDataUrl(imageDataUrl)
-    if (!parsedData) return entry
+    if (!parsedData) return withoutLocalImageUri(entry)
 
     if (parsedData.fileSize > imageFileSizeLimit) {
       try {
@@ -650,7 +657,7 @@ export function createSyncPayloadService({
     }
 
     const cloudFileName = existingCloud || buildBatchDraftImageFilename(draft, entry, parsedData.mimeType)
-    if (!cloudFileName) return entry
+    if (!cloudFileName) return withoutLocalImageUri(entry)
     referencedImageFiles?.add(cloudFileName)
 
     if (existingImageFiles?.has(cloudFileName)) {
@@ -661,7 +668,7 @@ export function createSyncPayloadService({
     }
     if (imageStats) imageStats.imageUpdatedAt = new Date().toISOString()
 
-    return {
+    return withoutLocalImageUri({
       ...entry,
       imageUri: buildCloudImageUri(cloudFileName),
       cloudFileName,
@@ -669,7 +676,7 @@ export function createSyncPayloadService({
       localImageUri: entry.localImageUri || (isLocalFileLike(imageUri) ? imageUri : ''),
       mimeType: parsedData.mimeType,
       fileSize: parsedData.fileSize
-    }
+    })
   }
 
   function isLocalFileLike(uri) {
