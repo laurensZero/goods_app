@@ -306,7 +306,11 @@
       <div v-if="activeItem" class="sku-sheet">
         <div class="sku-sheet__hero">
           <div class="sku-sheet__product">
-            <span class="sku-sheet__thumb">
+            <span
+              class="sku-sheet__thumb"
+              :class="{ 'sku-sheet__thumb--zoomable': Boolean(previewCover) }"
+              @click="openSheetPreview"
+            >
               <img
                 v-if="previewCover"
                 :src="previewCover"
@@ -413,6 +417,11 @@
     </AppSheet>
 
     <AppToast :message="toastMsg" />
+
+    <PhotoPreviewViewer
+      v-model:index="sheetPreviewIndex"
+      :photos="sheetPreviewPhotos"
+    />
   </div>
 </template>
 
@@ -423,6 +432,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
+import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import { useToast } from '@/composables/useToast'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -636,6 +646,33 @@ const previewCover = computed(() => {
   return activeItem.value?.cover_url || ''
 })
 
+/** 弹窗大图列表：主图 + 各 SKU 图，去重后供 PhotoPreviewViewer 滑动 */
+const sheetPreviewPhotos = computed(() => {
+  const seen = new Set()
+  const photos = []
+  const push = (uri, caption = '') => {
+    const u = String(uri || '').trim()
+    if (!u || seen.has(u)) return
+    seen.add(u)
+    photos.push({ uri: u, caption })
+  }
+  push(previewCover.value, displayName(activeItem.value?.name) || '')
+  for (const sku of sheetVariants.value) {
+    push(sku.cover_url, displaySkuText(sku.text))
+  }
+  push(activeItem.value?.cover_url, displayName(activeItem.value?.name) || '')
+  return photos
+})
+const sheetPreviewIndex = ref(-1)
+
+function openSheetPreview() {
+  const photos = sheetPreviewPhotos.value
+  if (!photos.length) return
+  const uri = String(previewCover.value || '')
+  const idx = photos.findIndex((p) => p.uri === uri)
+  sheetPreviewIndex.value = idx >= 0 ? idx : 0
+}
+
 useDialogBackButton(closeSkuSheet, sheetOpen)
 
 function shopLabel(code) {
@@ -748,6 +785,7 @@ function closeSkuSheet() {
   sheetOpen.value = false
   activeItem.value = null
   selectedSku.value = null
+  sheetPreviewIndex.value = -1
 }
 
 function selectSku(sku) {
@@ -1396,6 +1434,15 @@ onMounted(() => {
   font-weight: 700;
   color: var(--app-text-tertiary);
   border: 1px solid var(--app-border);
+}
+
+.sku-sheet__thumb--zoomable {
+  cursor: pointer;
+  transition: transform 160ms ease;
+}
+
+.sku-sheet__thumb--zoomable:active {
+  transform: scale(0.96);
 }
 
 .sku-sheet__thumb img {
