@@ -94,20 +94,6 @@
         <div class="toolbar-actions">
           <button
             type="button"
-            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'timeline', 'mode-toggle--animating': toggleAnimating.timeline }]"
-            :aria-label="t('events.timelineView')"
-            @click="handleToggleTimeline"
-          >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="12" cy="12" r="8" />
-              <g class="clock-hand">
-                <path d="M12 8v4l2.5 2.5" />
-              </g>
-            </svg>
-          </button>
-
-          <button
-            type="button"
             :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'countdown', 'mode-toggle--animating': toggleAnimating.countdown }]"
             :aria-label="t('events.countdown.toggleAria')"
             @click="handleToggleCountdown"
@@ -135,6 +121,20 @@
               <g class="sort-toggle__group sort-toggle__group--down">
                 <path d="M17 6V17" />
                 <path d="M13.5 13.5L17 17L20.5 13.5" />
+              </g>
+            </svg>
+          </button>
+
+          <button
+            type="button"
+            :class="['mode-toggle', { 'mode-toggle--active': viewMode === 'timeline', 'mode-toggle--animating': toggleAnimating.timeline }]"
+            :aria-label="t('events.timelineView')"
+            @click="handleToggleTimeline"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="8" />
+              <g class="clock-hand">
+                <path d="M12 8v4l2.5 2.5" />
               </g>
             </svg>
           </button>
@@ -1253,9 +1253,11 @@ onBeforeRouteLeave(() => {
 
 .toolbar-section {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
 .toolbar-copy {
@@ -1265,7 +1267,7 @@ onBeforeRouteLeave(() => {
 
 .toolbar-actions {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   flex-shrink: 0;
@@ -1274,14 +1276,15 @@ onBeforeRouteLeave(() => {
 .toolbar-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 .toolbar-title span {
+  margin-left: 4px;
   color: var(--app-text-tertiary);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 400;
 }
 
@@ -1712,28 +1715,23 @@ onBeforeRouteLeave(() => {
     width: auto;
     flex: 0 0 auto;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 8px;
   }
 
-  .sort-toggle {
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    border-radius: 16px;
-  }
-
+  .sort-toggle,
   .mode-toggle {
-    width: 44px;
-    height: 44px;
-    border-radius: 16px;
+    flex: 0 0 auto;
+    width: 48px;
+    height: 48px;
+    border-radius: 18px;
   }
 
   .toolbar-title {
-    font-size: 20px;
+    font-size: 22px;
   }
 
   .toolbar-title span {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .summary-card {
