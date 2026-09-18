@@ -1,20 +1,18 @@
 <template>
   <template v-if="enabled && months.length > 0">
-    <!-- 左右长按热区 -->
+    <!-- 右侧位置指示条：仅滚动时显示；点按/按住打开侧边年月条 -->
     <div
-      class="tl-scrub-edge tl-scrub-edge--left"
-      :class="{ 'tl-scrub-edge--armed': !scrubbing }"
+      v-show="indicatorVisible || scrubbing"
+      class="tl-scrub-indicator"
+      :class="{ 'tl-scrub-indicator--scrubbing': scrubbing }"
+      :style="indicatorStyle"
+      role="button"
       :aria-label="t('home.timeline.scrubHint')"
-      @pointerdown="onEdgePointerDown($event, 'left')"
-    />
-    <div
-      class="tl-scrub-edge tl-scrub-edge--right"
-      :class="{ 'tl-scrub-edge--armed': !scrubbing }"
-      :aria-label="t('home.timeline.scrubHint')"
-      @pointerdown="onEdgePointerDown($event, 'right')"
-    />
+      @pointerdown="onIndicatorPointerDown"
+    >
+      <div class="tl-scrub-indicator__thumb" />
+    </div>
 
-    <!-- 滑动中：全屏捕获 + 侧边条 + 浮动月份 -->
     <div
       v-if="scrubbing"
       class="tl-scrub-overlay"
@@ -27,37 +25,26 @@
     >
       <div class="tl-scrub-dim" aria-hidden="true" />
 
-      <div
-        ref="railEl"
-        class="tl-scrub-rail"
-        :class="[`tl-scrub-rail--${side}`, { 'tl-scrub-rail--dense': denseRail }]"
-        :style="railStyle"
-      >
+      <div ref="railEl" class="tl-scrub-rail" :class="`tl-scrub-rail--${side}`">
         <div
-          v-for="row in railRows"
-          :key="row.key"
-          class="tl-scrub-row"
-          :class="{
-            'tl-scrub-row--year': row.type === 'year',
-            'tl-scrub-row--month': row.type === 'month',
-            'tl-scrub-row--active': row.type === 'month' && row.index === activeIndex
-          }"
+          v-for="group in yearGroups"
+          :key="group.year"
+          class="tl-scrub-year-block"
+          :style="yearBlockStyle(group)"
         >
-          <template v-if="row.type === 'year'">
-            <span class="tl-scrub-year">{{ row.year }}</span>
-          </template>
-          <template v-else>
-            <span class="tl-scrub-tick" aria-hidden="true" />
-            <span class="tl-scrub-month">{{ row.monthLabel }}</span>
-          </template>
+          <div class="tl-scrub-year-label">{{ group.year }}</div>
+          <div class="tl-scrub-ticks">
+            <div
+              v-for="m in group.months"
+              :key="m.yearMonth"
+              class="tl-scrub-tick"
+              :class="{ 'tl-scrub-tick--active': m.index === activeIndex }"
+            />
+          </div>
         </div>
       </div>
 
-      <div
-        class="tl-scrub-preview"
-        :class="`tl-scrub-preview--${side}`"
-        aria-live="polite"
-      >
+      <div class="tl-scrub-preview" :class="`tl-scrub-preview--${side}`" aria-live="polite">
         <div class="tl-scrub-preview-year">{{ activeYear }}</div>
         <div class="tl-scrub-preview-month">{{ activeMonthLabel }}</div>
         <div v-if="activeMeta" class="tl-scrub-preview-meta">{{ activeMeta }}</div>
@@ -76,31 +63,37 @@ const props = defineProps({
   months: { type: Array, required: true },
   enabled: { type: Boolean, default: true },
   getSectionEl: { type: Function, default: () => null },
-  getScrollEl: { type: Function, default: () => null }
+  getScrollEl: { type: Function, default: () => null },
+  monthAtOffset: { type: Function, default: null },
+  offsetOfMonth: { type: Function, default: null }
 })
 
 const emit = defineEmits(['scrub-start', 'scrub-end'])
 
 const { t } = useI18n()
 
-const LONG_PRESS_MS = 380
-const LONG_PRESS_SLOP = 12
-const RAIL_MIN_ITEM = 18
-const RAIL_MAX_HEIGHT_RATIO = 0.62
+const INDICATOR_HIDE_MS = 900
+const RAIL_TOP_RATIO = 0.1
+const RAIL_BOTTOM_RATIO = 0.12
+const SCROLL_TOP_PAD = 20
+const THUMB_H = 36
+const TRACK_TOP = 96
+const TRACK_BOTTOM = 120
 
 const scrubbing = ref(false)
-const side = ref('left')
+const side = ref('right')
 const activeIndex = ref(0)
 const railEl = ref(null)
+const indicatorVisible = ref(false)
+const scrollProgress = ref(0)
 
-let longPressTimer = 0
-let edgePointerId = -1
-let edgeStartX = 0
-let edgeStartY = 0
 let activePointerId = -1
 let scrollPrevented = false
 let rafJump = 0
 let lastJumpIndex = -1
+let hideTimer = 0
+let scrollRaf = 0
+let hasScrubMoved = false
 
 const activeMonth = computed(() => props.months[activeIndex.value] || props.months[0] || null)
 const activeYear = computed(() => activeMonth.value?.year || '')
@@ -113,48 +106,42 @@ const activeMeta = computed(() => {
   return t('leaderboard.items', { count: activeMonth.value.count || 0 })
 })
 
-/** 侧边条行：年份标题 + 月份行（按展示顺序，与 allTimelineMonthList 一致） */
-const railRows = computed(() => {
-  const rows = []
-  let lastYear = null
+const yearGroups = computed(() => {
+  const groups = []
+  const map = new Map()
   props.months.forEach((m, index) => {
-    if (m.year !== lastYear) {
-      rows.push({ type: 'year', key: `y-${m.year}-${index}`, year: m.year })
-      lastYear = m.year
+    let group = map.get(m.year)
+    if (!group) {
+      group = { year: m.year, months: [] }
+      map.set(m.year, group)
+      groups.push(group)
     }
-    rows.push({
-      type: 'month',
-      key: m.yearMonth,
-      index,
-      monthLabel: padMonth(m.month)
-    })
+    group.months.push({ yearMonth: m.yearMonth, month: m.month, index, count: m.count })
   })
-  return rows
+  return groups
 })
 
-const denseRail = computed(() => props.months.length > 28)
-
-const railStyle = computed(() => {
-  const count = Math.max(1, props.months.length)
-  const years = new Set(props.months.map((m) => m.year)).size
-  const desired = count * RAIL_MIN_ITEM + years * 22 + 24
-  const maxHeight = Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * RAIL_MAX_HEIGHT_RATIO)
+function yearBlockStyle(group) {
   return {
-    maxHeight: `${Math.min(maxHeight, Math.max(160, desired))}px`
+    flexGrow: String(Math.max(1, group.months.length)),
+    flexShrink: '1',
+    flexBasis: '0'
+  }
+}
+
+/** 右侧小滚动条：仅指示当前位置（translate3d + 过渡，避免生硬跳位） */
+const indicatorStyle = computed(() => {
+  const trackTop = TRACK_TOP
+  const trackBottom = TRACK_BOTTOM
+  const trackH = Math.max(48, (typeof window !== 'undefined' ? window.innerHeight : 800) - trackTop - trackBottom)
+  const maxTop = Math.max(0, trackH - THUMB_H)
+  const y = scrollProgress.value * maxTop
+  return {
+    top: `${trackTop}px`,
+    height: `${THUMB_H}px`,
+    transform: `translate3d(0, ${y.toFixed(2)}px, 0)`
   }
 })
-
-function padMonth(month) {
-  const n = Number(month)
-  return Number.isInteger(n) && n >= 1 && n <= 9 ? `0${n}` : String(month ?? '')
-}
-
-function clearLongPress() {
-  if (longPressTimer) {
-    window.clearTimeout(longPressTimer)
-    longPressTimer = 0
-  }
-}
 
 function preventTouchScroll(event) {
   if (scrollPrevented && event.cancelable) event.preventDefault()
@@ -176,69 +163,224 @@ function vibrate(ms = 8) {
   } catch {}
 }
 
-function onEdgePointerDown(event, edgeSide) {
-  if (!props.enabled || props.months.length === 0 || scrubbing.value) return
-  if (event.pointerType === 'mouse' && event.button !== 0) return
-
-  edgePointerId = event.pointerId
-  edgeStartX = event.clientX
-  edgeStartY = event.clientY
-  side.value = edgeSide
-  clearLongPress()
-  bindEdgeMoveWatch()
-
-  const clientY = event.clientY
-  longPressTimer = window.setTimeout(() => {
-    longPressTimer = 0
-    beginScrub(edgeSide, clientY)
-  }, LONG_PRESS_MS)
+function quoteAttr(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
-function onEdgePointerMoveDuringPress(event) {
-  if (!longPressTimer || event.pointerId !== edgePointerId) return
-  const dx = Math.abs(event.clientX - edgeStartX)
-  const dy = Math.abs(event.clientY - edgeStartY)
-  if (dx > LONG_PRESS_SLOP || dy > LONG_PRESS_SLOP) {
-    clearLongPress()
+function findMonthEl(yearMonth) {
+  const selector = `[data-tl-month="${quoteAttr(yearMonth)}"]`
+  return (
+    props.getSectionEl?.()?.querySelector?.(selector)
+    || document.querySelector(`.home-page ${selector}`)
+    || document.querySelector(selector)
+    || null
+  )
+}
+
+function collectScrollCandidates() {
+  const list = []
+  const push = (el) => {
+    if (el && !list.includes(el)) list.push(el)
+  }
+  push(props.getScrollEl?.())
+  push(document.querySelector('.home-page .page-body'))
+  push(document.querySelector('.page-body'))
+  return list
+}
+
+/* ---- 平滑滚动：缓动插值，避免跳月生硬 ---- */
+let scrollAnimState = null
+let indicatorLerpRaf = 0
+let indicatorLerpTarget = 0
+
+function easeOutCubic(t) {
+  return 1 - Math.pow(1 - t, 3)
+}
+
+function easeOutQuint(t) {
+  return 1 - Math.pow(1 - t, 5)
+}
+
+function cancelScrollAnim() {
+  if (!scrollAnimState) return
+  if (scrollAnimState.raf) window.cancelAnimationFrame(scrollAnimState.raf)
+  scrollAnimState = null
+}
+
+function readWindowScrollTop() {
+  return window.scrollY || document.documentElement.scrollTop || 0
+}
+
+function writeScrollTop(scroller, value) {
+  const next = Math.max(0, value)
+  const isWindowScroller = scroller === document.scrollingElement
+    || scroller === document.documentElement
+    || scroller === document.body
+  if (isWindowScroller) {
+    window.scrollTo(0, next)
+    return
+  }
+  try { scroller.scrollTop = next } catch {}
+}
+
+/**
+ * 平滑滚到目标位置。
+ * 拖动中用短时 ease-out（跟手又不硬切）；松手 settle 稍长一点。
+ */
+function animateScrollTo(scroller, target, { settle = false } = {}) {
+  cancelScrollAnim()
+  const maxScroll = Math.max(0, (scroller.scrollHeight || 0) - (scroller.clientHeight || 0))
+  const to = Math.min(maxScroll, Math.max(0, target))
+  const from = scroller.scrollTop
+  const delta = to - from
+  if (Math.abs(delta) < 0.8) return
+
+  const dist = Math.abs(delta)
+  // 拖动：140–220ms；松手 settle：200–320ms。大位移稍长，但设上限防拖沓
+  const base = settle ? 200 : 140
+  const span = settle ? 120 : 80
+  const duration = Math.min(base + span, base + dist * 0.06)
+  const ease = settle ? easeOutQuint : easeOutCubic
+  const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+
+  const step = (now) => {
+    if (!scrollAnimState) return
+    const t = Math.min(1, (now - start) / duration)
+    const value = from + delta * ease(t)
+    writeScrollTop(scroller, value)
+    if (t < 1) {
+      scrollAnimState.raf = window.requestAnimationFrame(step)
+    } else {
+      writeScrollTop(scroller, to)
+      scrollAnimState = null
+    }
+  }
+
+  scrollAnimState = {
+    raf: window.requestAnimationFrame(step),
+    scroller
   }
 }
 
-// 在 capture 阶段监听 edge 的移动，避免滚动时误触发
-function bindEdgeMoveWatch() {
-  window.addEventListener('pointermove', onEdgePointerMoveDuringPress, true)
-  window.addEventListener('pointerup', onEdgePointerUpWatch, true)
-  window.addEventListener('pointercancel', onEdgePointerUpWatch, true)
+/** 指示条位置用 lerp 跟随，比逐帧改 top 更顺 */
+function setIndicatorProgress(progress, { smooth = true } = {}) {
+  const next = Math.min(1, Math.max(0, progress))
+  indicatorLerpTarget = next
+  if (!smooth) {
+    scrollProgress.value = next
+    return
+  }
+  if (indicatorLerpRaf) return
+  const tick = () => {
+    const cur = scrollProgress.value
+    const diff = indicatorLerpTarget - cur
+    if (Math.abs(diff) < 0.001) {
+      scrollProgress.value = indicatorLerpTarget
+      indicatorLerpRaf = 0
+      return
+    }
+    // 约 0.18s 收敛
+    scrollProgress.value = cur + diff * 0.22
+    indicatorLerpRaf = window.requestAnimationFrame(tick)
+  }
+  indicatorLerpRaf = window.requestAnimationFrame(tick)
 }
 
-function unbindEdgeMoveWatch() {
-  window.removeEventListener('pointermove', onEdgePointerMoveDuringPress, true)
-  window.removeEventListener('pointerup', onEdgePointerUpWatch, true)
-  window.removeEventListener('pointercancel', onEdgePointerUpWatch, true)
+/** 根据当前滚动位置推算月份索引与进度 */
+function syncFromScroll() {
+  const scroller = props.getScrollEl?.()
+  const sectionEl = props.getSectionEl?.()
+  if (!scroller || !sectionEl || props.months.length === 0) return
+
+  const scrollTop = scroller.scrollTop || 0
+  const scrollRect = scroller.getBoundingClientRect()
+  const sectionRect = sectionEl.getBoundingClientRect()
+  const sectionOffsetInContent = scrollTop + (sectionRect.top - scrollRect.top)
+  const offsetInSection = scrollTop - sectionOffsetInContent
+  const sectionH = sectionEl.offsetHeight || 1
+  const progress = Math.min(1, Math.max(0, offsetInSection / sectionH))
+
+  setIndicatorProgress(progress, { smooth: !scrubbing.value })
+
+  let index = 0
+  if (typeof props.monthAtOffset === 'function') {
+    index = props.monthAtOffset(Math.max(0, offsetInSection), props.months)
+  } else if (sectionRect.height > 0) {
+    index = monthIndexFromRailRatio(progress, props.months.length)
+  }
+  const maxIndex = props.months.length - 1
+  activeIndex.value = Math.min(maxIndex, Math.max(0, index))
 }
 
-function onEdgePointerUpWatch() {
-  clearLongPress()
-  if (!scrubbing.value) unbindEdgeMoveWatch()
+function showIndicator() {
+  indicatorVisible.value = true
+  if (hideTimer) {
+    window.clearTimeout(hideTimer)
+    hideTimer = 0
+  }
+  if (!scrubbing.value) {
+    hideTimer = window.setTimeout(() => {
+      if (!scrubbing.value) indicatorVisible.value = false
+    }, INDICATOR_HIDE_MS)
+  }
 }
 
-function beginScrub(edgeSide, clientY) {
-  if (props.months.length === 0) return
-  side.value = edgeSide
+function onScroll() {
+  if (!props.enabled || scrubbing.value) return
+  if (scrollRaf) return
+  scrollRaf = window.requestAnimationFrame(() => {
+    scrollRaf = 0
+    syncFromScroll()
+    showIndicator()
+  })
+}
+
+function bindScroll() {
+  const scroller = props.getScrollEl?.()
+  if (scroller) scroller.addEventListener('scroll', onScroll, { passive: true })
+  // 兜底：部分场景真正滚动的是 window
+  window.addEventListener('scroll', onScroll, { passive: true })
+}
+
+function unbindScroll() {
+  const scroller = props.getScrollEl?.()
+  if (scroller) scroller.removeEventListener('scroll', onScroll)
+  window.removeEventListener('scroll', onScroll)
+}
+
+function rebindScroll() {
+  unbindScroll()
+  if (props.enabled) bindScroll()
+}
+
+/** 点按右侧小滚动条 → 打开侧边年份条（首次点击不跳转，仅展示当前位置） */
+function onIndicatorPointerDown(event) {
+  if (!props.enabled || props.months.length === 0) return
+  if (event.pointerType === 'mouse' && event.button !== 0) return
+  event.preventDefault()
+  event.stopPropagation()
+
+  if (hideTimer) {
+    window.clearTimeout(hideTimer)
+    hideTimer = 0
+  }
+
+  // 只同步当前滚动对应的月份，打开侧边条，不按触点 Y 跳转
+  syncFromScroll()
+  side.value = 'right'
   scrubbing.value = true
-  activePointerId = edgePointerId
+  indicatorVisible.value = true
+  activePointerId = event.pointerId
   setScrollLock(true)
   bindScrubPointerWatch()
   emit('scrub-start')
 
-  // 打开当帧 rail 可能尚未挂载，先用估算几何选中附近月份
-  const index = resolveIndexFromClientY(clientY)
-  if (Number.isFinite(index)) {
-    activeIndex.value = index
-    scheduleJumpToIndex(index)
-  }
+  const max = Math.max(1, props.months.length - 1)
+  setIndicatorProgress(props.months.length <= 1 ? 0 : activeIndex.value / max, { smooth: false })
+  // 手指尚未滑动时保持原位；开始 move 才按 rail Y 选月并滚动
+  hasScrubMoved = false
 }
 
-/** scrub 期间的全局指针监听：触摸目标仍是 edge，不能只靠 overlay */
 function bindScrubPointerWatch() {
   window.addEventListener('pointermove', onGlobalScrubPointerMove, true)
   window.addEventListener('pointerup', onGlobalScrubPointerUp, true)
@@ -255,6 +397,7 @@ function onGlobalScrubPointerMove(event) {
   if (!scrubbing.value) return
   if (activePointerId >= 0 && event.pointerId !== activePointerId) return
   if (event.cancelable) event.preventDefault()
+  hasScrubMoved = true
   applyPointerToIndex(event.clientY)
 }
 
@@ -268,6 +411,8 @@ function onOverlayPointerDown(event) {
   if (!scrubbing.value) return
   event.preventDefault()
   activePointerId = event.pointerId
+  // 已打开后再点/滑侧边条区域：按位置选月
+  hasScrubMoved = true
   applyPointerToIndex(event.clientY)
 }
 
@@ -279,12 +424,9 @@ function onOverlayPointerMove(event) {
 }
 
 function estimateRailRect() {
-  const count = Math.max(1, props.months.length)
-  const years = new Set(props.months.map((m) => m.year)).size
-  const desired = count * RAIL_MIN_ITEM + years * 22 + 24
-  const maxHeight = Math.round((typeof window !== 'undefined' ? window.innerHeight : 800) * RAIL_MAX_HEIGHT_RATIO)
-  const height = Math.min(maxHeight, Math.max(160, desired))
-  const top = ((typeof window !== 'undefined' ? window.innerHeight : 800) - height) / 2
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 800
+  const height = vh * (1 - RAIL_TOP_RATIO - RAIL_BOTTOM_RATIO)
+  const top = vh * RAIL_TOP_RATIO
   return { top, height }
 }
 
@@ -304,8 +446,12 @@ function applyPointerToIndex(clientY) {
   if (next !== activeIndex.value) {
     activeIndex.value = next
     vibrate(6)
+    const max = Math.max(1, props.months.length - 1)
+    setIndicatorProgress(props.months.length <= 1 ? 0 : next / max, { smooth: false })
+    scheduleJumpToIndex(next)
+    return
   }
-  scheduleJumpToIndex(next)
+  // 同一格内拖动：不重复跳转
 }
 
 function scheduleJumpToIndex(index) {
@@ -313,53 +459,105 @@ function scheduleJumpToIndex(index) {
   if (rafJump) return
   rafJump = window.requestAnimationFrame(() => {
     rafJump = 0
-    jumpToIndex(lastJumpIndex)
+    jumpToIndex(lastJumpIndex, { settle: !scrubbing.value })
   })
 }
 
-function jumpToIndex(index) {
+function jumpToIndex(index, { settle = false } = {}) {
   const month = props.months[index]
   if (!month) return
+  const yearMonth = month.yearMonth
+  if (!yearMonth) return
 
-  const sectionEl = props.getSectionEl?.()
-  const scrollEl = props.getScrollEl?.()
-  if (!sectionEl || !scrollEl) return
+  const monthEl = findMonthEl(yearMonth)
 
-  const monthEl = sectionEl.querySelector(`[data-tl-month="${cssEscape(month.yearMonth)}"]`)
-  if (!monthEl) return
+  if (monthEl) {
+    const candidates = collectScrollCandidates()
+    for (const scroller of candidates) {
+      const scrollHeight = scroller.scrollHeight || 0
+      const clientHeight = scroller.clientHeight || 0
+      if (scrollHeight <= clientHeight + 2) continue
 
-  const scrollRect = scrollEl.getBoundingClientRect()
-  const monthRect = monthEl.getBoundingClientRect()
-  const current = scrollEl.scrollTop
-  const delta = monthRect.top - scrollRect.top - 12
-  const next = Math.max(0, current + delta)
-  if (Math.abs(next - current) > 0.5) {
-    scrollEl.scrollTop = next
+      const scrollerRect = scroller.getBoundingClientRect()
+      const monthRect = monthEl.getBoundingClientRect()
+      const delta = monthRect.top - scrollerRect.top - SCROLL_TOP_PAD
+      const next = Math.max(0, (scroller.scrollTop || 0) + delta)
+      animateScrollTo(scroller, next, { settle })
+      return
+    }
+
+    // window 兜底：用同样的缓动
+    const winFrom = readWindowScrollTop()
+    const y = monthEl.getBoundingClientRect().top + winFrom - SCROLL_TOP_PAD
+    const fakeScroller = {
+      scrollTop: winFrom,
+      scrollHeight: document.documentElement.scrollHeight || y + 1,
+      clientHeight: window.innerHeight || 800,
+      getBoundingClientRect: () => ({ top: 0 })
+    }
+    // 直接动画写 window
+    cancelScrollAnim()
+    const to = Math.max(0, y)
+    const delta = to - winFrom
+    if (Math.abs(delta) < 0.8) return
+    const dist = Math.abs(delta)
+    const base = settle ? 200 : 140
+    const duration = Math.min(base + (settle ? 120 : 80), base + dist * 0.06)
+    const ease = settle ? easeOutQuint : easeOutCubic
+    const start = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
+    const step = (now) => {
+      if (!scrollAnimState) return
+      const t = Math.min(1, (now - start) / duration)
+      window.scrollTo(0, winFrom + delta * ease(t))
+      if (t < 1) scrollAnimState.raf = window.requestAnimationFrame(step)
+      else {
+        window.scrollTo(0, to)
+        scrollAnimState = null
+      }
+    }
+    scrollAnimState = { raf: window.requestAnimationFrame(step), scroller: fakeScroller }
+    return
   }
-}
 
-function cssEscape(value) {
-  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
-    return CSS.escape(value)
+  if (typeof props.offsetOfMonth === 'function') {
+    const offsetInSection = props.offsetOfMonth(index, props.months)
+    const sectionEl = props.getSectionEl?.()
+    const candidates = collectScrollCandidates()
+    for (const scroller of candidates) {
+      if (!scroller) continue
+      const scrollHeight = scroller.scrollHeight || 0
+      const clientHeight = scroller.clientHeight || 0
+      if (scrollHeight <= clientHeight + 2) continue
+      let base = 0
+      if (sectionEl) {
+        const scrollerRect = scroller.getBoundingClientRect()
+        const sectionRect = sectionEl.getBoundingClientRect()
+        base = (scroller.scrollTop || 0) + (sectionRect.top - scrollerRect.top)
+      }
+      animateScrollTo(scroller, base + offsetInSection - SCROLL_TOP_PAD, { settle })
+      return
+    }
   }
-  return String(value).replace(/"/g, '\\"')
 }
 
 function endScrub() {
   if (!scrubbing.value) return
-  // 落点再跳一次，确保松手位置准确
-  jumpToIndex(activeIndex.value)
+  // 仅在用户实际拖动过后才收尾对齐；纯点击打开则停在原位
+  if (hasScrubMoved) {
+    jumpToIndex(activeIndex.value, { settle: true })
+  }
   scrubbing.value = false
+  hasScrubMoved = false
   activePointerId = -1
-  edgePointerId = -1
-  clearLongPress()
-  unbindEdgeMoveWatch()
   unbindScrubPointerWatch()
   setScrollLock(false)
   if (rafJump) {
     window.cancelAnimationFrame(rafJump)
     rafJump = 0
   }
+  const max = Math.max(1, props.months.length - 1)
+  setIndicatorProgress(props.months.length <= 1 ? 0 : activeIndex.value / max, { smooth: true })
+  showIndicator()
   emit('scrub-end', {
     index: activeIndex.value,
     yearMonth: activeMonth.value?.yearMonth || null
@@ -378,49 +576,78 @@ function close() {
 
 defineExpose({ consumeBack, close })
 
-watch(scrubbing, (val) => {
-  if (!val) {
-    unbindEdgeMoveWatch()
-    unbindScrubPointerWatch()
+watch(() => props.enabled, () => {
+  rebindScroll()
+  if (!props.enabled) {
+    indicatorVisible.value = false
+    cancelScrollAnim()
+    endScrub()
   }
+}, { immediate: true })
+
+watch(scrubbing, (val) => {
+  if (!val) unbindScrubPointerWatch()
 })
 
 onBeforeUnmount(() => {
-  clearLongPress()
-  unbindEdgeMoveWatch()
+  unbindScroll()
   unbindScrubPointerWatch()
   setScrollLock(false)
-  if (rafJump) {
-    window.cancelAnimationFrame(rafJump)
-    rafJump = 0
-  }
+  cancelScrollAnim()
+  if (hideTimer) window.clearTimeout(hideTimer)
+  if (scrollRaf) window.cancelAnimationFrame(scrollRaf)
+  if (rafJump) window.cancelAnimationFrame(rafJump)
+  if (indicatorLerpRaf) window.cancelAnimationFrame(indicatorLerpRaf)
+  hideTimer = 0
+  scrollRaf = 0
+  rafJump = 0
+  indicatorLerpRaf = 0
 })
 </script>
 
 <style scoped>
-.tl-scrub-edge {
+/* 右侧位置指示条：滚动时才出现，点按打开侧边年月条 */
+.tl-scrub-indicator {
   position: fixed;
-  top: env(safe-area-inset-top, 0px);
-  /* 避开底部 TabBar / FAB，防止抢点击与滚动 */
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
-  width: 36px;
-  /* 低于 TabBar(60)/FAB(65)，不挡导航与添加按钮 */
-  z-index: 50;
-  /* 热区不锁 touch-action：边缘仍可正常滚动；仅长按成功后由 overlay 锁定 */
-  touch-action: auto;
-  background: transparent;
+  right: 2px;
+  z-index: 115;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 4px;
+  touch-action: none;
+  cursor: pointer;
+  opacity: 0.92;
+  will-change: transform, opacity;
+  transition:
+    transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.28s ease,
+    width 0.2s ease;
 }
 
-.tl-scrub-edge--left {
-  left: 0;
+.tl-scrub-indicator__thumb {
+  width: 5px;
+  height: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 38%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--app-surface) 40%, transparent),
+    0 2px 8px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+  transition:
+    width 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.tl-scrub-edge--right {
-  right: 0;
+.tl-scrub-indicator--scrubbing {
+  opacity: 1;
 }
 
-.tl-scrub-edge--armed {
-  cursor: ns-resize;
+.tl-scrub-indicator--scrubbing .tl-scrub-indicator__thumb {
+  width: 7px;
+  background: color-mix(in srgb, var(--app-text) 72%, transparent);
 }
 
 .tl-scrub-overlay {
@@ -437,27 +664,43 @@ onBeforeUnmount(() => {
   inset: 0;
   background: color-mix(in srgb, var(--app-overlay) 55%, transparent);
   pointer-events: none;
+  animation: scrub-dim-in 0.22s ease both;
+}
+
+@keyframes scrub-dim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .tl-scrub-rail {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 10vh;
+  bottom: 12vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding: 12px 8px;
-  min-width: 44px;
-  max-height: 62vh;
-  overflow: hidden;
-  border-radius: 22px;
+  width: 52px;
+  padding: 10px 6px;
+  border-radius: 26px;
   background: color-mix(in srgb, var(--app-glass-strong) 92%, transparent);
   border: 1px solid var(--app-glass-border);
   box-shadow: var(--app-shadow-lg);
   backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
   -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
   pointer-events: none;
+  overflow: hidden;
+  will-change: transform, opacity;
+  animation: scrub-rail-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes scrub-rail-in {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
 }
 
 .tl-scrub-rail--left {
@@ -468,65 +711,64 @@ onBeforeUnmount(() => {
   right: 8px;
 }
 
-.tl-scrub-row {
+.tl-scrub-year-block {
+  position: relative;
   display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 16px;
-  line-height: 1;
+  flex-direction: column;
+  min-height: 18px;
+  margin: 3px 0;
 }
 
-.tl-scrub-row--year {
-  margin-top: 6px;
-  justify-content: flex-start;
-  padding: 4px 2px 2px;
-}
-
-.tl-scrub-row--year:first-child {
-  margin-top: 0;
-}
-
-.tl-scrub-year {
+.tl-scrub-year-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  text-align: center;
   font-size: 12px;
   font-weight: 700;
-  color: var(--app-text);
+  line-height: 1.2;
   letter-spacing: 0.02em;
+  color: var(--app-text);
+  pointer-events: none;
+  text-shadow:
+    0 0 6px color-mix(in srgb, var(--app-glass-strong) 90%, transparent),
+    0 0 2px var(--app-surface);
 }
 
-.tl-scrub-row--month {
-  min-height: 14px;
+.tl-scrub-ticks {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: stretch;
+  align-items: center;
+  padding-top: 16px;
+  gap: 0;
 }
 
 .tl-scrub-tick {
+  flex: 1 1 0;
   width: 10px;
-  height: 2px;
+  min-height: 3px;
+  max-height: 4px;
+  margin: auto 0;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--app-text-tertiary) 55%, transparent);
-  flex-shrink: 0;
+  background: color-mix(in srgb, var(--app-text-tertiary) 48%, transparent);
+  transition:
+    width 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    max-height 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-.tl-scrub-month {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--app-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 过密时淡出非当前月份数字，保留年份锚点 */
-.tl-scrub-rail--dense .tl-scrub-row--month:not(.tl-scrub-row--active) .tl-scrub-month {
-  opacity: 0.22;
-}
-
-.tl-scrub-row--active .tl-scrub-tick {
-  width: 16px;
-  height: 3px;
+.tl-scrub-tick--active {
+  width: 20px;
+  max-height: 5px;
+  height: 4px;
   background: var(--app-text);
-}
-
-.tl-scrub-row--active .tl-scrub-month {
-  color: var(--app-text);
-  font-weight: 700;
-  font-size: 12px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text) 14%, transparent);
 }
 
 .tl-scrub-preview {
@@ -541,14 +783,27 @@ onBeforeUnmount(() => {
   box-shadow: var(--app-shadow-xl);
   text-align: center;
   pointer-events: none;
+  will-change: transform, opacity;
+  animation: scrub-preview-in 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes scrub-preview-in {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scale(1);
+  }
 }
 
 .tl-scrub-preview--left {
-  left: 64px;
+  left: 68px;
 }
 
 .tl-scrub-preview--right {
-  right: 64px;
+  right: 68px;
 }
 
 .tl-scrub-preview-year {
@@ -557,6 +812,7 @@ onBeforeUnmount(() => {
   color: var(--app-text-tertiary);
   letter-spacing: 0.04em;
   margin-bottom: 4px;
+  transition: opacity 0.15s ease;
 }
 
 .tl-scrub-preview-month {
@@ -565,6 +821,7 @@ onBeforeUnmount(() => {
   color: var(--app-text);
   letter-spacing: -0.03em;
   line-height: 1.1;
+  transition: opacity 0.15s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .tl-scrub-preview-meta {
@@ -572,6 +829,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 600;
   color: var(--app-text-secondary);
+  transition: opacity 0.15s ease;
 }
 
 @media (max-height: 640px) {
@@ -580,7 +838,13 @@ onBeforeUnmount(() => {
   }
 
   .tl-scrub-rail {
-    max-height: 54vh;
+    top: 8vh;
+    bottom: 10vh;
+    width: 46px;
+  }
+
+  .tl-scrub-year-label {
+    font-size: 11px;
   }
 }
 </style>
