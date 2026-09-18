@@ -50,6 +50,7 @@
   "home.summary.totalAmountInfo": "合計金額の計算情報",
   "home.summary.viewTrend": "トレンドを見る",
   "home.timeline.unknownDate": "不明な日付",
+  "home.timeline.scrubHint": "左右を長押しすると月へすばやくジャンプできます",
   "home.title": "コレクション",
   "home.toolbar.allGoods": "すべてのグッズ",
   "home.toolbar.asc": "昇順",
