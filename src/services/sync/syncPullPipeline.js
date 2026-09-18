@@ -18,15 +18,16 @@ import i18n from '@/locales'
  * @param {object} be - backend adapter
  * @param {object} opts
  * @param {number} opts.since - incremental: only rows after this timestamp (ms)
+ * @param {string} [opts.source] - 同步触发源，随 sync_pull 透传给服务端审计
  */
-export async function readRemoteData(be, { since = 0, trackSyncStep = null } = {}) {
+export async function readRemoteData(be, { since = 0, trackSyncStep = null, source = '' } = {}) {
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
   const isIncremental = since > 0
   const pullData = await wrapStep(
     i18n.global.t('sync.step.readData'),
-    () => be.pullAll({ since }),
+    () => be.pullAll({ since, source }),
     {
       startDetail: i18n.global.t('sync.step.readData.start'),
       category: 'pull',

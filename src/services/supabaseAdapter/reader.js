@@ -219,12 +219,18 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     return []
   }
 
-  async function pullAll({ since = 0 } = {}) {
+  async function pullAll({ since = 0, source = '' } = {}) {
     const db = getDb()
     const sinceParam = since > 0 ? new Date(since).toISOString() : null
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
 
+    // p_device_id / p_source 供 sync_pull 服务端写审计；旧 RPC 忽略未知命名参数
     const { data: rawData, error } = await withRetry(() =>
-      db.rpc('sync_pull', { p_since: sinceParam })
+      db.rpc('sync_pull', {
+        p_since: sinceParam,
+        p_device_id: currentDeviceId || '',
+        p_source: source || ''
+      })
     )
     if (error) throw error
 

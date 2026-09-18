@@ -116,6 +116,7 @@ export function createSyncOrchestrator({
     try { localBatchDrafts = await getAllBatchDrafts() } catch { localBatchDrafts = [] }
     const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
     const isIncremental = since > 0 && !!be.pullAll
+    const pullSource = opts.source || (schemaResync ? 'schemaResync' : 'pull')
     log.info('pull:start', { incremental: isIncremental, since, silent, tables: tables || 'all' })
 
     try {
@@ -125,7 +126,8 @@ export function createSyncOrchestrator({
       const pullStartMs = Date.now()
       const remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(since),
-        trackSyncStep
+        trackSyncStep,
+        source: pullSource
       })
 
       if (remoteData.manifest?.imageCloudId) {
@@ -285,7 +287,7 @@ export function createSyncOrchestrator({
       // Quick push path: single goods edit, no remote read needed
       if (canQuickPush(be, dirtyGoodsIds, dirtyDomains)) {
         try {
-          const result = await quickPush(ctx, dirtyGoodsIds)
+          const result = await quickPush(ctx, dirtyGoodsIds, source)
           log.info('sync:quick-push:done', { pushedItems: result.pushedItems, pushedTrash: result.pushedTrash })
           return result
         } catch (e) {
@@ -309,7 +311,7 @@ export function createSyncOrchestrator({
 
   // ── Quick push: direct upsert of specific dirty goods ──
 
-  async function quickPush(ctx, dirtyIds) {
+  async function quickPush(ctx, dirtyIds, source = '') {
     const be = ctx.backend || backend
     const goodsStore = useGoodsStore()
 
@@ -386,7 +388,8 @@ export function createSyncOrchestrator({
       rechargeUpdatedAt: existingManifest?.recharge_updated_at ?? null,
       eventUpdatedAt: existingManifest?.event_updated_at ?? null,
       budgetMonthly: existingManifest?.budget_monthly ?? 0,
-      budgetYearly: existingManifest?.budget_yearly ?? 0
+      budgetYearly: existingManifest?.budget_yearly ?? 0,
+      source: source || 'quickPush'
     })
 
     // 水位线优先用服务器侧 synced_at（新版 RPC 返回），消除设备时钟偏移
@@ -401,6 +404,7 @@ export function createSyncOrchestrator({
 
   async function fullSync(ctx, stores, be, opts = {}) {
     const { dirtyDomains, dirtyGoodsIds } = opts
+    const syncSource = opts.source || 'fullSync'
     const dirty = dirtyDomains
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
@@ -425,7 +429,7 @@ export function createSyncOrchestrator({
     try {
       remoteManifest = be.readManifest
         ? await be.readManifest()
-        : (await readRemoteData(be, { trackSyncStep })).manifest
+        : (await readRemoteData(be, { trackSyncStep, source: syncSource })).manifest
     } catch (e) { wrapSyncError(e, PHASE_READ_MANIFEST) }
     if (remoteManifest?.imageCloudId) await ctx.saveImageCloudId(remoteManifest.imageCloudId)
 
@@ -444,7 +448,8 @@ export function createSyncOrchestrator({
     try {
       remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(localSyncTime),
-        trackSyncStep
+        trackSyncStep,
+        source: syncSource
       })
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
     remoteData.manifest = remoteManifest
@@ -523,7 +528,7 @@ export function createSyncOrchestrator({
     if (remoteTime > serverSyncTime) {
       if (!remoteManifest) {
         // First sync — push local data
-        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasBatchDraftDataDiff: true, hasPresetsDiff: true })
+        return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasBatchDraftDataDiff: true, hasPresetsDiff: true, source: syncSource })
       }
       // Batch drafts are a temporary local editing workspace. If this device
       // has a dirty draft, push it before pulling a newer remote manifest;
@@ -594,7 +599,8 @@ export function createSyncOrchestrator({
           hasBatchDraftDataDiff: true,
           hasPresetsDiff: false,
           remoteData,
-          localBatchDrafts
+          localBatchDrafts,
+          source: syncSource
         })
         return { ...pushAfterPull, pulledFirst: true, ...pullCounts }
       }
@@ -602,7 +608,7 @@ export function createSyncOrchestrator({
     }
 
     // Push (incremental — only send changed items)
-    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData, localBatchDrafts })
+    return doPush(ctx, stores, be, { hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff, hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData, localBatchDrafts, source: syncSource })
   }
 
   // ── Push implementation ──
@@ -625,7 +631,8 @@ export function createSyncOrchestrator({
     const {
       hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff,
       hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData,
-      localBatchDrafts = null
+      localBatchDrafts = null,
+      source = ''
     } = opts
 
     let draftSnapshot = localBatchDrafts
@@ -695,7 +702,8 @@ export function createSyncOrchestrator({
           shouldWriteBatchDrafts: hasBatchDraftDataDiff,
           shouldWritePresets: hasPresetsDiff,
           fullGoodsList: hasDirtyGoodsIds ? stores.goodsStore.list : null,
-          fullTrashList: hasDirtyGoodsIds ? stores.goodsStore.trashList : null
+          fullTrashList: hasDirtyGoodsIds ? stores.goodsStore.trashList : null,
+          source
         }),
         {
           startDetail: i18n.global.t('sync.step.pushData.start'),
@@ -904,7 +912,7 @@ export function createSyncOrchestrator({
       let remoteData = null
       try {
         const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), trackSyncStep })
+        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), trackSyncStep, source: 'forcePush' })
       } catch (e) {
         log.warn('forcePush: read remote failed, pushing full data', e.message)
       }
@@ -912,7 +920,8 @@ export function createSyncOrchestrator({
       return await doPush(ctx, stores, be, {
         hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true,
         hasBatchDraftDataDiff: true, hasPresetsDiff: true,
-        remoteData
+        remoteData,
+        source: 'forcePush'
       })
     } catch (e) {
       wrapSyncError(e, PHASE_PUSH)
