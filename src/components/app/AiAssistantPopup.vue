@@ -27,6 +27,7 @@
 // @ts-check
 // 全局 AI 助手弹窗：任意页面顶部下拉手势唤起。
 // 手机从顶部滑入（与下拉手势方向一致），平板（≥900px）居中弹窗。
+// 宿主（App.vue）必须常驻挂载本组件，只用 v-model:show 开关；随开闭 v-if 会跳过 sheet-pop 动画。
 import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -35,8 +36,9 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { createLogger } from '@/utils/logger'
 
 const aiLog = createLogger('ai-assistant')
+const AI_CHAT_PANEL_LOAD = () => import('@/components/ai/AiChatPanel.vue')
 const AiChatPanel = defineAsyncComponent({
-  loader: () => import('@/components/ai/AiChatPanel.vue'),
+  loader: AI_CHAT_PANEL_LOAD,
   delay: 0,
   timeout: 15000,
   onError: (error) => aiLog.warn('panel:load-failed', error)
@@ -56,7 +58,11 @@ useDialogBackButton(() => close(), () => props.show)
 const windowWidth = ref(window.innerWidth)
 const isTabletViewport = computed(() => windowWidth.value >= 900)
 function handleResize() { windowWidth.value = window.innerWidth }
-onMounted(() => window.addEventListener('resize', handleResize, { passive: true }))
+onMounted(() => {
+  window.addEventListener('resize', handleResize, { passive: true })
+  // 常驻挂载后预热聊天面板 chunk，避免首次下拉时进场动画和异步加载叠在一起
+  void AI_CHAT_PANEL_LOAD().catch((error) => aiLog.warn('panel:warmup-failed', error))
+})
 onBeforeUnmount(() => window.removeEventListener('resize', handleResize))
 
 /** @param {boolean} value */

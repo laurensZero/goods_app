@@ -21,7 +21,8 @@
     <AsyncAppUpdateDialog v-if="shellReady" />
 
     <AsyncClipboardDialog v-if="shellReady" />
-    <AsyncAiAssistantPopup v-if="aiAssistantVisible" v-model:show="aiAssistantVisible" />
+    <!-- 与其它壳层弹窗一样常驻：v-if 绑可见性会让组件随开闭卸载，AppSheet 的 sheet-pop 进出场画不出来 -->
+    <AsyncAiAssistantPopup v-if="shellReady" v-model:show="aiAssistantVisible" />
     <AppNotifyToast :notifications="appNotifyList" @dismiss="appNotifyDismiss" />
     <AppToast :message="globalToastMsg" />
     <AsyncSurveyPopupDialog v-if="shellReady" ref="surveyPopupRef" />
@@ -166,7 +167,8 @@ useDeepLinks({
 })
 
 // 任意页面顶部大幅下拉并停顿 → 弹出 AI 助手（手机自顶部滑入，平板居中；
-// 已在 AI 聊天页或弹窗已打开时不触发）
+// 已在 AI 聊天页或弹窗已打开时不触发）。
+// 组件在 shellReady 后常驻，动画靠 modelValue 开关，与其它 AppSheet 一致。
 const aiAssistantVisible = ref(false)
 usePullDownGesture({
   enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value,

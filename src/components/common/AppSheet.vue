@@ -20,7 +20,8 @@
         @click="onOverlayClick"
       />
 
-      <Transition name="sheet-pop">
+      <!-- appear：宿主若在 modelValue=true 时才挂载（异常路径），进场动画也要走同一套 -->
+      <Transition name="sheet-pop" appear>
         <div
           v-if="modelValue"
           class="app-sheet"
