@@ -146,6 +146,8 @@
           :enabled="isHomeActive && goodsList.length > 0"
           :get-section-el="() => timelineSectionRef.value?.sectionEl ?? null"
           :get-scroll-el="getScrollEl"
+          :month-at-offset="timelineMetrics.monthAtOffset"
+          :offset-of-month="timelineMetrics.offsetOfMonth"
         />
       </Teleport>
     </main>
