@@ -27,10 +27,43 @@ import {
   aliasCachedImage,
   clearMemoryCache,
   getCachedImage,
+  getNativeCacheLimitMb,
   hasRecentlyDecodedImage,
   invalidateCachedImage,
   peekCachedImage,
+  setNativeCacheLimitMb,
+  DEFAULT_NATIVE_CACHE_LIMIT_MB,
+  IMAGE_CACHE_LIMIT_OPTIONS_MB,
 } from '@/utils/image/cache'
+
+describe('utils/image/cache native cache limit', () => {
+  beforeEach(() => {
+    localStorage.removeItem('img-cache-limit-mb')
+  })
+
+  afterEach(() => {
+    localStorage.removeItem('img-cache-limit-mb')
+  })
+
+  it('未配置时回落到默认 256MB', () => {
+    expect(DEFAULT_NATIVE_CACHE_LIMIT_MB).toBe(256)
+    expect(getNativeCacheLimitMb()).toBe(256)
+  })
+
+  it('设置页预设包含 128/256/512/1024', () => {
+    expect([...IMAGE_CACHE_LIMIT_OPTIONS_MB]).toEqual([128, 256, 512, 1024])
+  })
+
+  it('写入合法值并可读回；非法值忽略', () => {
+    expect(setNativeCacheLimitMb(512)).toBe(512)
+    expect(localStorage.getItem('img-cache-limit-mb')).toBe('512')
+    expect(getNativeCacheLimitMb()).toBe(512)
+
+    expect(setNativeCacheLimitMb(16)).toBe(512)
+    expect(setNativeCacheLimitMb(Number.NaN)).toBe(512)
+    expect(getNativeCacheLimitMb()).toBe(512)
+  })
+})
 
 describe('utils/image/cache aliasCachedImage', () => {
   beforeEach(async () => {

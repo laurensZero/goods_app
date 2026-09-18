@@ -12,18 +12,42 @@ const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
 const CAP_FOLDER = 'img-cache'
 const NATIVE_CACHE_META_KEY = 'img-cache-lru-v1'
-const DEFAULT_NATIVE_CACHE_LIMIT_MB = 256
+const NATIVE_CACHE_LIMIT_STORAGE_KEY = 'img-cache-limit-mb'
+export const DEFAULT_NATIVE_CACHE_LIMIT_MB = 256
+/** 设置页可选上限（MB）；localStorage 仍接受 ≥32 的任意整数 */
+export const IMAGE_CACHE_LIMIT_OPTIONS_MB = Object.freeze([128, 256, 512, 1024])
 
-function getNativeCacheLimitBytes() {
+export function getNativeCacheLimitMb() {
   try {
-    const raw = Number(localStorage.getItem('img-cache-limit-mb'))
+    const raw = Number(localStorage.getItem(NATIVE_CACHE_LIMIT_STORAGE_KEY))
     if (Number.isFinite(raw) && raw >= 32) {
-      return Math.floor(raw * 1024 * 1024)
+      return Math.floor(raw)
     }
   } catch {
     // ignore invalid localStorage state
   }
-  return DEFAULT_NATIVE_CACHE_LIMIT_MB * 1024 * 1024
+  return DEFAULT_NATIVE_CACHE_LIMIT_MB
+}
+
+function getNativeCacheLimitBytes() {
+  return getNativeCacheLimitMb() * 1024 * 1024
+}
+
+/**
+ * 写入显示缓存上限（MB）。低于 32 的值忽略。
+ * 仅影响原生端 Directory.Cache 的 LRU 预算；Web 端浏览器自管缓存。
+ */
+export function setNativeCacheLimitMb(mb) {
+  const value = Math.floor(Number(mb))
+  if (!Number.isFinite(value) || value < 32) {
+    return getNativeCacheLimitMb()
+  }
+  try {
+    localStorage.setItem(NATIVE_CACHE_LIMIT_STORAGE_KEY, String(value))
+  } catch {
+    // ignore storage quota errors
+  }
+  return value
 }
 
 function readNativeCacheMeta() {

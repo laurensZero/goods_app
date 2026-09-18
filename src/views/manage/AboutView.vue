@@ -176,9 +176,18 @@
           <article class="info-card">
             <p class="info-kicker">{{ t('about.localImageCache') }}</p>
             <h3 class="info-value">{{ resourceSizeCacheImage }}</h3>
-            <p class="info-desc">{{ t('about.localImageCacheDesc') }}</p>
-            <div class="update-actions" style="margin-top: 1rem;">
-              <button class="dialog-btn dialog-btn--secondary" @click="handleClearImageCache">{{ t('about.clearImageCache') }}</button>
+            <p v-if="IS_NATIVE" class="info-meta">{{ t('about.imageCacheLimitMeta', { size: `${cacheLimitMb} MB` }) }}</p>
+            <p class="info-desc">{{ IS_NATIVE ? t('about.imageCacheLimitDesc') : t('about.localImageCacheDesc') }}</p>
+            <div class="resource-actions">
+              <button
+                v-if="IS_NATIVE"
+                type="button"
+                class="dialog-btn dialog-btn--secondary"
+                @click="showCacheLimitSheet = true"
+              >
+                {{ t('about.setImageCacheLimit') }}
+              </button>
+              <button type="button" class="dialog-btn dialog-btn--secondary" @click="handleClearImageCache">{{ t('about.clearImageCache') }}</button>
             </div>
           </article>
 
@@ -266,6 +275,34 @@
       </div>
     </AppSheet>
 
+    <!-- 图片缓存上限选择 -->
+    <AppSheet
+      :model-value="showCacheLimitSheet"
+      sheet-class="cache-limit-sheet"
+      @update:model-value="(v) => { if (!v) showCacheLimitSheet = false }"
+    >
+      <p class="dialog-title">{{ t('about.imageCacheLimitTitle') }}</p>
+      <div class="cache-limit-options">
+        <button
+          v-for="mb in cacheLimitOptions"
+          :key="mb"
+          type="button"
+          :class="['cache-limit-option', { 'cache-limit-option--active': cacheLimitMb === mb }]"
+          @click="handleSelectCacheLimit(mb)"
+        >
+          <span>{{ mb }} MB</span>
+          <span v-if="cacheLimitMb === mb" class="cache-limit-option__check" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
+          </span>
+        </button>
+      </div>
+      <div class="dialog-actions dialog-actions__right">
+        <button type="button" class="dialog-btn dialog-btn--secondary" @click="showCacheLimitSheet = false">{{ t('about.cancel') }}</button>
+      </div>
+    </AppSheet>
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -287,6 +324,13 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
+import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import {
+  DEFAULT_NATIVE_CACHE_LIMIT_MB,
+  IMAGE_CACHE_LIMIT_OPTIONS_MB,
+  getNativeCacheLimitMb,
+  setNativeCacheLimitMb
+} from '@/utils/image/cache'
 import packageJson from '../../../package.json'
 import capacitorConfig from '../../../capacitor.config.json'
 import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
@@ -304,8 +348,19 @@ const webUpdateStore = useWebUpdateStore()
 const pageBodyRef = ref(null)
 const showWebUpdateRestartDialog = ref(false)
 const showWebUpdateResetDialog = ref(false)
+const showCacheLimitSheet = ref(false)
 const isClearingCutoutModel = ref(false)
+const cacheLimitMb = ref(DEFAULT_NATIVE_CACHE_LIMIT_MB)
+const cacheLimitOptions = computed(() => {
+  const presets = [...IMAGE_CACHE_LIMIT_OPTIONS_MB]
+  if (!presets.includes(cacheLimitMb.value)) {
+    presets.unshift(cacheLimitMb.value)
+  }
+  return presets
+})
 const { toastMsg, showToast } = useToast()
+
+useDialogBackButton(() => { showCacheLimitSheet.value = false }, showCacheLimitSheet)
 
 const appIconSrc = `${import.meta.env.BASE_URL}favicon.svg`
 const appName = capacitorConfig.appName || packageJson.name || 'Goods App'
@@ -605,8 +660,25 @@ async function refreshResourceSizes() {
 }
 
 onMounted(() => {
+  cacheLimitMb.value = getNativeCacheLimitMb()
   refreshResourceSizes()
 })
+
+async function handleSelectCacheLimit(mb) {
+  const next = setNativeCacheLimitMb(mb)
+  cacheLimitMb.value = next
+  showCacheLimitSheet.value = false
+  if (IS_NATIVE) {
+    try {
+      const { cleanupImageCache } = await import('@/utils/image/cache')
+      await cleanupImageCache()
+    } catch (error) {
+      console.error('[about] apply image cache limit failed:', error)
+    }
+  }
+  showToast(t('about.imageCacheLimitUpdated', { size: `${next} MB` }))
+  refreshResourceSizes()
+}
 
 async function handleClearImageCache() {
   try {
