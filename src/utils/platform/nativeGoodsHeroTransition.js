@@ -616,13 +616,21 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   let overlayZIndex = direction === 'back'
     ? HERO_BACK_OVERLAY_Z_INDEX
     : HERO_FORWARD_OVERLAY_Z_INDEX
-  // Boost z-index when target is inside a popup/overlay (e.g. Vant Popup)
+  // Boost z-index when target is inside a popup/overlay.
+  // Vant puts z-index on the dialog node itself; AppSheet puts it on the
+  // outer `.app-sheet-overlay` shell while `.app-sheet[role=dialog]` stays
+  // `auto`. Only reading the dialog node left the hero under the sheet
+  // (image hidden + overlay below = cover appears to vanish on return).
   if (targetEl && typeof targetEl.closest === 'function') {
-    const popup = targetEl.closest('.van-popup, .van-overlay, [role="dialog"]')
-    if (popup) {
-      const popupZ = Number.parseInt(window.getComputedStyle(popup).zIndex, 10)
-      if (Number.isFinite(popupZ) && popupZ >= overlayZIndex) {
-        overlayZIndex = popupZ + 10
+    const dialog = targetEl.closest('.van-popup, .van-overlay, [role="dialog"], .app-sheet')
+    const overlayShell = targetEl.closest('.app-sheet-overlay, .van-overlay')
+      || dialog?.closest?.('.app-sheet-overlay')
+      || null
+    const zCandidates = [dialog, overlayShell].filter(Boolean)
+    for (const node of zCandidates) {
+      const nodeZ = Number.parseInt(window.getComputedStyle(node).zIndex, 10)
+      if (Number.isFinite(nodeZ) && nodeZ >= overlayZIndex) {
+        overlayZIndex = nodeZ + 10
       }
     }
   }
