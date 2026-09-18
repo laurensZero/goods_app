@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMonthLabel } from '@/utils/format'
 import { monthIndexFromRailRatio } from '@/utils/goods/timelineScrubber'
@@ -97,24 +97,11 @@ let hideTimer = 0
 let scrollRaf = 0
 let hasScrubMoved = false
 let boundScrollEls = []
+/** 'indicator'：沿右侧指示条拖动；'rail'：沿侧边年份条拖动 */
+let scrubSource = 'indicator'
 
 function isConnected(el) {
   return Boolean(el && el.isConnected !== false)
-}
-
-/** 只解析「当前页」的滚动容器，避免 KeepAlive 下查到别的 .page-body */
-function resolveScroller() {
-  const fromProps = props.getScrollEl?.()
-  if (isConnected(fromProps)) return fromProps
-
-  const sectionEl = props.getSectionEl?.()
-  const fromSection = sectionEl?.closest?.('.page-body')
-  if (isConnected(fromSection)) return fromSection
-
-  if (props.rootSelector) {
-    return document.querySelector(`${props.rootSelector} .page-body`)
-  }
-  return null
 }
 
 function isWindowLikeScroller(el) {
@@ -124,6 +111,41 @@ function isWindowLikeScroller(el) {
     || el === document.scrollingElement
     || el === document.documentElement
     || el === document.body
+}
+
+function canScroll(el) {
+  if (!el) return false
+  if (isWindowLikeScroller(el)) {
+    return (document.documentElement.scrollHeight || 0) > (window.innerHeight || 0) + 2
+  }
+  return (el.scrollHeight || 0) > (el.clientHeight || 0) + 2
+}
+
+/** 解析当前真正可滚动的容器：优先页面 page-body，再退回 window */
+function resolveScroller() {
+  const candidates = []
+  const fromProps = props.getScrollEl?.()
+  if (isConnected(fromProps)) candidates.push(fromProps)
+
+  const sectionEl = props.getSectionEl?.()
+  if (isConnected(sectionEl)) {
+    const closest = sectionEl.closest?.('.page-body')
+    if (closest && !candidates.includes(closest)) candidates.push(closest)
+  }
+
+  if (props.rootSelector) {
+    const scoped = document.querySelector(`${props.rootSelector} .page-body`)
+    if (scoped && !candidates.includes(scoped)) candidates.push(scoped)
+  }
+
+  for (const el of candidates) {
+    if (!isWindowLikeScroller(el) && canScroll(el)) return el
+  }
+  // 页面尚未撑高时也先绑 page-body，撑高后 scroll 事件会到它这里
+  for (const el of candidates) {
+    if (!isWindowLikeScroller(el)) return el
+  }
+  return window
 }
 
 const activeMonth = computed(() => props.months[activeIndex.value] || props.months[0] || null)
@@ -315,10 +337,12 @@ function syncFromScroll() {
   const sectionEl = props.getSectionEl?.()
   if (!scroller || !isConnected(sectionEl) || props.months.length === 0) return
 
-  const scrollRect = scroller.getBoundingClientRect()
-  const sectionRect = sectionEl.getBoundingClientRect()
+  const scrollportTop = isWindowLikeScroller(scroller)
+    ? 0
+    : (scroller.getBoundingClientRect().top || 0)
+  const sectionTop = sectionEl.getBoundingClientRect().top || 0
   // 视口顶在时间线内容坐标系中的偏移
-  const offsetInSection = scrollRect.top - sectionRect.top
+  const offsetInSection = scrollportTop - sectionTop
   const sectionH = sectionEl.offsetHeight || 1
   const progress = Math.min(1, Math.max(0, offsetInSection / sectionH))
 
@@ -329,7 +353,6 @@ function syncFromScroll() {
   if (typeof props.monthAtOffset === 'function') {
     index = props.monthAtOffset(Math.max(0, offsetInSection), props.months)
   } else {
-    // 无 metrics 时用 DOM 月份块位置估算
     index = monthIndexFromScroll(offsetInSection)
   }
   const maxIndex = props.months.length - 1
@@ -379,20 +402,27 @@ function onScroll() {
   })
 }
 
+function collectBindTargets() {
+  const els = []
+  const push = (el) => {
+    if (el && !els.includes(el)) els.push(el)
+  }
+  // 与页面 usePageScrollBinder 一致：元素 + window 双监听
+  // （Android 上实际滚动源可能在 page-body 或 window，漏绑任一都会导致指示条不出现）
+  const primary = resolveScroller()
+  if (primary && !isWindowLikeScroller(primary)) push(primary)
+  push(window)
+
+  const fromProps = props.getScrollEl?.()
+  if (isConnected(fromProps) && !isWindowLikeScroller(fromProps)) push(fromProps)
+
+  return els
+}
+
 function bindScroll() {
   unbindScroll()
   if (!props.enabled) return
-
-  const primary = resolveScroller()
-  const els = []
-  if (primary && !isWindowLikeScroller(primary)) {
-    els.push(primary)
-  } else {
-    // 滚动确实在 window 时才监听 window，避免其它 KeepAlive 页滚动误触发
-    els.push(window)
-  }
-
-  for (const el of els) {
+  for (const el of collectBindTargets()) {
     el.addEventListener('scroll', onScroll, { passive: true })
     boundScrollEls.push(el)
   }
@@ -410,7 +440,29 @@ function rebindScroll() {
   if (props.enabled) bindScroll()
 }
 
-/** 点按右侧小滚动条 → 打开侧边年份条（首次点击不跳转，仅展示当前位置） */
+// 月份数据 / 容器就绪后再绑一次，避免 mount 时 DOM 还没撑开
+watch(
+  () => [props.enabled, props.months.length, Boolean(props.getSectionEl?.())],
+  () => {
+    syncScrubActiveClass()
+    rebindScroll()
+    if (props.enabled) {
+      nextTick(() => {
+        if (!props.enabled) return
+        rebindScroll()
+        syncFromScroll()
+      })
+    } else {
+      indicatorVisible.value = false
+      cancelScrollAnim()
+      endScrub()
+      unbindScroll()
+    }
+  },
+  { immediate: true }
+)
+
+/** 点按/拖动右侧指示条 → 打开侧边年份条并跟随手指 */
 function onIndicatorPointerDown(event) {
   if (!props.enabled || props.months.length === 0) return
   if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -422,20 +474,47 @@ function onIndicatorPointerDown(event) {
     hideTimer = 0
   }
 
-  // 只同步当前滚动对应的月份，打开侧边条，不按触点 Y 跳转
   syncFromScroll()
   side.value = 'right'
   scrubbing.value = true
   indicatorVisible.value = true
   activePointerId = event.pointerId
+  scrubSource = 'indicator'
   setScrollLock(true)
   bindScrubPointerWatch()
   emit('scrub-start')
 
-  const max = Math.max(1, props.months.length - 1)
-  setIndicatorProgress(props.months.length <= 1 ? 0 : activeIndex.value / max, { smooth: false })
-  // 手指尚未滑动时保持原位；开始 move 才按 rail Y 选月并滚动
+  // 打开侧边条，但首次按下先不跳月；随后按指示条位置跟手
   hasScrubMoved = false
+  nextTick(() => {
+    if (!scrubbing.value || scrubSource !== 'indicator') return
+    applyPointerToIndex(event.clientY)
+  })
+}
+
+/** 指示条轨道几何：与 indicatorStyle 一致 */
+function indicatorTrackRect() {
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 800
+  const trackTop = TRACK_TOP
+  const trackH = Math.max(48, vh - TRACK_TOP - TRACK_BOTTOM)
+  const maxTop = Math.max(1, trackH - THUMB_H)
+  return { top: trackTop, height: maxTop }
+}
+
+function resolveIndexFromClientY(clientY) {
+  if (props.months.length === 0) return 0
+  if (scrubSource === 'indicator') {
+    const track = indicatorTrackRect()
+    const ratio = (clientY - track.top) / track.height
+    return monthIndexFromRailRatio(ratio, props.months.length)
+  }
+  let rect = railEl.value?.getBoundingClientRect?.()
+  if (!rect || !(rect.height > 0)) {
+    rect = estimateRailRect()
+  }
+  if (!(rect.height > 0)) return 0
+  const ratio = (clientY - rect.top) / rect.height
+  return monthIndexFromRailRatio(ratio, props.months.length)
 }
 
 function bindScrubPointerWatch() {
@@ -455,6 +534,9 @@ function onGlobalScrubPointerMove(event) {
   if (activePointerId >= 0 && event.pointerId !== activePointerId) return
   if (event.cancelable) event.preventDefault()
   hasScrubMoved = true
+  // 手指在右侧指示条轨道附近 → 按指示条几何；否则按侧边年份条
+  const nearIndicator = event.clientX >= (window.innerWidth - 56)
+  scrubSource = nearIndicator ? 'indicator' : 'rail'
   applyPointerToIndex(event.clientY)
 }
 
@@ -468,8 +550,10 @@ function onOverlayPointerDown(event) {
   if (!scrubbing.value) return
   event.preventDefault()
   activePointerId = event.pointerId
-  // 已打开后再点/滑侧边条区域：按位置选月
   hasScrubMoved = true
+  scrubSource = event.clientX >= ((typeof window !== 'undefined' ? window.innerWidth : 0) - 56)
+    ? 'indicator'
+    : 'rail'
   applyPointerToIndex(event.clientY)
 }
 
@@ -477,6 +561,10 @@ function onOverlayPointerMove(event) {
   if (!scrubbing.value) return
   if (activePointerId >= 0 && event.pointerId !== activePointerId) return
   event.preventDefault()
+  hasScrubMoved = true
+  scrubSource = event.clientX >= ((typeof window !== 'undefined' ? window.innerWidth : 0) - 56)
+    ? 'indicator'
+    : 'rail'
   applyPointerToIndex(event.clientY)
 }
 
@@ -487,17 +575,6 @@ function estimateRailRect() {
   return { top, height }
 }
 
-function resolveIndexFromClientY(clientY) {
-  if (props.months.length === 0) return 0
-  let rect = railEl.value?.getBoundingClientRect?.()
-  if (!rect || !(rect.height > 0)) {
-    rect = estimateRailRect()
-  }
-  if (!(rect.height > 0)) return 0
-  const ratio = (clientY - rect.top) / rect.height
-  return monthIndexFromRailRatio(ratio, props.months.length)
-}
-
 function applyPointerToIndex(clientY) {
   const next = resolveIndexFromClientY(clientY)
   if (next !== activeIndex.value) {
@@ -505,10 +582,11 @@ function applyPointerToIndex(clientY) {
     vibrate(6)
     const max = Math.max(1, props.months.length - 1)
     setIndicatorProgress(props.months.length <= 1 ? 0 : next / max, { smooth: false })
-    scheduleJumpToIndex(next)
-    return
   }
-  // 同一格内拖动：不重复跳转
+  // 有拖动就尝试跳转（同格也保持目标，便于微调后松手对齐）
+  if (hasScrubMoved) {
+    scheduleJumpToIndex(next)
+  }
 }
 
 function scheduleJumpToIndex(index) {
@@ -527,19 +605,32 @@ function jumpToIndex(index, { settle = false } = {}) {
   if (!yearMonth) return
 
   const monthEl = findMonthEl(yearMonth)
-  if (monthEl) {
-    const scroller = monthEl.closest('.page-body') || resolveScroller()
-    if (!scroller || isWindowLikeScroller(scroller)) {
-      const winFrom = readWindowScrollTop()
-      const y = monthEl.getBoundingClientRect().top + winFrom - SCROLL_TOP_PAD
-      animateWindowTo(y, { settle })
+
+  const candidates = []
+  const push = (el) => {
+    if (el && !candidates.includes(el)) candidates.push(el)
+  }
+  if (monthEl) push(monthEl.closest('.page-body'))
+  push(resolveScroller())
+  push(props.getScrollEl?.())
+  if (props.rootSelector) {
+    push(document.querySelector(`${props.rootSelector} .page-body`))
+  }
+
+  // 只写入真正能滚的容器
+  for (const scroller of candidates) {
+    if (isWindowLikeScroller(scroller) || !canScroll(scroller)) continue
+    if (!monthEl) {
+      if (typeof props.offsetOfMonth !== 'function') continue
+      const sectionEl = props.getSectionEl?.()
+      if (!isConnected(sectionEl)) continue
+      const offsetInSection = props.offsetOfMonth(index, props.months)
+      const scrollerRect = scroller.getBoundingClientRect()
+      const sectionRect = sectionEl.getBoundingClientRect()
+      const base = (scroller.scrollTop || 0) + (sectionRect.top - scrollerRect.top)
+      animateScrollTo(scroller, base + offsetInSection - SCROLL_TOP_PAD, { settle })
       return
     }
-
-    const scrollHeight = scroller.scrollHeight || 0
-    const clientHeight = scroller.clientHeight || 0
-    if (scrollHeight <= clientHeight + 2) return
-
     const scrollerRect = scroller.getBoundingClientRect()
     const monthRect = monthEl.getBoundingClientRect()
     const delta = monthRect.top - scrollerRect.top - SCROLL_TOP_PAD
@@ -548,18 +639,15 @@ function jumpToIndex(index, { settle = false } = {}) {
     return
   }
 
-  if (typeof props.offsetOfMonth === 'function') {
-    const scroller = resolveScroller()
-    const sectionEl = props.getSectionEl?.()
-    if (!scroller || !isConnected(sectionEl)) return
-    const scrollHeight = scroller.scrollHeight || 0
-    const clientHeight = scroller.clientHeight || 0
-    if (scrollHeight <= clientHeight + 2) return
-    const offsetInSection = props.offsetOfMonth(index, props.months)
-    const scrollerRect = scroller.getBoundingClientRect()
-    const sectionRect = sectionEl.getBoundingClientRect()
-    const base = (scroller.scrollTop || 0) + (sectionRect.top - scrollerRect.top)
-    animateScrollTo(scroller, base + offsetInSection - SCROLL_TOP_PAD, { settle })
+  // window 兜底
+  if (monthEl) {
+    const y = monthEl.getBoundingClientRect().top + readWindowScrollTop() - SCROLL_TOP_PAD
+    animateWindowTo(y, { settle })
+    return
+  }
+
+  if (typeof props.offsetOfMonth === 'function' && monthEl) {
+    monthEl.scrollIntoView?.({ block: 'start', behavior: settle ? 'smooth' : 'auto' })
   }
 }
 
@@ -623,28 +711,27 @@ function close() {
 
 defineExpose({ consumeBack, close })
 
-watch(() => props.enabled, () => {
-  rebindScroll()
-  if (!props.enabled) {
-    indicatorVisible.value = false
-    cancelScrollAnim()
-    endScrub()
-    unbindScroll()
-  } else {
-    // 重新进入本页时同步一次位置，避免指示条停在旧值
-    syncFromScroll()
-  }
-}, { immediate: true })
+function syncScrubActiveClass() {
+  if (typeof document === 'undefined') return
+  document.documentElement.classList.toggle('tl-scrub-active', Boolean(props.enabled && props.months.length > 0))
+}
 
 watch(scrubbing, (val) => {
   if (!val) unbindScrubPointerWatch()
 })
+
+watch(() => [props.enabled, props.months.length], () => {
+  syncScrubActiveClass()
+}, { immediate: true })
 
 onBeforeUnmount(() => {
   unbindScroll()
   unbindScrubPointerWatch()
   setScrollLock(false)
   cancelScrollAnim()
+  if (typeof document !== 'undefined') {
+    document.documentElement.classList.remove('tl-scrub-active')
+  }
   if (hideTimer) window.clearTimeout(hideTimer)
   if (scrollRaf) window.cancelAnimationFrame(scrollRaf)
   if (rafJump) window.cancelAnimationFrame(rafJump)
