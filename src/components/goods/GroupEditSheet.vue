@@ -5,8 +5,6 @@
     sheet-class="group-sheet-popup"
   >
     <div class="group-sheet">
-      <p class="group-sheet__title">{{ t('nav.groupDetail') }}</p>
-
       <div class="group-sheet__body">
         <!-- Group name -->
         <label class="field">
