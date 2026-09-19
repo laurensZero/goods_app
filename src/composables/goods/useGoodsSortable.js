@@ -3,6 +3,36 @@ import { onBeforeUnmount } from 'vue'
 import Sortable from 'sortablejs'
 
 /**
+ * 虚拟列表重排合并：把 DOM 上可见 goods 的新顺序写回它们在全量序列中的槽位。
+ * 屏外 id 不动；组卡 id 一律忽略。
+ * @param {Array<{ id?: string, _type?: string }>} displayItems
+ * @param {string[]} domGoodsIds
+ * @returns {string[] | null}
+ */
+export function mergeVisibleReorderIntoFullOrder(displayItems, domGoodsIds) {
+  const full = (displayItems || [])
+    .filter((item) => item && item._type !== 'group' && item.id)
+    .map((item) => String(item.id))
+  if (!full.length) return null
+
+  const fullSet = new Set(full)
+  const domGoodsOnly = (domGoodsIds || []).map(String).filter((id) => fullSet.has(id))
+  if (!domGoodsOnly.length) return null
+
+  const domSet = new Set(domGoodsOnly)
+  const next = full.slice()
+  /** @type {number[]} */
+  const positions = []
+  for (let i = 0; i < next.length; i++) {
+    if (domSet.has(next[i])) positions.push(i)
+  }
+  for (let i = 0; i < positions.length; i++) {
+    next[positions[i]] = domGoodsOnly[i]
+  }
+  return next
+}
+
+/**
  * 用 SortableJS 做收藏/心愿主列表网格重排。
  * 支持 custom 全量重排，以及 createdAt/acquiredAt 下「同一天内」小范围重排。
  *
@@ -27,6 +57,69 @@ export function useGoodsSortable(options) {
   let sortable = null
   let syncing = false
   let markedGroupId = false
+  /** @type {string} */
+  let currentDragId = ''
+  /** @type {(() => void) | null} */
+  let dragScrollHandler = null
+  let dragScrollRaf = 0
+
+  function detachDragScrollWatch() {
+    if (dragScrollRaf) {
+      cancelAnimationFrame(dragScrollRaf)
+      dragScrollRaf = 0
+    }
+    if (dragScrollHandler) {
+      window.removeEventListener('scroll', dragScrollHandler, true)
+      dragScrollHandler = null
+    }
+  }
+
+  /** 虚拟列表滚动加载后，给新露出的卡片补上可放/不可放标记 */
+  function ensureDropTargetsMarked(draggedId) {
+    const id = String(draggedId || currentDragId || '')
+    if (!id || !getDayKey?.()) return
+    const gridEl = getGridEl()
+    if (!gridEl) return
+    const nodes = gridEl.querySelectorAll('.goods-card[data-goods-id]')
+    let needs = false
+    nodes.forEach((n) => {
+      const nid = String(n.getAttribute('data-goods-id') || '')
+      if (!nid || nid === id) return
+      if (!n.classList.contains('goods-sortable-drop-ok') && !n.classList.contains('goods-sortable-drop-no')) {
+        needs = true
+      }
+    })
+    if (needs) markDropTargets(id)
+  }
+
+  function attachDragScrollWatch() {
+    detachDragScrollWatch()
+    dragScrollHandler = () => {
+      if (!currentDragId || !getDayKey?.()) return
+      if (dragScrollRaf) return
+      dragScrollRaf = requestAnimationFrame(() => {
+        dragScrollRaf = 0
+        ensureDropTargetsMarked(currentDragId)
+      })
+    }
+    // capture：命中虚拟列表/页面等任意滚动容器
+    window.addEventListener('scroll', dragScrollHandler, true)
+  }
+
+  function beginDragMarking(draggedId) {
+    currentDragId = draggedId
+    try { document.body.classList.add('goods-reorder-dragging') } catch {}
+    if (draggedId) markDropTargets(draggedId)
+    // 组限制模式：滚动加载新卡时补灰色遮罩
+    if (getDayKey?.()) attachDragScrollWatch()
+  }
+
+  function endDragMarking() {
+    currentDragId = ''
+    detachDragScrollWatch()
+    try { document.body.classList.remove('goods-reorder-dragging') } catch {}
+    clearDropTargets()
+  }
 
   function readGoodsOrderFromDom(gridEl) {
     /** @type {string[]} */
@@ -39,24 +132,14 @@ export function useGoodsSortable(options) {
   }
 
   /**
-   * 以拖后 DOM 视觉序为准写回 manualOrders[mode]。
-   * 只提交真正的 goods id：组卡片也有 data-goods-id，写进手排序会污染自定义序。
+   * 虚拟列表下的全量合并：屏上只改「可见 goods」在全量序列里对应槽位的相对序，
+   * 屏外条目保持原位置，避免把未渲染项整体甩到末尾。
+   * @param {string[]} fullGoodsIds 当前完整未分组 goods 序列（getItems）
+   * @param {string[]} domGoodsIds 拖后 DOM 里可见 goods 的视觉序
+   * @returns {string[] | null}
    */
   function buildFullOrder(domGoodsIds) {
-    const full = getItems()
-      .filter((item) => item && item._type !== 'group' && item.id)
-      .map((item) => String(item.id))
-    if (!full.length) return null
-    const goodsSet = new Set(full)
-    const domGoodsOnly = (domGoodsIds || []).map(String).filter((id) => goodsSet.has(id))
-    if (!domGoodsOnly.length) return null
-
-    const domSet = new Set(domGoodsOnly)
-    const merged = [...domGoodsOnly]
-    for (const id of full) {
-      if (!domSet.has(id)) merged.push(id)
-    }
-    return merged
+    return mergeVisibleReorderIntoFullOrder(getItems(), domGoodsIds)
   }
 
   function markDropTargets(draggedId) {
@@ -118,8 +201,7 @@ export function useGoodsSortable(options) {
       try { sortable.destroy() } catch {}
       sortable = null
     }
-    clearDropTargets()
-    try { document.body.classList.remove('goods-reorder-dragging') } catch {}
+    endDragMarking()
   }
 
   function create() {
@@ -133,7 +215,6 @@ export function useGoodsSortable(options) {
       draggable: '.goods-card',
       filter: '.goods-list-spacer',
       preventOnFilter: false,
-      // 动画会和整表重排叠加，手机上拖动更卡
       animation: 0,
       forceFallback: true,
       fallbackOnBody: true,
@@ -148,25 +229,26 @@ export function useGoodsSortable(options) {
       scrollSensitivity: 48,
       scrollSpeed: 14,
       bubbleScroll: true,
-      // 触控短延迟：区分「拖把手」和「想滚列表」，减少误触与手势冲突
       delayOnTouchOnly: true,
       delay: 60,
       touchStartThreshold: 6,
       onChoose(evt) {
-        try { document.body.classList.add('goods-reorder-dragging') } catch {}
         const draggedId = String(evt?.item?.getAttribute?.('data-goods-id') || '')
-        if (draggedId) markDropTargets(draggedId)
+        beginDragMarking(draggedId)
       },
       onStart(evt) {
-        try { document.body.classList.add('goods-reorder-dragging') } catch {}
         const draggedId = String(evt?.item?.getAttribute?.('data-goods-id') || '')
-        if (draggedId) markDropTargets(draggedId)
+        beginDragMarking(draggedId)
       },
-      /** 分组限制（同日/同名/同价）：只允许组内互换 */
+      /** 分组限制（同日/同名/同价）：只允许组内互换；顺带补新加载卡片的遮罩 */
       onMove(evt) {
         const groupKeyFn = getDayKey?.()
-        if (!groupKeyFn) return true
         const draggedId = String(evt.dragged?.getAttribute?.('data-goods-id') || '')
+        if (draggedId && draggedId !== currentDragId) {
+          currentDragId = draggedId
+        }
+        if (!groupKeyFn) return true
+        ensureDropTargetsMarked(currentDragId || draggedId)
         const relatedId = String(evt.related?.getAttribute?.('data-goods-id') || '')
         if (!draggedId || !relatedId) return true
         const a = groupKeyFn(draggedId)
@@ -175,8 +257,7 @@ export function useGoodsSortable(options) {
         return a === b
       },
       async onEnd(evt) {
-        try { document.body.classList.remove('goods-reorder-dragging') } catch {}
-        clearDropTargets()
+        endDragMarking()
         if (syncing) return
         const from = Number(evt.oldIndex)
         const to = Number(evt.newIndex)
@@ -205,10 +286,7 @@ export function useGoodsSortable(options) {
    */
   function sync(enabled) {
     if (enabled) create()
-    else {
-      destroy()
-      try { document.body.classList.remove('goods-reorder-dragging') } catch {}
-    }
+    else destroy()
   }
 
   onBeforeUnmount(() => { destroy() })
