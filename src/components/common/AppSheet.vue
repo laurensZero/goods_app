@@ -48,11 +48,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useWideViewport } from '@/composables/viewport/useWideViewport'
 import { lockBodyScroll, unlockBodyScroll } from '@/utils/platform/bodyScrollLock'
-
-const BASE_Z = 90
-const Z_STEP = 10
-/** 全局单调递增的面板 z 水位：后开的一定压住先开的（含嵌套弹层） */
-let topZ = BASE_Z
+import { BASE_Z, claimAppSheetZ, releaseAppSheetZ } from '@/utils/platform/appSheetZ'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -95,11 +91,29 @@ const isCentered = computed(() => placement.value === 'center')
 const showHandle = computed(() => ['top', 'bottom'].includes(placement.value))
 
 const localZ = ref(props.zIndex != null ? props.zIndex : BASE_Z)
+/** 当前打开周期占用的 z token，关闭/卸载时释放 */
+let zToken = null
 
 const overlayVisible = ref(false)
 
 // 嵌套弹层必须共用模块级 depth：各实例自计会把 body.overflow 卡在 hidden
 let holdsBodyLock = false
+
+function claimZ() {
+  if (zToken != null) {
+    releaseAppSheetZ(zToken)
+    zToken = null
+  }
+  const claimed = claimAppSheetZ(props.zIndex)
+  zToken = claimed.token
+  localZ.value = claimed.z
+}
+
+function releaseZ() {
+  if (zToken == null) return
+  releaseAppSheetZ(zToken)
+  zToken = null
+}
 
 function lockBody() {
   if (!props.lockScroll || holdsBodyLock) return
@@ -123,11 +137,8 @@ watch(
   () => props.modelValue,
   async (open) => {
     if (open) {
-      if (props.zIndex == null) {
-        // 单调抬高：嵌套打开历史/设置时一定盖住宿主弹层
-        topZ = Math.max(topZ, localZ.value) + Z_STEP
-        localZ.value = topZ
-      }
+      // 每次打开都按「当前所有已打开层 + 全局水位」分配，嵌套/兄弟弹层后开必在上
+      claimZ()
       lockBody()
       overlayVisible.value = true
       if (props.instant) {
@@ -138,6 +149,7 @@ watch(
       void document.body.offsetHeight
       emit('opened')
     } else {
+      releaseZ()
       unlockBody()
       // 等面板 leave 动画结束再藏壳
       window.setTimeout(() => {
@@ -152,6 +164,7 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  releaseZ()
   unlockBody()
 })
 
