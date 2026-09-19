@@ -36,6 +36,7 @@
         :density="displayDensity"
         :selected-ids="selectedIds"
         :selection-mode="selectionMode"
+        :reorder-enabled="reorderEnabled"
         @long-press="enterSelectionMode"
         @toggle-select="toggleSelect"
         @open-detail="openDetail"
@@ -93,7 +94,7 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick, onActivated, onMounted, onBeforeUnmount, onDeactivated } from 'vue'
+import { ref, computed, nextTick, watch, onActivated, onMounted, onBeforeUnmount, onDeactivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
@@ -104,6 +105,7 @@ import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useGoodsSortable, ensureGoodsSortableCss } from '@/composables/goods/useGoodsSortable'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { createPageScrollRestore } from '@/composables/scroll'
@@ -193,6 +195,33 @@ const {
   toggleSelectAll,
   exitSelectionMode
 } = useGoodsSelection(memberGoods)
+
+// 组内成员始终按 goods_group_items.sortOrder 手排序，多选即可拖
+const reorderEnabled = computed(() => selectionMode.value && memberGoods.value.length > 1)
+
+ensureGoodsSortableCss()
+
+const {
+  sync: syncGroupSortable,
+  destroy: destroyGroupSortable
+} = useGoodsSortable({
+  getGridEl: () => gridSectionRef.value?.goodsListEl?.value || gridSectionRef.value?.goodsListEl || gridSectionRef.value?.$el || null,
+  getItems: () => memberGoods.value,
+  canReorder: () => reorderEnabled.value,
+  getDayKey: () => null,
+  onCommit: async (ids) => {
+    await goodsGroupStore.reorderGroupItems(groupId.value, ids)
+  }
+})
+
+watch(reorderEnabled, async (enabled) => {
+  if (!enabled) {
+    destroyGroupSortable()
+    return
+  }
+  await nextTick()
+  syncGroupSortable(true)
+})
 
 // Hero back animation
 const {
@@ -325,6 +354,7 @@ onActivated(async () => {
 
 onDeactivated(() => {
   unbindBackButton()
+  destroyGroupSortable()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()
   displayReady.value = true
@@ -332,6 +362,7 @@ onDeactivated(() => {
 
 onBeforeUnmount(() => {
   unbindBackButton()
+  destroyGroupSortable()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()
 })

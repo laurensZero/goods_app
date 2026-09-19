@@ -98,12 +98,16 @@
         <!-- Member list -->
         <div class="field">
           <span class="field-label">{{ t('goodsGroup.memberCount') }} ({{ memberGoods.length }})</span>
-          <div class="member-list-card">
+          <div class="member-list-card" ref="memberListRef">
             <div
               v-for="goods in memberGoods"
               :key="goods.id"
               class="member-item"
+              :data-goods-id="goods.id"
             >
+              <button class="member-drag-handle" type="button" :aria-label="t('home.reorder.handle')" @click.stop.prevent>
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M8 7h8M8 12h8M8 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
+              </button>
               <LazyCachedImage
                 v-if="getGoodsThumb(goods)"
                 :src="getGoodsThumb(goods)"
@@ -163,8 +167,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import Sortable from 'sortablejs'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { CURRENCIES } from '@/constants/currencies'
@@ -193,6 +198,67 @@ const editCoverMode = ref('auto')
 const editCoverItemId = ref('')
 const editNote = ref('')
 const showCoverPicker = ref(false)
+const memberListRef = ref(null)
+/** @type {import('sortablejs').Sortable | null} */
+let memberSortable = null
+let memberReorderSyncing = false
+
+function destroyMemberSortable() {
+  if (memberSortable) {
+    try { memberSortable.destroy() } catch {}
+    memberSortable = null
+  }
+}
+
+function createMemberSortable() {
+  destroyMemberSortable()
+  const el = memberListRef.value
+  if (!el || props.memberGoods.length < 2) return
+
+  memberSortable = Sortable.create(el, {
+    handle: '.member-drag-handle',
+    draggable: '.member-item',
+    animation: 0,
+    forceFallback: true,
+    fallbackOnBody: true,
+    fallbackClass: 'goods-sortable-fallback',
+    chosenClass: 'goods-sortable-chosen',
+    ghostClass: 'goods-sortable-ghost',
+    dataIdAttr: 'data-goods-id',
+    delayOnTouchOnly: true,
+    delay: 40,
+    touchStartThreshold: 6,
+    async onEnd() {
+      if (memberReorderSyncing) return
+      const ids = [...el.querySelectorAll('.member-item[data-goods-id]')]
+        .map((n) => String(n.getAttribute('data-goods-id') || ''))
+        .filter(Boolean)
+      const before = props.memberGoods.map((g) => String(g.id))
+      if (!ids.length || ids.join('\u0000') === before.join('\u0000')) return
+      memberReorderSyncing = true
+      try {
+        emit('reorder', ids)
+      } finally {
+        memberReorderSyncing = false
+      }
+    }
+  })
+}
+
+watch(() => props.show, (open) => {
+  if (open) {
+    nextTick(() => createMemberSortable())
+  } else {
+    destroyMemberSortable()
+  }
+})
+
+watch(() => props.memberGoods, () => {
+  if (!props.show) return
+  nextTick(() => createMemberSortable())
+})
+
+onBeforeUnmount(() => destroyMemberSortable())
 
 watch(() => props.group, (g) => {
   if (!g) return
@@ -438,12 +504,37 @@ defineExpose({ consumeBack })
 .member-item {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
+  gap: 8px;
+  padding: 10px 12px 10px 6px;
 }
 
 .member-item:not(:last-child) {
   border-bottom: 1px solid rgba(142, 142, 147, 0.12);
+}
+
+.member-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--app-text-tertiary);
+  cursor: grab;
+  flex-shrink: 0;
+  touch-action: none;
+}
+
+.member-drag-handle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.member-drag-handle:active {
+  cursor: grabbing;
+  background: var(--app-selection-bg);
 }
 
 .member-thumb {
