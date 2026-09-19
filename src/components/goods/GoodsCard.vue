@@ -495,9 +495,6 @@ const priceCNYHint = computed(() => {
   -webkit-touch-callout: none;
   contain: paint;
   isolation: isolate;
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease;
 }
 
 .goods-card--motion {
@@ -538,10 +535,10 @@ const priceCNYHint = computed(() => {
   top: 6px;
   right: 6px;
   z-index: 4;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 10px;
+  border-radius: 9px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -552,6 +549,26 @@ const priceCNYHint = computed(() => {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.reorder-handle svg {
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+}
+
+.goods-card--compact .reorder-handle {
+  top: 4px;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.goods-card--compact .reorder-handle svg {
+  width: 14px;
+  height: 14px;
 }
 
 .reorder-handle svg {

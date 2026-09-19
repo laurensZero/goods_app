@@ -121,6 +121,16 @@ export function useGoodsSortable(options) {
     clearDropTargets()
   }
 
+  /** 松手后短暂禁用卡片 transition，避免 Vue 重排 DOM 时整屏闪一下 */
+  function beginSettleSuppress() {
+    try {
+      document.body.classList.add('goods-reorder-settling')
+      window.setTimeout(() => {
+        document.body.classList.remove('goods-reorder-settling')
+      }, 320)
+    } catch {}
+  }
+
   function readGoodsOrderFromDom(gridEl) {
     /** @type {string[]} */
     const ids = []
@@ -258,6 +268,7 @@ export function useGoodsSortable(options) {
       },
       async onEnd(evt) {
         endDragMarking()
+        beginSettleSuppress()
         if (syncing) return
         const from = Number(evt.oldIndex)
         const to = Number(evt.newIndex)
@@ -312,6 +323,14 @@ body.goods-reorder-dragging .goods-card {
 }
 body.goods-reorder-dragging .goods-card img {
   pointer-events: none !important;
+}
+/* 松手提交后短暂抑制 transition：Vue 按新序重排 DOM 时其它卡片不要闪 */
+body.goods-reorder-settling .goods-card,
+body.goods-reorder-settling .goods-card *,
+body.goods-reorder-settling .group-card,
+body.goods-reorder-settling .group-card * {
+  transition: none !important;
+  animation: none !important;
 }
 /* 有组限制时：不可放入的卡片置灰（行内 filter 为主，class 兜底） */
 body.goods-reorder-dragging.goods-reorder-has-group .goods-card.goods-sortable-drop-no {
