@@ -629,7 +629,7 @@ const displayList = computed(() => {
 })
 const reorderFullList = ref(false)
 const visibleDisplayList = computed(() => {
-  if (reorderFullList.value) return displayList.value
+  // 重排时也保留虚拟列表：只渲染可见窗，提交时按槽位合并全量顺序
   return displayList.value.slice(visibleGoodsStartIndex.value, visibleGoodsEndIndex.value)
 })
 const GROUP_RESTORE_KEY = '__groupRestoreW'
@@ -840,7 +840,8 @@ const {
 })
 
 watch(reorderEnabled, async (enabled) => {
-  reorderFullList.value = enabled
+  // 1000+ 条时整表进 DOM 会卡：保持虚拟列表，只在可见窗内拖
+  reorderFullList.value = false
   if (!enabled) {
     destroyGoodsSortable()
     return
