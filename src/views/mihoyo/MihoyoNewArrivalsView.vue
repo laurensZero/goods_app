@@ -322,8 +322,8 @@
             <div class="sku-sheet__info">
               <p class="sku-sheet__shop">{{ shopLabel(activeItem.shop_code) }}</p>
               <h2 class="sku-sheet__name">{{ displayName(activeItem.name) || t('mihoyoNew.unnamed') }}</h2>
-              <p v-if="selectedSku?.text" class="sku-sheet__selected">
-                {{ t('mihoyoNew.selectedSku', { name: displaySkuText(selectedSku.text) }) }}
+              <p v-if="selectedSkuSummary" class="sku-sheet__selected">
+                {{ selectedSkuSummary }}
               </p>
               <p class="sku-sheet__meta">
                 <span v-if="activeItem.catalog === 'point'" class="price price--point">
@@ -342,7 +342,7 @@
         </div>
 
         <div class="sku-sheet__picker">
-          <p class="sku-sheet__hint">{{ selectedSku ? t('mihoyoNew.skuConfirmHint') : t('mihoyoNew.skuHint') }}</p>
+          <p class="sku-sheet__hint">{{ skuHintText }}</p>
 
           <div v-if="sheetDetail?.loading" class="sku-sheet__loading">
             <span class="spinner" />
@@ -364,10 +364,10 @@
                 type="button"
                 class="sku-chip"
                 :class="{
-                  'sku-chip--selected': selectedSku?.key === sku.key,
+                  'sku-chip--selected': isSelectedSku(sku),
                   'sku-chip--wished': isSkuInWishlist(activeItem?.goods_id, sku),
                 }"
-                @click="selectSku(sku)"
+                @click="toggleSku(sku)"
               >
                 <span v-if="sku.cover_url" class="sku-chip__thumb">
                   <img :src="sku.cover_url" :alt="sku.text" loading="lazy" />
@@ -396,7 +396,7 @@
           <button
             type="button"
             class="confirm-btn"
-            :disabled="adding || selectedSkuAlreadyWished"
+            :disabled="adding || !canConfirmAdd"
             @click="confirmAddToWishlist"
           >
             <svg v-if="adding" class="spinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -405,8 +405,9 @@
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" />
             </svg>
-            <span v-if="selectedSkuAlreadyWished">{{ t('mihoyoNew.skuAlreadyWished') }}</span>
-            <span v-else>{{ selectedSku ? t('mihoyoNew.confirmAddSku') : t('mihoyoNew.addWhole') }}</span>
+            <span v-if="allSelectedAlreadyWished">{{ t('mihoyoNew.skuAllWished') }}</span>
+            <span v-else-if="pendingSkus.length > 1">{{ t('mihoyoNew.confirmAddSkus', { count: pendingSkus.length }) }}</span>
+            <span v-else>{{ pendingSkus.length === 1 ? t('mihoyoNew.confirmAddSku') : t('mihoyoNew.addWhole') }}</span>
           </button>
 
           <button type="button" class="sheet-cancel" @click="closeSkuSheet">
@@ -476,7 +477,9 @@ const itemsByCatalog = reactive({ shop: [], point: [], gift: [] })
 const loadedCatalogs = reactive({ shop: false, point: false, gift: false })
 const sheetOpen = ref(false)
 const activeItem = ref(null)
-const selectedSku = ref(null)
+/** 多选 SKU key，按点击顺序 */
+const selectedSkuKeys = ref([])
+const lastSelectedSkuKey = ref('')
 const itemDetailMap = reactive({})
 const adding = ref(false)
 
@@ -587,9 +590,48 @@ function isSkuOwned(goodsId, sku) {
   return slot.variants.has(key)
 }
 
-const selectedSkuAlreadyWished = computed(() => {
-  if (!selectedSku.value || !activeItem.value) return false
-  return isSkuInWishlist(activeItem.value.goods_id, selectedSku.value)
+const selectedSkus = computed(() => {
+  if (!selectedSkuKeys.value.length) return []
+  const byKey = new Map(sheetVariants.value.map((sku) => [sku.key, sku]))
+  return selectedSkuKeys.value.map((key) => byKey.get(key)).filter(Boolean)
+})
+
+function isSelectedSku(sku) {
+  return Boolean(sku?.key) && selectedSkuKeys.value.includes(sku.key)
+}
+
+const pendingSkus = computed(() => {
+  if (!activeItem.value) return []
+  return selectedSkus.value.filter(
+    (sku) => !isSkuInWishlist(activeItem.value.goods_id, sku),
+  )
+})
+
+const allSelectedAlreadyWished = computed(() => {
+  if (!selectedSkus.value.length) return false
+  if (!activeItem.value) return false
+  return pendingSkus.value.length === 0
+})
+
+const canConfirmAdd = computed(() => {
+  if (selectedSkus.value.length === 0) return true
+  return pendingSkus.value.length > 0
+})
+
+const selectedSkuSummary = computed(() => {
+  const list = selectedSkus.value
+  if (!list.length) return ''
+  if (list.length === 1) {
+    return t('mihoyoNew.selectedSku', { name: displaySkuText(list[0].text) })
+  }
+  return t('mihoyoNew.selectedSkuCount', { count: list.length })
+})
+
+const skuHintText = computed(() => {
+  if (selectedSkus.value.length > 0) {
+    return t('mihoyoNew.skuConfirmHint', { count: selectedSkus.value.length })
+  }
+  return t('mihoyoNew.skuHint')
 })
 
 const partialErrorText = computed(() => {
@@ -605,9 +647,8 @@ const sheetDetail = computed(() => {
 
 const sheetVariants = computed(() => sheetDetail.value?.variants || [])
 
-/** 已加载款式里的价格（元）；有价差时弹层顶部显示区间 */
-const skuPriceRange = computed(() => {
-  const prices = (sheetVariants.value || [])
+function priceRangeOf(skus) {
+  const prices = (skus || [])
     .map((sku) => {
       const price = Number(sku?.price)
       return Number.isFinite(price) && price > 0 ? price : null
@@ -617,17 +658,25 @@ const skuPriceRange = computed(() => {
   const min = Math.min(...prices)
   const max = Math.max(...prices)
   return { min, max, hasRange: min !== max }
-})
+}
 
-const sheetHasPriceRange = computed(() => Boolean(skuPriceRange.value?.hasRange))
+/** 已加载款式里的价格（元）；有价差时弹层顶部显示区间 */
+const skuPriceRange = computed(() => priceRangeOf(sheetVariants.value))
+
+const selectedPriceRange = computed(() => priceRangeOf(selectedSkus.value))
+
+const sheetHasPriceRange = computed(() => {
+  if (selectedSkus.value.length > 1) {
+    return Boolean(selectedPriceRange.value?.hasRange)
+  }
+  return Boolean(skuPriceRange.value?.hasRange)
+})
 
 const sheetMoneyText = computed(() => {
   const unit = t('mihoyoNew.priceUnit')
-  const selectedPrice = Number(selectedSku.value?.price)
-  if (selectedSku.value?.price != null && Number.isFinite(selectedPrice) && selectedPrice > 0) {
-    return `${formatYuanValue(selectedPrice)}${unit}`
-  }
-  const range = skuPriceRange.value
+  const range = selectedSkus.value.length
+    ? (selectedPriceRange.value || skuPriceRange.value)
+    : skuPriceRange.value
   if (range?.hasRange) {
     return `${formatYuanValue(range.min)}~${formatYuanValue(range.max)}${unit}`
   }
@@ -641,7 +690,9 @@ const sheetMoneyText = computed(() => {
 })
 
 const previewCover = computed(() => {
-  if (selectedSku.value?.cover_url) return selectedSku.value.cover_url
+  const last = selectedSkus.value.find((sku) => sku.key === lastSelectedSkuKey.value)
+  if (last?.cover_url) return last.cover_url
+  if (selectedSkus.value[0]?.cover_url) return selectedSkus.value[0].cover_url
   if (sheetDetail.value?.coverUrl) return sheetDetail.value.coverUrl
   return activeItem.value?.cover_url || ''
 })
@@ -776,7 +827,8 @@ function setShop(code) {
 function openSkuSheet(item) {
   if (!item?.goods_id) return
   activeItem.value = item
-  selectedSku.value = null
+  selectedSkuKeys.value = []
+  lastSelectedSkuKey.value = ''
   sheetOpen.value = true
   void loadVariants(item)
 }
@@ -784,13 +836,24 @@ function openSkuSheet(item) {
 function closeSkuSheet() {
   sheetOpen.value = false
   activeItem.value = null
-  selectedSku.value = null
+  selectedSkuKeys.value = []
+  lastSelectedSkuKey.value = ''
   sheetPreviewIndex.value = -1
 }
 
-function selectSku(sku) {
+function toggleSku(sku) {
   if (!sku?.key) return
-  selectedSku.value = selectedSku.value?.key === sku.key ? null : sku
+  const keys = selectedSkuKeys.value
+  const idx = keys.indexOf(sku.key)
+  if (idx >= 0) {
+    keys.splice(idx, 1)
+    if (lastSelectedSkuKey.value === sku.key) {
+      lastSelectedSkuKey.value = keys[keys.length - 1] || ''
+    }
+    return
+  }
+  keys.push(sku.key)
+  lastSelectedSkuKey.value = sku.key
 }
 
 async function loadVariants(item) {
@@ -899,13 +962,19 @@ function formatSaleAt(unixSec) {
   return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
 }
 
-async function addToWishlist(item, sku) {
+async function addToWishlist(item, skus) {
   if (!item || adding.value) return false
   adding.value = true
   try {
-    const payload = buildWishlistPayload(item, sku)
-    await goodsStore.addGoods(payload)
-    showToast(t('mihoyoNew.addedWishlist', { name: payload.name }))
+    const list = Array.isArray(skus) ? skus : (skus ? [skus] : [null])
+    const payloads = list.map((sku) => buildWishlistPayload(item, sku))
+    if (payloads.length === 1) {
+      await goodsStore.addGoods(payloads[0])
+      showToast(t('mihoyoNew.addedWishlist', { name: payloads[0].name }))
+    } else {
+      await goodsStore.addGoodsBatch(payloads)
+      showToast(t('mihoyoNew.addedWishlistCount', { count: payloads.length }))
+    }
     return true
   } catch (e) {
     showToast(e.message || t('common.failed'))
@@ -917,7 +986,9 @@ async function addToWishlist(item, sku) {
 
 async function confirmAddToWishlist() {
   if (!activeItem.value || adding.value) return
-  const ok = await addToWishlist(activeItem.value, selectedSku.value)
+  const toAdd = selectedSkus.value.length ? pendingSkus.value : [null]
+  if (selectedSkus.value.length && !toAdd.length) return
+  const ok = await addToWishlist(activeItem.value, toAdd)
   if (ok) closeSkuSheet()
 }
 
