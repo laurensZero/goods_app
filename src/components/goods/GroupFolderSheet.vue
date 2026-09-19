@@ -16,13 +16,27 @@
           <svg viewBox="0 0 24 24" fill="none"><path d="M12 20H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4 12.5-11.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
         </button>
       </div>
-      <div class="group-folder__grid" :style="gridStyle">
+      <div v-if="selectionMode" class="folder-selection-bar">
+        <button class="folder-selection-bar__back" type="button" :aria-label="t('common.aria.exitSelection')" @click="exitSelectionMode">
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+        </button>
+        <span class="folder-selection-bar__title">{{ t('home.selected', { count: selectedIds.size }) }}</span>
+        <button class="folder-selection-bar__all" type="button" @click="toggleSelectAll">
+          {{ allSelected ? t('home.deselectAll') : t('home.selectAll') }}
+        </button>
+      </div>
+      <div ref="folderGridRef" class="group-folder__grid" :style="gridStyle">
         <GoodsCard
           v-for="item in memberGoods"
           :key="item.id"
           :item="item"
           :density="density"
           :data-goods-id="item.id"
+          :selection-mode="selectionMode"
+          :selected="selectedIds.has(item.id)"
+          :reorder-enabled="reorderEnabled"
+          @long-press="enterSelectionMode"
+          @toggle-select="toggleSelect"
           @open-detail="openDetail"
         />
       </div>
@@ -41,6 +55,7 @@
       :member-goods="memberGoods"
       @update="handleGroupUpdate"
       @remove-member="handleRemoveMember"
+      @reorder="handleReorder"
       @delete-group="handleDeleteGroup"
     />
 
@@ -79,6 +94,8 @@ import { CURRENCY_MAP } from '@/constants/currencies'
 import { prepareGoodsHeroForward, playGoodsHeroBack, hasPendingGoodsHeroBack, getPendingBackHeroGoodsId } from '@/utils/platform/nativeGoodsHeroTransition'
 import { setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
+import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
+import { useGoodsSortable, ensureGoodsSortableCss } from '@/composables/goods/useGoodsSortable'
 import GoodsCard from '@/components/goods/GoodsCard.vue'
 import GroupEditSheet from '@/components/goods/GroupEditSheet.vue'
 import AddToGroupSheet from '@/components/goods/AddToGroupSheet.vue'
@@ -155,6 +172,66 @@ const totalPriceCNYHint = computed(() => {
     return `≈¥${cny.toFixed(2)}`
   }
   return ''
+})
+
+// 组内成员按 sortOrder 手排序：多选后显示拖动手柄
+const {
+  selectionMode,
+  selectedIds,
+  allSelected,
+  enterSelectionMode,
+  toggleSelect,
+  toggleSelectAll,
+  exitSelectionModeQuiet
+} = useGoodsSelection(memberGoods, { manageHistory: false, bodyClass: 'group-folder-selection-active' })
+
+const reorderEnabled = computed(() => selectionMode.value && memberGoods.value.length > 1)
+const folderGridRef = ref(null)
+
+ensureGoodsSortableCss()
+
+const {
+  sync: syncGroupSortable,
+  destroy: destroyGroupSortable
+} = useGoodsSortable({
+  getGridEl: () => folderGridRef.value || null,
+  getItems: () => memberGoods.value,
+  canReorder: () => reorderEnabled.value,
+  getDayKey: () => null,
+  onCommit: async (ids) => {
+    await goodsGroupStore.reorderGroupItems(props.groupId, ids)
+  }
+})
+
+function exitSelectionMode() {
+  exitSelectionModeQuiet()
+}
+
+async function handleReorder(orderedGoodsIds) {
+  await goodsGroupStore.reorderGroupItems(props.groupId, orderedGoodsIds)
+}
+
+watch(reorderEnabled, async (enabled) => {
+  if (!enabled) {
+    destroyGroupSortable()
+    return
+  }
+  await nextTick()
+  syncGroupSortable(true)
+})
+
+watch(showProxy, (open) => {
+  if (!open) {
+    exitSelectionModeQuiet()
+    destroyGroupSortable()
+  }
+})
+
+watch(showEditSheet, (open) => {
+  if (open) {
+    exitSelectionModeQuiet()
+    destroyGroupSortable()
+  }
 })
 
 const gridCols = computed(() => {
@@ -278,6 +355,11 @@ function handleAndroidBackButton(event) {
     event.preventDefault()
     return
   }
+  if (selectionMode.value) {
+    exitSelectionMode()
+    event.preventDefault()
+    return
+  }
 }
 
 let cleanupBackButton = null
@@ -302,7 +384,10 @@ watch(() => props.show, (open) => {
   }
 })
 
-onBeforeUnmount(() => unbindBackButton())
+onBeforeUnmount(() => {
+  unbindBackButton()
+  destroyGroupSortable()
+})
 
 function consumeBack() {
   if (showDeleteConfirm.value) {
@@ -316,6 +401,10 @@ function consumeBack() {
   }
   if (showAddSheet.value) {
     showAddSheet.value = false
+    return true
+  }
+  if (selectionMode.value) {
+    exitSelectionMode()
     return true
   }
   return false
@@ -369,6 +458,57 @@ async function handleAddMembers() {
   justify-content: space-between;
   gap: 12px;
   padding: 0 4px 12px;
+}
+
+.folder-selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-card, 18px);
+  background: var(--app-glass-strong);
+  border: 1px solid var(--app-glass-border);
+}
+
+.folder-selection-bar__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-glass);
+  color: var(--app-text);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.folder-selection-bar__back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.folder-selection-bar__title {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+  text-align: center;
+}
+
+.folder-selection-bar__all {
+  border: none;
+  background: transparent;
+  color: var(--app-pending, #0e74e9);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 4px 2px;
 }
 
 .group-folder__info {

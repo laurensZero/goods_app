@@ -305,6 +305,18 @@ export function useGoodsSortable(options) {
   return { sync, destroy, get instance() { return sortable } }
 }
 
+/** 注入拖动全局样式（Home / 组详情 / 分组文件夹共用） */
+export function ensureGoodsSortableCss() {
+  if (typeof document === 'undefined') return
+  let styleEl = document.getElementById('goods-sortable-css')
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = 'goods-sortable-css'
+    document.head.appendChild(styleEl)
+  }
+  styleEl.textContent = GOODS_SORTABLE_CSS
+}
+
 export const GOODS_SORTABLE_CSS = `
 body.goods-reorder-dragging,
 body.goods-reorder-dragging * {
