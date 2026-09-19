@@ -90,6 +90,22 @@ function parseAddedTime(item) {
   return 0
 }
 
+/** 添加时间的「自然日」键：同一天内才用手动次级序，否则雪花 id 会把次级序压死 */
+function parseAddedDayKey(item) {
+  const t = parseAddedTime(item)
+  if (!t) return 0
+  const d = new Date(t)
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+
+/** 购入时间的「自然日」键：与 getHomeSortGroupKey 的同日限制对齐 */
+function parseAcquiredDayKey(item) {
+  const t = Number(item?.acquiredTime || 0)
+  if (!t) return 0
+  const d = new Date(t)
+  return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
+}
+
 function compareName(a, b) {
   return String(a?.name || '').localeCompare(String(b?.name || ''), 'zh-Hans-CN')
 }
@@ -138,15 +154,19 @@ export function sortHomeGoodsList(list, sortMode, sortDirection) {
     }
 
     if (normalizedSortMode === 'acquiredAt') {
-      return (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
+      // 先自然日，再同日 manualOrders，再精确时间
+      return (parseAcquiredDayKey(a) - parseAcquiredDayKey(b)) * directionFactor
         || (parseManualOrder(a, 'acquiredAt') - parseManualOrder(b, 'acquiredAt'))
+        || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
         || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
         || compareName(a, b)
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
-    return (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
+    // createdAt：先按自然日，再 manualOrders.createdAt（同日手排），再精确时间/id
+    return (parseAddedDayKey(a) - parseAddedDayKey(b)) * directionFactor
       || (parseManualOrder(a, 'createdAt') - parseManualOrder(b, 'createdAt'))
+      || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
       || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
       || compareName(a, b)
       || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
