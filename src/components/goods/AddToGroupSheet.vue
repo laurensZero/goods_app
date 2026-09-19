@@ -240,7 +240,36 @@ function handleCreated(group) {
   color: var(--app-text);
 }
 .group-sheet__title { font-size: 13px; font-weight: 500; color: var(--app-text-tertiary); text-align: center; margin: 0 0 16px; }
-.group-sheet__body { display: flex; flex-direction: column; gap: 12px; overflow-y: auto; max-height: 50vh; }
+.group-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  max-height: 50vh;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-text) 22%, transparent) transparent;
+}
+.group-sheet__body::-webkit-scrollbar {
+  width: 4px;
+}
+.group-sheet__body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.group-sheet__body::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--app-text) 22%, transparent);
+  border-radius: 999px;
+}
+.group-sheet__body::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--app-text) 34%, transparent);
+}
+.group-sheet__body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.group-sheet__body::-webkit-scrollbar-corner {
+  background: transparent;
+}
 
 .group-list-card { background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface)); border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent); border-radius: var(--radius-card, 18px); overflow: hidden; }
 .group-list-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: transparent; cursor: pointer; text-align: left; transition: background 0.14s ease; }
