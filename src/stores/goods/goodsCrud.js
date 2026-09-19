@@ -11,8 +11,7 @@ import {
   normalizeTrashItem,
   mergeGoodsRecord,
   diffRemovedManagedImagePaths,
-  normalizeWishlistFlag,
-  MANUAL_ORDER_MODES
+  normalizeWishlistFlag
 } from '@/stores/goods/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 import {
@@ -23,14 +22,11 @@ import {
 } from '@/utils/goods/statusTimeline'
 import { nextGoodsSortOrder } from '@/stores/goods/goodsOrder'
 
-/** 新建/翻转心愿时：为 manualOrders 各模式 append 到目标池末尾 */
+/** 新建/翻转心愿时：只给自定义序 append；其它模式次级序留空，让日期/名称/价格主序决定位置 */
 function appendManualOrders(items, isWishlist, excludeId = '') {
-  /** @type {Record<string, number>} */
-  const out = {}
-  for (const mode of MANUAL_ORDER_MODES) {
-    out[mode] = nextGoodsSortOrder(items, isWishlist, excludeId, mode)
+  return {
+    custom: nextGoodsSortOrder(items, isWishlist, excludeId, 'custom')
   }
-  return out
 }
 
 /**

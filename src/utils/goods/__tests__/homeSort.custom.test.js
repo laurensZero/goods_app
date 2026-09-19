@@ -51,15 +51,26 @@ describe('sortHomeGoodsList custom', () => {
   })
 
   it('添加时间：同一天内雪花 id 不同也能按 manualOrders.createdAt 手排', () => {
-    // 同一自然日、不同精确时间（模拟雪花 id）：主序若用完整时间戳会压死次级手排
     const day = new Date(2026, 2, 10, 10, 0, 0).getTime()
     const list = [
       { id: 'newest', manualOrders: { createdAt: 2 }, createdTime: day + 3600e3 },
       { id: 'mid', manualOrders: { createdAt: 0 }, createdTime: day + 1800e3 },
       { id: 'oldest', manualOrders: { createdAt: 1 }, createdTime: day }
     ]
-    // desc（最近添加）：同日先看 manualOrders.createdAt 升序
+    // 双方都有 createdAt 键 → 手动序
     expect(sortHomeGoodsList(list, 'createdAt', 'desc').map(i => i.id)).toEqual(['mid', 'oldest', 'newest'])
+  })
+
+  it('添加时间降序：未手排的新条目按时间排在当天前面，不被历史手排序号挤后', () => {
+    const day = new Date(2026, 2, 10, 10, 0, 0).getTime()
+    const list = [
+      { id: 'old-a', manualOrders: { createdAt: 5 }, createdTime: day + 1000 },
+      { id: 'old-b', manualOrders: { createdAt: 2 }, createdTime: day + 2000 },
+      { id: 'brand-new', manualOrders: {}, createdTime: day + 5000 }
+    ]
+    // brand-new 无 createdAt 键 → 按添加时间降序在最前；old 之间仍用手动序
+    expect(sortHomeGoodsList(list, 'createdAt', 'desc').map(i => i.id))
+      .toEqual(['brand-new', 'old-b', 'old-a'])
   })
 
   it('名称/价格：同键内按各模式 manualOrders 次级，互不影响', () => {
