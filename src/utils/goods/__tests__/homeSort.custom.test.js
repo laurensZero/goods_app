@@ -38,14 +38,28 @@ describe('sortHomeGoodsList custom', () => {
   })
 
   it('日期排序：同一天内按对应模式的 manualOrders 次级排序', () => {
+    const day1 = new Date(2026, 2, 10, 9, 0, 0).getTime()
+    const day2 = new Date(2026, 2, 11, 9, 0, 0).getTime()
     const list = [
-      { id: 'b', manualOrders: { acquiredAt: 2, createdAt: 2 }, acquiredTime: 100, createdTime: 100 },
-      { id: 'a', manualOrders: { acquiredAt: 0, createdAt: 0 }, acquiredTime: 100, createdTime: 100 },
-      { id: 'c', manualOrders: { acquiredAt: 1, createdAt: 1 }, acquiredTime: 100, createdTime: 100 },
-      { id: 'd', manualOrders: { acquiredAt: 9 }, acquiredTime: 200, createdTime: 200 }
+      { id: 'b', manualOrders: { acquiredAt: 2, createdAt: 2 }, acquiredTime: day1, createdTime: day1 + 2000 },
+      { id: 'a', manualOrders: { acquiredAt: 0, createdAt: 0 }, acquiredTime: day1, createdTime: day1 },
+      { id: 'c', manualOrders: { acquiredAt: 1, createdAt: 1 }, acquiredTime: day1, createdTime: day1 + 1000 },
+      { id: 'd', manualOrders: { acquiredAt: 9 }, acquiredTime: day2, createdTime: day2 }
     ]
     expect(sortHomeGoodsList(list, 'acquiredAt', 'asc').map(i => i.id)).toEqual(['a', 'c', 'b', 'd'])
     expect(sortHomeGoodsList(list, 'createdAt', 'asc').map(i => i.id)).toEqual(['a', 'c', 'b', 'd'])
+  })
+
+  it('添加时间：同一天内雪花 id 不同也能按 manualOrders.createdAt 手排', () => {
+    // 同一自然日、不同精确时间（模拟雪花 id）：主序若用完整时间戳会压死次级手排
+    const day = new Date(2026, 2, 10, 10, 0, 0).getTime()
+    const list = [
+      { id: 'newest', manualOrders: { createdAt: 2 }, createdTime: day + 3600e3 },
+      { id: 'mid', manualOrders: { createdAt: 0 }, createdTime: day + 1800e3 },
+      { id: 'oldest', manualOrders: { createdAt: 1 }, createdTime: day }
+    ]
+    // desc（最近添加）：同日先看 manualOrders.createdAt 升序
+    expect(sortHomeGoodsList(list, 'createdAt', 'desc').map(i => i.id)).toEqual(['mid', 'oldest', 'newest'])
   })
 
   it('名称/价格：同键内按各模式 manualOrders 次级，互不影响', () => {
