@@ -124,6 +124,26 @@ function parseManualOrder(item, mode) {
   return 0
 }
 
+/** 该模式是否写过手动序（键存在且为数字）；新建条目通常没有 */
+function getManualOrderIfSet(item, mode) {
+  const map = item?.manualOrders
+  if (!map || typeof map !== 'object') return null
+  if (map[mode] == null || map[mode] === '') return null
+  const n = Number(map[mode])
+  return Number.isFinite(n) ? n : null
+}
+
+/**
+ * 日期模式同日次级：仅当双方都手排过才比 manualOrders；
+ * 否则按时间 * direction，避免新建条目被历史手排序号挤到当天末尾。
+ */
+function compareSameDayManualThenTime(a, b, mode, directionFactor, timeA, timeB) {
+  const ma = getManualOrderIfSet(a, mode)
+  const mb = getManualOrderIfSet(b, mode)
+  if (ma != null && mb != null && ma !== mb) return ma - mb
+  return (timeA - timeB) * directionFactor
+}
+
 export function sortHomeGoodsList(list, sortMode, sortDirection) {
   const normalizedSortMode = normalizeHomeSortMode(sortMode)
   const directionFactor = sortDirection === 'asc' ? 1 : -1
@@ -154,19 +174,25 @@ export function sortHomeGoodsList(list, sortMode, sortDirection) {
     }
 
     if (normalizedSortMode === 'acquiredAt') {
-      // 先自然日，再同日 manualOrders，再精确时间
+      // 先自然日；同日：双方都手排过才用手动序，否则按购入时间
       return (parseAcquiredDayKey(a) - parseAcquiredDayKey(b)) * directionFactor
-        || (parseManualOrder(a, 'acquiredAt') - parseManualOrder(b, 'acquiredAt'))
-        || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
+        || compareSameDayManualThenTime(
+          a, b, 'acquiredAt', directionFactor,
+          Number(a?.acquiredTime || 0),
+          Number(b?.acquiredTime || 0)
+        )
         || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
         || compareName(a, b)
         || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
     }
 
-    // createdAt：先按自然日，再 manualOrders.createdAt（同日手排），再精确时间/id
+    // createdAt：先自然日；同日：双方都手排过才用 manualOrders，否则按添加时间
     return (parseAddedDayKey(a) - parseAddedDayKey(b)) * directionFactor
-      || (parseManualOrder(a, 'createdAt') - parseManualOrder(b, 'createdAt'))
-      || (parseAddedTime(a) - parseAddedTime(b)) * directionFactor
+      || compareSameDayManualThenTime(
+        a, b, 'createdAt', directionFactor,
+        parseAddedTime(a),
+        parseAddedTime(b)
+      )
       || (Number(a?.acquiredTime || 0) - Number(b?.acquiredTime || 0)) * directionFactor
       || compareName(a, b)
       || String(a?.sortId || a?.id || '').localeCompare(String(b?.sortId || b?.id || ''))
