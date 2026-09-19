@@ -119,3 +119,47 @@ describe('updateGoodsBackup 保护稀疏字段 goodsId（LWW 空串不覆盖非�
     expect(trashList.value[0].goodsId).toBe('20211489070319602763088')
   })
 })
+
+describe('updateGoodsBackup 保护 manualOrders（云端空对象不冲掉本地手排序）', () => {
+  beforeEach(() => {
+    saveItems.mockReset()
+    saveItems.mockResolvedValue(undefined)
+  })
+
+  it('远端更新但 manualOrders 为空 → 保留本地并 bump updatedAt', async () => {
+    const list = shallowRef([makeItem('w1', 100, {
+      isWishlist: true,
+      manualOrders: { custom: 2, acquiredAt: 1 },
+      name: 'wish-local'
+    })])
+    const remote = [makeItem('w1', 200, {
+      isWishlist: true,
+      manualOrders: {},
+      name: 'wish-remote'
+    })]
+
+    const updated = await updateGoodsBackup(remote, list)
+
+    expect(updated).toBe(1)
+    expect(list.value[0].name).toBe('wish-remote')
+    expect(list.value[0].manualOrders.custom).toBe(2)
+    expect(list.value[0].manualOrders.acquiredAt).toBe(1)
+    expect(list.value[0].updatedAt).toBeGreaterThan(200)
+  })
+
+  it('远端有 manualOrders → 与本地合并，远端键优先', async () => {
+    const list = shallowRef([makeItem('w2', 100, {
+      isWishlist: true,
+      manualOrders: { custom: 5, name: 3 }
+    })])
+    const remote = [makeItem('w2', 200, {
+      isWishlist: true,
+      manualOrders: { custom: 1 }
+    })]
+
+    await updateGoodsBackup(remote, list)
+
+    expect(list.value[0].manualOrders.custom).toBe(1)
+    expect(list.value[0].manualOrders.name).toBe(3)
+  })
+})

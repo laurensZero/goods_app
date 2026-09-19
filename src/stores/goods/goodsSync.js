@@ -6,6 +6,7 @@ import { triggerRef } from 'vue'
 import {
   normalizeGoodsInput,
   normalizeTrashItem,
+  normalizeManualOrders,
   mergeGoodsRecord,
   shouldApplyRemoteBackup,
   restoreImportedGoodsItem,
@@ -135,15 +136,26 @@ async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
     const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
     const localGoodsId = String(localItem?.goodsId || '').trim()
     const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
+    // manualOrders 同理：云端尚未写入/写空时不得冲掉本地手排序（否则拖完一会就被 pull 回滚）
+    const localManual = normalizeManualOrders(localItem?.manualOrders)
+    const remoteManual = normalizeManualOrders(restoredRemote?.manualOrders)
+    const remoteManualCount = Object.keys(remoteManual).length
+    const localManualCount = Object.keys(localManual).length
+    const keepLocalManualOrders = remoteManualCount === 0 && localManualCount > 0
+    const manualOrders = remoteManualCount > 0
+      ? { ...localManual, ...remoteManual }
+      : localManual
     const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
+    const bumpLocal = keepLocalGoodsId || keepLocalManualOrders
     const normalized = normalizeGoodsInput({
       ...localItem,
       ...restoredRemote,
       ...(keepLocalGoodsId ? { goodsId: localGoodsId } : {}),
+      ...(manualOrders && Object.keys(manualOrders).length > 0 ? { manualOrders } : {}),
       __imagesExplicit: true,
       image: '',
       coverImage: '',
-      updatedAt: keepLocalGoodsId ? Math.max(remoteTs, Date.now()) : remoteTs,
+      updatedAt: bumpLocal ? Math.max(remoteTs, Date.now()) : remoteTs,
     }, remoteItem.id)
     const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
     return { normalized, removedPaths, id: remoteItem.id }
@@ -244,19 +256,28 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forc
   const results = await Promise.all(candidates.map(async (remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
     const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-    // 同 updateGoodsBackup：远端空 goodsId 不得覆盖本地非空，保留时 bump updatedAt 以便回推
+    // 同 updateGoodsBackup：远端空 goodsId / 空 manualOrders 不得覆盖本地非空
     const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
     const localGoodsId = String(localItem?.goodsId || '').trim()
     const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
+    const localManual = normalizeManualOrders(localItem?.manualOrders)
+    const remoteManual = normalizeManualOrders(restoredRemote?.manualOrders)
+    const remoteManualCount = Object.keys(remoteManual).length
+    const keepLocalManualOrders = remoteManualCount === 0 && Object.keys(localManual).length > 0
+    const manualOrders = remoteManualCount > 0
+      ? { ...localManual, ...remoteManual }
+      : localManual
     const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
+    const bumpLocal = keepLocalGoodsId || keepLocalManualOrders
     const normalized = normalizeTrashItem({
       ...localItem,
       ...restoredRemote,
       ...(keepLocalGoodsId ? { goodsId: localGoodsId } : {}),
+      ...(manualOrders && Object.keys(manualOrders).length > 0 ? { manualOrders } : {}),
       __imagesExplicit: true,
       image: '',
       coverImage: '',
-      updatedAt: keepLocalGoodsId ? Math.max(remoteTs, Date.now()) : remoteTs,
+      updatedAt: bumpLocal ? Math.max(remoteTs, Date.now()) : remoteTs,
     }, remoteItem.id)
     const removedPaths = diffRemovedManagedImagePaths(localItem, normalized)
     return { normalized, removedPaths, id: remoteItem.id }

@@ -39,17 +39,20 @@ export function useGoodsSortable(options) {
   }
 
   /**
-   * 以拖后 DOM 视觉序为准写回 sortOrder。
-   * 日期主排序时：同日相对序 = sortOrder；跨日仍由日期字段决定。
+   * 以拖后 DOM 视觉序为准写回 manualOrders[mode]。
+   * 只提交真正的 goods id：组卡片也有 data-goods-id，写进手排序会污染自定义序。
    */
   function buildFullOrder(domGoodsIds) {
     const full = getItems()
       .filter((item) => item && item._type !== 'group' && item.id)
       .map((item) => String(item.id))
-    if (!domGoodsIds.length) return null
+    if (!full.length) return null
+    const goodsSet = new Set(full)
+    const domGoodsOnly = (domGoodsIds || []).map(String).filter((id) => goodsSet.has(id))
+    if (!domGoodsOnly.length) return null
 
-    const domSet = new Set(domGoodsIds)
-    const merged = [...domGoodsIds]
+    const domSet = new Set(domGoodsOnly)
+    const merged = [...domGoodsOnly]
     for (const id of full) {
       if (!domSet.has(id)) merged.push(id)
     }

@@ -1508,9 +1508,12 @@ const selectedGroupCount = computed(() => [...selectedIds.value].filter(id => gr
 const selectedGoodsCount = computed(() => [...selectedIds.value].filter(id => !groupIdsSet.value.has(id)).length)
 
 const groupedGoodsIds = computed(() => {
+  // 只统计收藏组的未删除成员，避免心愿组成员从收藏主列表消失/重复
   const ids = new Set()
-  for (const item of goodsGroupStore.groupItemList) {
-    ids.add(item.goodsId)
+  for (const group of goodsGroupStore.collectionGroups) {
+    for (const item of goodsGroupStore.groupItemsOf(group.id)) {
+      if (item?.goodsId) ids.add(item.goodsId)
+    }
   }
   return ids
 })

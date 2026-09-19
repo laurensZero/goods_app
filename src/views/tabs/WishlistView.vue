@@ -524,7 +524,13 @@ const visibleGoodsEndIndex = computed(() =>
     : displayList.value.length
 )
 
-const goodsList = computed(() => sortHomeGoodsList(searchFilteredList.value, sortMode.value, sortDirection.value))
+const goodsList = computed(() =>
+  sortHomeGoodsList(
+    searchFilteredList.value || store.wishlistViewList,
+    sortMode.value,
+    sortDirection.value
+  )
+)
 
 // Goods groups — merged into displayList with goods
 const groupViewItems = computed(() => {
@@ -580,9 +586,12 @@ const selectedGroupCount = computed(() => [...selectedIds.value].filter(id => gr
 const selectedGoodsCount = computed(() => [...selectedIds.value].filter(id => !groupIdsSet.value.has(id)).length)
 
 const groupedGoodsIds = computed(() => {
+  // 只统计「本页会展示的心愿组」的未删除成员，避免收藏组/墓碑成员误伤心愿列表
   const ids = new Set()
-  for (const item of goodsGroupStore.groupItemList) {
-    ids.add(item.goodsId)
+  for (const group of goodsGroupStore.wishlistGroups) {
+    for (const item of goodsGroupStore.groupItemsOf(group.id)) {
+      if (item?.goodsId) ids.add(item.goodsId)
+    }
   }
   return ids
 })
