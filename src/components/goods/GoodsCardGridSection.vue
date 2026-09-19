@@ -18,7 +18,7 @@
       <template v-for="(item, index) in items" :key="item.id">
         <GroupCard
           v-if="item._type === 'group'"
-          v-memo="[item, density, selectionMode, selectedIds?.has?.(item.id) ?? false]"
+          v-memo="[item.id, item, density, selectionMode, selectedIds?.has?.(item.id) ?? false]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :class="{ 'goods-card-enter': filterTransitionActive }"
           :group="item._group"
@@ -37,7 +37,20 @@
         />
         <GoodsCard
           v-else
-          v-memo="[item, density, selectionMode, selectedIds?.has?.(item.id) ?? false, cardMotionStyles[item.id], reorderEnabled]"
+          v-memo="[
+            item.id,
+            item.updatedAt,
+            item.manualOrders,
+            item.name,
+            item.coverImage,
+            item.quantity,
+            item.collectStatus,
+            density,
+            selectionMode,
+            selectedIds?.has?.(item.id) ?? false,
+            cardMotionStyles[item.id],
+            reorderEnabled
+          ]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :class="{ 'goods-card-enter': filterTransitionActive }"
           :item="item"
