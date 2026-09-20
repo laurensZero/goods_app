@@ -80,29 +80,50 @@
           <div v-if="showMonthPicker" class="month-picker">
             <p class="month-picker__title">{{ t('events.dateSheet.pickMonth') }}</p>
             <div class="month-picker__year">
-              <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.prevYear')" @click="pickerYear -= 1">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
-              </button>
-              <span class="month-picker__year-label">{{ t('events.dateSheet.yearLabel', { year: pickerYear }) }}</span>
-              <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.nextYear')" @click="pickerYear += 1">
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6L15 12L9 18" /></svg>
-              </button>
+              <!-- 年份仅年标签两侧小按钮可点，避免切月时误触 -->
+              <div class="year-control" @pointerdown.stop @click.stop>
+                <button
+                  type="button"
+                  class="year-step"
+                  :aria-label="t('events.dateSheet.prevYear')"
+                  @click="shiftPickerYear(-1)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
+                </button>
+                <div class="year-clip">
+                  <Transition :name="yearAnimName" mode="out-in">
+                    <span :key="pickerYear" class="month-picker__year-label">
+                      {{ t('events.dateSheet.yearLabel', { year: pickerYear }) }}
+                    </span>
+                  </Transition>
+                </div>
+                <button
+                  type="button"
+                  class="year-step"
+                  :aria-label="t('events.dateSheet.nextYear')"
+                  @click="shiftPickerYear(1)"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6L15 12L9 18" /></svg>
+                </button>
+              </div>
             </div>
-            <div class="month-picker__grid">
-              <button
-                v-for="m in 12"
-                :key="m"
-                type="button"
-                class="month-picker__cell"
-                :class="{
-                  'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
-                  'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
-                }"
-                @click="pickMonth(pickerYear, m)"
-              >
-                {{ t('events.dateSheet.monthShort', { month: m }) }}
-              </button>
-            </div>
+            <Transition :name="yearAnimName" mode="out-in">
+              <div :key="`months-${pickerYear}`" class="month-picker__grid">
+                <button
+                  v-for="m in 12"
+                  :key="m"
+                  type="button"
+                  class="month-picker__cell"
+                  :class="{
+                    'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
+                    'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
+                  }"
+                  @click="pickMonth(pickerYear, m)"
+                >
+                  {{ t('events.dateSheet.monthShort', { month: m }) }}
+                </button>
+              </div>
+            </Transition>
             <div class="month-picker__actions">
               <button type="button" class="month-picker__today" @click="pickMonth(todayYear, todayMonth)">
                 {{ t('events.dateSheet.backToToday') }}
@@ -173,6 +194,8 @@ const showMonthPicker = ref(false)
 /** 壳层（顶栏/高度/底层压暗）在淡出结束后再恢复，避免收起中途卡顿 */
 const pickerShellVisible = ref(false)
 const pickerTransName = ref('month-picker')
+/** 年份切换方向动画：year-next / year-prev */
+const yearAnimName = ref('year-next')
 const pickerYear = ref(todayYear)
 const jumping = ref(false)
 const stageRef = ref(null)
@@ -391,11 +414,18 @@ function animateMonthSwipe(direction) {
 function openMonthPicker() {
   pickerYear.value = viewYear.value
   pickerTransName.value = 'month-picker'
+  yearAnimName.value = 'year-next'
   pickerShellVisible.value = true
   showMonthPicker.value = true
   clearAnimTimer()
   trackTransition.value = 'none'
   trackOffset.value = 0
+}
+
+/** 仅年标签旁按钮触发；带左右滑动方向动效 */
+function shiftPickerYear(delta) {
+  yearAnimName.value = delta > 0 ? 'year-next' : 'year-prev'
+  pickerYear.value += delta
 }
 
 /**
@@ -884,15 +914,99 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 .month-picker__year {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin-bottom: 8px;
   flex: 0 0 auto;
 }
 
+/* 年份只在这一小块可点，与月份格子拉开间距防误触 */
+.year-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-glass) 70%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
+}
+
+.year-step {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--app-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.year-step:active {
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
+}
+
+.year-step svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.year-clip {
+  position: relative;
+  min-width: 72px;
+  height: 32px;
+  overflow: hidden;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .month-picker__year-label {
+  display: inline-block;
   font-size: 15px;
   font-weight: 700;
   color: var(--app-text);
+  padding: 0 4px;
+}
+
+/* 年份左右切换 */
+.year-next-enter-active,
+.year-prev-enter-active {
+  transition: opacity 160ms cubic-bezier(0.22, 0.8, 0.3, 1), transform 160ms cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+.year-next-leave-active,
+.year-prev-leave-active {
+  transition: opacity 100ms ease, transform 100ms ease;
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.year-next-enter-from {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.year-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-16px);
+}
+
+.year-next-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
+}
+
+.year-prev-leave-to {
+  opacity: 0;
+  transform: translateX(10px);
 }
 
 .month-picker__grid {
