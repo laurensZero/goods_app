@@ -19,12 +19,20 @@
         <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.prevMonth')" @click.stop="shiftMonth(-1)">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
         </button>
-        <button type="button" class="cal-nav__label" @click.stop="openMonthPicker">
-          <span>{{ monthLabel }}</span>
-          <svg class="cal-nav__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M7 10L12 15L17 10" />
-          </svg>
-        </button>
+        <!-- 月份文案不可点：切月只靠两侧 ‹ ›，避免误触打开选月/年份 -->
+        <div class="cal-nav__center">
+          <span class="cal-nav__month-text">{{ monthLabel }}</span>
+          <button
+            type="button"
+            class="cal-nav__picker-btn"
+            :aria-label="t('events.dateSheet.pickMonth')"
+            @click.stop="openMonthPicker"
+          >
+            <svg class="cal-nav__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M7 10L12 15L17 10" />
+            </svg>
+          </button>
+        </div>
         <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.nextMonth')" @click.stop="shiftMonth(1)">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6L15 12L9 18" /></svg>
         </button>
@@ -80,7 +88,7 @@
           <div v-if="showMonthPicker" class="month-picker">
             <p class="month-picker__title">{{ t('events.dateSheet.pickMonth') }}</p>
             <div class="month-picker__year">
-              <!-- 年份仅年标签两侧小按钮可点，避免切月时误触 -->
+              <!-- 仅年标签这一小块可改年；固定高度，切换时月份格不上顶 -->
               <div class="year-control" @pointerdown.stop @click.stop>
                 <button
                   type="button"
@@ -91,7 +99,7 @@
                   <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
                 </button>
                 <div class="year-clip">
-                  <Transition :name="yearAnimName" mode="out-in">
+                  <Transition :name="yearAnimName">
                     <span :key="pickerYear" class="month-picker__year-label">
                       {{ t('events.dateSheet.yearLabel', { year: pickerYear }) }}
                     </span>
@@ -107,23 +115,26 @@
                 </button>
               </div>
             </div>
-            <Transition :name="yearAnimName" mode="out-in">
-              <div :key="`months-${pickerYear}`" class="month-picker__grid">
-                <button
-                  v-for="m in 12"
-                  :key="m"
-                  type="button"
-                  class="month-picker__cell"
-                  :class="{
-                    'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
-                    'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
-                  }"
-                  @click="pickMonth(pickerYear, m)"
-                >
-                  {{ t('events.dateSheet.monthShort', { month: m }) }}
-                </button>
-              </div>
-            </Transition>
+            <!-- 固定高度视口：切年只在框内横向动画，不推动上下布局 -->
+            <div class="month-picker__grid-wrap">
+              <Transition :name="yearAnimName">
+                <div :key="pickerYear" class="month-picker__grid">
+                  <button
+                    v-for="m in 12"
+                    :key="m"
+                    type="button"
+                    class="month-picker__cell"
+                    :class="{
+                      'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
+                      'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
+                    }"
+                    @click="pickMonth(pickerYear, m)"
+                  >
+                    {{ t('events.dateSheet.monthShort', { month: m }) }}
+                  </button>
+                </div>
+              </Transition>
+            </div>
             <div class="month-picker__actions">
               <button type="button" class="month-picker__today" @click="pickMonth(todayYear, todayMonth)">
                 {{ t('events.dateSheet.backToToday') }}
@@ -194,7 +205,6 @@ const showMonthPicker = ref(false)
 /** 壳层（顶栏/高度/底层压暗）在淡出结束后再恢复，避免收起中途卡顿 */
 const pickerShellVisible = ref(false)
 const pickerTransName = ref('month-picker')
-/** 年份切换方向动画：year-next / year-prev */
 const yearAnimName = ref('year-next')
 const pickerYear = ref(todayYear)
 const jumping = ref(false)
@@ -214,6 +224,8 @@ const monthSwipe = ref({
   pointerId: null,
   captured: false
 })
+/** 拖动翻月时预览目标月（-1 上月 / 1 下月 / 0 无） */
+const swipePreviewDelta = ref(0)
 let animTimer = null
 
 function formatDateLocal(d) {
@@ -257,10 +269,16 @@ const trackStyle = computed(() => ({
   willChange: 'transform'
 }))
 
-const monthLabel = computed(() => t('events.dateSheet.monthLabel', {
-  year: viewYear.value,
-  month: viewMonth.value
-}))
+const monthLabel = computed(() => {
+  let y = viewYear.value
+  let m = viewMonth.value
+  if (swipePreviewDelta.value) {
+    const peek = shiftYearMonth(y, m, swipePreviewDelta.value)
+    y = peek.y
+    m = peek.m
+  }
+  return t('events.dateSheet.monthLabel', { year: y, month: m })
+})
 
 const weekdayLabels = computed(() => [
   t('events.dateSheet.week.sun'),
@@ -371,44 +389,48 @@ function applyMonthDelta(delta) {
   viewMonth.value = next.m
 }
 
-function shiftMonth(delta) {
-  animateMonthSwipe(delta > 0 ? 'next' : 'prev')
-}
-
-/**
- * 整页滑动：百分比居中 + 像素位移一屏。
- * 量不到宽度时用 CSS 变量动画兜底，避免空白。
- */
-function animateMonthSwipe(direction) {
+function settleTrackToCenter(fromOffset) {
   clearAnimTimer()
-  // 翻月时若选月开着，直接收起壳层，避免和轨道动画抢布局
-  pickerTransName.value = ''
-  showMonthPicker.value = false
-  pickerShellVisible.value = false
-  nextTick(() => {
-    measureStage()
-    const width = pageWidth()
-    const sign = direction === 'next' ? -1 : 1
-
-    if (width > 0) {
-      trackTransition.value = 'transform 240ms cubic-bezier(0.22, 0.8, 0.3, 1)'
-      trackOffset.value = sign * width
-    } else {
-      // 兜底：直接切月，不依赖位移动画
-      applyMonthDelta(direction === 'next' ? 1 : -1)
-      trackTransition.value = 'none'
-      trackOffset.value = 0
-      return
-    }
-
+  trackTransition.value = 'none'
+  trackOffset.value = fromOffset
+  requestAnimationFrame(() => {
+    trackTransition.value = 'transform 240ms cubic-bezier(0.22, 0.8, 0.3, 1)'
+    trackOffset.value = 0
     animTimer = setTimeout(() => {
-      applyMonthDelta(direction === 'next' ? 1 : -1)
-      trackTransition.value = 'none'
-      trackOffset.value = 0
-      nextTick(measureStage)
+      trackTransition.value = ''
       animTimer = null
     }, 240)
   })
+}
+
+function closePickerShellInstant() {
+  pickerTransName.value = ''
+  showMonthPicker.value = false
+  pickerShellVisible.value = false
+}
+
+/** 先改数据再补动画：标题与轨道同步，连点不会丢更新 */
+function shiftMonth(delta) {
+  closePickerShellInstant()
+  swipePreviewDelta.value = 0
+  applyMonthDelta(delta)
+  measureStage()
+  const width = pageWidth() || 320
+  // next：月份已切到下一月，从右侧滑入 → 起点 +width
+  // prev：月份已切到上一月，从左侧滑入 → 起点 -width
+  const from = delta > 0 ? width : -width
+  settleTrackToCenter(from)
+}
+
+/** 拖动/箭头翻月：方向 +1 下月 / -1 上月 */
+function commitMonthSwipe(direction) {
+  closePickerShellInstant()
+  swipePreviewDelta.value = 0
+  applyMonthDelta(direction === 'next' ? 1 : -1)
+  measureStage()
+  const width = pageWidth() || 320
+  const from = direction === 'next' ? width : -width
+  settleTrackToCenter(from)
 }
 
 function openMonthPicker() {
@@ -422,7 +444,7 @@ function openMonthPicker() {
   trackOffset.value = 0
 }
 
-/** 仅年标签旁按钮触发；带左右滑动方向动效 */
+/** 仅年标签旁小按钮；固定视口内横滑，不推挤月份格 */
 function shiftPickerYear(delta) {
   yearAnimName.value = delta > 0 ? 'year-next' : 'year-prev'
   pickerYear.value += delta
@@ -465,13 +487,14 @@ function pickMonth(year, month) {
   }, 100)
 }
 
-/** 顶栏/星期行左右拖 → 整页翻月；按钮上不抢 click */
+/** 顶栏/星期行/日历区左右拖 → 翻月；按钮上不抢 click */
 function onMonthSwipeStart(e) {
   if (showMonthPicker.value) return
-  if (e.target?.closest?.('.cal-nav__btn')) return
+  if (e.target?.closest?.('.cal-nav__btn') || e.target?.closest?.('.cal-nav__picker-btn') || e.target?.closest?.('.year-step')) return
 
   clearAnimTimer()
   measureStage()
+  swipePreviewDelta.value = 0
   monthSwipe.value = {
     active: true,
     startX: e.clientX,
@@ -499,6 +522,8 @@ function onMonthSwipeMove(e) {
   s.deltaX = dx
   trackTransition.value = 'none'
   trackOffset.value = dx
+  // 拖过一点就预览目标月，标题跟手
+  swipePreviewDelta.value = Math.abs(dx) > 20 ? (dx < 0 ? 1 : -1) : 0
 }
 
 function onMonthSwipeEnd(e) {
@@ -508,23 +533,20 @@ function onMonthSwipeEnd(e) {
   const width = pageWidth() || 300
   const captured = s.captured
   const pointerId = s.pointerId
+  const lockedAxis = s.lockedAxis
   monthSwipe.value = { active: false, startX: 0, startY: 0, deltaX: 0, lockedAxis: '', pointerId: null, captured: false }
   if (captured) {
     try { e.currentTarget?.releasePointerCapture?.(pointerId) } catch { /* ignore */ }
   }
 
-  const passed = Math.abs(dx) > Math.min(width * 0.22, 88)
-  if (s.lockedAxis === 'x' && passed) {
-    animateMonthSwipe(dx < 0 ? 'next' : 'prev')
+  const passed = Math.abs(dx) > Math.min(width * 0.18, 72)
+  if (lockedAxis === 'x' && passed) {
+    commitMonthSwipe(dx < 0 ? 'next' : 'prev')
     return
   }
 
-  trackTransition.value = 'transform 200ms cubic-bezier(0.22, 1, 0.36, 1)'
-  trackOffset.value = 0
-  animTimer = setTimeout(() => {
-    trackTransition.value = ''
-    animTimer = null
-  }, 200)
+  swipePreviewDelta.value = 0
+  settleTrackToCenter(dx)
 }
 
 function seedFromProps() {
@@ -588,7 +610,11 @@ function dateFromPoint(x, y) {
 function onGridPointerDown(e) {
   if (showMonthPicker.value) return
   const cell = dateFromPoint(e.clientX, e.clientY)
-  if (!isDateStr(cell)) return
+  // 空白格：走翻月手势
+  if (!isDateStr(cell)) {
+    onMonthSwipeStart(e)
+    return
+  }
   e.preventDefault()
   try { e.currentTarget?.setPointerCapture?.(e.pointerId) } catch { /* ignore */ }
   isDragging.value = true
@@ -596,28 +622,72 @@ function onGridPointerDown(e) {
   dragAnchor.value = cell
   dragTarget.value = cell
   dragBase.value = [...draftDates.value]
+  // 同时记录翻月起点，便于横滑改判
+  monthSwipe.value = {
+    active: true,
+    startX: e.clientX,
+    startY: e.clientY,
+    deltaX: 0,
+    lockedAxis: '',
+    pointerId: e.pointerId,
+    captured: true
+  }
 }
 
 function onGridPointerMove(e) {
-  if (!isDragging.value) return
+  // 空白处或已改判翻月
+  if (!isDragging.value) {
+    onMonthSwipeMove(e)
+    return
+  }
+  const s = monthSwipe.value
+  const dx = e.clientX - (s.active ? s.startX : e.clientX)
+  const dy = e.clientY - (s.active ? s.startY : e.clientY)
+
+  // 明确横滑翻月：尚未按日期轴滑动时改判，避免「左右翻了月份不更新」
+  if (s.active && !dragMoved.value && Math.abs(dx) > Math.abs(dy) * 1.6 && Math.abs(dx) > 64) {
+    draftDates.value = [...dragBase.value]
+    isDragging.value = false
+    dragMoved.value = false
+    dragAnchor.value = ''
+    dragTarget.value = ''
+    s.lockedAxis = 'x'
+    s.deltaX = dx
+    s.captured = true
+    trackTransition.value = 'none'
+    trackOffset.value = dx
+    swipePreviewDelta.value = dx < 0 ? 1 : -1
+    return
+  }
+
   const cell = dateFromPoint(e.clientX, e.clientY)
-  if (!isDateStr(cell)) return
+  if (!isDateStr(cell)) {
+    if (s.active && s.lockedAxis === 'x') {
+      s.deltaX = e.clientX - s.startX
+      trackOffset.value = s.deltaX
+      swipePreviewDelta.value = Math.abs(s.deltaX) > 20 ? (s.deltaX < 0 ? 1 : -1) : 0
+    }
+    return
+  }
   if (!dragMoved.value && cell === dragAnchor.value) return
   if (cell !== dragAnchor.value) dragMoved.value = true
   dragTarget.value = cell
   if (dragMoved.value) {
-    // 滑选连续段叠加到已有选中（如先点 8/22，再滑 9/1–9/6）
     const span = expandBetween(dragAnchor.value, cell)
     draftDates.value = normalizeSelectedDates([...dragBase.value, ...span])
   }
 }
 
 function onGridPointerUp(e) {
-  if (!isDragging.value) return
+  if (!isDragging.value) {
+    onMonthSwipeEnd(e)
+    return
+  }
   const moved = dragMoved.value
   const anchor = dragAnchor.value
   const host = e.currentTarget
   const pid = e.pointerId
+  const swipe = monthSwipe.value
   isDragging.value = false
   dragMoved.value = false
   dragAnchor.value = ''
@@ -625,8 +695,18 @@ function onGridPointerUp(e) {
   dragBase.value = []
   try { host?.releasePointerCapture?.(pid) } catch { /* ignore */ }
 
+  // 日历区横滑翻月
+  if (swipe.active && swipe.lockedAxis === 'x' && Math.abs(swipe.deltaX) > 64) {
+    monthSwipe.value = { active: false, startX: 0, startY: 0, deltaX: 0, lockedAxis: '', pointerId: null, captured: false }
+    commitMonthSwipe(swipe.deltaX < 0 ? 'next' : 'prev')
+    return
+  }
+  monthSwipe.value = { active: false, startX: 0, startY: 0, deltaX: 0, lockedAxis: '', pointerId: null, captured: false }
+  trackOffset.value = 0
+  trackTransition.value = ''
+  swipePreviewDelta.value = 0
+
   if (moved || !anchor) return
-  // 点选：在当前选中上增减单天
   const set = new Set(draftDates.value)
   if (set.has(anchor)) set.delete(anchor)
   else set.add(anchor)
@@ -694,6 +774,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
   margin-bottom: 6px;
   padding: 0 2px;
   touch-action: pan-y;
@@ -702,16 +783,20 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 }
 
 .cal-nav__btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: none;
-  border-radius: 10px;
-  background: transparent;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-glass) 55%, var(--app-surface));
   color: var(--app-text);
   display: grid;
   place-items: center;
   cursor: pointer;
   flex: 0 0 auto;
+}
+
+.cal-nav__btn:active {
+  background: color-mix(in srgb, var(--app-text) 10%, transparent);
 }
 
 .cal-nav__btn svg {
@@ -723,24 +808,37 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   stroke-linejoin: round;
 }
 
-.cal-nav__label {
-  display: inline-flex;
+.cal-nav__center {
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--app-text);
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 8px 6px;
-  border-radius: 10px;
 }
 
-.cal-nav__label:active {
+.cal-nav__month-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--app-text);
+  pointer-events: none;
+}
+
+/* 仅这个小箭头打开选月，月份文字不可点 */
+.cal-nav__picker-btn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.cal-nav__picker-btn:active {
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
 }
 
@@ -751,7 +849,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .cal-weekdays {
@@ -919,7 +1017,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   flex: 0 0 auto;
 }
 
-/* 年份只在这一小块可点，与月份格子拉开间距防误触 */
+/* 年份只在这一小条上可点，避免切月时误触 */
 .year-control {
   display: inline-flex;
   align-items: center;
@@ -931,8 +1029,8 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 }
 
 .year-step {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border: none;
   border-radius: 10px;
   background: transparent;
@@ -958,24 +1056,46 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 
 .year-clip {
   position: relative;
-  min-width: 72px;
-  height: 32px;
+  width: 78px;
+  height: 30px;
   overflow: hidden;
-  text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto;
 }
 
 .month-picker__year-label {
-  display: inline-block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: block;
+  text-align: center;
   font-size: 15px;
   font-weight: 700;
   color: var(--app-text);
-  padding: 0 4px;
+  line-height: 30px;
 }
 
-/* 年份左右切换 */
+/* 月份格固定视口：切年时新旧格子叠在框内横滑，高度不变，不上顶 */
+.month-picker__grid-wrap {
+  position: relative;
+  height: 168px;
+  margin-bottom: 10px;
+  flex: 0 0 auto;
+  overflow: hidden;
+}
+
+.month-picker__grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
 .year-next-enter-active,
 .year-prev-enter-active {
   transition: opacity 160ms cubic-bezier(0.22, 0.8, 0.3, 1), transform 160ms cubic-bezier(0.22, 0.8, 0.3, 1);
@@ -983,39 +1103,27 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 
 .year-next-leave-active,
 .year-prev-leave-active {
-  transition: opacity 100ms ease, transform 100ms ease;
-  position: absolute;
-  left: 0;
-  right: 0;
+  transition: opacity 120ms ease, transform 120ms ease;
 }
 
 .year-next-enter-from {
   opacity: 0;
-  transform: translateX(16px);
+  transform: translateX(18px);
 }
 
 .year-prev-enter-from {
   opacity: 0;
-  transform: translateX(-16px);
+  transform: translateX(-18px);
 }
 
 .year-next-leave-to {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateX(-12px);
 }
 
 .year-prev-leave-to {
   opacity: 0;
-  transform: translateX(10px);
-}
-
-.month-picker__grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  margin-bottom: 10px;
-  flex: 1 1 auto;
-  align-content: center;
+  transform: translateX(12px);
 }
 
 .month-picker__cell {
