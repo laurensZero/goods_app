@@ -84,6 +84,9 @@ export function createSyncPayloadService({
       }),
       ticketType: String(item?.ticketType || '').trim(),
       seatInfo: String(item?.seatInfo || '').trim(),
+      selectedDates: Array.isArray(item?.selectedDates)
+        ? item.selectedDates.map((d) => String(d || '').trim()).filter(Boolean).sort()
+        : [],
       otherExpenses: Array.isArray(item?.otherExpenses)
         ? item.otherExpenses.map((expense, index) => ({
             id: String(expense?.id || `expense_${index}`),

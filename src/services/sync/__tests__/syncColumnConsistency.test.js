@@ -63,7 +63,7 @@ const TABLES = [
     businessKeys: EVENT_BUSINESS_KEYS,
     cols: EVENT_COLS,
     selectCols: EVENT_SELECT_COLS,
-    goldenSelect: 'id, name, type, start_date, end_date, location, city, latitude, longitude, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, day_ticket_list, other_expenses, tracks, linked_goods_ids, tags, deleted, updated_at, created_at, user_id'
+    goldenSelect: 'id, name, type, start_date, end_date, selected_dates, location, city, latitude, longitude, description, cover_image, cover_image_data, photos, ticket_price, ticket_type, seat_info, day_ticket_list, other_expenses, tracks, linked_goods_ids, tags, deleted, updated_at, created_at, user_id'
   },
   {
     name: 'batch_drafts',
@@ -96,7 +96,7 @@ describe('sync column spec consistency', () => {
   }
 
   it('EVENT_JSON_KEYS matches the golden list and is a subset of the business keys', () => {
-    expect(EVENT_JSON_KEYS).toEqual(['photos', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags'])
+    expect(EVENT_JSON_KEYS).toEqual(['photos', 'selectedDates', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags'])
     for (const key of EVENT_JSON_KEYS) {
       expect(EVENT_BUSINESS_KEYS).toContain(key)
     }

@@ -77,6 +77,7 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
+import { formatEventDateDisplay } from '@/utils/events/eventDates'
 import { usePresetsStore } from '@/stores/presets'
 
 const { t } = useI18n()
@@ -109,13 +110,9 @@ const coverMediaStyle = computed(() => ({}))
 const typeLabel = computed(() => resolveEventTypeLabel(props.event.type, t))
 const typeChipClass = computed(() => getEventTypeChipClass(props.event.type))
 const showsTracks = computed(() => typeShowsTracks(props.event.type, presets.eventTypes))
-const dateDisplay = computed(() => {
-  const start = props.event.startDate
-  const end = props.event.endDate
-  if (!start) return ''
-  if (!end || end === start) return start
-  return `${start} - ${end}`
-})
+const dateDisplay = computed(() => formatEventDateDisplay(props.event, {
+  daysUnit: t('events.dateSheet.daysUnit')
+}))
 
 function startLongPress(x, y) {
   startX.value = x

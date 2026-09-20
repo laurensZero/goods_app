@@ -329,4 +329,15 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 20,
+    description: 'Add events.selectedDates column for non-contiguous event days',
+    up: async (db) => {
+      // 空数组 = startDate~endDate 连续区间；非空 = 仅这些天（可不连续）
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('selectedDates')) {
+        await db.run("ALTER TABLE events ADD COLUMN selectedDates TEXT DEFAULT '[]'")
+      }
+    }
+  },
 ]

@@ -41,9 +41,9 @@ export const GOODS_GROUP_ITEM_SELECT_COLS = [...GOODS_GROUP_ITEM_BUSINESS_KEYS.m
 
 // events：业务字段。JSONB 数组字段额外登记在 EVENT_JSON_KEYS（reader 拉回后自动
 // safeParseJsonArray）；coverImageData 是对象，由 reader 单独处理，不在此列
-export const EVENT_BUSINESS_KEYS = ['id', 'name', 'type', 'startDate', 'endDate', 'location', 'city', 'latitude', 'longitude', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'deleted']
+export const EVENT_BUSINESS_KEYS = ['id', 'name', 'type', 'startDate', 'endDate', 'selectedDates', 'location', 'city', 'latitude', 'longitude', 'description', 'coverImage', 'coverImageData', 'photos', 'ticketPrice', 'ticketType', 'seatInfo', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags', 'deleted']
 export const EVENT_COLS = [...EVENT_BUSINESS_KEYS, 'syncedBy', 'userId']
-export const EVENT_JSON_KEYS = ['photos', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags']
+export const EVENT_JSON_KEYS = ['photos', 'selectedDates', 'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags']
 export const EVENT_SELECT_COLS = [...EVENT_BUSINESS_KEYS.map(camelToSnake), 'updated_at', 'created_at', 'user_id'].join(', ')
 
 // batch_drafts：批量添加草稿（collection / wishlist 两槽）。

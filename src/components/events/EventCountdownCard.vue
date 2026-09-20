@@ -45,6 +45,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { bindEventCardPress, useEventCardPress } from '@/composables/events/useEventCardPress'
 import { COUNTDOWN_STATUS } from '@/utils/events/countdown'
+import { formatEventDateDisplay } from '@/utils/events/eventDates'
 
 const props = defineProps({
   event: { type: Object, required: true },
@@ -118,13 +119,9 @@ const toneClass = computed(() => {
   }
 })
 
-const dateDisplay = computed(() => {
-  const start = props.event.startDate
-  const end = props.event.endDate
-  if (!start) return ''
-  if (!end || end === start) return start
-  return `${start} - ${end}`
-})
+const dateDisplay = computed(() => formatEventDateDisplay(props.event, {
+  daysUnit: t('events.dateSheet.daysUnit')
+}))
 
 const ariaLabel = computed(() =>
   `${figure.value}${isTextFigure.value ? '' : ` ${t('events.countdown.unitDay')}`}，${caption.value}，${props.event.name || ''}`

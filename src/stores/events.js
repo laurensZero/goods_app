@@ -13,6 +13,7 @@ import {
   normalizeDayTicketList,
   resolveCompleteDayTicketTotal
 } from '@/utils/events/dayTickets'
+import { resolveEventDateFields } from '@/utils/events/eventDates'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -52,17 +53,22 @@ function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
 export function normalizeEvent(data) {
   const now = Date.now()
   const id = data.id || String(now)
-  const startDate = String(data.startDate || '').trim()
-  const endDate = String(data.endDate || data.startDate || '').trim()
-  const dayTicketList = normalizeDayTicketList(data.dayTicketList, startDate, endDate)
+  const dateFields = resolveEventDateFields({
+    startDate: data.startDate,
+    endDate: data.endDate,
+    selectedDates: data.selectedDates
+  })
+  const { startDate, endDate, selectedDates } = dateFields
+  const dayTicketList = normalizeDayTicketList(data.dayTicketList, startDate, endDate, selectedDates)
   // 逐天价格填满时以逐天总和为准（表单已同步，这里兜底备份导入等旁路写入）
-  const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, startDate, endDate)
+  const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, startDate, endDate, selectedDates)
   return {
     id,
     name: String(data.name || '').trim(),
     type: String(data.type || '').trim(),
     startDate,
     endDate,
+    selectedDates,
     location: String(data.location || '').trim(),
     city: String(data.city || '').trim(),
     latitude: String(data.latitude || '').trim(),
