@@ -29,7 +29,7 @@
   "events.addEdit.eventDate": "이벤트 날짜",
   "events.addEdit.eventDateHint": "연속 일수는 스와이프, 떨어진 날은 개별 탭",
   "events.dateSheet.title": "이벤트 날짜 선택",
-  "events.dateSheet.hint": "월을 탭하면 빠르게 이동; 스와이프 = 연속 일수, 탭 = 개별 날짜",
+  "events.dateSheet.hint": "탭으로 날짜 추가/제거, 스와이프로 연속 구간 추가 (예: 8/22 + 9/1–9/6)",
   "events.dateSheet.modeRange": "기간",
   "events.dateSheet.modeDays": "개별 날짜",
   "events.dateSheet.prevMonth": "이전 달",

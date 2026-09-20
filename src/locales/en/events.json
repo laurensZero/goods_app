@@ -29,7 +29,7 @@
   "events.addEdit.eventDate": "Event Date",
   "events.addEdit.eventDateHint": "Swipe for consecutive days, or tap non-contiguous days",
   "events.dateSheet.title": "Select Event Dates",
-  "events.dateSheet.hint": "Tap the month to jump; swipe days for a span, tap for individual days",
+  "events.dateSheet.hint": "Tap to add/remove days; swipe to add a span (e.g. Aug 22 + Sep 1–6)",
   "events.dateSheet.modeRange": "Date range",
   "events.dateSheet.modeDays": "Individual days",
   "events.dateSheet.prevMonth": "Previous month",

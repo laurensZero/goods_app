@@ -29,7 +29,7 @@
   "events.addEdit.eventDate": "活动日期",
   "events.addEdit.eventDateHint": "滑选连续几天，或点选不连续的几天",
   "events.dateSheet.title": "选择活动日期",
-  "events.dateSheet.hint": "点月份可快速跳转；滑选相邻日期 = 连续几天，点选 = 单独几天",
+  "events.dateSheet.hint": "点选可加减单天，滑选可叠加连续段（如 8/22 + 9/1–9/6）",
   "events.dateSheet.modeRange": "时间段",
   "events.dateSheet.modeDays": "单独几天",
   "events.dateSheet.prevMonth": "上个月",
