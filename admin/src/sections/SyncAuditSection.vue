@@ -22,7 +22,7 @@ const userFilter = ref('')
 const directionFilter = ref('')
 const statusFilter = ref('')
 const sourceFilter = ref('')
-const rangeFilter = ref('7d')
+const rangeFilter = ref('5d')
 const pruning = ref(false)
 const userOptions = ref([{ value: '', label: '全部用户' }])
 
@@ -56,8 +56,7 @@ const CHANGE_OPTIONS = [
 
 const RANGE_OPTIONS = [
   { value: '24h', label: '近 24 小时' },
-  { value: '7d', label: '近 7 天' },
-  { value: '30d', label: '近 30 天' },
+  { value: '5d', label: '近 5 天' },
   { value: 'all', label: '不限时间' }
 ]
 
@@ -96,7 +95,7 @@ function hasAnyCount(counts) {
 
 function rangeToSince(range) {
   if (!range || range === 'all') return ''
-  const hours = range === '24h' ? 24 : range === '7d' ? 24 * 7 : 24 * 30
+  const hours = range === '24h' ? 24 : 24 * 5
   return new Date(Date.now() - hours * 3600 * 1000).toISOString()
 }
 
@@ -212,16 +211,16 @@ async function loadUserOptions() {
 async function doPrune() {
   const ok = await confirm({
     title: '清理同步日志',
-    message: '确认删除 30 天前的同步审计日志？此操作不可撤销。',
+    message: '确认删除 5 天前的同步审计日志？（与自动保留策略一致）此操作不可撤销。',
     danger: true,
     confirmText: '清理'
   })
   if (!ok) return
   pruning.value = true
   try {
-    const deleted = await pruneSyncAuditLogs(30)
+    const deleted = await pruneSyncAuditLogs(5)
     logAudit('sync_audit.prune', `deleted=${deleted}`)
-    setStatus(`已清理 ${deleted} 条（30 天前）。`, 'ok')
+    setStatus(`已清理 ${deleted} 条（5 天前）。`, 'ok')
     await load()
   } catch (e) {
     setStatus(e?.message || '清理失败。', 'error')
@@ -256,7 +255,7 @@ onMounted(async () => {
     <AppSelect v-model="rangeFilter" :options="RANGE_OPTIONS" placeholder="时间" inline />
     <button class="btn" type="button" :disabled="loading" @click="load">{{ loading ? '加载中…' : '刷新' }}</button>
     <button class="btn btn--soft" type="button" :disabled="pruning || loading" @click="doPrune">
-      {{ pruning ? '清理中…' : '清理 30 天前' }}
+      {{ pruning ? '清理中…' : '清理 5 天前' }}
     </button>
   </div>
 
@@ -294,7 +293,7 @@ onMounted(async () => {
     class="status-text"
     :class="status.type === 'ok' ? 'status-text--ok' : status.type === 'error' ? 'status-text--error' : ''"
   >
-    {{ status.text || '仅记录有变更的 push/pull；platform/APK/Bundle 从设备心跳（devices）按 device_id 关联展示。' }}
+    {{ status.text || '仅记录有变更的 push/pull；自动保留 5 天，过期由服务端删除。platform/APK/Bundle 来自设备心跳关联。' }}
   </p>
 
   <div class="list">

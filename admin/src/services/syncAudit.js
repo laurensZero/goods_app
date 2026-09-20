@@ -63,8 +63,8 @@ export async function listSyncAuditLogs({
   })
 }
 
-/** 删除 N 天前的审计日志，返回删除条数（PostgREST Content-Range）。 */
-export async function pruneSyncAuditLogs(days = 30) {
+/** 删除 N 天前的审计日志（默认 5 天，与 RPC 保留策略一致），返回删除条数。 */
+export async function pruneSyncAuditLogs(days = 5) {
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
   return supabaseRequest(`/rest/v1/sync_audit_logs?created_at=lt.${encodeURIComponent(cutoff)}`, {
     method: 'DELETE',
