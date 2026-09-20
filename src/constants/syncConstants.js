@@ -20,7 +20,10 @@ export const MANIFEST_VERSION = 1
 //     发布前：supabase/supabase-migration-goods-manual-orders.sql
 //     + setup.sql 中含 manual_orders 的 sync_push。
 //     正式用户无中间列；守卫测试要求 BUSINESS_KEYS 变更时数值必须大于上次 bump。
-export const SYNC_SCHEMA_VERSION = 9
+// v10: events.selectedDates JSON —— 活动日期可选不连续的单独几天；
+//      空数组表示 startDate~endDate 连续区间。发布前执行
+//      supabase/supabase-migration-event-selected-dates.sql。
+export const SYNC_SCHEMA_VERSION = 10
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

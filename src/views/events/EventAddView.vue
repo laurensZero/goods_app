@@ -140,11 +140,11 @@
 
                     <div class="field-card">
                       <div class="field-grid">
-                        <label class="field field--half">
-                          <span class="field-label">{{ t('events.addEdit.startDate') }}</span>
-                          <button class="date-field" type="button" @click="openDatePicker('start')">
-                            <span :class="{ 'date-field__value--placeholder': !form.startDate }">
-                              {{ form.startDate || t('events.addEdit.selectDate') }}
+                        <label class="field field--full">
+                          <span class="field-label">{{ t('events.addEdit.eventDate') }}</span>
+                          <button class="date-field" type="button" @click="openEventDateSheet">
+                            <span :class="{ 'date-field__value--placeholder': !eventDateDisplay }">
+                              {{ eventDateDisplay || t('events.addEdit.selectDate') }}
                             </span>
                             <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                               <rect x="3" y="5" width="18" height="16" rx="3" />
@@ -153,21 +153,7 @@
                               <path d="M3 10H21" />
                             </svg>
                           </button>
-                        </label>
-
-                        <label class="field field--half">
-                          <span class="field-label">{{ t('events.addEdit.endDate') }}</span>
-                          <button class="date-field" type="button" @click="openDatePicker('end')">
-                            <span :class="{ 'date-field__value--placeholder': !form.endDate }">
-                              {{ form.endDate || (form.startDate || t('events.addEdit.defaultToStart')) }}
-                            </span>
-                            <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                              <rect x="3" y="5" width="18" height="16" rx="3" />
-                              <path d="M8 3V7" />
-                              <path d="M16 3V7" />
-                              <path d="M3 10H21" />
-                            </svg>
-                          </button>
+                          <span class="field-hint">{{ t('events.addEdit.eventDateHint') }}</span>
                         </label>
 
                         <label class="field field--full">
@@ -452,15 +438,12 @@
       </div>
     </Teleport>
 
-    <AppDatePicker
-      v-model:show="showDatePicker"
-      v-model="datePickerValue"
-      :z-index="2000"
-      :is-tablet="isTabletViewport"
-      :title="datePickerTarget === 'start' ? t('events.addEdit.selectStartDate') : t('events.addEdit.selectEndDate')"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="onDateConfirm"
+    <EventDateSheet
+      v-model="showEventDateSheet"
+      :start-date="form.startDate"
+      :end-date="form.endDate"
+      :selected-dates="form.selectedDates"
+      @confirm="onEventDateConfirm"
     />
 
     <QuickImageEditorDialog
@@ -502,15 +485,15 @@ import { useEventsStore } from '@/stores/events'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
-import { formatDate } from '@/utils/format'
 import { readEventLinkedGoodsPickerResult } from '@/utils/events/eventLinkedGoodsPicker'
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { getDayDate, normalizeDayTicketPrice, parseDayCount } from '@/utils/events/dayTickets'
+import { formatEventDateDisplay } from '@/utils/events/eventDates'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import NavBar from '@/components/common/NavBar.vue'
-import AppDatePicker from '@/components/common/AppDatePicker.vue'
+import EventDateSheet from '@/components/events/EventDateSheet.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
@@ -584,6 +567,7 @@ const form = reactive({
   type: '',
   startDate: '',
   endDate: '',
+  selectedDates: [],
   location: '',
   city: '',
   latitude: '',
@@ -610,6 +594,7 @@ function serializeEventFormSnapshot() {
     type: form.type,
     startDate: form.startDate,
     endDate: form.endDate,
+    selectedDates: form.selectedDates,
     location: form.location,
     city: form.city,
     latitude: form.latitude,
@@ -683,14 +668,9 @@ watch(
 
 const cityDetecting = ref(false)
 const cityDetected = ref('')
-const showDatePicker = ref(false)
-const datePickerValue = ref([])
-const datePickerTarget = ref('start')
 const isNavigatingToPicker = ref(false)
 const pageDisplayReady = ref(true)
-const minDate = new Date(2000, 0, 1)
-const maxDate = new Date(2100, 11, 31)
-const { isTabletViewport, updateViewport } = useTabletViewport()
+const { updateViewport } = useTabletViewport()
 
 const activeTab = ref('basic')
 
@@ -768,7 +748,26 @@ const hasOtherExpenseValidationError = computed(() => (
 const showDayTicketInput = ref(false)
 const dayTicketPanelRef = ref(null)
 
-const dayCount = computed(() => parseDayCount(form.startDate, form.endDate))
+const dayCount = computed(() => parseDayCount(form.startDate, form.endDate, form.selectedDates))
+
+const showEventDateSheet = ref(false)
+
+const eventDateDisplay = computed(() => formatEventDateDisplay(
+  { startDate: form.startDate, endDate: form.endDate, selectedDates: form.selectedDates },
+  { daysUnit: t('events.dateSheet.daysUnit') }
+))
+
+function openEventDateSheet() {
+  showEventDateSheet.value = true
+}
+
+function onEventDateConfirm(payload) {
+  form.startDate = String(payload?.startDate || '')
+  form.endDate = String(payload?.endDate || form.startDate)
+  form.selectedDates = Array.isArray(payload?.selectedDates)
+    ? payload.selectedDates.map((d) => String(d || '')).filter(Boolean)
+    : []
+}
 
 const hasDayTicketValue = computed(() => (
   form.dayTicketList.some((item) => (
@@ -815,7 +814,7 @@ const dayTicketValidation = computed(() => (
 const hasDayTicketValidationError = computed(() => dayTicketValidation.value.some(Boolean))
 
 function dayDateAt(index) {
-  return getDayDate(form.startDate, index)
+  return getDayDate(form.startDate, index, form.selectedDates)
 }
 
 // 日期区间变化时增减行：已有值保留，新行留空；行数始终与天数对齐（模板 v-model 依赖下标存在）
@@ -832,7 +831,7 @@ function syncDayTicketListLength() {
 }
 
 watch(
-  () => [form.startDate, form.endDate],
+  () => [form.startDate, form.endDate, form.selectedDates],
   () => {
     syncDayTicketListLength()
   }
@@ -886,6 +885,7 @@ function buildDraftPayload() {
       type: String(form.type || ''),
       startDate: String(form.startDate || ''),
       endDate: String(form.endDate || ''),
+      selectedDates: Array.isArray(form.selectedDates) ? [...form.selectedDates] : [],
       location: String(form.location || ''),
       city: String(form.city || ''),
       latitude: String(form.latitude || ''),
@@ -911,6 +911,9 @@ function applyFormSnapshot(snapshot) {
   form.type = String(snapshot.type || '')
   form.startDate = String(snapshot.startDate || '')
   form.endDate = String(snapshot.endDate || '')
+  form.selectedDates = Array.isArray(snapshot.selectedDates)
+    ? snapshot.selectedDates.map((d) => String(d || '')).filter(Boolean)
+    : []
   form.location = String(snapshot.location || '')
   form.city = String(snapshot.city || '')
   form.latitude = String(snapshot.latitude || '')
@@ -1015,6 +1018,9 @@ async function loadEditData() {
   form.type = existing.type || ''
   form.startDate = existing.startDate || ''
   form.endDate = existing.endDate || ''
+  form.selectedDates = Array.isArray(existing.selectedDates)
+    ? existing.selectedDates.map((d) => String(d || '')).filter(Boolean)
+    : []
   form.location = existing.location || ''
   form.city = existing.city || ''
   form.latitude = existing.latitude || ''
@@ -1111,7 +1117,7 @@ async function handleSubmit() {
     return
   }
 
-  if (!form.endDate && form.startDate) {
+  if (!form.endDate && form.startDate && (!Array.isArray(form.selectedDates) || form.selectedDates.length === 0)) {
     form.endDate = form.startDate
   }
 
@@ -1145,37 +1151,6 @@ async function handleSubmit() {
     () => router.replace(targetPath),
     { direction: 'back' }
   )
-}
-
-function openDatePicker(target) {
-  datePickerTarget.value = target
-  const dateStr = target === 'start' ? form.startDate : (form.endDate || form.startDate)
-  datePickerValue.value = toDatePickerValue(dateStr)
-  showDatePicker.value = true
-}
-
-function onDateConfirm({ selectedValues }) {
-  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
-  const dateStr = `${year}-${month}-${day}`
-  if (datePickerTarget.value === 'start') {
-    form.startDate = dateStr
-    if (!form.endDate) form.endDate = dateStr
-  } else {
-    form.endDate = dateStr
-  }
-  showDatePicker.value = false
-}
-
-function toDatePickerValue(dateString) {
-  const [year, month, day] = normalizeDateParts(dateString)
-  return [year, month, day]
-}
-
-function normalizeDateParts(dateString) {
-  const [fallbackYear, fallbackMonth, fallbackDay] = formatDate(new Date(), 'YYYY-MM-DD').split('-')
-  if (!dateString) return [fallbackYear, fallbackMonth, fallbackDay]
-  const [year = fallbackYear, month = fallbackMonth, day = fallbackDay] = `${dateString}`.split('-')
-  return [year, month.padStart(2, '0'), day.padStart(2, '0')]
 }
 
 const showCoverEditor = ref(false)

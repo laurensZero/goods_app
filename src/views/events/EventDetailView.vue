@@ -244,6 +244,7 @@ import { getCachedImageThumb, peekImageThumb } from '@/utils/image/thumb'
 import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown } from '@/utils/markdown'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
+import { formatEventDateDisplay } from '@/utils/events/eventDates'
 import { usePresetsStore } from '@/stores/presets'
 
 defineOptions({ name: 'EventDetailView' })
@@ -335,9 +336,8 @@ const typeChipClass = computed(() => getEventTypeChipClass(event.value?.type))
 const coverFallback = computed(() => event.value?.name?.trim()?.charAt(0) || t('goods.heroFallbackEvent'))
 const coverCardStyle = computed(() => ({}))
 const dateDisplay = computed(() => {
-  if (!event.value?.startDate) return t('common.unfilled')
-  if (!event.value.endDate || event.value.endDate === event.value.startDate) return event.value.startDate
-  return `${event.value.startDate} - ${event.value.endDate}`
+  const formatted = formatEventDateDisplay(event.value, { daysUnit: t('events.dateSheet.daysUnit') })
+  return formatted || t('common.unfilled')
 })
 const linkedGoodsList = computed(() =>
   (event.value?.linkedGoodsIds || []).map((id) => goodsStore.getById(id)).filter(Boolean)
@@ -533,6 +533,12 @@ const infoItems = computed(() => {
   }
   if (event.value.endDate && event.value.endDate !== event.value.startDate) {
     items.push({ label: t('events.detail.endDate'), value: event.value.endDate })
+  }
+  if (Array.isArray(event.value.selectedDates) && event.value.selectedDates.length > 0) {
+    items.push({
+      label: t('events.detail.selectedDates'),
+      value: event.value.selectedDates.join('、')
+    })
   }
   if (event.value.location) {
     items.push({ label: t('events.detail.eventLocation'), value: event.value.location })
