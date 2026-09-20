@@ -29,7 +29,7 @@
   "events.addEdit.eventDate": "イベント日程",
   "events.addEdit.eventDateHint": "連続日はスワイプ、離れた日は個別タップ",
   "events.dateSheet.title": "イベント日程を選択",
-  "events.dateSheet.hint": "月タップでジャンプ；隣接日スワイプ = 連続日、タップ = 個別日",
+  "events.dateSheet.hint": "タップで日を加減、スワイプで連続区間を追加（例：8/22 + 9/1–9/6）",
   "events.dateSheet.modeRange": "期間",
   "events.dateSheet.modeDays": "個別日",
   "events.dateSheet.prevMonth": "前の月",

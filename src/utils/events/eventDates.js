@@ -126,8 +126,8 @@ export function buildMonthCells(year, month) {
  * - 无日期 → ''
  * - 单日 → 该日
  * - 连续区间 → `start - end`
- * - 单独几天（≤4）→ 日期列表
- * - 单独几天（更多）→ `start - end · N{daysUnit}`
+ * - 单独几天：优先列出日（MM-DD），过多时用 start~end + 天数
+ * - 可含空隙（如 8/22 + 9/1–9/6），不必是一整段
  */
 export function formatEventDateDisplay(event, { daysUnit = '天' } = {}) {
   const { startDate, endDate, selectedDates } = resolveEventDateFields(event || {})
@@ -140,7 +140,7 @@ export function formatEventDateDisplay(event, { daysUnit = '天' } = {}) {
   if (isFullContinuousRange(selectedDates, startDate, endDate)) {
     return `${startDate} - ${endDate}`
   }
-  if (selectedDates.length <= 4) {
+  if (selectedDates.length <= 8) {
     return selectedDates.map((d) => d.slice(5)).join('、')
   }
   return `${startDate} - ${endDate} · ${selectedDates.length}${daysUnit}`

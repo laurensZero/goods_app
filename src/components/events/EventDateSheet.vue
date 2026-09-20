@@ -3,18 +3,13 @@
     :model-value="modelValue"
     sheet-class="event-date-sheet"
     size="wide"
-    :close-on-overlay="false"
-    @update:model-value="(v) => { if (!v) close() }"
+    :close-on-overlay="true"
+    @update:model-value="(v) => { if (!v) handleOverlayDismiss() }"
   >
-    <div class="sheet-head">
-      <p class="sheet-title">{{ t('events.dateSheet.title') }}</p>
-      <p class="sheet-hint">{{ t('events.dateSheet.hint') }}</p>
-    </div>
-
     <div class="cal-card" :class="{ 'cal-card--jumping': jumping }">
-      <!-- 选月面板打开时隐藏顶栏，避免和面板内年份导航重复 -->
+      <!-- 选月面板打开时隐藏顶栏；收起时等淡出结束再恢复，避免中途布局跳动 -->
       <div
-        v-if="!showMonthPicker"
+        v-if="!pickerShellVisible"
         class="cal-toolbar"
         @pointerdown="onMonthSwipeStart"
         @pointermove="onMonthSwipeMove"
@@ -36,7 +31,7 @@
       </div>
 
       <div
-        v-if="!showMonthPicker"
+        v-if="!pickerShellVisible"
         class="cal-weekdays"
         aria-hidden="true"
         @pointerdown="onMonthSwipeStart"
@@ -47,69 +42,77 @@
         <span v-for="w in weekdayLabels" :key="w">{{ w }}</span>
       </div>
 
-      <div v-if="showMonthPicker" class="month-picker">
-        <p class="month-picker__title">{{ t('events.dateSheet.pickMonth') }}</p>
-        <div class="month-picker__year">
-          <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.prevYear')" @click="pickerYear -= 1">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
-          </button>
-          <span class="month-picker__year-label">{{ t('events.dateSheet.yearLabel', { year: pickerYear }) }}</span>
-          <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.nextYear')" @click="pickerYear += 1">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6L15 12L9 18" /></svg>
-          </button>
-        </div>
-        <div class="month-picker__grid">
-          <button
-            v-for="m in 12"
-            :key="m"
-            type="button"
-            class="month-picker__cell"
-            :class="{
-              'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
-              'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
-            }"
-            @click="pickMonth(pickerYear, m)"
-          >
-            {{ t('events.dateSheet.monthShort', { month: m }) }}
-          </button>
-        </div>
-        <div class="month-picker__actions">
-          <button type="button" class="month-picker__today" @click="pickMonth(todayYear, todayMonth)">
-            {{ t('events.dateSheet.backToToday') }}
-          </button>
-          <button type="button" class="month-picker__close" @click="showMonthPicker = false">
-            {{ t('events.dateSheet.closePicker') }}
-          </button>
-        </div>
-      </div>
-
+      <!-- 日历常驻底层；选月面板绝对定位盖住它，收起淡出时不会叠在日历上面 -->
       <div
-        v-else
         ref="stageRef"
-        class="cal-stage"
-        @pointerdown="onGridPointerDown"
-        @pointermove="onGridPointerMove"
-        @pointerup="onGridPointerUp"
-        @pointercancel="onGridPointerUp"
+        class="cal-body"
+        :class="{ 'cal-body--picker': pickerShellVisible }"
       >
-        <!-- 三页轨道：左=上月，中=当前，右=下月；整页滑动与月卡日历一致 -->
-        <div class="cal-track" :style="trackStyle">
-          <div v-for="page in trackPages" :key="page.key" class="cal-page">
-            <div class="cal-grid">
-              <button
-                v-for="(cell, idx) in page.cells"
-                :key="`${page.key}-${cell || `pad-${idx}`}`"
-                type="button"
-                class="cal-day"
-                :class="dayClass(cell)"
-                :data-date="cell || ''"
-                :disabled="!cell"
-              >
-                <span v-if="cell">{{ Number(cell.slice(8)) }}</span>
-              </button>
+        <div
+          class="cal-stage"
+          :class="{ 'cal-stage--under-picker': pickerShellVisible }"
+          @pointerdown="onGridPointerDown"
+          @pointermove="onGridPointerMove"
+          @pointerup="onGridPointerUp"
+          @pointercancel="onGridPointerUp"
+        >
+          <!-- 三页轨道：左=上月，中=当前，右=下月；整页滑动与月卡日历一致 -->
+          <div class="cal-track" :style="trackStyle">
+            <div v-for="page in trackPages" :key="page.key" class="cal-page">
+              <div class="cal-grid">
+                <button
+                  v-for="(cell, idx) in page.cells"
+                  :key="`${page.key}-${cell || `pad-${idx}`}`"
+                  type="button"
+                  class="cal-day"
+                  :class="dayClass(cell)"
+                  :data-date="cell || ''"
+                  :disabled="!cell"
+                >
+                  <span v-if="cell">{{ Number(cell.slice(8)) }}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        <Transition :name="pickerTransName" @after-leave="onPickerAfterLeave">
+          <div v-if="showMonthPicker" class="month-picker">
+            <p class="month-picker__title">{{ t('events.dateSheet.pickMonth') }}</p>
+            <div class="month-picker__year">
+              <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.prevYear')" @click="pickerYear -= 1">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6L9 12L15 18" /></svg>
+              </button>
+              <span class="month-picker__year-label">{{ t('events.dateSheet.yearLabel', { year: pickerYear }) }}</span>
+              <button type="button" class="cal-nav__btn" :aria-label="t('events.dateSheet.nextYear')" @click="pickerYear += 1">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6L15 12L9 18" /></svg>
+              </button>
+            </div>
+            <div class="month-picker__grid">
+              <button
+                v-for="m in 12"
+                :key="m"
+                type="button"
+                class="month-picker__cell"
+                :class="{
+                  'month-picker__cell--active': pickerYear === viewYear && m === viewMonth,
+                  'month-picker__cell--today': pickerYear === todayYear && m === todayMonth
+                }"
+                @click="pickMonth(pickerYear, m)"
+              >
+                {{ t('events.dateSheet.monthShort', { month: m }) }}
+              </button>
+            </div>
+            <div class="month-picker__actions">
+              <button type="button" class="month-picker__today" @click="pickMonth(todayYear, todayMonth)">
+                {{ t('events.dateSheet.backToToday') }}
+              </button>
+              <button type="button" class="month-picker__close" @click="closeMonthPicker">
+                {{ t('events.dateSheet.closePicker') }}
+              </button>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -120,8 +123,10 @@
       </button>
     </div>
 
-    <button type="button" class="sheet-apply" @click="confirm">{{ t('common.confirm') }}</button>
-    <button type="button" class="sheet-cancel" @click="close">{{ t('common.cancel') }}</button>
+    <div class="sheet-actions">
+      <button type="button" class="sheet-cancel" @click="closeSheet">{{ t('common.cancel') }}</button>
+      <button type="button" class="sheet-apply" @click="confirm">{{ t('common.confirm') }}</button>
+    </div>
   </AppSheet>
 </template>
 
@@ -158,11 +163,16 @@ const viewYear = ref(todayYear)
 const viewMonth = ref(todayMonth)
 const draftDates = ref([])
 const dragAnchor = ref('')
+/** 本次拖选开始时的选中快照：滑选在此基础上叠加，不冲掉已点的天 */
+const dragBase = ref([])
 const isDragging = ref(false)
 const dragMoved = ref(false)
 const dragTarget = ref('')
 
 const showMonthPicker = ref(false)
+/** 壳层（顶栏/高度/底层压暗）在淡出结束后再恢复，避免收起中途卡顿 */
+const pickerShellVisible = ref(false)
+const pickerTransName = ref('month-picker')
 const pickerYear = ref(todayYear)
 const jumping = ref(false)
 const stageRef = ref(null)
@@ -297,7 +307,7 @@ function clearAnimTimer() {
 }
 
 function measureStage() {
-  const el = stageRef.value
+  const el = stageRef.value?.querySelector?.('.cal-stage') || stageRef.value
   if (!el) return
   const width = el.getBoundingClientRect().width
   if (width > 0) stageWidth.value = width
@@ -305,8 +315,9 @@ function measureStage() {
 
 function pageWidth() {
   measureStage()
+  const el = stageRef.value?.querySelector?.('.cal-stage') || stageRef.value
   return stageWidth.value
-    || stageRef.value?.getBoundingClientRect().width
+    || el?.getBoundingClientRect().width
     || document.querySelector('.event-date-sheet .cal-stage')?.getBoundingClientRect().width
     || 0
 }
@@ -347,7 +358,10 @@ function shiftMonth(delta) {
  */
 function animateMonthSwipe(direction) {
   clearAnimTimer()
+  // 翻月时若选月开着，直接收起壳层，避免和轨道动画抢布局
+  pickerTransName.value = ''
   showMonthPicker.value = false
+  pickerShellVisible.value = false
   nextTick(() => {
     measureStage()
     const width = pageWidth()
@@ -376,14 +390,37 @@ function animateMonthSwipe(direction) {
 
 function openMonthPicker() {
   pickerYear.value = viewYear.value
+  pickerTransName.value = 'month-picker'
+  pickerShellVisible.value = true
   showMonthPicker.value = true
   clearAnimTimer()
   trackTransition.value = 'none'
   trackOffset.value = 0
 }
 
-function pickMonth(year, month) {
+/**
+ * 收起选月：动画同时立刻露出日历（顶栏/日期马上插入），
+ * 选月面板在绝对定位层上淡出，不挡日历。
+ */
+function closeMonthPicker() {
+  if (!showMonthPicker.value && !pickerShellVisible.value) return
+  pickerTransName.value = 'month-picker'
+  // 先恢复日历壳层，收起动画的同一瞬间日历就出现
+  pickerShellVisible.value = false
   showMonthPicker.value = false
+  nextTick(measureStage)
+}
+
+function onPickerAfterLeave() {
+  pickerShellVisible.value = false
+  nextTick(measureStage)
+}
+
+/** 点选月份：直接切换，跳过 leave 布局回弹 */
+function pickMonth(year, month) {
+  pickerTransName.value = ''
+  showMonthPicker.value = false
+  pickerShellVisible.value = false
   clearAnimTimer()
   jumping.value = true
   trackTransition.value = 'none'
@@ -393,6 +430,7 @@ function pickMonth(year, month) {
     viewMonth.value = Number(month)
     window.setTimeout(() => {
       jumping.value = false
+      nextTick(measureStage)
     }, 160)
   }, 100)
 }
@@ -474,12 +512,15 @@ function seedFromProps() {
   viewYear.value = Number(focus.slice(0, 4))
   viewMonth.value = Number(focus.slice(5, 7))
   pickerYear.value = viewYear.value
+  pickerTransName.value = ''
   showMonthPicker.value = false
+  pickerShellVisible.value = false
   jumping.value = false
   trackOffset.value = 0
   trackTransition.value = ''
   dragAnchor.value = ''
   dragTarget.value = ''
+  dragBase.value = []
   isDragging.value = false
   dragMoved.value = false
   nextTick(measureStage)
@@ -524,6 +565,7 @@ function onGridPointerDown(e) {
   dragMoved.value = false
   dragAnchor.value = cell
   dragTarget.value = cell
+  dragBase.value = [...draftDates.value]
 }
 
 function onGridPointerMove(e) {
@@ -534,7 +576,9 @@ function onGridPointerMove(e) {
   if (cell !== dragAnchor.value) dragMoved.value = true
   dragTarget.value = cell
   if (dragMoved.value) {
-    draftDates.value = expandBetween(dragAnchor.value, cell)
+    // 滑选连续段叠加到已有选中（如先点 8/22，再滑 9/1–9/6）
+    const span = expandBetween(dragAnchor.value, cell)
+    draftDates.value = normalizeSelectedDates([...dragBase.value, ...span])
   }
 }
 
@@ -548,9 +592,11 @@ function onGridPointerUp(e) {
   dragMoved.value = false
   dragAnchor.value = ''
   dragTarget.value = ''
+  dragBase.value = []
   try { host?.releasePointerCapture?.(pid) } catch { /* ignore */ }
 
   if (moved || !anchor) return
+  // 点选：在当前选中上增减单天
   const set = new Set(draftDates.value)
   if (set.has(anchor)) set.delete(anchor)
   else set.add(anchor)
@@ -561,15 +607,32 @@ function clearSelection() {
   draftDates.value = []
   dragAnchor.value = ''
   dragTarget.value = ''
+  dragBase.value = []
 }
 
 function confirm() {
   emit('confirm', selectionToEventDates(draftDates.value))
-  close()
+  closeSheet()
 }
 
 function close() {
   emit('update:modelValue', false)
+}
+
+/** 点遮罩：选月开着先收面板，否则关弹窗 */
+function handleOverlayDismiss() {
+  if (showMonthPicker.value || pickerShellVisible.value) {
+    closeMonthPicker()
+    return
+  }
+  close()
+}
+
+function closeSheet() {
+  pickerTransName.value = ''
+  showMonthPicker.value = false
+  pickerShellVisible.value = false
+  close()
 }
 
 onBeforeUnmount(() => {
@@ -578,30 +641,10 @@ onBeforeUnmount(() => {
   stageResizeObserver = null
 })
 
-useDialogBackButton(close, () => props.modelValue)
+useDialogBackButton(closeSheet, () => props.modelValue)
 </script>
 
 <style scoped>
-.sheet-head {
-  margin-bottom: 12px;
-}
-
-.sheet-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--app-text-tertiary, #8e8e93);
-  text-align: center;
-  margin: 0 0 6px;
-}
-
-.sheet-hint {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--app-text-tertiary, #8e8e93);
-  text-align: center;
-}
-
 .cal-card {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
@@ -697,6 +740,16 @@ useDialogBackButton(close, () => props.modelValue)
   padding: 4px 0;
 }
 
+.cal-body {
+  position: relative;
+  min-height: 248px;
+}
+
+/* 选月打开时加高，底部「回到今天/收起」不被裁切 */
+.cal-body--picker {
+  min-height: 320px;
+}
+
 .cal-stage {
   overflow: hidden;
   border-radius: 12px;
@@ -707,6 +760,11 @@ useDialogBackButton(close, () => props.modelValue)
   touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.cal-stage--under-picker {
+  pointer-events: none;
+  opacity: 0.4;
 }
 
 .cal-track {
@@ -772,11 +830,46 @@ useDialogBackButton(close, () => props.modelValue)
   color: #141416;
 }
 
-/* ---- 快速选月 ---- */
+/* ---- 快速选月：绝对定位盖在日历上，不透明底，收起淡出不叠排 ---- */
 .month-picker {
-  padding: 2px 2px 2px;
-  min-height: 248px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 4px 8px;
   box-sizing: border-box;
+  background: var(--app-surface);
+  border-radius: 12px;
+}
+
+/* 打开：上滑淡入；收起：淡出，同时下层日历已插入 */
+.month-picker-enter-active {
+  transition: opacity 180ms cubic-bezier(0.22, 0.8, 0.3, 1), transform 180ms cubic-bezier(0.22, 0.8, 0.3, 1);
+}
+
+.month-picker-leave-active {
+  transition: opacity 160ms ease, transform 160ms cubic-bezier(0.4, 0, 0.6, 1);
+  pointer-events: none;
+}
+
+.month-picker-enter-from {
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.month-picker-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.month-picker-enter-to,
+.month-picker-leave-from {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .month-picker__title {
@@ -784,7 +877,8 @@ useDialogBackButton(close, () => props.modelValue)
   font-size: 13px;
   font-weight: 600;
   color: var(--app-text);
-  margin: 0 0 10px;
+  margin: 0 0 8px;
+  flex: 0 0 auto;
 }
 
 .month-picker__year {
@@ -792,6 +886,7 @@ useDialogBackButton(close, () => props.modelValue)
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+  flex: 0 0 auto;
 }
 
 .month-picker__year-label {
@@ -804,14 +899,16 @@ useDialogBackButton(close, () => props.modelValue)
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  flex: 1 1 auto;
+  align-content: center;
 }
 
 .month-picker__cell {
-  height: 42px;
+  height: 40px;
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
-  background: color-mix(in srgb, var(--app-surface) 80%, var(--app-glass));
+  background: var(--app-surface);
   color: var(--app-text);
   font-size: 14px;
   font-weight: 600;
@@ -828,6 +925,14 @@ useDialogBackButton(close, () => props.modelValue)
   border-color: transparent;
 }
 
+:global(html.theme-dark) .cal-card {
+  background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
+}
+
+:global(html.theme-dark) .month-picker {
+  background: var(--app-surface);
+}
+
 :global(html.theme-dark) .month-picker__cell--active {
   background: #f5f5f7;
   color: #141416;
@@ -837,6 +942,8 @@ useDialogBackButton(close, () => props.modelValue)
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+  flex: 0 0 auto;
+  margin-top: auto;
 }
 
 .month-picker__today,
@@ -887,17 +994,27 @@ useDialogBackButton(close, () => props.modelValue)
   padding: 4px 6px;
 }
 
-.sheet-apply {
+.sheet-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.sheet-apply,
+.sheet-cancel {
   height: 54px;
-  width: 100%;
-  border: none;
   border-radius: 18px;
-  background: var(--app-text);
-  color: var(--app-surface);
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 8px;
   cursor: pointer;
+  margin: 0;
+}
+
+.sheet-apply {
+  border: none;
+  background: var(--app-text);
+  color: var(--app-surface);
 }
 
 .sheet-apply:active {
@@ -905,28 +1022,13 @@ useDialogBackButton(close, () => props.modelValue)
 }
 
 .sheet-cancel {
-  height: 54px;
-  width: 100%;
-  border: none;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  font-size: 16px;
-  font-weight: 600;
+  background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   color: var(--app-text);
-  cursor: pointer;
 }
 
 .sheet-cancel:active {
   background: rgba(142, 142, 147, 0.18);
-}
-
-:global(.app-sheet-overlay--center) .sheet-cancel {
-  display: none;
-}
-
-:global(html.theme-dark) .cal-card {
-  background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
 :global(html.theme-dark) .sheet-apply {
