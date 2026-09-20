@@ -180,13 +180,12 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = ''
     try {
       const data = await signUpWithEmail(email, password, { metadata })
-      // Supabase may return user without session if email confirmation is required
+      // Confirm email 开启时无 session：不可 setUser，否则 isLoggedIn 会误判为已登录
       if (data.session) {
         _pendingLoginSync = true
         setSession(data.session)
         setUser(data.user)
       }
-      setUser(data.user)
       return data
     } catch (e) {
       error.value = e.message || '注册失败'
