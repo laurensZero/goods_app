@@ -136,16 +136,17 @@ async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
     const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
     const localGoodsId = String(localItem?.goodsId || '').trim()
     const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
-    // manualOrders 是同步字段，远端明确返回 {} 也代表远端的当前值。
-    // 只有旧接口完全没有返回该字段时才兼容保留本地值；否则把本地旧序号
-    // 与远端新序号混合会让两台设备各自保留一部分顺序，造成永久不收敛。
+    // manualOrders 按排序模式分别维护。旧版本/新建条目可能只带其中几个模式；
+    // 整块替换会在全量拉取时误删本机已有的其它模式，导致展示顺序回退。
+    // 远端带来的模式覆盖同名本地模式，远端缺失的模式保留本地值。
     const localManual = normalizeManualOrders(localItem?.manualOrders)
     const remoteManual = normalizeManualOrders(restoredRemote?.manualOrders)
     const hasRemoteManualOrders = Object.prototype.hasOwnProperty.call(restoredRemote, 'manualOrders')
-    const keepLocalManualOrders = !hasRemoteManualOrders && Object.keys(localManual).length > 0
-    const manualOrders = hasRemoteManualOrders ? remoteManual : localManual
+    const manualOrders = hasRemoteManualOrders
+      ? { ...localManual, ...remoteManual }
+      : localManual
     const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
-    const bumpLocal = keepLocalGoodsId || keepLocalManualOrders
+    const bumpLocal = keepLocalGoodsId
     const normalized = normalizeGoodsInput({
       ...localItem,
       ...restoredRemote,
@@ -255,17 +256,18 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forc
   const results = await Promise.all(candidates.map(async (remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
     const restoredRemote = await restoreImportedGoodsItem(remoteItem)
-    // 同 updateGoodsBackup：goodsId 兼容旧数据；manualOrders 以远端明确值为准
+    // 同 updateGoodsBackup：goodsId 兼容旧数据；manualOrders 按模式合并
     const remoteGoodsId = String(restoredRemote.goodsId || restoredRemote.goods_id || '').trim()
     const localGoodsId = String(localItem?.goodsId || '').trim()
     const keepLocalGoodsId = !remoteGoodsId && !!localGoodsId
     const localManual = normalizeManualOrders(localItem?.manualOrders)
     const remoteManual = normalizeManualOrders(restoredRemote?.manualOrders)
     const hasRemoteManualOrders = Object.prototype.hasOwnProperty.call(restoredRemote, 'manualOrders')
-    const keepLocalManualOrders = !hasRemoteManualOrders && Object.keys(localManual).length > 0
-    const manualOrders = hasRemoteManualOrders ? remoteManual : localManual
+    const manualOrders = hasRemoteManualOrders
+      ? { ...localManual, ...remoteManual }
+      : localManual
     const remoteTs = Number(remoteItem.updatedAt) || restoredRemote.updatedAt || 0
-    const bumpLocal = keepLocalGoodsId || keepLocalManualOrders
+    const bumpLocal = keepLocalGoodsId
     const normalized = normalizeTrashItem({
       ...localItem,
       ...restoredRemote,

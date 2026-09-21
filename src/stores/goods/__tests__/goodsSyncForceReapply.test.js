@@ -126,7 +126,7 @@ describe('updateGoodsBackup 以远端 manualOrders 收敛各设备顺序', () =>
     saveItems.mockResolvedValue(undefined)
   })
 
-  it('远端明确为空对象 → 清理本地旧手排序，不再让本地旧序阻塞收敛', async () => {
+  it('远端明确为空对象 → 保留本地其它排序模式，避免稀疏远端行导致顺序回退', async () => {
     const list = shallowRef([makeItem('w1', 100, {
       isWishlist: true,
       manualOrders: { custom: 2, acquiredAt: 1 },
@@ -142,11 +142,11 @@ describe('updateGoodsBackup 以远端 manualOrders 收敛各设备顺序', () =>
 
     expect(updated).toBe(1)
     expect(list.value[0].name).toBe('wish-remote')
-    expect(list.value[0].manualOrders).toEqual({})
+    expect(list.value[0].manualOrders).toEqual({ custom: 2, acquiredAt: 1 })
     expect(list.value[0].updatedAt).toBe(200)
   })
 
-  it('远端有 manualOrders → 完整采用远端对象，不混入本地旧键', async () => {
+  it('远端只带一个模式 → 覆盖该模式并保留本地其它模式', async () => {
     const list = shallowRef([makeItem('w2', 100, {
       isWishlist: true,
       manualOrders: { custom: 5, name: 3 }
@@ -159,6 +159,6 @@ describe('updateGoodsBackup 以远端 manualOrders 收敛各设备顺序', () =>
     await updateGoodsBackup(remote, list)
 
     expect(list.value[0].manualOrders.custom).toBe(1)
-    expect(list.value[0].manualOrders.name).toBeUndefined()
+    expect(list.value[0].manualOrders.name).toBe(3)
   })
 })
