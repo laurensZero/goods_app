@@ -1,6 +1,15 @@
 <template>
   <div class="page cart-import-page">
-    <NavBar :title="pageTitle" show-back />
+    <NavBar :title="pageTitle" show-back>
+      <template #right>
+        <MihoyoAccountNavBtn
+          :label="activeAccountLabel"
+          :avatar="activeAccountAvatar"
+          :accounts-count="accounts.length"
+          @click="openAccountSheet"
+        />
+      </template>
+    </NavBar>
     <!-- 普通提示对话框 -->
     <AppSheet :model-value="showErrorDialog" placement="center" @update:model-value="(v) => { if (!v) closeErrorDialog() }">
       <p class="dialog-label">Import Notice</p>
@@ -12,6 +21,19 @@
         </button>
       </div>
     </AppSheet>
+
+    <MihoyoAccountSheet
+      ref="accountSheetRef"
+      v-model="showAccountSheet"
+      :accounts="accounts"
+      :active-account-id="activeAccountId"
+      :active-account-label="activeAccountLabel"
+      @switch="onSwitchAccount"
+      @remove="onRemoveAccount"
+      @logout="handleLogout"
+      @login-native="onLoginNewNative"
+      @login-cookie="onLoginNewCookie"
+    />
 
     <main class="page-body">
       <Transition name="step-fade" mode="out-in">
@@ -70,14 +92,6 @@
               </label>
             </template>
             <span v-else class="cookie-actions__spacer" />
-            <button
-              v-if="canUseNativeImport || hasSavedCookie"
-              class="cookie-clear-btn"
-              type="button"
-              @click="handleLogout"
-            >
-              {{ t('import.logout') }}
-            </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
@@ -98,9 +112,6 @@
           <div class="list-header">
             <p class="list-count">{{ t('import.cartCount', { shops: processedGroups.length, items: selectableGoods.length }) }}</p>
             <div class="list-header-actions">
-              <button class="text-btn" type="button" @click="handleLogout">
-                {{ t('import.switchAccount') }}
-              </button>
               <button :class="['text-btn', isAllSelectableSelected && 'text-btn--active']" type="button" @click="selectAll">
                 {{ t('common.selectAll') }}
               </button>
@@ -225,6 +236,8 @@ import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
+import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
 
 defineOptions({ name: 'CartImportView' })
 
@@ -236,16 +249,33 @@ const presets = usePresetsStore()
 const {
   cookieInput,
   rememberCookie,
-  hasSavedCookie,
   cookieValid,
   cookieWarningMessage,
   canAutoSubmitSavedCookie,
+  accounts,
+  activeAccountId,
+  activeAccountLabel,
+  activeAccountAvatar,
   initializeCookieState,
   applySavedCookieToInput,
   persistCookieAfterSuccess,
+  persistNativeCookieAfterSuccess,
   handleCookieFailure,
-  clearSavedCookie
+  clearSavedCookie,
+  switchAccount,
+  removeAccount,
+  refreshAccountProfiles,
+  loginNewAccountNative,
+  submitNewAccountCookie,
 } = useMihoyoCookieState()
+
+const showAccountSheet = ref(false)
+const accountSheetRef = ref(null)
+
+function openAccountSheet() {
+  showAccountSheet.value = true
+  void refreshAccountProfiles()
+}
 
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? t('import.cartImportWishlistTitle') : t('import.cart'))
@@ -372,30 +402,63 @@ async function handleLogout() {
   step.value = 'cookie'
 }
 
-// 安卓原生端导入成功后，同步 Cookie 到 Web 端存储
-async function syncNativeCookieToWeb() {
-  try {
-    const { Preferences } = await import('@capacitor/preferences')
-    const { value } = await Preferences.get({ key: 'mihoyo_native_session' })
-    if (value) {
-      const parsed = JSON.parse(value)
-      const cookie = String(parsed.cookie || '').trim()
-      if (cookie) {
-        const cookieState = {
-          cookie,
-          updatedAt: parsed.updated_at || new Date().toISOString(),
-          invalidAt: '',
-          invalidReason: ''
-        }
-        await Preferences.set({
-          key: 'mihoyo_cookie_state',
-          value: JSON.stringify(cookieState)
-        })
-      }
-    }
-  } catch {
-    // ignore
+async function onSwitchAccount(account) {
+  const result = await switchAccount(account?.id)
+  if (!result.ok) {
+    openErrorDialog(t('import.switchAccount'), t('import.switchAccountFailed'))
+    return
   }
+
+  rawGroups.value = []
+  selectedSet.value = new Set()
+  step.value = 'cookie'
+  cookieInput.value = result.cookie
+
+  // 原生端 Cookie 未写入插件时：不要自动 startFetch（会用空/旧会话失败并误标失效）
+  if (canUseNativeImport && !result.nativeApplied) {
+    openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
+    return
+  }
+
+  await startFetch({ silentCookieExpired: true })
+}
+
+async function onRemoveAccount(account) {
+  await removeAccount(account?.id)
+}
+
+async function onLoginNewNative() {
+  const result = await loginNewAccountNative()
+  accountSheetRef.value?.closeAll?.()
+  if (!result.ok) {
+    if (result.cancelled) return
+    openErrorDialog(t('import.loginNewAccount'), result.unsupported
+      ? t('import.loginNewAccountUnsupported')
+      : (result.message || t('import.loginNewAccountFailed')))
+    return
+  }
+  cookieInput.value = result.cookie
+  if (step.value === 'cookie') {
+    await startFetch({ silentCookieExpired: true })
+  }
+}
+
+async function onLoginNewCookie({ cookie, remember } = {}) {
+  const result = await submitNewAccountCookie(cookie, remember)
+  if (!result.ok) {
+    openErrorDialog(t('import.loginNewAccount'), t('import.loginNewAccountFailed'))
+    return
+  }
+  accountSheetRef.value?.closeAll?.()
+  cookieInput.value = result.cookie
+  if (step.value === 'cookie') {
+    await startFetch({ silentCookieExpired: true })
+  }
+}
+
+// 安卓原生端导入成功后，同步 Cookie 到多账号存储
+async function syncNativeCookieToWeb() {
+  await persistNativeCookieAfterSuccess()
 }
 
 const startFetch = async (options = {}) => {
@@ -697,6 +760,32 @@ async function doImport() {
   line-height: 1.5;
 }
 
+.cookie-tip--account {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--app-text-secondary);
+}
+
+.account-chip-avatar,
+.account-chip-fallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.account-chip-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(90, 120, 250, 0.12);
+  color: #4c7dff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .cookie-tip--warn {
   color: #c74444;
 }
@@ -754,6 +843,7 @@ async function doImport() {
   flex: 1;
   min-width: 0;
   font-size: 14px;
+  line-height: 1.4;
   color: var(--app-text-secondary);
   margin: 0;
 }
@@ -764,6 +854,7 @@ async function doImport() {
   padding: 4px;
   border-radius: 999px;
   background: rgba(20, 20, 22, 0.06);
+  flex-shrink: 0;
 }
 
 .text-btn {
@@ -1020,6 +1111,39 @@ async function doImport() {
 :global(html.theme-dark) .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
+
+/* 手机端：左侧统计最多两行，右侧按钮压缩 */
+@media (max-width: 520px) {
+  .list-header {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .list-count {
+    flex: 1 1 52%;
+    min-width: 48%;
+    max-width: 58%;
+    font-size: 13px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .list-header-actions {
+    gap: 2px;
+    padding: 3px;
+  }
+
+  .text-btn {
+    min-width: 0;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
+}
 
 :global(html.theme-dark) .shop-group {
     background: rgba(255, 255, 255, 0.04);

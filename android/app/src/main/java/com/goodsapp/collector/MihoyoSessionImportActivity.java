@@ -50,6 +50,8 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
     public static final String MODE_ORDERS = "orders";
     public static final String MODE_CART = "cart";
+    /** 仅登录新账号：校验 Cookie 后返回，不拉订单/购物车 */
+    public static final String MODE_LOGIN = "login";
 
     static final String COOKIE_PREFS_NAME = "mihoyo_native_session";
     static final String COOKIE_PREFS_KEY_COOKIE = "cookie";
@@ -90,11 +92,23 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
 
         applyWindowInsets();
 
-        titleView.setText(MODE_CART.equals(mode) ? "登录米游铺并读取购物车" : "登录米游铺并读取订单");
-        setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
+        if (MODE_LOGIN.equals(mode)) {
+            titleView.setText("登录米游铺新账号");
+            setHintMessage("在下方完成登录后，点右上角「完成登录」保存到本机账号列表。", false);
+        } else if (MODE_CART.equals(mode)) {
+            titleView.setText("登录米游铺并读取购物车");
+            setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
+        } else {
+            titleView.setText("登录米游铺并读取订单");
+            setHintMessage("登录完成后点右上角继续导入。页面风格和登录态会保留在 App 内。", false);
+        }
 
-        findViewById(R.id.mihoyo_close_button).setOnClickListener((view) -> cancelWithMessage("已取消导入"));
-        actionButton.setOnClickListener((view) -> runImport());
+        findViewById(R.id.mihoyo_close_button).setOnClickListener((view) -> cancelWithMessage("已取消登录"));
+        actionButton.setText(MODE_LOGIN.equals(mode) ? "完成登录" : "继续导入");
+        actionButton.setOnClickListener((view) -> {
+            if (MODE_LOGIN.equals(mode)) completeLogin();
+            else runImport();
+        });
 
         configureWebView();
 
@@ -219,6 +233,53 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
                 runOnUiThread(() -> completeWithPayload(payload, sessionSnapshot));
             } catch (Exception error) {
                 runOnUiThread(() -> renderImportError(error, sessionSnapshot));
+            }
+        });
+    }
+
+    /** 登录新账号：只校验 Cookie 并落盘，不拉业务数据 */
+    private void completeLogin() {
+        if (importRunning) {
+            return;
+        }
+        SessionSnapshot sessionSnapshot = captureSessionSnapshot();
+        if (sessionSnapshot == null || sessionSnapshot.cookieHeader == null || sessionSnapshot.cookieHeader.trim().isEmpty()) {
+            setHintMessage("未检测到登录 Cookie，请先在页面完成登录", true);
+            return;
+        }
+
+        importRunning = true;
+        actionButton.setEnabled(false);
+        actionButton.setText("登录校验中");
+        setHintMessage("正在校验登录状态…", false);
+
+        executor.execute(() -> {
+            try {
+                JSONObject json = requestJson(API_BASE + "/common/homeishop/v1/user/info", sessionSnapshot);
+                ensureSuccess(json);
+                saveSessionCookie(sessionSnapshot);
+
+                JSONObject payload = new JSONObject();
+                payload.put("mode", MODE_LOGIN);
+                payload.put("list", new JSONArray());
+                payload.put("total", 0);
+                payload.put("capped", false);
+                payload.put("cookie", sessionSnapshot.cookieHeader);
+
+                runOnUiThread(() -> {
+                    Intent data = new Intent();
+                    data.putExtra(EXTRA_RESULT_KEY, MihoyoSessionImportResultStore.put(payload));
+                    setResult(Activity.RESULT_OK, data);
+                    finish();
+                });
+            } catch (Exception error) {
+                runOnUiThread(() -> {
+                    importRunning = false;
+                    actionButton.setEnabled(true);
+                    actionButton.setText("完成登录");
+                    String message = error.getMessage() != null ? error.getMessage() : "登录校验失败";
+                    setHintMessage(message + "。请确认已登录后再点「完成登录」", true);
+                });
             }
         });
     }
@@ -429,7 +490,9 @@ public class MihoyoSessionImportActivity extends AppCompatActivity {
     }
 
     private String normalizeMode(String rawMode) {
-        return MODE_CART.equals(rawMode) ? MODE_CART : MODE_ORDERS;
+        if (MODE_CART.equals(rawMode)) return MODE_CART;
+        if (MODE_LOGIN.equals(rawMode)) return MODE_LOGIN;
+        return MODE_ORDERS;
     }
 
     private SessionSnapshot captureSessionSnapshot() {

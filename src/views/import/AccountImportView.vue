@@ -1,6 +1,15 @@
 <template>
   <div class="page account-import-page">
-    <NavBar :title="t('import.account')" show-back />
+    <NavBar :title="t('import.account')" show-back>
+      <template #right>
+        <MihoyoAccountNavBtn
+          :label="activeAccountLabel"
+          :avatar="activeAccountAvatar"
+          :accounts-count="accounts.length"
+          @click="openAccountSheet"
+        />
+      </template>
+    </NavBar>
     <!-- 普通提示对话框 -->
     <AppSheet :model-value="showErrorDialog" placement="center" @update:model-value="(v) => { if (!v) closeErrorDialog() }">
       <p class="dialog-label">Import Notice</p>
@@ -12,6 +21,19 @@
         </button>
       </div>
     </AppSheet>
+
+    <MihoyoAccountSheet
+      ref="accountSheetRef"
+      v-model="showAccountSheet"
+      :accounts="accounts"
+      :active-account-id="activeAccountId"
+      :active-account-label="activeAccountLabel"
+      @switch="onSwitchAccount"
+      @remove="onRemoveAccount"
+      @logout="handleLogout"
+      @login-native="onLoginNewNative"
+      @login-cookie="onLoginNewCookie"
+    />
 
     <main class="page-body">
 
@@ -72,14 +94,6 @@
               </label>
             </template>
             <span v-else class="cookie-actions__spacer" />
-            <button
-              v-if="canUseNativeImport || hasSavedCookie"
-              class="cookie-clear-btn"
-              type="button"
-              @click="handleLogout"
-            >
-              {{ t('import.logout') }}
-            </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
@@ -107,13 +121,6 @@
           <div class="list-header">
             <p class="list-count">{{ t('import.orderCount', { orders: processedOrders.length, types: mergedAllGoods.length, total: allGoods.length }) }}</p>
             <div class="list-header-actions">
-              <button
-                class="text-btn"
-                type="button"
-                @click="handleLogout"
-              >
-                {{ t('import.switchAccount') }}
-              </button>
               <button
                 :class="['text-btn', isAllSelectableSelected && 'text-btn--active']"
                 type="button"
@@ -311,6 +318,8 @@ import {
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
+import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
 
 defineOptions({ name: 'AccountImportView' })
 
@@ -321,16 +330,33 @@ const presets = usePresetsStore()
 const {
   cookieInput,
   rememberCookie,
-  hasSavedCookie,
   cookieValid,
   cookieWarningMessage,
   canAutoSubmitSavedCookie,
+  accounts,
+  activeAccountId,
+  activeAccountLabel,
+  activeAccountAvatar,
   initializeCookieState,
   applySavedCookieToInput,
   persistCookieAfterSuccess,
+  persistNativeCookieAfterSuccess,
   handleCookieFailure,
-  clearSavedCookie
+  clearSavedCookie,
+  switchAccount,
+  removeAccount,
+  refreshAccountProfiles,
+  loginNewAccountNative,
+  submitNewAccountCookie,
 } = useMihoyoCookieState()
+
+const showAccountSheet = ref(false)
+const accountSheetRef = ref(null)
+
+function openAccountSheet() {
+  showAccountSheet.value = true
+  void refreshAccountProfiles()
+}
 
 // ── State ──────────────────────────────────────────────────────
 const step = ref('cookie')        // 'cookie' | 'loading' | 'orders' | 'done'
@@ -551,6 +577,63 @@ async function handleLogout() {
   step.value = 'cookie'
 }
 
+async function onSwitchAccount(account) {
+  const result = await switchAccount(account?.id)
+  if (!result.ok) {
+    openErrorDialog(t('import.switchAccount'), t('import.switchAccountFailed'))
+    return
+  }
+
+  rawOrders.value = []
+  selectedSet.value = new Set()
+  expandedSet.value = new Set()
+  cappedWarning.value = false
+  step.value = 'cookie'
+  cookieInput.value = result.cookie
+
+  if (canUseNativeImport && !result.nativeApplied) {
+    openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
+    return
+  }
+
+  await startFetch({ silentCookieExpired: true })
+}
+
+async function onRemoveAccount(account) {
+  await removeAccount(account?.id)
+}
+
+/** 原生：拉起 WebView 登录新账号；成功后刷新账号并停留在当前步骤，避免白屏/丢上下文 */
+async function onLoginNewNative() {
+  const result = await loginNewAccountNative()
+  accountSheetRef.value?.closeAll?.()
+  if (!result.ok) {
+    if (result.cancelled) return
+    openErrorDialog(t('import.loginNewAccount'), result.unsupported
+      ? t('import.loginNewAccountUnsupported')
+      : (result.message || t('import.loginNewAccountFailed')))
+    return
+  }
+  cookieInput.value = result.cookie
+  // 登录返回后不要整页重置，只确保当前 step 可继续
+  if (step.value === 'cookie') {
+    await startFetch({ silentCookieExpired: true })
+  }
+}
+
+async function onLoginNewCookie({ cookie, remember } = {}) {
+  const result = await submitNewAccountCookie(cookie, remember)
+  if (!result.ok) {
+    openErrorDialog(t('import.loginNewAccount'), t('import.loginNewAccountFailed'))
+    return
+  }
+  accountSheetRef.value?.closeAll?.()
+  cookieInput.value = result.cookie
+  if (step.value === 'cookie') {
+    await startFetch({ silentCookieExpired: true })
+  }
+}
+
 onMounted(async () => {
   if (canUseNativeImport) {
     // Plugin 内部自动管理 cookie 持久化：
@@ -590,6 +673,7 @@ const startFetch = async (options = {}) => {
       totalCount.value = Number(total) || rawOrders.value.length
       selectedSet.value = new Set()
       step.value = 'orders'
+      await persistNativeCookieAfterSuccess()
     } catch (err) {
       openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'
