@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mergeVisibleReorderIntoFullOrder } from '../useGoodsSortable'
+import { mergeVisibleReorderIntoFullOrder, buildScopedReorderOrder } from '../useGoodsSortable'
 
 describe('mergeVisibleReorderIntoFullOrder（虚拟列表重排）', () => {
   const items = (ids) => ids.map((id) => ({ id }))
@@ -25,5 +25,18 @@ describe('mergeVisibleReorderIntoFullOrder（虚拟列表重排）', () => {
   it('可见项极少时也不会把屏外甩到末尾', () => {
     const display = items(['a', 'b', 'c', 'd', 'e'])
     expect(mergeVisibleReorderIntoFullOrder(display, ['b', 'a'])).toEqual(['b', 'a', 'c', 'd', 'e'])
+  })
+
+  it('日期模式只提交发生变化的同日组，不给其它日期重写序号', () => {
+    const display = [
+      { id: 'a', day: '2026-09-20' },
+      { id: 'b', day: '2026-09-20' },
+      { id: 'c', day: '2026-09-21' },
+      { id: 'd', day: '2026-09-21' }
+    ]
+    const next = ['b', 'a', 'c', 'd']
+    expect(buildScopedReorderOrder(display, next, (id) =>
+      display.find((item) => item.id === id)?.day || null
+    )).toEqual(['b', 'a'])
   })
 })
