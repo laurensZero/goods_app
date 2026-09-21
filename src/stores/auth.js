@@ -10,6 +10,7 @@ import {
   resetPassword,
   verifyRecoveryOtp,
   getAuthRedirectTo,
+  getEmailVerifyRedirectTo,
   updateUserProfile,
   getUser,
   onAuthStateChange,
@@ -181,7 +182,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const data = await signUpWithEmail(email, password, {
         metadata,
-        emailRedirectTo: getAuthRedirectTo() || undefined
+        emailRedirectTo: getEmailVerifyRedirectTo() || undefined
       })
       // Confirm email 开启时无 session：不可 setUser，否则 isLoggedIn 会误判为已登录
       if (data.session) {
@@ -202,7 +203,7 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = ''
     try {
-      await sendMagicLink(email, { emailRedirectTo: getAuthRedirectTo() || undefined })
+      await sendMagicLink(email, { emailRedirectTo: getEmailVerifyRedirectTo() || undefined })
     } catch (e) {
       error.value = e.message || '发送失败'
       throw e

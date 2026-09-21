@@ -8,7 +8,7 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
  * Auth 邮件回调用的 Web 入口覆盖（注册验证、魔法链接、OAuth；OTP 重置密码不需要）。
  * 邮件链接只能在系统浏览器打开，不能用 capacitor:// 等本地协议。
  * 留空时：http/https 页面用当前 origin；Capacitor/Tauri/file 需填公网可达的 Web 地址。
- * 必须与 Supabase → Authentication → URL Configuration 的 Site/Redirect 一致。
+ * 原生 App 注册时会跳到 `{AUTH_WEB_ORIGIN}/auth.html?src=app` 再拉起 App，必须可公网访问。
  * 示例：'https://goodsapp.de5.net'
  */
-export const AUTH_WEB_ORIGIN = ''
+export const AUTH_WEB_ORIGIN = 'https://goodsapp.de5.net'

@@ -1,6 +1,7 @@
 // src/utils/supabase/auth.js
 // Supabase Auth wrapper — thin layer over @supabase/supabase-js auth API
 
+import { Capacitor } from '@capacitor/core'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { AUTH_WEB_ORIGIN } from '@/config/supabase'
 
@@ -14,6 +15,21 @@ export function getAuthRedirectTo() {
   const { protocol, origin } = window.location
   if (protocol === 'http:' || protocol === 'https:') return origin
   return ''
+}
+
+/**
+ * 邮件验证类链接的 redirect：App 注册 → auth.html 拉起 App；网页注册 → 留在网页。
+ * 原生端必须配置 AUTH_WEB_ORIGIN（公网 Web 入口），否则退回默认 redirect。
+ * @returns {string}
+ */
+export function getEmailVerifyRedirectTo() {
+  const base = getAuthRedirectTo()
+  if (!base) return ''
+  const origin = base.replace(/\/+$/, '')
+  if (Capacitor.isNativePlatform()) {
+    return `${origin}/auth.html?src=app`
+  }
+  return origin
 }
 
 /**
