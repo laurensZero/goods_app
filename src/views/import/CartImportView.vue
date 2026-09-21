@@ -427,6 +427,18 @@ async function onRemoveAccount(account) {
   await removeAccount(account?.id)
 }
 
+/** 登录/重登成功后：刷新购物车（不只在切换账号时） */
+async function refreshAfterMihoyoLogin(nextCookie) {
+  cookieInput.value = String(nextCookie || '').trim()
+  rawGroups.value = []
+  selectedSet.value = new Set()
+  if (!cookieInput.value) {
+    step.value = 'cookie'
+    return
+  }
+  await startFetch({ silentCookieExpired: true })
+}
+
 async function onLoginNewNative() {
   const result = await loginNewAccountNative()
   accountSheetRef.value?.closeAll?.()
@@ -437,10 +449,7 @@ async function onLoginNewNative() {
       : (result.message || t('import.loginNewAccountFailed')))
     return
   }
-  cookieInput.value = result.cookie
-  if (step.value === 'cookie') {
-    await startFetch({ silentCookieExpired: true })
-  }
+  await refreshAfterMihoyoLogin(result.cookie)
 }
 
 async function onLoginNewCookie({ cookie, remember } = {}) {
@@ -450,10 +459,7 @@ async function onLoginNewCookie({ cookie, remember } = {}) {
     return
   }
   accountSheetRef.value?.closeAll?.()
-  cookieInput.value = result.cookie
-  if (step.value === 'cookie') {
-    await startFetch({ silentCookieExpired: true })
-  }
+  await refreshAfterMihoyoLogin(result.cookie)
 }
 
 // 安卓原生端导入成功后，同步 Cookie 到多账号存储

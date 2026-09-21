@@ -1311,10 +1311,10 @@ async function handleCheckoutLogout() {
   goToStep(STEPS.findIndex((step) => step.key === 'cookie'))
 }
 
-/** 登录新成功后：只切换会话与地址，不整页重建，避免 WebView 返回白屏感 */
+/** 登录/重登成功后：切换会话并重拉该账号地址与后续步骤数据 */
 async function applyNewCheckoutAccountCookie(nextCookie) {
-  cookie.value = nextCookie
-  cookieInput.value = nextCookie
+  cookie.value = String(nextCookie || '').trim()
+  cookieInput.value = cookie.value
   rememberCookie.value = true
   goods.clearItems()
   points.reset?.()
@@ -1326,13 +1326,20 @@ async function applyNewCheckoutAccountCookie(nextCookie) {
   selectedQueueAccountIds.value = mihoyoActiveAccountId.value
     ? [String(mihoyoActiveAccountId.value)]
     : []
+  accountAddressSelections.value = {}
+  accountAddressOptions.value = {}
   addresses.value = []
   selectedAddressId.value = ''
+  if (!cookie.value) {
+    goToStep(STEPS.findIndex((step) => step.key === 'cookie'))
+    return
+  }
   try {
-    await address.loadAddresses(nextCookie)
+    await address.loadAddresses(cookie.value)
   } catch (e) {
     setError(e?.message || t('checkout.noAddress'))
   }
+  // 登录成功后总是回到地址步并重拉地址，不只在切换账号时
   goToStep(STEPS.findIndex((step) => step.key === 'address'))
 }
 
