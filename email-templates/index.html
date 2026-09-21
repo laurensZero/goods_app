@@ -181,6 +181,19 @@
         </li>
         <li>保存后，再用<strong>全新邮箱</strong>注册一次，新邮件里的链接才会指向正确地址</li>
       </ol>
+      <div class="ok-note">
+        <strong>验证后去哪儿：</strong>
+        App 注册 → redirect 为 <code>https://goodsapp.de5.net/auth.html?src=app</code>，自动拉起 App；
+        网页注册 → 仍回到网页版。Redirect URLs 请包含 <code>https://goodsapp.de5.net/*</code>。
+        <code>AUTH_WEB_ORIGIN</code> 已设为 <code>https://goodsapp.de5.net</code>。
+        Android 需安装含 <code>goodsapp://auth</code> 的新包。
+        <br/>
+        <strong>QQ/微信内点邮件链接：</strong>
+        内置浏览器通常<strong>拦自定义 scheme</strong>（<code>goodsapp://</code>），
+        拉起 App 会失败，但<strong>邮箱验证本身已成功</strong>。
+        auth.html 会提示「在浏览器中打开」；也可直接用网页版登录。
+        系统邮件 App / Chrome / 系统浏览器可正常尝试拉起 App。
+      </div>
       <div class="warn">
         代码侧已修改：注册时会带上 <code>emailRedirectTo</code>（与魔法链接一致）。Capacitor/Android 场景请在
         <code>src/config/supabase.js</code> 里把 <code>AUTH_WEB_ORIGIN</code> 设为公网 Web 地址，例如

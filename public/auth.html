@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="robots" content="noindex" />
+  <title>邮箱验证 · 谷子收纳</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system, sans-serif;
+      background: #f5f5f7;
+      color: #141416;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .card {
+      width: 100%;
+      max-width: 380px;
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      overflow: hidden;
+      text-align: center;
+    }
+    .hero {
+      background: linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%);
+      padding: 28px 24px 24px;
+      color: #fff;
+    }
+    .hero img {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      display: block;
+    }
+    .hero h1 { font-size: 20px; font-weight: 600; }
+    .hero p { margin-top: 8px; font-size: 13px; color: rgba(255,255,255,0.56); }
+    .body { padding: 24px 24px 28px; }
+    .warn {
+      display: none;
+      text-align: left;
+      background: #fff8e8;
+      border: 1px solid #f0d78c;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    body.is-qq .warn,
+    body.is-wechat .warn { display: block; }
+    .warn__title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #856404;
+      margin-bottom: 4px;
+    }
+    .warn__desc {
+      font-size: 12px;
+      color: #92600a;
+      line-height: 1.55;
+    }
+    .status {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    .desc {
+      font-size: 13px;
+      color: #5f6570;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    .actions { display: flex; flex-direction: column; gap: 10px; }
+    .btn {
+      display: block;
+      width: 100%;
+      min-height: 48px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      text-decoration: none;
+      line-height: 48px;
+      cursor: pointer;
+      -webkit-appearance: none;
+    }
+    .btn-primary { background: #141416; color: #fff; }
+    .btn-secondary { background: #eef0f2; color: #141416; }
+    .note {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #8e8e93;
+      line-height: 1.5;
+    }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="hero">
+      <img id="logo" src="./assets/logo-email.png" alt="谷子收纳" onerror="this.style.display='none'" />
+      <h1>谷子收纳</h1>
+      <p id="heroSub">邮箱验证</p>
+    </div>
+    <div class="body">
+      <div id="platformWarn" class="warn">
+        <div class="warn__title">当前在 QQ / 微信内置浏览器</div>
+        <div class="warn__desc">
+          请点击右上角「…」→「在浏览器中打开」，再回到本页点「在 App 中打开」。
+          内置浏览器通常会拦截 App 跳转；先验证成功后，也可用网页版继续。
+        </div>
+      </div>
+      <div id="status" class="status">验证成功</div>
+      <div id="desc" class="desc">正在打开 App… 若没有自动跳转，请点击下方按钮。</div>
+      <div class="actions">
+        <a id="openApp" class="btn btn-primary" href="#">在 App 中打开</a>
+        <a id="openWeb" class="btn btn-secondary" href="#">继续使用网页版</a>
+      </div>
+      <div id="note" class="note">未安装 App 时，可选择网页版继续。</div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var ua = navigator.userAgent || ''
+      var isWeChat = /MicroMessenger/i.test(ua)
+      var isQQ = /\bQQ\//i.test(ua) || /\bV1_AND_SQ/i.test(ua) || /QQBrowser/i.test(ua)
+      // QQ 邮箱等场景更常见的是系统浏览器/邮件 WebView；仅标记明显内置壳
+      if (isWeChat) document.body.classList.add('is-wechat')
+      if (isQQ && !isWeChat) document.body.classList.add('is-qq')
+      var inAppBrowser = isWeChat || isQQ
+
+      var logo = document.getElementById('logo')
+      try { logo.src = location.origin + '/assets/logo-email.png' } catch (e) { /* ignore */ }
+
+      function collectParams() {
+        var search = new URLSearchParams(location.search.replace(/^\?/, ''))
+        var hash = new URLSearchParams(location.hash.replace(/^#\/?/, ''))
+        function get(k) { return hash.get(k) || search.get(k) || '' }
+        return {
+          accessToken: get('access_token'),
+          refreshToken: get('refresh_token') || '',
+          expiresIn: get('expires_in') || '3600',
+          tokenType: get('token_type') || 'bearer',
+          src: search.get('src') || hash.get('src') || '',
+          type: get('type') || 'signup'
+        }
+      }
+
+      var p = collectParams()
+      var statusEl = document.getElementById('status')
+      var descEl = document.getElementById('desc')
+      var openApp = document.getElementById('openApp')
+      var openWeb = document.getElementById('openWeb')
+      var noteEl = document.getElementById('note')
+      var heroSub = document.getElementById('heroSub')
+
+      function buildAppLink() {
+        var q = new URLSearchParams({
+          access_token: p.accessToken,
+          refresh_token: p.refreshToken,
+          expires_in: p.expiresIn,
+          token_type: p.tokenType
+        })
+        return 'goodsapp://auth/callback?' + q.toString()
+      }
+
+      function buildWebUrl() {
+        var q = new URLSearchParams({
+          access_token: p.accessToken,
+          refresh_token: p.refreshToken,
+          expires_in: p.expiresIn,
+          token_type: p.tokenType,
+          type: p.type
+        })
+        return location.origin + '/#' + q.toString()
+      }
+
+      var isAppSrc = p.src === 'app'
+      var hasToken = !!p.accessToken
+
+      if (!hasToken) {
+        heroSub.textContent = '邮箱验证'
+        statusEl.textContent = '链接无法完成验证'
+        descEl.textContent = '链接可能已过期或无效，请返回 App 重新发起注册/验证。'
+        openApp.classList.add('hidden')
+        openWeb.classList.add('hidden')
+        noteEl.textContent = '若你是在网页版注册的，请回到网页版重新发送验证邮件。'
+        return
+      }
+
+      var appLink = buildAppLink()
+      var webUrl = buildWebUrl()
+      openApp.setAttribute('href', appLink)
+      openWeb.setAttribute('href', webUrl)
+
+      var pageWasHidden = false
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) pageWasHidden = true
+      })
+      window.addEventListener('pagehide', function () { pageWasHidden = true })
+
+      function tryOpenApp() {
+        try { window.location.href = appLink } catch (e) { /* ignore */ }
+        try {
+          var iframe = document.createElement('iframe')
+          iframe.style.display = 'none'
+          iframe.src = appLink
+          document.body.appendChild(iframe)
+          setTimeout(function () {
+            try { document.body.removeChild(iframe) } catch (e) { /* ignore */ }
+          }, 2000)
+        } catch (e) { /* ignore */ }
+
+        setTimeout(function () {
+          if (!pageWasHidden && isAppSrc && !inAppBrowser) {
+            noteEl.textContent = '未检测到 App 已打开。可安装后再点「在 App 中打开」，或先用网页版。'
+          }
+        }, 2500)
+      }
+
+      if (isAppSrc) {
+        heroSub.textContent = '邮箱已验证'
+        statusEl.textContent = '验证成功'
+        if (inAppBrowser) {
+          // 微信/QQ 内通常无法拉起自定义 scheme，仍展示验证成功，引导系统浏览器
+          descEl.textContent = '邮箱验证已成功。若要在 App 中继续，请用系统浏览器打开本页后再点下方按钮。'
+          noteEl.textContent = '也可直接点「继续使用网页版」，账号已验证，可在网页登录。'
+        } else {
+          descEl.textContent = '正在打开谷子收纳 App… 若没有自动跳转，请点击下方按钮。'
+          noteEl.textContent = '未安装 App 时，可选择网页版继续使用同一账号。'
+          setTimeout(tryOpenApp, 300)
+        }
+      } else {
+        heroSub.textContent = '邮箱已验证'
+        statusEl.textContent = '验证成功'
+        descEl.textContent = inAppBrowser
+          ? '验证成功。正在返回网页版…'
+          : '正在返回网页版…'
+        openApp.classList.add('hidden')
+        noteEl.textContent = '本次在网页端注册，登录状态将保持在网页版。'
+        setTimeout(function () {
+          try { window.location.replace(webUrl) } catch (e) {
+            try { window.location.href = webUrl } catch (e2) { /* ignore */ }
+          }
+        }, 300)
+      }
+
+      openApp.addEventListener('click', function () {
+        noteEl.textContent = inAppBrowser
+          ? '当前在 QQ/微信内可能无法跳转，请点右上角「在浏览器中打开」后重试，或改用网页版。'
+          : '若未弹出 App，请安装后再试，或点击「继续使用网页版」。'
+      })
+    })()
+  </script>
+</body>
+</html>

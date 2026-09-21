@@ -5,6 +5,8 @@ import { isNavigationFailure, NavigationFailureType, useRouter } from 'vue-route
 import { useClipboardImport } from '@/composables/useClipboardImport'
 import { parseStorageQrUrl, persistStorageQrFilter } from '@/utils/storage/storageQr'
 import { extractIdsFromInput } from '@/utils/share/goods'
+import { parseAuthCallbackDeepLink } from '@/utils/auth/authDeepLink'
+import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { appLog } from '@/utils/logger'
 
 export function useDeepLinks({ onStorageNavigate } = {}) {
@@ -30,8 +32,43 @@ export function useDeepLinks({ onStorageNavigate } = {}) {
       appLog('info', 'deep-link: share-link handled')
       return true
     }
+    if (await navigateByAuthCallback(url)) {
+      appLog('info', 'deep-link: auth-callback handled')
+      return true
+    }
     appLog('warn', 'deep-link: unrecognized url', { url: String(url || '').slice(0, 120) })
     return false
+  }
+
+  /** 邮件验证后从 auth.html 拉起 App，写入 session */
+  async function navigateByAuthCallback(url) {
+    const parsed = parseAuthCallbackDeepLink(url)
+    if (!parsed) return false
+    try {
+      const client = getSupabaseClient()
+      const { error } = await client.auth.setSession({
+        access_token: parsed.accessToken,
+        refresh_token: parsed.refreshToken,
+        expires_in: Number(parsed.expiresIn) || 3600,
+        token_type: parsed.tokenType
+      })
+      if (error) {
+        appLog('warn', 'deep-link: auth setSession failed', { message: error.message })
+        return true
+      }
+      try {
+        const failure = await router.push('/my')
+        if (failure && !isNavigationFailure(failure, NavigationFailureType.duplicated)) {
+          return true
+        }
+      } catch {
+        return true
+      }
+      return true
+    } catch (e) {
+      appLog('warn', 'deep-link: auth callback error', { message: String(e?.message || e) })
+      return true
+    }
   }
 
   async function navigateByStorageNfc(url) {

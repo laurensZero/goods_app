@@ -60,6 +60,14 @@
                 <data android:scheme="goodsapp" android:host="share" />
             </intent-filter>
 
+            <!-- Email verify handoff from auth.html -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="goodsapp" android:host="auth" />
+            </intent-filter>
+
             <!-- HTTPS landing page links from external QR scanners / chat apps -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
