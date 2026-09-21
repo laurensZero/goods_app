@@ -75,6 +75,12 @@
     @submit="(payload) => $emit('login-cookie', payload)"
   />
 
+  <MihoyoQrLoginSheet
+    v-model="showQrLogin"
+    @success="(payload) => $emit('login-cookie', payload)"
+    @use-cookie="showCookieLogin = true"
+  />
+
   <DangerConfirmDialog
     v-model:show="showLogoutConfirm"
     :title="t('import.logoutAccountTitle')"
@@ -90,6 +96,7 @@ import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import MihoyoCookieLoginSheet from '@/components/import/MihoyoCookieLoginSheet.vue'
+import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { canUseNativeMihoyoImport } from '@/utils/mihoyo/nativeImport'
 
@@ -114,11 +121,12 @@ const notice = ref('')
 const showLogoutConfirm = ref(false)
 const pendingLogout = ref(null)
 const showCookieLogin = ref(false)
+const showQrLogin = ref(false)
 
 const activeId = computed(() => String(props.activeAccountId || ''))
 const isNativeLogin = computed(() => canUseNativeMihoyoImport())
 
-useDialogBackButton(close, () => props.modelValue || showCookieLogin.value)
+useDialogBackButton(close, () => props.modelValue || showCookieLogin.value || showQrLogin.value)
 
 watch(
   () => props.modelValue,
@@ -127,18 +135,22 @@ watch(
       notice.value = ''
       pendingLogout.value = null
       showLogoutConfirm.value = false
+      showQrLogin.value = false
+      showCookieLogin.value = false
     }
   }
 )
 
 function close() {
   showCookieLogin.value = false
+  showQrLogin.value = false
   emit('update:modelValue', false)
 }
 
 /** 登录成功后由父组件调用：关掉 Cookie 弹层与账号面板 */
 function closeAll() {
   showCookieLogin.value = false
+  showQrLogin.value = false
   emit('update:modelValue', false)
 }
 
@@ -149,7 +161,8 @@ function onLoginNew() {
     close()
     return
   }
-  showCookieLogin.value = true
+  // 网页版优先扫码；Sheet 内可改走粘贴 Cookie
+  showQrLogin.value = true
 }
 
 function avatarText(account) {
@@ -177,7 +190,7 @@ function onRelogin(account) {
     close()
     return
   }
-  showCookieLogin.value = true
+  showQrLogin.value = true
 }
 
 function onLogoutAccount(account) {
