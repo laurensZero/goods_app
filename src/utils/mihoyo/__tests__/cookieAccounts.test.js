@@ -68,7 +68,7 @@ describe('parseMihoyoAccountId / label', () => {
 })
 
 describe('save / list / switch 多账号', () => {
-  it('保存两个账号并切换，激活状态正确', async () => {
+  it('保存两个账号并切换，列表保持保存顺序（当前号不提前）', async () => {
     const a = await saveMihoyoCookie(COOKIE_A)
     expect(a.accountId).toBe('1111222233334444')
 
@@ -77,13 +77,14 @@ describe('save / list / switch 多账号', () => {
 
     const list = await listMihoyoAccounts()
     expect(list).toHaveLength(2)
-    // 当前账号排前
-    expect(list[0].id).toBe('5555666677778888')
+    // 固定保存顺序，避免选择时当前号跳来跳去
+    expect(list.map((item) => item.id)).toEqual(['1111222233334444', '5555666677778888'])
 
     const switched = await switchMihoyoAccount('1111222233334444')
     expect(switched.cookie).toBe(COOKIE_A)
     const active = await getActiveMihoyoAccount()
     expect(active.id).toBe('1111222233334444')
+    expect((await listMihoyoAccounts()).map((item) => item.id)).toEqual(['1111222233334444', '5555666677778888'])
 
     const stateLoaded = await loadMihoyoCookieState()
     expect(stateLoaded.cookie).toBe(COOKIE_A)

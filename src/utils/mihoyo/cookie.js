@@ -190,12 +190,9 @@ async function writeActiveCookieState(state) {
   return next
 }
 
-/** 列出已保存的米游铺账号（当前账号在前） */
+/** 列出已保存的米游铺账号（保持保存顺序，不把当前号提前，避免选择时跳动） */
 export async function listMihoyoAccounts() {
-  const accounts = await migrateLegacyStateIfNeeded(await readAccounts())
-  const activeId = await readActiveAccountId()
-  if (!activeId) return accounts
-  return [...accounts].sort((a, b) => (a.id === activeId ? -1 : b.id === activeId ? 1 : 0))
+  return migrateLegacyStateIfNeeded(await readAccounts())
 }
 
 /** 当前激活账号；无激活则 null（退出会话后不回落到列表首项） */
