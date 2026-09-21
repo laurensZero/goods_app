@@ -47,6 +47,17 @@ describe('allocateCouponByListedPrice', () => {
     expect(paid).toBeCloseTo(300.71, 2)
   })
 
+  it('支持两位小数与极小金额（如金币抵扣）', () => {
+    const result = allocateCouponByListedPrice(items, '47.23')
+    expect(result.ok).toBe(true)
+    expect(result.totalAllocated).toBeCloseTo(47.23, 2)
+
+    const coin = allocateCouponByListedPrice(items, 0.06)
+    expect(coin.ok).toBe(true)
+    expect(coin.totalAllocated).toBeCloseTo(0.06, 2)
+    expect(coin.couponAmount).toBeCloseTo(0.06, 2)
+  })
+
   it('多件商品均摊到逐份入手价', () => {
     const result = allocateCouponByListedPrice(
       [{ id: 'm', name: '套组', price: '100', quantity: 3 }],

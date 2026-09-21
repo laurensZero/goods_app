@@ -21,10 +21,9 @@
             <input
               v-model="amountInput"
               class="field-input"
-              type="number"
-              min="0"
-              step="0.01"
+              type="text"
               inputmode="decimal"
+              autocomplete="off"
               :placeholder="t('goods.couponAllocate.amountPlaceholder')"
               :aria-invalid="Boolean(amountError)"
               @keydown="preventNegative"
@@ -135,10 +134,45 @@ const eligibleItems = computed(() =>
 const skippedCount = computed(() => (props.items || []).length - eligibleItems.value.length)
 
 const parsedAmount = computed(() => {
-  const raw = String(amountInput.value || '').trim()
-  if (!raw) return NaN
+  const raw = normalizeAmountText(amountInput.value)
+  if (!raw || raw === '.') return NaN
   return Number(raw)
 })
+
+function normalizeAmountText(value) {
+  let raw = String(value ?? '').trim()
+  // 全角数字/点 → 半角，便于手机输入
+  raw = raw
+    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xfee0))
+    .replace(/[．。・]/g, '.')
+    .replace(/[^\d.]/g, '')
+  const parts = raw.split('.')
+  if (parts.length > 2) {
+    raw = `${parts[0]}.${parts.slice(1).join('')}`
+  } else {
+    raw = parts.length === 2 ? `${parts[0]}.${parts[1]}` : raw
+  }
+  const [intPart = '', decPart] = raw.split('.')
+  if (decPart !== undefined) {
+    raw = `${intPart}.${decPart.slice(0, 2)}`
+  }
+  return raw
+}
+
+function preventNegative(event) {
+  if (event.key === '-') event.preventDefault()
+}
+
+function sanitizeAmount(event) {
+  const next = normalizeAmountText(event?.target?.value ?? amountInput.value)
+  amountInput.value = next
+  // 同步回 input，避免 v-model 与手工清洗打架
+  if (event?.target && event.target.value !== next) {
+    event.target.value = next
+  }
+  amountError.value = ''
+  preview.value = null
+}
 
 const canConfirm = computed(() =>
   Boolean(preview.value?.ok) && preview.value.rows.some((r) => r.eligible)
@@ -157,17 +191,6 @@ watch(
 
 function close() {
   emit('update:show', false)
-}
-
-function preventNegative(event) {
-  if (event.key === '-') event.preventDefault()
-}
-
-function sanitizeAmount(event) {
-  const raw = String(event?.target?.value ?? amountInput.value ?? '')
-  amountInput.value = raw.replace(/-/g, '')
-  amountError.value = ''
-  preview.value = null
 }
 
 function runPreview() {
