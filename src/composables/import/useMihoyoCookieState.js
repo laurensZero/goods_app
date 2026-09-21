@@ -6,6 +6,7 @@ import {
   markMihoyoCookieInvalid,
   saveMihoyoCookie
 } from '@/utils/mihoyo/cookie'
+import { canUseNativeMihoyoImport, logoutMihoyoNativeSession } from '@/utils/mihoyo/nativeImport'
 
 const COOKIE_EXPIRED_MESSAGE = '已保存的 Cookie 可能已失效，请重新输入并更新。'
 
@@ -77,6 +78,10 @@ export function useMihoyoCookieState() {
   }
 
   async function clearSavedCookie(resetInput = true) {
+    // 安卓原生会话（SharedPreferences + WebView Cookie）与 JS 侧一并清理，才能切换账号
+    if (canUseNativeMihoyoImport()) {
+      await logoutMihoyoNativeSession()
+    }
     await clearMihoyoCookieState()
     hasSavedCookie.value = false
     rememberCookie.value = false
@@ -89,10 +94,14 @@ export function useMihoyoCookieState() {
     }
   }
 
+  /** 是否已登录（有可用 Cookie，含原生会话） */
+  const mihoyoLoggedIn = computed(() => hasSavedCookie.value || Boolean(savedCookieValue.value))
+
   return {
     cookieInput,
     rememberCookie,
     hasSavedCookie,
+    mihoyoLoggedIn,
     cookieValid,
     cookieWarningMessage,
     canAutoSubmitSavedCookie,

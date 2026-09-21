@@ -62,6 +62,21 @@ public class MihoyoSessionImportPlugin extends Plugin {
         call.resolve(result);
     }
 
+    /** 退出米游铺登录：清本地保存的 Cookie，并清 WebView 站点 Cookie，便于切换账号 */
+    @PluginMethod
+    public void logout(PluginCall call) {
+        clearSavedCookie();
+        try {
+            android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+            cookieManager.removeAllCookies(null);
+            cookieManager.flush();
+        } catch (Throwable ignored) {
+        }
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        call.resolve(result);
+    }
+
     private void tryWithSavedCookie(PluginCall call, String mode) {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedCookie = prefs.getString(KEY_COOKIE, "").trim();

@@ -64,13 +64,21 @@
             </p>
           </div>
 
-          <div v-if="!canUseNativeImport" class="cookie-actions">
-            <label class="remember-row">
-              <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
-              <span>{{ t('import.rememberCookie') }}</span>
-            </label>
-            <button v-if="hasSavedCookie" class="cookie-clear-btn" type="button" @click="clearSavedCookie(false)">
-              {{ t('import.clearSaved') }}
+          <div class="cookie-actions">
+            <template v-if="!canUseNativeImport">
+              <label class="remember-row">
+                <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
+                <span>{{ t('import.rememberCookie') }}</span>
+              </label>
+            </template>
+            <span v-else class="cookie-actions__spacer" />
+            <button
+              v-if="canUseNativeImport || hasSavedCookie"
+              class="cookie-clear-btn"
+              type="button"
+              @click="handleLogout"
+            >
+              {{ t('import.logout') }}
             </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
@@ -99,6 +107,13 @@
           <div class="list-header">
             <p class="list-count">{{ t('import.orderCount', { orders: processedOrders.length, types: mergedAllGoods.length, total: allGoods.length }) }}</p>
             <div class="list-header-actions">
+              <button
+                class="text-btn"
+                type="button"
+                @click="handleLogout"
+              >
+                {{ t('import.switchAccount') }}
+              </button>
               <button
                 :class="['text-btn', isAllSelectableSelected && 'text-btn--active']"
                 type="button"
@@ -217,9 +232,9 @@
                       <div class="order-meta">
                         <span
                           class="meta-price"
-                          :class="{ 'meta-price--struck': hasActualPrice(item) && String(item.actualPrice) !== String(item.price) }"
+                          :class="{ 'meta-price--struck': shouldShowActualPrice(item) }"
                         >¥{{ item.price }}</span>
-                        <span v-if="hasActualPrice(item)" class="meta-actual">
+                        <span v-if="shouldShowActualPrice(item)" class="meta-actual">
                           {{ t('import.actualPrice') }} ¥{{ formatImportMoney(item.actualPrice) }}
                         </span>
                         <span v-if="item.quantity > 1" class="meta-qty">×{{ item.quantity }}</span>
@@ -415,6 +430,15 @@ function hasActualPrice(item) {
   return item?.actualPrice !== '' && item?.actualPrice != null && Number.isFinite(Number(item.actualPrice))
 }
 
+/** 入手价与原价一致时不展示「入手」，避免重复价格噪音 */
+function shouldShowActualPrice(item) {
+  if (!hasActualPrice(item)) return false
+  const actual = Number(item.actualPrice)
+  const listed = Number(item.price)
+  if (!Number.isFinite(listed)) return true
+  return Math.abs(actual - listed) >= 0.005
+}
+
 function formatImportMoney(value) {
   const n = Number(value)
   if (!Number.isFinite(n)) return '0'
@@ -509,6 +533,15 @@ const mergedAllGoods = computed(() => {
 })
 
 // ── Actions ────────────────────────────────────────────────────
+async function handleLogout() {
+  await clearSavedCookie(true)
+  rawOrders.value = []
+  selectedSet.value = new Set()
+  expandedSet.value = new Set()
+  cappedWarning.value = false
+  step.value = 'cookie'
+}
+
 onMounted(async () => {
   if (canUseNativeImport) {
     // Plugin 内部自动管理 cookie 持久化：

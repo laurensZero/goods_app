@@ -111,5 +111,6 @@ export async function clearMihoyoCookieState() {
   // 原生端同时清理旧版回捞 key，避免已清除的 Cookie 通过 fallback 复活
   if (Capacitor.isNativePlatform()) {
     try { await Preferences.remove({ key: NATIVE_STORAGE_KEY }) } catch {}
+    try { await Preferences.remove({ key: 'mihoyo_cookie_state' }) } catch {}
   }
 }

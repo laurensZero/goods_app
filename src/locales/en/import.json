@@ -182,6 +182,8 @@
   "import.orderCount": "{count} orders",
   "import.orderPaid": "Paid",
   "import.actualPrice": "Cost",
+  "import.logout": "Log out",
+  "import.switchAccount": "Switch account",
   "import.pasteCookie": "Paste Cookie",
   "import.pleaseWait": "Please wait",
   "import.priceLabel": "Price (CNY)",
