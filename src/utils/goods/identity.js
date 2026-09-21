@@ -225,3 +225,145 @@ export function buildGoodsIdentityAliases(item) {
 
   return aliases
 }
+
+/** 从备注提取米游铺订单号（「来自米游铺订单 #xxx」） */
+export function extractMihoyoOrderNo(item) {
+  const explicit = String(item?._orderNo || item?.orderNo || '').trim()
+  if (explicit) return explicit
+  const note = String(item?.note || item?.notes || '')
+  const match = note.match(/米游铺订单\s*#\s*([A-Za-z0-9_-]+)/)
+  return match?.[1] || ''
+}
+
+function normalizeIdentityToken(value) {
+  return String(value || '').trim()
+}
+
+/** 收藏条目可贡献的款式 token：显式款式 + 角色名（订单 SKU 文案可能只写角色） */
+function collectVariantTokens(item) {
+  const tokens = new Set()
+  const variant = getGoodsVariant(item)
+  if (variant) {
+    tokens.add(variant)
+    for (const part of variant.split(/\s*[\/／,，、]\s*/)) {
+      const trimmed = part.trim()
+      if (trimmed) tokens.add(trimmed)
+    }
+  }
+  const characters = Array.isArray(item?.characters) ? item.characters : []
+  for (const name of characters) {
+    const trimmed = normalizeIdentityToken(name)
+    if (trimmed) tokens.add(trimmed)
+  }
+  return tokens
+}
+
+function variantsSoftMatch(orderVariant, collectionTokens) {
+  if (!orderVariant) return true
+  if (!collectionTokens || collectionTokens.size === 0) return true
+  if (collectionTokens.has(orderVariant)) return true
+  for (const token of collectionTokens) {
+    if (token.includes(orderVariant) || orderVariant.includes(token)) return true
+  }
+  return false
+}
+
+/**
+ * 米游铺订单导入精确身份（展示/调试用）：
+ * 优先 订单号+goodsId+款式，否则 支付日+goodsId+款式。
+ * 匹配逻辑见 isOrderItemImported（含 goodsId 软匹配，不单靠此 key）。
+ */
+export function buildOrderImportIdentity(item) {
+  const goodsId = normalizeIdentityToken(item?.goodsId)
+  if (!goodsId) return ''
+  const variant = getGoodsVariant(item)
+  const orderNo = extractMihoyoOrderNo(item)
+  const acquiredAt = normalizeIdentityToken(item?.acquiredAt)
+  if (orderNo && variant) return `ord|${orderNo}|${goodsId}|${variant}`
+  if (acquiredAt && variant) return `gid|${acquiredAt}|${goodsId}|${variant}`
+  if (orderNo) return `ord|${orderNo}|${goodsId}`
+  if (acquiredAt) return `gid|${acquiredAt}|${goodsId}`
+  return `gid||${goodsId}`
+}
+
+/** 订单行/收藏条目是否有 goodsId（有则走 goodsId 精确通道） */
+export function canUseOrderImportIdentity(item) {
+  return Boolean(normalizeIdentityToken(item?.goodsId))
+}
+
+/**
+ * 收藏列表 → 订单导入已导入索引。
+ * keys：精确/弱精确 key 集合
+ * goodsIdIndex：goodsId → [{ orderNo, acquiredAt, variants:Set }]
+ */
+export function buildOrderImportImportedKeys(collectionList) {
+  const keys = new Set()
+  /** @type {Map<string, Array<{ orderNo: string, acquiredAt: string, variants: Set<string> }>>} */
+  const goodsIdIndex = new Map()
+
+  for (const item of collectionList || []) {
+    const goodsId = normalizeIdentityToken(item?.goodsId)
+    const acquiredAt = normalizeIdentityToken(item?.acquiredAt)
+    const orderNo = extractMihoyoOrderNo(item)
+    const variant = getGoodsVariant(item)
+    const variants = collectVariantTokens(item)
+
+    for (const alias of buildGoodsIdentityAliases(item)) keys.add(alias)
+
+    if (!goodsId) continue
+
+    if (orderNo && variant) keys.add(`ord|${orderNo}|${goodsId}|${variant}`)
+    if (orderNo) keys.add(`ord|${orderNo}|${goodsId}`)
+    if (acquiredAt && variant) keys.add(`gid|${acquiredAt}|${goodsId}|${variant}`)
+    if (acquiredAt) keys.add(`gid|${acquiredAt}|${goodsId}`)
+    keys.add(`gid||${goodsId}`)
+
+    if (!goodsIdIndex.has(goodsId)) goodsIdIndex.set(goodsId, [])
+    goodsIdIndex.get(goodsId).push({ orderNo, acquiredAt, variants })
+  }
+
+  return { keys, goodsIdIndex }
+}
+
+/**
+ * 订单行是否已导入：
+ * - 有 goodsId：只走 goodsId 通道（订单号/支付日 + 款式软匹配），避免同名误标
+ * - 无 goodsId：回退名称别名
+ */
+export function isOrderItemImported(item, imported) {
+  const keys = imported?.keys || imported
+  const goodsId = normalizeIdentityToken(item?.goodsId)
+
+  if (goodsId) {
+    const orderNo = extractMihoyoOrderNo(item)
+    const acquiredAt = normalizeIdentityToken(item?.acquiredAt)
+    const variant = getGoodsVariant(item)
+
+    if (orderNo && variant && keys?.has(`ord|${orderNo}|${goodsId}|${variant}`)) return true
+    if (orderNo && keys?.has(`ord|${orderNo}|${goodsId}`)) {
+      // 同订单同 goodsId：款式软匹配，兼容 SKU 文案与收藏款式名不一致
+      const entries = imported?.goodsIdIndex?.get(goodsId) || []
+      const sameOrder = entries.filter((e) => e.orderNo === orderNo)
+      if (sameOrder.length === 0) return true
+      if (sameOrder.some((e) => variantsSoftMatch(variant, e.variants))) return true
+    }
+    if (acquiredAt && variant && keys?.has(`gid|${acquiredAt}|${goodsId}|${variant}`)) return true
+    if (acquiredAt && keys?.has(`gid|${acquiredAt}|${goodsId}`)) {
+      const entries = imported?.goodsIdIndex?.get(goodsId) || []
+      const sameDay = entries.filter((e) => e.acquiredAt === acquiredAt)
+      if (sameDay.length === 0) return true
+      if (sameDay.some((e) => variantsSoftMatch(variant, e.variants))) return true
+    }
+    // 仅有 goodsId（收藏缺支付日/订单号）：有该 goodsId 的收藏即视为可匹配
+    if (!orderNo && !acquiredAt && keys?.has(`gid||${goodsId}`)) {
+      const entries = imported?.goodsIdIndex?.get(goodsId) || []
+      if (entries.some((e) => !e.acquiredAt && !e.orderNo)) {
+        return entries.some((e) => variantsSoftMatch(variant, e.variants))
+      }
+    }
+    return false
+  }
+
+  if (!keys || typeof keys.has !== 'function') return false
+  return [...buildGoodsIdentityAliases(item)].some((key) => keys.has(key))
+}
