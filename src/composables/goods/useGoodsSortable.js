@@ -33,6 +33,46 @@ export function mergeVisibleReorderIntoFullOrder(displayItems, domGoodsIds) {
 }
 
 /**
+ * 日期/同键排序只提交实际发生变化的那个组。
+ *
+ * 之前 onEnd 会把 fullOrder 整张列表交给 goodsStore，导致一次同日拖拽
+ * 给所有日期的商品都重写 manualOrders[mode]。两台设备分别拖拽后，
+ * 每个商品的 LWW 时间戳不同，最终就会拼出两套顺序。
+ *
+ * @param {Array<{ id?: string, _type?: string }>} displayItems
+ * @param {string[]} fullOrder
+ * @param {(id: string) => string | null} [getGroupKey]
+ * @returns {string[]}
+ */
+export function buildScopedReorderOrder(displayItems, fullOrder, getGroupKey) {
+  if (typeof getGroupKey !== 'function') return fullOrder
+
+  const before = (displayItems || [])
+    .filter((item) => item && item._type !== 'group' && item.id)
+    .map((item) => String(item.id))
+  const after = (fullOrder || []).map(String)
+  if (before.length !== after.length) return after
+
+  const changedIds = new Set()
+  for (let i = 0; i < before.length; i++) {
+    if (before[i] !== after[i]) {
+      changedIds.add(before[i])
+      changedIds.add(after[i])
+    }
+  }
+  if (changedIds.size === 0) return []
+
+  const changedGroups = new Set()
+  for (const id of changedIds) {
+    const key = getGroupKey(id)
+    if (key != null) changedGroups.add(key)
+  }
+  if (changedGroups.size === 0) return after
+
+  return after.filter((id) => changedGroups.has(getGroupKey(id)))
+}
+
+/**
  * 用 SortableJS 做收藏/心愿主列表网格重排。
  * 支持 custom 全量重排，以及 createdAt/acquiredAt 下「同一天内」小范围重排。
  *
@@ -280,9 +320,16 @@ export function useGoodsSortable(options) {
         const fullOrder = buildFullOrder(domGoodsIds)
         if (!fullOrder || fullOrder.length === 0) return
 
+        const commitOrder = buildScopedReorderOrder(
+          getItems(),
+          fullOrder,
+          getDayKey?.() || undefined
+        )
+        if (!commitOrder || commitOrder.length === 0) return
+
         syncing = true
         try {
-          await onCommit(fullOrder)
+          await onCommit(commitOrder)
         } catch (e) {
           console.error('[goods-sortable] commit failed:', e)
         } finally {
