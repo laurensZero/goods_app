@@ -25,8 +25,8 @@
           <h2 class="section-title">{{ t('about.appInfo') }}</h2>
         </div>
 
-        <!-- 网页端：应用信息顶部提供 APK 下载入口 -->
-        <article v-if="!IS_NATIVE" class="info-card apk-download-card">
+        <!-- 网页端且安卓 UA：应用信息顶部提供 APK 下载入口（PC 网页版不展示） -->
+        <article v-if="showWebApkDownload" class="info-card apk-download-card">
           <div class="apk-download-card__copy">
             <p class="info-kicker">Android APK</p>
             <h3 class="info-value">{{ t('about.downloadApkTitle') }}</h3>
@@ -354,10 +354,15 @@ import packageJson from '../../../package.json'
 import capacitorConfig from '../../../capacitor.config.json'
 import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
 import { fetchLatestApkDownloadUrl } from '@/utils/updateHelpers'
+import { isWebAndroidPromoTarget } from '@/utils/platform/webAndroidPromo'
 
 const { t } = useI18n()
 
 const IS_NATIVE = Capacitor.isNativePlatform()
+/** 仅网页 + 安卓 UA：PC/桌面浏览器不展示 APK 下载入口 */
+const showWebApkDownload = computed(() => (
+  !IS_NATIVE && isWebAndroidPromoTarget(globalThis.navigator?.userAgent)
+))
 
 const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()
