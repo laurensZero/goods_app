@@ -199,7 +199,7 @@
   "import.loginNewAccountCookieHint": "Paste the miHoYo Shop Cookie of the new account. It will be saved for quick switching.",
   "import.loginNewAccountConfirm": "Save and sign in",
   "import.qrLoginTitle": "Sign in miHoYo Shop with QR",
-  "import.qrLoginHint": "Scan the QR code with the HoYoLAB / miHoYo Passport app",
+  "import.qrLoginHint": "Scan the QR code with the HoYoLAB app",
   "import.qrLoginWaiting": "Scan with the mobile app",
   "import.qrLoginScanned": "Scanned — confirm sign-in on your phone",
   "import.qrLoginConfirmed": "Signed in",

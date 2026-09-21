@@ -199,7 +199,7 @@
   "import.loginNewAccountCookieHint": "貼上新帳號的米遊鋪 Cookie，儲存後可在帳號清單中快速切換。",
   "import.loginNewAccountConfirm": "儲存並登入",
   "import.qrLoginTitle": "掃碼登入米遊鋪",
-  "import.qrLoginHint": "使用米遊社 / 米哈遊通行證 App 掃描下方二維碼",
+  "import.qrLoginHint": "使用米遊社 App 掃描下方二維碼",
   "import.qrLoginWaiting": "請用手機 App 掃碼",
   "import.qrLoginScanned": "已掃碼，請在手機上確認登入",
   "import.qrLoginConfirmed": "登入成功",

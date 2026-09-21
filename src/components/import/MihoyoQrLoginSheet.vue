@@ -25,9 +25,42 @@
     >
       {{ t('import.qrLoginRefresh') }}
     </button>
-    <button class="sheet-secondary" type="button" @click="switchToCookie">
+
+    <!-- 默认收起；需要时再手动展开粘贴 Cookie -->
+    <button
+      v-if="!pasteOpen"
+      class="sheet-secondary"
+      type="button"
+      @click="pasteOpen = true"
+    >
       {{ t('import.qrLoginUseCookie') }}
     </button>
+
+    <div v-else class="paste-block">
+      <p class="paste-label">{{ t('import.pasteCookie') }}</p>
+      <textarea
+        v-model="cookieText"
+        class="cookie-textarea"
+        :placeholder="t('import.cookiePlaceholder')"
+        spellcheck="false"
+        autocomplete="off"
+        rows="4"
+        autofocus
+      />
+      <p v-if="cookieText && !pasteValid" class="field-error">{{ t('import.cookieInvalid') }}</p>
+      <button
+        class="sheet-primary"
+        type="button"
+        :disabled="!pasteValid || submittingPaste"
+        @click="submitPaste"
+      >
+        {{ submittingPaste ? t('common.loading') : t('import.loginNewAccountConfirm') }}
+      </button>
+      <button class="sheet-secondary" type="button" @click="pasteOpen = false">
+        {{ t('import.qrLoginTitle') }}
+      </button>
+    </div>
+
     <button class="sheet-cancel" type="button" @click="close">{{ t('common.cancel') }}</button>
   </AppSheet>
 </template>
@@ -38,6 +71,7 @@ import { useI18n } from 'vue-i18n'
 import QRCode from 'qrcode'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { validateMihoyoCookie } from '@/utils/mihoyo/index'
 import {
   createMihoyoQrLogin,
   isQrLoginConfirmed,
@@ -49,20 +83,30 @@ import {
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 })
-const emit = defineEmits(['update:modelValue', 'success', 'use-cookie'])
+const emit = defineEmits(['update:modelValue', 'success'])
 
 const { t } = useI18n()
 const qrDataUrl = ref('')
 const preparing = ref(false)
 const error = ref('')
-const phase = ref('idle') // idle | waiting | scanned | confirmed | expired | failed
+const phase = ref('idle')
 const ticket = ref('')
 const deviceId = ref('')
+const pasteOpen = ref(false)
+const cookieText = ref('')
+const submittingPaste = ref(false)
 
 let pollTimer = null
 let pollToken = 0
 
-const canRefresh = computed(() => phase.value === 'expired' || phase.value === 'failed' || phase.value === 'idle')
+const canRefresh = computed(() => (
+  phase.value === 'expired' || phase.value === 'failed' || phase.value === 'idle'
+))
+
+const pasteValid = computed(() => {
+  const value = cookieText.value.trim()
+  return value.length > 20 && validateMihoyoCookie(value)
+})
 
 const statusText = computed(() => {
   switch (phase.value) {
@@ -88,6 +132,8 @@ watch(
   (open) => {
     if (open) {
       error.value = ''
+      cookieText.value = ''
+      pasteOpen.value = false
       void restart()
     } else {
       stopPolling()
@@ -99,18 +145,28 @@ function close() {
   emit('update:modelValue', false)
 }
 
-function switchToCookie() {
-  stopPolling()
-  emit('update:modelValue', false)
-  emit('use-cookie')
-}
-
 function stopPolling() {
   if (pollTimer) {
     clearTimeout(pollTimer)
     pollTimer = null
   }
   pollToken += 1
+}
+
+function emitSuccess(cookie) {
+  stopPolling()
+  emit('success', { cookie, remember: true })
+  emit('update:modelValue', false)
+}
+
+async function submitPaste() {
+  if (!pasteValid.value || submittingPaste.value) return
+  submittingPaste.value = true
+  try {
+    emitSuccess(cookieText.value.trim())
+  } finally {
+    submittingPaste.value = false
+  }
 }
 
 async function restart() {
@@ -166,9 +222,7 @@ async function pollOnce(token) {
         return
       }
       phase.value = 'confirmed'
-      stopPolling()
-      emit('success', { cookie, remember: true, userInfo: result.userInfo || null })
-      emit('update:modelValue', false)
+      emitSuccess(cookie)
       return
     }
 
@@ -189,7 +243,6 @@ async function pollOnce(token) {
     schedulePoll(token)
   } catch (e) {
     if (token !== pollToken || !props.modelValue) return
-    // 网络抖动：继续轮询，连续失败由用户点刷新
     error.value = String(e?.message || '')
     schedulePoll(token)
   }
@@ -263,6 +316,53 @@ async function pollOnce(token) {
 
 .sheet-secondary:disabled {
   opacity: 0.55;
+}
+
+.paste-block {
+  margin-top: 8px;
+}
+
+.paste-label {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.cookie-textarea {
+  width: 100%;
+  min-height: 88px;
+  border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
+  border-radius: 12px;
+  background: var(--app-surface, #fff);
+  color: var(--app-text);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  font-family: monospace;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.field-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #c74444;
+}
+
+.sheet-primary {
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--app-primary);
+  color: var(--app-surface);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sheet-primary:disabled {
+  opacity: 0.45;
 }
 
 .sheet-cancel {

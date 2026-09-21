@@ -199,7 +199,7 @@
   "import.loginNewAccountCookieHint": "新アカウントの miHoYo Shop Cookie を貼り付けると、アカウント一覧に保存されて切り替えやすくなります。",
   "import.loginNewAccountConfirm": "保存してログイン",
   "import.qrLoginTitle": "QRコードで miHoYo Shop ログイン",
-  "import.qrLoginHint": "miHoYo 製品/ホヨLAB アプリで下のQRコードをスキャンしてください",
+  "import.qrLoginHint": "miHoYo アプリで下のQRコードをスキャンしてください",
   "import.qrLoginWaiting": "スマートフォンのアプリでスキャンしてください",
   "import.qrLoginScanned": "スキャン済み。スマートフォンでログインを確認してください",
   "import.qrLoginConfirmed": "ログインしました",
