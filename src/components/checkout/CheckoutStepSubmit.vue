@@ -58,6 +58,60 @@
               <button type="button" class="qty-btn" :disabled="concurrency >= maxConcurrency" @click="$emit('increase-concurrency')">+</button>
             </div>
           </div>
+          <div v-if="timerEnabled && accounts?.length" class="account-queue">
+            <p class="account-queue__title">{{ $t('checkout.queueAccounts') }}</p>
+            <p class="account-queue__hint">{{ $t('checkout.queueAccountsHint') }}</p>
+            <div class="account-queue__list">
+              <div
+                v-for="account in accounts"
+                :key="account.id"
+                class="account-queue__row"
+              >
+                <button
+                  type="button"
+                  class="account-queue__item"
+                  :class="{ 'account-queue__item--on': isSelectedAccount(account.id) }"
+                  @click="$emit('toggle-account', account.id)"
+                >
+                  <span class="account-queue__avatar" aria-hidden="true">
+                    <img v-if="account.avatarUrl" :src="account.avatarUrl" :alt="account.label" class="account-queue__img" />
+                    <span v-else class="account-queue__fallback">{{ (account.label || '?').charAt(0) }}</span>
+                  </span>
+                  <span class="account-queue__copy">
+                    <span class="account-queue__label">
+                      {{ account.label }}
+                      <em v-if="String(account.id) === String(activeAccountId)" class="account-queue__now">{{ $t('import.currentAccountBadge') }}</em>
+                    </span>
+                    <span class="account-queue__meta">{{ account.accountId || account.id }}</span>
+                  </span>
+                  <span class="account-queue__check" :class="{ 'account-queue__check--on': isSelectedAccount(account.id) }" />
+                </button>
+
+                <!-- 非当前账号：单独选该账号自己的收货地址 -->
+                <div
+                  v-if="isSelectedAccount(account.id) && String(account.id) !== String(activeAccountId)"
+                  class="account-queue__address"
+                >
+                  <p class="account-queue__address-label">{{ $t('checkout.selectAddressForAccount') }}</p>
+                  <button
+                    type="button"
+                    class="account-queue__address-btn"
+                    @click="$emit('open-account-address', account)"
+                  >
+                    <span class="account-queue__address-btn-text">
+                      {{ selectedAddressTitle(account) }}
+                    </span>
+                    <span class="account-queue__address-btn-arrow">›</span>
+                  </button>
+                  <p v-if="selectedAddressDetail(account)" class="account-queue__address-detail">
+                    {{ selectedAddressDetail(account) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <p class="account-queue__count">{{ $t('checkout.queueAccountsSelected', { n: selectedCount }) }}</p>
+            <p class="account-queue__seq-hint">{{ $t('checkout.queueSequentialHint') }}</p>
+          </div>
           <p v-if="concurrency > 1" class="concurrency-warn">{{ $t('checkout.concurrencyWarn') }}</p>
           <div class="qq-notify-row" :class="{ 'qq-notify-row--disabled': !qqBound }">
             <div class="qq-notify-row__info">
@@ -109,7 +163,12 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t: $t } = useI18n()
+
+const props = defineProps({
   orderResult: { type: Object, default: null },
   isPointOrder: { type: Boolean, default: false },
   totalPointCost: { type: Number, default: 0 },
@@ -125,6 +184,15 @@ defineProps({
   checkoutNotify: { type: Boolean, default: false },
   queueItems: { type: Array, default: () => [] },
   activeQueueItems: { type: Array, default: () => [] },
+  accounts: { type: Array, default: () => [] },
+  selectedAccountIds: { type: Array, default: () => [] },
+  activeAccountId: { type: String, default: '' },
+  accountAddresses: { type: Object, default: () => ({}) },
+  accountAddressSelections: { type: Object, default: () => ({}) },
+  formatAddress: { type: Function, default: (addr) => {
+    if (!addr) return ''
+    return `${addr.province_name || ''}${addr.city_name || ''}${addr.county_name || ''}${addr.addr_ext || ''}`
+  } },
   error: { type: String, default: '' },
   formatFen: { type: Function, required: true },
   stepNumber: { type: Number, required: true },
@@ -138,13 +206,246 @@ defineEmits([
   'infinite-retry',
   'decrease-concurrency',
   'increase-concurrency',
+  'toggle-account',
+  'select-account-address',
+  'open-account-address',
   'toggle-checkout-notify',
   'open-queue',
 ])
+
+const selectedCount = computed(() => props.selectedAccountIds?.length || 0)
+
+function isSelectedAccount(id) {
+  return (props.selectedAccountIds || []).map(String).includes(String(id))
+}
+
+function findSelectedAccountAddress(account) {
+  const accountId = String(account?.id || '')
+  const payload = props.accountAddresses?.[accountId]
+  if (!payload?.list?.length) return null
+  const selectedId = String(props.accountAddressSelections?.[accountId] || '')
+  return payload.list.find((item) => String(item.id) === selectedId)
+    || payload.list.find((item) => Number(item.is_default) === 1)
+    || payload.list[0]
+    || null
+}
+
+function selectedAddressTitle(account) {
+  const accountId = String(account?.id || '')
+  const payload = props.accountAddresses?.[accountId]
+  if (payload?.loading) return $t('checkout.accountAddressLoading')
+  if (payload?.error) return $t('checkout.accountAddressRetry')
+  const addr = findSelectedAccountAddress(account)
+  if (!addr) return $t('checkout.selectAddressForAccount')
+  return `${addr.connect_name || ''} ${addr.phone || ''}`.trim() || String(addr.id)
+}
+
+function selectedAddressDetail(account) {
+  const accountId = String(account?.id || '')
+  const payload = props.accountAddresses?.[accountId]
+  if (payload?.loading || payload?.error) return ''
+  const addr = findSelectedAccountAddress(account)
+  if (!addr) return ''
+  return props.formatAddress(addr)
+}
 </script>
 
 <style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
+/* ── 多账号定时下单 ── */
+.account-queue {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-text) 4%, var(--app-surface));
+}
+
+.account-queue__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.account-queue__hint {
+  margin: 4px 0 10px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.account-queue__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.account-queue__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-queue__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--app-surface);
+  text-align: left;
+}
+
+.account-queue__item--on {
+  border-color: #2070c0;
+}
+
+.account-queue__now {
+  font-style: normal;
+  margin-left: 4px;
+  font-size: 11px;
+  color: #2070c0;
+}
+
+.account-queue__address {
+  margin: 0 4px 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-text) 3%, var(--app-surface));
+}
+
+.account-queue__address-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
+.account-queue__address-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.account-queue__address-btn-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-queue__address-btn-arrow {
+  color: var(--app-text-tertiary);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.account-queue__address-detail {
+  margin: 6px 2px 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--app-text-secondary);
+  word-break: break-all;
+}
+
+.account-queue__address-meta {
+  margin: 0;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.account-queue__address-meta--warn {
+  color: #c77700;
+}
+
+.account-queue__address-select {
+  width: 100%;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.account-queue__seq-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+  line-height: 1.45;
+}
+
+.account-queue__avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(90, 120, 250, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-queue__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-queue__fallback {
+  font-weight: 600;
+  color: #4c7dff;
+}
+
+.account-queue__copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-queue__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.account-queue__meta {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.account-queue__check {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--app-text) 25%, transparent);
+  flex-shrink: 0;
+}
+
+.account-queue__check--on {
+  border-color: #2070c0;
+  background: #2070c0;
+  box-shadow: inset 0 0 0 3px var(--app-surface);
+}
+
+.account-queue__count {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
 /* ── 定时下单 ── */
 .timer-header {
   display: flex;

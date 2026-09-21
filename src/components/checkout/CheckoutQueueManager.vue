@@ -30,6 +30,17 @@
           @click="openQueueDetail(entry)"
         >
           <div class="queue-item__body">
+            <div class="queue-item__head">
+              <span v-if="entry.accountLabel || entry.snapshot?.accountLabel" class="queue-item__account">
+                <img
+                  v-if="entry.accountAvatarUrl || entry.snapshot?.accountAvatarUrl"
+                  :src="entry.accountAvatarUrl || entry.snapshot?.accountAvatarUrl"
+                  :alt="entry.accountLabel || entry.snapshot?.accountLabel"
+                  class="queue-item__account-avatar"
+                />
+                {{ entry.accountLabel || entry.snapshot?.accountLabel }}
+              </span>
+            </div>
             <p class="queue-item__title">{{ entry.summary.goodsText || $t('checkout.queueTitle') }}</p>
             <p class="queue-item__meta">{{ formatQueueTime(entry.displayAt || entry.scheduledAt) }}</p>
             <p v-if="entry.summary.giftText" class="queue-item__meta queue-item__meta--gift">{{ entry.summary.giftText }}</p>
@@ -165,6 +176,26 @@ defineEmits(['update:show', 'clear-failed'])
 .queue-item__body {
   flex: 1;
   min-width: 0;
+}
+
+.queue-item__head {
+  margin-bottom: 2px;
+}
+
+.queue-item__account {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2070c0;
+}
+
+.queue-item__account-avatar {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
 }
 
 .queue-item__title {

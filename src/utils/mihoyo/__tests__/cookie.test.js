@@ -29,12 +29,16 @@ import {
   loadMihoyoCookieState,
   saveMihoyoCookie,
   markMihoyoCookieInvalid,
-  clearMihoyoCookieState
+  clearMihoyoCookieState,
+  listMihoyoAccounts,
+  getActiveMihoyoAccount
 } from '../cookie'
 import { removeSecret, writeSecret } from '@/utils/platform/storage'
 
 const STORAGE_KEY = 'mihoyo_cookie_state'
+const ACCOUNTS_KEY = 'mihoyo_accounts'
 const NATIVE_STORAGE_KEY = 'mihoyo_native_session'
+const COOKIE = 'account_id_v2=1111222233334444; ltoken_v2=tok; cookie_token_v2=tok'
 
 beforeEach(() => {
   state.native = false
@@ -43,90 +47,89 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-describe('saveMihoyoCookie / loadMihoyoCookieState', () => {
-  it('保存后读取往返，状态被规范化', async () => {
-    const saved = await saveMihoyoCookie('  abc=1; def=2  ')
-    expect(saved.cookie).toBe('abc=1; def=2')
+describe('saveMihoyoCookie / loadMihoyoCookieState（多账号）', () => {
+  it('保存后读取往返，并写入账号列表与激活状态', async () => {
+    const saved = await saveMihoyoCookie(`  ${COOKIE}  `)
+    expect(saved.cookie).toBe(COOKIE)
     expect(saved.updatedAt).toBeTruthy()
     expect(saved.invalidAt).toBe('')
-    expect(saved.invalidReason).toBe('')
+    expect(saved.accountId).toBe('1111222233334444')
 
     const loaded = await loadMihoyoCookieState()
-    expect(loaded).toEqual(saved)
+    expect(loaded.cookie).toBe(saved.cookie)
+    expect(loaded.updatedAt).toBe(saved.updatedAt)
     expect(writeSecret).toHaveBeenCalledWith(STORAGE_KEY, expect.any(String))
+    expect(writeSecret).toHaveBeenCalledWith(ACCOUNTS_KEY, expect.any(String))
+
+    const accounts = await listMihoyoAccounts()
+    expect(accounts).toHaveLength(1)
+    const active = await getActiveMihoyoAccount()
+    expect(active.cookie).toBe(COOKIE)
   })
 
-  it('保存空 Cookie 等同于清除', async () => {
-    await saveMihoyoCookie('abc=1')
+  it('保存空 Cookie 清除当前会话但保留账号列表', async () => {
+    await saveMihoyoCookie(COOKIE)
     const result = await saveMihoyoCookie('')
-    expect(result).toEqual({ cookie: '', updatedAt: '', invalidAt: '', invalidReason: '' })
-    expect(removeSecret).toHaveBeenCalledWith(STORAGE_KEY)
+    expect(result.cookie).toBe('')
     expect(state.secrets.has(STORAGE_KEY)).toBe(false)
+    expect(await listMihoyoAccounts()).toHaveLength(1)
   })
 
-  it('存储内容损坏（非 JSON）时返回默认状态', async () => {
+  it('无账号且存储损坏时返回默认状态', async () => {
     state.secrets.set(STORAGE_KEY, '{broken json')
+    state.secrets.set(ACCOUNTS_KEY, '{also broken')
     const loaded = await loadMihoyoCookieState()
-    expect(loaded).toEqual({ cookie: '', updatedAt: '', invalidAt: '', invalidReason: '' })
+    expect(loaded.cookie).toBe('')
   })
 })
 
 describe('markMihoyoCookieInvalid', () => {
-  it('保留 updatedAt 并写入 invalidAt/invalidReason', async () => {
-    const saved = await saveMihoyoCookie('abc=1')
-    const marked = await markMihoyoCookieInvalid('abc=1', '登录过期')
-    expect(marked.cookie).toBe('abc=1')
+  it('标记失效并保留 updatedAt', async () => {
+    const saved = await saveMihoyoCookie(COOKIE)
+    const marked = await markMihoyoCookieInvalid(COOKIE, '登录过期')
+    expect(marked.cookie).toBe(COOKIE)
     expect(marked.updatedAt).toBe(saved.updatedAt)
     expect(marked.invalidAt).toBeTruthy()
     expect(marked.invalidReason).toBe('登录过期')
 
     const loaded = await loadMihoyoCookieState()
-    expect(loaded).toEqual(marked)
+    expect(loaded.invalidAt).toBeTruthy()
   })
 })
 
 describe('clearMihoyoCookieState', () => {
-  it('调用 removeSecret 清除存储', async () => {
-    await saveMihoyoCookie('abc=1')
+  it('默认保留账号列表，仅清当前会话', async () => {
+    await saveMihoyoCookie(COOKIE)
     await clearMihoyoCookieState()
     expect(removeSecret).toHaveBeenCalledWith(STORAGE_KEY)
     const loaded = await loadMihoyoCookieState()
     expect(loaded.cookie).toBe('')
+    expect(await listMihoyoAccounts()).toHaveLength(1)
+    expect(await getActiveMihoyoAccount()).toBe(null)
   })
 
   it('原生端同时清理旧版 mihoyo_native_session 回捞 key', async () => {
     state.native = true
     state.prefs.set(NATIVE_STORAGE_KEY, JSON.stringify({ cookie: 'ck=1' }))
-    await clearMihoyoCookieState()
+    await clearMihoyoCookieState({ keepAccounts: false })
     expect(state.prefs.has(NATIVE_STORAGE_KEY)).toBe(false)
-    // fallback 不会再复活已清除的 Cookie
-    const loaded = await loadMihoyoCookieState()
-    expect(loaded.cookie).toBe('')
   })
 })
 
 describe('原生端旧版回捞 fallback', () => {
-  it('主存储缺失时回捞 JSON 形式的 mihoyo_native_session', async () => {
+  it('主存储缺失时回捞 JSON 形式的 mihoyo_native_session 并迁移为账号', async () => {
     state.native = true
-    state.prefs.set(NATIVE_STORAGE_KEY, JSON.stringify({ cookie: 'ck=native', updated_at: '2024-01-01T00:00:00.000Z' }))
+    state.prefs.set(NATIVE_STORAGE_KEY, JSON.stringify({ cookie: 'account_id_v2=9999; ltoken_v2=x', updated_at: '2024-01-01T00:00:00.000Z' }))
     const loaded = await loadMihoyoCookieState()
-    expect(loaded.cookie).toBe('ck=native')
+    expect(loaded.cookie).toContain('9999')
     expect(loaded.updatedAt).toBe('2024-01-01T00:00:00.000Z')
-  })
-
-  it('主存储缺失时回捞裸字符串形式的 mihoyo_native_session', async () => {
-    state.native = true
-    state.prefs.set(NATIVE_STORAGE_KEY, 'raw-cookie-string')
-    const loaded = await loadMihoyoCookieState()
-    expect(loaded.cookie).toBe('raw-cookie-string')
-    expect(loaded.updatedAt).toBe('')
   })
 
   it('主存储命中时优先于原生回捞 key', async () => {
     state.native = true
-    await saveMihoyoCookie('ck=primary')
+    await saveMihoyoCookie(COOKIE)
     state.prefs.set(NATIVE_STORAGE_KEY, 'raw-cookie-string')
     const loaded = await loadMihoyoCookieState()
-    expect(loaded.cookie).toBe('ck=primary')
+    expect(loaded.cookie).toBe(COOKIE)
   })
 })

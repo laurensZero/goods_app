@@ -39,6 +39,10 @@ let clockBasePerfMs = 0
 let queueWatcherId = 0
 let queueWakeTimerId = 0
 const cancelledQueueIds = new Set()
+// 多账号并行：同一账号串行，不同账号可同时下单
+const inFlightIds = new Set()
+const inFlightAccountKeys = new Set()
+const MAX_PARALLEL_ACCOUNT_TASKS = 5
 // 开抢前预热过连接的任务 id → 上次预热时刻（允许临近 T0 再预热一次）
 const prewarmedIds = new Map()
 // 抢购窗口保持屏幕唤醒，避免息屏后 JS 定时器被冻
@@ -79,6 +83,9 @@ function persistQueue() {
 function normalizeQueueItem(item) {
   const snapshot = item?.snapshot || {}
   const items = Array.isArray(snapshot.items) ? snapshot.items : []
+  const accountId = String(snapshot.accountId || item?.accountId || '').trim()
+  const accountLabel = String(snapshot.accountLabel || item?.accountLabel || '').trim()
+  const accountAvatarUrl = String(snapshot.accountAvatarUrl || item?.accountAvatarUrl || '').trim()
   return {
     id: String(item?.id || `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
     createdAt: Number(item?.createdAt) || Date.now(),
@@ -92,6 +99,9 @@ function normalizeQueueItem(item) {
     status: ['pending', 'running', 'success', 'failed'].includes(item?.status) ? item.status : 'pending',
     lastError: String(item?.lastError || ''),
     completedAt: Number(item?.completedAt) || 0,
+    accountId,
+    accountLabel,
+    accountAvatarUrl,
     logs: Array.isArray(item?.logs)
       ? item.logs.map((log) => ({
         type: String(log?.type || ''),
@@ -115,14 +125,26 @@ function normalizeQueueItem(item) {
       remark: String(snapshot.remark || ''),
       isFromShopCar: Boolean(snapshot.isFromShopCar),
       displayAt: Number(snapshot.displayAt) || 0,
+      accountId,
+      accountLabel,
+      accountAvatarUrl,
       items,
       giftActivities: Array.isArray(snapshot.giftActivities) ? snapshot.giftActivities : [],
     },
     summary: {
       goodsText: String(item?.summary?.goodsText || items.map((entry) => entry.name || entry.goodsId).filter(Boolean).slice(0, 3).join('、') || '订单').trim(),
       giftText: String(item?.summary?.giftText || '').trim(),
+      accountText: String(item?.summary?.accountText || accountLabel || '').trim(),
     },
   }
+}
+
+/** 任务归属账号：优先 accountId，否则用 cookie 前缀兜底 */
+function getQueueAccountKey(item) {
+  const explicit = String(item?.snapshot?.accountId || item?.accountId || '').trim()
+  if (explicit) return `id:${explicit}`
+  const cookie = String(item?.snapshot?.cookie || '').trim()
+  return cookie ? `ck:${cookie.slice(0, 32)}` : 'default'
 }
 
 function loadQueue() {
@@ -306,6 +328,45 @@ function enqueueOrder(payload) {
   scheduleQueueWake()
   void processQueue()
   return entry
+}
+
+/**
+ * 同一购物配置批量入队到多个账号（每个账号一条独立任务）。
+ * @param {Object} basePayload - enqueueOrder 的公共参数（不含 cookie/账号字段）
+ * @param {Array<{cookie: string, accountId?: string, accountLabel?: string, accountAvatarUrl?: string, addressId?: string, snapshot?: Object}>} targets
+ * @returns {Array} 创建的队列条目
+ */
+function enqueueOrdersForAccounts(basePayload, targets) {
+  ensureHydrated()
+  const created = []
+  for (const target of targets || []) {
+    const cookie = String(target?.cookie || '').trim()
+    if (!cookie) continue
+    const accountId = String(target?.accountId || '').trim()
+    const accountLabel = String(target?.accountLabel || '').trim()
+    const accountAvatarUrl = String(target?.accountAvatarUrl || '').trim()
+    const addressId = String(target?.addressId || basePayload?.snapshot?.addressId || '').trim()
+    if (!addressId) continue
+
+    const entry = enqueueOrder({
+      ...basePayload,
+      snapshot: {
+        ...(basePayload?.snapshot || {}),
+        ...(target?.snapshot || {}),
+        cookie,
+        addressId,
+        accountId,
+        accountLabel,
+        accountAvatarUrl,
+      },
+      summary: {
+        ...(basePayload?.summary || {}),
+        accountText: accountLabel || (basePayload?.summary?.accountText || ''),
+      },
+    })
+    created.push(entry)
+  }
+  return created
 }
 
 function removeQueuedOrder(id) {
@@ -732,23 +793,61 @@ async function executeQueuedOrder(entry) {
 
 async function processQueue() {
   ensureHydrated()
-  if (processing.value || !queue.value.length) return
+  if (!queue.value.length) return
+
+  const now = getServerNow()
+  const due = queue.value
+    .filter((item) => (
+      item.status === 'pending'
+      && !inFlightIds.has(String(item.id))
+      && now >= Number(item.nextAttemptAt || 0) - FIRE_LEAD_MS
+    ))
+    .sort((a, b) => Number(a.nextAttemptAt) - Number(b.nextAttemptAt))
+
+  /** @type {typeof due} */
+  const ready = []
+  const claimedAccounts = new Set(inFlightAccountKeys)
+  for (const item of due) {
+    if (ready.length >= MAX_PARALLEL_ACCOUNT_TASKS) break
+    const accKey = getQueueAccountKey(item)
+    // 同一账号串行，避免同 cookie 并发打爆限流；不同账号并行
+    if (claimedAccounts.has(accKey)) continue
+    claimedAccounts.add(accKey)
+    ready.push(item)
+  }
+
+  if (!ready.length) {
+    processing.value = inFlightIds.size > 0
+    scheduleQueueWake()
+    return
+  }
 
   processing.value = true
-  try {
-    while (true) {
-      const pending = queue.value
-        .filter((item) => item.status === 'pending')
-        .sort((a, b) => Number(a.nextAttemptAt) - Number(b.nextAttemptAt))
-
-      const next = pending.find((item) => getServerNow() >= Number(item.nextAttemptAt || 0) - FIRE_LEAD_MS)
-      if (!next) break
-
-      const result = await executeQueuedOrder(next)
-      if (result?.ok === false && !result.retriable) break
+  await Promise.all(ready.map(async (item) => {
+    const accKey = getQueueAccountKey(item)
+    const id = String(item.id)
+    inFlightIds.add(id)
+    inFlightAccountKeys.add(accKey)
+    try {
+      await executeQueuedOrder(item)
+    } catch (error) {
+      console.warn('[checkoutQueue] execute error', error?.message)
+    } finally {
+      inFlightIds.delete(id)
+      inFlightAccountKeys.delete(accKey)
     }
-  } finally {
-    processing.value = false
+  }))
+
+  processing.value = inFlightIds.size > 0
+  // 还有到点任务（其它账号或同账号下一条）时继续调度，不因单账号失败中断全局
+  const stillDue = queue.value.some((item) => (
+    item.status === 'pending'
+    && !inFlightIds.has(String(item.id))
+    && getServerNow() >= Number(item.nextAttemptAt || 0) - FIRE_LEAD_MS
+  ))
+  if (stillDue) {
+    void processQueue()
+  } else {
     scheduleQueueWake()
   }
 }
@@ -808,12 +907,17 @@ const pendingQueueItems = computed(() => queue.value.filter((item) => item.statu
 const failedQueueItems = computed(() => queue.value.filter((item) => item.status === 'failed'))
 // 仍需要处理/失败的项（不含成功项），用于角标与“我的”页计数
 const activeQueueItems = computed(() => queue.value.filter((item) => item.status !== 'success'))
-// 列表展示：待处理/进行中优先，其次失败，成功项沉底
+// 列表展示：待处理/进行中优先，其次失败，成功项沉底；同状态按开售时间
 const displayQueueItems = computed(() => {
   const rank = { pending: 0, running: 0, failed: 1, success: 2 }
   return [...queue.value].sort(
     (a, b) => (rank[a.status] ?? 0) - (rank[b.status] ?? 0) || Number(a.nextAttemptAt) - Number(b.nextAttemptAt)
   )
+})
+// 队列中出现的账号数（用于“我的”/角标提示多账号并行）
+const queueAccountKeys = computed(() => {
+  const set = new Set(queue.value.map((item) => getQueueAccountKey(item)))
+  return set.size
 })
 
 export function useCheckoutOrderQueue() {
@@ -826,9 +930,11 @@ export function useCheckoutOrderQueue() {
     failedQueueItems,
     activeQueueItems,
     displayQueueItems,
+    queueAccountKeys,
     processing,
     hydrated,
     enqueueOrder,
+    enqueueOrdersForAccounts,
     removeQueuedOrder,
     retryQueuedOrder,
     clearQueue,

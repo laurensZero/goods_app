@@ -77,6 +77,63 @@ public class MihoyoSessionImportPlugin extends Plugin {
         call.resolve(result);
     }
 
+    /**
+     * 登录新账号：清 WebView Cookie 后强制打开登录页（不复用已保存 Cookie）。
+     * 成功后 Activity 会写入新 Cookie；JS 侧账号列表仍保留旧账号。
+     */
+    @PluginMethod
+    public void login(PluginCall call) {
+        try {
+            android.webkit.CookieManager cookieManager = android.webkit.CookieManager.getInstance();
+            cookieManager.removeAllCookies(null);
+            cookieManager.flush();
+        } catch (Throwable ignored) {
+        }
+        // 不 clearSavedCookie：避免登录中失败导致当前账号会话也丢失；
+        // 新登录成功后 Activity 会覆盖 SharedPreferences。
+        launchImport(call, MihoyoSessionImportActivity.MODE_LOGIN);
+    }
+
+    /** 多账号切换：写入原生侧保存的 Cookie（与 WebView 登录成功后的落盘路径一致） */
+    @PluginMethod
+    public void setSavedCookie(PluginCall call) {
+        String cookie = call.getString("cookie", "");
+        if (cookie == null) cookie = "";
+        cookie = cookie.trim();
+
+        SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        if (cookie.isEmpty()) {
+            prefs.edit().remove(KEY_COOKIE).apply();
+        } else {
+            java.text.SimpleDateFormat isoFormat =
+                new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US);
+            isoFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+            String updatedAt = isoFormat.format(new java.util.Date());
+            prefs.edit()
+                .putString(KEY_COOKIE, cookie)
+                .putString("updated_at", updatedAt)
+                .apply();
+            try {
+                SharedPreferences capacitorPrefs =
+                    getContext().getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
+                JSONObject cookieState = new JSONObject();
+                cookieState.put("cookie", cookie);
+                cookieState.put("updatedAt", updatedAt);
+                cookieState.put("invalidAt", "");
+                cookieState.put("invalidReason", "");
+                capacitorPrefs.edit()
+                    .putString("mihoyo_cookie_state", cookieState.toString())
+                    .apply();
+            } catch (Exception ignored) {
+            }
+        }
+
+        JSObject result = new JSObject();
+        result.put("ok", true);
+        result.put("hasCookie", !cookie.isEmpty());
+        call.resolve(result);
+    }
+
     private void tryWithSavedCookie(PluginCall call, String mode) {
         SharedPreferences prefs = getContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String savedCookie = prefs.getString(KEY_COOKIE, "").trim();
@@ -142,6 +199,7 @@ public class MihoyoSessionImportPlugin extends Plugin {
 
         try {
             JSObject response = buildResponse(payload, payload.optString("mode", ""));
+            response.put("cookie", payload.optString("cookie", ""));
             call.resolve(response);
         } catch (Exception error) {
             call.reject("解析导入结果失败: " + error.getMessage());

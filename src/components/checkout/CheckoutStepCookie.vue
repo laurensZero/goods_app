@@ -38,6 +38,29 @@
       </div>
     </div>
 
+    <div v-if="accounts?.length" class="account-pick">
+      <p class="account-pick__title">{{ $t('checkout.pickAccount') }}</p>
+      <div class="account-pick__list">
+        <button
+          v-for="account in accounts"
+          :key="account.id"
+          type="button"
+          class="account-pick__item"
+          :class="{ 'account-pick__item--active': String(account.id) === String(activeAccountId) }"
+          @click="$emit('select-account', account)"
+        >
+          <span class="account-pick__avatar" aria-hidden="true">
+            <img v-if="account.avatarUrl" :src="account.avatarUrl" :alt="account.label" class="account-pick__img" />
+            <span v-else class="account-pick__fallback">{{ (account.label || '?').charAt(0) }}</span>
+          </span>
+          <span class="account-pick__copy">
+            <span class="account-pick__label">{{ account.label }}</span>
+            <span class="account-pick__meta">{{ account.accountId || account.id }}</span>
+          </span>
+        </button>
+      </div>
+    </div>
+
     <div v-if="!isNativePlatform" class="field">
       <span class="field-label">{{ $t('import.pasteCookie') }}</span>
       <textarea
@@ -73,10 +96,14 @@ const props = defineProps({
   hasSavedCookie: { type: Boolean, default: false },
   cookieWarningMessage: { type: String, default: '' },
   rememberCookie: { type: Boolean, default: false },
+  accounts: { type: Array, default: () => [] },
+  activeAccountId: { type: String, default: '' },
+  activeAccountLabel: { type: String, default: '' },
+  activeAccountAvatar: { type: String, default: '' },
   stepNumber: { type: Number, required: true },
   stepCount: { type: Number, required: true },
 })
-const emit = defineEmits(['update:modelValue', 'update:rememberCookie', 'clear-saved'])
+const emit = defineEmits(['update:modelValue', 'update:rememberCookie', 'clear-saved', 'select-account'])
 
 const rememberModel = computed({
   get: () => props.rememberCookie,
@@ -176,5 +203,79 @@ const cookieModel = computed({
 :global(html.theme-dark) .cookie-info__icon {
   background: rgba(109, 157, 255, 0.14);
   color: #bfd4ff;
+}
+
+.account-pick {
+  margin-bottom: 12px;
+}
+
+.account-pick__title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+}
+
+.account-pick__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-pick__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 80%, transparent);
+  border-radius: 14px;
+  background: var(--app-surface);
+  text-align: left;
+}
+
+.account-pick__item--active {
+  border-color: #2070c0;
+  background: rgba(32, 112, 192, 0.08);
+}
+
+.account-pick__avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(90, 120, 250, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-pick__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-pick__fallback {
+  font-weight: 600;
+  color: #4c7dff;
+}
+
+.account-pick__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.account-pick__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.account-pick__meta {
+  font-size: 12px;
+  color: var(--app-text-tertiary);
 }
 </style>

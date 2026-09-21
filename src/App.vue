@@ -1,5 +1,5 @@
 <template>
-  <div class="app-wrapper">
+  <div class="app-wrapper" :key="routeAliveKey">
     <div class="route-stage">
       <RouterView v-slot="{ Component, route: currentRoute }">
         <!-- v-if 必须在 component 上而不是 KeepAlive 上：KeepAlive 被卸载会连带销毁全部缓存实例 -->
@@ -31,8 +31,10 @@
 </template>
 
 <script setup>
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { useI18n } from 'vue-i18n'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -47,6 +49,8 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 import { usePullDownGesture } from '@/composables/usePullDownGesture'
+import { useSurveyStore } from '@/stores/survey'
+import { useLegalStore } from '@/stores/legal'
 import { createLogger } from '@/utils/logger'
 
 const shellLog = createLogger('app-shell')
@@ -107,6 +111,7 @@ const AsyncAiAssistantPopup = defineAsyncComponent({
 })
 
 const route = useRoute()
+const router = useRouter()
 const { t } = useI18n()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
@@ -116,9 +121,6 @@ const appUpdateStore = useAppUpdateStore()
 const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()
 
-// Survey popup（等用户协议门禁通过后再弹，避免叠加）
-import { useSurveyStore } from '@/stores/survey'
-import { useLegalStore } from '@/stores/legal'
 const surveyStore = useSurveyStore()
 const legalStore = useLegalStore()
 const surveyPopupRef = ref(null)
@@ -126,6 +128,39 @@ const surveyPopupRef = ref(null)
 // 壳层弹窗等首屏挂载后再加载，避免把公告/问卷/更新检查等拖进首包关键路径
 const shellReady = ref(false)
 const showFloatingPlayer = ref(false)
+
+// 从登录 WebView/系统浏览器返回后若路由树被回收成空白，用该 key 强制重建
+const routeAliveKey = ref(0)
+let appStateListener = null
+let recoveringAlive = false
+
+function isRouteStageBlank() {
+  const root = document.getElementById('app')
+  const stage = root?.querySelector('.route-stage')
+  if (!stage) return true
+  const scene = stage.querySelector('.route-scene')
+  if (!scene) return true
+  const rect = scene.getBoundingClientRect()
+  return rect.height < 4 || rect.width < 4
+}
+
+async function recoverFromBlankResume() {
+  if (recoveringAlive) return
+  recoveringAlive = true
+  try {
+    await nextTick()
+    if (!isRouteStageBlank()) return
+    const path = route.fullPath || '/home'
+    routeAliveKey.value += 1
+    await nextTick()
+    if (path !== '/home') {
+      try { await router.replace('/home') } catch { /* ignore */ }
+    }
+    try { await router.replace(path) } catch { /* ignore */ }
+  } finally {
+    recoveringAlive = false
+  }
+}
 
 watch(() => surveyStore.isLoaded, async (loaded) => {
   if (!loaded) return
@@ -135,7 +170,6 @@ watch(() => surveyStore.isLoaded, async (loaded) => {
   }, 800)
 }, { immediate: true })
 
-// 监听测试通知事件
 window.addEventListener('app-notify-test', (e) => {
   if (e.detail) {
     pushNotify(e.detail)
@@ -166,9 +200,6 @@ useDeepLinks({
   }
 })
 
-// 任意页面顶部大幅下拉并停顿 → 弹出 AI 助手（手机自顶部滑入，平板居中；
-// 已在 AI 聊天页或弹窗已打开时不触发）。
-// 组件在 shellReady 后常驻，动画靠 modelValue 开关，与其它 AppSheet 一致。
 const aiAssistantVisible = ref(false)
 usePullDownGesture({
   enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value,
@@ -178,14 +209,27 @@ usePullDownGesture({
 })
 useAppStartup()
 
-onMounted(() => {
-  // 双 rAF：确保首屏渲染完成后再拉壳层重组件，避免抢首包带宽
+onMounted(async () => {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      appStateListener = await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) void recoverFromBlankResume()
+      })
+    } catch (error) {
+      shellLog.warn('app-state-listener-failed', error)
+    }
+  }
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       showFloatingPlayer.value = true
       shellReady.value = true
     })
   })
+})
+
+onUnmounted(() => {
+  try { appStateListener?.remove?.() } catch { /* ignore */ }
+  appStateListener = null
 })
 </script>
 
@@ -221,4 +265,3 @@ body,
    Route-stage background fills the gap — no overlay, no white flash. */
 
 </style>
-

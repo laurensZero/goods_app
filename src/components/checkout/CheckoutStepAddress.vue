@@ -5,6 +5,20 @@
       <h2 class="section-title">{{ $t('checkout.stepAddress') }}</h2>
     </div>
 
+    <div v-if="accountLabel" class="account-banner">
+      <span class="account-banner__avatar" aria-hidden="true">
+        <img v-if="accountAvatar" :src="accountAvatar" :alt="accountLabel" class="account-banner__img" />
+        <span v-else class="account-banner__fallback">{{ accountLabel.charAt(0) }}</span>
+      </span>
+      <div class="account-banner__copy">
+        <p class="account-banner__title">{{ $t('checkout.addressForAccount', { label: accountLabel }) }}</p>
+        <p class="account-banner__hint">{{ $t('checkout.addressAccountHint') }}</p>
+      </div>
+      <button type="button" class="account-banner__switch" @click="$emit('switch-account')">
+        {{ $t('import.switchAccount') }}
+      </button>
+    </div>
+
     <div v-if="addressLoading" class="loading-state">
       <div class="parse-spinner" />
       <p class="loading-text">{{ $t('checkout.fetchingAddress') }}</p>
@@ -46,15 +60,78 @@ defineProps({
   selectedAddressId: { type: String, default: '' },
   addressLoading: { type: Boolean, default: false },
   addressError: { type: String, default: '' },
+  accountLabel: { type: String, default: '' },
+  accountAvatar: { type: String, default: '' },
   formatAddress: { type: Function, required: true },
   stepNumber: { type: Number, required: true },
   stepCount: { type: Number, required: true },
 })
-defineEmits(['select-address'])
+defineEmits(['select-address', 'switch-account'])
 </script>
 
 <style src="@/assets/views/checkout-shared.css"></style>
 <style scoped>
+.account-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, #2070c0 8%, var(--app-surface));
+}
+
+.account-banner__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(90, 120, 250, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-banner__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.account-banner__fallback {
+  font-weight: 700;
+  color: #2070c0;
+}
+
+.account-banner__copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.account-banner__title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.account-banner__hint {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.account-banner__switch {
+  border: none;
+  background: transparent;
+  color: #2070c0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 4px;
+  flex-shrink: 0;
+}
+
 /* ── 地址 ── */
 .address-list {
   display: flex;

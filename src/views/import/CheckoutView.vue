@@ -2,6 +2,12 @@
   <div class="page checkout-page">
     <NavBar :title="t('checkout.title')" show-back @back="handleBack">
       <template #right>
+        <MihoyoAccountNavBtn
+          :label="mihoyoActiveAccountLabel"
+          :avatar="mihoyoActiveAccountAvatar"
+          :accounts-count="mihoyoAccounts.length"
+          @click="openAccountSheet"
+        />
         <button
           type="button"
           class="nav-icon-btn queue-entry-btn"
@@ -30,9 +36,14 @@
           :cookie-valid="cookieValid"
           :has-saved-cookie="hasSavedCookie"
           :cookie-warning-message="cookieWarningMessage"
+          :accounts="mihoyoAccounts"
+          :active-account-id="mihoyoActiveAccountId"
+          :active-account-label="mihoyoActiveAccountLabel"
+          :active-account-avatar="mihoyoActiveAccountAvatar"
           :step-number="displayStepIndex + 1"
           :step-count="displayStepCount"
           @clear-saved="clearSavedCookie(false)"
+          @select-account="handleSelectCheckoutAccount"
         />
 
         <CheckoutStepAddress
@@ -42,10 +53,13 @@
           :selected-address-id="selectedAddressId"
           :address-loading="addressLoading"
           :address-error="addressError"
+          :account-label="mihoyoActiveAccountLabel"
+          :account-avatar="mihoyoActiveAccountAvatar"
           :format-address="formatAddress"
           :step-number="displayStepIndex + 1"
           :step-count="displayStepCount"
           @select-address="selectAddress"
+          @switch-account="openAccountSheet"
         />
 
         <CheckoutStepGoods
@@ -168,6 +182,12 @@
           :checkout-notify="qqBinding.checkoutNotify"
           :queue-items="queueItems"
           :active-queue-items="activeQueueItems"
+          :accounts="mihoyoAccounts"
+          :selected-account-ids="selectedQueueAccountIds"
+          :active-account-id="mihoyoActiveAccountId"
+          :account-addresses="accountAddressOptions"
+          :account-address-selections="accountAddressSelections"
+          :format-address="formatAddress"
           :error="error"
           :format-fen="formatFen"
           :step-number="displayStepIndex + 1"
@@ -179,6 +199,9 @@
           @infinite-retry="setInfiniteRetry"
           @decrease-concurrency="decreaseConcurrency"
           @increase-concurrency="increaseConcurrency"
+          @toggle-account="toggleQueueAccount"
+          @select-account-address="selectAccountAddress"
+          @open-account-address="openAccountAddressPicker"
           @toggle-checkout-notify="(v) => qqBinding.toggleCheckoutNotify(v).catch(() => {})"
           @open-queue="showQueueManager = true"
         />
@@ -254,12 +277,41 @@
       :remove-queued-order="removeQueuedOrder"
     />
 
+    <CheckoutAccountAddressSheet
+      v-model="showAccountAddressSheet"
+      :account-label="addressPickerAccount?.label || ''"
+      :account-id="String(addressPickerAccount?.id || '')"
+      :selected-id="String(accountAddressSelections[String(addressPickerAccount?.id || '')] || '')"
+      :list="accountAddressOptions[String(addressPickerAccount?.id || '')]?.list || []"
+      :loading="Boolean(accountAddressOptions[String(addressPickerAccount?.id || '')]?.loading)"
+      :error="accountAddressOptions[String(addressPickerAccount?.id || '')]?.error
+        ? t('checkout.accountAddressLoadFailed')
+        : ''"
+      :has-cookie="Boolean(addressPickerAccount?.cookie)"
+      :format-address="formatAddress"
+      @select="(addressId) => selectAccountAddress(addressPickerAccount?.id, addressId)"
+      @retry="reloadAccountAddressPicker"
+    />
+
     <CheckoutCartPicker
       v-model:show="showCartPicker"
       :is-tablet-viewport="isTabletViewport"
       :cookie="cookie"
       :add-items-from-cart="addItemsFromCart"
       @added="handleCartAdded"
+    />
+
+    <MihoyoAccountSheet
+      ref="accountSheetRef"
+      v-model="showAccountSheet"
+      :accounts="mihoyoAccounts"
+      :active-account-id="mihoyoActiveAccountId"
+      :active-account-label="mihoyoActiveAccountLabel"
+      @switch="handleSelectCheckoutAccount"
+      @remove="onRemoveMihoyoAccount"
+      @logout="handleCheckoutLogout"
+      @login-native="onLoginNewNative"
+      @login-cookie="onLoginNewCookie"
     />
 
     <AppToast :message="toastMsg" />
@@ -284,7 +336,10 @@ import CheckoutStepReview from '@/components/checkout/CheckoutStepReview.vue'
 import CheckoutStepSubmit from '@/components/checkout/CheckoutStepSubmit.vue'
 import CheckoutQueueManager from '@/components/checkout/CheckoutQueueManager.vue'
 import CheckoutQueueDetail from '@/components/checkout/CheckoutQueueDetail.vue'
+import CheckoutAccountAddressSheet from '@/components/checkout/CheckoutAccountAddressSheet.vue'
 import CheckoutCartPicker from '@/components/checkout/CheckoutCartPicker.vue'
+import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { useCheckoutFlow, STEPS } from '@/composables/checkout/useCheckoutFlow'
 import { useCheckoutAddress } from '@/composables/checkout/useCheckoutAddress'
@@ -295,7 +350,7 @@ import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQu
 import { useCheckoutTimer } from '@/composables/checkout/useCheckoutTimer'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
-import { receiveCoupon, submitCheckoutOrder } from '@/utils/mihoyo/checkout'
+import { receiveCoupon, submitCheckoutOrder, fetchAddressList } from '@/utils/mihoyo/checkout'
 import { canUseNativeMihoyoImport, getNativeMihoyoCookie, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { formatPrice, formatDate } from '@/utils/format'
 import { useToast } from '@/composables/useToast'
@@ -322,8 +377,46 @@ const timer = useCheckoutTimer(() => (timerManuallySet.value ? Date.now() : orde
 const {
   cookieInput, rememberCookie, hasSavedCookie, cookieValid,
   cookieWarningMessage, canAutoSubmitSavedCookie, savedCookieValue,
-  initializeCookieState, applySavedCookieToInput, persistCookieAfterSuccess, handleCookieFailure, clearSavedCookie,
+  accounts: mihoyoAccounts,
+  activeAccountId: mihoyoActiveAccountId,
+  activeAccountLabel: mihoyoActiveAccountLabel,
+  activeAccountAvatar: mihoyoActiveAccountAvatar,
+  initializeCookieState, applySavedCookieToInput, persistCookieAfterSuccess,
+  handleCookieFailure, clearSavedCookie, switchAccount: switchMihoyoAccountState,
+  removeAccount: removeMihoyoAccountState,
+  refreshAccountProfiles,
+  loginNewAccountNative,
+  submitNewAccountCookie,
 } = useMihoyoCookieState()
+
+// 定时抢购多账号：默认只勾当前账号（顺序配置 A→入队→切 B）；提交页可再勾其它账号
+const selectedQueueAccountIds = ref([])
+const showAccountSheet = ref(false)
+const accountSheetRef = ref(null)
+
+function openAccountSheet() {
+  showAccountSheet.value = true
+  void refreshAccountProfiles()
+}
+// 其它账号的收货地址：accountId -> { loading, list, error }
+const accountAddressOptions = ref({})
+const accountAddressSelections = ref({})
+const showAccountAddressSheet = ref(false)
+const addressPickerAccount = ref(null)
+
+watch(
+  () => [mihoyoAccounts.value, mihoyoActiveAccountId.value],
+  () => {
+    if (!mihoyoAccounts.value?.length) {
+      selectedQueueAccountIds.value = []
+      return
+    }
+    if (!selectedQueueAccountIds.value.length && mihoyoActiveAccountId.value) {
+      selectedQueueAccountIds.value = [String(mihoyoActiveAccountId.value)]
+    }
+  },
+  { immediate: true, deep: true }
+)
 
 const isNativePlatform = computed(() => canUseNativeMihoyoImport())
 
@@ -425,6 +518,7 @@ const activeQueueItems = orderQueue.activeQueueItems
 const failedQueueItems = orderQueue.failedQueueItems
 const queueProcessing = orderQueue.processing
 const enqueueOrder = orderQueue.enqueueOrder
+const enqueueOrdersForAccounts = orderQueue.enqueueOrdersForAccounts
 const removeQueuedOrder = orderQueue.removeQueuedOrder
 const retryQueuedOrder = orderQueue.retryQueuedOrder
 const syncServerClock = orderQueue.syncServerClock
@@ -903,9 +997,16 @@ function handleCheckoutSuccess(entry) {
   const orderPoints = Number(entry.result?.orderPoints) || 0
   const productName = entry.result?.productName || ''
   const goodsText = entry.summary?.goodsText || ''
+  const accountLabel = String(
+    entry.accountLabel
+    || entry.snapshot?.accountLabel
+    || entry.summary?.accountText
+    || ''
+  ).trim() || t('checkout.qqNotifyAccountUnknown')
   const title = t('checkout.qqNotifyTitle')
   const contentLines = [
     `${t('checkout.qqNotifyBodyGreeting')}${goodsText || t('checkout.order')}`,
+    `${t('checkout.qqNotifyAccount')}：${accountLabel}`,
     ...(orderNo ? [t('checkout.orderNo') + '：' + orderNo] : []),
     ...(productName ? [productName] : []),
     // order_points > 0 即积分兑换订单（普通订单该字段恒为 0/缺省）
@@ -1042,7 +1143,7 @@ async function handleQueueOrder() {
     const serverNow = await orderQueue.syncServerClock(cookie.value, false)
     const offsetMs = serverNow - Date.now()
     const { itemsPayload, giftPayload, snapshot, summary } = buildOrderSnapshot()
-    enqueueOrder({
+    const basePayload = {
       scheduledAt: timerManuallySet.value ? timerTargetTime.value + offsetMs : timerTargetTime.value,
       displayAt: timerTargetTime.value,
       retryCount: retryCount.value,
@@ -1054,13 +1155,291 @@ async function handleQueueOrder() {
         displayAt: timerTargetTime.value,
       },
       summary,
-    })
+    }
+
+    const created = await enqueueForSelectedAccounts(basePayload)
+    if (!created) return
+
+    currentOrderQueued.value = true
+    showToast(t('checkout.queueAdded', { n: created }))
   } finally {
     queueSyncing.value = false
   }
+}
 
-  currentOrderQueued.value = true
-  showToast(t('checkout.queueAdded', { n: 1 }))
+/** 按勾选账号入队。
+ * 顺序场景：默认只勾「当前账号」，用地址步已选的收货地址。
+ * 若额外勾了其它账号，必须在提交页为该账号选好地址（各自地址互不通用）。
+ */
+async function enqueueForSelectedAccounts(basePayload) {
+  const selectedIds = new Set(
+    (selectedQueueAccountIds.value.length
+      ? selectedQueueAccountIds.value
+      : (mihoyoActiveAccountId.value ? [mihoyoActiveAccountId.value] : [])
+    ).map(String)
+  )
+
+  // 无已保存账号列表时：沿用当前 Cookie 单账号入队
+  if (!mihoyoAccounts.value?.length) {
+    if (!cookie.value) {
+      setError(t('checkout.cookieRequired'))
+      return 0
+    }
+    if (!selectedAddressId.value) {
+      setError(t('checkout.noAddress'))
+      return 0
+    }
+    enqueueOrder({
+      ...basePayload,
+      snapshot: {
+        ...basePayload.snapshot,
+        cookie: cookie.value,
+        addressId: selectedAddressId.value,
+        accountId: mihoyoActiveAccountId.value || '',
+        accountLabel: mihoyoActiveAccountLabel.value || '',
+        accountAvatarUrl: mihoyoActiveAccountAvatar.value || '',
+      },
+      summary: {
+        ...basePayload.summary,
+        accountText: mihoyoActiveAccountLabel.value || '',
+      },
+    })
+    return 1
+  }
+
+  const targets = []
+  const missingAddressAccounts = []
+  for (const account of mihoyoAccounts.value) {
+    if (!selectedIds.has(String(account.id))) continue
+    if (!account.cookie) continue
+
+    const isCurrent = String(account.id) === String(mihoyoActiveAccountId.value)
+      || (cookie.value && account.cookie === cookie.value)
+    let addressId = ''
+    if (isCurrent) {
+      addressId = String(selectedAddressId.value || accountAddressSelections.value[String(account.id)] || '')
+    } else {
+      addressId = String(accountAddressSelections.value[String(account.id)] || '')
+    }
+    if (!addressId) {
+      missingAddressAccounts.push(account.label || account.accountId || account.id)
+      continue
+    }
+
+    targets.push({
+      cookie: account.cookie,
+      accountId: String(account.id || ''),
+      accountLabel: String(account.label || ''),
+      accountAvatarUrl: String(account.avatarUrl || ''),
+      addressId,
+    })
+  }
+
+  if (missingAddressAccounts.length) {
+    setError(t('checkout.queuePickAddressForAccounts', { names: missingAddressAccounts.join('、') }))
+    return 0
+  }
+  if (!targets.length) {
+    setError(t('checkout.queueAccountNoAddress'))
+    return 0
+  }
+
+  const created = enqueueOrdersForAccounts(basePayload, targets)
+  return created.length
+}
+
+async function handleSelectCheckoutAccount(account) {
+  if (!account?.cookie) return
+  if (String(account.id) === String(mihoyoActiveAccountId.value) && cookie.value === account.cookie) {
+    showAccountSheet.value = false
+    return
+  }
+
+  const result = await switchMihoyoAccountState(account.id)
+  if (!result?.ok) {
+    setError(t('import.switchAccountFailed'))
+    return
+  }
+
+  cookieInput.value = result.cookie
+  cookie.value = result.cookie
+  rememberCookie.value = true
+  showAccountSheet.value = false
+
+  // 顺序多账号：切号后清空上一账号的购物车/结果，避免把 A 的商品误入队到 B
+  goods.clearItems()
+  points.reset?.()
+  orderResult.value = null
+  currentOrderQueued.value = false
+  couponResults.value = []
+  claimedCoupons.value = []
+  isPointOrder.value = false
+  setError('')
+  selectedQueueAccountIds.value = result.id ? [String(result.id)] : (result.accountId ? [String(result.accountId)] : [])
+  accountAddressSelections.value = {}
+  accountAddressOptions.value = {}
+
+  addresses.value = []
+  selectedAddressId.value = ''
+  try {
+    await address.loadAddresses(result.cookie)
+  } catch (e) {
+    setError(e?.message || t('checkout.noAddress'))
+  }
+
+  // 从地址/商品等步骤切号时，回到地址步重新选该账号的收货地址
+  if (currentStep.value.key !== 'cookie') {
+    goToStep(STEPS.findIndex((step) => step.key === 'address'))
+  }
+  showToast(t('checkout.switchedAccount', { label: result.accountLabel || account.label || '' }))
+}
+
+async function onRemoveMihoyoAccount(account) {
+  await removeMihoyoAccountState(account?.id)
+}
+
+async function handleCheckoutLogout() {
+  await clearSavedCookie(true)
+  cookie.value = ''
+  cookieInput.value = ''
+  goods.clearItems()
+  addresses.value = []
+  selectedAddressId.value = ''
+  orderResult.value = null
+  currentOrderQueued.value = false
+  selectedQueueAccountIds.value = []
+  goToStep(STEPS.findIndex((step) => step.key === 'cookie'))
+}
+
+/** 登录新成功后：只切换会话与地址，不整页重建，避免 WebView 返回白屏感 */
+async function applyNewCheckoutAccountCookie(nextCookie) {
+  cookie.value = nextCookie
+  cookieInput.value = nextCookie
+  rememberCookie.value = true
+  goods.clearItems()
+  points.reset?.()
+  orderResult.value = null
+  currentOrderQueued.value = false
+  couponResults.value = []
+  claimedCoupons.value = []
+  isPointOrder.value = false
+  selectedQueueAccountIds.value = mihoyoActiveAccountId.value
+    ? [String(mihoyoActiveAccountId.value)]
+    : []
+  addresses.value = []
+  selectedAddressId.value = ''
+  try {
+    await address.loadAddresses(nextCookie)
+  } catch (e) {
+    setError(e?.message || t('checkout.noAddress'))
+  }
+  goToStep(STEPS.findIndex((step) => step.key === 'address'))
+}
+
+async function onLoginNewNative() {
+  const result = await loginNewAccountNative()
+  accountSheetRef.value?.closeAll?.()
+  if (!result.ok) {
+    if (result.cancelled) return
+    setError(result.unsupported
+      ? t('import.loginNewAccountUnsupported')
+      : (result.message || t('import.loginNewAccountFailed')))
+    return
+  }
+  await applyNewCheckoutAccountCookie(result.cookie)
+}
+
+async function onLoginNewCookie({ cookie: nextCookie, remember } = {}) {
+  const result = await submitNewAccountCookie(nextCookie, remember)
+  if (!result.ok) {
+    setError(t('import.loginNewAccountFailed'))
+    return
+  }
+  accountSheetRef.value?.closeAll?.()
+  await applyNewCheckoutAccountCookie(result.cookie)
+}
+
+/** 其它账号：用该账号自己的 Cookie 拉地址（force=打开选择器时总是重拉） */
+async function ensureAccountAddresses(account, { force = false } = {}) {
+  const id = String(account?.id || '')
+  if (!id) return
+  const cookieValue = String(account?.cookie || '').trim()
+  if (!cookieValue) {
+    accountAddressOptions.value = {
+      ...accountAddressOptions.value,
+      [id]: { loading: false, list: [], error: true },
+    }
+    return
+  }
+
+  const cached = accountAddressOptions.value[id]
+  if (!force && cached?.list?.length) return
+  if (!force && cached?.loading) return
+
+  accountAddressOptions.value = {
+    ...accountAddressOptions.value,
+    [id]: { loading: true, list: force ? [] : (cached?.list || []), error: false },
+  }
+  try {
+    // 必须用目标账号 cookie，不能用当前会话 cookie
+    const list = await fetchAddressList(cookieValue)
+    const def = (list || []).find((item) => Number(item.is_default) === 1) || (list || [])[0]
+    accountAddressOptions.value = {
+      ...accountAddressOptions.value,
+      [id]: { loading: false, list: list || [], error: false },
+    }
+    const selected = String(accountAddressSelections.value[id] || '')
+    const stillValid = (list || []).some((item) => String(item.id) === selected)
+    if (!stillValid && def) {
+      accountAddressSelections.value = {
+        ...accountAddressSelections.value,
+        [id]: String(def.id),
+      }
+    }
+  } catch (error) {
+    console.warn('[checkout] load account address failed', id, error?.message)
+    accountAddressOptions.value = {
+      ...accountAddressOptions.value,
+      [id]: { loading: false, list: force ? [] : (cached?.list || []), error: true },
+    }
+  }
+}
+
+function openAccountAddressPicker(account) {
+  if (!account) return
+  addressPickerAccount.value = account
+  showAccountAddressSheet.value = true
+  void ensureAccountAddresses(account, { force: true })
+}
+
+function reloadAccountAddressPicker() {
+  const account = addressPickerAccount.value
+  if (!account) return
+  void ensureAccountAddresses(account, { force: true })
+}
+
+function selectAccountAddress(accountId, addressId) {
+  const id = String(accountId || '')
+  if (!id) return
+  accountAddressSelections.value = {
+    ...accountAddressSelections.value,
+    [id]: String(addressId || ''),
+  }
+}
+
+function toggleQueueAccount(accountId) {
+  const id = String(accountId || '')
+  if (!id) return
+  const next = new Set(selectedQueueAccountIds.value.map(String))
+  if (next.has(id)) {
+    next.delete(id)
+  } else {
+    next.add(id)
+    const account = mihoyoAccounts.value.find((item) => String(item.id) === id)
+    const isCurrent = id === String(mihoyoActiveAccountId.value)
+    if (account && !isCurrent) void ensureAccountAddresses(account, { force: true })
+  }
+  selectedQueueAccountIds.value = [...next]
 }
 
 const retryCount = ref(3)
@@ -1237,6 +1616,50 @@ onUnmounted(() => {
   line-height: 16px;
   text-align: center;
   box-shadow: 0 0 0 2px var(--app-bg);
+}
+
+/* ── 顶栏账号切换 ── */
+.nav-account-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 120px;
+  margin-right: 4px;
+  padding: 4px 8px 4px 4px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--app-text) 6%, transparent);
+  color: var(--app-text);
+  cursor: pointer;
+}
+
+.nav-account-btn__avatar,
+.nav-account-btn__fallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.nav-account-btn__fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(90, 120, 250, 0.16);
+  color: #4c7dff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.nav-account-btn__label {
+  min-width: 0;
+  max-width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* ── 离开确认 ── */

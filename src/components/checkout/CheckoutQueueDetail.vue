@@ -15,6 +15,10 @@
       </div>
 
       <div class="queue-detail__rows">
+        <div v-if="activeQueueDetail.accountLabel || activeQueueDetail.snapshot?.accountLabel" class="queue-detail__row">
+          <span class="queue-detail__row-label">{{ $t('checkout.queueAccount') }}</span>
+          <span class="queue-detail__row-value">{{ activeQueueDetail.accountLabel || activeQueueDetail.snapshot?.accountLabel }}</span>
+        </div>
         <div class="queue-detail__row">
           <span class="queue-detail__row-label">{{ $t('checkout.queueScheduledAt') }}</span>
           <span class="queue-detail__row-value">{{ formatQueueTime(activeQueueDetail.displayAt || activeQueueDetail.scheduledAt) }}</span>
