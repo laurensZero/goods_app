@@ -179,7 +179,10 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading.value = true
     error.value = ''
     try {
-      const data = await signUpWithEmail(email, password, { metadata })
+      const data = await signUpWithEmail(email, password, {
+        metadata,
+        emailRedirectTo: getAuthRedirectTo() || undefined
+      })
       // Confirm email 开启时无 session：不可 setUser，否则 isLoggedIn 会误判为已登录
       if (data.session) {
         _pendingLoginSync = true

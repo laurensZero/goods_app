@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>谷子收纳 · Auth 邮件模板</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --ink: #141416;
+      --muted: #5f6570;
+      --faint: #8e8e93;
+      --line: rgba(17, 20, 22, 0.08);
+      --accent: #2070c0;
+      --surface: #fff;
+      --ok: #1f9d63;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.6;
+    }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 28px 16px 64px; }
+    header.hero {
+      background: linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%);
+      color: #fff;
+      border-radius: 18px;
+      padding: 28px 28px 24px;
+      margin-bottom: 28px;
+    }
+    header.hero h1 { margin: 0 0 8px; font-size: 22px; font-weight: 600; }
+    header.hero p { margin: 0; color: rgba(255,255,255,0.62); font-size: 14px; }
+    .section-title {
+      margin: 32px 0 12px;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .card {
+      background: var(--surface);
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .card p, .card li {
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .card ol, .card ul { padding-left: 1.25em; margin: 8px 0 0; }
+    code, .kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: #eef0f2;
+      padding: 2px 6px;
+      border-radius: 6px;
+      color: var(--ink);
+    }
+    .warn {
+      border-left: 3px solid #d4a017;
+      background: #fff8e8;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .ok-note {
+      border-left: 3px solid var(--ok);
+      background: #eefaf3;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin: 12px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+    @media (min-width: 800px) {
+      .grid.two { grid-template-columns: 1fr 1fr; }
+    }
+    .preview-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .preview-card .meta {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .preview-card .meta h3 {
+      margin: 0 0 4px;
+      font-size: 15px;
+    }
+    .preview-card .meta p {
+      margin: 0;
+      font-size: 12px;
+      color: var(--faint);
+    }
+    .preview-card .meta a {
+      color: var(--accent);
+      font-size: 13px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .preview-card iframe {
+      display: block;
+      width: 100%;
+      height: 560px;
+      border: 0;
+      background: var(--bg);
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #eef0f2;
+      color: var(--muted);
+      margin-right: 6px;
+    }
+    table.vars {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+    table.vars th, table.vars td {
+      text-align: left;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+    table.vars th { color: var(--faint); font-weight: 500; width: 30%; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <h1>谷子收纳 · Auth 邮件模板</h1>
+      <p>六封系统邮件的 HTML 源码与预览 · 发件域名 goodsapp.de5.net · 复制到 Supabase 后台即可使用</p>
+    </header>
+
+    <div class="card">
+      <h2>先修：验证链接为什么「没用」</h2>
+      <p>你邮件里的 <code>redirect_to=http://localhost:3000</code> 是错误入口：</p>
+      <ul>
+        <li>本地 Vite 端口是 <code>5173</code>，不是 <code>3000</code></li>
+        <li>生产环境应是 <code>https://goodsapp.de5.net</code> 或 <code>https://goods-app.pages.dev</code></li>
+        <li>点击验证后若跳到打不开的地址，看起来像验证失败；服务端其实可能已通过</li>
+      </ul>
+      <p style="margin-top:12px;font-weight:600;color:var(--ink);">Supabase 后台操作：</p>
+      <ol>
+        <li>打开 <strong>Authentication → URL Configuration</strong></li>
+        <li><strong>Site URL</strong> 填生产 Web 入口，例如 <code>https://goodsapp.de5.net</code></li>
+        <li><strong>Redirect URLs</strong> 至少加上：
+          <div style="margin-top:6px;">
+            <code>https://goodsapp.de5.net</code><br/>
+            <code>https://goodsapp.de5.net/*</code><br/>
+            <code>https://goods-app.pages.dev</code><br/>
+            <code>https://goods-app.pages.dev/*</code><br/>
+            <code>http://localhost:5173</code><br/>
+            <code>http://localhost:5173/*</code>
+          </div>
+        </li>
+        <li>保存后，再用<strong>全新邮箱</strong>注册一次，新邮件里的链接才会指向正确地址</li>
+      </ol>
+      <div class="warn">
+        代码侧已修改：注册时会带上 <code>emailRedirectTo</code>（与魔法链接一致）。Capacitor/Android 场景请在
+        <code>src/config/supabase.js</code> 里把 <code>AUTH_WEB_ORIGIN</code> 设为公网 Web 地址，例如
+        <code>https://goodsapp.de5.net</code>，否则手机上打开邮件链接可能落到错误 origin。
+      </div>
+      <div class="ok-note">
+        密码重置走的是 App 内 OTP 流程（填验证码），模板里 <code>{{ .Token }}</code> 才是主路径；链接按钮是备用。
+      </div>
+      <div class="ok-note">
+        邮件头像 Logo 使用公网地址 <code>https://goodsapp.de5.net/assets/logo-email.png</code>。
+        文件已在 <code>public/assets/logo-email.png</code>，随 Cloudflare Pages 部署后即可加载。
+        部署前请先确认该地址能打开；打不开时邮件里会没有图（正文与按钮仍可用）。
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>如何粘贴到 Supabase</h2>
+      <ol>
+        <li>后台 <strong>Authentication → Emails</strong></li>
+        <li>点开对应邮件类型（Confirm signup / Magic Link / Change Email / Reset Password / Invite / Reauthentication）</li>
+        <li>Subject 填中文标题（见下方对照表）</li>
+        <li>Message HTML 粘贴本目录对应 <code>.html</code> 文件<strong>完整源码</strong>（保留 <code>{{ .… }}</code> 变量）</li>
+        <li>Save。用新邮箱注册 / 点魔法链接各测一封</li>
+      </ol>
+      <table class="vars">
+        <thead>
+          <tr><th>Supabase 模板名</th><th>Subject 建议</th><th>文件</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Confirm signup</td>
+            <td>请验证你的谷子收纳账号邮箱</td>
+            <td><code>confirm-signup.html</code></td>
+          </tr>
+          <tr>
+            <td>Magic Link</td>
+            <td>你的谷子收纳登录链接</td>
+            <td><code>magic-link.html</code></td>
+          </tr>
+          <tr>
+            <td>Change Email Address</td>
+            <td>确认更换谷子收纳账号邮箱</td>
+            <td><code>change-email.html</code></td>
+          </tr>
+          <tr>
+            <td>Reset Password</td>
+            <td>谷子收纳密码重置验证码</td>
+            <td><code>reset-password.html</code></td>
+          </tr>
+          <tr>
+            <td>Invite User</td>
+            <td>邀请你加入谷子收纳</td>
+            <td><code>invite-user.html</code></td>
+          </tr>
+          <tr>
+            <td>Reauthentication</td>
+            <td>谷子收纳安全验证验证码</td>
+            <td><code>reauthentication.html</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="margin-top:12px;">模板变量必须原样保留：</p>
+      <ul>
+        <li><code>{{ .ConfirmationURL }}</code> — 验证 / 登录 / 换绑链接</li>
+        <li><code>{{ .Token }}</code> — 验证码（重置密码、再认证）</li>
+        <li><code>{{ .Email }}</code>、<code>{{ .SiteURL }}</code> — 可选，当前模板未用</li>
+      </ul>
+    </div>
+
+    <h2 class="section-title">邮件预览</h2>
+    <div class="grid two" id="previews"></div>
+  </div>
+
+  <script>
+    const templates = [
+      {
+        id: 'confirm-signup',
+        title: '确认邮箱',
+        hint: 'Confirm signup · {{ .ConfirmationURL }}',
+        subject: '请验证你的谷子收纳账号邮箱',
+        file: 'confirm-signup.html'
+      },
+      {
+        id: 'magic-link',
+        title: '魔法链接登录',
+        hint: 'Magic Link · {{ .ConfirmationURL }}',
+        subject: '你的谷子收纳登录链接',
+        file: 'magic-link.html'
+      },
+      {
+        id: 'reset-password',
+        title: '重置密码',
+        hint: 'Reset Password · {{ .Token }} + ConfirmationURL',
+        subject: '谷子收纳密码重置验证码',
+        file: 'reset-password.html'
+      },
+      {
+        id: 'change-email',
+        title: '换绑邮箱',
+        hint: 'Change Email · {{ .ConfirmationURL }}',
+        subject: '确认更换谷子收纳账号邮箱',
+        file: 'change-email.html'
+      },
+      {
+        id: 'invite-user',
+        title: '邀请加入',
+        hint: 'Invite User · {{ .ConfirmationURL }}',
+        subject: '邀请你加入谷子收纳',
+        file: 'invite-user.html'
+      },
+      {
+        id: 'reauthentication',
+        title: '安全验证',
+        hint: 'Reauthentication · {{ .Token }}',
+        subject: '谷子收纳安全验证验证码',
+        file: 'reauthentication.html'
+      }
+    ]
+
+    const sample = {
+      confirmationURL: 'https://zvqzicimowfqshgjsrri.supabase.co/auth/v1/verify?token=demo-token&type=signup&redirect_to=https://goodsapp.de5.net',
+      token: '482913'
+    }
+
+    function fill(html) {
+      return html
+        .replaceAll('{{ .ConfirmationURL }}', sample.confirmationURL)
+        .replaceAll('{{ .Token }}', sample.token)
+        .replaceAll('{{ .Email }}', 'user@example.com')
+        .replaceAll('{{ .SiteURL }}', 'https://goodsapp.de5.net')
+        // 预览时优先用本地相对路径，公网域名未部署也能看到 logo
+        .replaceAll('https://goodsapp.de5.net/assets/logo-email.png', './assets/logo.png')
+    }
+
+    const root = document.getElementById('previews')
+
+    templates.forEach((t) => {
+      const card = document.createElement('article')
+      card.className = 'preview-card'
+      card.innerHTML = `
+        <div class="meta">
+          <div>
+            <h3>${t.title}</h3>
+            <p><span class="tag">${t.file}</span>${t.hint}</p>
+            <p style="margin-top:6px;">Subject：${t.subject}</p>
+          </div>
+          <a href="./${t.file}" target="_blank">查看源码</a>
+        </div>
+        <iframe title="${t.title}" data-src="${t.file}"></iframe>
+      `
+      root.appendChild(card)
+    })
+
+    // file:// 下 fetch 同目录可能被拦；若失败则提示用相对路径直接打开源码
+    document.querySelectorAll('iframe[data-src]').forEach(async (iframe) => {
+      const src = iframe.getAttribute('data-src')
+      try {
+        const res = await fetch(src)
+        if (!res.ok) throw new Error(res.status)
+        const text = await res.text()
+        iframe.srcdoc = fill(text)
+      } catch (e) {
+        iframe.src = src
+      }
+    })
+  </script>
+</body>
+</html>
