@@ -15,8 +15,6 @@ import {
 } from '@/stores/goods/goodsHelpers'
 import { cancelSaleReminderNotifications, scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
 import {
-  applyAcquiredAtToTimeline,
-  bootstrapAcquisitionStatus,
   ensureInitialTimeline,
   maintainTimelineOnGoodsUpdate
 } from '@/utils/goods/statusTimeline'
@@ -166,17 +164,23 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     changed = true
     previousItems.push(item)
 
-    // 批量编辑购入日期 → 购入语义条目同步到新日期(与编辑器共用 applyAcquiredAtToTimeline);
-    // 空时间线的兜底状态限购入语义,避免给「已出/在售」商品造出假卖出条目
-    const mergedData = { ...item, ...data, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
-    const newAcquiredAt = data.acquiredAt || ''
-    const oldAcquiredAt = item.acquiredAt || ''
-    if (newAcquiredAt && newAcquiredAt !== oldAcquiredAt) {
-      const timeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
-      mergedData.statusTimeline = timeline.length === 0
-        ? [{ status: bootstrapAcquisitionStatus(item.collectStatus), at: newAcquiredAt }]
-        : applyAcquiredAtToTimeline(timeline, oldAcquiredAt, newAcquiredAt)
+    let patch = { ...data }
+
+    // 批量改整条收藏状态时，多件商品的逐件状态同步对齐；
+    // 否则列表角标/时间流转仍按 unitCollectStatusList 显示旧状态（如「已拥有」）
+    const becomesWishlist = data.isWishlist === true
+    const staysWishlist = item.isWishlist === true && data.isWishlist === undefined
+    if (data.collectStatus !== undefined && !becomesWishlist && !staysWishlist) {
+      const qty = Math.max(1, Number(data.quantity ?? item.quantity) || 1)
+      if (qty >= 2) {
+        const newStatus = String(data.collectStatus || '').trim() || '已拥有'
+        patch.unitCollectStatusList = Array.from({ length: qty }, () => newStatus)
+      }
     }
+
+    // 时间线自动维护与单件编辑/MCP 共用：改状态、逐件状态、购入日期等都会落时间线条目
+    const timelineAware = maintainTimelineOnGoodsUpdate(item, patch)
+    const mergedData = { ...item, ...timelineAware, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
     const next = normalizeGoodsInput(mergedData, item.id)
     for (const path of diffRemovedManagedImagePaths(item, next)) {
       removedPaths.add(path)
