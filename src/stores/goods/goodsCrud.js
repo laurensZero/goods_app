@@ -148,13 +148,14 @@ export async function updateGoods(id, data, list, onMutate) {
 
 /**
  * @param {Set<string>} ids
- * @param {object} data
+ * @param {object | ((item: import('@/types/models').GoodsItem) => object)} data - 字段补丁，或按条目返回补丁的函数（如优惠分摊）
  * @param {import('vue').ShallowRef<import('@/types/models').GoodsItem[]>} list
  * @param {() => void} [onMutate]
  */
 export async function updateMultipleGoods(ids, data, list, onMutate) {
   let changed = false
-  const imagesExplicit = Array.isArray(data?.images)
+  const isFn = typeof data === 'function'
+  const sharedImages = !isFn && Array.isArray(data?.images)
   const now = Date.now()
   const removedPaths = new Set()
   const previousItems = []
@@ -164,16 +165,18 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     changed = true
     previousItems.push(item)
 
-    let patch = { ...data }
+    const itemData = isFn ? (data(item) || {}) : data
+    const imagesExplicit = isFn ? Array.isArray(itemData?.images) : sharedImages
+    let patch = { ...itemData }
 
     // 批量改整条收藏状态时，多件商品的逐件状态同步对齐；
     // 否则列表角标/时间流转仍按 unitCollectStatusList 显示旧状态（如「已拥有」）
-    const becomesWishlist = data.isWishlist === true
-    const staysWishlist = item.isWishlist === true && data.isWishlist === undefined
-    if (data.collectStatus !== undefined && !becomesWishlist && !staysWishlist) {
-      const qty = Math.max(1, Number(data.quantity ?? item.quantity) || 1)
+    const becomesWishlist = itemData.isWishlist === true
+    const staysWishlist = item.isWishlist === true && itemData.isWishlist === undefined
+    if (itemData.collectStatus !== undefined && !becomesWishlist && !staysWishlist) {
+      const qty = Math.max(1, Number(itemData.quantity ?? item.quantity) || 1)
       if (qty >= 2) {
-        const newStatus = String(data.collectStatus || '').trim() || '已拥有'
+        const newStatus = String(itemData.collectStatus || '').trim() || '已拥有'
         patch.unitCollectStatusList = Array.from({ length: qty }, () => newStatus)
       }
     }

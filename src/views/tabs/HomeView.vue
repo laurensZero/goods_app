@@ -208,18 +208,26 @@
       @apply="applyBatchEditPayload"
     />
 
+    <CouponAllocateSheet
+      v-model:show="showCouponAllocateSheet"
+      :items="selectedGoodsItems"
+      @apply="applyCouponAllocation"
+    />
+
     <GoodsSelectionActionBar
-      :show="selectionMode && !showBatchEditSheet"
+      :show="selectionMode && !showBatchEditSheet && !showCouponAllocateSheet"
       :selected-count="selectedIds.size"
       :selected-group-count="selectedGroupCount"
       :selected-goods-count="selectedGoodsCount"
       :add-to-group-mode="!!selectedGroupTargetId"
+      :show-coupon-allocate="true"
       @delete="batchDelete"
       @dissolve-group="batchDissolveGroups"
       @share="batchShare"
       @edit="batchEdit"
       @create-group="openCreateGroupSheet"
       @add-to-group="addToSelectedGroup"
+      @allocate-coupon="openCouponAllocate"
     />
 
     <ShareSheet :show="showShareSheet" :goods-items="selectedGoodsItems" @close="showShareSheet = false" />
@@ -340,6 +348,7 @@ import { createBatchId, getDraftMeta, clearDraft, BATCH_DRAFT_SLOTS } from '@/co
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsBatchEditSheet from '@/components/goods/GoodsBatchEditSheet.vue'
+import CouponAllocateSheet from '@/components/goods/CouponAllocateSheet.vue'
 import GoodsSelectionActionBar from '@/components/goods/GoodsSelectionActionBar.vue'
 import CreateGroupSheet from '@/components/goods/CreateGroupSheet.vue'
 import GroupFolderSheet from '@/components/goods/GroupFolderSheet.vue'
@@ -1236,6 +1245,12 @@ function handleAndroidBackButton(event) {
     return
   }
 
+  if (showCouponAllocateSheet.value) {
+    showCouponAllocateSheet.value = false
+    event.preventDefault()
+    return
+  }
+
   if (showDeleteConfirm.value) {
     showDeleteConfirm.value = false
     event.preventDefault()
@@ -1830,6 +1845,7 @@ function setDisplayDensityWithFlip(mode) {
 // -------- Multi-select --------
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
+const showCouponAllocateSheet = ref(false)
 const showShareSheet = ref(false)
 const showCreateGroupSheet = ref(false)
 
@@ -1840,6 +1856,7 @@ const selectedGoodsItems = computed(() =>
 function closeSelectionOverlays() {
   showDeleteConfirm.value = false
   batchEditSheetRef.value?.close()
+  showCouponAllocateSheet.value = false
   showShareSheet.value = false
 }
 
@@ -2061,6 +2078,26 @@ function handleGroupCreated(group) {
 
 async function applyBatchEditPayload(payload) {
   await store.updateMultipleGoods(selectedIds.value, payload)
+  exitSelectionModeQuiet()
+}
+
+function openCouponAllocate() {
+  if (selectedGoodsCount.value === 0) return
+  showCouponAllocateSheet.value = true
+}
+
+async function applyCouponAllocation({ allocations }) {
+  if (!Array.isArray(allocations) || allocations.length === 0) return
+  const byId = new Map(allocations.map((row) => [row.id, row]))
+  const ids = new Set(allocations.map((row) => row.id))
+  await store.updateMultipleGoods(ids, (item) => {
+    const row = byId.get(item.id)
+    if (!row) return {}
+    return {
+      actualPrice: row.actualPrice,
+      unitActualPriceList: row.unitActualPriceList
+    }
+  })
   exitSelectionModeQuiet()
 }
 </script>

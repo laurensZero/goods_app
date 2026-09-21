@@ -2,56 +2,73 @@
   <Teleport to="body">
     <Transition name="sel-bar">
       <div v-if="show" class="selection-action-bar">
-        <button
-          class="sel-action-btn sel-action-btn--danger"
-          type="button"
-          :disabled="deleteDisabled"
-          @click="$emit(deleteEvent)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6M14 11v6" />
-          </svg>
-          {{ deleteLabel }}
-        </button>
-        <button v-if="mihoyoFeaturesStore.enabled" class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="9" cy="21" r="1" />
-            <circle cx="20" cy="21" r="1" />
-            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-          </svg>
-          {{ t('goods.selection.addToCart') }}{{ cartItemCount > 0 ? ` (${cartItemCount})` : '' }}
-        </button>
-        <button
-          class="sel-action-btn"
-          type="button"
-          :disabled="addToGroupMode ? selectedCount < 2 : selectedCount < 2"
-          @click="$emit(addToGroupMode ? 'addToGroup' : 'createGroup')"
-        >
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="3" y="3" width="7" height="7" rx="1.5" />
-            <rect x="14" y="3" width="7" height="7" rx="1.5" />
-            <rect x="3" y="14" width="7" height="7" rx="1.5" />
-            <path d="M17.5 14v7M14 17.5h7" />
-          </svg>
-          {{ addToGroupMode ? t('goodsGroup.addToGroup') : t('goodsGroup.createGroup') }}
-        </button>
-        <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('share')">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-            <polyline points="16 6 12 2 8 6" />
-            <line x1="12" y1="2" x2="12" y2="15" />
-          </svg>
-          {{ t('goods.selection.share') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
-        </button>
-        <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('edit')">
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-          {{ t('goods.selection.batchEdit') }}
-        </button>
+        <div class="selection-action-bar__row">
+          <button
+            class="sel-action-btn sel-action-btn--danger"
+            type="button"
+            :disabled="deleteDisabled"
+            @click="$emit(deleteEvent)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6" />
+            </svg>
+            {{ deleteLabel }}
+          </button>
+          <button v-if="mihoyoFeaturesStore.enabled" class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('addToCart')">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2 1.61L23 6H6" />
+            </svg>
+            {{ t('goods.selection.addToCart') }}{{ cartItemCount > 0 ? ` (${cartItemCount})` : '' }}
+          </button>
+          <button
+            class="sel-action-btn"
+            type="button"
+            :disabled="addToGroupMode ? selectedCount < 2 : selectedCount < 2"
+            @click="$emit(addToGroupMode ? 'addToGroup' : 'createGroup')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <path d="M17.5 14v7M14 17.5h7" />
+            </svg>
+            {{ addToGroupMode ? t('goodsGroup.addToGroup') : t('goodsGroup.createGroup') }}
+          </button>
+        </div>
+        <div class="selection-action-bar__row">
+          <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('share')">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+              <polyline points="16 6 12 2 8 6" />
+              <line x1="12" y1="2" x2="12" y2="15" />
+            </svg>
+            {{ t('goods.selection.share') }}{{ selectedCount > 0 ? ` (${selectedCount})` : '' }}
+          </button>
+          <button class="sel-action-btn" type="button" :disabled="selectedCount === 0" @click="$emit('edit')">
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            {{ t('goods.selection.batchEdit') }}
+          </button>
+          <button
+            v-if="showCouponAllocate"
+            class="sel-action-btn"
+            type="button"
+            :disabled="selectedGoodsCount === 0"
+            @click="$emit('allocateCoupon')"
+          >
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4V7z" />
+              <path d="M13 5v14" stroke-dasharray="2 3" />
+            </svg>
+            {{ t('goods.selection.allocateCoupon') }}
+          </button>
+        </div>
       </div>
     </Transition>
   </Teleport>
@@ -71,10 +88,12 @@ const props = defineProps({
   selectedGroupCount: { type: Number, default: 0 },
   selectedGoodsCount: { type: Number, default: 0 },
   cartItemCount: { type: Number, default: 0 },
-  addToGroupMode: { type: Boolean, default: false }
+  addToGroupMode: { type: Boolean, default: false },
+  /** 收藏页显示「分摊优惠」；心愿单无入手价语义，默认关闭 */
+  showCouponAllocate: { type: Boolean, default: false }
 })
 
-defineEmits(['delete', 'dissolveGroup', 'edit', 'share', 'addToCart', 'createGroup', 'addToGroup'])
+defineEmits(['delete', 'dissolveGroup', 'edit', 'share', 'addToCart', 'createGroup', 'addToGroup', 'allocateCoupon'])
 
 const deleteDisabled = computed(() => {
   if (props.selectedCount === 0) return true
@@ -103,7 +122,8 @@ const deleteEvent = computed(() => {
   right: 0;
   bottom: 0;
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   padding: 12px 16px calc(env(safe-area-inset-bottom) + 12px);
   background: var(--app-glass-strong);
   border-top: 1px solid var(--app-glass-border);
@@ -113,19 +133,24 @@ const deleteEvent = computed(() => {
   z-index: 80;
 }
 
+.selection-action-bar__row {
+  display: flex;
+  gap: 8px;
+}
+
 .sel-action-btn {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  min-height: 50px;
+  min-height: 46px;
   padding: 8px 4px;
   border: none;
   border-radius: 14px;
   background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -178,12 +203,20 @@ const deleteEvent = computed(() => {
     border: 1px solid var(--app-glass-border);
     border-radius: 22px;
     transform: translateX(-50%);
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  /* 平板/宽屏：两行结构合并为单行，按钮直接参与父级 flex */
+  .selection-action-bar__row {
+    display: contents;
   }
 
   .sel-action-btn {
     font-size: 12px;
     padding: 8px 2px;
     gap: 3px;
+    min-height: 48px;
   }
 }
 
