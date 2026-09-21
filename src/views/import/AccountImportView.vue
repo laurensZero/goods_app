@@ -302,7 +302,12 @@ import {
   buildMihoyoImportContext,
   resolveMihoyoImportDraft,
 } from '@/utils/mihoyo/importResolver'
-import { buildGoodsIdentityAliases, buildGoodsIdentityKey } from '@/utils/goods/identity'
+import {
+  buildGoodsIdentityKey,
+  buildOrderImportIdentity,
+  buildOrderImportImportedKeys,
+  isOrderItemImported,
+} from '@/utils/goods/identity'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -352,14 +357,18 @@ function closeErrorDialog() {
   showErrorDialog.value = false
 }
 
-// 已导入的商品键（名称 + 款式/完整名称别名），直接按当前收藏实时计算
+// 已导入索引：goodsId 优先（订单号/支付日 + 款式软匹配），无 goodsId 回退名称
 const importedItemKeys = computed(() =>
-  new Set(store.collectionList.flatMap((item) => [...buildGoodsIdentityAliases(item)]))
+  buildOrderImportImportedKeys(store.collectionList)
 )
 
-// 商品是否已导入
 function isItemImported(item) {
-  return [...buildGoodsIdentityAliases(item)].some((key) => importedItemKeys.value.has(key))
+  return isOrderItemImported(item, importedItemKeys.value)
+}
+
+/** 订单内合并键：优先 goodsId 身份，缺字段回退名称+款式 */
+function getOrderLineMergeKey(item) {
+  return buildOrderImportIdentity(item) || buildGoodsIdentityKey(item)
 }
 // 订单是否已全部导入（所有非退款商品均已导入）
 function isOrderImported(po) {
@@ -475,10 +484,10 @@ const processedOrders = computed(() =>
     const context = createMihoyoImportContext()
     return rawOrders.value.map((order) => {
       const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
-      // 同一订单内同名同款式（名称+角色）的商品合并数量
+      // 同一订单内：精确身份相同或（缺字段时）名称+款式相同的商品合并数量
       const nameMap = new Map()
       for (const g of rawGoods) {
-        const key = buildGoodsIdentityKey(g)
+        const key = getOrderLineMergeKey(g)
         if (nameMap.has(key)) {
           mergeImportGoodsLine(nameMap.get(key), g)
         } else {
@@ -677,10 +686,10 @@ async function doImport() {
   )
   if (selected.length === 0) return
 
-  // 按名称+角色去重，同名同款式数量叠加
+  // 按精确身份（缺字段回退名称+款式）去重，数量叠加
   const nameMap = new Map()
   for (const item of selected) {
-    const key = buildGoodsIdentityKey(item)
+    const key = getOrderLineMergeKey(item)
     if (nameMap.has(key)) {
       mergeImportGoodsLine(nameMap.get(key), item)
     } else {
