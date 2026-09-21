@@ -414,6 +414,14 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     _coverUrl: source?._coverUrl || primaryImage,
     images: defaultImages,
     price: source?.price == null ? '' : String(source.price),
+    // 订单导入优惠分摊后的入手价；无则空串交给编辑器/统计回退标价
+    actualPrice:
+      source?.actualPrice == null || source.actualPrice === ''
+        ? ''
+        : String(source.actualPrice),
+    unitActualPriceList: Array.isArray(source?.unitActualPriceList)
+      ? source.unitActualPriceList.map((v) => String(v ?? ''))
+      : [],
     notes: source?.notes || '',
     characters: resolveCharacters({ explicitCharacters, taggingResult, categoryBlocklist, evidenceTexts }),
     variant,

@@ -164,6 +164,10 @@
                     <span v-if="po.goods.length > 1" class="meta-count">{{ t('import.goodsCount', { count: po.goods.length }) }}</span>
                     <span v-if="po.shopName" class="meta-shop">{{ po.shopName }}</span>
                     <span class="meta-date">{{ po.goods[0]?.acquiredAt }}</span>
+                    <span v-if="po.hasDiscount" class="meta-payed">
+                      {{ t('import.orderPaid') }} ¥{{ po.paidText }}
+                      <span v-if="po.discountText" class="meta-discount">-¥{{ po.discountText }}</span>
+                    </span>
                   </div>
                 </div>
 
@@ -211,7 +215,13 @@
                     <div class="order-info">
                       <p class="order-name">{{ item.name }}</p>
                       <div class="order-meta">
-                        <span class="meta-price">¥{{ item.price }}</span>
+                        <span
+                          class="meta-price"
+                          :class="{ 'meta-price--struck': hasActualPrice(item) && String(item.actualPrice) !== String(item.price) }"
+                        >¥{{ item.price }}</span>
+                        <span v-if="hasActualPrice(item)" class="meta-actual">
+                          {{ t('import.actualPrice') }} ¥{{ formatImportMoney(item.actualPrice) }}
+                        </span>
                         <span v-if="item.quantity > 1" class="meta-qty">×{{ item.quantity }}</span>
                         <span v-if="item.ip" class="meta-ip">{{ item.ip }}</span>
                         <span v-if="item.variant" class="meta-char">{{ item.variant }}</span>
@@ -401,6 +411,39 @@ function normalizeMihoyoImportItem(item, context) {
   return normalized
 }
 
+function hasActualPrice(item) {
+  return item?.actualPrice !== '' && item?.actualPrice != null && Number.isFinite(Number(item.actualPrice))
+}
+
+function formatImportMoney(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0'
+  return String(Math.round(n * 100) / 100)
+}
+
+function centsToDisplay(cents) {
+  const n = Number(cents)
+  if (!Number.isFinite(n) || n < 0) return ''
+  return formatImportMoney(n / 100)
+}
+
+/** 同名合并时累加入手价与逐份价 */
+function mergeImportGoodsLine(target, incoming) {
+  target.quantity = (Number(target.quantity) || 1) + (Number(incoming.quantity) || 1)
+  const tHas = hasActualPrice(target)
+  const iHas = hasActualPrice(incoming)
+  if (tHas && iHas) {
+    target.actualPrice = formatImportMoney(Number(target.actualPrice) + Number(incoming.actualPrice))
+  } else if (iHas) {
+    target.actualPrice = incoming.actualPrice
+  }
+  const tUnits = Array.isArray(target.unitActualPriceList) ? target.unitActualPriceList : []
+  const iUnits = Array.isArray(incoming.unitActualPriceList) ? incoming.unitActualPriceList : []
+  if (tUnits.length || iUnits.length) {
+    target.unitActualPriceList = [...tUnits, ...iUnits]
+  }
+}
+
 // ── Computed ───────────────────────────────────────────────────
 /** 按订单分组，每组含该订单所有商品（同名项合并数量） */
 const processedOrders = computed(() =>
@@ -413,18 +456,27 @@ const processedOrders = computed(() =>
       for (const g of rawGoods) {
         const key = buildGoodsIdentityKey(g)
         if (nameMap.has(key)) {
-          const ex = nameMap.get(key)
-          ex.quantity = (Number(ex.quantity) || 1) + (Number(g.quantity) || 1)
+          mergeImportGoodsLine(nameMap.get(key), g)
         } else {
           nameMap.set(key, { ...g })
         }
       }
+      const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
+      const discountCents = Number(order.discounts?.total_discount)
+      const hasDiscount = Number.isFinite(discountCents) && discountCents > 0
       return {
         raw: order,
         orderNo: order.order_no || order.orderNo || '',
         goods: Array.from(nameMap.values()),
         statusText: order.status_text || order.manage_status_text || '',
         shopName: order.shop?.shop_name || '',
+        hasDiscount: hasDiscount || (
+          Number.isFinite(paidCents)
+          && Number.isFinite(Number(order.goods_amount))
+          && paidCents < Number(order.goods_amount)
+        ),
+        paidText: centsToDisplay(paidCents),
+        discountText: hasDiscount ? centsToDisplay(discountCents) : ''
       }
     })
     .filter((po) => po.goods.length > 0)
@@ -597,8 +649,7 @@ async function doImport() {
   for (const item of selected) {
     const key = buildGoodsIdentityKey(item)
     if (nameMap.has(key)) {
-      const ex = nameMap.get(key)
-      ex.quantity = (Number(ex.quantity) || 1) + (Number(item.quantity) || 1)
+      mergeImportGoodsLine(nameMap.get(key), item)
     } else {
       nameMap.set(key, { ...item })
     }

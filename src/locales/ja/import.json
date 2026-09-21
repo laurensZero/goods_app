@@ -180,6 +180,8 @@
   "import.or": "または",
   "import.orderClosed": "終了",
   "import.orderCount": "{count}件の注文",
+  "import.orderPaid": "支払",
+  "import.actualPrice": "入手",
   "import.pasteCookie": "Cookieを貼り付け",
   "import.pleaseWait": "お待ちください",
   "import.priceLabel": "価格（CNY）",

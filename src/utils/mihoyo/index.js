@@ -15,6 +15,7 @@
 import { Capacitor } from '@capacitor/core'
 import { normalizeGoodsVariant } from '@/utils/goods/identity'
 import { mihoyoRequest } from '@/utils/mihoyo/request'
+import { allocateCouponByListedPrice } from '@/utils/goods/couponAllocate'
 import { createLogger } from '@/utils/logger'
 
 // API 相对路径（域名/代理前缀由 mihoyoRequest 统一处理）
@@ -781,6 +782,38 @@ function firstNonEmpty(...values) {
   return values.find((value) => String(value || '').trim()) || ''
 }
 
+/** 金额分 → 元字符串；非法返回 '' */
+function centsToYuanString(cents) {
+  const n = Number(cents)
+  if (!Number.isFinite(n) || n < 0) return ''
+  return String(Math.round(n) / 100)
+}
+
+/** 读取可能是「分」的金额字段，返回非负有限数或 null */
+function readCents(...values) {
+  for (const value of values) {
+    if (value == null || value === '') continue
+    const n = Number(value)
+    if (Number.isFinite(n) && n >= 0) return n
+  }
+  return null
+}
+
+/** 整行入手价按份数均摊到逐份价（元字符串列表） */
+function splitActualPriceToUnits(actualPriceYuan, quantity) {
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1))
+  if (qty < 2) return []
+  const totalCents = Math.round(Number(actualPriceYuan) * 100)
+  if (!Number.isFinite(totalCents) || totalCents < 0) return []
+  const base = Math.floor(totalCents / qty)
+  let rest = totalCents - base * qty
+  return Array.from({ length: qty }, () => {
+    const extra = rest > 0 ? 1 : 0
+    if (rest > 0) rest -= 1
+    return String((base + extra) / 100)
+  })
+}
+
 function getAftersalesStatusText(aftersalesInfo = {}) {
   const code = Number(aftersalesInfo?.aftersales_status)
   const explicitText = firstNonEmpty(
@@ -844,6 +877,13 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
   const rawPrice =
     goods.price ?? goods.sale_price ?? goods.current_price ??
     goods.activity_price ?? goods.actual_price ?? 0
+  // 行实付（分）：订单/详情里平台分摊后的金额；有则优先进入手价
+  const linePaidCents = readCents(
+    goods.total_price,
+    goodsWrapper.total_price,
+    goods.pay_price,
+    goods.actual_pay_amount
+  )
   const skuList =
     goods.sku_sales ||
     goods.sku_list ||
@@ -927,6 +967,8 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     characters,
     image: coverUrl,
     price: String(Math.round(Number(rawPrice) / 100)),
+    // 行实付：total_price 等；无优惠时也可与标价一致
+    actualPrice: linePaidCents != null ? centsToYuanString(linePaidCents) : '',
     acquiredAt,
     category: parseCategoryFromName(variant) || parseCategoryFromName(skuName) || parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || rawName),
     quantity: Math.max(
@@ -959,12 +1001,67 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
  */
 export function orderToGoodsList(order) {
   const wrappers = order.goods_list || order.commodity_list || []
-  return wrappers
+  const list = wrappers
     .map((w, index) => {
       const goods = w.meta_info || w
       return metaToGoods(order, goods, index, w)  // 传入 wrapper 以获取商品级状态
     })
     .filter((g) => g.name)  // 过滤掉没有名称的条目
+
+  applyOrderDiscountToActualPrices(order, list)
+  return list
+}
+
+/**
+ * 订单导入入手价：
+ * 1) 明细已有行实付（total_price）→ 按份数写 unitActualPriceList
+ * 2) 仅有订单级优惠（discounts.total_discount，单位分）→ 按标价×数量比例分摊到 actualPrice
+ */
+function applyOrderDiscountToActualPrices(order, list) {
+  if (!Array.isArray(list) || list.length === 0) return
+
+  const withLineActual = list.filter((g) => g.actualPrice !== '' && g.actualPrice != null)
+  if (withLineActual.length > 0) {
+    for (const item of withLineActual) {
+      const qty = Math.max(1, Number(item.quantity) || 1)
+      if (qty >= 2) {
+        item.unitActualPriceList = splitActualPriceToUnits(item.actualPrice, qty)
+      }
+    }
+    return
+  }
+
+  const discountCents = readCents(
+    order?.discounts?.total_discount,
+    order?.discounts?.coupon_discount,
+    order?.discounts?.shop_discount
+  )
+  if (!discountCents || discountCents <= 0) return
+
+  const priced = list.filter((g) => Number(g.price) > 0)
+  if (priced.length === 0) return
+
+  const result = allocateCouponByListedPrice(
+    priced.map((g) => ({
+      id: g._itemKey,
+      price: g.price,
+      quantity: g.quantity
+    })),
+    discountCents / 100
+  )
+  if (!result.ok) return
+
+  const byId = new Map(result.rows.map((row) => [row.id, row]))
+  for (const item of priced) {
+    const row = byId.get(item._itemKey)
+    if (!row || !row.eligible) continue
+    item.actualPrice = centsToYuanString(Math.round(Number(row.actualTotal) * 100))
+    if (Array.isArray(row.unitActualPriceList) && row.unitActualPriceList.length > 0) {
+      item.unitActualPriceList = row.unitActualPriceList.map((v) =>
+        centsToYuanString(Math.round(Number(v) * 100))
+      )
+    }
+  }
 }
 
 /**
