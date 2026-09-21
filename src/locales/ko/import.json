@@ -180,6 +180,8 @@
   "import.or": "또는",
   "import.orderClosed": "종료",
   "import.orderCount": "{count}개의 주문",
+  "import.orderPaid": "결제",
+  "import.actualPrice": "실구매",
   "import.pasteCookie": "Cookie 붙여넣기",
   "import.pleaseWait": "잠시 기다려 주세요",
   "import.priceLabel": "가격 (CNY)",

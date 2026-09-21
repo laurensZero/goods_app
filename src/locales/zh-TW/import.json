@@ -180,6 +180,8 @@
   "import.or": "或",
   "import.orderClosed": "已關閉",
   "import.orderCount": "{orders} 个订單 · {types} 種（{total} 件）",
+  "import.orderPaid": "實付",
+  "import.actualPrice": "入手",
   "import.pasteCookie": "粘贴 Cookie",
   "import.pleaseWait": "請稍候",
   "import.priceLabel": "價格（元）",

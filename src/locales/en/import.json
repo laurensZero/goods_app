@@ -180,6 +180,8 @@
   "import.or": "or",
   "import.orderClosed": "Closed",
   "import.orderCount": "{count} orders",
+  "import.orderPaid": "Paid",
+  "import.actualPrice": "Cost",
   "import.pasteCookie": "Paste Cookie",
   "import.pleaseWait": "Please wait",
   "import.priceLabel": "Price (CNY)",

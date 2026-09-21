@@ -566,9 +566,36 @@ kbd {
 
 .order-meta {
   display: flex;
-  gap: 6px;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.meta-price {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  font-weight: 500;
+}
+
+.meta-price--struck {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+.meta-actual {
+  font-size: 12px;
+  color: #c7375d;
+  font-weight: 600;
+}
+
+.meta-payed {
+  font-size: 12px;
+  color: var(--app-text-secondary);
+}
+
+.meta-discount {
+  color: #c7375d;
+  font-weight: 600;
 }
 
 .meta-ip {
@@ -578,12 +605,6 @@ kbd {
   background: rgba(28, 53, 88, 0.08);
   color: #1c3558;
   white-space: nowrap;
-}
-
-.meta-price {
-  font-size: 12px;
-  color: var(--app-text-secondary);
-  font-weight: 500;
 }
 
 .meta-qty {
