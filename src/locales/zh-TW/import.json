@@ -182,6 +182,8 @@
   "import.orderCount": "{orders} 个订單 · {types} 種（{total} 件）",
   "import.orderPaid": "實付",
   "import.actualPrice": "入手",
+  "import.logout": "登出",
+  "import.switchAccount": "切換帳號",
   "import.pasteCookie": "粘贴 Cookie",
   "import.pleaseWait": "請稍候",
   "import.priceLabel": "價格（元）",

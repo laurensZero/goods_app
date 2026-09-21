@@ -184,6 +184,11 @@ kbd {
   gap: 12px;
 }
 
+.cookie-actions__spacer {
+  flex: 1;
+  min-width: 0;
+}
+
 .remember-row {
   display: inline-flex;
   align-items: center;

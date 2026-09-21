@@ -56,7 +56,7 @@
         <span>{{ $t('import.rememberCookie') }}</span>
       </label>
       <button v-if="hasSavedCookie" class="link-btn" type="button" @click="$emit('clear-saved')">
-        {{ $t('import.clearSaved') }}
+        {{ $t('import.logout') }}
       </button>
     </div>
     <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>

@@ -182,6 +182,8 @@
   "import.orderCount": "{count}개의 주문",
   "import.orderPaid": "결제",
   "import.actualPrice": "실구매",
+  "import.logout": "로그아웃",
+  "import.switchAccount": "계정 전환",
   "import.pasteCookie": "Cookie 붙여넣기",
   "import.pleaseWait": "잠시 기다려 주세요",
   "import.priceLabel": "가격 (CNY)",

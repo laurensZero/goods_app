@@ -62,13 +62,21 @@
             </p>
           </div>
 
-          <div v-if="!canUseNativeImport" class="cookie-actions">
-            <label class="remember-row">
-              <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
-              <span>{{ t('import.rememberCookie') }}</span>
-            </label>
-            <button v-if="hasSavedCookie" class="cookie-clear-btn" type="button" @click="clearSavedCookie(false)">
-              {{ t('import.clearSaved') }}
+          <div class="cookie-actions">
+            <template v-if="!canUseNativeImport">
+              <label class="remember-row">
+                <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
+                <span>{{ t('import.rememberCookie') }}</span>
+              </label>
+            </template>
+            <span v-else class="cookie-actions__spacer" />
+            <button
+              v-if="canUseNativeImport || hasSavedCookie"
+              class="cookie-clear-btn"
+              type="button"
+              @click="handleLogout"
+            >
+              {{ t('import.logout') }}
             </button>
           </div>
           <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
@@ -90,6 +98,9 @@
           <div class="list-header">
             <p class="list-count">{{ t('import.cartCount', { shops: processedGroups.length, items: selectableGoods.length }) }}</p>
             <div class="list-header-actions">
+              <button class="text-btn" type="button" @click="handleLogout">
+                {{ t('import.switchAccount') }}
+              </button>
               <button :class="['text-btn', isAllSelectableSelected && 'text-btn--active']" type="button" @click="selectAll">
                 {{ t('common.selectAll') }}
               </button>
@@ -354,6 +365,12 @@ onMounted(async () => {
   applySavedCookieToInput()
   await startFetch({ silentCookieExpired: true })
 })
+
+async function handleLogout() {
+  await clearSavedCookie(true)
+  selectedSet.value = new Set()
+  step.value = 'cookie'
+}
 
 // 安卓原生端导入成功后，同步 Cookie 到 Web 端存储
 async function syncNativeCookieToWeb() {
@@ -641,6 +658,11 @@ async function doImport() {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.cookie-actions__spacer {
+  flex: 1;
+  min-width: 0;
 }
 
 .remember-row {
