@@ -25,19 +25,17 @@
               inputmode="decimal"
               autocomplete="off"
               :placeholder="t('goods.couponAllocate.amountPlaceholder')"
-              :aria-invalid="Boolean(amountError)"
+              :aria-invalid="Boolean(previewError)"
               @keydown="preventNegative"
               @input="sanitizeAmount"
             />
-            <span v-if="amountError" class="field-error">{{ amountError }}</span>
+            <span v-if="previewError" class="field-error">{{ previewError }}</span>
           </label>
 
           <div class="preview-block">
             <div class="preview-head">
               <span class="preview-head__title">{{ t('goods.couponAllocate.previewTitle') }}</span>
-              <button class="preview-head__btn" type="button" @click="runPreview">
-                {{ t('goods.couponAllocate.calculate') }}
-              </button>
+              <span v-if="preview" class="preview-head__live">{{ t('goods.couponAllocate.liveHint') }}</span>
             </div>
 
             <div v-if="skippedCount > 0" class="preview-note">
@@ -116,8 +114,6 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'apply'])
 
 const amountInput = ref('')
-const amountError = ref('')
-const preview = ref(null)
 
 const showProxy = computed({
   get: () => props.show,
@@ -137,6 +133,29 @@ const parsedAmount = computed(() => {
   const raw = normalizeAmountText(amountInput.value)
   if (!raw || raw === '.') return NaN
   return Number(raw)
+})
+
+/** 填写时实时分摊；金额非法时不展示预览 */
+const liveResult = computed(() => {
+  const amount = parsedAmount.value
+  if (!Number.isFinite(amount) || amount <= 0) return null
+  return allocateCouponByListedPrice(eligibleItems.value, amount)
+})
+
+const preview = computed(() => (liveResult.value?.ok ? liveResult.value : null))
+
+const previewError = computed(() => {
+  const raw = normalizeAmountText(amountInput.value)
+  if (!raw) return ''
+  if (raw === '.') return t('goods.couponAllocate.invalidAmount')
+  const amount = Number(raw)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return t('goods.couponAllocate.invalidAmount')
+  }
+  if (liveResult.value && !liveResult.value.ok) {
+    return t(`goods.couponAllocate.reason.${liveResult.value.reason || 'invalidAmount'}`)
+  }
+  return ''
 })
 
 function normalizeAmountText(value) {
@@ -166,12 +185,9 @@ function preventNegative(event) {
 function sanitizeAmount(event) {
   const next = normalizeAmountText(event?.target?.value ?? amountInput.value)
   amountInput.value = next
-  // 同步回 input，避免 v-model 与手工清洗打架
   if (event?.target && event.target.value !== next) {
     event.target.value = next
   }
-  amountError.value = ''
-  preview.value = null
 }
 
 const canConfirm = computed(() =>
@@ -181,30 +197,12 @@ const canConfirm = computed(() =>
 watch(
   () => props.show,
   (visible) => {
-    if (visible) {
-      amountInput.value = ''
-      amountError.value = ''
-      preview.value = null
-    }
+    if (visible) amountInput.value = ''
   }
 )
 
 function close() {
   emit('update:show', false)
-}
-
-function runPreview() {
-  const amount = parsedAmount.value
-  if (!Number.isFinite(amount) || amount <= 0) {
-    amountError.value = t('goods.couponAllocate.invalidAmount')
-    preview.value = null
-    return
-  }
-  amountError.value = ''
-  preview.value = allocateCouponByListedPrice(eligibleItems.value, amount)
-  if (!preview.value.ok) {
-    amountError.value = t(`goods.couponAllocate.reason.${preview.value.reason || 'invalidAmount'}`)
-  }
 }
 
 function confirm() {
@@ -338,13 +336,9 @@ defineExpose({ close })
   font-weight: 600;
 }
 
-.preview-head__btn {
-  border: none;
-  background: transparent;
-  color: #2070c0;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 0;
+.preview-head__live {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
 }
 
 .preview-note {
