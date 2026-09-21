@@ -41,7 +41,7 @@ export const privacyContent = {
 
 - **会话 Cookie 获取方式**（均可选，均由您主动发起）：
   1. **自行粘贴**：您从米游铺/米哈游账号会话中复制 Cookie 并粘贴到应用内；
-  2. **网页扫码登录**：网页版可展示官方通行证登录二维码；**仅当您使用米游社/米哈游通行证 App 在官方页面扫码并确认**后，应用才会通过开发代理或本应用部署的转发接口取得官方接口返回的会话 Cookie，并保存到本机。
+  2. **网页扫码登录**：网页版可展示官方登录二维码；**仅当您使用米游社 App 在官方页面扫码并确认**后，应用才会通过开发代理或本应用部署的转发接口取得官方接口返回的会话 Cookie，并保存到本机。
 - **本应用不会索取或存储您的米哈游账号密码**，也不会绕过您在官方 App/页面上的确认操作。扫码确认始终在米哈游官方客户端内完成。
 - 网页扫码时，创建二维码与轮询登录状态的请求可能经**本应用开发代理或部署的转发接口**中转到米哈游通行证官方接口（passport-api）；中转过程可能短暂经过该接口处理登录票据（ticket）与状态，**不会将完整会话 Cookie 写入本应用云同步后端**。取得的 Cookie 仅保存在**本机安全存储**（原生为系统 Preferences，Web 为本地存储），也不会写入分享导出的备份。
 - Cookie **仅保存在本机安全存储**（同上），**不会上传到本应用的云同步后端**，也不会写入分享导出的备份。
@@ -178,7 +178,7 @@ Web 端清除浏览器存储、或卸载原生应用并清理数据，可清除�
 
 - **工作階段 Cookie 取得方式**（均可選，均由您主動發起）：
   1. **自行貼上**：您從米游鋪/米哈遊帳號工作階段複製 Cookie 並貼上到應用內；
-  2. **網頁掃碼登入**：網頁版可顯示官方通行證登入二維碼；**僅當您在米遊社/米哈遊通行證 App 於官方頁面掃碼並確認**後，應用才會透過開發代理或本應用部署的轉發介面取得官方介面回傳的工作階段 Cookie，並保存到本機。
+  2. **网页扫码登入**：網頁版可顯示官方登入二維碼；**僅當您在米遊社 App 於官方頁面掃碼並確認**後，應用才會透過開發代理或本應用部署的轉發介面取得官方介面回傳的工作階段 Cookie，並保存到本機。
 - **本應用不會索取或儲存您的米哈遊帳號密碼**，也不會繞過您在官方 App/頁面上的確認操作。掃碼確認始終在米哈遊官方用戶端內完成。
 - 掃碼時，建立二維碼與輪詢登入狀態的請求可能經**本應用開發代理或部署的轉發介面**中轉到米哈遊通行證官方介面；中轉過程可能短暫處理登入票據（ticket）與狀態，**不會將完整工作階段 Cookie 寫入本應用雲端同步後端**。
 - Cookie **僅保存在本機安全儲存**（原生為系統 Preferences，Web 為本地儲存），**不會上傳到本應用的雲端同步後端**，也不會寫入分享匯出的備份。
@@ -315,7 +315,7 @@ Optional miHoYo Shop capabilities (order/cart import, stock monitoring, checkout
 
 - **How the session Cookie is obtained** (optional; always user-initiated):
   1. **Paste yourself**: copy the Cookie from your miHoYo Shop / miHoYo account session and paste it into the App;
-  2. **Web QR sign-in**: the Web version may show an official passport login QR code; **only after you scan and confirm in the official HoYoLAB / miHoYo Passport app**, the App receives the session Cookie returned by the official API via a development proxy or an App-deployed forwarding endpoint, and stores it on-device.
+  2. **Web QR sign-in**: the Web version may show an official login QR code; **only after you scan and confirm in the official HoYoLAB app**, the App receives the session Cookie returned by the official API via a development proxy or an App-deployed forwarding endpoint, and stores it on-device.
 - **The App does not ask for or store your miHoYo account password**, and does not bypass confirmation in the official app/page. QR confirmation always happens inside the official miHoYo client.
 - During Web QR sign-in, create-QR and status-poll requests may be forwarded through **the App's development proxy or deployed endpoint** to official miHoYo passport APIs; that path may briefly process the login ticket/status. **The full session Cookie is not uploaded to the App's cloud sync backend.**
 - The Cookie is **stored only in local secure storage** (Preferences on native; local storage on Web). It is **not uploaded to the App's cloud sync backend** and is not included in share/export backups.
@@ -443,7 +443,7 @@ For questions, comments, or complaints about this Policy, please use the in-app 
 | 公開リンク | 公開を選択した項目情報 | 他者が取り込める共有内容の生成（**リンクを知るすべての者が閲覧可能**。機密情報を含めないでください） |
 | お知らせ / 更新確認 | 端末側バージョン、更新チャンネル等 | お知らせ表示と更新確認 |
 | 販売開始リマインダー等 | ローカル通知権限とリマインダー設定 | お客様の設定に従い通知 |
-| miHoYo Shop（米游鋪）関連機能 | 貼り付けた Cookie、または Web の QR ログイン時に公式パスポート API から返され端末内のみに保存されるセッション Cookie。機能利用時に本アプリから miHoYo Shop API へ依頼する注文、カート、配送先、ポイント、商品詳細など | 注文/カート取り込み、在庫監視、販売開始リマインダー、注文補助（いずれもお客様の操作時のみ） |
+| miHoYo Shop（米游鋪）関連機能 | 貼り付けた Cookie、または Web の QR ログイン時に公式 API から返され端末内のみに保存されるセッション Cookie。機能利用時に本アプリから miHoYo Shop API へ依頼する注文、カート、配送先、ポイント、商品詳細など | 注文/カート取り込み、在庫監視、販売開始リマインダー、注文補助（いずれもお客様の操作時のみ） |
 | AI アシスタント | AI アシスタントとの対話テキスト。回答に必要な範囲でリクエストに含められる端末内コレクション項目。お客様が選択したモデルサービスの設定（API キー等は端末内のみ保存） | **お客様が選択しキーを入力した第三者モデルサービス**が返答を生成。本アプリはモデルサービスを提供しません |
 
 ### 1.3 miHoYo Shop Cookie と第三者 API
@@ -452,7 +452,7 @@ For questions, comments, or complaints about this Policy, please use the in-app 
 
 - **セッション Cookie の取得方法**（いずれも任意で、お客様が開始する操作のみ）：
   1. **ご自身で貼り付け**：miHoYo Shop / miHoYo アカウントのセッションから Cookie をコピーしてアプリに貼り付け；
-  2. **Web QR ログイン**：Web 版は公式パスポートのログイン QR を表示できます。**お客様が公式 HoYoLAB / miHoYo パスポートアプリでスキャンし確認した場合にのみ**、開発用プロキシまたは本アプリがデプロイした転送エンドポイント経由で、公式 API が返すセッション Cookie を取得し端末内に保存します。
+  2. **Web QR ログイン**：Web 版は公式ログイン QR を表示できます。**お客様が公式 HoYoLAB アプリでスキャンし確認した場合にのみ**、開発用プロキシまたは本アプリがデプロイした転送エンドポイント経由で、公式 API が返すセッション Cookie を取得し端末内に保存します。
 - **本アプリは miHoYo アカウントのパスワードを求めたり保存したりしません**。公式アプリ/ページ上の確認を回避することもありません。QR 確認は常に miHoYo 公式クライアント内で行われます。
 - Web QR ログイン時、QR 作成および状態ポーリングの要求は、**本アプリの開発用プロキシまたはデプロイ済みエンドポイント**を経由して公式パスポート API へ転送されることがあります。この経路でログインチケット/状態が一時的に処理される場合がありますが、**完全なセッション Cookie を本アプリのクラウド同期バックエンドへはアップロードしません**。
 - Cookie は**端末の安全なストレージのみ**に保存されます（ネイティブは Preferences、Web はローカルストレージ）。本アプリのクラウド同期バックエンドへは**アップロードせず**、共有エクスポートのバックアップにも含めません。
@@ -580,7 +580,7 @@ Web ではブラウザストレージの消去、ネイティブではアンイ�
 | 공유 링크 | 공개로 선택한 항목 정보 | 타인이 가져올 수 있는 공유 내용 생성(**링크를 가진 누구나 접근 가능**; 민감 정보를 포함하지 마세요) |
 | 공지 / 업데이트 확인 | 기기 버전, 업데이트 채널 등 | 공지 표시 및 업데이트 확인 |
 | 판매 시작 알림 등 | 로컬 알림 권한 및 알림 설정 | 설정한 대로 알림 발송 |
-| miHoYo Shop(米游铺) 기능 | 귀하가 붙여넣은 Cookie, 또는 웹 QR 로그인 시 공식 패스포트 API가 반환하고 기기에만 저장하는 세션 Cookie; 해당 기능 사용 시 본 앱이 miHoYo Shop API에 요청하는 주문, 장바구니, 배송지, 포인트, 상품 상세 등 | 주문/장바구니 가져오기, 재고 모니터링, 판매 알림, 주문 보조(모두 사용자 직접 실행) |
+| miHoYo Shop(米游铺) 기능 | 귀하가 붙여넣은 Cookie, 또는 웹 QR 로그인 시 공식 API가 반환하고 기기에만 저장하는 세션 Cookie; 해당 기능 사용 시 본 앱이 miHoYo Shop API에 요청하는 주문, 장바구니, 배송지, 포인트, 상품 상세 등 | 주문/장바구니 가져오기, 재고 모니터링, 판매 알림, 주문 보조(모두 사용자 직접 실행) |
 | AI 어시스턴트 | AI 어시스턴트와의 대화 텍스트; 답변을 위해 요청에 포함될 수 있는 기기 내 컬렉션 필드; 본인이 선택한 모델 서비스 설정(API 키 등은 기기 내에만 저장) | **본인이 선택하고 키를 입력한 제3자 모델 서비스**가 응답 생성; 본 앱은 모델 서비스를 제공하지 않음 |
 
 ### 1.3 miHoYo Shop Cookie 및 제3자 API
@@ -589,7 +589,7 @@ Web ではブラウザストレージの消去、ネイティブではアンイ�
 
 - **세션 Cookie 취득 방법** (모두 선택 사항이며 사용자가 시작한 작업만):
   1. **직접 붙여넣기**: miHoYo Shop / miHoYo 계정 세션에서 Cookie를 복사해 앱에 붙여넣기;
-  2. **웹 QR 로그인**: 웹 버전은 공식 패스포트 로그인 QR을 표시할 수 있습니다. **본인이 공식 HoYoLAB / miHoYo 패스포트 앱에서 스캔하고 확인한 경우에만** 개발 프록시 또는 본 앱이 배포한 전달 엔드포인트를 통해 공식 API가 반환한 세션 Cookie를 받아 기기에 저장합니다.
+  2. **웹 QR 로그인**: 웹 버전은 공식 로그인 QR을 표시할 수 있습니다. **본인이 공식 HoYoLAB 앱에서 스캔하고 확인한 경우에만** 개발 프록시 또는 본 앱이 배포한 전달 엔드포인트를 통해 공식 API가 반환한 세션 Cookie를 받아 기기에 저장합니다.
 - **본 앱은 miHoYo 계정 비밀번호를 요청하거나 저장하지 않으며**, 공식 앱/페이지의 확인을 우회하지 않습니다. QR 확인은 항상 miHoYo 공식 클라이언트에서 이루어집니다.
 - 웹 QR 로그인 시 QR 생성·상태 폴링 요청은 **본 앱의 개발 프록시 또는 배포된 엔드포인트**를 거쳐 공식 패스포트 API로 전달될 수 있습니다. 그 경로에서 로그인 티켓/상태가 일시적으로 처리될 수 있으나, **전체 세션 Cookie를 본 앱의 클라우드 동기화 백엔드로 업로드하지 않습니다**.
 - Cookie는 **기기 보안 저장소에만** 저장됩니다(네이티브는 Preferences, Web은 로컬 저장소). 본 앱의 클라우드 동기화 백엔드로는 **업로드하지 않으며**, 공유/내보내기 백업에도 포함하지 않습니다.

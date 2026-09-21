@@ -199,7 +199,7 @@
   "import.loginNewAccountCookieHint": "粘贴新账号的米游铺 Cookie，保存后可在账号列表中快速切换。",
   "import.loginNewAccountConfirm": "保存并登录",
   "import.qrLoginTitle": "扫码登录米游铺",
-  "import.qrLoginHint": "使用米游社 / 米哈游通行证 App 扫描下方二维码",
+  "import.qrLoginHint": "使用米游社 App 扫描下方二维码",
   "import.qrLoginWaiting": "请用手机 App 扫码",
   "import.qrLoginScanned": "已扫码，请在手机上确认登录",
   "import.qrLoginConfirmed": "登录成功",

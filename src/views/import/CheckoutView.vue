@@ -35,6 +35,7 @@
           :is-native-platform="isNativePlatform"
           :cookie-valid="cookieValid"
           :has-saved-cookie="hasSavedCookie"
+          :cookie-state-ready="cookieStateReady"
           :cookie-warning-message="cookieWarningMessage"
           :accounts="mihoyoAccounts"
           :active-account-id="mihoyoActiveAccountId"
@@ -44,6 +45,7 @@
           :step-count="displayStepCount"
           @clear-saved="clearSavedCookie(false)"
           @select-account="handleSelectCheckoutAccount"
+          @qr-login="onCheckoutQrLogin"
         />
 
         <CheckoutStepAddress
@@ -392,6 +394,8 @@ const {
 // 定时抢购多账号：默认只勾当前账号（顺序配置 A→入队→切 B）；提交页可再勾其它账号
 const selectedQueueAccountIds = ref([])
 const showAccountSheet = ref(false)
+/** Cookie/账号本地状态是否已从存储加载完成；完成前不自动弹扫码 */
+const cookieStateReady = ref(false)
 const accountSheetRef = ref(null)
 
 function openAccountSheet() {
@@ -1366,6 +1370,18 @@ async function onLoginNewCookie({ cookie: nextCookie, remember } = {}) {
   await applyNewCheckoutAccountCookie(result.cookie)
 }
 
+/** 下单步骤 1 的扫码登录：写入 Cookie 后自动进入地址步 */
+async function onCheckoutQrLogin({ cookie: nextCookie } = {}) {
+  const value = String(nextCookie || '').trim()
+  if (!value) return
+  try {
+    await submitNewAccountCookie(value, true)
+  } catch {
+    // 账号列表写入失败不阻断下单流程
+  }
+  await applyNewCheckoutAccountCookie(value)
+}
+
 /** 其它账号：用该账号自己的 Cookie 拉地址（force=打开选择器时总是重拉） */
 async function ensureAccountAddresses(account, { force = false } = {}) {
   const id = String(account?.id || '')
@@ -1507,6 +1523,7 @@ useDialogBackButton(() => {
 
 onMounted(async () => {
   await initializeCookieState()
+  cookieStateReady.value = true
   // 加载 QQ 绑定状态（决定定时抢购成功通知开关是否可用）
   await qqBinding.init().catch(() => {})
   // 订阅「抢购成功」事件：只在真正抢到那一刻触发一次，不含历史/遗留成功项

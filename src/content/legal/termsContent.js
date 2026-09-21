@@ -57,7 +57,7 @@ export const termsContent = {
 
 本应用可能使用开源软件组件，相应组件仍适用其各自的开源许可证。云同步、问卷、公告、汇率查询、音乐信息等能力可能依赖第三方服务（如 Supabase 及其他在应用内注明的服务），使用该等服务时同时适用对应服务方的条款。
 
-若您使用米游铺相关功能（订单/购物车导入、有货监控、下单辅助等），需自行提供米游铺会话 Cookie：可手动粘贴，或在网页版使用官方通行证扫码（须您本人在米游社/米哈游通行证 App 内扫码确认）；相关请求由米游铺/米哈游服务器处理，并适用其用户协议与隐私政策。本应用不对米游铺侧的库存、价格、订单结果作任何保证。
+若您使用米游铺相关功能（订单/购物车导入、有货监控、下单辅助等），需自行提供米游铺会话 Cookie：可手动粘贴，或在网页版使用官方扫码（须您本人在米游社 App 内扫码确认）；相关请求由米游铺/米哈游服务器处理，并适用其用户协议与隐私政策。本应用不对米游铺侧的库存、价格、订单结果作任何保证。
 
 **非官方声明**：本应用与米哈游、米游铺**无官方关联**，不是米哈游/米游铺官方客户端，不代表其立场。使用米游铺相关功能产生的浏览、加购、下单等行为，均在官方渠道完成；**本应用不是买卖合同当事人**，不对交易能否成立、发货、退款、售后等承担责任。您不得利用本应用及米游铺 Cookie 从事批量爬取、恶意刷单、破坏交易秩序或侵害第三方合法权益的行为。
 
@@ -140,7 +140,7 @@ AI 助手由**您自行配置**的第三方模型服务提供能力：您在设�
 
 本應用可能使用開源軟體元件，相應元件仍適用其各自的開源許可證。雲端同步、問卷、公告、匯率查詢、音樂資訊等能力可能依賴第三方服務（如 Supabase 及其他在應用內註明的服務），使用該等服務時同時適用對應服務方的條款。
 
-若您使用米游鋪相關功能（訂單/購物車匯入、有貨監控、下單輔助等），需自行提供米游鋪工作階段 Cookie：可手動貼上，或在網頁版使用官方通行證掃碼（須您本人在米遊社/米哈遊通行證 App 內掃碼確認）；相關請求由米游鋪/米哈遊伺服器處理，並適用其用戶協定與隱私政策。本應用不對米游鋪側的庫存、價格、訂單結果作任何保證。
+若您使用米游鋪相關功能（訂單/購物車匯入、有貨監控、下單輔助等），需自行提供米游鋪工作階段 Cookie：可手動貼上，或在網頁版使用官方掃碼（須您本人在米遊社 App 內掃碼確認）；相關請求由米游鋪/米哈遊伺服器處理，並適用其用戶協定與隱私政策。本應用不對米游鋪側的庫存、價格、訂單結果作任何保證。
 
 **非官方聲明**：本應用與米哈遊、米游鋪**無官方關聯**，不是米哈遊/米游鋪官方客戶端，不代表其立場。使用米游鋪相關功能產生的瀏覽、加購、下單等行為，均在官方管道完成；**本應用不是買賣合同當事人**，不對交易能否成立、發貨、退款、售後等承擔責任。您不得利用本應用及米游鋪 Cookie 從事批量爬取、惡意刷單、破壞交易秩序或侵害第三方合法權益的行為。
 
@@ -223,7 +223,7 @@ Content published via share links (including item fields and images you choose t
 
 The App may include open-source components under their respective licenses. Cloud sync, surveys, announcements, exchange-rate lookup, music metadata, and similar features may rely on third-party services (including Supabase and other services identified in the App). Your use of those services is also subject to their terms.
 
-If you use miHoYo Shop features (order/cart import, stock monitoring, checkout assistance, etc.), you must provide your own miHoYo Shop session Cookie — either by pasting it, or via official passport QR sign-in on the Web version (you must scan and confirm yourself in the official HoYoLAB / miHoYo Passport app). Related requests are processed by miHoYo Shop / miHoYo servers under their terms and privacy policy. The App does not guarantee shop-side stock, prices, or order outcomes.
+If you use miHoYo Shop features (order/cart import, stock monitoring, checkout assistance, etc.), you must provide your own miHoYo Shop session Cookie — either by pasting it, or via official QR sign-in on the Web version (you must scan and confirm yourself in the official HoYoLAB app). Related requests are processed by miHoYo Shop / miHoYo servers under their terms and privacy policy. The App does not guarantee shop-side stock, prices, or order outcomes.
 
 **Unofficial notice**: The App has **no official affiliation** with miHoYo or miHoYo Shop and is not an official client; it does not represent their positions. Browsing, adding to cart, or placing orders via miHoYo Shop features occurs on official channels; **the App is not a party to any sales contract** and is not liable for whether a transaction is concluded, shipping, refunds, or after-sales. You must not use the App and miHoYo Shop Cookies for mass scraping, malicious order flooding, disruption of trade order, or infringement of third-party rights.
 
@@ -306,7 +306,7 @@ For questions about this Agreement or the App, please contact us via the in-app 
 
 本アプリはオープンソースコンポーネントを含む場合があり、各コンポーネントにはそれぞれのライセンスが適用されます。クラウド同期、アンケート、お知らせ、為替取得、楽曲情報等功能は Supabase その他アプリ内に明示された第三者サービスに依存する場合があり、利用時には各サービスの規約も適用されます。
 
-miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫監視、注文補助など）を利用する場合は、お客様ご自身で miHoYo Shop のセッション Cookie を提供する必要があります（手動貼り付け、または Web 版の公式パスポート QR ログイン—公式 HoYoLAB / miHoYo パスポートアプリでご本人がスキャン・確認してください）。当該リクエストは miHoYo Shop / miHoYo のサーバーで処理され、その利用規約・プライバシーポリシーが適用されます。本アプリは店舗側の在庫・価格・注文結果を保証しません。
+miHoYo Shop（米游鋪）関連機能（注文/カート取り込み、在庫監視、注文補助など）を利用する場合は、お客様ご自身で miHoYo Shop のセッション Cookie を提供する必要があります（手動貼り付け、または Web 版の公式 QR ログイン—公式 HoYoLAB アプリでご本人がスキャン・確認してください）。当該リクエストは miHoYo Shop / miHoYo のサーバーで処理され、その利用規約・プライバシーポリシーが適用されます。本アプリは店舗側の在庫・価格・注文結果を保証しません。
 
 **非公式声明**：本アプリは miHoYo / miHoYo Shop と**公式な関係はなく**、公式クライアントではなく、その立場を代表しません。miHoYo Shop 関連機能による閲覧・カート追加・注文等は公式チャネル上で行われます。**本アプリは売買契約の当事者ではなく**、取引の成立・発送・返金・アフターサービス等の責任を負いません。本アプリと miHoYo Shop Cookie を大量スクレイピング、悪意ある注文 flooding、取引秩序の破壊、第三者権利侵害に利用してはなりません。
 
@@ -389,7 +389,7 @@ AI アシスタントは**お客様ご自身が設定した**第三者モデル�
 
 본 앱은 오픈소스 구성요소를 포함할 수 있으며 각 구성요소에는 해당 라이선스가 적용됩니다. 클라우드 동기화, 설문, 공지, 환율 조회, 음악 정보 등은 Supabase 및 앱에 명시된 제3자 서비스에 의존할 수 있으며, 해당 시 각 서비스 약관도 적용됩니다.
 
-miHoYo Shop(米游铺) 기능(주문/장바구니 가져오기, 재고 모니터링, 주문 보조 등)을 사용하려면 본인이 miHoYo Shop 세션 Cookie를 제공해야 합니다(직접 붙여넣기 또는 웹 버전의 공식 패스포트 QR 로그인 — 공식 HoYoLAB / miHoYo 패스포트 앱에서 본인이 스캔·확인). 관련 요청은 miHoYo Shop / miHoYo 서버에서 처리되고 해당 약관·개인정보 처리방침이 적용됩니다. 본 앱은 매장 측 재고·가격·주문 결과를 보장하지 않습니다.
+miHoYo Shop(米游铺) 기능(주문/장바구니 가져오기, 재고 모니터링, 주문 보조 등)을 사용하려면 본인이 miHoYo Shop 세션 Cookie를 제공해야 합니다(직접 붙여넣기 또는 웹 버전의 공식 QR 로그인 — 공식 HoYoLAB 앱에서 본인이 스캔·확인). 관련 요청은 miHoYo Shop / miHoYo 서버에서 처리되고 해당 약관·개인정보 처리방침이 적용됩니다. 본 앱은 매장 측 재고·가격·주문 결과를 보장하지 않습니다.
 
 **비공식 고지**: 본 앱은 miHoYo / miHoYo Shop과 **공식 제휴가 없으며** 공식 클라이언트가 아니고, 그 입장을 대변하지 않습니다. miHoYo Shop 관련 기능으로 이루어진 열람·장바구니 담기·주문 등은 공식 채널에서 수행됩니다. **본 앱은 매매 계약 당사자가 아니며** 거래 성립·배송·환불·A/S 등에 책임지지 않습니다. 본 앱과 miHoYo Shop Cookie를 대량 스크래핑, 악의적 주문 플러딩, 거래 질서 훼손, 제3자 권리 침해에 사용해서는 안 됩니다.
 

@@ -59,16 +59,16 @@
                 </ol>
               </template>
               <template v-else>
-                <p class="info-title">{{ t('import.howToGetCookie') }}</p>
-                <ol class="info-steps">
-                  <li>{{ t('import.cookieStep1') }}</li>
-                  <li>{{ t('import.cookieStep2') }}</li>
-                  <li>{{ t('import.cookieStep3') }}</li>
-                  <li>{{ t('import.cookieStep4') }}</li>
-                  <li>{{ t('import.cookieStep5') }}</li>
-                </ol>
+                <p class="info-title">{{ t('import.qrLoginHint') }}</p>
+                <p class="info-qr-lead">{{ t('import.qrLoginUseCookie') }}</p>
               </template>
             </div>
+          </div>
+
+          <div v-if="!canUseNativeImport" class="qr-cta">
+            <button class="qr-cta__btn" type="button" @click="showQrLogin = true">
+              {{ t('import.qrLoginTitle') }}
+            </button>
           </div>
 
           <div v-if="!canUseNativeImport" class="field-group">
@@ -105,6 +105,12 @@
           >
             {{ canUseNativeImport ? t('import.loginAndGetOrders') : t('import.startFetchOrders') }}
           </button>
+
+          <MihoyoQrLoginSheet
+            v-if="!canUseNativeImport"
+            v-model="showQrLogin"
+            @success="onQrLoginSuccess"
+          />
         </section>
 
         <!-- ========== Step: loading ========== -->
@@ -294,7 +300,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/assets/common/loading.css'
 import { useGoodsStore } from '@/stores/goods'
@@ -320,6 +326,7 @@ import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
 import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
+import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 
 defineOptions({ name: 'AccountImportView' })
 
@@ -330,6 +337,7 @@ const presets = usePresetsStore()
 const {
   cookieInput,
   rememberCookie,
+  hasSavedCookie,
   cookieValid,
   cookieWarningMessage,
   canAutoSubmitSavedCookie,
@@ -351,6 +359,20 @@ const {
 } = useMihoyoCookieState()
 
 const showAccountSheet = ref(false)
+const showQrLogin = ref(false)
+
+async function onQrLoginSuccess({ cookie } = {}) {
+  const value = String(cookie || '').trim()
+  if (!value) return
+  cookieInput.value = value
+  rememberCookie.value = true
+  try {
+    await submitNewAccountCookie(value, true)
+  } catch {
+    // 账号列表写入失败不阻断
+  }
+  await startFetch({ silentCookieExpired: true })
+}
 const accountSheetRef = ref(null)
 const ordersFetchRunning = ref(false)
 
@@ -370,6 +392,38 @@ const cappedWarning = ref(false)
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 const canUseNativeImport = canUseNativeMihoyoImport()
+/** Cookie/账号状态是否已从本地加载完成 */
+const cookieStateReady = ref(false)
+const autoOpenedQr = ref(false)
+
+/** 网页版：状态加载完且无任何会话/账号时，才自动弹扫码 */
+watch(
+  () => [
+    step.value,
+    canUseNativeImport,
+    cookieStateReady.value,
+    cookieValid.value,
+    hasSavedCookie.value,
+    accounts.value,
+  ],
+  ([nextStep, native, ready, valid, saved, accountList]) => {
+    if (native) return
+    const hasSession = valid || saved || (Array.isArray(accountList) && accountList.length > 0)
+    if (hasSession) {
+      if (autoOpenedQr.value) {
+        showQrLogin.value = false
+        autoOpenedQr.value = false
+      }
+      return
+    }
+    if (!ready) return
+    if (nextStep !== 'cookie') return
+    if (showQrLogin.value) return
+    showQrLogin.value = true
+    autoOpenedQr.value = true
+  },
+  { immediate: true },
+)
 const showErrorDialog = ref(false)
 const errorDialogTitle = ref('')
 const errorDialogMessage = ref('')
@@ -642,6 +696,7 @@ onMounted(async () => {
   }
 
   await initializeCookieState()
+  cookieStateReady.value = true
 
   if (!canAutoSubmitSavedCookie.value) return
 

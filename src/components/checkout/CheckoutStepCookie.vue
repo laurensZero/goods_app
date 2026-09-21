@@ -25,17 +25,17 @@
             </ol>
           </template>
           <template v-else>
-            <p class="cookie-info__title">{{ $t('import.howToGetCookie') }}</p>
-            <ol class="cookie-info__steps">
-              <li>{{ $t('import.cartCookieStep1') }}</li>
-              <li>{{ $t('import.cartCookieStep2') }}</li>
-              <li>{{ $t('import.cartCookieStep3') }}</li>
-              <li>{{ $t('import.cartCookieStep4') }}</li>
-              <li>{{ $t('import.cartCookieStep5') }}</li>
-            </ol>
+            <p class="cookie-info__title">{{ $t('import.qrLoginHint') }}</p>
+            <p class="cookie-info__qr-lead">{{ $t('import.qrLoginUseCookie') }}</p>
           </template>
         </div>
       </div>
+    </div>
+
+    <div v-if="!isNativePlatform" class="qr-cta">
+      <button class="qr-cta__btn link-btn" type="button" @click="showQrLogin = true">
+        {{ $t('import.qrLoginTitle') }}
+      </button>
     </div>
 
     <div v-if="accounts?.length" class="account-pick">
@@ -83,17 +83,25 @@
       </button>
     </div>
     <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
+
+    <MihoyoQrLoginSheet
+      v-if="!isNativePlatform"
+      v-model="showQrLogin"
+      @success="onQrSuccess"
+    />
   </section>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
+import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
   isNativePlatform: { type: Boolean, default: false },
   cookieValid: { type: Boolean, default: false },
   hasSavedCookie: { type: Boolean, default: false },
+  cookieStateReady: { type: Boolean, default: false },
   cookieWarningMessage: { type: String, default: '' },
   rememberCookie: { type: Boolean, default: false },
   accounts: { type: Array, default: () => [] },
@@ -103,7 +111,10 @@ const props = defineProps({
   stepNumber: { type: Number, required: true },
   stepCount: { type: Number, required: true },
 })
-const emit = defineEmits(['update:modelValue', 'update:rememberCookie', 'clear-saved', 'select-account'])
+const emit = defineEmits(['update:modelValue', 'update:rememberCookie', 'clear-saved', 'select-account', 'qr-login'])
+
+const showQrLogin = ref(false)
+const autoOpenedQr = ref(false)
 
 const rememberModel = computed({
   get: () => props.rememberCookie,
@@ -114,6 +125,49 @@ const cookieModel = computed({
   get: () => props.modelValue,
   set: (val) => emit('update:modelValue', val),
 })
+
+/**
+ * 仅在「本地状态已加载」且确实没有任何会话/账号时才自动弹扫码。
+ * 已有账号或已保存 Cookie 时不弹，避免进入下单页就被打断。
+ */
+function syncAutoOpenQr() {
+  if (props.isNativePlatform) return
+
+  const hasSession = props.cookieValid || props.hasSavedCookie || (props.accounts?.length > 0)
+
+  if (hasSession) {
+    if (autoOpenedQr.value) {
+      showQrLogin.value = false
+      autoOpenedQr.value = false
+    }
+    return
+  }
+
+  if (!props.cookieStateReady) return
+  if (showQrLogin.value) return
+  showQrLogin.value = true
+  autoOpenedQr.value = true
+}
+
+watch(
+  () => [
+    props.isNativePlatform,
+    props.cookieStateReady,
+    props.cookieValid,
+    props.hasSavedCookie,
+    props.accounts,
+  ],
+  () => syncAutoOpenQr(),
+  { immediate: true },
+)
+
+function onQrSuccess({ cookie } = {}) {
+  const value = String(cookie || '').trim()
+  if (!value) return
+  cookieModel.value = value
+  rememberModel.value = true
+  emit('qr-login', { cookie: value })
+}
 </script>
 
 <style src="@/assets/views/checkout-shared.css"></style>
@@ -165,6 +219,41 @@ const cookieModel = computed({
   font-size: 13px;
   color: var(--app-text-secondary);
   line-height: 1.7;
+}
+
+.cookie-info__qr-lead {
+  margin: 0;
+  font-size: 13px;
+  color: var(--app-text-secondary);
+  line-height: 1.6;
+}
+
+.qr-cta {
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.qr-cta__btn {
+  width: auto;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.qr-cta__btn:active {
+  opacity: 0.7;
+}
+
+.link-btn {
+  background: transparent;
+  border: none;
+  color: var(--app-text-secondary);
+  font-size: 13px;
 }
 
 .cookie-actions {
