@@ -551,6 +551,11 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
     watch(
       () => appUpdateStore.lastStatus,
       (status) => {
+        // 纯 Web 不再推「应用更新/下载」通知：网页端下载入口统一为 WebApkPromoBanner
+        if (!Capacitor.isNativePlatform()) {
+          if (status === 'available') lastAppUpdateAvailableNotified = true
+          return
+        }
         if (status === 'available' && !lastAppUpdateAvailableNotified) {
           lastAppUpdateAvailableNotified = true
           push({

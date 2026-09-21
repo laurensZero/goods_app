@@ -22,10 +22,12 @@ import { isDevVersionMockEnabled, resolveMockAppVersion } from '@/utils/dev/mock
 const log = createLogger('app-update')
 
 const FALLBACK_VERSION = normalizeVersionTag(import.meta.env.VITE_APP_VERSION || packageJson.version || '0.0.0')
+const IS_WEB_RUNTIME = !Capacitor.isNativePlatform()
 // DEV 浏览器：保留 mock 下载流程用于测试更新 UI
-const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && !Capacitor.isNativePlatform()
-// 生产纯 Web（Cloudflare Pages 等）：部署即最新，跳过 APK 更新检测
-const SHOULD_SKIP_UPDATE_CHECK = !import.meta.env.DEV && !Capacitor.isNativePlatform()
+const SUPPORT_WEB_MOCK_DOWNLOAD = import.meta.env.DEV && IS_WEB_RUNTIME
+// 纯 Web（含生产 PWA 与安卓浏览器）：不做 APK 更新自动检测/弹窗。
+// 网页端下载引导统一由 WebApkPromoBanner（仅安卓 UA）承担，避免「新旧两套下载」同时弹出。
+const SHOULD_SKIP_UPDATE_CHECK = IS_WEB_RUNTIME
 // dev 浏览器强制弹出 mock 下载对话框的开关：默认关闭（保持与手机端一致的真实版本比较）；
 // 需要测试下载流程时设置 localStorage.setItem('goods_dev_mock_update_dialog', '1')
 const FORCE_MOCK_DIALOG_KEY = 'goods_dev_mock_update_dialog'
@@ -438,7 +440,8 @@ export const useAppUpdateStore = defineStore('appUpdate', () => {
 
         if (hasUpdate.value) {
           lastStatus.value = 'available'
-          dialogVisible.value = !isSilentUpdate.value
+          // Web 真实 APK 更新不弹窗，避免与 WebApkPromoBanner 重复；原生/DEV mock 仍可弹
+          dialogVisible.value = (!IS_WEB_RUNTIME || usingMockDownload.value) && !isSilentUpdate.value
           log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, level: updateLevel.value })
           return { status: 'available', release }
         }

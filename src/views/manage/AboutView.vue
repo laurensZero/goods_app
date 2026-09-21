@@ -25,6 +25,25 @@
           <h2 class="section-title">{{ t('about.appInfo') }}</h2>
         </div>
 
+        <!-- 网页端：应用信息顶部提供 APK 下载入口 -->
+        <article v-if="!IS_NATIVE" class="info-card apk-download-card">
+          <div class="apk-download-card__copy">
+            <p class="info-kicker">Android APK</p>
+            <h3 class="info-value">{{ t('about.downloadApkTitle') }}</h3>
+            <p class="info-desc">{{ t('about.downloadApkDesc') }}</p>
+          </div>
+          <div class="apk-download-card__actions">
+            <button
+              type="button"
+              class="dialog-btn dialog-btn--primary"
+              :disabled="apkDownloading"
+              @click="handleDownloadApk"
+            >
+              {{ apkDownloading ? t('about.checking') : t('about.downloadApkAction') }}
+            </button>
+          </div>
+        </article>
+
         <div class="info-grid">
           <article class="info-card">
             <p class="info-kicker">{{ t('about.appName') }}</p>
@@ -334,6 +353,7 @@ import {
 import packageJson from '../../../package.json'
 import capacitorConfig from '../../../capacitor.config.json'
 import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
+import { fetchLatestApkDownloadUrl } from '@/utils/updateHelpers'
 
 const { t } = useI18n()
 
@@ -359,6 +379,7 @@ const cacheLimitOptions = computed(() => {
   return presets
 })
 const { toastMsg, showToast } = useToast()
+const apkDownloading = ref(false)
 
 useDialogBackButton(() => { showCacheLimitSheet.value = false }, showCacheLimitSheet)
 
@@ -479,6 +500,23 @@ async function handleManualCheckUpdate() {
     showToast(t('about.noUpdate'))
   } catch (error) {
     showToast(updateStore.lastError || error?.message || t('about.checkUpdateFailed'), 3200)
+  }
+}
+
+async function handleDownloadApk() {
+  if (apkDownloading.value) return
+  apkDownloading.value = true
+  try {
+    const url = await fetchLatestApkDownloadUrl()
+    if (!url) {
+      showToast(t('about.downloadApkFailed'), 3200)
+      return
+    }
+    window.location.href = url
+  } catch {
+    showToast(t('about.downloadApkFailed'), 3200)
+  } finally {
+    apkDownloading.value = false
   }
 }
 

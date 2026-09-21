@@ -386,6 +386,19 @@ img {
   overflow-anchor: none;
 }
 
+/* 网页端安卓 UA 引流横幅（顶部）展开时，为主标签页内容让出高度 */
+html.apk-promo-open {
+  --apk-promo-space: 78px;
+}
+
+html.apk-promo-open .route-scene .page-body {
+  padding-top: calc(
+    env(safe-area-inset-top, 0px)
+    + 20px
+    + var(--apk-promo-space, 0px)
+  ) !important;
+}
+
 .page-body::-webkit-scrollbar {
   display: none;
 }

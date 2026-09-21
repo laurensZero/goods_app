@@ -16,6 +16,8 @@
     </div>
     <TabBar v-if="showTabBar" />
     <AsyncFloatingAudioPlayer v-if="showFloatingPlayer" :with-tab-bar="showTabBar" />
+    <!-- 网页版安卓 UA 引流：固定顶部，组件内部再判 UA 与关闭状态 -->
+    <WebApkPromoBanner v-if="shellReady && showTabBar" />
     <AsyncTermsPrivacyDialog v-if="shellReady" />
     <AsyncAnnouncementDialog v-if="shellReady" />
     <AsyncWebUpdateDialog v-if="shellReady" />
@@ -40,6 +42,7 @@ import { useI18n } from 'vue-i18n'
 import AppNotifyToast from '@/components/app/AppNotifyToast.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import TabBar from '@/components/app/TabBar.vue'
+import WebApkPromoBanner from '@/components/app/WebApkPromoBanner.vue'
 import { globalToastMsg } from '@/utils/globalToast'
 import { useSyncStore } from '@/stores/sync'
 import { useRealtimeSync } from '@/composables/sync/useRealtimeSync'
