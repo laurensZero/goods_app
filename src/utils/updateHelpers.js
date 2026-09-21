@@ -27,3 +27,25 @@ export function toDirectStorageUrl(storagePath) {
   if (!path || path.includes('..')) return ''
   return `${SUPABASE_URL}/storage/v1/object/public/ota-releases/${path}`
 }
+
+/**
+ * 读取最新安卓 APK 下载直链（Supabase ota_releases，type=apk）。
+ * 供 Web 端安卓 UA 引流等场景使用；失败返回空串。
+ */
+export async function fetchLatestApkDownloadUrl() {
+  try {
+    const { getSupabaseClient } = await import('@/utils/sync/supabaseClient')
+    const client = getSupabaseClient()
+    const { data, error } = await client
+      .from('ota_releases')
+      .select('*')
+      .eq('type', 'apk')
+      .order('published_at', { ascending: false })
+      .limit(1)
+    if (error) throw error
+    const storagePath = String(data?.[0]?.storage_path || '').trim()
+    return toDirectStorageUrl(storagePath)
+  } catch {
+    return ''
+  }
+}

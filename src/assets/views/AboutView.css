@@ -147,6 +147,30 @@
   border-radius: var(--radius-card);
 }
 
+/* 网页端「应用信息」顶部的 APK 下载卡片 */
+.apk-download-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: var(--card-gap);
+}
+
+.apk-download-card__copy {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.apk-download-card__actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.apk-download-card__actions .dialog-btn {
+  min-width: 120px;
+}
+
 .info-card--action {
   width: 100%;
   border: none;

@@ -81,7 +81,8 @@ const containerStyle = computed(() => {
   const position = notifySettingsStore.effectiveSettings.position || 'top-right'
   const style = {
     position: 'fixed',
-    top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+    // 顶部引流横幅展开时下移，避免与横幅重叠
+    top: 'calc(env(safe-area-inset-top, 0px) + 12px + var(--apk-promo-space, 0px))',
     zIndex: 9998,
     display: 'flex',
     flexDirection: 'column',
