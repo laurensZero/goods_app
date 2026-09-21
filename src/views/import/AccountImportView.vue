@@ -352,6 +352,7 @@ const {
 
 const showAccountSheet = ref(false)
 const accountSheetRef = ref(null)
+const ordersFetchRunning = ref(false)
 
 function openAccountSheet() {
   showAccountSheet.value = true
@@ -584,18 +585,13 @@ async function onSwitchAccount(account) {
     return
   }
 
-  rawOrders.value = []
-  selectedSet.value = new Set()
-  expandedSet.value = new Set()
-  cappedWarning.value = false
-  step.value = 'cookie'
-  cookieInput.value = result.cookie
-
   if (canUseNativeImport && !result.nativeApplied) {
     openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
     return
   }
 
+  cookieInput.value = result.cookie
+  // 不清列表/不回 cookie 步，直接 loading，避免切号白屏
   await startFetch({ silentCookieExpired: true })
 }
 
@@ -603,14 +599,9 @@ async function onRemoveAccount(account) {
   await removeAccount(account?.id)
 }
 
-/** 原生：拉起 WebView 登录新账号；成功后刷新账号并停留在当前步骤，避免白屏/丢上下文 */
-/** 登录/重登成功后：刷新订单列表（不只在切换账号时） */
+/** 登录/重登成功后：刷新订单（不只在切换账号时） */
 async function refreshAfterMihoyoLogin(nextCookie) {
   cookieInput.value = String(nextCookie || '').trim()
-  rawOrders.value = []
-  selectedSet.value = new Set()
-  expandedSet.value = new Set()
-  cappedWarning.value = false
   if (!cookieInput.value) {
     step.value = 'cookie'
     return
@@ -659,6 +650,8 @@ onMounted(async () => {
 })
 
 const startFetch = async (options = {}) => {
+  if (ordersFetchRunning.value) return
+  ordersFetchRunning.value = true
   if (canUseNativeImport) {
     step.value = 'loading'
     loadedCount.value = 0
@@ -686,6 +679,7 @@ const startFetch = async (options = {}) => {
       step.value = 'cookie'
     } finally {
       progressHandle?.remove()
+      ordersFetchRunning.value = false
     }
     return
   }
@@ -720,6 +714,8 @@ const startFetch = async (options = {}) => {
 
     openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.retryLater'))
     step.value = 'cookie'
+  } finally {
+    ordersFetchRunning.value = false
   }
 }
 

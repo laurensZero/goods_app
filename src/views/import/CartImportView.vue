@@ -271,6 +271,7 @@ const {
 
 const showAccountSheet = ref(false)
 const accountSheetRef = ref(null)
+const cartFetchRunning = ref(false)
 
 function openAccountSheet() {
   showAccountSheet.value = true
@@ -409,17 +410,14 @@ async function onSwitchAccount(account) {
     return
   }
 
-  rawGroups.value = []
-  selectedSet.value = new Set()
-  step.value = 'cookie'
-  cookieInput.value = result.cookie
-
   // 原生端 Cookie 未写入插件时：不要自动 startFetch（会用空/旧会话失败并误标失效）
   if (canUseNativeImport && !result.nativeApplied) {
     openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
     return
   }
 
+  cookieInput.value = result.cookie
+  // 直接进 loading 拉新账号数据，避免 cookie 空页/清列表造成的白屏闪烁
   await startFetch({ silentCookieExpired: true })
 }
 
@@ -430,8 +428,6 @@ async function onRemoveAccount(account) {
 /** 登录/重登成功后：刷新购物车（不只在切换账号时） */
 async function refreshAfterMihoyoLogin(nextCookie) {
   cookieInput.value = String(nextCookie || '').trim()
-  rawGroups.value = []
-  selectedSet.value = new Set()
   if (!cookieInput.value) {
     step.value = 'cookie'
     return
@@ -468,6 +464,8 @@ async function syncNativeCookieToWeb() {
 }
 
 const startFetch = async (options = {}) => {
+  if (cartFetchRunning.value) return
+  cartFetchRunning.value = true
   if (canUseNativeImport) {
     step.value = 'loading'
 
@@ -481,6 +479,8 @@ const startFetch = async (options = {}) => {
     } catch (error) {
       openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'
+    } finally {
+      cartFetchRunning.value = false
     }
     return
   }
@@ -489,7 +489,8 @@ const startFetch = async (options = {}) => {
   step.value = 'loading'
 
   try {
-    rawGroups.value = await fetchCartList(cookieInput.value.trim())
+    const nextGroups = await fetchCartList(cookieInput.value.trim())
+    rawGroups.value = Array.isArray(nextGroups) ? nextGroups : []
     await persistCookieAfterSuccess()
     selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
     step.value = 'list'
@@ -505,6 +506,8 @@ const startFetch = async (options = {}) => {
 
     openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.retryLater'))
     step.value = 'cookie'
+  } finally {
+    cartFetchRunning.value = false
   }
 }
 

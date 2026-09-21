@@ -670,7 +670,8 @@ async function fetchOrderPage(cookieStr, page, limit) {
 }
 
 /**
- * 获取账号全部订单（自动分页，最多 200 条）
+ * 获取账号全部订单（自动分页，最多约 200 条）
+ * 分页并发拉取（最多 3 路），避免串行 + 150ms 间隔拖慢导入。
  * @param {string} cookieStr - 完整 Cookie 字符串
  * @param {function} [onProgress] - (loaded: number, total: number) 进度回调
  */
@@ -679,14 +680,30 @@ export async function fetchAllOrders(cookieStr, onProgress) {
   const first = await fetchOrderPage(cookieStr, 1, limit)
   const total = first.count || 0
   const totalPages = Math.min(Math.ceil(total / limit), 10)
-  let list = [...first.list]
-  onProgress?.(list.length, total)
-  for (let page = 2; page <= totalPages; page++) {
-    const { list: pageList } = await fetchOrderPage(cookieStr, page, limit)
-    list = [...list, ...pageList]
-    onProgress?.(list.length, total)
-    await new Promise((r) => setTimeout(r, 150))
+  const pages = Array.from({ length: totalPages }, (_, i) => i + 1)
+  const results = new Array(totalPages)
+  results[0] = first
+  let loaded = first.list?.length || 0
+  onProgress?.(loaded, total)
+
+  if (totalPages > 1) {
+    const CONCURRENCY = 3
+    let cursor = 1
+    async function worker() {
+      while (cursor < totalPages) {
+        const page = pages[cursor]
+        cursor += 1
+        const data = await fetchOrderPage(cookieStr, page, limit)
+        results[page - 1] = data
+        loaded += data.list?.length || 0
+        onProgress?.(Math.min(loaded, total), total)
+      }
+    }
+    const workers = Array.from({ length: Math.min(CONCURRENCY, totalPages - 1) }, () => worker())
+    await Promise.all(workers)
   }
+
+  const list = results.flatMap((data) => (data?.list || []))
   return { list, total, capped: total > list.length }
 }
 
