@@ -204,6 +204,84 @@ export default defineConfig({
           })
         }
       },
+      // 米游铺通行证扫码登录：官方 CORS 仅放行 user.mihoyogift.com。
+      // Confirmed 时会话在 Set-Cookie（HttpOnly）；代理改为写入 JSON body，
+      // 因为 fetch 的 Headers 不能可靠暴露自定义响应头。
+      '/mihoyo-passport': {
+        target: 'https://passport-api.mihoyogift.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/mihoyo-passport/, ''),
+        selfHandleResponse: true,
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq) => {
+            proxyReq.setHeader('origin', 'https://user.mihoyogift.com')
+            proxyReq.setHeader('referer', 'https://user.mihoyogift.com/')
+            if (!proxyReq.getHeader('x-rpc-app_id')) {
+              proxyReq.setHeader('x-rpc-app_id', 'cll1n7kjjwu8')
+            }
+            if (!proxyReq.getHeader('x-rpc-client_type')) {
+              proxyReq.setHeader('x-rpc-client_type', '4')
+            }
+            if (!proxyReq.getHeader('x-rpc-game_biz')) {
+              proxyReq.setHeader('x-rpc-game_biz', 'mall_cn')
+            }
+          })
+          proxy.on('proxyRes', (proxyRes, req, res) => {
+            const chunks = []
+            proxyRes.on('data', (chunk) => chunks.push(chunk))
+            proxyRes.on('end', () => {
+              const rawBody = Buffer.concat(chunks)
+              const setCookies = proxyRes.headers['set-cookie']
+              delete proxyRes.headers['set-cookie']
+              // 覆盖上游 CORS，避免浏览器把响应当成 user.mihoyogift.com 的
+              proxyRes.headers['access-control-allow-origin'] = req.headers.origin || '*'
+              proxyRes.headers['access-control-allow-credentials'] = 'true'
+              proxyRes.headers['access-control-expose-headers'] =
+                'X-Rpc-Aigis, X-Trace-Id, X-Mihoyo-Set-Cookie'
+
+              let cookieStr = ''
+              if (Array.isArray(setCookies) && setCookies.length) {
+                const pairs = []
+                for (const raw of setCookies) {
+                  const firstPair = String(raw).split(';')[0]
+                  const eq = firstPair.indexOf('=')
+                  if (eq <= 0) continue
+                  const name = firstPair.slice(0, eq).trim()
+                  const value = firstPair.slice(eq + 1).trim()
+                  if (!name || value === '') continue
+                  pairs.push(`${name}=${value}`)
+                }
+                cookieStr = pairs.join('; ')
+              }
+
+              let outBody = rawBody
+              const contentType = String(proxyRes.headers['content-type'] || '')
+              if (cookieStr && contentType.includes('json')) {
+                try {
+                  const json = JSON.parse(rawBody.toString('utf8'))
+                  if (json && typeof json === 'object') {
+                    if (json.data && typeof json.data === 'object') {
+                      json.data.mihoyo_set_cookie = cookieStr
+                    } else {
+                      json.mihoyo_set_cookie = cookieStr
+                    }
+                    outBody = Buffer.from(JSON.stringify(json), 'utf8')
+                  }
+                } catch {
+                  outBody = rawBody
+                }
+              }
+
+              if (cookieStr) {
+                res.setHeader('x-mihoyo-set-cookie', encodeURIComponent(cookieStr))
+              }
+              proxyRes.headers['content-length'] = String(outBody.length)
+              res.writeHead(proxyRes.statusCode || 200, proxyRes.headers)
+              res.end(outBody)
+            })
+          })
+        }
+      },
       '/netease-api': {
         target: 'https://music.163.com',
         changeOrigin: true,

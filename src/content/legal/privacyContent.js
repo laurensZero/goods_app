@@ -32,16 +32,20 @@ export const privacyContent = {
 | 分享链接 | 您选择公开分享的条目信息 | 生成可供他人导入的分享内容（**持有链接者均可访问**，请勿包含敏感信息） |
 | 公告 / 更新提示 | 设备端版本号、更新渠道等 | 展示公告与检查更新 |
 | 开售提醒等通知 | 本地通知权限与提醒配置 | 按您的设置发送提醒 |
-| 米游铺相关功能 | 您粘贴/导入的米游铺 Cookie；在您使用该功能时，经本应用向米游铺接口请求的订单、购物车、收货地址、积分、商品详情等 | 订单/购物车导入、有货监控、开售提醒、下单辅助等（均需您主动使用） |
+| 米游铺相关功能 | 您粘贴的米游铺 Cookie，或网页端扫码登录时经官方通行证接口返回并仅存于本机的会话 Cookie；在您使用该功能时，经本应用向米游铺接口请求的订单、购物车、收货地址、积分、商品详情等 | 订单/购物车导入、有货监控、开售提醒、下单辅助等（均需您主动使用） |
 | AI 助手 | 您与 AI 助手的对话文本；助手为回答问题可能在请求中携带的必要本机收藏字段；您自行配置的模型服务相关信息（API Key 等仅存本机） | 由**您所选、自填 Key 的第三方模型服务商**生成回复；本应用不提供模型服务 |
 
 ### 3. 米游铺 Cookie 与第三方接口
 
 应用内提供可选的米游铺相关能力（如订单导入、购物车导入、库存监控、下单辅助）。使用时：
 
-- **Cookie 由您自行从米游铺/米哈游账号会话中获取并粘贴**；本应用不会代您登录或骗取凭据。
-- Cookie **仅保存在本机安全存储**（原生为系统 Preferences，Web 为本地存储），**不会上传到本应用的云同步后端**，也不会写入分享导出的备份。
-- 为完成您发起的操作，本应用会将该 Cookie 发送至**米游铺/米哈游官方接口**（Web 开发环境可能经本地代理转发）。相关请求由米游铺服务器处理，适用米哈游/米游铺的隐私政策与用户协议。
+- **会话 Cookie 获取方式**（均可选，均由您主动发起）：
+  1. **自行粘贴**：您从米游铺/米哈游账号会话中复制 Cookie 并粘贴到应用内；
+  2. **网页扫码登录**：网页版可展示官方通行证登录二维码；**仅当您使用米游社/米哈游通行证 App 在官方页面扫码并确认**后，应用才会通过开发代理或本应用部署的转发接口取得官方接口返回的会话 Cookie，并保存到本机。
+- **本应用不会索取或存储您的米哈游账号密码**，也不会绕过您在官方 App/页面上的确认操作。扫码确认始终在米哈游官方客户端内完成。
+- 网页扫码时，创建二维码与轮询登录状态的请求可能经**本应用开发代理或部署的转发接口**中转到米哈游通行证官方接口（passport-api）；中转过程可能短暂经过该接口处理登录票据（ticket）与状态，**不会将完整会话 Cookie 写入本应用云同步后端**。取得的 Cookie 仅保存在**本机安全存储**（原生为系统 Preferences，Web 为本地存储），也不会写入分享导出的备份。
+- Cookie **仅保存在本机安全存储**（同上），**不会上传到本应用的云同步后端**，也不会写入分享导出的备份。
+- 为完成您发起的操作，本应用会将该 Cookie 发送至**米游铺/米哈游官方接口**（Web 开发/生产环境可能经本地或部署代理转发）。相关请求由米游铺服务器处理，适用米哈游/米游铺的隐私政策与用户协议。
 - Cookie 失效时，本应用仅在本机标记失效状态；您可在设置中清除已保存的 Cookie。
 - 请勿在公共设备上保存 Cookie；离开设备前建议主动清除。
 - 本应用**非**米哈游/米游铺官方客户端，与米哈游无官方关联。
@@ -86,7 +90,7 @@ export const privacyContent = {
 
 我们不会向第三方出售您的个人信息。仅在下列情形可能共享：
 
-- **您明确同意或指示**：如开启云同步、创建分享链接；使用米游铺功能时，相当于指示本应用将 Cookie 及必要请求参数发送至米游铺/米哈游接口；使用 AI 助手时，相当于指示本应用将对话及必要上下文发送至您自行配置的模型服务商
+- **您明确同意或指示**：如开启云同步、创建分享链接；使用米游铺功能（含网页扫码登录或粘贴 Cookie）时，相当于指示本应用将 Cookie 及必要请求参数发送至米游铺/米哈游接口；扫码登录时亦相当于指示本应用经转发接口调用米哈游通行证官方登录接口；使用 AI 助手时，相当于指示本应用将对话及必要上下文发送至您自行配置的模型服务商
 - **实现功能所必需的技术服务**：如云数据库/存储服务商，在必要范围内处理您授权的数据
 - **法律法规或行政机关要求**：在适用法律要求的范围内披露
 
@@ -165,16 +169,20 @@ Web 端清除浏览器存储、或卸载原生应用并清理数据，可清除�
 | 分享連結 | 您選擇公開分享的條目資訊 | 生成可供他人匯入的分享內容（**持有連結者均可存取**，請勿包含敏感資訊） |
 | 公告 / 更新提示 | 裝置端版本號、更新管道等 | 展示公告與檢查更新 |
 | 開售提醒等通知 | 本地通知權限與提醒設定 | 按您的設定發送提醒 |
-| 米游鋪相關功能 | 您貼上/匯入的米游鋪 Cookie；在您使用該功能時，經本應用向米游鋪介面請求的訂單、購物車、收貨地址、積分、商品詳情等 | 訂單/購物車匯入、有貨監控、開售提醒、下單輔助等（均需您主動使用） |
+| 米游鋪相關功能 | 您貼上的米游鋪 Cookie，或網頁端掃碼登入時經官方通行證介面回傳並僅存於本機的工作階段 Cookie；在您使用該功能時，經本應用向米游鋪介面請求的訂單、購物車、收貨地址、積分、商品詳情等 | 訂單/購物車匯入、有貨監控、開售提醒、下單輔助等（均需您主動使用） |
 | AI 助手 | 您與 AI 助手的對話文字；助手為回答問題可能在請求中攜帶的必要本機收藏欄位；您自行配置的模型服務相關資訊（API Key 等僅存本機） | 由**您所選、自填 Key 的第三方模型服務商**產生回覆；本應用不提供模型服務 |
 
 ### 3. 米游鋪 Cookie 與第三方介面
 
 應用內提供可選的米游鋪相關能力（如訂單匯入、購物車匯入、庫存監控、下單輔助）。使用時：
 
-- **Cookie 由您自行從米游鋪/米哈遊帳號會話中取得並貼上**；本應用不會代您登入或騙取憑據。
+- **工作階段 Cookie 取得方式**（均可選，均由您主動發起）：
+  1. **自行貼上**：您從米游鋪/米哈遊帳號工作階段複製 Cookie 並貼上到應用內；
+  2. **網頁掃碼登入**：網頁版可顯示官方通行證登入二維碼；**僅當您在米遊社/米哈遊通行證 App 於官方頁面掃碼並確認**後，應用才會透過開發代理或本應用部署的轉發介面取得官方介面回傳的工作階段 Cookie，並保存到本機。
+- **本應用不會索取或儲存您的米哈遊帳號密碼**，也不會繞過您在官方 App/頁面上的確認操作。掃碼確認始終在米哈遊官方用戶端內完成。
+- 掃碼時，建立二維碼與輪詢登入狀態的請求可能經**本應用開發代理或部署的轉發介面**中轉到米哈遊通行證官方介面；中轉過程可能短暫處理登入票據（ticket）與狀態，**不會將完整工作階段 Cookie 寫入本應用雲端同步後端**。
 - Cookie **僅保存在本機安全儲存**（原生為系統 Preferences，Web 為本地儲存），**不會上傳到本應用的雲端同步後端**，也不會寫入分享匯出的備份。
-- 為完成您發起的操作，本應用會將該 Cookie 發送至**米游鋪/米哈遊官方介面**（Web 開發環境可能經本地代理轉發）。相關請求由米游鋪伺服器處理，適用米哈遊/米游鋪的隱私政策與用戶協定。
+- 為完成您發起的操作，本應用會將該 Cookie 發送至**米游鋪/米哈遊官方介面**（Web 開發/生產環境可能經本地或部署代理轉發）。相關請求由米游鋪伺服器處理，適用米哈遊/米游鋪的隱私政策與用戶協定。
 - Cookie 失效時，本應用僅在本機標記失效狀態；您可在設定中清除已保存的 Cookie。
 - 請勿在公共裝置上儲存 Cookie；離開裝置前建議主動清除。
 - 本應用**非**米哈遊/米游鋪官方客戶端，與米哈遊無官方關聯。
@@ -219,7 +227,7 @@ Web 端清除浏览器存储、或卸载原生应用并清理数据，可清除�
 
 我們不會向第三方出售您的個人資訊。僅在下列情形可能共享：
 
-- **您明確同意或指示**：如開啟雲端同步、建立分享連結；使用米游鋪功能時，相當於指示本應用將 Cookie 及必要請求參數發送至米游鋪/米哈遊介面；使用 AI 助手時，相當於指示本應用將對話及必要上下文發送至您自行配置的模型服務商
+- **您明確同意或指示**：如開啟雲端同步、建立分享連結；使用米游鋪功能（含網頁掃碼登入或貼上 Cookie）時，相當於指示本應用將 Cookie 及必要請求參數發送至米游鋪/米哈遊介面；掃碼登入時亦相當於指示本應用經轉發介面呼叫米哈遊通行證官方登入介面；使用 AI 助手時，相當於指示本應用將對話及必要上下文發送至您自行配置的模型服務商
 - **實現功能所必需的技術服務**：如雲端資料庫/儲存服務商，在必要範圍內處理您授權的資料
 - **法律法規或行政機關要求**：在適用法律要求的範圍內揭露
 
@@ -298,16 +306,20 @@ Only when you enable or use the corresponding feature, we may process:
 | Share links | Item details you choose to publish | Generate content others can import (**accessible to anyone holding the link**; do not include sensitive information) |
 | Announcements / update checks | App/bundle version, update channel | Show notices and check updates |
 | Sale reminders & notifications | Local notification permission and reminder settings | Send reminders you configure |
-| miHoYo Shop features | miHoYo Shop Cookie you paste/import; orders, cart, shipping addresses, points, and product details requested from miHoYo Shop APIs when you use these features | Order/cart import, stock monitoring, sale reminders, checkout assistance (all user-initiated) |
+| miHoYo Shop features | miHoYo Shop Cookie you paste, or the session Cookie returned by the official passport API after Web QR sign-in and stored only on-device; orders, cart, shipping addresses, points, and product details requested from miHoYo Shop APIs when you use these features | Order/cart import, stock monitoring, sale reminders, checkout assistance (all user-initiated) |
 | AI assistant | Chat text with the AI assistant; necessary on-device collection fields the assistant may include in requests to answer you; configuration for the model service you chose (API keys stored only on-device) | Replies generated by **the third-party model provider you chose and whose key you entered**; the App does not provide the model service |
 
 ### 1.3 miHoYo Shop Cookie & third-party APIs
 
 Optional miHoYo Shop capabilities (order/cart import, stock monitoring, checkout assistance, etc.) work as follows:
 
-- **You obtain and paste the Cookie yourself** from your miHoYo Shop / miHoYo account session. The App does not log in on your behalf or harvest credentials.
+- **How the session Cookie is obtained** (optional; always user-initiated):
+  1. **Paste yourself**: copy the Cookie from your miHoYo Shop / miHoYo account session and paste it into the App;
+  2. **Web QR sign-in**: the Web version may show an official passport login QR code; **only after you scan and confirm in the official HoYoLAB / miHoYo Passport app**, the App receives the session Cookie returned by the official API via a development proxy or an App-deployed forwarding endpoint, and stores it on-device.
+- **The App does not ask for or store your miHoYo account password**, and does not bypass confirmation in the official app/page. QR confirmation always happens inside the official miHoYo client.
+- During Web QR sign-in, create-QR and status-poll requests may be forwarded through **the App's development proxy or deployed endpoint** to official miHoYo passport APIs; that path may briefly process the login ticket/status. **The full session Cookie is not uploaded to the App's cloud sync backend.**
 - The Cookie is **stored only in local secure storage** (Preferences on native; local storage on Web). It is **not uploaded to the App's cloud sync backend** and is not included in share/export backups.
-- To complete actions you start, the App sends that Cookie to **official miHoYo Shop / miHoYo APIs** (Web dev may forward via a local proxy). Those requests are processed by miHoYo Shop servers under miHoYo's / miHoYo Shop privacy policy and terms.
+- To complete actions you start, the App sends that Cookie to **official miHoYo Shop / miHoYo APIs** (Web dev/production may forward via local or deployed proxies). Those requests are processed by miHoYo Shop servers under miHoYo's / miHoYo Shop privacy policy and terms.
 - When the Cookie becomes invalid, the App only marks it invalid locally; you can clear the saved Cookie in settings.
 - Do not save Cookies on shared devices; clear them before leaving.
 - The App is **not** an official miHoYo / miHoYo Shop client and has no official affiliation with miHoYo.
@@ -352,7 +364,7 @@ We do **not** use your collection data for advertising and do **not** sell your 
 
 We do not sell your personal information. We may share only:
 
-- **With your clear consent or instruction**: e.g., enabling cloud sync, creating share links; using miHoYo Shop features instructs the App to send the Cookie and necessary request parameters to miHoYo Shop / miHoYo APIs; using the AI assistant instructs the App to send chats and necessary context to the model provider you configured
+- **With your clear consent or instruction**: e.g., enabling cloud sync, creating share links; using miHoYo Shop features (including Web QR sign-in or pasting a Cookie) instructs the App to send the Cookie and necessary request parameters to miHoYo Shop / miHoYo APIs; QR sign-in also instructs the App to call official miHoYo passport login APIs via a forwarding endpoint; using the AI assistant instructs the App to send chats and necessary context to the model provider you configured
 - **With service providers necessary to deliver features**: e.g., cloud database/storage, processing authorized data only as needed
 - **As required by law or competent authorities**: to the extent required
 
@@ -431,16 +443,20 @@ For questions, comments, or complaints about this Policy, please use the in-app 
 | 公開リンク | 公開を選択した項目情報 | 他者が取り込める共有内容の生成（**リンクを知るすべての者が閲覧可能**。機密情報を含めないでください） |
 | お知らせ / 更新確認 | 端末側バージョン、更新チャンネル等 | お知らせ表示と更新確認 |
 | 販売開始リマインダー等 | ローカル通知権限とリマインダー設定 | お客様の設定に従い通知 |
-| miHoYo Shop（米游鋪）関連機能 | 貼り付け/取り込みした miHoYo Shop Cookie。機能利用時に本アプリから miHoYo Shop API へ依頼する注文、カート、配送先、ポイント、商品詳細など | 注文/カート取り込み、在庫監視、販売開始リマインダー、注文補助（いずれもお客様の操作時のみ） |
+| miHoYo Shop（米游鋪）関連機能 | 貼り付けた Cookie、または Web の QR ログイン時に公式パスポート API から返され端末内のみに保存されるセッション Cookie。機能利用時に本アプリから miHoYo Shop API へ依頼する注文、カート、配送先、ポイント、商品詳細など | 注文/カート取り込み、在庫監視、販売開始リマインダー、注文補助（いずれもお客様の操作時のみ） |
 | AI アシスタント | AI アシスタントとの対話テキスト。回答に必要な範囲でリクエストに含められる端末内コレクション項目。お客様が選択したモデルサービスの設定（API キー等は端末内のみ保存） | **お客様が選択しキーを入力した第三者モデルサービス**が返答を生成。本アプリはモデルサービスを提供しません |
 
 ### 1.3 miHoYo Shop Cookie と第三者 API
 
 アプリ内の任意の miHoYo Shop 機能（注文/カート取り込み、在庫監視、注文補助など）は次のように動作します：
 
-- **Cookie はお客様自身が miHoYo Shop / miHoYo アカウントのセッションから取得し貼り付けます**。本アプリが代わりにログインしたり、認証情報を取得したりしません。
+- **セッション Cookie の取得方法**（いずれも任意で、お客様が開始する操作のみ）：
+  1. **ご自身で貼り付け**：miHoYo Shop / miHoYo アカウントのセッションから Cookie をコピーしてアプリに貼り付け；
+  2. **Web QR ログイン**：Web 版は公式パスポートのログイン QR を表示できます。**お客様が公式 HoYoLAB / miHoYo パスポートアプリでスキャンし確認した場合にのみ**、開発用プロキシまたは本アプリがデプロイした転送エンドポイント経由で、公式 API が返すセッション Cookie を取得し端末内に保存します。
+- **本アプリは miHoYo アカウントのパスワードを求めたり保存したりしません**。公式アプリ/ページ上の確認を回避することもありません。QR 確認は常に miHoYo 公式クライアント内で行われます。
+- Web QR ログイン時、QR 作成および状態ポーリングの要求は、**本アプリの開発用プロキシまたはデプロイ済みエンドポイント**を経由して公式パスポート API へ転送されることがあります。この経路でログインチケット/状態が一時的に処理される場合がありますが、**完全なセッション Cookie を本アプリのクラウド同期バックエンドへはアップロードしません**。
 - Cookie は**端末の安全なストレージのみ**に保存されます（ネイティブは Preferences、Web はローカルストレージ）。本アプリのクラウド同期バックエンドへは**アップロードせず**、共有エクスポートのバックアップにも含めません。
-- お客様が開始した操作を完了するため、その Cookie を **miHoYo Shop / miHoYo 公式 API** へ送信します（Web 開発環境ではローカルプロキシ経由の場合があります）。当該リクエストは miHoYo Shop のサーバーで処理され、miHoYo / miHoYo Shop のプライバシーポリシー・利用規約が適用されます。
+- お客様が開始した操作を完了するため、その Cookie を **miHoYo Shop / miHoYo 公式 API** へ送信します（Web 開発/本番ではローカルまたはデプロイ済みプロキシ経由の場合があります）。当該リクエストは miHoYo Shop のサーバーで処理され、miHoYo / miHoYo Shop のプライバシーポリシー・利用規約が適用されます。
 - Cookie 失効時は端末上に失効として記録するのみです。設定から保存済み Cookie を消去できます。
 - 共有端末に Cookie を保存しないでください。端末を離れる前に消去をおすすめします。
 - 本アプリは miHoYo / miHoYo Shop の**公式クライアントではなく**、miHoYo との公式な関係はありません。
@@ -485,7 +501,7 @@ For questions, comments, or complaints about this Policy, please use the in-app 
 
 個人情報を販売しません。以下の場合に限り共有することがあります：
 
-- **お客様の明確な同意または指示**：クラウド同期の有効化、共有リンク作成など。miHoYo Shop 機能利用は、Cookie と必要パラメータを miHoYo Shop / miHoYo API へ送信する指示を含みます。AI アシスタント利用は、対話と必要コンテキストをお客様が構成したモデルサービスへ送信する指示を含みます
+- **お客様の明確な同意または指示**：クラウド同期の有効化、共有リンク作成など。miHoYo Shop 機能利用（Web QR ログインまたは Cookie の貼り付けを含む）は、Cookie と必要パラメータを miHoYo Shop / miHoYo API へ送信する指示を含みます。QR ログインは、転送エンドポイント経由で公式パスポートログイン API を呼び出す指示も含みます。AI アシスタント利用は、対話と必要コンテキストをお客様が構成したモデルサービスへ送信する指示を含みます
 - **機能提供に必要な技術サービス**：クラウド DB/ストレージ等、許諾範囲での処理
 - **法令または行政機関の要求**：適用法が要求する範囲での開示
 
@@ -564,16 +580,20 @@ Web ではブラウザストレージの消去、ネイティブではアンイ�
 | 공유 링크 | 공개로 선택한 항목 정보 | 타인이 가져올 수 있는 공유 내용 생성(**링크를 가진 누구나 접근 가능**; 민감 정보를 포함하지 마세요) |
 | 공지 / 업데이트 확인 | 기기 버전, 업데이트 채널 등 | 공지 표시 및 업데이트 확인 |
 | 판매 시작 알림 등 | 로컬 알림 권한 및 알림 설정 | 설정한 대로 알림 발송 |
-| miHoYo Shop(米游铺) 기능 | 귀하가 붙여넣기/가져온 miHoYo Shop Cookie; 해당 기능 사용 시 본 앱이 miHoYo Shop API에 요청하는 주문, 장바구니, 배송지, 포인트, 상품 상세 등 | 주문/장바구니 가져오기, 재고 모니터링, 판매 알림, 주문 보조(모두 사용자 직접 실행) |
+| miHoYo Shop(米游铺) 기능 | 귀하가 붙여넣은 Cookie, 또는 웹 QR 로그인 시 공식 패스포트 API가 반환하고 기기에만 저장하는 세션 Cookie; 해당 기능 사용 시 본 앱이 miHoYo Shop API에 요청하는 주문, 장바구니, 배송지, 포인트, 상품 상세 등 | 주문/장바구니 가져오기, 재고 모니터링, 판매 알림, 주문 보조(모두 사용자 직접 실행) |
 | AI 어시스턴트 | AI 어시스턴트와의 대화 텍스트; 답변을 위해 요청에 포함될 수 있는 기기 내 컬렉션 필드; 본인이 선택한 모델 서비스 설정(API 키 등은 기기 내에만 저장) | **본인이 선택하고 키를 입력한 제3자 모델 서비스**가 응답 생성; 본 앱은 모델 서비스를 제공하지 않음 |
 
 ### 1.3 miHoYo Shop Cookie 및 제3자 API
 
 앱 내 선택적 miHoYo Shop 기능(주문/장바구니 가져오기, 재고 모니터링, 주문 보조 등)은 다음과 같이 동작합니다:
 
-- **Cookie는 본인이 miHoYo Shop / miHoYo 계정 세션에서 직접 가져와 붙여넣습니다.** 본 앱이 대신 로그인하거나 자격 증명을 수집하지 않습니다.
+- **세션 Cookie 취득 방법** (모두 선택 사항이며 사용자가 시작한 작업만):
+  1. **직접 붙여넣기**: miHoYo Shop / miHoYo 계정 세션에서 Cookie를 복사해 앱에 붙여넣기;
+  2. **웹 QR 로그인**: 웹 버전은 공식 패스포트 로그인 QR을 표시할 수 있습니다. **본인이 공식 HoYoLAB / miHoYo 패스포트 앱에서 스캔하고 확인한 경우에만** 개발 프록시 또는 본 앱이 배포한 전달 엔드포인트를 통해 공식 API가 반환한 세션 Cookie를 받아 기기에 저장합니다.
+- **본 앱은 miHoYo 계정 비밀번호를 요청하거나 저장하지 않으며**, 공식 앱/페이지의 확인을 우회하지 않습니다. QR 확인은 항상 miHoYo 공식 클라이언트에서 이루어집니다.
+- 웹 QR 로그인 시 QR 생성·상태 폴링 요청은 **본 앱의 개발 프록시 또는 배포된 엔드포인트**를 거쳐 공식 패스포트 API로 전달될 수 있습니다. 그 경로에서 로그인 티켓/상태가 일시적으로 처리될 수 있으나, **전체 세션 Cookie를 본 앱의 클라우드 동기화 백엔드로 업로드하지 않습니다**.
 - Cookie는 **기기 보안 저장소에만** 저장됩니다(네이티브는 Preferences, Web은 로컬 저장소). 본 앱의 클라우드 동기화 백엔드로는 **업로드하지 않으며**, 공유/내보내기 백업에도 포함하지 않습니다.
-- 귀하가 시작한 작업을 완료하기 위해 해당 Cookie를 **miHoYo Shop / miHoYo 공식 API**로 전송합니다(Web 개발 환경은 로컬 프록시 전달 가능). 해당 요청은 miHoYo Shop 서버에서 처리되며 miHoYo / miHoYo Shop 개인정보 처리방침 및 약관이 적용됩니다.
+- 귀하가 시작한 작업을 완료하기 위해 해당 Cookie를 **miHoYo Shop / miHoYo 공식 API**로 전송합니다(Web 개발/운영 환경은 로컬 또는 배포 프록시 전달 가능). 해당 요청은 miHoYo Shop 서버에서 처리되며 miHoYo / miHoYo Shop 개인정보 처리방침 및 약관이 적용됩니다.
 - Cookie가 무효화되면 기기에 무효 상태만 표시합니다. 설정에서 저장된 Cookie를 지울 수 있습니다.
 - 공용 기기에 Cookie를 저장하지 마세요. 기기를 떠나기 전에 지우는 것이 좋습니다.
 - 본 앱은 miHoYo / miHoYo Shop의 **공식 클라이언트가 아니며** miHoYo와 공식 제휴가 없습니다.
@@ -618,7 +638,7 @@ Web ではブラウザストレージの消去、ネイティブではアンイ�
 
 개인정보를 판매하지 않습니다. 다음 경우에 한해 공유할 수 있습니다:
 
-- **귀하의 명시적 동의 또는 지시**: 클라우드 동기화 켜기, 공유 링크 생성 등. miHoYo Shop 기능 사용은 Cookie와 필요한 요청 파라미터를 miHoYo Shop / miHoYo API로 보내는 지시를 포함합니다. AI 어시스턴트 사용은 대화와 필요 컨텍스트를 본인이 구성한 모델 서비스로 보내는 지시를 포함합니다
+- **귀하의 명시적 동의 또는 지시**: 클라우드 동기화 켜기, 공유 링크 생성 등. miHoYo Shop 기능 사용(웹 QR 로그인 또는 Cookie 붙여넣기 포함)은 Cookie와 필요한 요청 파라미터를 miHoYo Shop / miHoYo API로 보내는 지시를 포함합니다. QR 로그인은 전달 엔드포인트를 통해 공식 패스포트 로그인 API를 호출하는 지시도 포함합니다. AI 어시스턴트 사용은 대화와 필요 컨텍스트를 본인이 구성한 모델 서비스로 보내는 지시를 포함합니다
 - **기능 제공에 필요한 기술 서비스**: 클라우드 DB/스토리지 등, 허가 범위 내 처리
 - **법령 또는 행정기관 요구**: 적용 법이 요구하는 범위에서 제공
 

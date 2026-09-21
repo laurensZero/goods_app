@@ -58,7 +58,7 @@ export function useMihoyoCookieState() {
   /**
    * 登录新账号。
    * - 原生：拉起 WebView 登录（需插件 login()）
-   * - 网页：由 UI 弹 Cookie 输入，提交后走 submitNewAccountCookie
+   * - 网页：账号面板优先扫码（MihoyoQrLoginSheet）；也可粘贴 Cookie，提交后走 submitNewAccountCookie
    */
   async function loginNewAccountNative() {
     // 先把当前会话写入账号列表，避免切换登录时丢失
