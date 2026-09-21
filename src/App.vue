@@ -1,6 +1,7 @@
 <template>
-  <div class="app-wrapper" :key="routeAliveKey">
-    <div class="route-stage">
+  <div class="app-wrapper">
+    <!-- key 只绑 route-stage：避免整页 remount 打断返回滑动动画 -->
+    <div class="route-stage" :key="routeAliveKey">
       <RouterView v-slot="{ Component, route: currentRoute }">
         <!-- v-if 必须在 component 上而不是 KeepAlive 上：KeepAlive 被卸载会连带销毁全部缓存实例 -->
         <KeepAlive :include="keepAliveViewNames">
@@ -32,7 +33,7 @@
 
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
 import { useI18n } from 'vue-i18n'
@@ -111,7 +112,6 @@ const AsyncAiAssistantPopup = defineAsyncComponent({
 })
 
 const route = useRoute()
-const router = useRouter()
 const { t } = useI18n()
 const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
@@ -129,10 +129,12 @@ const surveyPopupRef = ref(null)
 const shellReady = ref(false)
 const showFloatingPlayer = ref(false)
 
-// 从登录 WebView/系统浏览器返回后若路由树被回收成空白，用该 key 强制重建
+// 从登录 WebView/系统浏览器返回后若路由树被回收成空白，用该 key 强制重建。
+// 只重建 route-stage，且不做 router.replace——replace 会打乱历史栈，导致返回动画丢失。
 const routeAliveKey = ref(0)
 let appStateListener = null
 let recoveringAlive = false
+let blankCheckTimer = null
 
 function isRouteStageBlank() {
   const root = document.getElementById('app')
@@ -144,22 +146,29 @@ function isRouteStageBlank() {
   return rect.height < 4 || rect.width < 4
 }
 
-async function recoverFromBlankResume() {
-  if (recoveringAlive) return
-  recoveringAlive = true
-  try {
+function scheduleBlankResumeCheck() {
+  if (blankCheckTimer) clearTimeout(blankCheckTimer)
+  // 等动画/首帧稳定后再判断，避免转场中途误判为空白而 remount
+  blankCheckTimer = setTimeout(async () => {
+    blankCheckTimer = null
+    if (recoveringAlive) return
     await nextTick()
     if (!isRouteStageBlank()) return
-    const path = route.fullPath || '/home'
-    routeAliveKey.value += 1
+    await new Promise((resolve) => setTimeout(resolve, 220))
     await nextTick()
-    if (path !== '/home') {
-      try { await router.replace('/home') } catch { /* ignore */ }
+    if (!isRouteStageBlank()) return
+    recoveringAlive = true
+    try {
+      routeAliveKey.value += 1
+      await nextTick()
+    } finally {
+      recoveringAlive = false
     }
-    try { await router.replace(path) } catch { /* ignore */ }
-  } finally {
-    recoveringAlive = false
-  }
+  }, 480)
+}
+
+async function recoverFromBlankResume() {
+  scheduleBlankResumeCheck()
 }
 
 watch(() => surveyStore.isLoaded, async (loaded) => {
@@ -230,6 +239,8 @@ onMounted(async () => {
 onUnmounted(() => {
   try { appStateListener?.remove?.() } catch { /* ignore */ }
   appStateListener = null
+  if (blankCheckTimer) clearTimeout(blankCheckTimer)
+  blankCheckTimer = null
 })
 </script>
 
