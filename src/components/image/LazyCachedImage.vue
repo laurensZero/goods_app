@@ -39,7 +39,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, peekLocalCachedImage, refreshCachedImage } from '@/utils/image/cache'
 import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
 
 defineOptions({ inheritAttrs: false })
@@ -113,13 +113,10 @@ const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
 const isSkeletonReady = ref(Number(props.skeletonDelayMs || 0) <= 0)
-const showFallback = computed(() => !!props.src && hasLoadError.value)
-// 骨架只在「还没有 src」时出现。一旦 resolvedSrc 有了就必须露出 <img>，
-// 否则 loading 期间 opacity 0 + 骨架盖住，首开详情会灰块闪一下再出图。
 const showSkeleton = computed(() => {
-  return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && !resolvedSrc.value && isSkeletonReady.value
+  return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && isImageLoading.value && isSkeletonReady.value
 })
-// hero 依赖 data-lazy-image-ready：必须等 <img> 真正 load，不能只表示「src 已赋值」
+const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
 
 let visibilityObserver = null
@@ -251,28 +248,43 @@ async function runLoad() {
     }
     return
   }
+  resolvedSrc.value = ''
+  isImageLoading.value = true
+  resetSkeletonVisibility()
 
-  // 远程 http(s)/data:：同步把地址交给 <img>，禁止先 clear 再 await，
-  // 否则首开详情会在 hero 结束后空一帧再出图（闪烁）。
+  // 远程 http(s)：先本地缓存快查，未命中立刻把原 URL 交给 <img> 让浏览器加载，
+  // 缓存下载只作后台预热。否则整页会堵在 fetch→blob→objectURL 队列里（列表慢、详情黑）。
   const isRemoteHttp = /^https?:/i.test(url)
+  // data: 位图本身就能给 <img>，无需再进下载管线
   const isInlineData = /^data:/i.test(url)
   if (props.useCache && !thumbEnabled.value && (isRemoteHttp || isInlineData)) {
-    resolvedSrc.value = url
-    resetSkeletonVisibility()
     if (isInlineData) {
+      resolvedSrc.value = url
+      resetSkeletonVisibility()
       isImageLoading.value = false
       markImageDecoded(url)
       return
     }
-    // 保持 loading=true 直到 @load：hero 的 ready 门闩要等真正画完
-    isImageLoading.value = true
+
+    const localSrc = await peekLocalCachedImage(url)
+    if (requestId !== loadRequestId) return
+    if (localSrc) {
+      resolvedSrc.value = localSrc
+      resetSkeletonVisibility()
+      if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+        await ensureCachedImageReady(localSrc, requestId)
+      } else {
+        isImageLoading.value = false
+      }
+      return
+    }
+
+    resolvedSrc.value = url
+    resetSkeletonVisibility()
+    // 后台预热持久层，供离线/重进命中；失败时 getCachedImage 会回退原 URL 且不写脏缓存
     void getCachedImage(url, { viewportDistance: getViewportDistance() }).catch(() => {})
     return
   }
-
-  resolvedSrc.value = ''
-  isImageLoading.value = true
-  resetSkeletonVisibility()
 
   const nextSrc = props.useCache
     ? await resolveDisplaySrc(url, { viewportDistance: getViewportDistance() })

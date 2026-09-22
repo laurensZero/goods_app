@@ -7,7 +7,7 @@
     <div class="extremes-grid">
       <article v-for="item in extremes" :key="item.key" class="extreme-card">
         <div class="extreme-image-wrap">
-          <LazyCachedImage
+          <img
             v-if="item.coverImage"
             :src="item.coverImage"
             :alt="item.name"
@@ -28,7 +28,6 @@
 
 <script setup>
 import { useI18n } from 'vue-i18n'
-import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
 
