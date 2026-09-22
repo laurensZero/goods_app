@@ -83,14 +83,13 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(BACKUP)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
-    // 下载候选与数据面一致：当前端点在前，主域名兜底
     expect(mod.getFileDownloadBaseUrls()).toEqual([BACKUP, PRIMARY])
   })
 
   it('custom instance locks and does not participate in failover', async () => {
     const mod = await freshClient()
-    const custom = 'https://my-custom.supabase.co'
     createClientMock.mockImplementation((url) => mockClient(url))
+    const custom = 'https://my-custom.supabase.co'
     mod.initSupabaseClient(custom, KEY, { custom: true })
     expect(mod.getDataPlaneUrl()).toBe(custom)
     expect(mod.getPublicBaseUrl()).toBe(custom)
@@ -100,7 +99,6 @@ describe('supabaseClient failover', () => {
     const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(custom)
-    // 自建实例只探自己，不探内置主/备
     expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith(custom))).toBe(true)
   })
 
@@ -111,28 +109,38 @@ describe('supabaseClient failover', () => {
     expect(mod.getPublicBaseUrl()).toBe('https://other.example.com')
   })
 
-  it('reconnect fails over to backup when primary unreachable and persists preference', async () => {
+  it('does not auto-failover when primary unreachable', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
 
     mockProbeReachable([BACKUP])
     const ok = await mod.reconnectSupabase({ force: true })
-    expect(ok).toBe(true)
-    expect(mod.getDataPlaneUrl()).toBe(BACKUP)
-    expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
-    expect(writeSyncKeyMock).toHaveBeenCalledWith('sync_data_endpoint', 'backup')
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('primary')
+    expect(writeSyncKeyMock).not.toHaveBeenCalledWith('sync_data_endpoint', 'backup')
   })
 
-  it('reconnect stays on primary when reachable', async () => {
+  it('stays on preferred when preferred down (no auto switch)', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    mockProbeReachable([PRIMARY, BACKUP])
+
+    mockProbeReachable([BACKUP])
     const ok = await mod.reconnectSupabase({ force: true })
-    expect(ok).toBe(true)
-    expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
-    expect(writeSyncKeyMock).not.toHaveBeenCalled()
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('primary')
+  })
+
+  it('does not auto-switch even with parallelProbe flag', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    mockProbeReachable([BACKUP])
+    const ok = await mod.reconnectSupabase({ force: true, parallelProbe: true })
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('primary')
   })
 
   it('returns false when both endpoints unreachable', async () => {
@@ -148,87 +156,26 @@ describe('supabaseClient failover', () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    // 403/401 也是「网络通」
     fetchMock.mockResolvedValue({ ok: false, status: 403 })
     const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
   })
 
-  it('default reconnect probes only preferred; backup only after preferred fails', async () => {
-    const mod = await freshClient()
-    createClientMock.mockImplementation((url) => mockClient(url))
-    mod.initSupabaseClient(PRIMARY, KEY)
-
-    mockProbeReachable([PRIMARY, BACKUP])
-    const ok = await mod.reconnectSupabase({ force: true })
-    expect(ok).toBe(true)
-    expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
-    // 主站通时不打备用
-    expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith(PRIMARY))).toBe(true)
-  })
-
-  it('default reconnect fails over sequentially when preferred down', async () => {
-    const mod = await freshClient()
-    createClientMock.mockImplementation((url) => mockClient(url))
-    mod.initSupabaseClient(PRIMARY, KEY)
-
-    mockProbeReachable([BACKUP])
-    const ok = await mod.reconnectSupabase({ force: true })
-    expect(ok).toBe(true)
-    expect(mod.getDataPlaneUrl()).toBe(BACKUP)
-    const hosts = fetchMock.mock.calls.map(([u]) => String(u))
-    expect(hosts.some((u) => u.startsWith(PRIMARY))).toBe(true)
-    expect(hosts.some((u) => u.startsWith(BACKUP))).toBe(true)
-    // 非并行：备用应在主站失败之后才发出
-    const primaryIdx = hosts.findIndex((u) => u.startsWith(PRIMARY))
-    const backupIdx = hosts.findIndex((u) => u.startsWith(BACKUP))
-    expect(primaryIdx).toBeGreaterThanOrEqual(0)
-    expect(backupIdx).toBeGreaterThan(primaryIdx)
-  })
-
-  it('parallelProbe probes primary and backup in parallel (backup fetch issued before primary resolves)', async () => {
-    const mod = await freshClient()
-    createClientMock.mockImplementation((url) => mockClient(url))
-    mod.initSupabaseClient(PRIMARY, KEY)
-
-    let primaryResolved = false
-    fetchMock.mockImplementation(async (input) => {
-      const url = String(input)
-      if (url.startsWith(PRIMARY)) {
-        await new Promise((r) => setTimeout(r, 50))
-        primaryResolved = true
-        throw new TypeError('Failed to fetch')
-      }
-      // 备用在主站未决时就应已发出
-      expect(primaryResolved).toBe(false)
-      return { ok: true, status: 200 }
-    })
-
-    const ok = await mod.reconnectSupabase({ force: true, parallelProbe: true })
-    expect(ok).toBe(true)
-    expect(mod.getDataPlaneUrl()).toBe(BACKUP)
-    const hosts = fetchMock.mock.calls.map(([u]) => String(u))
-    expect(hosts.some((u) => u.startsWith(PRIMARY))).toBe(true)
-    expect(hosts.some((u) => u.startsWith(BACKUP))).toBe(true)
-  })
-
   it('throttles repeated probes within window unless force', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    mockProbeReachable([PRIMARY, BACKUP])
+    mockProbeReachable([PRIMARY])
 
-    await mod.reconnectSupabase({ force: true, parallelProbe: true })
+    await mod.reconnectSupabase({ force: true })
     const callsAfterFirst = fetchMock.mock.calls.length
     expect(callsAfterFirst).toBeGreaterThan(0)
 
-    // 非 force：10s 节流内直接短路，不再打 fetch
     const ok = await mod.reconnectSupabase()
     expect(ok).toBe(true)
     expect(fetchMock.mock.calls.length).toBe(callsAfterFirst)
 
-    // force：跳过节流
     await mod.reconnectSupabase({ force: true })
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterFirst)
   })
@@ -249,7 +196,7 @@ describe('manual endpoint stickiness', () => {
     expect(mod.getDataEndpointId()).toBe('backup')
   })
 
-  it('auto failovers only after sustained manual endpoint failure', async () => {
+  it('never auto-switches after manual selection', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
@@ -264,7 +211,7 @@ describe('manual endpoint stickiness', () => {
     nowSpy.mockReturnValue(Date.now() + 31_000)
     const ok = await mod.reconnectSupabase({ force: true })
     nowSpy.mockRestore()
-    expect(ok).toBe(true)
-    expect(mod.getDataEndpointId()).toBe('primary')
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('backup')
   })
 })
