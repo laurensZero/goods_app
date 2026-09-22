@@ -1,7 +1,22 @@
-import { describe, it, expect } from 'vitest'
-import { parseApkSha256FromText } from '../updateHelpers'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+const PRIMARY = 'https://zvqzicimowfqshgjsrri.supabase.co'
+const BACKUP = 'https://api.goodsapp.de5.net'
+
+const getFileDownloadBaseUrlsMock = vi.fn(() => [PRIMARY, BACKUP])
+
+vi.mock('@/utils/sync/supabaseClient', () => ({
+  getFileDownloadBaseUrls: (...a) => getFileDownloadBaseUrlsMock(...a)
+}))
+
+import { parseApkSha256FromText, toDirectStorageUrl, toDirectStorageUrls } from '../updateHelpers'
 
 const VALID_HASH = 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'
+
+beforeEach(() => {
+  getFileDownloadBaseUrlsMock.mockReset()
+  getFileDownloadBaseUrlsMock.mockReturnValue([PRIMARY, BACKUP])
+})
 
 describe('parseApkSha256FromText', () => {
   it('从多行 release body 中解析 apk_sha256 元数据行', () => {
@@ -44,5 +59,35 @@ describe('parseApkSha256FromText', () => {
     expect(parseApkSha256FromText(null)).toBe('')
     expect(parseApkSha256FromText(undefined)).toBe('')
     expect(parseApkSha256FromText('')).toBe('')
+  })
+})
+
+describe('toDirectStorageUrls', () => {
+  it('按数据面候选顺序生成 OTA 下载直链', () => {
+    expect(toDirectStorageUrls('stable/app.zip')).toEqual([
+      `${PRIMARY}/storage/v1/object/public/ota-releases/stable/app.zip`,
+      `${BACKUP}/storage/v1/object/public/ota-releases/stable/app.zip`
+    ])
+  })
+
+  it('已切到备用时备用在前、主域名兜底', () => {
+    getFileDownloadBaseUrlsMock.mockReturnValue([BACKUP, PRIMARY])
+    expect(toDirectStorageUrls('stable/app.zip')).toEqual([
+      `${BACKUP}/storage/v1/object/public/ota-releases/stable/app.zip`,
+      `${PRIMARY}/storage/v1/object/public/ota-releases/stable/app.zip`
+    ])
+  })
+
+  it('toDirectStorageUrl 返回首选直链', () => {
+    expect(toDirectStorageUrl('apk/app.apk')).toBe(
+      `${PRIMARY}/storage/v1/object/public/ota-releases/apk/app.apk`
+    )
+  })
+
+  it('路径为空或含 .. 时返回空列表 / 空串', () => {
+    expect(toDirectStorageUrls('')).toEqual([])
+    expect(toDirectStorageUrls('../secret')).toEqual([])
+    expect(toDirectStorageUrl('')).toBe('')
+    expect(toDirectStorageUrl('../secret')).toBe('')
   })
 })

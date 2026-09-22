@@ -1,4 +1,4 @@
-import { getPublicBaseUrl } from '@/utils/sync/supabaseClient'
+import { getFileDownloadBaseUrls } from '@/utils/sync/supabaseClient'
 
 export const AVAILABLE_UPDATE_LEVELS = Object.freeze(['force', 'prompt', 'silent'])
 
@@ -21,11 +21,18 @@ export function parseApkSha256FromText(text) {
   return match?.[1]?.toLowerCase() || ''
 }
 
-/** OTA 包 Supabase 公开 Storage 直连地址（固定主域名，不吃备用反代流量） */
-export function toDirectStorageUrl(storagePath) {
+/** OTA 包 Storage 地址候选（按数据面主备顺序；图片公链不用这个） */
+export function toDirectStorageUrls(storagePath) {
   const path = String(storagePath || '').trim().replace(/^\/+/, '')
-  if (!path || path.includes('..')) return ''
-  return `${getPublicBaseUrl()}/storage/v1/object/public/ota-releases/${path}`
+  if (!path || path.includes('..')) return []
+  return getFileDownloadBaseUrls()
+    .map((base) => `${String(base).replace(/\/+$/, '')}/storage/v1/object/public/ota-releases/${path}`)
+    .filter(Boolean)
+}
+
+/** 首选直链（单 URL 场景，如浏览器下载入口） */
+export function toDirectStorageUrl(storagePath) {
+  return toDirectStorageUrls(storagePath)[0] || ''
 }
 
 /**

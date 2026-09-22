@@ -86,13 +86,29 @@ export function getDataPlaneUrl() {
 }
 
 /**
- * 图片/OTA 等公开资源的基础 URL：内置配置固定走主域名（备用反代只扛数据面，
- * 避免图床流量打爆小水管 VPS）；自建实例用自建 URL。
+ * 图片等公开展示资源的基础 URL：内置配置固定走主域名（备用反代不扛图床流量，
+ * 避免打爆小水管 VPS）；自建实例用自建 URL。OTA/APK 下载请用 getFileDownloadBaseUrls。
  * @returns {string}
  */
 export function getPublicBaseUrl() {
   if (_customLocked && _initUrl) return _initUrl
   return SUPABASE_URL
+}
+
+/**
+ * OTA/APK 等大文件下载的基础 URL 列表（按尝试顺序）。
+ * 与数据面主备一致：当前数据面端点在前，另一端内置点兜底；
+ * 自建实例只有自己。图片公链不要用这个。
+ * @returns {string[]}
+ */
+export function getFileDownloadBaseUrls() {
+  if (_customLocked && _initUrl) return [_initUrl]
+  const primary = SUPABASE_URL
+  const backup = hasBackup() ? SUPABASE_BACKUP_URL : ''
+  if (!backup) return [primary]
+  const current = resolveDataUrl()
+  if (current === backup) return [backup, primary]
+  return [primary, backup]
 }
 
 /**

@@ -7,7 +7,7 @@ import {
   compareVersions,
   normalizeVersionTag
 } from '@/utils/github/release'
-import { normalizeUpdateLevel, toDirectStorageUrl } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, toDirectStorageUrls } from '@/utils/updateHelpers'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
@@ -254,8 +254,10 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const bundle = data[0]
         latestRelease.value = bundle
         latestVersion.value = normalizeVersionTag(bundle.version)
-        latestZipUrl.value = toDirectStorageUrl(bundle.storage_path)
-        latestZipFallbackUrl.value = ''
+        // 与数据面一致：当前端点在前，另一端内置点兜底
+        const zipUrls = toDirectStorageUrls(bundle.storage_path)
+        latestZipUrl.value = zipUrls[0] || ''
+        latestZipFallbackUrl.value = zipUrls[1] || ''
         latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
         latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
         updateLevel.value = normalizeUpdateLevel(bundle.update_level)
