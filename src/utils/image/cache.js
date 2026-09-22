@@ -784,6 +784,10 @@ export async function invalidateCachedImage(url, { deletePersistent = false } = 
   const sharedBlobs = new Set()
 
   for (const key of keys) {
+    // 丢掉 in-flight，避免 invalidate 后仍拿旧半截图 promise 写回缓存
+    inFlight.delete(key)
+    queuedLoadKeys.delete(key)
+    queuedLoadMeta.delete(key)
     const value = removeFromMemoryCache(key)
     if (value && value.startsWith('blob:')) sharedBlobs.add(value)
   }
@@ -916,6 +920,22 @@ export function setImagePreloadPaused(paused) {
 
 export function signalImageCacheRefresh(reason = 'resume') {
   if (typeof window === 'undefined') return
+
+  // force 必须压过排队中的 resume：半截图清缓存后的硬刷新不能被合并丢掉
+  if (reason === 'force') {
+    if (imageRefreshDispatchScheduled) {
+      if (typeof window.cancelAnimationFrame === 'function') {
+        window.cancelAnimationFrame(imageRefreshDispatchScheduled)
+      } else {
+        window.clearTimeout(imageRefreshDispatchScheduled)
+      }
+      imageRefreshDispatchScheduled = 0
+    }
+    clearDecodedImageState()
+    dispatchImageCacheRefresh('force')
+    return
+  }
+
   if (imageRefreshDispatchScheduled) return
 
   if (reason === 'resume') {

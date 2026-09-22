@@ -328,6 +328,20 @@ function onImageError() {
 onMounted(() => {
   imageCacheRefreshHandler = async (event) => {
     const reason = String(event?.detail?.reason || '')
+
+    // force：调用方已 deletePersistent 清脏缓存。必须丢掉当前 resolvedSrc
+    // （可能已被 revoke 的 blob:），全量重解析，覆盖表单顶部预览等未随 key 重挂的实例。
+    if (reason === 'force') {
+      forceDecodeValidationOnCacheHit = false
+      hasLoadError.value = false
+      retryKey.value = 0
+      resolvedSrc.value = ''
+      isImageLoading.value = !!props.src
+      resetSkeletonVisibility()
+      void runLoad()
+      return
+    }
+
     if (reason === 'resume') {
       forceDecodeValidationOnCacheHit = true
     }

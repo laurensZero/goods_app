@@ -70,6 +70,7 @@
           @click="activeImageId = image.id"
         >
           <LazyCachedImage
+            :key="`${image.id}-thumb-${galleryRefreshKey}`"
             :src="image.uri"
             :alt="image.label || getKindLabel(image.kind)"
             :lazy="false"
@@ -83,7 +84,7 @@
       <article v-if="activeImage" class="image-manager__editor">
         <div class="image-manager__editor-preview">
           <LazyCachedImage
-            :key="`${activeImage.id}-${galleryRefreshKey}`"
+            :key="`${activeImage.id}-editor-${galleryRefreshKey}`"
             :src="activeImage.uri"
             :alt="activeImage.label || getKindLabel(activeImage.kind)"
             :lazy="false"
@@ -192,7 +193,7 @@ import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
-import { invalidateCachedImage } from '@/utils/image/cache'
+import { invalidateCachedImage, signalImageCacheRefresh } from '@/utils/image/cache'
 import { trackEditorSessionLocalImage } from '@/composables/goods/useGoodsEditorForm'
 
 const { t } = useI18n()
@@ -482,6 +483,8 @@ async function refreshImages() {
       }
     }
     await Promise.all([...uris].map((uri) => invalidateCachedImage(uri, { deletePersistent: true })))
+    // 先广播 force，让表单顶部预览等未受 galleryRefreshKey 控制的 LazyCachedImage 也丢掉脏 blob 并重拉
+    signalImageCacheRefresh('force')
     galleryRefreshKey.value += 1
     showToast(t('goods.image.refreshed'))
   } catch (error) {
