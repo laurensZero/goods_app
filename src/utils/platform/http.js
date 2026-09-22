@@ -17,7 +17,9 @@ function isAbortError(error) {
 }
 
 export function isPlatformBridgeAvailable() {
-  // Tauri 已移除；原生请求由各业务模块（如 CapacitorHttp）自行处理。
+  // 必须保持 false：CapacitorHttp.enabled 会把 fetch 劫持到 OkHttp，
+  // 在部分网络下对 supabase.co Connection reset，而 Chrome 栈正常。
+  // 关闭劫持后与网页版同一网络栈，直连主站才和浏览器一致。
   return false
 }
 
