@@ -122,10 +122,16 @@ async function main() {
   const absFiles = walkFiles(distRoot)
     .filter((abs) => normalizeRel(abs, distRoot) !== BUNDLE_AUTH_FILE_NAME)
 
+  // 与 utils/bundleAuth.js 的 computeContentPayloadHash 保持一致：
+  // 只计真实文件、路径正斜杠、按 UTF-16 码元排序（不要 localeCompare）
+  const relPaths = absFiles
+    .map((abs) => normalizeRel(abs, distRoot))
+    .filter((rel) => rel && !rel.endsWith('/'))
+    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+
   const parts = []
-  for (const abs of absFiles.sort((a, b) => normalizeRel(a, distRoot).localeCompare(normalizeRel(b, distRoot)))) {
-    const rel = normalizeRel(abs, distRoot)
-    const digest = await sha256HexFile(abs)
+  for (const rel of relPaths) {
+    const digest = await sha256HexFile(join(distRoot, rel))
     parts.push(`${rel}\n${digest}\n`)
   }
   const payloadHash = sha256HexBuffer(Buffer.from(parts.join(''), 'utf8'))

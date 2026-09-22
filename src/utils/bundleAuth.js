@@ -82,19 +82,27 @@ function normalizeFilesMap(files) {
   const map = new Map()
   for (const [key, value] of Object.entries(files || {})) {
     const path = normalizeBundlePath(key)
-    if (!path || isAuthFileName(path)) continue
+    // 系统 zip -r 会写入目录项（`assets/`）；内容清单只认真实文件
+    if (!path || path.endsWith('/')) continue
+    if (isAuthFileName(path)) continue
+    if (value == null) continue
     map.set(path, value)
   }
   return map
 }
 
+function compareBundlePaths(a, b) {
+  // 与发布脚本一致：按 UTF-16 码元排序，不要用 localeCompare
+  return a < b ? -1 : a > b ? 1 : 0
+}
+
 /**
  * 内容清单哈希：按路径排序的 `path\nsha256hex\n` 拼接后再 SHA-256。
- * @param {Record<string, Uint8Array>} files 不含 goods-bundle.auth.json
+ * @param {Record<string, Uint8Array>} files 不含 goods-bundle.auth.json / 目录项
  */
 export async function computeContentPayloadHash(files) {
   const map = normalizeFilesMap(files)
-  const paths = [...map.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
+  const paths = [...map.keys()].sort(compareBundlePaths)
   const parts = []
   for (const path of paths) {
     const digest = await sha256Hex(map.get(path))
