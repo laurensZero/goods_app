@@ -60,13 +60,15 @@
         <article class="account-panel">
           <div class="account-panel__main">
             <div class="account-avatar-wrap">
-              <img
-      v-if="displayAvatarSrc"
-      class="account-avatar"
-      :src="avatarDisplaySrc"
-      :alt="t('my.avatar')"
-      @error="onAvatarImgError"
-    />
+              <LazyCachedImage
+                v-if="displayAvatarSrc"
+                class="account-avatar"
+                :src="displayAvatarSrc"
+                :alt="t('my.avatar')"
+                :lazy="false"
+                :skeleton-enabled="false"
+                image-attrs="{ class: 'account-avatar' }"
+              />
               <span v-else class="account-avatar account-avatar--placeholder">{{ avatarInitial }}</span>
               <input ref="avatarInputRef" type="file" accept="image/*" class="avatar-file-input" @change="onAvatarFileChange" />
             </div>
@@ -855,6 +857,7 @@ import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -945,25 +948,6 @@ const displayAvatarSrc = computed(() => {
   return customAvatarUrl.value || authStore.userAvatarUrl || cachedAvatarSrc.value || ''
 })
 
-const avatarDisplaySrc = ref('')
-let avatarRetryTimer = 0
-let avatarRetryCount = 0
-
-watch(displayAvatarSrc, (url) => {
-  avatarRetryCount = 0
-  avatarDisplaySrc.value = url || ''
-}, { immediate: true })
-
-function onAvatarImgError() {
-  const url = displayAvatarSrc.value
-  if (!url || avatarRetryCount >= 3) return
-  avatarRetryCount += 1
-  clearTimeout(avatarRetryTimer)
-  avatarRetryTimer = setTimeout(() => {
-    const sep = url.includes('?') ? '&' : '?'
-    avatarDisplaySrc.value = url + sep + 'r=' + Date.now()
-  }, 700 * avatarRetryCount)
-}
 
 // 缓存头像
 watch(
