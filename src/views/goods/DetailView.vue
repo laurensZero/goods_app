@@ -438,7 +438,8 @@ async function waitForStableHeroTarget(el, maxFrames = 2) {
 function isGoodsHeroTargetReady(el) {
   if (!el) return false
   const imageRoot = el.querySelector?.('[data-lazy-image-ready]') || null
-  if (!imageRoot) return true
+  // 封面在场但还没 ready 时必须等；没有图片节点才视为就绪
+  if (!imageRoot) return !activeImage.value?.uri
   return imageRoot.getAttribute('data-lazy-image-ready') === 'true'
 }
 
