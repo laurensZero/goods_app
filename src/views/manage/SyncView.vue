@@ -1256,9 +1256,6 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadCloudInfo()
-  if (syncStore.isSupabaseMode()) {
-    void runEndpointTest()
-  }
 })
 
 // 自动切端点后刷新（reconnectSupabase 改内部状态，computed 本身无感知）
