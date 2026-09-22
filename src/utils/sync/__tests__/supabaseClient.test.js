@@ -71,6 +71,7 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(PRIMARY)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
+    expect(mod.getFileDownloadBaseUrls()).toEqual([PRIMARY, BACKUP])
   })
 
   it('init with builtin url follows persisted backup preference', async () => {
@@ -82,6 +83,8 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(BACKUP)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
+    // 下载候选与数据面一致：当前端点在前，主域名兜底
+    expect(mod.getFileDownloadBaseUrls()).toEqual([BACKUP, PRIMARY])
   })
 
   it('custom instance locks and does not participate in failover', async () => {
@@ -91,6 +94,7 @@ describe('supabaseClient failover', () => {
     mod.initSupabaseClient(custom, KEY, { custom: true })
     expect(mod.getDataPlaneUrl()).toBe(custom)
     expect(mod.getPublicBaseUrl()).toBe(custom)
+    expect(mod.getFileDownloadBaseUrls()).toEqual([custom])
 
     mockProbeReachable([custom])
     const ok = await mod.reconnectSupabase({ force: true })

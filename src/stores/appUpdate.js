@@ -12,7 +12,7 @@ import {
   resolveReleaseAsset,
   resolveReleaseTargetUrl
 } from '@/utils/github/release'
-import { normalizeUpdateLevel, parseApkSha256FromText, toDirectStorageUrl } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, parseApkSha256FromText, toDirectStorageUrls } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
@@ -118,7 +118,10 @@ async function fetchLatestApkFromSupabase() {
   const storagePath = String(record?.storage_path || '').trim()
   if (!version || !storagePath) return null
 
-  const downloadUrl = toDirectStorageUrl(storagePath)
+  // 与数据面一致：当前端点在前，另一端内置点作 fallback 依次重试
+  const downloadUrls = toDirectStorageUrls(storagePath)
+  const downloadUrl = downloadUrls[0] || ''
+  const fallbackDownloadUrl = downloadUrls[1] || ''
   const fileName = storagePath.split('/').pop() || ''
 
   return {
@@ -132,7 +135,7 @@ async function fetchLatestApkFromSupabase() {
       ? [{
           name: fileName,
           browser_download_url: downloadUrl,
-          fallback_download_url: '',
+          fallback_download_url: fallbackDownloadUrl,
           size: Number(record?.file_size || 0)
         }]
       : []

@@ -66,7 +66,7 @@ const { error } = await db().storage
     throw new Error(msg)
   }
 
-  // 公链固定主域名（或自建实例），避免备用反代吃图片流量
+  // 图片公链固定主域名（或自建实例），避免备用反代吃图床流量
   const publicUrl = `${getPublicBaseUrl()}/storage/v1/object/public/${BUCKET}/${path}`
   if (publicUrl) {
     return {
