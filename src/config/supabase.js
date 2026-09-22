@@ -2,6 +2,12 @@
 // Supabase 项目配置（公开的 Anon Key，安全靠 RLS 策略）
 
 export const SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
+/**
+ * 数据面备用反代（可选）：主站网络失败时自动切换，走自建 nginx 反代到同一 Supabase 项目。
+ * 留空则禁用故障转移。图片公链仍固定用 SUPABASE_URL，避免展示流量吃 VPS 带宽。
+ * 示例：'https://api.goodsapp.de5.net'
+ */
+export const SUPABASE_BACKUP_URL = 'https://api.goodsapp.de5.net'
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXppY2ltb3dmcXNoZ2pzcnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjE3NzEsImV4cCI6MjA5Mzk5Nzc3MX0.AZQhPIv79WKtF1bhreMhM89CvOJ8p-1wizNiRgmnRzI'
 
 /**

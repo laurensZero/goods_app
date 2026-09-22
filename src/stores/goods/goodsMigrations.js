@@ -5,6 +5,7 @@ import { getPrimaryGoodsImageUrl, normalizeGoodsImageList, parseCloudImageUri } 
 import { normalizeCharacterList, normalizeGoodsInput, normalizeTrashItem, mergeGoodsRecord } from '@/stores/goods/goodsHelpers'
 import { GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET } from '@/services/supabaseAdapter/storage'
 import { readSyncKey } from '@/utils/sync/storage'
+import { getPublicBaseUrl } from '@/utils/sync/supabaseClient'
 import { aliasCachedImage } from '@/utils/image/cache'
 import {
   readPersistedTrash,
@@ -216,7 +217,8 @@ async function backfillLegacyImages(list) {
  * Runs once on startup. Only acts when a Supabase client is available.
  */
 async function replaceBase64WithPublicUrls(list) {
-  const supabaseUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
+  const customUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
+  const supabaseUrl = customUrl || getPublicBaseUrl()
   if (!supabaseUrl) return 'skip'
 
   function toPublicUrl(cloudFileName) {
@@ -256,7 +258,8 @@ async function replaceBase64WithPublicUrls(list) {
  * Replace data:image/ base64 URIs in event coverImage and photos with Supabase public URLs.
  */
 async function replaceEventBase64WithPublicUrls(eventList) {
-  const supabaseUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
+  const customUrl = await readSyncKey(SUPABASE_URL_KEY).catch(() => '') || ''
+  const supabaseUrl = customUrl || getPublicBaseUrl()
   if (!supabaseUrl) return
 
   function toPublicUrl(cloudFileName) {

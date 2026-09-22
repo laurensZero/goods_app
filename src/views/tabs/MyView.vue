@@ -1011,7 +1011,8 @@ async function onAvatarEditorSave(result) {
 
 async function uploadAvatarToSupabase(file) {
   if (!authStore.isLoggedIn) throw new Error('not_logged_in')
-  const db = (await import('@/utils/sync/supabaseClient')).getSupabaseClient()
+  const supabaseMod = (await import('@/utils/sync/supabaseClient'))
+  const db = supabaseMod.getSupabaseClient()
   if (!db) throw new Error('no_client')
   const userId = authStore.user?.id
   if (!userId) throw new Error('no_user_id')
@@ -1038,8 +1039,7 @@ async function uploadAvatarToSupabase(file) {
     throw new Error(uploadError.message)
   }
 
-  const { data: urlData } = db.storage.from('avatars').getPublicUrl(path)
-  const publicUrl = urlData?.publicUrl
+  const publicUrl = `${supabaseMod.getPublicBaseUrl()}/storage/v1/object/public/avatars/${path}`
   if (!publicUrl) throw new Error('no_public_url')
 
   // 更新 profile 指向新头像

@@ -19,7 +19,7 @@ import { withRetry } from '@/services/sync/syncRetry'
 import { getItemTimestamp, resolveGoodsTrashMaps } from '@/utils/sync/shared'
 import { readOrCreateDeviceId, readSyncKey, writeSyncKey, removeSyncKey } from '@/utils/sync/storage'
 import { SyncError, buildSyncErrorStatus } from '@/services/sync/syncError'
-import { initSupabaseClient, testSupabaseConnection, reconnectSupabase, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
+import { initSupabaseClient, testSupabaseConnection, reconnectSupabase, isSupabaseConfigured, loadEndpointPreference } from '@/utils/sync/supabaseClient'
 import { readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { getDeviceInfo } from '@/utils/platform/deviceInfo'
 import { compressImageToBlob } from '@/composables/image/useImageExport'
@@ -190,7 +190,7 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(SUPABASE_URL_KEY, url)
     await writeSyncKey(SUPABASE_ANON_KEY_KEY, anonKey)
     if (url && anonKey) {
-      initSupabaseClient(url, anonKey)
+      initSupabaseClient(url, anonKey, { custom: true })
     }
   }
 
@@ -203,7 +203,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (backend === 'supabase') {
       if (isSupabaseConfigured()) {
         if (supabaseUrl.value && supabaseAnonKey.value) {
-          try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
+          try { initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value, { custom: true }) } catch (e) { console.warn('[sync] initSupabaseClient failed on setSyncBackend:', e.message) }
         }
       }
     }
@@ -248,7 +248,7 @@ export const useSyncStore = defineStore('sync', () => {
   function getCurrentBackend() {
     if (isSupabaseConfigured()) {
       if (supabaseUrl.value && supabaseAnonKey.value) {
-        initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+        initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value, { custom: true })
       }
       const authStore = useAuthStore()
       return createSupabaseBackendAdapter({
@@ -426,6 +426,9 @@ export const useSyncStore = defineStore('sync', () => {
   async function init() {
     await ensureEventsStoreReady()
 
+    // 先恢复数据面端点偏好（主/备），再建 Supabase client，避免首连走错域名超时
+    await loadEndpointPreference()
+
     const [
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal,
       syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal,
@@ -460,7 +463,7 @@ export const useSyncStore = defineStore('sync', () => {
     if (syncBackend.value === 'supabase' && isSupabaseConfigured()) {
       try {
         if (supabaseUrl.value && supabaseAnonKey.value) {
-          initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value)
+          initSupabaseClient(supabaseUrl.value, supabaseAnonKey.value, { custom: true })
         }
       } catch (e) {
         console.warn('[sync] Supabase client init failed:', e.message)

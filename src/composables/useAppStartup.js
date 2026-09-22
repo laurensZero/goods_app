@@ -1,4 +1,5 @@
 import { onMounted, watch } from 'vue'
+import { loadEndpointPreference, reconnectSupabase } from '@/utils/sync/supabaseClient'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
@@ -21,6 +22,10 @@ export function useAppStartup() {
   const legalStore = useLegalStore()
 
   onMounted(async () => {
+    // 恢复数据面端点偏好（主/备），并预热探测；须早于 announcement/auth 等首次建 client
+    await loadEndpointPreference()
+    void reconnectSupabase().catch(() => {})
+
     // 用户协议/隐私政策门禁：本地检查、离线可弹；未同意前阻塞公告等后续弹窗
     const legalReady = legalStore.checkGate()
 
