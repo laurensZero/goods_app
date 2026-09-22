@@ -130,6 +130,20 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     expect(item.acquiredAt).toBe('2026-03-01')
     expect(item.statusTimeline).toContainEqual({ status: '已拥有', at: '2026-03-01' })
   })
+
+  it('批量心愿转收藏：custom 序号重新接到收藏末尾且不重复', async () => {
+    const list = shallowRef([
+      { ...makeItem('c1'), isWishlist: false, manualOrders: { custom: 10 } },
+      { ...makeItem('w1'), isWishlist: true, manualOrders: { custom: 5 } },
+      { ...makeItem('c2'), isWishlist: false, manualOrders: { custom: 11 } },
+      { ...makeItem('w2'), isWishlist: true, manualOrders: { custom: 6 } }
+    ])
+
+    await updateMultipleGoods(new Set(['w1', 'w2']), { isWishlist: false }, list)
+
+    expect(list.value.find((item) => item.id === 'w1').manualOrders.custom).toBe(12)
+    expect(list.value.find((item) => item.id === 'w2').manualOrders.custom).toBe(13)
+  })
 })
 
 describe('removeGoods', () => {

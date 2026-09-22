@@ -1,3 +1,5 @@
+import { getManualOrderIfSet as readManualOrderIfSet } from '@/stores/goods/goodsOrder'
+
 const DEFAULT_SORT_MODE = 'createdAt'
 
 export const HOME_SORT_OPTIONS = [
@@ -125,13 +127,7 @@ function parseManualOrder(item, mode) {
 }
 
 /** 该模式是否写过手动序（键存在且为数字）；新建条目通常没有 */
-function getManualOrderIfSet(item, mode) {
-  const map = item?.manualOrders
-  if (!map || typeof map !== 'object') return null
-  if (map[mode] == null || map[mode] === '') return null
-  const n = Number(map[mode])
-  return Number.isFinite(n) ? n : null
-}
+const getManualOrderIfSet = readManualOrderIfSet
 
 /**
  * 日期模式同日次级：仅当双方都手排过才比 manualOrders；

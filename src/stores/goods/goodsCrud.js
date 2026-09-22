@@ -159,6 +159,17 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
   const now = Date.now()
   const removedPaths = new Set()
   const previousItems = []
+  const transitionNextOrders = new Map()
+
+  function nextTransitionCustomOrder(isWishlist) {
+    const target = normalizeWishlistFlag(isWishlist)
+    if (!transitionNextOrders.has(target)) {
+      transitionNextOrders.set(target, nextGoodsSortOrder(list.value, target))
+    }
+    const next = transitionNextOrders.get(target)
+    transitionNextOrders.set(target, next + 1)
+    return next
+  }
 
   list.value = list.value.map((item) => {
     if (!ids.has(item.id)) return item
@@ -185,6 +196,11 @@ export async function updateMultipleGoods(ids, data, list, onMutate) {
     const timelineAware = maintainTimelineOnGoodsUpdate(item, patch)
     const mergedData = { ...item, ...timelineAware, id: item.id, __imagesExplicit: imagesExplicit, updatedAt: now }
     const next = normalizeGoodsInput(mergedData, item.id)
+    // 批量心愿单↔收藏转换也必须重新分配目标列表的 custom 序号；
+    // 否则会把心愿单序号带进收藏（或反之），与目标列表已有序号重复。
+    if (normalizeWishlistFlag(item.isWishlist) !== normalizeWishlistFlag(next.isWishlist)) {
+      next.manualOrders = { custom: nextTransitionCustomOrder(next.isWishlist) }
+    }
     for (const path of diffRemovedManagedImagePaths(item, next)) {
       removedPaths.add(path)
     }
