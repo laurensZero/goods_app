@@ -112,6 +112,107 @@ def backup_in_progress():
         return None
 
 
+# ── 反代流量日志聚合 ──────────────────────────────────────────────────
+def traffic_summary(days=7, sample_limit=50):
+    """聚合 nginx access log（JSON 行，见 api.goodsapp.de5.net.conf log_format）。"""
+    log_path = CFG.get("nginx_access_log") or "/www/wwwlogs/api.goodsapp.de5.net.log"
+    days = max(1, min(int(days or 7), 90))
+    out = {
+        "log_path": log_path,
+        "log_exists": os.path.isfile(log_path),
+        "days": days,
+        "total_requests": 0,
+        "total_bytes": 0,
+        "by_day": [],
+        "by_status": {},
+        "by_path_prefix": {},
+        "sample": [],
+    }
+    if not out["log_exists"]:
+        return out
+
+    try:
+        size = os.path.getsize(log_path)
+    except OSError:
+        size = 0
+    out["log_size"] = size
+
+    cutoff_day = time.strftime("%Y-%m-%d", time.gmtime(time.time() - days * 86400))
+    by_day = {}
+    by_status = {}
+    by_prefix = {}
+    sample = []
+    total_req = 0
+    total_bytes = 0
+
+    # 大文件从尾部读，避免整文件进内存；上限 8MB 足够多日统计
+    max_scan = 8 * 1024 * 1024
+    try:
+        with open(log_path, "rb") as f:
+            if size > max_scan:
+                f.seek(size - max_scan)
+                f.readline()  # 丢弃可能被截断的半行
+            raw = f.read()
+    except OSError as e:
+        out["error"] = str(e)
+        return out
+
+    for line in raw.decode("utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        ts = str(rec.get("time") or "")
+        day = ts[:10] if len(ts) >= 10 else ""
+        if not day or day < cutoff_day:
+            continue
+        try:
+            nbytes = int(rec.get("bytes_sent") or 0)
+        except (TypeError, ValueError):
+            nbytes = 0
+        try:
+            status = int(rec.get("status") or 0)
+        except (TypeError, ValueError):
+            status = 0
+        uri = str(rec.get("uri") or rec.get("request_uri") or "/")
+        prefix = "/" + uri.strip("/").split("/", 1)[0] if uri.strip("/") else "/"
+        if "?" in uri:
+            path_only = uri.split("?", 1)[0]
+            prefix = "/" + path_only.strip("/").split("/", 1)[0] if path_only.strip("/") else "/"
+
+        total_req += 1
+        total_bytes += nbytes
+        bucket = by_day.setdefault(day, {"requests": 0, "bytes": 0})
+        bucket["requests"] += 1
+        bucket["bytes"] += nbytes
+        by_status[str(status or "-")] = by_status.get(str(status or "-"), 0) + 1
+        by_prefix[prefix] = by_prefix.get(prefix, {"requests": 0, "bytes": 0})
+        by_prefix[prefix]["requests"] += 1
+        by_prefix[prefix]["bytes"] += nbytes
+        sample.append({
+            "time": ts,
+            "status": status,
+            "bytes": nbytes,
+            "uri": uri[:200],
+        })
+
+    out["total_requests"] = total_req
+    out["total_bytes"] = total_bytes
+    out["by_day"] = [
+        {"day": d, "requests": by_day[d]["requests"], "bytes": by_day[d]["bytes"]}
+        for d in sorted(by_day.keys())
+    ]
+    out["by_status"] = dict(sorted(by_status.items(), key=lambda kv: -kv[1]))
+    out["by_path_prefix"] = dict(
+        sorted(by_prefix.items(), key=lambda kv: -kv[1]["bytes"])[:20]
+    )
+    out["sample"] = list(reversed(sample[-sample_limit:]))
+    return out
+
+
 def spawn_job(cmd, log_prefix, body=None):
     """detach 启动一个备份/回档任务，返回 (status, response)。"""
     with _job_lock:
@@ -220,6 +321,14 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/backup/files":
             return self._send(200, {"files": list_archives()})
+
+        if path == "/api/backup/traffic":
+            qs = parse_qs(parsed.query)
+            try:
+                days = int((qs.get("days") or ["7"])[0] or 7)
+            except ValueError:
+                days = 7
+            return self._send(200, {"ok": True, **traffic_summary(days)})
 
         return self._send(404, {"error": "not_found"})
 

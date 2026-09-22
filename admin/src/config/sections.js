@@ -186,6 +186,15 @@ export const SECTIONS = [
     component: defineAsyncComponent(() => import('../sections/BackupSection.vue'))
   },
   {
+    id: 'traffic',
+    group: 'ops',
+    label: '流量日志',
+    short: '流量',
+    icon: 'chart',
+    description: '备用线路反代访问量与出网字节（nginx access log）',
+    component: defineAsyncComponent(() => import('../sections/TrafficSection.vue'))
+  },
+  {
     id: 'audit',
     group: 'ops',
     label: '审计日志',

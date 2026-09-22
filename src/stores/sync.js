@@ -746,10 +746,11 @@ export const useSyncStore = defineStore('sync', () => {
     if (!isSupabaseMode()) return
     const msg = String(error?.message || '').toLowerCase()
     const isNetwork = msg.includes('network') || msg.includes('网络') || msg.includes('fetch') ||
-      msg.includes('连接') || msg.includes('enotfound') || msg.includes('econnrefused') || msg.includes('econnreset')
+      msg.includes('连接') || msg.includes('timeout') || msg.includes('超时') ||
+      msg.includes('abort') || msg.includes('enotfound') || msg.includes('econnrefused') || msg.includes('econnreset')
     if (!isNetwork) return
     console.warn('[sync]', i18n.global.t('sync.error.networkReconnect'))
-    await reconnectSupabase()
+    await reconnectSupabase({ force: true })
   }
 
   async function doSync({ source = 'manual', maxRetries = 1 } = {}) {
@@ -765,6 +766,9 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+
+    // 同步前快探一次（10s 节流）：主站不通立即切备用，避免管道里干等 TCP 超时
+    try { await reconnectSupabase() } catch { /* 探测失败交由管道重试处理 */ }
 
     // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
@@ -897,6 +901,9 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'not_logged_in' }
     }
     ensureBackendReady()
+
+    // 拉取前同样快探（共用 10s 节流）：启动自动 pull 不再先撞主站黑洞
+    try { await reconnectSupabase() } catch { /* 探测失败交由管道重试处理 */ }
 
     // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
