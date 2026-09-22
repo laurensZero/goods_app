@@ -22,11 +22,9 @@ export function useAppStartup() {
   const legalStore = useLegalStore()
 
   onMounted(async () => {
-    // 恢复数据面端点偏好（主/备），并先做一轮主备并行快探（主站 1.5s 硬超时）；
-    // 须早于 announcement/auth 等首次建 client，弱网启动直接落到备用再初始化
-    // 其他场景默认只探当前端点，失败后再探备用（见 reconnectSupabase）
+    // 恢复数据面端点偏好后只探当前端点；失败再探备用（与其它场景一致）
     await loadEndpointPreference()
-    await reconnectSupabase({ force: true, parallelProbe: true })
+    await reconnectSupabase({ force: true })
 
     // 用户协议/隐私政策门禁：本地检查、离线可弹；未同意前阻塞公告等后续弹窗
     const legalReady = legalStore.checkGate()
