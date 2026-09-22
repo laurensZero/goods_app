@@ -233,3 +233,38 @@ describe('supabaseClient failover', () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterFirst)
   })
 })
+
+describe('manual endpoint stickiness', () => {
+  it('manual switch does not auto-failover on first outage', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+    expect(await mod.switchDataEndpoint('backup')).toBe(true)
+    expect(mod.getDataEndpointId()).toBe('backup')
+
+    // 只有主站通、备用不通：手动锁定备用时不应立刻切回主站
+    mockProbeReachable([PRIMARY])
+    const ok = await mod.reconnectSupabase({ force: true })
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('backup')
+  })
+
+  it('auto failovers only after sustained manual endpoint failure', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+    expect(await mod.switchDataEndpoint('backup')).toBe(true)
+
+    mockProbeReachable([PRIMARY])
+    await mod.reconnectSupabase({ force: true })
+    expect(mod.getDataEndpointId()).toBe('backup')
+
+    // 模拟持续不通超过 30s 后允许切换
+    const nowSpy = vi.spyOn(Date, 'now')
+    nowSpy.mockReturnValue(Date.now() + 31_000)
+    const ok = await mod.reconnectSupabase({ force: true })
+    nowSpy.mockRestore()
+    expect(ok).toBe(true)
+    expect(mod.getDataEndpointId()).toBe('primary')
+  })
+})

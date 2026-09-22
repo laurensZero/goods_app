@@ -292,5 +292,20 @@
   "sync.maintenance.refreshing": "更新中…",
   "sync.maintenance.refreshFailed": "状態の更新に失敗しました。しばらくしてからもう一度お試しください。",
   "sync.maintenance.refreshStillActive": "メンテナンスはまだ進行中です。",
-  "sync.maintenance.refreshCleared": "メンテナンスは終了しました。同期機能が復旧しました。"
+  "sync.maintenance.refreshCleared": "メンテナンスは終了しました。同期機能が復旧しました。",
+  "sync.dataEndpoint": "データプレーンのエンドポイント",
+  "sync.dataEndpointDesc": "同期は現在のエンドポイントを使用します。失敗時は自動切替、手動でバックアッププロキシに切り替えることもできます。",
+  "sync.endpointPrimary": "メイン直結",
+  "sync.endpointBackup": "バックアッププロキシ",
+  "sync.endpointCustom": "カスタムインスタンス",
+  "sync.endpointInUse": "使用中",
+  "sync.endpointSwitch": "切り替え",
+  "sync.endpointSwitching": "切り替え中…",
+  "sync.endpointTesting": "確認中",
+  "sync.endpointTest": "接続を確認",
+  "sync.endpointReachable": "到達可能",
+  "sync.endpointUnreachable": "到達不可",
+  "sync.endpointSwitched": "{name} に切り替えました",
+  "sync.endpointSwitchFailed": "切り替えに失敗しました",
+  "sync.endpointLatency": "{ms} ms"
 }

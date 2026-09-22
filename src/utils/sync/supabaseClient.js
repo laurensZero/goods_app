@@ -10,6 +10,9 @@ let supabase = null
 // 数据面端点选择：primary = 官方直连，backup = 自建反代；仅内置配置参与主备切换
 // 持久化上次可用端点，弱网下次启动可直接走备用，省去首连超时
 const DATA_ENDPOINT_KEY = 'sync_data_endpoint'
+const DATA_ENDPOINT_MANUAL_KEY = 'sync_data_endpoint_manual'
+// 手动选定后粘住该端点：仅当持续不通超过此时长才允许自动切走
+const MANUAL_FAILOVER_AFTER_MS = 30_000
 const PRIMARY_ENDPOINT = 'primary'
 const BACKUP_ENDPOINT = 'backup'
 // 探测硬超时：主站国内常 TCP 黑洞，不设超时会挂到系统级数十秒
@@ -23,6 +26,8 @@ const PROBE_THROTTLE_MS = 10_000
 let _dataEndpoint = PRIMARY_ENDPOINT
 // 自建实例（同步设置手动填写）时锁定 URL，不参与主备切换
 let _customLocked = false
+let _manualEndpoint = false
+let _manualFailSince = 0
 let _lastProbeOk = false
 let _lastProbeAt = 0
 let _lastProbedUrl = ''
@@ -74,6 +79,21 @@ export async function loadEndpointPreference() {
     _dataEndpoint = saved === BACKUP_ENDPOINT && hasBackup() ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
   } catch {
     _dataEndpoint = PRIMARY_ENDPOINT
+  }
+  try {
+    _manualEndpoint = (await readSyncKey(DATA_ENDPOINT_MANUAL_KEY)) === '1'
+  } catch {
+    _manualEndpoint = false
+  }
+  _manualFailSince = 0
+}
+
+async function persistManualEndpointFlag(manual) {
+  _manualEndpoint = !!manual
+  try {
+    await writeSyncKey(DATA_ENDPOINT_MANUAL_KEY, manual ? '1' : '')
+  } catch (e) {
+    console.warn('[supabase] persist manual endpoint flag failed:', e.message)
   }
 }
 
@@ -229,6 +249,86 @@ async function probeEndpoint(url, timeoutMs = PROBE_TIMEOUT_MS) {
 }
 
 /**
+ * 数据面端点候选（主站 / 备用反代 / 自建锁定）。
+ * @returns {Array<{ id: string, url: string, active: boolean, canSwitch: boolean }>}
+ */
+export function listDataEndpoints() {
+  if (_customLocked && _initUrl) {
+    return [{ id: 'custom', url: _initUrl, active: true, canSwitch: false }]
+  }
+  const current = resolveDataUrl()
+  const list = [{
+    id: PRIMARY_ENDPOINT,
+    url: SUPABASE_URL,
+    active: current === SUPABASE_URL,
+    canSwitch: hasBackup()
+  }]
+  if (hasBackup()) {
+    list.push({
+      id: BACKUP_ENDPOINT,
+      url: SUPABASE_BACKUP_URL,
+      active: current === SUPABASE_BACKUP_URL,
+      canSwitch: true
+    })
+  }
+  return list
+}
+
+/**
+ * 当前数据面端点 id：primary / backup / custom
+ * @returns {string}
+ */
+export function getDataEndpointId() {
+  if (_customLocked && _initUrl) return 'custom'
+  return resolveDataUrl() === SUPABASE_BACKUP_URL ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
+}
+
+/**
+ * 测量端点 health 探测延迟（任意 HTTP 响应视为可达）。
+ * @param {string} url
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<{ ok: boolean, ms: number }>}
+ */
+export async function measureEndpoint(url, options = {}) {
+  const target = String(url || '').trim()
+  if (!target) return { ok: false, ms: 0 }
+  const timeoutMs = options.timeoutMs
+    || (hasBackup() && target === SUPABASE_BACKUP_URL ? BACKUP_PROBE_TIMEOUT_MS : PROBE_TIMEOUT_MS)
+  const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
+  const started = now()
+  try {
+    await fetchWithTimeout(`${target}/auth/v1/health`, { method: 'GET' }, timeoutMs)
+    return { ok: true, ms: Math.max(0, Math.round(now() - started)) }
+  } catch {
+    return { ok: false, ms: Math.max(0, Math.round(now() - started)) }
+  }
+}
+
+/**
+ * 手动切换数据面端点（primary / backup），并持久化偏好。
+ * 自建锁定实例不参与切换。
+ * @param {'primary'|'backup'} target
+ * @returns {Promise<boolean>} 是否切换成功
+ */
+export async function switchDataEndpoint(target) {
+  if (_customLocked || !hasBackup()) return false
+  const next = target === BACKUP_ENDPOINT ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
+  const url = next === BACKUP_ENDPOINT ? SUPABASE_BACKUP_URL : SUPABASE_URL
+  const key = _initKey || SUPABASE_ANON_KEY
+  if (!key) return false
+  supabase = buildClient(url, key)
+  _initUrl = url
+  _initKey = key
+  await persistDataEndpoint(url)
+  await persistManualEndpointFlag(true)
+  _manualFailSince = 0
+  _lastProbeOk = true
+  _lastProbedUrl = url
+  _lastProbeAt = Date.now()
+  return true
+}
+
+/**
  * 测试 Supabase 连接
  * @returns {Promise<{ok: boolean, error?: string}>}
  */
@@ -310,6 +410,7 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
   }
 
   const markPreferredOk = async () => {
+    _manualFailSince = 0
     _lastProbeAt = Date.now()
     _lastProbeOk = true
     _lastProbedUrl = preferred
@@ -317,6 +418,20 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
   }
 
   const failoverToAlternate = async () => {
+    // 用户手动选定的端点不随便切走：仅当持续不通超过 MANUAL_FAILOVER_AFTER_MS 才自动切换
+    if (_manualEndpoint) {
+      if (!_manualFailSince) {
+        _manualFailSince = Date.now()
+        console.warn('[supabase] manual endpoint unreachable, waiting before failover:', preferred)
+        supabase = null
+        return false
+      }
+      if (Date.now() - _manualFailSince < MANUAL_FAILOVER_AFTER_MS) {
+        console.warn('[supabase] manual endpoint still failing, skip auto-failover')
+        supabase = null
+        return false
+      }
+    }
     console.warn('[supabase] endpoint unreachable:', preferred)
     const alternateOk = await probeEndpoint(alternate, BACKUP_PROBE_TIMEOUT_MS)
     _lastProbeAt = Date.now()
@@ -341,6 +456,7 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
       supabase = null
       return false
     }
+    _manualFailSince = 0
     return apply(preferred)
   }
 
@@ -367,6 +483,7 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
     }
     console.warn('[supabase] endpoint unreachable:', preferred)
     console.warn('[supabase] failed over to', alternate)
+    _manualFailSince = 0
     return apply(alternate)
   }
 

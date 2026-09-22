@@ -292,5 +292,20 @@
   "sync.maintenance.refreshing": "Refreshing…",
   "sync.maintenance.refreshFailed": "Failed to refresh status. Please try again later.",
   "sync.maintenance.refreshStillActive": "Maintenance is still in progress.",
-  "sync.maintenance.refreshCleared": "Maintenance has ended. Sync is available again."
+  "sync.maintenance.refreshCleared": "Maintenance has ended. Sync is available again.",
+  "sync.dataEndpoint": "Data endpoint",
+  "sync.dataEndpointDesc": "Sync uses the current endpoint and fails over automatically. You can also switch to the backup proxy manually.",
+  "sync.endpointPrimary": "Primary",
+  "sync.endpointBackup": "Backup proxy",
+  "sync.endpointCustom": "Custom instance",
+  "sync.endpointInUse": "In use",
+  "sync.endpointSwitch": "Switch",
+  "sync.endpointSwitching": "Switching…",
+  "sync.endpointTesting": "Checking",
+  "sync.endpointTest": "Test connectivity",
+  "sync.endpointReachable": "Reachable",
+  "sync.endpointUnreachable": "Unreachable",
+  "sync.endpointSwitched": "Switched to {name}",
+  "sync.endpointSwitchFailed": "Switch failed",
+  "sync.endpointLatency": "{ms} ms"
 }
