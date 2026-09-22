@@ -12,9 +12,20 @@ let supabase = null
 const DATA_ENDPOINT_KEY = 'sync_data_endpoint'
 const PRIMARY_ENDPOINT = 'primary'
 const BACKUP_ENDPOINT = 'backup'
+// 探测硬超时：主站国内常 TCP 黑洞，不设超时会挂到系统级数十秒
+const PROBE_TIMEOUT_MS = 1500
+// 备用走 CF 回源，给稍宽一点
+const BACKUP_PROBE_TIMEOUT_MS = 3000
+// 数据面请求超时（storage 上传除外）
+const DATA_FETCH_TIMEOUT_MS = 12_000
+// 探测节流：同步/启动连续触发时不反复打两端
+const PROBE_THROTTLE_MS = 10_000
 let _dataEndpoint = PRIMARY_ENDPOINT
 // 自建实例（同步设置手动填写）时锁定 URL，不参与主备切换
 let _customLocked = false
+let _lastProbeOk = false
+let _lastProbeAt = 0
+let _lastProbedUrl = ''
 
 // 所有请求携带设备 id，供 feedbacks 等 RLS 策略按 x-device-id 头做匿名归属匹配
 function deviceHeaders() {
@@ -84,6 +95,30 @@ export function getPublicBaseUrl() {
   return SUPABASE_URL
 }
 
+/**
+ * 短超时 fetch：主站探测/数据面请求在弱网下不得干等 TCP 超时。
+ * storage 上传可能较慢，调用方自行跳过。
+ */
+async function fetchWithTimeout(input, init = {}, timeoutMs = PROBE_TIMEOUT_MS) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  const callerSignal = init?.signal
+  const onAbort = () => controller.abort(callerSignal?.reason)
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      clearTimeout(timer)
+      throw callerSignal.reason || new DOMException('Aborted', 'AbortError')
+    }
+    callerSignal.addEventListener('abort', onAbort, { once: true })
+  }
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(timer)
+    callerSignal?.removeEventListener('abort', onAbort)
+  }
+}
+
 function buildClient(url, anonKey) {
   return createClient(url, anonKey, {
     auth: {
@@ -92,7 +127,16 @@ function buildClient(url, anonKey) {
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
     },
-    global: { headers: deviceHeaders() }
+    global: {
+      headers: deviceHeaders(),
+      // 数据面 REST/auth：12s 硬超时，避免国内连主站时请求无限挂起；
+      // storage 上传/下载走原生 fetch 不截断。
+      fetch: (input, init) => {
+        const raw = typeof input === 'string' ? input : input?.url || ''
+        if (raw.includes('/storage/v1/')) return fetch(input, init)
+        return fetchWithTimeout(input, init, DATA_FETCH_TIMEOUT_MS)
+      }
+    }
   })
 }
 
@@ -153,34 +197,17 @@ export function getSupabaseClient() {
 }
 
 /**
- * 探测一个端点是否网络可达（业务错误也算可达，只有网络层失败才算失败）
+ * 探测一个端点是否网络可达（收到任意 HTTP 响应即算可达，含 4xx/5xx 业务错误）。
+ * 用裸 fetch + AbortController 硬超时：弱网下主站可能一直不回包，不能交给 TCP 慢慢超时。
+ * @param {string} url
+ * @param {number} [timeoutMs]
  * @returns {Promise<boolean>} true = 网络可达
  */
-async function probeEndpoint(url, anonKey) {
+async function probeEndpoint(url, timeoutMs = PROBE_TIMEOUT_MS) {
   try {
-    const client = createClient(url, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false, storageKey: 'sb-probe-auth-token' }
-    })
-    const { error } = await client.from('goods').select('id').limit(1)
-    // 有 error 但拿到了响应（表缺失/JWT 无效等）说明网络通；抛异常才是网络失败
-    if (error) {
-      console.warn('[supabase] probe got response (treated reachable):', error.message)
-    }
+    await fetchWithTimeout(`${url}/auth/v1/health`, { method: 'GET' }, timeoutMs)
     return true
-  } catch (e) {
-    const msg = String(e?.message || '')
-    if (
-      msg.includes('Failed to fetch') ||
-      msg.includes('NetworkError') ||
-      msg.includes('network') ||
-      msg.includes('Failed to send request') ||
-      msg.includes('ECONN') ||
-      msg.includes('ENOTFOUND') ||
-      e?.name === 'TypeError'
-    ) {
-      return false
-    }
-    // 其他异常（如 AbortError）按不可达处理，交给上层切换
+  } catch {
     return false
   }
 }
@@ -234,32 +261,72 @@ export function isSupabaseConfigured() {
  * 重建 Supabase Client 连接
  * 用于 Android 后台回收后刷新 DNS 缓存和连接池；
  * 当前端点网络失败且启用备用反代时自动切换到另一端点并持久化。
+ *
+ * 主备并行探测：主站 1.5s 硬超时，一失败立即采用备用结果，不再串行干等。
+ * @param {{ force?: boolean }} [options] - force: 跳过探测节流（网络错误回调里用）
  * @returns {Promise<boolean>} 是否重建成功
  */
-export async function reconnectSupabase() {
+export async function reconnectSupabase({ force = false } = {}) {
   const key = _initKey || SUPABASE_ANON_KEY
   if (!key) return false
 
   const preferred = _customLocked && _initUrl ? _initUrl : resolveDataUrl()
   const alternate = alternateDataUrl(preferred)
-  const candidates = alternate && alternate !== preferred ? [preferred, alternate] : [preferred]
+  const now = Date.now()
+  if (
+    !force &&
+    _lastProbeOk &&
+    _lastProbedUrl === preferred &&
+    now - _lastProbeAt < PROBE_THROTTLE_MS
+  ) {
+    return true
+  }
 
-  for (const url of candidates) {
-    const reachable = await probeEndpoint(url, key)
-    if (!reachable) {
-      console.warn('[supabase] endpoint unreachable:', url)
-      continue
-    }
+  const apply = async (url) => {
     supabase = buildClient(url, key)
     _initUrl = url
     _initKey = key
     await persistDataEndpoint(url)
-    if (url !== preferred) {
-      console.warn('[supabase] failed over to', url)
-    }
     return true
   }
 
-  supabase = null
-  return false
+  if (!alternate || alternate === preferred) {
+    const reachable = await probeEndpoint(preferred, PROBE_TIMEOUT_MS)
+    _lastProbeAt = Date.now()
+    _lastProbeOk = reachable
+    _lastProbedUrl = preferred
+    if (!reachable) {
+      console.warn('[supabase] endpoint unreachable:', preferred)
+      supabase = null
+      return false
+    }
+    return apply(preferred)
+  }
+
+  // 并行：两端同时探，主站先判；主站通则不等备用，主站挂则立刻用备用结果
+  const preferredProbe = probeEndpoint(preferred, PROBE_TIMEOUT_MS)
+  const alternateProbe = probeEndpoint(alternate, BACKUP_PROBE_TIMEOUT_MS)
+
+  const preferredOk = await preferredProbe
+  if (preferredOk) {
+    _lastProbeAt = Date.now()
+    _lastProbeOk = true
+    _lastProbedUrl = preferred
+    // 备用探测仍在飞行，不阻塞启动
+    void alternateProbe
+    return apply(preferred)
+  }
+
+  console.warn('[supabase] endpoint unreachable:', preferred)
+  const alternateOk = await alternateProbe
+  _lastProbeAt = Date.now()
+  _lastProbeOk = alternateOk
+  _lastProbedUrl = alternateOk ? alternate : preferred
+  if (!alternateOk) {
+    console.warn('[supabase] endpoint unreachable:', alternate)
+    supabase = null
+    return false
+  }
+  console.warn('[supabase] failed over to', alternate)
+  return apply(alternate)
 }

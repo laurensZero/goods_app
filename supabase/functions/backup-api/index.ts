@@ -28,6 +28,7 @@
 //   GET  /files                 列出 VPS 上全部备份归档（名称/大小/时间）
 //   GET  /download?archive=xxx  签发短时效下载 URL
 //   GET  /logs?limit=50         读取 backup_logs 备份历史
+//   GET  /traffic?days=7        读取反代流量日志聚合（nginx access log）
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -241,6 +242,13 @@ serve(async (req) => {
         .limit(limit)
       if (err) return error("db_error", err.message, 500)
       return json({ ok: true, logs: data })
+    }
+
+    // 反代流量日志（nginx JSON access log → VPS 聚合）
+    if (path === "traffic" && req.method === "GET") {
+      const days = Math.min(Math.max(Number(url.searchParams.get("days")) || 7, 1), 90)
+      const { data, status } = await forwardToVps(`/api/backup/traffic?days=${days}`)
+      return json(data ?? { ok: false }, status < 300 ? 200 : status)
     }
 
     return error("not_found", `未知接口: ${req.method} /${path}`, 404)

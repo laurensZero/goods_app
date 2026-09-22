@@ -76,3 +76,8 @@ export async function getDownloadUrl(archive) {
 export function listLogs(limit = 50) {
   return callBackupApi('logs', { params: { limit } })
 }
+
+/** 反代流量日志聚合（nginx access log → VPS backup_server）。 */
+export function getTraffic(days = 7) {
+  return callBackupApi('traffic', { params: { days } })
+}

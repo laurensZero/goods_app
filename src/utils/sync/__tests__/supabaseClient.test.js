@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const PRIMARY = 'https://zvqzicimowfqshgjsrri.supabase.co'
 const BACKUP = 'https://api.goodsapp.de5.net'
@@ -7,6 +7,7 @@ const KEY = 'test-anon-key'
 const createClientMock = vi.fn()
 const readSyncKeyMock = vi.fn()
 const writeSyncKeyMock = vi.fn()
+const fetchMock = vi.fn()
 
 vi.mock('@supabase/supabase-js', () => ({
   createClient: (...args) => createClientMock(...args)
@@ -27,19 +28,20 @@ vi.mock('@/utils/sync/storage', () => ({
   writeSyncKey: (...a) => writeSyncKeyMock(...a)
 }))
 
-function mockClient(url, reachable = true) {
+function mockClient(url) {
   return {
     supabaseUrl: url,
-    supabaseKey: KEY,
-    from: () => ({
-      select: () => ({
-        limit: async () => {
-          if (!reachable) throw new TypeError('Failed to fetch')
-          return { error: null }
-        }
-      })
-    })
+    supabaseKey: KEY
   }
+}
+
+/** 让 probe 对列表内前缀可达，其余不可达 */
+function mockProbeReachable(reachablePrefixes) {
+  fetchMock.mockImplementation(async (input) => {
+    const url = String(input)
+    if (reachablePrefixes.some((p) => url.startsWith(p))) return { ok: true, status: 200 }
+    throw new TypeError('Failed to fetch')
+  })
 }
 
 async function freshClient() {
@@ -51,14 +53,20 @@ beforeEach(() => {
   createClientMock.mockReset()
   readSyncKeyMock.mockReset()
   writeSyncKeyMock.mockReset()
+  fetchMock.mockReset()
   readSyncKeyMock.mockResolvedValue('')
   writeSyncKeyMock.mockResolvedValue(undefined)
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('supabaseClient failover', () => {
   it('uses primary by default', async () => {
     const mod = await freshClient()
-    createClientMock.mockImplementation((url, key) => mockClient(url))
+    createClientMock.mockImplementation((url) => mockClient(url))
     const client = mod.initSupabaseClient(PRIMARY, KEY)
     expect(client.supabaseUrl).toBe(PRIMARY)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
@@ -84,11 +92,12 @@ describe('supabaseClient failover', () => {
     expect(mod.getDataPlaneUrl()).toBe(custom)
     expect(mod.getPublicBaseUrl()).toBe(custom)
 
-    // reconnect keeps custom url even if probe "fails over"
-    createClientMock.mockImplementation((url) => mockClient(url, true))
-    const ok = await mod.reconnectSupabase()
+    mockProbeReachable([custom])
+    const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(custom)
+    // 自建实例只探自己，不探内置主/备
+    expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith(custom))).toBe(true)
   })
 
   it('auto-detects non-builtin url as custom', async () => {
@@ -103,10 +112,8 @@ describe('supabaseClient failover', () => {
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
 
-    createClientMock.mockImplementation((url) =>
-      mockClient(url, url === BACKUP)
-    )
-    const ok = await mod.reconnectSupabase()
+    mockProbeReachable([BACKUP])
+    const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
@@ -117,7 +124,8 @@ describe('supabaseClient failover', () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    const ok = await mod.reconnectSupabase()
+    mockProbeReachable([PRIMARY, BACKUP])
+    const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
     expect(writeSyncKeyMock).not.toHaveBeenCalled()
@@ -127,24 +135,65 @@ describe('supabaseClient failover', () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    createClientMock.mockImplementation((url) => mockClient(url, false))
-    const ok = await mod.reconnectSupabase()
+    mockProbeReachable([])
+    const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(false)
   })
 
-  it('probe treats business error as reachable', async () => {
+  it('probe treats any HTTP response as reachable', async () => {
     const mod = await freshClient()
-    createClientMock.mockImplementation((url) => ({
-      ...mockClient(url),
-      from: () => ({
-        select: () => ({
-          limit: async () => ({ error: { message: 'permission denied' } })
-        })
-      })
-    }))
+    createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
-    const ok = await mod.reconnectSupabase()
+    // 403/401 也是「网络通」
+    fetchMock.mockResolvedValue({ ok: false, status: 403 })
+    const ok = await mod.reconnectSupabase({ force: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
+  })
+
+  it('probes primary and backup in parallel (backup fetch issued before primary resolves)', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    let primaryResolved = false
+    fetchMock.mockImplementation(async (input) => {
+      const url = String(input)
+      if (url.startsWith(PRIMARY)) {
+        await new Promise((r) => setTimeout(r, 50))
+        primaryResolved = true
+        throw new TypeError('Failed to fetch')
+      }
+      // 备用在主站未决时就应已发出
+      expect(primaryResolved).toBe(false)
+      return { ok: true, status: 200 }
+    })
+
+    const ok = await mod.reconnectSupabase({ force: true })
+    expect(ok).toBe(true)
+    expect(mod.getDataPlaneUrl()).toBe(BACKUP)
+    const hosts = fetchMock.mock.calls.map(([u]) => String(u))
+    expect(hosts.some((u) => u.startsWith(PRIMARY))).toBe(true)
+    expect(hosts.some((u) => u.startsWith(BACKUP))).toBe(true)
+  })
+
+  it('throttles repeated probes within window unless force', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+    mockProbeReachable([PRIMARY, BACKUP])
+
+    await mod.reconnectSupabase({ force: true })
+    const callsAfterFirst = fetchMock.mock.calls.length
+    expect(callsAfterFirst).toBeGreaterThan(0)
+
+    // 非 force：10s 节流内直接短路，不再打 fetch
+    const ok = await mod.reconnectSupabase()
+    expect(ok).toBe(true)
+    expect(fetchMock.mock.calls.length).toBe(callsAfterFirst)
+
+    // force：跳过节流
+    await mod.reconnectSupabase({ force: true })
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(callsAfterFirst)
   })
 })

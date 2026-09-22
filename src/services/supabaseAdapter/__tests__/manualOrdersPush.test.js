@@ -1,5 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { ref } from 'vue'
+
+// reorderGoods 会写 SQLite；happy-dom 下 sql.js 拉不到 wasm，必须 mock 掉
+vi.mock('@/utils/db/index', () => ({
+  saveItems: vi.fn(async () => {})
+}))
+
 import { reorderGoods } from '@/stores/goods/goodsOrder'
 import { toGoodsRows } from '@/services/supabaseAdapter/helpers'
 import { sanitizeGoodsItemForSync } from '@/utils/goods/images'
