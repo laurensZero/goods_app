@@ -292,5 +292,20 @@
   "sync.maintenance.refreshing": "重新整理中…",
   "sync.maintenance.refreshFailed": "狀態重新整理失敗，請稍後再試",
   "sync.maintenance.refreshStillActive": "維護仍在進行中",
-  "sync.maintenance.refreshCleared": "維護已結束，同步功能已恢復"
+  "sync.maintenance.refreshCleared": "維護已結束，同步功能已恢復",
+  "sync.dataEndpoint": "資料面端點",
+  "sync.dataEndpointDesc": "同步請求走目前端點；失敗後自動切換，也可手動改用備用反代。",
+  "sync.endpointPrimary": "主站直連",
+  "sync.endpointBackup": "備用反代",
+  "sync.endpointCustom": "自建實例",
+  "sync.endpointInUse": "使用中",
+  "sync.endpointSwitch": "切換",
+  "sync.endpointSwitching": "切換中…",
+  "sync.endpointTesting": "檢測中",
+  "sync.endpointTest": "檢測連通",
+  "sync.endpointReachable": "可達",
+  "sync.endpointUnreachable": "不可達",
+  "sync.endpointSwitched": "已切換到 {name}",
+  "sync.endpointSwitchFailed": "切換失敗",
+  "sync.endpointLatency": "{ms} ms"
 }

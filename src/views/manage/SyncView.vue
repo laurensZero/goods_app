@@ -119,6 +119,55 @@
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
               </div>
 
+              <div v-if="syncStore.isSupabaseMode()" class="endpoint-block">
+                <div class="endpoint-block__head">
+                  <span class="detail-label">{{ t('sync.dataEndpoint') }}</span>
+                  <button
+                    type="button"
+                    class="endpoint-test-btn"
+                    :disabled="endpointTesting"
+                    @click="runEndpointTest"
+                  >
+                    {{ endpointTesting ? t('sync.endpointTesting') : t('sync.endpointTest') }}
+                  </button>
+                </div>
+                <p class="endpoint-block__hint">{{ t('sync.dataEndpointDesc') }}</p>
+                <div
+                  v-for="ep in endpointRows"
+                  :key="ep.id"
+                  class="endpoint-row"
+                  :class="{ 'endpoint-row--active': ep.active }"
+                >
+                  <div class="endpoint-row__main">
+                    <div class="endpoint-row__title-row">
+                      <span class="endpoint-row__name">{{ t(ep.labelKey) }}</span>
+                      <span v-if="ep.active" class="endpoint-row__badge">{{ t('sync.endpointInUse') }}</span>
+                    </div>
+                    <span class="endpoint-row__url">{{ ep.url }}</span>
+                    <span
+                      v-if="ep.probe"
+                      class="endpoint-row__status"
+                      :class="ep.probe.ok ? 'endpoint-row__status--ok' : 'endpoint-row__status--bad'"
+                    >
+                      {{ ep.probe.ok ? t('sync.endpointReachable') : t('sync.endpointUnreachable') }}
+                      <template v-if="ep.probe.ok"> · {{ t('sync.endpointLatency', { ms: ep.probe.ms }) }}</template>
+                    </span>
+                    <span v-else-if="endpointTesting" class="endpoint-row__status">
+                      {{ t('sync.endpointTesting') }}…
+                    </span>
+                  </div>
+                  <button
+                    v-if="ep.canSwitch && !ep.active"
+                    type="button"
+                    class="endpoint-switch-btn"
+                    :disabled="endpointSwitchingId !== ''"
+                    @click="handleSwitchEndpoint(ep.id)"
+                  >
+                    {{ endpointSwitchingId === ep.id ? t('sync.endpointSwitching') : t('sync.endpointSwitch') }}
+                  </button>
+                </div>
+              </div>
+
               <div class="detail-row detail-row--last">
                 <span class="detail-label">{{ t('sync.recentSync') }}</span>
                 <span class="detail-value">{{ lastSyncDisplay }}</span>
@@ -526,7 +575,13 @@ import {
   PHASE_PULL, PHASE_PUSH, PHASE_UPLOAD_IMAGES, PHASE_WRITE_DATA,
   CAUSE_NETWORK, CAUSE_RATE_LIMIT, CAUSE_AUTH, CAUSE_SERVER, CAUSE_DATA_FORMAT, CAUSE_UNKNOWN
 } from '@/services/sync/syncError'
-import { getSupabaseClient, isSupabaseConfigured } from '@/utils/sync/supabaseClient'
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  listDataEndpoints,
+  measureEndpoint,
+  switchDataEndpoint
+} from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { formatDate } from '@/utils/format'
@@ -1075,6 +1130,64 @@ const supabaseKeyDisplay = computed(() => {
 
 const showBackendConfirm = ref(false)
 const pendingBackend = ref('')
+const endpointTesting = ref(false)
+const endpointSwitchingId = ref('')
+const endpointProbes = ref({})
+
+const endpointTick = ref(0)
+
+const endpointRows = computed(() => {
+  void endpointTick.value
+  const probes = endpointProbes.value
+  return listDataEndpoints().map((ep) => ({
+    ...ep,
+    labelKey: ep.id === 'primary'
+      ? 'sync.endpointPrimary'
+      : ep.id === 'backup'
+        ? 'sync.endpointBackup'
+        : 'sync.endpointCustom',
+    probe: probes[ep.id] || null
+  }))
+})
+
+function refreshEndpointRows() {
+  endpointTick.value += 1
+}
+
+async function runEndpointTest() {
+  if (endpointTesting.value) return
+  refreshEndpointRows()
+  endpointTesting.value = true
+  try {
+    const results = {}
+    await Promise.all(listDataEndpoints().map(async (ep) => {
+      results[ep.id] = await measureEndpoint(ep.url)
+    }))
+    endpointProbes.value = results
+  } finally {
+    endpointTesting.value = false
+  }
+}
+
+async function handleSwitchEndpoint(id) {
+  if (endpointSwitchingId.value) return
+  endpointSwitchingId.value = id
+  try {
+    const ok = await switchDataEndpoint(id === 'backup' ? 'backup' : 'primary')
+    if (!ok) {
+      showToast(t('sync.endpointSwitchFailed'))
+      return
+    }
+    endpointProbes.value = {}
+    refreshEndpointRows()
+    showToast(t('sync.endpointSwitched', {
+      name: t(id === 'backup' ? 'sync.endpointBackup' : 'sync.endpointPrimary')
+    }))
+    await runEndpointTest()
+  } finally {
+    endpointSwitchingId.value = ''
+  }
+}
 
 function chooseBackend(val) {
   if (val === syncStore.syncBackend) return
@@ -1128,6 +1241,17 @@ onMounted(async () => {
   window.requestAnimationFrame(resetPageScrollTop)
   await syncStore.init()
   await loadCloudInfo()
+  if (syncStore.isSupabaseMode()) {
+    void runEndpointTest()
+  }
+})
+
+// 自动切端点后刷新（reconnectSupabase 改内部状态，computed 本身无感知）
+watch(() => syncStore.isSyncing, (cur, prev) => {
+  if (prev && !cur) refreshEndpointRows()
+})
+watch(() => syncStore.isPulling, (cur, prev) => {
+  if (prev && !cur) refreshEndpointRows()
 })
 </script>
 
@@ -1305,5 +1429,96 @@ onMounted(async () => {
 }
 
 /* 外壳由 AppSheet 提供 */
+
+
+/* endpoint status / manual switch */
+.endpoint-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.06));
+}
+.endpoint-block__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.endpoint-block__hint {
+  margin: 4px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.endpoint-test-btn,
+.endpoint-switch-btn {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.10));
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.endpoint-test-btn:disabled,
+.endpoint-switch-btn:disabled {
+  opacity: 0.55;
+}
+.endpoint-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.06));
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.02));
+}
+.endpoint-row--active {
+  border-color: color-mix(in srgb, #3b82f6 45%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, #3b82f6 18%, transparent);
+}
+.endpoint-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.endpoint-row__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.endpoint-row__name {
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+.endpoint-row__badge {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #3b82f6 14%, transparent);
+  color: #3b82f6;
+  font-size: 11px;
+  font-weight: 600;
+}
+.endpoint-row__url {
+  color: var(--app-text-tertiary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  word-break: break-all;
+}
+.endpoint-row__status {
+  color: var(--app-text-secondary);
+  font-size: 12px;
+}
+.endpoint-row__status--ok { color: #2f9e64; }
+.endpoint-row__status--bad { color: #d45454; }
+:global(html.theme-dark) .endpoint-row__status--ok { color: #5dcea0; }
+:global(html.theme-dark) .endpoint-row__status--bad { color: #f08d8d; }
+:global(html.theme-dark) .endpoint-row__badge { color: #8ab4ff; }
 </style>
 
