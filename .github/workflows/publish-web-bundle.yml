@@ -69,6 +69,11 @@ env:
   SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://zvqzicimowfqshgjsrri.supabase.co' }}
   SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
 
+# 同一频道串行发布：避免两次 push/手动触发并发算出同一版本号并各插一行
+concurrency:
+  group: publish-web-bundle-${{ github.event.inputs.channel || 'beta' }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -304,7 +309,8 @@ jobs:
           echo "Storage path: ${STORAGE_PATH}"
 
           cd dist
-          zip -r "../${BUNDLE_NAME}" .
+          # -X 去掉额外属性，降低同内容两次打包哈希不一致
+          zip -X -r "../${BUNDLE_NAME}" .
           cd ..
 
           # 发布签名：HMAC(version|zipSha256)，写入 ota_releases.auth_sig
@@ -447,7 +453,8 @@ jobs:
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Accept: application/json" \
               || echo '[]')
-            [ "$(echo "${found}" | jq 'length')" -gt 0 ]
+            # 只有数组才算命中；错误对象（{message:...}）不能当成已存在
+            [ "$(printf '%s' "${found}" | jq 'if type=="array" then length else 0 end')" -gt 0 ]
           }
 
           # 504 可能是网关超时但写入已成功，先查再重试，避免重复插入
@@ -459,19 +466,25 @@ jobs:
           MAX_ATTEMPTS=5
           INSERT_OK=0
           for i in $(seq 1 "${MAX_ATTEMPTS}"); do
-            HTTP_CODE=$(curl -sS --max-time 60 -X POST \
-              "${SUPABASE_URL}/rest/v1/ota_releases" \
+            # on_conflict + merge-duplicates：同 (channel,type,version) 只保留一行
+            RAW_OUT=$(curl -sS --max-time 60 -X POST \
+              "${SUPABASE_URL}/rest/v1/ota_releases?on_conflict=channel,type,version" \
               -H "apikey: ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Authorization: Bearer ${SUPABASE_SERVICE_ROLE_KEY}" \
               -H "Content-Type: application/json" \
-              -H "Prefer: return=minimal" \
+              -H "Prefer: resolution=merge-duplicates,return=minimal" \
               -d "${PAYLOAD}" \
               -o /tmp/ota-insert-resp.json -w "%{http_code}" \
-              || echo "000")
+              || true)
+            # curl 失败时 -w 与 || echo 可能拼成 "201000"，只取末 3 位状态码
+            HTTP_CODE=$(printf '%s' "${RAW_OUT}" | tr -cd '0-9' | tail -c 3)
+            if [ -z "${HTTP_CODE}" ]; then
+              HTTP_CODE="000"
+            fi
             RESP_BODY=$(cat /tmp/ota-insert-resp.json 2>/dev/null || true)
             echo "Insert attempt ${i}/${MAX_ATTEMPTS}: HTTP ${HTTP_CODE} ${RESP_BODY}"
 
-            if [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "200" ]; then
+            if [ "${HTTP_CODE}" = "201" ] || [ "${HTTP_CODE}" = "200" ] || [ "${HTTP_CODE}" = "204" ]; then
               INSERT_OK=1
               break
             fi

@@ -1600,6 +1600,10 @@ CREATE TABLE IF NOT EXISTS ota_releases (
 CREATE INDEX IF NOT EXISTS idx_ota_releases_channel_published
   ON ota_releases(channel, published_at DESC);
 
+-- 同频道同类型版本号唯一：发布 upsert 用 on_conflict=channel,type,version
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ota_releases_channel_type_version
+  ON ota_releases(channel, type, version);
+
 -- 允许 type='apk'（ALTER 兼容已存在的表）
 ALTER TABLE ota_releases DROP CONSTRAINT IF EXISTS ota_releases_type_check;
 ALTER TABLE ota_releases ADD CONSTRAINT ota_releases_type_check
@@ -1634,6 +1638,16 @@ CREATE POLICY "ota_releases_service_all" ON storage.objects
 -- ── 存量库增量迁移（新装库可跳过；已部署实例请单独执行）────────────────
 -- ota_releases.auth_sig：资源包发布认证签名（见 supabase-migration-ota-auth-sig.sql）
 ALTER TABLE ota_releases ADD COLUMN IF NOT EXISTS auth_sig TEXT;
+
+-- ota_releases 去重 + 唯一索引（见 supabase-migration-ota-release-unique.sql）
+DELETE FROM ota_releases a
+USING ota_releases b
+WHERE a.channel = b.channel
+  AND a.type = b.type
+  AND a.version = b.version
+  AND a.id < b.id;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ota_releases_channel_type_version
+  ON ota_releases(channel, type, version);
 
 -- goods.shipping_events：多笔运费事件 [{date, fee}]
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS shipping_events JSONB DEFAULT '[]'::jsonb;
