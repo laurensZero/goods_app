@@ -885,12 +885,14 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'paused' }
     }
 
-    const isIncremental = tables && since > 0
+    const isIncremental = !!(tables && since > 0)
 
     if (isIncremental) {
-      if (isSyncing.value || isPulling.value) return
+      if (isSyncing.value || isPulling.value) {
+        return { action: 'skipped', reason: 'syncing' }
+      }
     } else if (isSyncing.value) {
-      return
+      return { action: 'skipped', reason: 'syncing' }
     }
 
     const authStore = useAuthStore()
