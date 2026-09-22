@@ -39,7 +39,7 @@
 <script setup>
 import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
+import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, peekLocalCachedImage, refreshCachedImage } from '@/utils/image/cache'
 import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
 
 defineOptions({ inheritAttrs: false })
@@ -251,6 +251,41 @@ async function runLoad() {
   resolvedSrc.value = ''
   isImageLoading.value = true
   resetSkeletonVisibility()
+
+  // 远程 http(s)：先本地缓存快查，未命中立刻把原 URL 交给 <img> 让浏览器加载，
+  // 缓存下载只作后台预热。否则整页会堵在 fetch→blob→objectURL 队列里（列表慢、详情黑）。
+  const isRemoteHttp = /^https?:/i.test(url)
+  // data: 位图本身就能给 <img>，无需再进下载管线
+  const isInlineData = /^data:/i.test(url)
+  if (props.useCache && !thumbEnabled.value && (isRemoteHttp || isInlineData)) {
+    if (isInlineData) {
+      resolvedSrc.value = url
+      resetSkeletonVisibility()
+      isImageLoading.value = false
+      markImageDecoded(url)
+      return
+    }
+
+    const localSrc = await peekLocalCachedImage(url)
+    if (requestId !== loadRequestId) return
+    if (localSrc) {
+      resolvedSrc.value = localSrc
+      resetSkeletonVisibility()
+      if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
+        await ensureCachedImageReady(localSrc, requestId)
+      } else {
+        isImageLoading.value = false
+      }
+      return
+    }
+
+    resolvedSrc.value = url
+    resetSkeletonVisibility()
+    // 后台预热持久层，供离线/重进命中；失败时 getCachedImage 会回退原 URL 且不写脏缓存
+    void getCachedImage(url, { viewportDistance: getViewportDistance() }).catch(() => {})
+    return
+  }
+
   const nextSrc = props.useCache
     ? await resolveDisplaySrc(url, { viewportDistance: getViewportDistance() })
     : url

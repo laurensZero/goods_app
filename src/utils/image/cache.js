@@ -274,7 +274,10 @@ function setMemoryCache(url, objectUrl) {
   }
 }
 
-const IMAGE_LOAD_CONCURRENCY = isNative() ? 3 : 6
+// 展示侧并发：过低会把长传大图排成队列，列表/详情一起假死；过高在低端机抢解码带宽。
+const IMAGE_LOAD_CONCURRENCY = isNative() ? 6 : 12
+// 单次网络取图上限。浏览器 fetch 默认无超时，卡住的槽位会拖死整条图片队列。
+const IMAGE_FETCH_TIMEOUT_MS = 15000
 const viewportLoadQueue = []
 const preloadLoadQueue = []
 const queuedLoadKeys = new Set()
@@ -600,6 +603,56 @@ export async function writeDerivedImageCache(key, blob) {
  */
 const inFlight = new Map()
 
+/**
+ * 只查内存 + 本地持久层，不发起网络。
+ * 展示侧用来决定「立刻用远程 URL 让浏览器加载」还是「用已缓存位图」。
+ * @returns {Promise<string>} 命中返回可展示 URI，未命中返回 ''
+ */
+export async function peekLocalCachedImage(url) {
+  if (!url) return ''
+  const normalizedUrl = normalizeCacheUrl(url)
+  const source = normalizedUrl || url
+
+  if (isFileBackedUri(source)) return source
+  if (/^data:/i.test(source)) return source
+
+  for (const key of getCacheKeyCandidates(url)) {
+    if (memoryCache.has(key)) return memoryCache.get(key)
+  }
+
+  const cacheKeys = getCacheKeyCandidates(url)
+  const cacheKey = cacheKeys[0] || url
+  const cacheHit = await getFromCacheAPI(cacheKey)
+  if (cacheHit) {
+    setMemoryCache(cacheKey, cacheHit)
+    if (normalizedUrl && normalizedUrl !== cacheKey) {
+      setMemoryCache(url, cacheHit)
+    }
+    return cacheHit
+  }
+
+  const fsHit = await getFromCapacitorFS(cacheKey)
+  if (fsHit) {
+    setMemoryCache(cacheKey, fsHit)
+    if (normalizedUrl && normalizedUrl !== cacheKey) {
+      setMemoryCache(url, fsHit)
+    }
+    return fsHit
+  }
+
+  return ''
+}
+
+function createImageFetchSignal(timeoutMs = IMAGE_FETCH_TIMEOUT_MS) {
+  if (typeof AbortController !== 'function') return { signal: undefined, cleanup: () => {} }
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), Math.max(1000, timeoutMs))
+  return {
+    signal: controller.signal,
+    cleanup: () => clearTimeout(timer)
+  }
+}
+
 export async function getCachedImage(url, options = {}) {
   if (!url) return ''
 
@@ -674,7 +727,13 @@ export async function getCachedImage(url, options = {}) {
         }
 
         try {
-          const response = await fetchWithPlatformBridge(fetchUrl)
+          const { signal, cleanup } = createImageFetchSignal()
+          let response
+          try {
+            response = await fetchWithPlatformBridge(fetchUrl, signal ? { signal } : {})
+          } finally {
+            cleanup()
+          }
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const blob = await response.blob()

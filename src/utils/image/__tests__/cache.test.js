@@ -31,6 +31,7 @@ import {
   hasRecentlyDecodedImage,
   invalidateCachedImage,
   peekCachedImage,
+  peekLocalCachedImage,
   setNativeCacheLimitMb,
   DEFAULT_NATIVE_CACHE_LIMIT_MB,
   IMAGE_CACHE_LIMIT_OPTIONS_MB,
@@ -148,6 +149,21 @@ describe('utils/image/cache aliasCachedImage', () => {
     const second = await getCachedImage(url)
     expect(second.startsWith('blob:')).toBe(true)
     expect(fetchWithPlatformBridge).toHaveBeenCalledTimes(2)
+  })
+
+  it('peekLocalCachedImage 未命中时返回空串且不发起网络', async () => {
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    fetchWithPlatformBridge.mockClear()
+    const url = 'https://example.com/not-cached-yet.jpg'
+    await expect(peekLocalCachedImage(url)).resolves.toBe('')
+    expect(fetchWithPlatformBridge).not.toHaveBeenCalled()
+  })
+
+  it('peekLocalCachedImage 命中内存后同步可 peekCachedImage', async () => {
+    const url = 'https://example.com/warmed.jpg'
+    const blobUrl = await getCachedImage(url)
+    expect(blobUrl.startsWith('blob:')).toBe(true)
+    await expect(peekLocalCachedImage(url)).resolves.toBe(blobUrl)
   })
 
   it('invalidateCachedImage 清除内存条目', async () => {
