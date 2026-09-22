@@ -297,6 +297,7 @@
   "sync.dataEndpointDesc": "同步請求走目前端點；失敗後自動切換，也可手動改用備用反代。",
   "sync.endpointPrimary": "主站直連",
   "sync.endpointBackup": "備用反代",
+  "sync.endpointCf": "CF 反代",
   "sync.endpointCustom": "自建實例",
   "sync.endpointInUse": "使用中",
   "sync.endpointSwitch": "切換",

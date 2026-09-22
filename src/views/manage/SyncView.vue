@@ -1156,7 +1156,9 @@ const endpointRows = computed(() => {
       ? 'sync.endpointPrimary'
       : ep.id === 'backup'
         ? 'sync.endpointBackup'
-        : 'sync.endpointCustom',
+        : ep.id === 'cf'
+          ? 'sync.endpointCf'
+          : 'sync.endpointCustom',
     probe: probes[ep.id] || null
   }))
 })
@@ -1184,7 +1186,8 @@ async function handleSwitchEndpoint(id) {
   if (endpointSwitchingId.value) return
   endpointSwitchingId.value = id
   try {
-    const ok = await switchDataEndpoint(id === 'backup' ? 'backup' : 'primary')
+    const target = id === 'cf' ? 'cf' : id === 'backup' ? 'backup' : 'primary'
+    const ok = await switchDataEndpoint(target)
     if (!ok) {
       showToast(t('sync.endpointSwitchFailed'))
       return
@@ -1196,7 +1199,7 @@ async function handleSwitchEndpoint(id) {
       syncStore.isPulling = false
     }
     showToast(t('sync.endpointSwitched', {
-      name: t(id === 'backup' ? 'sync.endpointBackup' : 'sync.endpointPrimary')
+      name: t(target === 'cf' ? 'sync.endpointCf' : target === 'backup' ? 'sync.endpointBackup' : 'sync.endpointPrimary')
     }))
     await runEndpointTest()
   } finally {

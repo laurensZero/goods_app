@@ -1,7 +1,7 @@
 // src/utils/supabaseClient.js
 import i18n from '@/locales'
 import { createClient } from '@supabase/supabase-js'
-import { SUPABASE_URL, SUPABASE_BACKUP_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
+import { SUPABASE_URL, SUPABASE_BACKUP_URL, SUPABASE_CF_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
 import { getDeviceId } from '@/utils/feedback/feedbackDevice'
 import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 
@@ -15,6 +15,7 @@ const DATA_ENDPOINT_MANUAL_KEY = 'sync_data_endpoint_manual'
 const MANUAL_FAILOVER_AFTER_MS = 30_000
 const PRIMARY_ENDPOINT = 'primary'
 const BACKUP_ENDPOINT = 'backup'
+const CF_ENDPOINT = 'cf'
 // 探测硬超时：主站国内常 TCP 黑洞，不设超时会挂到系统级数十秒
 const PROBE_TIMEOUT_MS = 1500
 // 备用走 CF 回源，给稍宽一点
@@ -45,22 +46,48 @@ function hasBackup() {
   return !!SUPABASE_BACKUP_URL && SUPABASE_BACKUP_URL !== SUPABASE_URL
 }
 
+function hasCf() {
+  return !!SUPABASE_CF_URL && SUPABASE_CF_URL !== SUPABASE_URL && SUPABASE_CF_URL !== SUPABASE_BACKUP_URL
+}
+
+function endpointUrlById(id) {
+  if (id === CF_ENDPOINT) return hasCf() ? SUPABASE_CF_URL : ''
+  if (id === BACKUP_ENDPOINT) return hasBackup() ? SUPABASE_BACKUP_URL : ''
+  return SUPABASE_URL
+}
+
+/** 内置端点 id，按展示/回退顺序：primary → backup → cf */
+function builtinEndpointIds() {
+  const ids = [PRIMARY_ENDPOINT]
+  if (hasBackup()) ids.push(BACKUP_ENDPOINT)
+  if (hasCf()) ids.push(CF_ENDPOINT)
+  return ids
+}
+
 function resolveDataUrl() {
   if (_customLocked && _initUrl) return _initUrl
+  if (_dataEndpoint === CF_ENDPOINT && hasCf()) return SUPABASE_CF_URL
   if (_dataEndpoint === BACKUP_ENDPOINT && hasBackup()) return SUPABASE_BACKUP_URL
   return SUPABASE_URL
 }
 
+/** 当前端点优先，其余内置端点按 primary → backup → cf 跟上（下载/出图兜底用） */
+function orderedDataUrls() {
+  const current = resolveDataUrl()
+  const all = builtinEndpointIds().map(endpointUrlById).filter(Boolean)
+  return [current, ...all.filter((u) => u !== current)]
+}
+
 function alternateDataUrl(currentUrl) {
-  if (_customLocked || !hasBackup()) return ''
-  if (currentUrl === SUPABASE_BACKUP_URL) return SUPABASE_URL
-  if (currentUrl === SUPABASE_URL) return SUPABASE_BACKUP_URL
-  return ''
+  if (_customLocked) return ''
+  return orderedDataUrls().find((u) => u && u !== currentUrl) || ''
 }
 
 async function persistDataEndpoint(url) {
-  if (_customLocked || !hasBackup()) return
-  const next = url === SUPABASE_BACKUP_URL ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
+  if (_customLocked) return
+  let next = PRIMARY_ENDPOINT
+  if (hasCf() && url === SUPABASE_CF_URL) next = CF_ENDPOINT
+  else if (hasBackup() && url === SUPABASE_BACKUP_URL) next = BACKUP_ENDPOINT
   if (next === _dataEndpoint) return
   _dataEndpoint = next
   try {
@@ -76,7 +103,9 @@ async function persistDataEndpoint(url) {
 export async function loadEndpointPreference() {
   try {
     const saved = await readSyncKey(DATA_ENDPOINT_KEY)
-    _dataEndpoint = saved === BACKUP_ENDPOINT && hasBackup() ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
+    if (saved === CF_ENDPOINT && hasCf()) _dataEndpoint = CF_ENDPOINT
+    else if (saved === BACKUP_ENDPOINT && hasBackup()) _dataEndpoint = BACKUP_ENDPOINT
+    else _dataEndpoint = PRIMARY_ENDPOINT
   } catch {
     _dataEndpoint = PRIMARY_ENDPOINT
   }
@@ -121,12 +150,7 @@ export function getPublicBaseUrl() {
  */
 export function getPublicBaseUrlCandidates() {
   if (_customLocked && _initUrl) return [_initUrl]
-  const primary = SUPABASE_URL
-  const backup = hasBackup() ? SUPABASE_BACKUP_URL : ''
-  const current = resolveDataUrl()
-  if (!backup) return [primary]
-  if (current === backup) return [backup, primary]
-  return [primary, backup]
+  return orderedDataUrls()
 }
 
 /**
@@ -140,7 +164,7 @@ export function rebasePublicImageUrl(url, baseUrl) {
   const raw = String(url || '').trim()
   const target = String(baseUrl || '').trim().replace(/\/+$/, '')
   if (!raw || !target) return raw
-  const bases = [SUPABASE_URL, SUPABASE_BACKUP_URL, _customLocked ? _initUrl : '']
+  const bases = [SUPABASE_URL, SUPABASE_BACKUP_URL, SUPABASE_CF_URL, _customLocked ? _initUrl : '']
     .filter(Boolean)
     .map((b) => b.replace(/\/+$/, ''))
   for (const base of bases) {
@@ -175,19 +199,13 @@ export function getPublicImageDisplayCandidates(url) {
 
 /**
  * OTA/APK 等大文件下载的基础 URL 列表（按尝试顺序）。
- * 与数据面主备一致：当前数据面端点在前，另一端内置点兜底；
+ * 与数据面端点一致：当前数据面端点在前，其余内置点（VPS 反代 / CF 反代）兜底；
  * 自建实例只有自己。图片公链不要用这个。
  * @returns {string[]}
  */
 export function getFileDownloadBaseUrls() {
   if (_customLocked && _initUrl) return [_initUrl]
-  const primary = SUPABASE_URL
-  const backup = hasBackup() ? SUPABASE_BACKUP_URL : ''
-  if (!backup) return [primary]
-  // 与数据面端点一致：当前端点优先，另一端回退
-  const current = resolveDataUrl()
-  if (current === backup) return [backup, primary]
-  return [primary, backup]
+  return orderedDataUrls()
 }
 
 /**
@@ -256,7 +274,9 @@ function isSpaWebHost(url) {
 }
 
 function isBuiltinDataUrl(url) {
-  return url === SUPABASE_URL || (hasBackup() && url === SUPABASE_BACKUP_URL)
+  return url === SUPABASE_URL
+    || (hasBackup() && url === SUPABASE_BACKUP_URL)
+    || (hasCf() && url === SUPABASE_CF_URL)
 }
 
 export function initSupabaseClient(url, anonKey, options = {}) {
@@ -317,7 +337,7 @@ async function probeEndpoint(url, timeoutMs = PROBE_TIMEOUT_MS) {
 }
 
 /**
- * 数据面端点候选（主站 / 备用反代 / 自建锁定）。
+ * 数据面端点候选（主站 / VPS 备用反代 / CF 反代 / 自建锁定）。
  * @returns {Array<{ id: string, url: string, active: boolean, canSwitch: boolean }>}
  */
 export function listDataEndpoints() {
@@ -325,30 +345,28 @@ export function listDataEndpoints() {
     return [{ id: 'custom', url: _initUrl, active: true, canSwitch: false }]
   }
   const current = resolveDataUrl()
-  const list = [{
-    id: PRIMARY_ENDPOINT,
-    url: SUPABASE_URL,
-    active: current === SUPABASE_URL,
-    canSwitch: hasBackup()
-  }]
-  if (hasBackup()) {
-    list.push({
-      id: BACKUP_ENDPOINT,
-      url: SUPABASE_BACKUP_URL,
-      active: current === SUPABASE_BACKUP_URL,
-      canSwitch: true
-    })
-  }
-  return list
+  const canSwitch = builtinEndpointIds().length > 1
+  return builtinEndpointIds().map((id) => {
+    const url = endpointUrlById(id)
+    return {
+      id,
+      url,
+      active: current === url,
+      canSwitch
+    }
+  })
 }
 
 /**
- * 当前数据面端点 id：primary / backup / custom
+ * 当前数据面端点 id：primary / backup / cf / custom
  * @returns {string}
  */
 export function getDataEndpointId() {
   if (_customLocked && _initUrl) return 'custom'
-  return resolveDataUrl() === SUPABASE_BACKUP_URL ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
+  const current = resolveDataUrl()
+  if (hasCf() && current === SUPABASE_CF_URL) return CF_ENDPOINT
+  if (hasBackup() && current === SUPABASE_BACKUP_URL) return BACKUP_ENDPOINT
+  return PRIMARY_ENDPOINT
 }
 
 /**
@@ -361,7 +379,7 @@ export async function measureEndpoint(url, options = {}) {
   const target = String(url || '').trim()
   if (!target) return { ok: false, ms: 0 }
   const timeoutMs = options.timeoutMs
-    || (hasBackup() && target === SUPABASE_BACKUP_URL ? BACKUP_PROBE_TIMEOUT_MS : PROBE_TIMEOUT_MS)
+    || (target === SUPABASE_URL ? PROBE_TIMEOUT_MS : BACKUP_PROBE_TIMEOUT_MS)
   const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now())
   const started = now()
   try {
@@ -373,15 +391,20 @@ export async function measureEndpoint(url, options = {}) {
 }
 
 /**
- * 手动切换数据面端点（primary / backup），并持久化偏好。
- * 自建锁定实例不参与切换。
- * @param {'primary'|'backup'} target
+ * 手动切换数据面端点（primary / backup / cf），并持久化偏好。
+ * 自建锁定实例不参与切换。禁止自动切换，仅用户手动触发。
+ * @param {'primary'|'backup'|'cf'} target
  * @returns {Promise<boolean>} 是否切换成功
  */
 export async function switchDataEndpoint(target) {
-  if (_customLocked || !hasBackup()) return false
-  const next = target === BACKUP_ENDPOINT ? BACKUP_ENDPOINT : PRIMARY_ENDPOINT
-  const url = next === BACKUP_ENDPOINT ? SUPABASE_BACKUP_URL : SUPABASE_URL
+  if (_customLocked || builtinEndpointIds().length < 2) return false
+  const next = target === CF_ENDPOINT && hasCf()
+    ? CF_ENDPOINT
+    : target === BACKUP_ENDPOINT && hasBackup()
+      ? BACKUP_ENDPOINT
+      : PRIMARY_ENDPOINT
+  const url = endpointUrlById(next)
+  if (!url) return false
   const key = _initKey || SUPABASE_ANON_KEY
   if (!key) return false
   supabase = buildClient(url, key)

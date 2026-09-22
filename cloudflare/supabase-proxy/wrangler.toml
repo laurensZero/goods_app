@@ -1,0 +1,10 @@
+name = "goods-supabase-proxy"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# 免费版即可。Cloudflare zone 已托管 goodsapp.de5.net（de5.net）。
+# Worker 绑独立子域 cf.goodsapp.de5.net（Custom Domain），不要绑 goodsapp.de5.net 根站。
+workers_dev = true
+
+# 可选：写死自定义域路由（面板 Add Custom Domain 亦可）
+# routes = [{ pattern = "cf.goodsapp.de5.net", zone_name = "de5.net", custom_domain = true }]

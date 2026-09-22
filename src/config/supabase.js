@@ -9,6 +9,13 @@ export const SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
  * 示例：'https://api.goodsapp.de5.net'
  */
 export const SUPABASE_BACKUP_URL = 'https://api.goodsapp.de5.net'
+/**
+ * Cloudflare Workers 数据面反代（可选）：与 VPS 反代同级，路径原样透传
+ * （/rest 表读写、/auth、/storage 公链图片、ota-releases 更新包、/functions）。
+ * 部署见 cloudflare/supabase-proxy。留空则不出现该端点选项。
+ * 示例：'https://cf.goodsapp.de5.net'
+ */
+export const SUPABASE_CF_URL = 'https://cf.goodsapp.de5.net'
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXppY2ltb3dmcXNoZ2pzcnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjE3NzEsImV4cCI6MjA5Mzk5Nzc3MX0.AZQhPIv79WKtF1bhreMhM89CvOJ8p-1wizNiRgmnRzI'
 
 /**
