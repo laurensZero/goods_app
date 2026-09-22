@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { ref } from 'vue'
+import { ref, shallowRef } from 'vue'
 
 vi.mock('@/utils/db/index', () => ({
   saveItems: vi.fn(async () => {})
@@ -123,6 +123,18 @@ describe('goodsOrder store helpers', () => {
     ]
     expect(buildReverseGoodsSortIds(items, false, undefined, 'custom')).toEqual(['a', 'd', 'b'])
     expect(buildReverseGoodsSortIds(items, false, undefined, 'name')).toEqual(['d', 'b', 'a'])
+  })
+
+  it('reorderGoods 目标序号为 0 时也会写入显式 0（缺键不能跳过）', async () => {
+    const list = shallowRef([
+      { id: 'a', manualOrders: { acquiredAt: 5 }, updatedAt: 1 },
+      { id: 'b', manualOrders: {}, updatedAt: 1 },
+      { id: 'c', manualOrders: { acquiredAt: 1 }, updatedAt: 1 }
+    ])
+    await reorderGoods(['b', 'c', 'a'], list, undefined, 'acquiredAt')
+    expect(list.value.find(i => i.id === 'b').manualOrders.acquiredAt).toBe(0)
+    expect(list.value.find(i => i.id === 'c').manualOrders.acquiredAt).toBe(1)
+    expect(list.value.find(i => i.id === 'a').manualOrders.acquiredAt).toBe(2)
   })
 
   it('reorderGoods 只写对应模式的 manualOrders 键', async () => {
