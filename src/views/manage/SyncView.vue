@@ -967,7 +967,10 @@ async function handleSync() {
 }
 
 async function handlePull() {
-  if (syncStore.isSyncing) return
+  if (syncStore.isSyncing || syncStore.isPulling) {
+    showToast(t('sync.syncing'))
+    return
+  }
   if (!authStore.isLoggedIn) {
     showToast(t('sync.error.loginRequired'))
     return
@@ -977,8 +980,11 @@ async function handlePull() {
     const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
     const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
     const result = await syncStore.pull({ tables, since })
-
-    if (result?.forceResynced) {
+    if (!result || result.action === 'skipped') {
+      showToast(result?.reason === 'syncing' ? t('sync.syncing') : t('sync.dataUpToDate'))
+      return
+    }
+if (result?.forceResynced) {
       const parts = buildPullResultParts(result)
       const message = parts.length > 0 ? `${t('sync.forceResyncComplete')}，${parts.join('，')}` : t('sync.forceResyncComplete')
       showToast(message, 3500)
@@ -1180,6 +1186,10 @@ async function handleSwitchEndpoint(id) {
     }
     endpointProbes.value = {}
     refreshEndpointRows()
+    if (syncStore.isSyncing || syncStore.isPulling) {
+      syncStore.isSyncing = false
+      syncStore.isPulling = false
+    }
     showToast(t('sync.endpointSwitched', {
       name: t(id === 'backup' ? 'sync.endpointBackup' : 'sync.endpointPrimary')
     }))
