@@ -35,6 +35,12 @@
     }
   },
   "server": {
-    "androidScheme": "https"
+    "hostname": "goodsapp.de5.net",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*.supabase.co",
+      "api.goodsapp.de5.net",
+      "goodsapp.de5.net"
+    ]
   }
 }
