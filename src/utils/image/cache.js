@@ -274,7 +274,7 @@ function setMemoryCache(url, objectUrl) {
   }
 }
 
-const IMAGE_LOAD_CONCURRENCY = isNative() ? 3 : 6
+const IMAGE_LOAD_CONCURRENCY = isNative() ? 8 : 12
 const viewportLoadQueue = []
 const preloadLoadQueue = []
 const queuedLoadKeys = new Set()
