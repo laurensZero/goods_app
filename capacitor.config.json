@@ -9,7 +9,7 @@
   },
   "plugins": {
     "CapacitorHttp": {
-      "enabled": true
+      "enabled": false
     },
     "CapacitorUpdater": {
       "autoUpdate": false,
@@ -35,12 +35,6 @@
     }
   },
   "server": {
-    "hostname": "goodsapp.de5.net",
-    "androidScheme": "https",
-    "allowNavigation": [
-      "*.supabase.co",
-      "goodsapp.de5.net",
-      "api.goodsapp.de5.net"
-    ]
+    "androidScheme": "https"
   }
 }

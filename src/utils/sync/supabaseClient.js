@@ -187,6 +187,15 @@ function buildClient(url, anonKey) {
 let _initUrl = ''
 let _initKey = ''
 
+function isSpaWebHost(url) {
+  try {
+    const host = new URL(url).hostname
+    return host === 'goodsapp.de5.net' || host.endsWith('.pages.dev')
+  } catch {
+    return false
+  }
+}
+
 function isBuiltinDataUrl(url) {
   return url === SUPABASE_URL || (hasBackup() && url === SUPABASE_BACKUP_URL)
 }

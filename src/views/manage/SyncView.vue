@@ -854,7 +854,12 @@ async function loadCloudInfo() {
     try {
       const db = getSupabaseClient()
       const { data, error } = await db.from('sync_manifest').select('*').eq('user_id', authStore.user?.id || '').limit(1)
-      if (error || !data || data.length === 0) {
+      if (error) {
+        console.error('[sync] sync_manifest failed:', error.message || error)
+        cloudInfo.value = null
+        return
+      }
+      if (!data || data.length === 0) {
         cloudInfo.value = null
         return
       }
