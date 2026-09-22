@@ -419,7 +419,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       applyReleaseMeta(release)
       return await downloadAndPrepareUpdate()
     } catch (error) {
-      lastStatus.value = 'error'
+      // 前置校验失败不改 lastStatus 里已生效的包，也不触发回滚
       lastError.value = normalizeErrorMessage(error, '手动安装资源包失败。')
       log.error('install-remote:failed', { version: release?.version }, error)
       return false
@@ -440,6 +440,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
   /**
    * 手动安装本地 zip：校验内嵌 goods-bundle.auth.json 后交给 CapGo。
+   * 认证/读文件阶段失败只报错，不改动当前生效 bundle。
    * @param {Uint8Array} zipBytes
    */
   async function installLocalBundleZip(zipBytes) {
@@ -452,6 +453,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     isInstallingManual.value = true
     lastError.value = ''
     let listener = null
+    let capgoStarted = false
     try {
       const bytes = zipBytes instanceof Uint8Array ? zipBytes : new Uint8Array(zipBytes)
       const authResult = await verifyBundleZipAuth(bytes)
@@ -481,6 +483,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
+      capgoStarted = true
       const bundle = await CapacitorUpdater.download({
         version,
         url: uri,
@@ -499,10 +502,13 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       log.info('install-local:done', { bundleId: bundle.id, version })
       return true
     } catch (error) {
-      await rollbackToCurrentBundle()
+      // 仅在已开始 CapGo 下载/切换后才回滚；验签失败等前置错误不要动当前 bundle
+      if (capgoStarted) {
+        await rollbackToCurrentBundle()
+      }
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '本地资源包安装失败。')
-      log.error('install-local:failed', error)
+      log.error('install-local:failed', { capgoStarted }, error)
       return false
     } finally {
       isDownloading.value = false
