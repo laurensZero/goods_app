@@ -206,5 +206,15 @@
   "about.apkVerifying": "正在校驗安裝套件完整性…",
   "about.apkHashMismatch": "安裝套件完整性校驗失敗，已刪除下載檔案。請重試或前往發布頁手動下載。",
   "about.installPermissionDenied": "未授予安裝權限。請到系統設定 > 應用 > 谷子收纳 > 安裝未知應用，開啟「允許來自此來源」。",
-  "about.mockDownloadDoneShort": "模擬下載完成"
+  "about.mockDownloadDoneShort": "模擬下載完成",
+  "about.manualBundleTitle": "手動選擇資源包",
+  "about.manualBundleDesc": "長按「檢查資源更新」打開。可選雲端歷史版本，或離線安裝本地資源包（校驗包內認證）。",
+  "about.refreshBundleList": "刷新雲端列表",
+  "about.pickLocalBundle": "選擇本地資源包",
+  "about.manualBundleEmpty": "暫無雲端歷史資源包，可直接選擇本地 zip。",
+  "about.manualBundleHistoryUnavailable": "雲端列表不可用（可離線使用本地資源包）。",
+  "about.manualBundleVerifying": "正在校驗資源包認證…",
+  "about.manualBundleInstallQueued": "資源包已就緒，正在套用更新…",
+  "about.manualBundleInstallFailed": "資源包安裝失敗。",
+  "about.bundleCurrent": "目前"
 }

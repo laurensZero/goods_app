@@ -117,6 +117,7 @@ jobs:
             STORED_SIZE=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].file_size // 0) else 0 end')
             STORED_MIN=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].min_native_version // "") else "" end')
             STORED_NOTES=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].notes // "") else "" end')
+            STORED_AUTH_SIG=$(printf '%s' "${BUNDLE_JSON}" | jq -r 'if type=="array" then (.[0].auth_sig // "") else "" end')
             if [ -z "${STORED_PATH}" ]; then
               echo "::error::Rollback version ${ROLLBACK} not found in database"
               exit 1
@@ -128,6 +129,7 @@ jobs:
             echo "file_size=${STORED_SIZE}" >> "$GITHUB_OUTPUT"
             echo "min_native=${STORED_MIN}" >> "$GITHUB_OUTPUT"
             echo "stored_notes=${STORED_NOTES}" >> "$GITHUB_OUTPUT"
+            echo "auth_sig=${STORED_AUTH_SIG}" >> "$GITHUB_OUTPUT"
             echo "Rollback to ${ROLLBACK}: storage=${STORED_PATH}"
             exit 0
           fi
@@ -277,11 +279,19 @@ jobs:
           VITE_AMAP_SECURITY_CODE: ${{ secrets.VITE_AMAP_SECURITY_CODE }}
         run: npm run build
 
+      - name: Inject bundle auth manifest
+        if: steps.version.outputs.rollback != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          BUNDLE_AUTH_SECRET: ${{ secrets.BUNDLE_AUTH_SECRET }}
+        run: node scripts/sign-bundle-auth.mjs --version "${VERSION}" --dist dist
+
       - name: Create bundle archive
         if: steps.version.outputs.rollback != 'true'
         id: bundle
         env:
           VERSION: ${{ steps.version.outputs.version }}
+          BUNDLE_AUTH_SECRET: ${{ secrets.BUNDLE_AUTH_SECRET }}
         run: |
           BUNDLE_NAME="bundle-${VERSION}.zip"
           STORAGE_PATH="stable/${BUNDLE_NAME}"
@@ -297,15 +307,24 @@ jobs:
           zip -r "../${BUNDLE_NAME}" .
           cd ..
 
-          SHA256=$(sha256sum "${BUNDLE_NAME}" | awk '{print $1}')
+          # 发布签名：HMAC(version|zipSha256)，写入 ota_releases.auth_sig
+          AUTH_OUT=$(node scripts/sign-bundle-auth.mjs --version "${VERSION}" --release-only --zip "${BUNDLE_NAME}")
+          echo "${AUTH_OUT}"
+          SHA256=$(printf '%s\n' "${AUTH_OUT}" | sed -n 's/^zip_sha256=//p' | head -n 1)
+          AUTH_SIG=$(printf '%s\n' "${AUTH_OUT}" | sed -n 's/^auth_sig=//p' | head -n 1)
+          if [ -z "${SHA256}" ]; then
+            SHA256=$(sha256sum "${BUNDLE_NAME}" | awk '{print $1}')
+          fi
           FILE_SIZE=$(stat -c%s "${BUNDLE_NAME}")
 
           echo "bundle_name=${BUNDLE_NAME}" >> "$GITHUB_OUTPUT"
           echo "storage_path=${STORAGE_PATH}" >> "$GITHUB_OUTPUT"
           echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+          echo "auth_sig=${AUTH_SIG}" >> "$GITHUB_OUTPUT"
           echo "file_size=${FILE_SIZE}" >> "$GITHUB_OUTPUT"
 
           echo "SHA256: ${SHA256}"
+          echo "AUTH_SIG: ${AUTH_SIG}"
           echo "File size: ${FILE_SIZE} bytes"
 
       - name: Upload bundle to Supabase Storage
@@ -353,12 +372,14 @@ jobs:
           BUNDLE_PATH: ${{ steps.bundle.outputs.storage_path }}
           BUNDLE_SHA256: ${{ steps.bundle.outputs.sha256 }}
           BUNDLE_SIZE: ${{ steps.bundle.outputs.file_size }}
+          BUNDLE_AUTH_SIG: ${{ steps.bundle.outputs.auth_sig }}
           # Rollback: use version step outputs (from DB lookup)
           ROLLBACK_PATH: ${{ steps.version.outputs.storage_path }}
           ROLLBACK_SHA256: ${{ steps.version.outputs.sha256 }}
           ROLLBACK_SIZE: ${{ steps.version.outputs.file_size }}
           ROLLBACK_MIN: ${{ steps.version.outputs.min_native }}
           ROLLBACK_NOTES: ${{ steps.version.outputs.stored_notes }}
+          ROLLBACK_AUTH_SIG: ${{ steps.version.outputs.auth_sig }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
           INPUT_UPDATE_LEVEL: ${{ github.event.inputs.update_level || '' }}
           NOTES: ${{ steps.notes.outputs.notes }}
@@ -382,10 +403,12 @@ jobs:
             FILE_SIZE="${ROLLBACK_SIZE}"
             NOTES="${ROLLBACK_NOTES}"
             MIN_NATIVE_VERSION="${ROLLBACK_MIN}"
+            AUTH_SIG="${ROLLBACK_AUTH_SIG}"
           else
             STORAGE_PATH="${BUNDLE_PATH}"
             SHA256="${BUNDLE_SHA256}"
             FILE_SIZE="${BUNDLE_SIZE}"
+            AUTH_SIG="${BUNDLE_AUTH_SIG}"
           fi
 
           echo "version=${VERSION} path=${STORAGE_PATH} sha256=${SHA256}"
@@ -397,6 +420,7 @@ jobs:
             --arg storage_path "${STORAGE_PATH}" \
             --argjson file_size "${FILE_SIZE}" \
             --arg sha256 "${SHA256}" \
+            --arg auth_sig "${AUTH_SIG}" \
             --arg update_level "${UPDATE_LEVEL}" \
             --arg notes "${NOTES}" \
             --arg min_native_version "${MIN_NATIVE_VERSION}" \
@@ -407,6 +431,7 @@ jobs:
               storage_path: $storage_path,
               file_size: $file_size,
               sha256: $sha256,
+              auth_sig: (if $auth_sig == "" then null else $auth_sig end),
               update_level: $update_level,
               notes: $notes,
               min_native_version: (if $min_native_version == "" then null else $min_native_version end)
@@ -533,10 +558,12 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           CHANNEL: ${{ github.event.inputs.channel || 'beta' }}
           SHA256: ${{ steps.bundle.outputs.sha256 }}
+          AUTH_SIG: ${{ steps.bundle.outputs.auth_sig }}
           STORAGE_PATH: ${{ steps.bundle.outputs.storage_path }}
         run: |
           echo "## Web Bundle Published" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Channel:** ${CHANNEL}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Version:** ${VERSION}" >> "$GITHUB_STEP_SUMMARY"
           echo "- **SHA256:** \`${SHA256}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Auth Sig:** \`${AUTH_SIG}\`" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Storage:** \`${STORAGE_PATH}\`" >> "$GITHUB_STEP_SUMMARY"

@@ -11,6 +11,9 @@ import { normalizeUpdateLevel, toDirectStorageUrls } from '@/utils/updateHelpers
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
+import { verifyBundleZipAuth } from '@/utils/bundleAuth'
+import { sha256Hex } from '@/utils/platform/fileHash'
+import { Filesystem, Directory } from '@capacitor/filesystem'
 
 const log = createLogger('web-update')
 
@@ -99,6 +102,9 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
   const lastStatus = ref('idle')
   const lastError = ref('')
   const lastCheckedAt = ref('')
+  const bundleHistory = ref([])
+  const isListingHistory = ref(false)
+  const isInstallingManual = ref(false)
 
   const hasUpdate = computed(() => {
     if (!latestVersion.value || !currentVersion.value) return false
@@ -337,6 +343,174 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     return activeCheckPromise
   }
 
+  /** 列出当前频道历史资源包（供长按手动选择）。 */
+  async function fetchBundleHistory(limit = 12) {
+    await init()
+    isListingHistory.value = true
+    lastError.value = ''
+    try {
+      const client = getSupabaseClient()
+      const channel = selectedChannel.value
+      const { data, error } = await client
+        .from('ota_releases')
+        .select('*')
+        .eq('channel', channel)
+        .eq('type', 'web_bundle')
+        .order('published_at', { ascending: false })
+        .limit(Math.max(1, Math.min(50, Number(limit) || 12)))
+
+      if (error) {
+        throw new Error(`查询资源包列表失败: ${error.message}`)
+      }
+
+      bundleHistory.value = (data || []).map((row) => ({
+        ...row
+      }))
+      return bundleHistory.value
+    } catch (error) {
+      // 历史列表失败不写入 lastError，避免离线时干扰本地应急安装
+      log.error('history:failed', { channel: selectedChannel.value }, error)
+      bundleHistory.value = []
+      throw error
+    } finally {
+      isListingHistory.value = false
+    }
+  }
+
+  function applyReleaseMeta(bundle) {
+    latestRelease.value = bundle
+    latestVersion.value = normalizeVersionTag(bundle.version)
+    const zipUrls = toDirectStorageUrls(bundle.storage_path)
+    latestZipUrl.value = zipUrls[0] || ''
+    latestZipFallbackUrl.value = zipUrls[1] || ''
+    latestBundleChecksum.value = normalizeChecksum(bundle.sha256)
+    latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
+    updateLevel.value = normalizeUpdateLevel(bundle.update_level)
+    lastCheckedAt.value = new Date().toISOString()
+  }
+
+  /**
+   * 手动安装指定远程资源包（走云端 URL + sha256，与自动更新同路径）。
+   * @param {object} release ota_releases 行
+   */
+  async function installRemoteRelease(release) {
+    await init()
+    if (!supported.value) {
+      lastError.value = '仅原生环境支持资源增量更新。'
+      return false
+    }
+
+    isInstallingManual.value = true
+    lastError.value = ''
+    try {
+      const version = normalizeVersionTag(release?.version)
+      const checksum = normalizeChecksum(release?.sha256)
+
+      if (!version || !checksum) {
+        throw new Error('资源包缺少 version 或 hash，已拒绝安装。')
+      }
+
+      if (release?.min_native_version && nativeVersion.value) {
+        if (compareVersions(nativeVersion.value, normalizeVersionTag(release.min_native_version)) < 0) {
+          throw new Error(`需要先升级到 Android ${normalizeVersionTag(release.min_native_version)} 再安装此资源包。`)
+        }
+      }
+
+      applyReleaseMeta(release)
+      return await downloadAndPrepareUpdate()
+    } catch (error) {
+      lastStatus.value = 'error'
+      lastError.value = normalizeErrorMessage(error, '手动安装资源包失败。')
+      log.error('install-remote:failed', { version: release?.version }, error)
+      return false
+    } finally {
+      isInstallingManual.value = false
+    }
+  }
+
+  function bytesToBase64(bytes) {
+    let binary = ''
+    const chunk = 0x8000
+    const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+    for (let i = 0; i < view.length; i += chunk) {
+      binary += String.fromCharCode(...view.subarray(i, i + chunk))
+    }
+    return btoa(binary)
+  }
+
+  /**
+   * 手动安装本地 zip：校验内嵌 goods-bundle.auth.json 后交给 CapGo。
+   * @param {Uint8Array} zipBytes
+   */
+  async function installLocalBundleZip(zipBytes) {
+    await init()
+    if (!supported.value) {
+      lastError.value = '仅原生环境支持资源增量更新。'
+      return false
+    }
+
+    isInstallingManual.value = true
+    lastError.value = ''
+    let listener = null
+    try {
+      const bytes = zipBytes instanceof Uint8Array ? zipBytes : new Uint8Array(zipBytes)
+      const authResult = await verifyBundleZipAuth(bytes)
+      const version = normalizeVersionTag(authResult.version) || `local-${Date.now()}`
+      const checksum = await sha256Hex(bytes)
+
+      isDownloading.value = true
+      downloadProgress.value = 0
+
+      await Filesystem.mkdir({ path: 'updates', directory: Directory.Cache, recursive: true }).catch(() => {})
+      const fileName = `manual-bundle-${version}.zip`
+      const filePath = `updates/${fileName}`
+      await Filesystem.writeFile({
+        path: filePath,
+        directory: Directory.Cache,
+        data: bytesToBase64(bytes),
+        recursive: true
+      })
+      const { uri } = await Filesystem.getUri({ path: filePath, directory: Directory.Cache })
+      if (!uri) {
+        throw new Error('无法读取本地资源包路径。')
+      }
+
+      listener = await CapacitorUpdater.addListener('download', (state) => {
+        const percent = Number(state?.percent)
+        if (!Number.isFinite(percent)) return
+        downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
+      })
+
+      const bundle = await CapacitorUpdater.download({
+        version,
+        url: uri,
+        checksum
+      })
+      if (!bundle?.id) {
+        throw new Error('资源包安装成功但未拿到 bundle id。')
+      }
+
+      await CapacitorUpdater.next({ id: bundle.id })
+      pendingBundleId.value = bundle.id
+      pendingVersion.value = version
+      currentVersion.value = version
+      downloadProgress.value = 100
+      lastStatus.value = 'pending'
+      log.info('install-local:done', { bundleId: bundle.id, version })
+      return true
+    } catch (error) {
+      await rollbackToCurrentBundle()
+      lastStatus.value = 'error'
+      lastError.value = normalizeErrorMessage(error, '本地资源包安装失败。')
+      log.error('install-local:failed', error)
+      return false
+    } finally {
+      isDownloading.value = false
+      isInstallingManual.value = false
+      await listener?.remove?.()
+    }
+  }
+
   async function downloadAndPrepareUpdate() {
     await init()
     if (!supported.value) {
@@ -533,11 +707,17 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     lastStatus,
     lastError,
     lastCheckedAt,
+    bundleHistory,
+    isListingHistory,
+    isInstallingManual,
     notifyAppReady,
     init,
     setUpdateChannel,
     dismissDialog,
     checkForUpdates,
+    fetchBundleHistory,
+    installRemoteRelease,
+    installLocalBundleZip,
     downloadAndPrepareUpdate,
     applyPendingUpdateNow,
     resetToBuiltinBundle
