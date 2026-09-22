@@ -48,12 +48,23 @@
     </div>
 
     <div v-if="images.length > 0" class="image-manager__gallery">
-      <p class="image-manager__section-hint">{{ t('goods.image.switchHint') }}</p>
+      <div class="image-manager__gallery-head">
+        <p class="image-manager__section-hint">{{ t('goods.image.switchHint') }}</p>
+        <button
+          type="button"
+          class="image-manager__refresh-btn"
+          :disabled="isRefreshingImages"
+          :aria-label="t('goods.image.refresh')"
+          @click="refreshImages"
+        >
+          {{ isRefreshingImages ? t('goods.image.refreshing') : t('goods.image.refresh') }}
+        </button>
+      </div>
 
       <div class="image-manager__thumb-strip">
         <button
           v-for="image in images"
-          :key="image.id"
+          :key="`${image.id}-${galleryRefreshKey}`"
           type="button"
           :class="['image-manager__thumb', { 'image-manager__thumb--active': image.id === activeImageId }]"
           @click="activeImageId = image.id"
@@ -72,6 +83,7 @@
       <article v-if="activeImage" class="image-manager__editor">
         <div class="image-manager__editor-preview">
           <LazyCachedImage
+            :key="`${activeImage.id}-${galleryRefreshKey}`"
             :src="activeImage.uri"
             :alt="activeImage.label || getKindLabel(activeImage.kind)"
             :lazy="false"
@@ -118,6 +130,14 @@
               @click="openQuickEdit(activeImage)"
             >
               {{ isPreparingEdit ? t('goods.image.preparing') : t('goods.image.quickEdit') }}
+            </button>
+            <button
+              type="button"
+              class="image-manager__secondary-btn"
+              :disabled="isRefreshingImages"
+              @click="refreshImages"
+            >
+              {{ isRefreshingImages ? t('goods.image.refreshing') : t('goods.image.refresh') }}
             </button>
             <button
               v-if="!activeImage.isPrimary"
@@ -172,6 +192,7 @@ import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
+import { invalidateCachedImage } from '@/utils/image/cache'
 import { trackEditorSessionLocalImage } from '@/composables/goods/useGoodsEditorForm'
 
 const { t } = useI18n()
@@ -191,6 +212,8 @@ const draftRemoteUrl = ref('')
 const draftKind = ref('primary')
 const isPickingLocal = ref(false)
 const isPreparingEdit = ref(false)
+const isRefreshingImages = ref(false)
+const galleryRefreshKey = ref(0)
 const activeImageId = ref('')
 const showQuickEditor = ref(false)
 const showCollageDialog = ref(false)
@@ -443,6 +466,32 @@ function setPrimary(targetId) {
   })))
 }
 
+/**
+ * 强制清除本组件当前图片的缓存（含持久层）并重挂载预览。
+ * 半截图/坏图可能已被写入 Cache API / Capacitor FS，仅 refresh 内存会继续命中脏数据。
+ */
+async function refreshImages() {
+  if (isRefreshingImages.value || images.value.length === 0) return
+
+  isRefreshingImages.value = true
+  try {
+    const uris = new Set()
+    for (const image of images.value) {
+      for (const uri of [image.uri, image.localUri, image.remoteUri]) {
+        if (uri) uris.add(uri)
+      }
+    }
+    await Promise.all([...uris].map((uri) => invalidateCachedImage(uri, { deletePersistent: true })))
+    galleryRefreshKey.value += 1
+    showToast(t('goods.image.refreshed'))
+  } catch (error) {
+    console.error('[image-manager] 刷新图片缓存失败', error)
+    showToast(t('goods.image.refreshFailed'))
+  } finally {
+    isRefreshingImages.value = false
+  }
+}
+
 function removeImage(targetId) {
   const nextImages = images.value.filter((image) => image.id !== targetId)
   if (nextImages.length === 0) {
@@ -528,12 +577,35 @@ function getSourceLabel(storageMode) {
   font-weight: 600;
 }
 
+.image-manager__gallery-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .image-manager__subtext,
 .image-manager__section-hint,
 .image-manager__empty-desc {
   color: var(--app-text-tertiary);
   font-size: 12px;
   line-height: 1.5;
+}
+
+.image-manager__refresh-btn {
+  flex-shrink: 0;
+  min-height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.image-manager__refresh-btn:disabled {
+  opacity: 0.5;
 }
 
 .image-manager__count {

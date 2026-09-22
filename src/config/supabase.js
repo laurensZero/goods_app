@@ -4,8 +4,8 @@
 export const SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
 /**
  * 数据面备用反代（可选）：主站网络失败时自动切换，走自建 nginx 反代到同一 Supabase 项目。
- * 留空则禁用故障转移。OTA/APK 大文件下载同样按数据面主备顺序尝试（当前端点在前、对端兜底）；
- * 图片公链仍固定用 SUPABASE_URL，避免展示流量吃 VPS 带宽。
+ * 留空则禁用故障转移。OTA/APK 大文件下载与图片公链均按数据面主备顺序尝试
+ * （跟随用户在同步设置里选的端点，失败再切对端）。
  * 示例：'https://api.goodsapp.de5.net'
  */
 export const SUPABASE_BACKUP_URL = 'https://api.goodsapp.de5.net'

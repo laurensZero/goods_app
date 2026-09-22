@@ -321,7 +321,7 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
   function getImagePublicUrl(filePath) {
     const storagePath = toStoragePath(filePath)
     const bucketName = resolveStorageBucketByPath(storagePath)
-    // 图片公链固定主域名（或自建实例 URL）：备用反代不扛展示流量，避免图片打爆 VPS
+    // 公链跟随数据面端点偏好；展示侧失败时用 getPublicImageDisplayCandidates 切对端
     return `${getPublicBaseUrl()}/storage/v1/object/public/${bucketName}/${resolveStoragePath(filePath)}`
   }
 

@@ -71,6 +71,10 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(PRIMARY)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([PRIMARY, BACKUP])
+    expect(mod.getPublicImageDisplayCandidates('https://act-webstatic.mihoyo.com/a.jpg')).toEqual([
+      'https://act-webstatic.mihoyo.com/a.jpg'
+    ])
     expect(mod.getFileDownloadBaseUrls()).toEqual([PRIMARY, BACKUP])
   })
 
@@ -82,7 +86,12 @@ describe('supabaseClient failover', () => {
     const client = mod.initSupabaseClient(PRIMARY, KEY)
     expect(client.supabaseUrl).toBe(BACKUP)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
-    expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
+    expect(mod.getPublicBaseUrl()).toBe(BACKUP)
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([BACKUP, PRIMARY])
+    expect(mod.getPublicImageDisplayCandidates(`${PRIMARY}/storage/v1/object/public/goods-images/a.jpg`)).toEqual([
+      `${BACKUP}/storage/v1/object/public/goods-images/a.jpg`,
+      `${PRIMARY}/storage/v1/object/public/goods-images/a.jpg`
+    ])
     expect(mod.getFileDownloadBaseUrls()).toEqual([BACKUP, PRIMARY])
   })
 
@@ -93,6 +102,7 @@ describe('supabaseClient failover', () => {
     mod.initSupabaseClient(custom, KEY, { custom: true })
     expect(mod.getDataPlaneUrl()).toBe(custom)
     expect(mod.getPublicBaseUrl()).toBe(custom)
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([custom])
     expect(mod.getFileDownloadBaseUrls()).toEqual([custom])
 
     mockProbeReachable([custom])
