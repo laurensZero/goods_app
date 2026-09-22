@@ -155,7 +155,39 @@ describe('supabaseClient failover', () => {
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
   })
 
-  it('probes primary and backup in parallel (backup fetch issued before primary resolves)', async () => {
+  it('default reconnect probes only preferred; backup only after preferred fails', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    mockProbeReachable([PRIMARY, BACKUP])
+    const ok = await mod.reconnectSupabase({ force: true })
+    expect(ok).toBe(true)
+    expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
+    // 主站通时不打备用
+    expect(fetchMock.mock.calls.every(([u]) => String(u).startsWith(PRIMARY))).toBe(true)
+  })
+
+  it('default reconnect fails over sequentially when preferred down', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    mockProbeReachable([BACKUP])
+    const ok = await mod.reconnectSupabase({ force: true })
+    expect(ok).toBe(true)
+    expect(mod.getDataPlaneUrl()).toBe(BACKUP)
+    const hosts = fetchMock.mock.calls.map(([u]) => String(u))
+    expect(hosts.some((u) => u.startsWith(PRIMARY))).toBe(true)
+    expect(hosts.some((u) => u.startsWith(BACKUP))).toBe(true)
+    // 非并行：备用应在主站失败之后才发出
+    const primaryIdx = hosts.findIndex((u) => u.startsWith(PRIMARY))
+    const backupIdx = hosts.findIndex((u) => u.startsWith(BACKUP))
+    expect(primaryIdx).toBeGreaterThanOrEqual(0)
+    expect(backupIdx).toBeGreaterThan(primaryIdx)
+  })
+
+  it('parallelProbe probes primary and backup in parallel (backup fetch issued before primary resolves)', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     mod.initSupabaseClient(PRIMARY, KEY)
@@ -173,7 +205,7 @@ describe('supabaseClient failover', () => {
       return { ok: true, status: 200 }
     })
 
-    const ok = await mod.reconnectSupabase({ force: true })
+    const ok = await mod.reconnectSupabase({ force: true, parallelProbe: true })
     expect(ok).toBe(true)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
     const hosts = fetchMock.mock.calls.map(([u]) => String(u))
@@ -187,7 +219,7 @@ describe('supabaseClient failover', () => {
     mod.initSupabaseClient(PRIMARY, KEY)
     mockProbeReachable([PRIMARY, BACKUP])
 
-    await mod.reconnectSupabase({ force: true })
+    await mod.reconnectSupabase({ force: true, parallelProbe: true })
     const callsAfterFirst = fetchMock.mock.calls.length
     expect(callsAfterFirst).toBeGreaterThan(0)
 

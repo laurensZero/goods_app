@@ -278,11 +278,14 @@ export function isSupabaseConfigured() {
  * 用于 Android 后台回收后刷新 DNS 缓存和连接池；
  * 当前端点网络失败且启用备用反代时自动切换到另一端点并持久化。
  *
- * 主备并行探测：主站 1.5s 硬超时，一失败立即采用备用结果，不再串行干等。
- * @param {{ force?: boolean }} [options] - force: 跳过探测节流（网络错误回调里用）
+ * 默认只探当前端点，失败后再探备用（其他时候主站挂了再说，不主动打反代）。
+ * 启动可传 parallelProbe：主备并行快探，主站通则不等备用，弱网启动尽快落备用。
+ * @param {{ force?: boolean, parallelProbe?: boolean }} [options]
+ *   - force: 跳过探测节流（网络错误回调里用）
+ *   - parallelProbe: 主备同时探测（仅冷启动）
  * @returns {Promise<boolean>} 是否重建成功
  */
-export async function reconnectSupabase({ force = false } = {}) {
+export async function reconnectSupabase({ force = false, parallelProbe = false } = {}) {
   const key = _initKey || SUPABASE_ANON_KEY
   if (!key) return false
 
@@ -306,6 +309,28 @@ export async function reconnectSupabase({ force = false } = {}) {
     return true
   }
 
+  const markPreferredOk = async () => {
+    _lastProbeAt = Date.now()
+    _lastProbeOk = true
+    _lastProbedUrl = preferred
+    return apply(preferred)
+  }
+
+  const failoverToAlternate = async () => {
+    console.warn('[supabase] endpoint unreachable:', preferred)
+    const alternateOk = await probeEndpoint(alternate, BACKUP_PROBE_TIMEOUT_MS)
+    _lastProbeAt = Date.now()
+    _lastProbeOk = alternateOk
+    _lastProbedUrl = alternateOk ? alternate : preferred
+    if (!alternateOk) {
+      console.warn('[supabase] endpoint unreachable:', alternate)
+      supabase = null
+      return false
+    }
+    console.warn('[supabase] failed over to', alternate)
+    return apply(alternate)
+  }
+
   if (!alternate || alternate === preferred) {
     const reachable = await probeEndpoint(preferred, PROBE_TIMEOUT_MS)
     _lastProbeAt = Date.now()
@@ -319,30 +344,34 @@ export async function reconnectSupabase({ force = false } = {}) {
     return apply(preferred)
   }
 
-  // 并行：两端同时探，主站先判；主站通则不等备用，主站挂则立刻用备用结果
-  const preferredProbe = probeEndpoint(preferred, PROBE_TIMEOUT_MS)
-  const alternateProbe = probeEndpoint(alternate, BACKUP_PROBE_TIMEOUT_MS)
+  if (parallelProbe) {
+    // 启动：两端同时探，主站先判；通则不等备用，挂则立刻用备用结果
+    const preferredProbe = probeEndpoint(preferred, PROBE_TIMEOUT_MS)
+    const alternateProbe = probeEndpoint(alternate, BACKUP_PROBE_TIMEOUT_MS)
 
-  const preferredOk = await preferredProbe
-  if (preferredOk) {
+    const preferredOk = await preferredProbe
+    if (preferredOk) {
+      // 备用探测仍在飞行，不阻塞启动
+      void alternateProbe
+      return markPreferredOk()
+    }
+    const alternateOk = await alternateProbe
     _lastProbeAt = Date.now()
-    _lastProbeOk = true
-    _lastProbedUrl = preferred
-    // 备用探测仍在飞行，不阻塞启动
-    void alternateProbe
-    return apply(preferred)
+    _lastProbeOk = alternateOk
+    _lastProbedUrl = alternateOk ? alternate : preferred
+    if (!alternateOk) {
+      console.warn('[supabase] endpoint unreachable:', preferred)
+      console.warn('[supabase] endpoint unreachable:', alternate)
+      supabase = null
+      return false
+    }
+    console.warn('[supabase] endpoint unreachable:', preferred)
+    console.warn('[supabase] failed over to', alternate)
+    return apply(alternate)
   }
 
-  console.warn('[supabase] endpoint unreachable:', preferred)
-  const alternateOk = await alternateProbe
-  _lastProbeAt = Date.now()
-  _lastProbeOk = alternateOk
-  _lastProbedUrl = alternateOk ? alternate : preferred
-  if (!alternateOk) {
-    console.warn('[supabase] endpoint unreachable:', alternate)
-    supabase = null
-    return false
-  }
-  console.warn('[supabase] failed over to', alternate)
-  return apply(alternate)
+  // 非启动：只探当前端点；通了不碰备用，挂了再探备用
+  const preferredOk = await probeEndpoint(preferred, PROBE_TIMEOUT_MS)
+  if (preferredOk) return markPreferredOk()
+  return failoverToAlternate()
 }
