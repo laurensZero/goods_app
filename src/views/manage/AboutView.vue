@@ -159,7 +159,14 @@
                 type="button"
                 class="dialog-btn dialog-btn--secondary"
                 :disabled="!webUpdateCheckEnabled || webUpdateStore.isChecking"
-                @click="handleManualCheckWebUpdate"
+                @click="handleManualCheckWebUpdateClick"
+                @touchstart.passive="startResourceCheckLongPress"
+                @touchend="cancelResourceCheckLongPress"
+                @touchcancel="cancelResourceCheckLongPress"
+                @mousedown.left="startResourceCheckLongPress"
+                @mouseup="cancelResourceCheckLongPress"
+                @mouseleave="cancelResourceCheckLongPress"
+                @contextmenu.prevent="openManualBundlePicker"
               >
                 {{ webUpdateStore.isChecking ? t('about.checking') : t('about.checkResourceUpdate') }}
               </button>
@@ -322,6 +329,12 @@
       </div>
     </AppSheet>
 
+    <!-- 镺按「检查资源更新」：手动选择资源包 -->
+    <ManualBundleSheet
+      v-model="showManualBundleSheet"
+      @installed="handleManualBundleInstalled"
+    />
+
     <AppToast :message="toastMsg" />
   </div>
 </template>
@@ -333,6 +346,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import ManualBundleSheet from '@/components/manage/ManualBundleSheet.vue'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useGoodsStore } from '@/stores/goods'
@@ -374,6 +388,10 @@ const pageBodyRef = ref(null)
 const showWebUpdateRestartDialog = ref(false)
 const showWebUpdateResetDialog = ref(false)
 const showCacheLimitSheet = ref(false)
+const showManualBundleSheet = ref(false)
+const resourceCheckLongPressTimer = ref(0)
+const suppressResourceCheckClick = ref(false)
+const RESOURCE_CHECK_LONG_PRESS_MS = 420
 const isClearingCutoutModel = ref(false)
 const cacheLimitMb = ref(DEFAULT_NATIVE_CACHE_LIMIT_MB)
 const cacheLimitOptions = computed(() => {
@@ -545,6 +563,52 @@ async function handleStartUpdate() {
   }
 }
 
+function openManualBundlePicker() {
+  if (!webUpdateCheckEnabled.value) {
+    showToast(t('about.webOnlyNativeSupported'))
+    return
+  }
+  suppressResourceCheckClick.value = true
+  showManualBundleSheet.value = true
+}
+
+function startResourceCheckLongPress() {
+  if (!webUpdateCheckEnabled.value) return
+  cancelResourceCheckLongPress()
+  resourceCheckLongPressTimer.value = window.setTimeout(() => {
+    openManualBundlePicker()
+    resourceCheckLongPressTimer.value = 0
+  }, RESOURCE_CHECK_LONG_PRESS_MS)
+}
+
+function cancelResourceCheckLongPress() {
+  if (resourceCheckLongPressTimer.value) {
+    window.clearTimeout(resourceCheckLongPressTimer.value)
+    resourceCheckLongPressTimer.value = 0
+  }
+}
+
+function handleManualCheckWebUpdateClick() {
+  if (suppressResourceCheckClick.value) {
+    suppressResourceCheckClick.value = false
+    return
+  }
+  void handleManualCheckWebUpdate()
+}
+
+function handleManualBundleInstalled() {
+  if (!IS_NATIVE) {
+    window.location.reload()
+    return
+  }
+  showToast(t('about.applyingUpdate'), 1800)
+  void webUpdateStore.applyPendingUpdateNow().then((activated) => {
+    if (!activated) {
+      showToast(webUpdateStore.lastError || t('about.updateFailed'), 3200)
+    }
+  })
+}
+
 async function handleManualCheckWebUpdate() {
   if (!webUpdateCheckEnabled.value || webUpdateStore.isChecking) return
 
@@ -649,6 +713,7 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  cancelResourceCheckLongPress()
 })
 
 // ======== 资源空间计算 ========

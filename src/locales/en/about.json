@@ -206,5 +206,15 @@
   "about.apkVerifying": "Verifying package integrity…",
   "about.apkHashMismatch": "Package integrity check failed. The downloaded file was deleted. Please retry or download manually from the release page.",
   "about.installPermissionDenied": "Install permission not granted. Go to System Settings > Apps > 谷子收纳 > Install unknown apps, and enable \"Allow from this source\".",
-  "about.mockDownloadDoneShort": "Mock download complete"
+  "about.mockDownloadDoneShort": "Mock download complete",
+  "about.manualBundleTitle": "Select Bundle Manually",
+  "about.manualBundleDesc": "Long-press Check Resource Update. Pick a cloud history version, or install a local bundle offline (embedded signature verified).",
+  "about.refreshBundleList": "Refresh Cloud List",
+  "about.pickLocalBundle": "Pick Local Bundle",
+  "about.manualBundleEmpty": "No cloud history yet. Pick a local zip instead.",
+  "about.manualBundleHistoryUnavailable": "Cloud list unavailable (local bundle still works offline).",
+  "about.manualBundleVerifying": "Verifying bundle signature…",
+  "about.manualBundleInstallQueued": "Bundle ready. Applying update…",
+  "about.manualBundleInstallFailed": "Failed to install bundle.",
+  "about.bundleCurrent": "Current"
 }

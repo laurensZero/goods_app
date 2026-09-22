@@ -206,5 +206,15 @@
   "about.apkVerifying": "正在校验安装包完整性…",
   "about.apkHashMismatch": "安装包完整性校验失败，已删除下载文件。请重试或前往发布页手动下载。",
   "about.installPermissionDenied": "未授予安装权限。请到系统设置 > 应用 > 谷子收纳 > 安装未知应用，开启「允许来自此来源」。",
-  "about.mockDownloadDoneShort": "模拟完成"
+  "about.mockDownloadDoneShort": "模拟完成",
+  "about.manualBundleTitle": "手动选择资源包",
+  "about.manualBundleDesc": "长按「检查资源更新」打开。可选云端历史版本，或离线安装本地资源包（校验包内认证）。",
+  "about.refreshBundleList": "刷新云端列表",
+  "about.pickLocalBundle": "选择本地资源包",
+  "about.manualBundleEmpty": "暂无云端历史资源包，可直接选择本地 zip。",
+  "about.manualBundleHistoryUnavailable": "云端列表不可用（可离线使用本地资源包）。",
+  "about.manualBundleVerifying": "正在校验资源包认证…",
+  "about.manualBundleInstallQueued": "资源包已就绪，正在应用更新…",
+  "about.manualBundleInstallFailed": "资源包安装失败。",
+  "about.bundleCurrent": "当前"
 }

@@ -1589,6 +1589,7 @@ CREATE TABLE IF NOT EXISTS ota_releases (
   storage_path  TEXT NOT NULL,
   file_size     BIGINT NOT NULL DEFAULT 0,
   sha256        TEXT NOT NULL,
+  auth_sig      TEXT,
   min_native_version TEXT,
   update_level  TEXT NOT NULL DEFAULT 'prompt'
                 CHECK (update_level IN ('force', 'prompt', 'silent')),
@@ -1631,5 +1632,8 @@ CREATE POLICY "ota_releases_service_all" ON storage.objects
   WITH CHECK (bucket_id = 'ota-releases' AND auth.role() = 'service_role');
 
 -- ── 存量库增量迁移（新装库可跳过；已部署实例请单独执行）────────────────
+-- ota_releases.auth_sig：资源包发布认证签名（见 supabase-migration-ota-auth-sig.sql）
+ALTER TABLE ota_releases ADD COLUMN IF NOT EXISTS auth_sig TEXT;
+
 -- goods.shipping_events：多笔运费事件 [{date, fee}]
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS shipping_events JSONB DEFAULT '[]'::jsonb;

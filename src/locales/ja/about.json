@@ -206,5 +206,15 @@
   "about.apkVerifying": "パッケージの整合性を検証しています…",
   "about.apkHashMismatch": "パッケージの整合性検証に失敗しました。ダウンロードファイルを削除しました。再試行するか、リリースページから手動でダウンロードしてください。",
   "about.installPermissionDenied": "インストール権限が付与されていません。システム設定 > アプリ > グーズウェイナ > 不明なアプリのインストールで「このソースから許可」を有効にしてください。",
-  "about.mockDownloadDoneShort": "モックダウンロード完了"
+  "about.mockDownloadDoneShort": "モックダウンロード完了",
+  "about.manualBundleTitle": "バンドルを手動選択",
+  "about.manualBundleDesc": "「リソース更新を確認」を長押しで開きます。クラウド履歴バージョンを選ぶか、ローカルバンドルをオフラインでインストール（パッケージ内認証を検証）。",
+  "about.refreshBundleList": "クラウド一覧を更新",
+  "about.pickLocalBundle": "ローカルバンドルを選択",
+  "about.manualBundleEmpty": "クラウド履歴はありません。ローカル zip を選べます。",
+  "about.manualBundleHistoryUnavailable": "クラウド一覧を取得できません（ローカルバンドルはオフラインでも可）。",
+  "about.manualBundleVerifying": "バンドル認証を検証中…",
+  "about.manualBundleInstallQueued": "バンドル準備完了。更新を適用中…",
+  "about.manualBundleInstallFailed": "バンドルのインストールに失敗しました。",
+  "about.bundleCurrent": "現在"
 }
