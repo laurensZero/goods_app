@@ -10,6 +10,7 @@
             <div ref="previewMediaRef" class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
               <LazyCachedImage
                 v-if="primaryPreviewImage"
+                :key="`${primaryPreviewImage}-${previewImageRefreshKey}`"
                 :src="primaryPreviewImage"
                 :alt="form.name || t('common.image')"
                 :lazy="false"
@@ -948,7 +949,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
@@ -993,8 +994,22 @@ const props = defineProps({
 })
 
 const previewMediaRef = ref(null)
+const previewImageRefreshKey = ref(0)
 const formRootRef = ref(null)
 const leaveGuardSlot = { current: null }
+
+function onImageCacheRefreshEvent(event) {
+  if (String(event?.detail?.reason || '') !== 'force') return
+  previewImageRefreshKey.value += 1
+}
+
+onMounted(() => {
+  window.addEventListener('goodsapp:image-cache-refresh', onImageCacheRefreshEvent)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('goodsapp:image-cache-refresh', onImageCacheRefreshEvent)
+})
 
 const {
   presets,
