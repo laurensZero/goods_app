@@ -106,13 +106,71 @@ export function getDataPlaneUrl() {
 }
 
 /**
- * 图片等公开展示资源的基础 URL：内置配置固定走主域名（备用反代不扛图床流量，
- * 避免打爆小水管 VPS）；自建实例用自建 URL。OTA/APK 下载请用 getFileDownloadBaseUrls。
+ * 图片等公开展示资源的基础 URL：跟随数据面端点偏好（用户在同步设置里切主站/备用反代）。
+ * 自建实例用自建 URL。OTA/APK 下载请用 getFileDownloadBaseUrls。
  * @returns {string}
  */
 export function getPublicBaseUrl() {
-  if (_customLocked && _initUrl) return _initUrl
-  return SUPABASE_URL
+  return resolveDataUrl()
+}
+
+/**
+ * 公开图片 URL 的候选 base（按尝试顺序）：当前端点优先，另一端兜底。
+ * 主站抽风时列表/详情可切到备用反代继续出图。
+ * @returns {string[]}
+ */
+export function getPublicBaseUrlCandidates() {
+  if (_customLocked && _initUrl) return [_initUrl]
+  const primary = SUPABASE_URL
+  const backup = hasBackup() ? SUPABASE_BACKUP_URL : ''
+  const current = resolveDataUrl()
+  if (!backup) return [primary]
+  if (current === backup) return [backup, primary]
+  return [primary, backup]
+}
+
+/**
+ * 把已存的公开图片 URL 改写到指定 base（主站 ↔ 备用反代同路径）。
+ * 非内置 Supabase 公链（米游铺 CDN、本地文件等）原样返回。
+ * @param {string} url
+ * @param {string} baseUrl
+ * @returns {string}
+ */
+export function rebasePublicImageUrl(url, baseUrl) {
+  const raw = String(url || '').trim()
+  const target = String(baseUrl || '').trim().replace(/\/+$/, '')
+  if (!raw || !target) return raw
+  const bases = [SUPABASE_URL, SUPABASE_BACKUP_URL, _customLocked ? _initUrl : '']
+    .filter(Boolean)
+    .map((b) => b.replace(/\/+$/, ''))
+  for (const base of bases) {
+    if (raw === base) continue
+    if (raw.startsWith(`${base}/`)) {
+      return `${target}${raw.slice(base.length)}`
+    }
+  }
+  return raw
+}
+
+/**
+ * 展示用候选 URL 列表（按顺序尝试）。第一项是当前偏好端点上的地址。
+ * @param {string} url
+ * @returns {string[]}
+ */
+export function getPublicImageDisplayCandidates(url) {
+  const raw = String(url || '').trim()
+  if (!raw) return []
+  const bases = getPublicBaseUrlCandidates()
+  const seen = new Set()
+  const list = []
+  for (const base of bases) {
+    const next = rebasePublicImageUrl(raw, base)
+    if (!next || seen.has(next)) continue
+    seen.add(next)
+    list.push(next)
+  }
+  if (list.length === 0) list.push(raw)
+  return list
 }
 
 /**
