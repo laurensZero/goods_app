@@ -293,8 +293,8 @@ export async function unlinkOAuthProvider(identityId) {
 export async function deleteAccount(password) {
   const client = getSupabaseClient()
   const { data: { session } } = await client.auth.getSession()
-  const { SUPABASE_URL } = await import('@/config/supabase')
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/delete-user`, {
+  const base = client.supabaseUrl || (await import('@/utils/sync/supabaseClient')).getDataPlaneUrl()
+  const response = await fetch(`${base}/functions/v1/delete-user`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${session.access_token}`,

@@ -1,10 +1,8 @@
 // src/utils/auth/webLogin.js
 // 网页版扫码登录：创建挑战 / 轮询状态 / 消费会话
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
-import { getSupabaseClient } from '@/utils/sync/supabaseClient'
-
-const FN = `${SUPABASE_URL}/functions/v1/web-login`
+import { SUPABASE_ANON_KEY } from '@/config/supabase'
+import { getSupabaseClient, getDataPlaneUrl } from '@/utils/sync/supabaseClient'
 
 async function callWebLogin(body, { accessToken = '' } = {}) {
   const headers = {
@@ -15,7 +13,7 @@ async function callWebLogin(body, { accessToken = '' } = {}) {
     headers.Authorization = `Bearer ${accessToken}`
   }
 
-  const res = await fetch(FN, {
+  const res = await fetch(`${getDataPlaneUrl()}/functions/v1/web-login`, {
     method: 'POST',
     headers,
     body: JSON.stringify(body)

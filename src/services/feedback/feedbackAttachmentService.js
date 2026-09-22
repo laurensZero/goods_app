@@ -1,7 +1,7 @@
 // src/services/feedbackAttachmentService.js
 // Upload feedback attachments to Supabase Storage
 
-import { getSupabaseClient } from '@/utils/sync/supabaseClient'
+import { getSupabaseClient, getPublicBaseUrl } from '@/utils/sync/supabaseClient'
 import { getBufferedLogs, getPreviousSessionLogs } from '@/utils/logger'
 import { Capacitor } from '@capacitor/core'
 import { App as CapacitorApp } from '@capacitor/app'
@@ -66,18 +66,15 @@ const { error } = await db().storage
     throw new Error(msg)
   }
 
-  // Try to get public URL first, fall back to signed URL
-  const { data: pubData } = db().storage
-    .from(BUCKET)
-    .getPublicUrl(path)
-
-  if (pubData?.publicUrl) {
+  // 公链固定主域名（或自建实例），避免备用反代吃图片流量
+  const publicUrl = `${getPublicBaseUrl()}/storage/v1/object/public/${BUCKET}/${path}`
+  if (publicUrl) {
     return {
       name: file.name,
       path,
       type: file.type || 'application/octet-stream',
       size: file.size,
-      url: pubData.publicUrl
+      url: publicUrl
     }
   }
 
