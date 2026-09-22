@@ -274,15 +274,44 @@ function setMemoryCache(url, objectUrl) {
   }
 }
 
-const IMAGE_LOAD_CONCURRENCY = isNative() ? 8 : 12
-const viewportLoadQueue = []
-const preloadLoadQueue = []
+/**
+ * 图片加载按来源拆成独立泳道：米游铺 CDN 与 Supabase 图床互不占并发槽。
+ * 否则 Supabase 弱网挂起时会把共享队列堵死，米游铺图也一起白。
+ */
+function classifyImageLane(url) {
+  const s = String(url || '')
+  if (/mihoyo\.com|hoyoverse\.com|mihoyogift\.com/i.test(s)) return 'mihoyo'
+  if (/supabase\.co|goodsapp\.de5\.net|cloud-image:/i.test(s)) return 'supabase'
+  return 'other'
+}
+
+function createImageLane(concurrency) {
+  return { concurrency, viewport: [], preload: [], active: 0 }
+}
+
+const imageLoadLanes = {
+  mihoyo: createImageLane(isNative() ? 6 : 10),
+  supabase: createImageLane(isNative() ? 4 : 6),
+  other: createImageLane(isNative() ? 4 : 6)
+}
+
 const queuedLoadKeys = new Set()
 const queuedLoadMeta = new Map()
-let imageLoadActiveCount = 0
 let imageLoadDrainScheduled = false
 let preloadPaused = false
 let imageRefreshDispatchScheduled = 0
+
+function laneOfTask(task) {
+  return imageLoadLanes[task?.lane] || imageLoadLanes.other
+}
+
+function anyImageLoadWork() {
+  for (const lane of Object.values(imageLoadLanes)) {
+    if (lane.viewport.length > 0) return true
+    if (!preloadPaused && lane.preload.length > 0) return true
+  }
+  return false
+}
 
 function normalizeCacheUrl(input) {
   const value = String(input || '').trim()
@@ -309,15 +338,17 @@ function getCacheKeyCandidates(url) {
 
 function enqueueImageLoadTask(task, priority = 'viewport') {
   task.priority = priority
+  task.lane = task.lane || classifyImageLane(task.cacheKey)
+  const lane = laneOfTask(task)
   if (priority === 'preload') {
-    preloadLoadQueue.push(task)
+    lane.preload.push(task)
   } else {
     const dist = task.viewportDistance ?? Infinity
-    const idx = viewportLoadQueue.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
+    const idx = lane.viewport.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
     if (idx < 0) {
-      viewportLoadQueue.push(task)
+      lane.viewport.push(task)
     } else {
-      viewportLoadQueue.splice(idx, 0, task)
+      lane.viewport.splice(idx, 0, task)
     }
   }
   queuedLoadKeys.add(task.cacheKey)
@@ -329,24 +360,25 @@ function promoteQueuedImageLoad(cacheKey) {
   const task = queuedLoadMeta.get(cacheKey)
   if (!task || task.priority !== 'preload') return
 
-  const preloadIndex = preloadLoadQueue.findIndex((entry) => entry.cacheKey === cacheKey)
+  const lane = laneOfTask(task)
+  const preloadIndex = lane.preload.findIndex((entry) => entry.cacheKey === cacheKey)
   if (preloadIndex < 0) return
 
-  preloadLoadQueue.splice(preloadIndex, 1)
+  lane.preload.splice(preloadIndex, 1)
   task.priority = 'viewport'
   const dist = task.viewportDistance ?? Infinity
-  const idx = viewportLoadQueue.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
+  const idx = lane.viewport.findIndex((t) => (t.viewportDistance ?? Infinity) > dist)
   if (idx < 0) {
-    viewportLoadQueue.push(task)
+    lane.viewport.push(task)
   } else {
-    viewportLoadQueue.splice(idx, 0, task)
+    lane.viewport.splice(idx, 0, task)
   }
   scheduleImageLoadDrain()
 }
 
-function takeNextImageLoadTask() {
-  if (viewportLoadQueue.length > 0) return viewportLoadQueue.shift()
-  if (!preloadPaused && preloadLoadQueue.length > 0) return preloadLoadQueue.shift()
+function takeNextImageLoadTask(lane) {
+  if (lane.viewport.length > 0) return lane.viewport.shift()
+  if (!preloadPaused && lane.preload.length > 0) return lane.preload.shift()
   return null
 }
 
@@ -651,6 +683,7 @@ export async function getCachedImage(url, options = {}) {
   inFlight.set(cacheKey, promise)
   enqueueImageLoadTask({
     cacheKey,
+    lane: classifyImageLane(fetchUrl || url),
     viewportDistance,
     run: async () => {
         // 2: Cache API (Web)
@@ -869,8 +902,13 @@ function scheduleImageLoadDrain() {
     drainImageLoadQueue()
   }
 
-  const hasViewportWork = viewportLoadQueue.length > 0
-  const hasPreloadOnlyWork = !hasViewportWork && !preloadPaused && preloadLoadQueue.length > 0
+  let hasViewportWork = false
+  let hasPreloadWork = false
+  for (const lane of Object.values(imageLoadLanes)) {
+    if (lane.viewport.length > 0) hasViewportWork = true
+    if (lane.preload.length > 0) hasPreloadWork = true
+  }
+  const hasPreloadOnlyWork = !hasViewportWork && !preloadPaused && hasPreloadWork
 
   if (hasViewportWork) {
     if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -890,27 +928,31 @@ function scheduleImageLoadDrain() {
 }
 
 function drainImageLoadQueue() {
-  while (imageLoadActiveCount < IMAGE_LOAD_CONCURRENCY) {
-    const task = takeNextImageLoadTask()
-    if (!task) break
+  // 泳道互相独立：Supabase 槽位占满也不挡米游铺出图
+  for (const lane of Object.values(imageLoadLanes)) {
+    while (lane.active < lane.concurrency) {
+      const task = takeNextImageLoadTask(lane)
+      if (!task) break
 
-    if (!task.cacheKey || !queuedLoadKeys.has(task.cacheKey)) continue
-    if (memoryCache.has(task.cacheKey)) {
-      queuedLoadKeys.delete(task.cacheKey)
-      task.resolve(memoryCache.get(task.cacheKey))
-      continue
+      if (!task.cacheKey || !queuedLoadKeys.has(task.cacheKey)) continue
+      if (memoryCache.has(task.cacheKey)) {
+        queuedLoadKeys.delete(task.cacheKey)
+        queuedLoadMeta.delete(task.cacheKey)
+        task.resolve(memoryCache.get(task.cacheKey))
+        continue
+      }
+
+      lane.active += 1
+      Promise.resolve(task.run())
+        .then(task.resolve)
+        .catch(() => task.resolve(''))
+        .finally(() => {
+          lane.active = Math.max(0, lane.active - 1)
+          if (anyImageLoadWork()) {
+            scheduleImageLoadDrain()
+          }
+        })
     }
-
-    imageLoadActiveCount += 1
-    Promise.resolve(task.run())
-      .then(task.resolve)
-      .catch(() => task.resolve(''))
-      .finally(() => {
-        imageLoadActiveCount = Math.max(0, imageLoadActiveCount - 1)
-        if (viewportLoadQueue.length > 0 || (!preloadPaused && preloadLoadQueue.length > 0)) {
-          scheduleImageLoadDrain()
-        }
-      })
   }
 }
 
@@ -956,17 +998,36 @@ export function signalImageCacheRefresh(reason = 'resume') {
 }
 
 export function getImageLoadState() {
+  let activeCount = 0
+  let queuedViewportCount = 0
+  let queuedPreloadCount = 0
+  const lanes = {}
+  for (const [name, lane] of Object.entries(imageLoadLanes)) {
+    activeCount += lane.active
+    queuedViewportCount += lane.viewport.length
+    queuedPreloadCount += lane.preload.length
+    lanes[name] = {
+      active: lane.active,
+      concurrency: lane.concurrency,
+      queuedViewport: lane.viewport.length,
+      queuedPreload: lane.preload.length
+    }
+  }
   return {
-    activeCount: imageLoadActiveCount,
-    queuedViewportCount: viewportLoadQueue.length,
-    queuedPreloadCount: preloadLoadQueue.length,
-    preloadPaused
+    activeCount,
+    queuedViewportCount,
+    queuedPreloadCount,
+    preloadPaused,
+    lanes
   }
 }
 
 export function clearImageLoadQueues() {
-  viewportLoadQueue.length = 0
-  preloadLoadQueue.length = 0
+  for (const lane of Object.values(imageLoadLanes)) {
+    lane.viewport.length = 0
+    lane.preload.length = 0
+    lane.active = 0
+  }
   queuedLoadKeys.clear()
   queuedLoadMeta.clear()
 }
