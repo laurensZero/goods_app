@@ -297,6 +297,7 @@
   "sync.dataEndpointDesc": "同期は現在のエンドポイントを使用します。失敗時は自動切替、手動でバックアッププロキシに切り替えることもできます。",
   "sync.endpointPrimary": "メイン直結",
   "sync.endpointBackup": "バックアッププロキシ",
+  "sync.endpointCf": "CF プロキシ",
   "sync.endpointCustom": "カスタムインスタンス",
   "sync.endpointInUse": "使用中",
   "sync.endpointSwitch": "切り替え",

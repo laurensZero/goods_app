@@ -40,6 +40,7 @@
     "allowNavigation": [
       "*.supabase.co",
       "api.goodsapp.de5.net",
+      "cf.goodsapp.de5.net",
       "goodsapp.de5.net"
     ]
   }

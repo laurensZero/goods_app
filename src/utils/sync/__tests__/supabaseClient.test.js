@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 const PRIMARY = 'https://zvqzicimowfqshgjsrri.supabase.co'
 const BACKUP = 'https://api.goodsapp.de5.net'
+const CF = 'https://cf.goodsapp.de5.net'
 const KEY = 'test-anon-key'
 
 const createClientMock = vi.fn()
@@ -15,6 +16,7 @@ vi.mock('@supabase/supabase-js', () => ({
 vi.mock('@/config/supabase', () => ({
   SUPABASE_URL: 'https://zvqzicimowfqshgjsrri.supabase.co',
   SUPABASE_BACKUP_URL: 'https://api.goodsapp.de5.net',
+  SUPABASE_CF_URL: 'https://cf.goodsapp.de5.net',
   SUPABASE_ANON_KEY: 'builtin-key'
 }))
 vi.mock('@/locales', () => ({
@@ -71,11 +73,11 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(PRIMARY)
     expect(mod.getDataPlaneUrl()).toBe(PRIMARY)
     expect(mod.getPublicBaseUrl()).toBe(PRIMARY)
-    expect(mod.getPublicBaseUrlCandidates()).toEqual([PRIMARY, BACKUP])
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([PRIMARY, BACKUP, CF])
     expect(mod.getPublicImageDisplayCandidates('https://act-webstatic.mihoyo.com/a.jpg')).toEqual([
       'https://act-webstatic.mihoyo.com/a.jpg'
     ])
-    expect(mod.getFileDownloadBaseUrls()).toEqual([PRIMARY, BACKUP])
+    expect(mod.getFileDownloadBaseUrls()).toEqual([PRIMARY, BACKUP, CF])
   })
 
   it('init with builtin url follows persisted backup preference', async () => {
@@ -87,12 +89,13 @@ describe('supabaseClient failover', () => {
     expect(client.supabaseUrl).toBe(BACKUP)
     expect(mod.getDataPlaneUrl()).toBe(BACKUP)
     expect(mod.getPublicBaseUrl()).toBe(BACKUP)
-    expect(mod.getPublicBaseUrlCandidates()).toEqual([BACKUP, PRIMARY])
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([BACKUP, PRIMARY, CF])
     expect(mod.getPublicImageDisplayCandidates(`${PRIMARY}/storage/v1/object/public/goods-images/a.jpg`)).toEqual([
       `${BACKUP}/storage/v1/object/public/goods-images/a.jpg`,
-      `${PRIMARY}/storage/v1/object/public/goods-images/a.jpg`
+      `${PRIMARY}/storage/v1/object/public/goods-images/a.jpg`,
+      `${CF}/storage/v1/object/public/goods-images/a.jpg`
     ])
-    expect(mod.getFileDownloadBaseUrls()).toEqual([BACKUP, PRIMARY])
+    expect(mod.getFileDownloadBaseUrls()).toEqual([BACKUP, PRIMARY, CF])
   })
 
   it('custom instance locks and does not participate in failover', async () => {
@@ -223,5 +226,39 @@ describe('manual endpoint stickiness', () => {
     nowSpy.mockRestore()
     expect(ok).toBe(false)
     expect(mod.getDataEndpointId()).toBe('backup')
+  })
+})
+describe('cloudflare proxy endpoint', () => {
+  it('lists primary/backup/cf and switches manually without auto-failover', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    const ids = mod.listDataEndpoints().map((ep) => ep.id)
+    expect(ids).toEqual(['primary', 'backup', 'cf'])
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([PRIMARY, BACKUP, CF])
+    expect(mod.getFileDownloadBaseUrls()).toEqual([PRIMARY, BACKUP, CF])
+
+    expect(await mod.switchDataEndpoint('cf')).toBe(true)
+    expect(mod.getDataEndpointId()).toBe('cf')
+    expect(mod.getDataPlaneUrl()).toBe(CF)
+    expect(mod.getPublicBaseUrlCandidates()).toEqual([CF, PRIMARY, BACKUP])
+    expect(mod.getFileDownloadBaseUrls()).toEqual([CF, PRIMARY, BACKUP])
+
+    // 主站通、CF 不通：手动粘住 CF，不自动切走
+    mockProbeReachable([PRIMARY])
+    const ok = await mod.reconnectSupabase({ force: true })
+    expect(ok).toBe(false)
+    expect(mod.getDataEndpointId()).toBe('cf')
+  })
+
+  it('restores persisted cf preference on load', async () => {
+    const mod = await freshClient()
+    readSyncKeyMock.mockImplementation(async (k) => (k === 'sync_data_endpoint' ? 'cf' : ''))
+    await mod.loadEndpointPreference()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+    expect(mod.getDataEndpointId()).toBe('cf')
+    expect(mod.getDataPlaneUrl()).toBe(CF)
   })
 })

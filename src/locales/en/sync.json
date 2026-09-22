@@ -297,6 +297,7 @@
   "sync.dataEndpointDesc": "Sync uses the current endpoint and fails over automatically. You can also switch to the backup proxy manually.",
   "sync.endpointPrimary": "Primary",
   "sync.endpointBackup": "Backup proxy",
+  "sync.endpointCf": "CF proxy",
   "sync.endpointCustom": "Custom instance",
   "sync.endpointInUse": "In use",
   "sync.endpointSwitch": "Switch",
