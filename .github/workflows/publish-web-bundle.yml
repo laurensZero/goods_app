@@ -309,8 +309,8 @@ jobs:
           echo "Storage path: ${STORAGE_PATH}"
 
           cd dist
-          # -X 去掉额外属性，降低同内容两次打包哈希不一致
-          zip -X -r "../${BUNDLE_NAME}" .
+          # 只压真实文件（zip -r 会写入目录项，客户端验签清单对不上）
+          find . -type f | sed 's|^\./||' | LC_ALL=C sort | zip -X "../${BUNDLE_NAME}" -@
           cd ..
 
           # 发布签名：HMAC(version|zipSha256)，写入 ota_releases.auth_sig

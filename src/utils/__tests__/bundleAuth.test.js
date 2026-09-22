@@ -45,6 +45,29 @@ describe('bundleAuth content inventory', () => {
     }
     expect(await computeContentPayloadHash(withAuth)).toBe(await computeContentPayloadHash(files))
   })
+
+  it('忽略 zip 目录项（系统 zip -r 会写入 assets/）', async () => {
+    const files = makeFiles()
+    const withDirs = {
+      ...files,
+      'assets/': new Uint8Array(0),
+      './assets/': new Uint8Array(0),
+      '/': new Uint8Array(0)
+    }
+    expect(await computeContentPayloadHash(withDirs)).toBe(await computeContentPayloadHash(files))
+  })
+
+  it('路径排序按码元，不因 localeCompare 顺序漂移', async () => {
+    // `index-a` < `indexa`（`-` 码元小于字母），与发布脚本一致
+    const files = {
+      'indexa.js': strToU8('a'),
+      'index-a.js': strToU8('b'),
+      'assets/z.js': strToU8('z'),
+      'assets/A.js': strToU8('A')
+    }
+    const auth = await createBundleAuthObject(files, '1.0.0', '2026-04-10T00:00:00.000Z')
+    await expect(verifyBundleAuthObject(auth, files)).resolves.toMatchObject({ version: '1.0.0' })
+  })
 })
 
 describe('bundleAuth object', () => {
