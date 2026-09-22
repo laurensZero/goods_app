@@ -126,6 +126,7 @@ export function getFileDownloadBaseUrls() {
   const primary = SUPABASE_URL
   const backup = hasBackup() ? SUPABASE_BACKUP_URL : ''
   if (!backup) return [primary]
+  // 与数据面端点一致：当前端点优先，另一端回退
   const current = resolveDataUrl()
   if (current === backup) return [backup, primary]
   return [primary, backup]

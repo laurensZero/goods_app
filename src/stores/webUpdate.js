@@ -368,7 +368,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
-      const downloadUrls = [latestZipUrl.value, latestZipFallbackUrl.value]
+      // 下载时按当前数据面端点重算，避免切端点后仍用检查时的旧 URL
+      const freshUrls = latestRelease.value?.storage_path
+        ? toDirectStorageUrls(latestRelease.value.storage_path)
+        : [latestZipUrl.value, latestZipFallbackUrl.value]
+      const downloadUrls = freshUrls
         .filter((url, index, urls) => url && urls.indexOf(url) === index)
       let bundle = null
       let lastError = null
