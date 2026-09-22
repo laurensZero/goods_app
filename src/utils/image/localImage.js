@@ -331,17 +331,10 @@ export async function readLocalImageAsDataUrl(uri, localPath = '', onWarn) {
   }
 
   try {
-    // 远程图（Supabase/米游铺 CDN 等）必须带超时：无超时的 fetch 会把快速编辑一直吊在 loading
-    const controller = typeof AbortController === 'function' ? new AbortController() : null
-    const timer = controller ? setTimeout(() => controller.abort(), 15000) : null
-    try {
-      const response = await fetch(uri, controller ? { signal: controller.signal } : undefined)
-      if (!response.ok) return null
-      const blob = await response.blob()
-      return await blobToDataUrl(blob)
-    } finally {
-      if (timer) clearTimeout(timer)
-    }
+    const response = await fetch(uri)
+    if (!response.ok) return null
+    const blob = await response.blob()
+    return await blobToDataUrl(blob)
   } catch (_) {}
 
   if (isNative) {
