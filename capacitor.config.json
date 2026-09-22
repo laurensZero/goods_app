@@ -20,7 +20,12 @@
     },
     "LocalNotifications": {
       "iconColor": "#7C5CFF",
-      "presentationOptions": ["badge", "sound", "banner", "list"]
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "banner",
+        "list"
+      ]
     },
     "CapacitorSQLite": {
       "androidIsEncryption": false,
@@ -28,5 +33,14 @@
         "biometricAuth": false
       }
     }
+  },
+  "server": {
+    "hostname": "goodsapp.de5.net",
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*.supabase.co",
+      "goodsapp.de5.net",
+      "api.goodsapp.de5.net"
+    ]
   }
 }
