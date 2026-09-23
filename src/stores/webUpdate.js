@@ -440,7 +440,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
 
   /**
    * 手动安装本地 zip：校验内嵌 goods-bundle.auth.json 后交给 CapGo。
-   * 认证/读文件阶段失败只报错，不改动当前生效 bundle。
+   * 认证/读文件/下载失败只报错，绝不回滚或切换当前生效 bundle。
    * @param {Uint8Array} zipBytes
    */
   async function installLocalBundleZip(zipBytes) {
@@ -453,7 +453,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     isInstallingManual.value = true
     lastError.value = ''
     let listener = null
-    let capgoStarted = false
+    let nextApplied = false
     try {
       const bytes = zipBytes instanceof Uint8Array ? zipBytes : new Uint8Array(zipBytes)
       const authResult = await verifyBundleZipAuth(bytes)
@@ -477,23 +477,44 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         throw new Error('无法读取本地资源包路径。')
       }
 
+      // CapGo 原生 download 走 HTTP 栈，file:// 会报 Failed to download。
+      // 依次尝试 WebView 本地服务 URL / file URI / 绝对路径。
+      const pathWithoutScheme = String(uri).replace(/^file:\/\//, '')
+      const downloadUrls = [
+        Capacitor.convertFileSrc(uri),
+        uri,
+        pathWithoutScheme
+      ].filter((url, index, urls) => url && urls.indexOf(url) === index)
+
       listener = await CapacitorUpdater.addListener('download', (state) => {
         const percent = Number(state?.percent)
         if (!Number.isFinite(percent)) return
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
-      capgoStarted = true
-      const bundle = await CapacitorUpdater.download({
-        version,
-        url: uri,
-        checksum
-      })
+      let bundle = null
+      let lastDownloadError = null
+      for (const downloadUrl of downloadUrls) {
+        try {
+          bundle = await CapacitorUpdater.download({
+            version,
+            url: downloadUrl,
+            checksum
+          })
+          break
+        } catch (error) {
+          lastDownloadError = error
+          log.warn('install-local:source-failed', { url: downloadUrl }, error)
+        }
+      }
+      if (!bundle && lastDownloadError) throw lastDownloadError
+
       if (!bundle?.id) {
         throw new Error('资源包安装成功但未拿到 bundle id。')
       }
 
       await CapacitorUpdater.next({ id: bundle.id })
+      nextApplied = true
       pendingBundleId.value = bundle.id
       pendingVersion.value = version
       currentVersion.value = version
@@ -502,13 +523,13 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       log.info('install-local:done', { bundleId: bundle.id, version })
       return true
     } catch (error) {
-      // 仅在已开始 CapGo 下载/切换后才回滚；验签失败等前置错误不要动当前 bundle
-      if (capgoStarted) {
+      // 仅当已经 next() 到新包、后续步骤失败时才回滚；下载/验签失败不要动当前 bundle
+      if (nextApplied) {
         await rollbackToCurrentBundle()
       }
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '本地资源包安装失败。')
-      log.error('install-local:failed', { capgoStarted }, error)
+      log.error('install-local:failed', { nextApplied }, error)
       return false
     } finally {
       isDownloading.value = false
@@ -541,6 +562,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     log.info('download:start', { version: latestVersion.value, url: latestZipUrl.value })
 
     let listener = null
+    let nextApplied = false
     try {
       listener = await CapacitorUpdater.addListener('download', (state) => {
         const percent = Number(state?.percent)
@@ -576,6 +598,7 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       }
 
       await CapacitorUpdater.next({ id: bundle.id })
+      nextApplied = true
       pendingBundleId.value = bundle.id
       pendingVersion.value = normalizeVersionTag(bundle.version || latestVersion.value)
       downloadProgress.value = 100
@@ -583,8 +606,11 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       log.info('download:done', { bundleId: bundle.id, version: pendingVersion.value })
       return true
     } catch (error) {
-      log.error('download:failed', { version: latestVersion.value, progress: downloadProgress.value }, error)
-      await rollbackToCurrentBundle()
+      log.error('download:failed', { version: latestVersion.value, progress: downloadProgress.value, nextApplied }, error)
+      // 只有已经 next() 到新包才需要拨回；纯下载失败不要动当前 bundle
+      if (nextApplied) {
+        await rollbackToCurrentBundle()
+      }
       lastStatus.value = 'error'
       lastError.value = normalizeErrorMessage(error, '下载资源更新失败，请稍后再试。')
       return false
@@ -629,7 +655,30 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     await init()
     if (!supported.value) return false
 
-    const fallbackId = String(currentBundleId.value || 'builtin').trim() || 'builtin'
+    // 回退只允许拨回「当前正在用的那套资源」。读不到当前 id 时宁可不动，
+    // 也不要 next('builtin') —— 那等于把用户踢回 APK 内置前端。
+    let fallbackId = String(currentBundleId.value || '').trim()
+    if (!fallbackId || fallbackId === 'builtin') {
+      try {
+        const result = await CapacitorUpdater.current()
+        const liveId = String(result?.bundle?.id || '').trim()
+        if (liveId) {
+          currentBundleId.value = liveId
+          fallbackId = liveId
+        }
+      } catch (error) {
+        log.warn('rollback:read-current:failed', error)
+      }
+    }
+
+    if (!fallbackId || fallbackId === 'builtin') {
+      // 当前就是内置包，或 CapGo 状态异常：不要写 next，避免误切
+      pendingBundleId.value = ''
+      pendingVersion.value = ''
+      log.warn('rollback:skip', { fallbackId })
+      return false
+    }
+
     try {
       await CapacitorUpdater.next({ id: fallbackId })
       pendingBundleId.value = ''

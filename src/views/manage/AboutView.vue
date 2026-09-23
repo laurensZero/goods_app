@@ -597,16 +597,12 @@ function handleManualCheckWebUpdateClick() {
 }
 
 function handleManualBundleInstalled() {
+  // 只标记就绪并弹确认，不在这里直接 set()：set 失败/坏包时 CapGo 会重载并可能回退原生包
   if (!IS_NATIVE) {
     window.location.reload()
     return
   }
-  showToast(t('about.applyingUpdate'), 1800)
-  void webUpdateStore.applyPendingUpdateNow().then((activated) => {
-    if (!activated) {
-      showToast(webUpdateStore.lastError || t('about.updateFailed'), 3200)
-    }
-  })
+  showWebUpdateRestartDialog.value = true
 }
 
 async function handleManualCheckWebUpdate() {
