@@ -176,20 +176,22 @@ async function pickNativeGalleryImage() {
 
 export function isLocalImageUri(uri) {
   if (!uri || typeof uri !== 'string') return false
+  // convertFileSrc 在 Android 上可能带自定义 host（https://app.example/_capacitor_file_/...），
+  // 不能只认 localhost，否则会被 inferGoodsImageStorageMode 误判成 remote 并把本地路径推上云。
   return uri.startsWith('capacitor://')
-    || uri.startsWith('http://localhost/_capacitor_file_/')
-    || uri.startsWith('https://localhost/_capacitor_file_/')
+    || uri.startsWith('file://')
+    || uri.includes('/_capacitor_file_/')
     || uri.startsWith('data:image/')
 }
 
 function extractAppLocalPath(uri) {
   const text = String(uri || '')
-  // 仅识别应用本地来源（裸相对路径 / capacitor 文件协议），避免远程 URL 中的 user-images/ 片段被误判为托管文件
+  // 仅识别应用本地来源（裸相对路径 / capacitor 文件协议 / convertFileSrc 转换地址），
+  // 避免远程 URL 中的 user-images/ 片段被误判为托管文件
   const isAppLocal = text.startsWith(`${IMAGE_FOLDER}/`)
     || text.startsWith('capacitor://')
     || text.startsWith('file://')
-    || text.startsWith('http://localhost/_capacitor_file_/')
-    || text.startsWith('https://localhost/_capacitor_file_/')
+    || text.includes('/_capacitor_file_/')
   if (!isAppLocal) return null
   const match = text.match(/user-images\/[\w.\-]+/)
   return match ? match[0] : null

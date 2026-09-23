@@ -50,27 +50,33 @@ export function isCloudImageUri(uri) {
 }
 
 export function inferGoodsImageStorageMode(uri, explicitMode = '') {
+  const normalizedUri = String(uri || '').trim()
+
+  // 文件型 URI 必须优先于 explicitMode：存量数据可能被误标成 remote
+  // （convertFileSrc 自定义 host 曾被当成 https 远程图），否则会把本地路径推上云。
+  if (normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')) {
+    return 'inline-local'
+  }
+  if (
+    normalizedUri.startsWith('content://')
+    || normalizedUri.startsWith('file://')
+    || normalizedUri.startsWith('capacitor://')
+    || normalizedUri.startsWith('/storage/')
+    || normalizedUri.startsWith('/private/')
+    || normalizedUri.includes('/_capacitor_file_/')
+    || isLocalImageUri(normalizedUri)
+  ) {
+    return 'linked-local'
+  }
+
   const normalizedMode = String(explicitMode || '').trim()
   // Backward compat: old 'gist-local' → 'cloud-local'
   if (normalizedMode === 'gist-local') return 'cloud-local'
   if (normalizedMode) return normalizedMode
 
-  const normalizedUri = String(uri || '').trim()
   if (!normalizedUri) return 'remote'
   if (isCloudImageUri(normalizedUri)) return 'cloud-local'
-  if (
-    normalizedUri.startsWith('content://')
-    || normalizedUri.startsWith('file://')
-    || normalizedUri.startsWith('/storage/')
-    || normalizedUri.startsWith('/private/')
-    || isLocalImageUri(normalizedUri)
-  ) {
-    return normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')
-      ? 'inline-local'
-      : 'linked-local'
-  }
   if (normalizedUri.startsWith('http://') || normalizedUri.startsWith('https://')) return 'remote'
-  if (normalizedUri.startsWith('blob:') || normalizedUri.startsWith('data:image/')) return 'inline-local'
 
   return 'remote'
 }

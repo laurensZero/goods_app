@@ -148,8 +148,13 @@ export function createSyncPayloadService({
         }
       }
 
-      let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath)
+      let imageDataUrl = await readLocalImageAsDataUrl(imageEntry.uri, imageEntry.localPath).catch(() => null)
       if (!imageDataUrl?.startsWith('data:image/')) {
+        // 文件型 URI 读不到（他端误推的本地路径 / 本机文件已被清理）：跳过该图，
+        // 不要把本地路径当 remote 写回云端，也不要因此让整表同步失败。
+        if (imageEntry.localPath || String(imageEntry.uri || '').includes('/_capacitor_file_/') || String(imageEntry.uri || '').startsWith('file:') || String(imageEntry.uri || '').startsWith('capacitor:')) {
+          continue
+        }
         throw new Error(i18n.global.t('sync.error.imageReadFailed', { name: item?.name || item?.id || i18n.global.t('sync.error.unnamedItem') }))
       }
 
@@ -686,7 +691,8 @@ export function createSyncPayloadService({
     const value = String(uri || '')
     return value.startsWith('file:')
       || value.startsWith('data:image/')
-      || value.startsWith('_capacitor_file_')
+      || value.startsWith('capacitor:')
+      || value.includes('/_capacitor_file_/')
       || value.includes('/user-images/')
       || value.includes('\\user-images\\')
       || (value && !/^https?:/i.test(value) && !value.startsWith('cloud-image://') && !value.startsWith('gist-image://'))
