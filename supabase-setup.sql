@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS goods (
   tags JSONB DEFAULT '[]',
   storage_location TEXT DEFAULT '',
   variant TEXT DEFAULT '',
+  size TEXT DEFAULT '',
   price TEXT DEFAULT '',
   actual_price TEXT DEFAULT '',
   acquired_at TEXT DEFAULT '',
@@ -201,6 +202,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_fee TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS manual_orders JSONB DEFAULT '{}';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS size TEXT DEFAULT '';
 -- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
 ALTER TABLE goods DROP COLUMN IF EXISTS image;
 
@@ -289,6 +291,7 @@ BEGIN
     OR NEW.tags IS DISTINCT FROM OLD.tags
     OR NEW.storage_location IS DISTINCT FROM OLD.storage_location
     OR NEW.variant IS DISTINCT FROM OLD.variant
+    OR NEW.size IS DISTINCT FROM OLD.size
     OR NEW.price IS DISTINCT FROM OLD.price
     OR NEW.actual_price IS DISTINCT FROM OLD.actual_price
     OR NEW.acquired_at IS DISTINCT FROM OLD.acquired_at
@@ -1096,6 +1099,7 @@ BEGIN
       goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
       trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
       storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
+      size = EXCLUDED.size,
       price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
       acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
       sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,
@@ -1130,6 +1134,7 @@ BEGIN
       goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
       trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
       storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
+      size = EXCLUDED.size,
       price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
       acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
       sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,

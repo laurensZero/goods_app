@@ -186,6 +186,7 @@
   "common.updateNotes": "アップデート情報",
   "common.updatedAt": "{date}に更新",
   "common.variant": "バリエーション",
+  "common.size": "サイズ",
   "common.viewDetail": "詳細を見る",
   "common.webUpdate.currentVsLatest": "現在: v{current}、利用可能: v{latest}",
   "common.webUpdate.downloadAndRestart": "ダウンロードして次回起動時に再起動",

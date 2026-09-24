@@ -83,6 +83,7 @@ export interface GoodsItem {
   tags: string[]
   storageLocation: string
   variant: string
+  size: string
   price: string
   actualPrice: string
   points: number | undefined

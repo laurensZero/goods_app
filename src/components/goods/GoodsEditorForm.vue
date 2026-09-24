@@ -408,6 +408,15 @@
                   />
                 </div>
 
+                <label class="field">
+                  <span class="field-label">{{ t('goods.editor.size') }}</span>
+                  <input
+                    v-model="form.size"
+                    type="text"
+                    :placeholder="t('goods.editor.sizePlaceholder')"
+                  />
+                </label>
+
                 <div class="field">
                   <span class="field-label">{{ t('goods.editor.customTags') }}</span>
                   <TagInput v-model="form.tags" :placeholder="t('goods.editor.tagPlaceholder')" />

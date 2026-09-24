@@ -186,6 +186,7 @@
   "common.updateNotes": "업데이트 정보",
   "common.updatedAt": "{date}에 업데이트",
   "common.variant": "변형",
+  "common.size": "크기",
   "common.viewDetail": "상세 보기",
   "common.webUpdate.currentVsLatest": "현재: v{current}, 사용 가능: v{latest}",
   "common.webUpdate.downloadAndRestart": "다운로드 후 다음 실행 시 재시작",

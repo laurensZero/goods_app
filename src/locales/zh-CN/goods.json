@@ -312,6 +312,8 @@
   "goods.editor.unitStatusSavedDesc": "已保存部分逐份状态",
   "goods.editor.variant": "款式",
   "goods.editor.variantPlaceholder": "例如：盲抽 A 款 / 初版",
+  "goods.editor.size": "尺寸",
+  "goods.editor.sizePlaceholder": "例如：58mm / 约 15×20cm",
   "goods.editor.visualInfo": "视觉资料",
   "goods.editor.wishlist": "心愿单",
   "goods.heroFallback": "谷",
