@@ -78,5 +78,9 @@
   "aiChat.voiceRecording": "正在錄音，再點一次結束…",
   "aiChat.voiceTranscribing": "辨識中…",
   "aiChat.voiceFailed": "語音辨識失敗，請重試",
-  "aiChat.voiceUnsupported": "目前環境不支援錄音"
+  "aiChat.voiceUnsupported": "目前環境不支援錄音",
+  "aiChat.contextUsage": "約 {tokens} token",
+  "aiChat.contextAutoCompact": "超過 {limit} 自動壓縮歷史",
+  "aiChat.maxContextTokens": "模型上下文上限",
+  "aiChat.maxContextTokensPlaceholder": "如 128000，0=未指定"
 }

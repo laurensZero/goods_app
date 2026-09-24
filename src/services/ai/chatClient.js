@@ -25,7 +25,12 @@ export const DEFAULT_AI_CONFIG = Object.freeze({
   /** 可选：Tavily 搜索 Key（tvly-…）；留空则不启用 web_search */
   searchApiKey: '',
   /** 可选：语音识别模型；留空默认 whisper-1 */
-  asrModel: ''
+  asrModel: '',
+  /**
+   * 模型最大上下文（token）。OpenAI 兼容接口通常不回传该值，
+   * 0=未指定：自动压缩阈值退回 CONVO_MAX_CHARS 粗算；>0 时按此上限的 ~65% 裁历史。
+   */
+  maxContextTokens: 0
 })
 
 /** HTTP/服务端错误，带状态码与原始响应文本便于排障 */
@@ -45,6 +50,56 @@ export class AiRequestError extends Error {
 /** @param {string} url */
 export function normalizeBaseUrl(url) {
   return String(url || '').trim().replace(/\/+$/, '')
+}
+
+/**
+ * 尽力探测模型最大上下文（token）。
+ * OpenAI 兼容 /models 多数只返回 id，不带 context_length；
+ * OpenRouter / 部分网关会在模型对象上给 context_length / max_context_length。
+ * 读不到返回 0，由用户手填 maxContextTokens 或退回本地字符预算。
+ * @param {{ baseUrl: string, apiKey: string, model?: string }} config
+ * @returns {Promise<number>} 0=未知
+ */
+export async function fetchModelContextLimit(config) {
+  const baseUrl = normalizeBaseUrl(config?.baseUrl)
+  const apiKey = String(config?.apiKey || '').trim()
+  const model = String(config?.model || '').trim()
+  if (!baseUrl || !apiKey) return 0
+
+  const url = `${baseUrl}/models`
+  const headers = { Authorization: `Bearer ${apiKey}` }
+  try {
+    /** @type {any} */
+    let data
+    if (Capacitor.isNativePlatform()) {
+      const response = await CapacitorHttp.request({
+        url,
+        method: 'GET',
+        headers,
+        connectTimeout: 15000,
+        readTimeout: 15000
+      })
+      if (Number(response?.status || 0) >= 400) return 0
+      data = typeof response?.data === 'string' ? tryParseJson(response.data) : response?.data
+    } else {
+      const response = await fetch(url, { method: 'GET', headers })
+      if (!response.ok) return 0
+      data = tryParseJson(await response.text())
+    }
+
+    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : []
+    if (!list.length) return 0
+    const hit = model
+      ? list.find((m) => String(m?.id || m?.name || '').trim() === model) || list[0]
+      : list[0]
+    const raw = hit?.context_length ?? hit?.contextWindow ?? hit?.max_context_length
+      ?? hit?.context_len ?? hit?.top_level?.context_length
+      ?? hit?.per_request_limits?.max_tokens
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
+  } catch {
+    return 0
+  }
 }
 
 /**

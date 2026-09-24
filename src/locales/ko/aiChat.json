@@ -78,5 +78,9 @@
   "aiChat.voiceRecording": "녹음 중 — 다시 눌러 종료…",
   "aiChat.voiceTranscribing": "인식 중…",
   "aiChat.voiceFailed": "음성 인식에 실패했습니다. 다시 시도해 주세요",
-  "aiChat.voiceUnsupported": "현재 환경에서는 녹음을 지원하지 않습니다"
+  "aiChat.voiceUnsupported": "현재 환경에서는 녹음을 지원하지 않습니다",
+  "aiChat.contextUsage": "약 {tokens} 토큰",
+  "aiChat.contextAutoCompact": "{limit} 초과 시 기록 자동 압축",
+  "aiChat.maxContextTokens": "모델 컨텍스트 한도",
+  "aiChat.maxContextTokensPlaceholder": "예: 128000, 0=미지정"
 }
