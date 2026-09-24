@@ -50,14 +50,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-
-      - name: Cache node_modules
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -65,10 +57,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Gradle cache
+      # 打包不频繁，GHA 缓存 7 天易过期且存档有开销——关闭跨 run 缓存
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: false
+          cache-disabled: true
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -76,8 +69,6 @@ jobs:
           # cmdline-tools 16+ 已移除废弃的 tools 包，默认安装会直接失败
           packages: ''
 
-      # GitHub 托管 runner 已预装 platform/build-tools，sdkmanager 幂等安装约 1s。
-      # 不要再 cache SDK：缓存存档约 1min，收益接近 0。
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
@@ -85,7 +76,6 @@ jobs:
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
       - name: Install dependencies
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Validate Secret
@@ -142,14 +132,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm
-
-      - name: Cache node_modules
-        id: node-modules-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: node-modules-${{ runner.os }}-node24-${{ hashFiles('package-lock.json') }}
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -157,10 +139,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: Setup Gradle cache
+      # 打包不频繁，GHA 缓存 7 天易过期且存档有开销——关闭跨 run 缓存
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          cache-read-only: false
+          cache-disabled: true
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -168,8 +151,6 @@ jobs:
           # cmdline-tools 16+ 已移除废弃的 tools 包，默认安装会直接失败
           packages: ''
 
-      # GitHub 托管 runner 已预装 platform/build-tools，sdkmanager 幂等安装约 1s。
-      # 不要再 cache SDK：缓存存档约 1min，收益接近 0。
       - name: Install Android SDK packages
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
@@ -225,7 +206,6 @@ jobs:
           echo "asset_name=goods-app-$VERSION_NAME-release.apk" >> "$GITHUB_OUTPUT"
 
       - name: Install dependencies
-        if: steps.node-modules-cache.outputs.cache-hit != 'true'
         run: npm ci --prefer-offline --no-audit --no-fund
 
       - name: Validate Secret
