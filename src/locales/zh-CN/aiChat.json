@@ -81,6 +81,7 @@
   "aiChat.voiceUnsupported": "当前环境不支持录音",
   "aiChat.contextUsage": "约 {tokens} token",
   "aiChat.contextAutoCompact": "超 {limit} 自动压缩历史",
+  "aiChat.contextDetail": "对话 {chat} · 固定开销 {fixed} · 超 {limit} 自动压缩",
   "aiChat.maxContextTokens": "模型上下文上限",
   "aiChat.maxContextTokensPlaceholder": "如 128000，0=自动检测",
   "aiChat.detectContext": "自动检测",

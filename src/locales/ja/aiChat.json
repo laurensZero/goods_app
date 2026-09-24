@@ -81,6 +81,7 @@
   "aiChat.voiceUnsupported": "この環境では録音できません",
   "aiChat.contextUsage": "約 {tokens} トークン",
   "aiChat.contextAutoCompact": "{limit} 超で履歴を自動圧縮",
+  "aiChat.contextDetail": "会話 {chat} · 固定 {fixed} · {limit} 超で自動圧縮",
   "aiChat.maxContextTokens": "モデルのコンテキスト上限",
   "aiChat.maxContextTokensPlaceholder": "例: 128000、0=自動検出",
   "aiChat.detectContext": "自動検出",

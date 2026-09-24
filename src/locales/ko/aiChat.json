@@ -81,6 +81,7 @@
   "aiChat.voiceUnsupported": "현재 환경에서는 녹음을 지원하지 않습니다",
   "aiChat.contextUsage": "약 {tokens} 토큰",
   "aiChat.contextAutoCompact": "{limit} 초과 시 기록 자동 압축",
+  "aiChat.contextDetail": "대화 {chat} · 기본 {fixed} · {limit} 초과 시 자동 압축",
   "aiChat.maxContextTokens": "모델 컨텍스트 한도",
   "aiChat.maxContextTokensPlaceholder": "예: 128000, 0=자동 감지",
   "aiChat.detectContext": "자동 감지",
