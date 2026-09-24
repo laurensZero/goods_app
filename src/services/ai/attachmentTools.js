@@ -19,7 +19,7 @@ export const ATTACHMENT_TOOL_DEFINITIONS = [
   {
     name: 'attachment_apply',
     description:
-      '把用户随消息附带的图片应用到数据：target=goods_image 写入谷子图片；event_cover 设为活动封面；event_photo 追加活动照片。image 填附件序号（"1"）或图片地址。用户要求「把这张加到收藏/设为封面/加张照片」时使用，不需要视觉识别。',
+      '把聊天附件图写入谷子图/活动封面/活动照片。不需要视觉识别。',
     inputSchema: {
       type: 'object',
       properties: {

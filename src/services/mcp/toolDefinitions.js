@@ -37,23 +37,23 @@ export const MCP_SERVER_INSTRUCTIONS = [
 
 /** 可写工具的公共字段 schema（goods_add / goods_update 共用） */
 const GOODS_MUTABLE_FIELDS = {
-  category: { type: 'string', description: '类别，如 吧唧/立牌/手办' },
-  ip: { type: 'string', description: 'IP（作品名）' },
-  characters: { type: 'array', items: { type: 'string' }, description: '关联角色列表' },
-  tags: { type: 'array', items: { type: 'string' }, description: '标签列表' },
-  variant: { type: 'string', description: '款式/版本' },
+  category: { type: 'string', description: '类别（吧唧/立牌/手办…）' },
+  ip: { type: 'string', description: 'IP/作品名' },
+  characters: { type: 'array', items: { type: 'string' }, description: '角色列表' },
+  tags: { type: 'array', items: { type: 'string' }, description: '标签' },
+  variant: { type: 'string', description: '款式' },
   storageLocation: { type: 'string', description: '存放位置' },
-  price: { type: 'string', description: '标价（字符串，数字）' },
-  actualPrice: { type: 'string', description: '实付价（字符串，数字）' },
+  price: { type: 'string', description: '标价（数字字符串）' },
+  actualPrice: { type: 'string', description: '实付价（数字字符串）' },
   currency: { type: 'string', description: '标价币种，如 CNY' },
-  actualPriceCurrency: { type: 'string', description: '实付价币种，如 CNY' },
+  actualPriceCurrency: { type: 'string', description: '实付币种' },
   quantity: { type: 'integer', minimum: 1, description: '数量，默认 1' },
-  acquiredAt: { type: 'string', description: '入手日期，格式 YYYY-MM-DD' },
-  saleAt: { type: 'string', description: '开售日期，格式 YYYY-MM-DD' },
-  goodsId: { type: 'string', description: '米游铺商品 ID（从 mihoyo_new_arrivals 原样带入）' },
-  image: { type: 'string', description: '封面图 URL' },
+  acquiredAt: { type: 'string', description: '入手日期 YYYY-MM-DD' },
+  saleAt: { type: 'string', description: '开售日期 YYYY-MM-DD' },
+  goodsId: { type: 'string', description: '米游铺商品 ID' },
+  image: { type: 'string', description: '封面 URL' },
   images: { type: 'array', items: { type: 'string' }, description: '图片 URL 列表' },
-  isWishlist: { type: 'boolean', description: '是否为愿望单条目' },
+  isWishlist: { type: 'boolean', description: '是否愿望单' },
   note: { type: 'string', description: '备注' }
 }
 
@@ -61,7 +61,7 @@ const GOODS_MUTABLE_FIELDS = {
 export const MCP_WRITE_TOOL_DEFINITIONS = [
   {
     name: 'goods_add',
-    description: '新增一条谷子（isWishlist 为 true 时加入愿望单）。name 必填，其余可选；返回新条目的 id 与关键字段。从米游铺上新加心愿单时：先 mihoyo_new_arrivals 取条目，再传 name/ip/category/goodsId/price/saleAt/image/isWishlist: true。',
+    description: '新增谷子；isWishlist:true=加愿望单。name 必填。上新加心愿单：字段从 mihoyo_new_arrivals 原样带入。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -73,7 +73,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'goods_update',
-    description: '按 id 部分更新谷子：只传需要修改的字段，未传字段保持不变。支持基本信息、收藏状态（collectStatus，如 已拥有/在售/已出/待发货）、出售信息（sellPrice/sellPlatform/sellFee/sellDate）与逐件字段（unit* 列表需传完整数组，会整体替换）。仅限未入回收站的条目；成交流程建议用 goods_sell。',
+    description: '按 id 部分更新谷子（未传字段不变）。含收藏状态/出售信息/逐件 unit*（整表替换）。回收站条目不可改；成交用 goods_sell。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -108,7 +108,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'goods_sell',
-    description: '记录谷子出售/挂牌：默认置为「已出」并写入成交价、平台、手续费、日期（成本与盈亏由 sale_ledger 自动核算）；传 status="在售" 则记为挂牌中。多件拆分出售请改用 goods_update 的 unitCollectStatusList + unitSaleInfoList。',
+    description: '记录出售/挂牌。默认已出；status=在售 为挂牌。多件拆分用 goods_update 的 unit* 字段。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -139,7 +139,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'recharge_update',
-    description: '按 id 部分更新一笔充值记录：只传需要修改的字段，未传字段保持不变。id 来自 recharge_search 或 recharge_summary。',
+    description: '按 id 部分更新充值（未传字段不变）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -166,7 +166,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_add',
-    description: '新增一场活动/展览（漫展、演唱会等）。name 必填；startDate 建议填写（YYYY-MM-DD）。填 location（场馆全称）时会自动尝试地理编码，成功则回填城市与经纬度，活动地图可打点。票务、开支、关联谷子等可选。',
+    description: '新增活动/展览/演唱会。name 必填。location 填场馆全称可地图打点。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -188,7 +188,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_update',
-    description: '按 id 部分更新活动：只传需要修改的字段，未传字段保持不变。id 来自 events_list。',
+    description: '按 id 部分更新活动（未传字段不变）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -211,7 +211,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_delete',
-    description: '删除一场活动（软删除，可在应用内回收站/恢复逻辑中找回；AI 端也可用一键撤回）。',
+    description: '删除活动（软删除，可撤回）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -222,10 +222,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'event_tracks_manage',
-    description:
-      '管理演出/演唱会的曲单：action=add 追加曲目、action=remove 删除单曲。' +
-      'eventId 来自 events_list / event_tracks。add 时 tracks 为数组，每首至少填 title（歌名），可选 artist/album/source/coverUrl/neteaseSongId/qqSongId/bilibiliVideoId/durationMs（coverUrl 从 music_search 原样带回，B 站尤其依赖它显示封面）。' +
-      'remove 时 trackId 来自 event_tracks（includeTracks: true）的曲目明细。只增删不覆盖整单。',
+    description: '曲单增删：action=add 追加（tracks 每首 title 必填，coverUrl/音源 id 从 music_search 原样带入）、remove 删单曲（trackId 来自 includeTracks 明细）。不覆盖整单。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -233,7 +230,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         eventId: { type: 'string', description: '活动 id，来自 events_list / event_tracks' },
         tracks: {
           type: 'array',
-          description: '仅 action=add：要追加的曲目数组。每首 { title, artist?, album?, source?, coverUrl?, neteaseSongId?, qqSongId?, bilibiliVideoId?, durationMs? }',
+          description: 'add 的曲目数组：{ title, artist?, album?, source?, coverUrl?, neteaseSongId?, qqSongId?, bilibiliVideoId?, durationMs? }',
           items: {
             type: 'object',
             properties: {
@@ -257,7 +254,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'music_play',
-    description: '在应用内拉起播放某首曲目（悬浮播放器 + 原生通知栏，队列 = 所属完整曲单）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。仅手动录入、未关联在线音源（网易云/QQ/B站）的曲目无法播放。',
+    description: '应用内播放曲目。eventId+trackId=演出曲单，goodsId+trackId=专辑。仅在线音源可播，manual 不可。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -333,10 +330,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'groups_manage',
-    description:
-      '管理收藏/愿望单分组（套组）：create 新建、update 改名/手写总额等、remove 删除整组（软删除）、' +
-      'add_members 把谷子加入分组、remove_members 把谷子移出所在分组、move_member 把单件挪到目标分组。' +
-      'groupId 来自 groups_list。删除分组前先向用户确认；删除的是分组本身，谷子条目不会进回收站。',
+    description: '分组增删改与成员管理：create/update/remove/add_members/remove_members/move_member。删组前确认；只删组关系，谷子不进回收站。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -360,12 +354,12 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'settings_overview',
-    description: '查看应用当前设置：主题外观、通知开关、预设清单（分类/IP/角色/收纳位置/活动类型的完整名称列表）。修改任何设置前先用本工具了解现状。',
+    description: '查看主题/通知/预设清单现状。改设置前先调用。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'presets_manage',
-    description: '管理预设：新增/删除/重命名分类、IP、角色、活动类型；新增收纳位置（支持 "父级/子级" 路径形式，如 "A 柜/第二层"）。删除分类/IP/角色会同时从谷子条目上移除该标注；重命名会级联更新相关谷子或活动。活动类型支持开关曲目展示（set_show_tracks）。',
+    description: '预设增删改（分类/IP/角色/活动类型/收纳位置）。改名会级联更新条目；activity_type 可 set_show_tracks。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -410,7 +404,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'budget_set',
-    description: '设置吃谷预算（与「我的-吃谷预算」同一存储，改完统计页预算线立即生效）。monthly=月度预算，yearly=年度预算；传 0 表示清除该预算。设置前建议先用 budget_overview 看现状。',
+    description: '设置吃谷预算。monthly/yearly，0=清除。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -421,12 +415,12 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'sync_start',
-    description: '发起一次云同步（等同「同步」页的手动同步按钮）。需要已登录且已配置同步后端；同步进行中重复调用会返回 syncing 状态。',
+    description: '发起云同步。需已登录并配置后端。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'share_create',
-    description: '发起分享：把一组谷子生成分享链接（URL+分享码）。同一组商品（名称相同）已分享过时会更新原链接为最新数据并重新启用。分享内容不含存放位置/标签等隐私字段。',
+    description: '把一组谷子生成分享链接（不含隐私字段）。同名组会更新原链接。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -437,7 +431,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'share_manage',
-    description: '分享管理：列出我的全部分享链接（action=list）、启用/禁用（toggle）、删除（delete）。需要登录。',
+    description: '分享管理：list / toggle / delete。需登录。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -454,11 +448,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'ask_user',
-    description:
-      '向用户提问并等待选择。调用后界面会出现问题和选项按钮，用户点击某项后工具才返回所选文本。' +
-      '适用于：字段映射拿不准、导入前确认、多候选选一首歌等——代替长篇文字追问，让用户点一下即可。' +
-      '选歌时 options 用对象，字段名必须是 neteaseSongId / qqSongId / bilibiliVideoId（不要写成 songId），这样选项旁才有试听按钮。' +
-      '用户选中的 label 会作为工具返回值（string）。',
+    description: '弹选项按钮问用户（2-6 项），返回所选 label。选歌时 options 带 neteaseSongId/qqSongId/bilibiliVideoId（勿写 songId）以便试听。开放问题不要用。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -492,16 +482,16 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'account_logout',
-    description: '退出登录当前账号。仅在用户明确要求时调用。',
+    description: '退出登录。仅用户明确要求时调用。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'navigate',
-    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。看活动分布用 event_map（活动地图）；看米游铺上新用 mihoyo_new_arrivals。',
+    description: '生成跳转按钮 buttonLink（app://，不自动跳）。带 id 页面需 id。上新页=mihoyo_new_arrivals。',
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/mihoyo_new_arrivals/group_detail/goods_detail/goods_edit/event_detail/event_edit' },
+        page: { type: 'string', description: 'home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/mihoyo_new_arrivals 或带 id 的 group_detail/goods_detail/goods_edit/event_detail/event_edit' },
         id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id，group_detail 传分组 id）' }
       },
       required: ['page']
@@ -509,7 +499,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'memory_save',
-    description: '用户长期记忆：记住/忘记用户的长期偏好与习惯（称呼、收藏口味、预算习惯等）。判定铁律：只记用户明确表达的、长期有效的偏好；收藏数据本身（数量/位置/价格等）能通过其他工具查到，禁止存成记忆；一次性任务、本轮对话内容不存；拿不准就先问用户一句。保存后在回复里告知用户。',
+    description: '记住/忘记用户长期偏好。只记明确长期偏好；收藏数据禁止入记忆。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -521,7 +511,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'app_info',
-    description: '应用信息：平台、Android 安装包版本（appVersion）和资源 Bundle 版本（bundleVersion）；传 checkUpdate: true 时分别检查两者更新，返回 app/bundle 各自的当前版本、最新版本、hasUpdate 和 forceUpdate。',
+    description: '应用版本与可选更新检查（checkUpdate:true）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -535,37 +525,32 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
 export const MCP_TOOL_DEFINITIONS = [
   {
     name: 'goods_search',
-      description: [
-        '搜索谷子收藏条目（默认同时包含已拥有与愿望单，按更新时间倒序）。',
-        '支持关键词模糊匹配（名称/IP/角色/标签/类别/款式/存放位置/备注）与多维度精确过滤。',
-        '返回精简字段列表；需要完整信息（多件拆分、出售信息、状态时间线等）时拿 id 调 goods_detail。',
-        '字段含 currency/actualPriceCurrency（币种）、shippingFee（邮费）、acquiredAt/saleAt（日期）、unitAcquiredAtList（多件逐件入手日期，有拆分时返回）、priceCNY（折算 CNY，仅当汇率可用时）。'
-      ].join(''),
+      description: '搜谷子（默认含收藏+愿望单）。关键词模糊匹配 + 多维过滤/排序。详情用 goods_detail。价格口径：实付优先回退标价，不乘数量。',
     inputSchema: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: '关键词，对名称/IP/角色/标签/类别/款式/存放位置/备注做不区分大小写的包含匹配' },
-        category: { type: 'string', description: '按类别精确过滤，如 吧唧/立牌/手办' },
-        ip: { type: 'string', description: '按 IP（作品名）精确过滤' },
-        character: { type: 'string', description: '按角色名过滤（匹配角色列表中的成员，不区分大小写）' },
-        storageLocation: { type: 'string', description: '按存放位置精确过滤' },
-        wishlistOnly: { type: 'boolean', description: '为 true 时只返回愿望单条目' },
-        collectionOnly: { type: 'boolean', description: '为 true 时排除愿望单条目（只返回已收藏）。回答「收藏了什么」类问题应传 true，避免混入心愿单' },
-        hasTracks: { type: 'boolean', description: '为 true 时只返回带曲目列表的条目（CD/专辑等）。回答「我有哪些 CD/专辑」类问题使用；每条结果的 tracksSummary 给出曲目概况，明细拿 id 调 goods_detail' },
-        acquiredAfter: { type: 'string', description: '只返回「任一件入手日期」不早于该值的条目，格式 YYYY-MM-DD（含当天）。多件跨月补货按 unitAcquiredAtList 逐件判断，不只是商品级 acquiredAt' },
-        acquiredBefore: { type: 'string', description: '只返回「任一件入手日期」不晚于该值的条目，格式 YYYY-MM-DD（含当天）。多件跨月补货按 unitAcquiredAtList 逐件判断，不只是商品级 acquiredAt' },
-        priceMin: { type: 'number', description: '价格下限（实付价优先，缺省用标价，不乘数量；未填价格视为 0）' },
-        priceMax: { type: 'number', description: '价格上限（口径同 priceMin）' },
-        sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；price/actualPrice 口径与价格过滤一致（实付价优先，缺省回退标价，不乘数量）。折算可用时按 CNY 折算值排序，解决跨币种混排不准的问题。「最贵/最便宜/最新入手」类问题必须用排序参数直接拿结果，不要拉全量自己排' },
-        sortOrder: { type: 'string', enum: ['desc', 'asc'], default: 'desc', description: '排序方向' },
-        limit: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: '返回条数上限' },
+        query: { type: 'string', description: '关键词（名称/IP/角色/标签/类别/款式/位置/备注）' },
+        category: { type: 'string', description: '类别精确过滤' },
+        ip: { type: 'string', description: 'IP 精确过滤' },
+        character: { type: 'string', description: '角色过滤' },
+        storageLocation: { type: 'string', description: '存放位置精确过滤' },
+        wishlistOnly: { type: 'boolean', description: '只看愿望单' },
+        collectionOnly: { type: 'boolean', description: '只看收藏（问「收藏了什么」必传 true）' },
+        hasTracks: { type: 'boolean', description: '只要带曲目的 CD/专辑' },
+        acquiredAfter: { type: 'string', description: '任一件入手日期 ≥ YYYY-MM-DD' },
+        acquiredBefore: { type: 'string', description: '任一件入手日期 ≤ YYYY-MM-DD' },
+        priceMin: { type: 'number', description: '价格下限' },
+        priceMax: { type: 'number', description: '价格上限' },
+        sortBy: { type: 'string', enum: ['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'], default: 'updatedAt', description: '排序字段；最贵/最新等用它，勿全量自排' },
+        sortOrder: { type: 'string', enum: ['desc', 'asc'], default: 'desc', description: 'asc/desc' },
+        limit: { type: 'integer', minimum: 1, maximum: 100, default: 20, description: '条数上限' },
         offset: { type: 'integer', minimum: 0, default: 0, description: '分页偏移' }
       }
     }
   },
   {
     name: 'goods_detail',
-    description: '按 id 获取单个谷子的完整信息：多件拆分（每件入手日期/价格/角色/收集状态）、出售信息、状态时间线等；CD/专辑条目额外返回专辑曲目明细（tracks，含可播状态与 trackId，可供 music_play / music_lyrics 使用）。回收站中的条目也能查到。',
+    description: '按 id 查谷子完整信息（多件拆分/出售/时间线；专辑含 tracks）。回收站也可查。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -576,12 +561,12 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'collection_overview',
-    description: '收藏总览统计。字段口径：collectionCount=已收藏条目数（非愿望单）；wishlistCount=愿望单条目数；grandTotal=两者合计。totalValueCNY/estimatedSpend 与收藏页顶部总价同口径（已出/已赠出/丢失不计，手动总价谷子组只计一次组总价）；groups/groupCount=收藏套组摘要（名称、成员数、汇总方式）。回答「我收藏了什么、花了多少」类问题时优先使用，金额直接用 totalValueCNY，不要绕开套组自己加总。',
+    description: '收藏总览：collectionCount/wishlistCount/grandTotal、totalValueCNY（与收藏页总价同口径，含套组）、套组摘要。问收藏构成/总价用它。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'spending_summary',
-    description: '按月汇总消费：谷子入手花费（估算）与游戏充值分别按月列出总额与笔数，可按年份过滤。回答「这个月/某年花了多少钱」类问题必须使用本工具，不要用 goods_search 拼凑花费答案。',
+    description: '按月汇总谷子花费与充值。问「花了多少钱」必用，勿用 goods_search 拼。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -591,7 +576,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'character_leaderboard',
-    description: '角色维度统计。字段口径（必须严格遵守）：count=已收藏条目数（不含愿望单）；wishlistCount=愿望单条目数，与 count 并列，禁止相加；quantity=已收藏件数；spend 只计已收藏。回答「我最喜欢哪个角色/角色排行/角色花费对比」类问题使用；表述时必须区分「已收藏」和「在愿望单」。',
+    description: '角色排行/花费。count=已收藏（不含愿望单），wishlistCount 单独列，禁止相加。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -601,17 +586,17 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'storage_locations',
-    description: '收纳位置分布：每个存放位置的条目数、数量、估算花费与示例条目，未填写位置的归为「未收纳」。回答「东西都放在哪/某个柜子放了什么」类问题使用；查某位置的具体条目可配合 goods_search 的 storageLocation 参数。',
+    description: '收纳位置分布（条目数/花费/示例）。问「放在哪」用它。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'wishlist_overview',
-    description: '愿望单概览：条目数、期望花费、心愿单谷子组、IP 与类别分布、最近加入、最贵条目。expectedSpendCNY/totalValueCNY 与愿望单页总价同口径（手动总价组只计组总价，成员标价不重复计入）；groups/groupCount=心愿单组摘要。按币种的 expectedSpend 合计不同币种分开列，禁止跨币种相加。回答「我还想买什么/愿望单要花多少钱」类问题时用 totalValueCNY，不要绕开套组自己加总。',
+    description: '愿望单概览：条目数/expectedSpendCNY（与愿望单页同口径，含套组）/分布/最贵。问愿望单用它。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'sale_ledger',
-    description: '出谷账本：已售回血总额（成交价-手续费）、挂牌中金额、总盈亏（成交价-手续费-入手成本），及最近成交与在售挂牌明细。回答「卖了多少/回血多少/盈亏」类问题使用。',
+    description: '出谷账本：回血/挂牌/盈亏与明细。问卖了多少用它。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -621,7 +606,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'events_list',
-    description: '查询参加过的展览/活动列表（漫展、theme events 等），含票务与现场开支合计、城市/场馆、经纬度（latitude/longitude，来自本机活动库）、地图按钮链接，按开始日期倒序。回答「这次漫展花了多少」「上海有哪些活动」「XX场馆坐标」类问题必须先用本工具读本地数据，禁止为已有活动的场馆坐标去 web_search。查某场演出唱了哪些歌请改用 event_tracks。mapButtonLink 可嵌入 [活动地图](app://event_map)，amapLink 可外跳高德导航。',
+    description: '活动列表（票务/开支/坐标/地图链接）。问活动/场馆坐标先读本地，勿 web_search。曲目用 event_tracks。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -633,7 +618,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'event_tracks',
-    description: '查询演出/演唱会的曲单与演出基本信息（城市/场馆/座位/票档/描述等），并返回现场照片（photos，uri 可直接展示）。默认只返回 tracksSummary 曲目概况（总数/可播数/仅手动数），不返回曲目明细——用户没明确要歌单时用一句话概括即可，禁止罗列具体曲目；用户要完整歌单、找某首歌或想播放时才传 includeTracks: true。要播放时拿 eventId + trackId 调 music_play。',
+    description: '查演出信息与曲单概况（含照片）。默认只给 tracksSummary；要完整歌单/播放才 includeTracks:true。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -647,7 +632,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'music_lyrics',
-    description: '查询某首曲目的歌词（网易云/QQ 直连歌曲 ID，B 站曲目按标题跨源匹配）。曲目来源二选一：演出曲单（eventId，来自 event_tracks）或 CD/专辑谷子（goodsId，来自 goods_search/goods_detail）；trackId 来自对应来源的曲目明细。返回带时间轴的歌词行与纯文本。回答「这首歌的歌词/词是什么」类问题使用。',
+    description: '查歌词。eventId 或 goodsId + trackId（曲目来自 event_tracks / goods_detail）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -660,10 +645,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'music_search',
-    description:
-      '在线搜索歌曲（网易云 / QQ 音乐 / Bilibili）。返回歌名、歌手、时长、封面 URL 与各源歌曲 id。' +
-      '纯搜歌/比版本：在回复里给试听链接 [▶…](app://play_music/<source>/<id>)，不要 ask_user。' +
-      '要加到演出：再 ask_user 选一首，然后 event_tracks_manage（带 coverUrl + songId）。',
+    description: '在线搜歌（网易云/QQ/B站）。返回歌名/歌手/封面/音源 id。纯搜歌给试听链接 [▶…](app://play_music/<source>/<id>)；要加演出再 ask_user 选一首。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -681,9 +663,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'groups_list',
-    description:
-      '列出收藏/愿望单分组（套组）：名称、类型、汇总方式、手写总额、成员数与示例成员名。' +
-      '回答「我有哪些套组」「原神组里有什么」类问题使用；要改分组用 groups_manage。',
+    description: '列分组/套组。改分组用 groups_manage。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -695,9 +675,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'trash_list',
-    description:
-      '列出回收站中的谷子条目（软删除、尚未永久清除）。支持关键词与分页。' +
-      '回答「回收站里还有什么」使用；恢复用 goods_restore；永久删除用 goods_purge（需用户确认）。',
+    description: '回收站列表。恢复 goods_restore；永久删除 goods_purge（需确认）。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -709,12 +687,12 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'budget_overview',
-    description: '吃谷预算总览：当前月度/年度预算（0=未设置）、本月/今年已花费与进度（剩余/百分比/是否超支）、今年逐月花费与超支标记、历年花费与超支标记。回答「这个月预算还剩多少」「哪个月/哪年超了」类问题必须使用本工具，花费口径与预算设置页一致。',
+    description: '吃谷预算与超支。问「预算还剩多少」必用。',
     inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'recharge_summary',
-    description: '游戏充值记录汇总：总金额、按游戏/充值项目/年份分布、最近充值明细。总览类问题使用；查某个具体项目（如「空月祝福买了几张」）或精确检索记录请用 recharge_search。',
+    description: '充值总览。精确到项目（空月祝福等）用 recharge_search。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -724,7 +702,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'recharge_search',
-    description: '按条件检索游戏充值记录并聚合：总额、笔数、按充值项目细分（byItem，含每项 total/count）、按月分布、命中记录明细。回答「空月祝福一共买了几张」「原神去年充了多少」「648 花了多少钱」类问题必须用本工具。',
+    description: '按游戏/项目/时间检索充值并聚合。问「XX买了几张/花了多少」必用。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -740,10 +718,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'mihoyo_new_arrivals',
-    description:
-      '查询米游铺上新速览（商品上新 / 积分兑换 / 满赠）。回答「米游铺上新了什么」「原神有什么新品」「积分兑换有什么」「满赠送什么」类问题必须用本工具。' +
-      '结果含 goodsId/价格/开售时间/封面；用户要加心愿单时，用返回字段调 goods_add（isWishlist: true，带 goodsId/price/saleAt/image），不要自己编商品信息。' +
-      '要打开完整上新页时用 navigate（page=mihoyo_new_arrivals）。',
+    description: '米游铺上新（shop/point/gift）。问上新/新品/积分/满赠用它。加心愿单：字段原样进 goods_add（isWishlist:true）。浏览页 navigate mihoyo_new_arrivals。',
     inputSchema: {
       type: 'object',
       properties: {

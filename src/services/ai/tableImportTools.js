@@ -69,10 +69,7 @@ export const TABLE_TOOL_DEFINITIONS = [
   {
     name: 'table_dryrun',
     description:
-      '解析表格附件（xlsx/csv/zip）。不带 mapping 时：若命中应用官方 CSV 格式（按表头识别，含谷子/活动/充值/预设等）' +
-      '则返回 mode=official 与各表计数（快速路径，无需字段映射）；否则返回表头与样本行（mode=structure）。' +
-      '带 mapping 时按映射预演通用导入（mode=dryrun）。始终不写入数据。' +
-      '官方格式预演后只需向用户简要确认即可 table_commit；非官方必须提案映射并问清模糊列。',
+      '解析表格附件，不写库。无 mapping：官方 CSV 回 mode=official，否则 mode=structure。有 mapping：mode=dryrun 预演。官方可直接确认后 commit；非官方须先问清映射。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -95,8 +92,7 @@ export const TABLE_TOOL_DEFINITIONS = [
   {
     name: 'table_commit',
     description:
-      '执行表格导入写入。官方 CSV/ZIP（dryrun 返回 mode=official）直接走应用标准导入管道；' +
-      '非官方按 mapping 走通用批量写入。必须先 table_dryrun 且用户已确认；dryRunConfirmed 必须为 true。',
+      '写入表格导入。须先 table_dryrun 且用户已确认（dryRunConfirmed:true）。官方走标准管道，非官方按 mapping 批量写。',
     inputSchema: {
       type: 'object',
       properties: {

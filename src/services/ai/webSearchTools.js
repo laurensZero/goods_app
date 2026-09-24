@@ -19,7 +19,7 @@ export const WEB_SEARCH_TOOL_DEFINITIONS = [
   {
     name: 'web_search',
     description:
-      '联网搜索（Tavily）。仅在需要训练数据之外或有时效性的信息时调用，例如新番/动画播出、谷子发售与再版、市价行情、冷门作品/角色设定、近期活动。常识性术语（吧唧/痛包是什么等）不要搜。query 用简洁关键词；返回 title/url/content 摘要，回答时可附来源链接。',
+      '联网搜索（Tavily）。仅搜时效/训练外信息（新番、发售、市价、冷门设定、近期活动）；常识术语勿搜。回答附 1-2 个来源链接。',
     inputSchema: {
       type: 'object',
       properties: {
