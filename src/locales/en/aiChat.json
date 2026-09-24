@@ -82,5 +82,8 @@
   "aiChat.contextUsage": "~{tokens} tokens",
   "aiChat.contextAutoCompact": "auto-compact history past {limit}",
   "aiChat.maxContextTokens": "Model context limit",
-  "aiChat.maxContextTokensPlaceholder": "e.g. 128000, 0=unspecified"
+  "aiChat.maxContextTokensPlaceholder": "e.g. 128000, 0=auto-detect",
+  "aiChat.detectContext": "Auto-detect",
+  "aiChat.contextDetected": "Detected limit ~{tokens}",
+  "aiChat.contextDetectFailed": "Could not detect; please enter manually"
 }

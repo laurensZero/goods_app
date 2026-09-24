@@ -82,5 +82,8 @@
   "aiChat.contextUsage": "약 {tokens} 토큰",
   "aiChat.contextAutoCompact": "{limit} 초과 시 기록 자동 압축",
   "aiChat.maxContextTokens": "모델 컨텍스트 한도",
-  "aiChat.maxContextTokensPlaceholder": "예: 128000, 0=미지정"
+  "aiChat.maxContextTokensPlaceholder": "예: 128000, 0=자동 감지",
+  "aiChat.detectContext": "자동 감지",
+  "aiChat.contextDetected": "한도를 감지했습니다 (~{tokens})",
+  "aiChat.contextDetectFailed": "감지하지 못했습니다. 직접 입력해 주세요"
 }

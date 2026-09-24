@@ -82,5 +82,8 @@
   "aiChat.contextUsage": "約 {tokens} トークン",
   "aiChat.contextAutoCompact": "{limit} 超で履歴を自動圧縮",
   "aiChat.maxContextTokens": "モデルのコンテキスト上限",
-  "aiChat.maxContextTokensPlaceholder": "例: 128000、0=未指定"
+  "aiChat.maxContextTokensPlaceholder": "例: 128000、0=自動検出",
+  "aiChat.detectContext": "自動検出",
+  "aiChat.contextDetected": "上限を検出しました（約 {tokens}）",
+  "aiChat.contextDetectFailed": "検出できません。手動で入力してください"
 }

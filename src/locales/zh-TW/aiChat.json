@@ -82,5 +82,8 @@
   "aiChat.contextUsage": "約 {tokens} token",
   "aiChat.contextAutoCompact": "超過 {limit} 自動壓縮歷史",
   "aiChat.maxContextTokens": "模型上下文上限",
-  "aiChat.maxContextTokensPlaceholder": "如 128000，0=未指定"
+  "aiChat.maxContextTokensPlaceholder": "如 128000，0=自動偵測",
+  "aiChat.detectContext": "自動偵測",
+  "aiChat.contextDetected": "已識別上限約 {tokens}",
+  "aiChat.contextDetectFailed": "未能識別，請手動填寫"
 }
