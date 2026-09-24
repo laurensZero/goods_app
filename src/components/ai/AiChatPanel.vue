@@ -518,16 +518,20 @@
           <input v-model.trim="settingsDraft.searchApiKey" type="password" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.searchApiKeyPlaceholder')" />
         </label>
 
-        <label class="settings-field settings-field--toggle">
-          <span class="settings-field__label">{{ t('aiChat.pullDownEnabled') }}</span>
-          <input
-            class="settings-toggle"
-            type="checkbox"
-            :checked="pullDownEnabled"
-            @change="onPullDownToggle"
-          />
-        </label>
-        <p class="ai-settings-body__hint">{{ t('aiChat.pullDownEnabledHint') }}</p>
+        <div class="settings-toggle-row">
+          <div class="settings-toggle-row__info">
+            <span class="settings-toggle-row__title">{{ t('aiChat.pullDownEnabled') }}</span>
+            <span class="settings-toggle-row__desc">{{ t('aiChat.pullDownEnabledHint') }}</span>
+          </div>
+          <label class="toggle-switch" :aria-label="t('aiChat.pullDownEnabled')">
+            <input
+              type="checkbox"
+              :checked="pullDownEnabled"
+              @change="onPullDownToggle"
+            />
+            <span class="toggle-slider" />
+          </label>
+        </div>
 
         <div class="ai-settings-body__actions">
           <button class="settings-clear" type="button" @click="clearChat">{{ t('aiChat.clearChat') }}</button>
@@ -3029,21 +3033,96 @@ function removeSession(id) {
   transition: border-color 0.2s ease;
 }
 
-.settings-field--toggle {
+.settings-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  cursor: pointer;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
-.settings-toggle {
-  width: 18px;
-  height: 18px;
-  margin: 0;
-  accent-color: var(--app-text);
-  cursor: pointer;
+.settings-toggle-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-toggle-row__title {
+  display: block;
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.settings-toggle-row__desc {
+  display: block;
+  margin-top: 2px;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* 与 NotifySettingsView / QQBindingSheet 同款拨杆 */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
   flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--app-surface-muted, #e5e5ea);
+  transition: background-color 0.25s ease;
+  border-radius: 31px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-slider::before {
+  position: absolute;
+  content: '';
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 50%;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: var(--app-chip-accent-text, #2070c0);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(20px);
+}
+
+:global(html.theme-dark) .toggle-slider {
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+:global(html.theme-dark) .toggle-slider::before {
+  background-color: #f5f5f7;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .settings-field input:focus {
