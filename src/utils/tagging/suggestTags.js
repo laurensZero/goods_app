@@ -47,7 +47,8 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
         matches.push({
           value,
           score: 1.0 * fieldWeight, // 动态完全匹配基础分是1.0
-          reasons: [`在 ${source} 中匹配到已知项: ${keyword}`]
+          reasons: [`在 ${source} 中匹配到已知项: ${keyword}`],
+          decisive: false
         })
       }
     }
@@ -68,7 +69,8 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
             value: rule.value,
             score: ruleWeight * fieldWeight,
             reasons: [`在 ${source} 中匹配到规则: ${rule.value} (${match[0]})`],
-            ip: rule.ip // 对于角色规则可能带有所属ip信息
+            ip: rule.ip, // 对于角色规则可能带有所属ip信息
+            decisive: Boolean(rule.decisive)
           })
         }
       } catch (e) {
@@ -110,6 +112,8 @@ function consolidateMatches(matches) {
       const existing = map.get(match.value)
       // 分数相加或取最大？ 取最大并外加0.2的交叉奖励分
       existing.score = Math.max(existing.score, match.score) + 0.2
+      // 任一条命中明确品类词，则合并结果视为 decisive
+      if (match.decisive) existing.decisive = true
       // 合并理由 (去重)
       match.reasons.forEach(r => {
         if (!existing.reasons.includes(r)) {
@@ -127,9 +131,25 @@ function consolidateMatches(matches) {
       confidence: getConfidenceRating(item.score),
       score: item.score,
       reasons: item.reasons,
-      ip: item.ip
+      ip: item.ip,
+      decisive: Boolean(item.decisive)
     }))
     .sort((a, b) => b.score - a.score)
+}
+
+/**
+ * 明确品类词（明信片/立牌/镭射票等）一锤定音：
+ * 只要命中过 decisive 规则，就丢掉学习词/模糊词候选，避免活动名片段叠分顶掉正确分类。
+ */
+function preferDecisiveMatches(matches) {
+  const decisive = matches.filter(item => item.decisive)
+  if (decisive.length === 0) return matches
+  // 一锤定音的候选至少给到 high 置信度
+  return decisive.map(item => ({
+    ...item,
+    score: Math.max(item.score, 1.4),
+    confidence: getConfidenceRating(Math.max(item.score, 1.4))
+  }))
 }
 
 /**
@@ -267,7 +287,7 @@ export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicP
   // 不应用到 tags，以免误伤
 
   // 汇总去重合计算置信度
-  allCategoryMatches = consolidateMatches(allCategoryMatches)
+  allCategoryMatches = preferDecisiveMatches(consolidateMatches(allCategoryMatches))
   allIpMatches = consolidateMatches(allIpMatches)
   allCharacterMatches = consolidateMatches(allCharacterMatches.concat(manualCharacterMatches))
   allTagMatches = consolidateMatches(allTagMatches)
