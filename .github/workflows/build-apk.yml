@@ -76,21 +76,9 @@ jobs:
           # cmdline-tools 16+ 已移除废弃的 tools 包，默认安装会直接失败
           packages: ''
 
-      - name: Resolve Android SDK root
-        id: android-sdk-root
-        run: echo "path=${ANDROID_SDK_ROOT:-${ANDROID_HOME}}" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Android SDK packages
-        id: android-sdk-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.android-sdk-root.outputs.path }}/platforms/android-36
-            ${{ steps.android-sdk-root.outputs.path }}/build-tools/36.0.0
-          key: android-sdk-${{ runner.os }}-api36-bt36.0.0
-
+      # GitHub 托管 runner 已预装 platform/build-tools，sdkmanager 幂等安装约 1s。
+      # 不要再 cache SDK：缓存存档约 1min，收益接近 0。
       - name: Install Android SDK packages
-        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Configure Android SDK path
@@ -180,21 +168,9 @@ jobs:
           # cmdline-tools 16+ 已移除废弃的 tools 包，默认安装会直接失败
           packages: ''
 
-      - name: Resolve Android SDK root
-        id: android-sdk-root
-        run: echo "path=${ANDROID_SDK_ROOT:-${ANDROID_HOME}}" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Android SDK packages
-        id: android-sdk-cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.android-sdk-root.outputs.path }}/platforms/android-36
-            ${{ steps.android-sdk-root.outputs.path }}/build-tools/36.0.0
-          key: android-sdk-${{ runner.os }}-api36-bt36.0.0
-
+      # GitHub 托管 runner 已预装 platform/build-tools，sdkmanager 幂等安装约 1s。
+      # 不要再 cache SDK：缓存存档约 1min，收益接近 0。
       - name: Install Android SDK packages
-        if: steps.android-sdk-cache.outputs.cache-hit != 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
 
       - name: Configure Android SDK path
