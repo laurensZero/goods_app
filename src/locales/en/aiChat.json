@@ -81,6 +81,7 @@
   "aiChat.voiceUnsupported": "Recording is not supported in this environment",
   "aiChat.contextUsage": "~{tokens} tokens",
   "aiChat.contextAutoCompact": "auto-compact history past {limit}",
+  "aiChat.contextDetail": "Chat {chat} · base {fixed} · compact past {limit}",
   "aiChat.maxContextTokens": "Model context limit",
   "aiChat.maxContextTokensPlaceholder": "e.g. 128000, 0=auto-detect",
   "aiChat.detectContext": "Auto-detect",

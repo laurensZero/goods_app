@@ -81,8 +81,15 @@ onMounted(() => {
   booted.value = true
 })
 
+/**
+ * 打开瞬间锁定方向。输入法弹出时 Android 会把 innerHeight 压扁，
+ * isWide 从 true 变 false，居中弹层会被挤成底部抽屉——锁定后本层不再跟着抖。
+ */
+const lockedPlacement = ref(/** @type {string|null} */ (null))
+
 const placement = computed(() => {
   if (props.placement !== 'auto') return props.placement
+  if (lockedPlacement.value) return lockedPlacement.value
   return isWide.value ? 'center' : 'bottom'
 })
 
@@ -138,6 +145,9 @@ watch(
   async (open) => {
     if (open) {
       // 每次打开都按「当前所有已打开层 + 全局水位」分配，嵌套/兄弟弹层后开必在上
+      if (props.placement === 'auto') {
+        lockedPlacement.value = isWide.value ? 'center' : 'bottom'
+      }
       claimZ()
       lockBody()
       overlayVisible.value = true
@@ -155,6 +165,7 @@ watch(
       window.setTimeout(() => {
         if (!props.modelValue) {
           overlayVisible.value = false
+          lockedPlacement.value = null
           emit('closed')
         }
       }, 300)

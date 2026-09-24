@@ -328,11 +328,20 @@
         </div>
       </div>
 
-      <p class="chat-compose__meta">
-        {{ t('aiChat.contextUsage', { tokens: contextTokensLabel }) }}
-        · {{ t('aiChat.contextAutoCompact', { limit: budgetTokensLabel }) }}
-      </p>
       <div class="chat-compose__row">
+        <button
+          v-if="showContextRing"
+          class="chat-compose__ctx"
+          type="button"
+          :aria-label="contextTitle"
+          :title="contextTitle"
+          @click="showContextToast"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle class="chat-compose__ctx-track" cx="12" cy="12" r="8" />
+            <circle class="chat-compose__ctx-fill" cx="12" cy="12" r="8" :style="contextRingStyle" />
+          </svg>
+        </button>
         <div class="chat-compose__attach-wrap">
           <button
             class="chat-compose__attach"
@@ -469,7 +478,7 @@
     <!-- 嵌套在 AiAssistantPopup 内时抬高 z，避免盖住宿主弹层 -->
     <AppSheet
       v-model="showSettings"
-      :placement="popupPlacement"
+      placement="auto"
       :z-index="nestedSheetZ"
       sheet-class="ai-settings-popup"
     >
@@ -524,7 +533,7 @@
 
     <AppSheet
       v-model="showHistory"
-      :placement="popupPlacement"
+      placement="auto"
       :z-index="nestedSheetZ"
       sheet-class="ai-history-popup"
     >
@@ -610,7 +619,7 @@ import { useToast } from '@/composables/useToast'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
-import { useWideViewport } from '@/composables/viewport/useWideViewport'
+
 import { normalizeBaseUrl, fetchModelContextLimit, guessModelContextFromName } from '@/services/ai/chatClient'
 import { transcribeAudio } from '@/services/ai/asrClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
@@ -644,8 +653,35 @@ const contextUsage = computed(() => {
     return null
   }
 })
-const contextTokensLabel = computed(() => formatTokenCount(contextUsage.value?.tokens || 0))
+/** 圆环只表示「对话历史」增长；固定开销（工具+系统提示词）不占环，点开才看 */
+const modelConfigured = computed(() =>
+  Boolean(String(aiChat.config?.baseUrl || '').trim()
+    && String(aiChat.config?.model || '').trim()
+    && String(aiChat.config?.apiKey || '').trim())
+)
+const showContextRing = computed(() => modelConfigured.value && aiChat.messages.length > 0)
+const contextTokensLabel = computed(() => formatTokenCount(contextUsage.value?.historyTokens || 0))
 const budgetTokensLabel = computed(() => formatTokenCount(contextUsage.value?.budgetTokens || 0))
+const fixedTokensLabel = computed(() => formatTokenCount(contextUsage.value?.fixedTokens || 0))
+const contextRatio = computed(() => {
+  const usage = contextUsage.value
+  if (!usage?.budgetTokens) return 0
+  return Math.max(0, Math.min(1, (usage.historyTokens || 0) / usage.budgetTokens))
+})
+const contextRingStyle = computed(() => {
+  const c = 2 * Math.PI * 8
+  return { strokeDasharray: `${(c * contextRatio.value).toFixed(1)} ${c.toFixed(1)}` }
+})
+const contextTitle = computed(() =>
+  t('aiChat.contextDetail', {
+    chat: contextTokensLabel.value,
+    fixed: fixedTokensLabel.value,
+    limit: budgetTokensLabel.value
+  })
+)
+function showContextToast() {
+  showToast(contextTitle.value)
+}
 
 function formatTokenCount(n) {
   const num = Number(n) || 0
@@ -729,8 +765,8 @@ function toggleReasoning(msg) {
 }
 
 // 手机底部上滑 / 平板居中（与 AppSheet placement=auto 同一套像素判定）
-const { isWide } = useWideViewport()
-const popupPlacement = computed(() => (isWide.value ? 'center' : 'bottom'))
+
+
 /** 宿主弹层（AiAssistantPopup）之上固定一层，避免嵌套历史/设置被压在下面 */
 const nestedSheetZ = 3000
 
@@ -2459,13 +2495,39 @@ function removeSession(id) {
   height: 10px;
 }
 
-.chat-compose__meta {
-  margin: 0 0 6px;
-  font-size: 11px;
-  line-height: 1.3;
+.chat-compose__ctx {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  background: transparent;
   color: var(--app-text-secondary, #8a8a8a);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
   opacity: 0.85;
-  user-select: none;
+}
+
+.chat-compose__ctx svg {
+  width: 20px;
+  height: 20px;
+  transform: rotate(-90deg);
+}
+
+.chat-compose__ctx-track {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  opacity: 0.28;
+}
+
+.chat-compose__ctx-fill {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.25s ease;
 }
 
 .chat-compose__row {

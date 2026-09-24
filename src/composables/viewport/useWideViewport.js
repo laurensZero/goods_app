@@ -13,7 +13,14 @@ export function useWideViewport(minShortSide = 600, minLongSide = 900) {
     const h = window.innerHeight
     const shortSide = Math.min(w, h)
     const longSide = Math.max(w, h)
-    isWide.value = shortSide >= minShortSide && longSide >= minLongSide
+    let wide = shortSide >= minShortSide && longSide >= minLongSide
+    // 输入法/分屏会把 innerHeight 压扁，平板长边掉下阈值后误判成手机。
+    // 宽度与屏幕短边（不随软键盘变化）仍达标时维持宽屏。
+    if (!wide && w >= minShortSide) {
+      const screenShort = Math.min(window.screen?.width || 0, window.screen?.height || 0)
+      if (screenShort >= minShortSide) wide = true
+    }
+    isWide.value = wide
   }
 
   onMounted(() => {

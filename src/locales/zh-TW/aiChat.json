@@ -81,6 +81,7 @@
   "aiChat.voiceUnsupported": "目前環境不支援錄音",
   "aiChat.contextUsage": "約 {tokens} token",
   "aiChat.contextAutoCompact": "超過 {limit} 自動壓縮歷史",
+  "aiChat.contextDetail": "對話 {chat} · 固定開銷 {fixed} · 超過 {limit} 自動壓縮",
   "aiChat.maxContextTokens": "模型上下文上限",
   "aiChat.maxContextTokensPlaceholder": "如 128000，0=自動偵測",
   "aiChat.detectContext": "自動偵測",
