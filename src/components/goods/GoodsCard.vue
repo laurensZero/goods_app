@@ -128,6 +128,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import {
@@ -185,7 +186,7 @@ function startLongPress(x, y) {
   gestureMoved.value = false
   longPressTimer.value = setTimeout(() => {
     longPressTriggered.value = true
-    try { navigator.vibrate?.(50) } catch {}
+    vibrate(HAPTIC_MEDIUM)
     emit('long-press')
   }, 500)
 }

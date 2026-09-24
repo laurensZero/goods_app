@@ -587,6 +587,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { formatDate } from '@/utils/format'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -1027,11 +1028,7 @@ function startPullLongPress() {
   pullLongPressTimer = window.setTimeout(() => {
     pullLongPressTimer = 0
     pullLongPressTriggered.value = true
-    try {
-      navigator.vibrate?.(50)
-    } catch {
-      // ignore vibration failures
-    }
+    vibrate(HAPTIC_MEDIUM)
     showForcePullConfirm.value = true
   }, PULL_LONG_PRESS_MS)
 }

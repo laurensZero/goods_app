@@ -1,5 +1,6 @@
 // @ts-check
 import { onBeforeUnmount, reactive, ref } from 'vue'
+import { vibrate, HAPTIC_LIGHT } from '@/utils/platform/haptics'
 
 /**
  * 多选模式下从谷子封面右上角把手拖动重排。
@@ -318,7 +319,7 @@ export function useGoodsReorderDrag(options) {
     handleEl?.addEventListener('pointercancel', onHandlePointerCancel)
 
     event.preventDefault()
-    try { navigator.vibrate?.(20) } catch {}
+    vibrate(HAPTIC_LIGHT)
   }
 
   function onHandlePointerMove(event) {

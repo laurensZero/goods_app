@@ -1,4 +1,5 @@
 import { onBeforeUnmount, ref } from 'vue'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 
 const DEFAULT_LONG_PRESS_MS = 500
 const TOUCH_MOVE_THRESHOLD = 12
@@ -18,11 +19,7 @@ export function useEventCardPress(callbacks, options = {}) {
   function fireLongPress() {
     longPressTimer = 0
     longPressTriggered.value = true
-    try {
-      navigator.vibrate?.(50)
-    } catch {
-      // ignore vibration failures
-    }
+    vibrate(HAPTIC_MEDIUM)
     callbacks.onLongPress?.()
   }
 
