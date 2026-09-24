@@ -21,7 +21,7 @@ export const VISION_TOOL_DEFINITIONS = [
   {
     name: 'vision_analyze',
     description:
-      '调用多模态模型查看一张图片并返回描述。仅当用户明确要求查看/识别/描述/分析图片内容时才调用；用户只是发图闲聊或问收藏数据时不要调用。image 可为附件序号（如 "1"）、att:<id>、图片 URL、cloud-image 链接或工具返回的图片 uri。',
+      '看图并返回描述。仅用户明确要求识别/描述/分析图片时调用；发图闲聊或问收藏数据时不要调用。image=附件序号/att:id/URL/uri。',
     inputSchema: {
       type: 'object',
       properties: {

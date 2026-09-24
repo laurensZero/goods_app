@@ -975,7 +975,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       total,
       sources: results,
       ...(errors.length ? { partialErrors: errors } : {}),
-      hint: '纯搜歌/试听：把可播候选整理给用户，并在回复里输出试听链接 [▶歌名 · 歌手](app://play_music/<source>/<id>)（链接文案写「歌名 · 歌手」；source=netease/qq/bilibili，id=对应 songId/bvid）；不要用 ask_user。用户要加到演出时：再用 ask_user（对象选项，带 title/artist/source/coverUrl/音源 id）让用户选，然后 event_tracks_manage。'
+      hint: '可播候选给试听链接 [▶歌名 · 歌手](app://play_music/<source>/<id>)；要加演出再 ask_user 选一。'
     }
   }
 
@@ -1523,7 +1523,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     return {
       total: rows.length,
       groups: rows,
-      hint: '单件谷子最多属于一个分组；操作分组用 groups_manage，详情跳转用 [查看分组](app://group_detail/<id>)'
+      hint: '单件最多一个分组；改组用 groups_manage。'
     }
   }
 
@@ -1564,7 +1564,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       total: matched.length,
       items: page,
       hasMore: offset + page.length < matched.length,
-      hint: '恢复用 goods_restore(id)；永久删除用 goods_purge（不可恢复，需用户明确确认）'
+      hint: '恢复 goods_restore；永久删除 goods_purge（需确认）'
     }
   }
 
@@ -1626,7 +1626,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       byYear: [...yearSpend.entries()]
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([year, spent]) => ({ year, spent: roundMoney(spent), budget: yearlyBudget, overBudget: yearlyBudget > 0 && spent > yearlyBudget })),
-      hint: '回答「这个月/今年预算还剩多少」「哪个月/哪年超了」看 current 与 overBudget；用户要改预算用 budget_set（0 = 清除）'
+      hint: '看 current 与 overBudget；改预算 budget_set（0=清除）'
     }
   }
 
@@ -1706,7 +1706,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       count: items.length,
       items,
       ...(errors.length ? { partialErrors: errors } : {}),
-      hint: '按名称/店铺/开售时间向用户简要汇报；金额用 priceYuan（元），积分兑换用 points。要加心愿单：ask_user 确认后调 goods_add（isWishlist: true，name/ip/category/goodsId/price/saleAt/image 从条目字段原样取，price 传字符串数字）。要浏览完整列表：navigate page=mihoyo_new_arrivals。'
+      hint: '加心愿单：字段原样 goods_add（isWishlist:true）；浏览 navigate mihoyo_new_arrivals。'
     }
   }
 

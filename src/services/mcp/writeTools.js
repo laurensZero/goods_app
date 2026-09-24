@@ -1149,7 +1149,7 @@ export function createMcpWriteToolHandlers({
            totalTracks: nextTracks.length,
            addedTracks: newTracks.map((t) => ({ id: t.id, title: t.title, source: t.source })),
            ...(newTracks.some((t) => t.source === 'manual')
-             ? { hint: '部分曲目为手动录入（source=manual），应用内无法在线播放；若要可播放请先 music_search 再带 songId 追加。' }
+             ? { hint: 'source=manual 不可在线播放；可播需 music_search 后带音源 id 追加。' }
              : {})
          }
        }

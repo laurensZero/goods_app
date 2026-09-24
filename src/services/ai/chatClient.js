@@ -9,6 +9,7 @@
  */
 
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
+import { serializeToolResult } from './contextCompact'
 
 const HTTP_TIMEOUT_MS = 120000
 /** 流式看门狗：数据持续到达证明链路存活，总时长上限放宽到 5 分钟 */
@@ -441,7 +442,7 @@ export async function runChatCompletion(options) {
       convo.push({
         role: 'tool',
         tool_call_id: String(call?.id || ''),
-        content: JSON.stringify(resultPayload ?? null)
+        content: serializeToolResult(resultPayload ?? null)
       })
     }
   }
