@@ -27,7 +27,8 @@ export const NAVIGATE_PAGES = {
   about: 'manage-about',
   ai_service: 'manage-mcp',
   goods_add: 'add',
-  checkout: 'checkout'
+  checkout: 'checkout',
+  mihoyo_new_arrivals: 'mihoyo-new-arrivals'
 }
 
 /** 需要携带 id 的页面 → 路由名 */

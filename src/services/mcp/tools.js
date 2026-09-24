@@ -17,6 +17,11 @@ import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/music/
 import { searchQQSongs } from '../../utils/music/qqMusic'
 import { searchBilibiliVideos } from '../../utils/music/bilibiliMusic'
 import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
+import {
+  fetchMihoyoNewArrivals,
+  fetchMihoyoGiftArrivals,
+  MIHOYO_NEW_ARRIVAL_SHOPS
+} from '../../utils/mihoyo/newArrivals'
 
 /**
  * @typedef {Object} McpDbApi
@@ -31,6 +36,29 @@ import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
 /** 单条输出字段上限，防止超长备注/描述把响应撑爆 */
 const NOTE_MAX_LENGTH = 500
 const TIMELINE_MAX_ENTRIES = 20
+
+/** 米游铺店铺展示名（给 AI 直接用的中文，不走 i18n） */
+const MIHOYO_SHOP_LABELS = Object.freeze({
+  ys: '原神',
+  xqtd: '星穹铁道',
+  bh3: '崩坏3',
+  zzz: '绝区零'
+})
+
+/** sale_time 是 UTC unix 秒；展示口径与上新页一致（UTC+8） */
+function formatMihoyoSaleDate(unixSec) {
+  if (!unixSec) return ''
+  const d = new Date(unixSec * 1000 + 8 * 3600_000)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`
+}
+
+function formatMihoyoSaleDateTime(unixSec) {
+  if (!unixSec) return ''
+  const d = new Date(unixSec * 1000 + 8 * 3600_000)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${formatMihoyoSaleDate(unixSec)} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
+}
 
 /**
  * @param {unknown} value
@@ -1602,6 +1630,120 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     }
   }
 
+  /**
+   * 米游铺上新速览：商品上新 / 积分兑换 / 满赠。
+   * @param {Record<string, any>} args
+   */
+  async function mihoyoNewArrivals(args) {
+    const catalog = asText(args?.catalog).trim() || 'shop'
+    const shopCode = asText(args?.shopCode).trim()
+    const query = asText(args?.query).trim().toLowerCase()
+    const limit = Math.min(50, Math.max(1, asInt(args?.limit) || 20))
+
+    if (!['shop', 'point', 'gift', 'all'].includes(catalog)) {
+      throw new Error('catalog 需为 shop/point/gift/all')
+    }
+    if (shopCode && !MIHOYO_NEW_ARRIVAL_SHOPS.includes(shopCode)) {
+      throw new Error(`shopCode 需为 ${MIHOYO_NEW_ARRIVAL_SHOPS.join('/')}`)
+    }
+    const shopCodes = shopCode ? [shopCode] : MIHOYO_NEW_ARRIVAL_SHOPS
+    const catalogs = catalog === 'all' ? ['shop', 'point', 'gift'] : [catalog]
+
+    /** @type {any[]} */
+    const rawItems = []
+    /** @type {Array<{ catalog?: string, shopCode?: string, message: string }>} */
+    const errors = []
+
+    await Promise.all(
+      catalogs.map(async (cat) => {
+        try {
+          if (cat === 'gift') {
+            const { items, errors: giftErrors } = await fetchMihoyoGiftArrivals(shopCodes)
+            rawItems.push(...(items || []))
+            for (const err of giftErrors || []) {
+              errors.push({ catalog: 'gift', shopCode: err.shopCode, message: err.message })
+            }
+          } else {
+            const { items, errors: catErrors } = await fetchMihoyoNewArrivals(cat, shopCodes)
+            rawItems.push(...(items || []))
+            for (const err of catErrors || []) {
+              errors.push({ catalog: cat, shopCode: err.shopCode, message: err.message })
+            }
+          }
+        } catch (e) {
+          errors.push({
+            catalog: cat,
+            message: e instanceof Error ? e.message : String(e)
+          })
+        }
+      })
+    )
+
+    let items = rawItems.map(viewMihoyoArrival)
+    if (query) {
+      items = items.filter((item) => item.name.toLowerCase().includes(query)
+        || item.shopName.toLowerCase().includes(query)
+        || (item.giftActivityName || '').toLowerCase().includes(query))
+    }
+    // 与上新页一致：shop/gift 按开售时间倒序，point 按积分倒序
+    items.sort((a, b) => {
+      if (a.catalog === 'point' || b.catalog === 'point') {
+        const pointDiff = (b.points || 0) - (a.points || 0)
+        if (pointDiff !== 0) return pointDiff
+      } else {
+        const saleDiff = (b.saleTime || 0) - (a.saleTime || 0)
+        if (saleDiff !== 0) return saleDiff
+      }
+      return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN')
+    })
+    const total = items.length
+    items = items.slice(0, limit)
+
+    return {
+      catalog,
+      shopCodes,
+      total,
+      count: items.length,
+      items,
+      ...(errors.length ? { partialErrors: errors } : {}),
+      hint: '按名称/店铺/开售时间向用户简要汇报；金额用 priceYuan（元），积分兑换用 points。要加心愿单：ask_user 确认后调 goods_add（isWishlist: true，name/ip/category/goodsId/price/saleAt/image 从条目字段原样取，price 传字符串数字）。要浏览完整列表：navigate page=mihoyo_new_arrivals。'
+    }
+  }
+
+  /**
+   * @param {Record<string, any>} item
+   */
+  function viewMihoyoArrival(item) {
+    const shopCode = asText(item?.shop_code).trim()
+    const saleTime = Number(item?.sale_time) || 0
+    const priceCents = Number(item?.price_cents) || 0
+    const points = Number(item?.point) || 0
+    const priceYuan = priceCents > 0 ? priceCents / 100 : null
+    return {
+      goodsId: asText(item?.goods_id).trim(),
+      name: asText(item?.name).trim(),
+      catalog: asText(item?.catalog).trim() || 'shop',
+      shopCode,
+      shopName: MIHOYO_SHOP_LABELS[shopCode] || shopCode,
+      priceYuan,
+      priceCents,
+      points: points > 0 ? points : null,
+      saleTime,
+      saleAt: formatMihoyoSaleDate(saleTime),
+      saleAtLocal: formatMihoyoSaleDateTime(saleTime),
+      onSale: !saleTime || saleTime * 1000 <= Date.now(),
+      isNew: Boolean(item?.is_new),
+      coverUrl: asText(item?.cover_url).trim(),
+      ...(item?.is_gift
+        ? {
+            isGift: true,
+            giftActivityId: asText(item?.gift_activity_id).trim(),
+            giftActivityName: asText(item?.gift_activity_name).trim()
+          }
+        : {})
+    }
+  }
+
   return {
     goods_search: goodsSearch,
     goods_detail: goodsDetail,
@@ -1619,7 +1761,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     recharge_search: rechargeSearch,
     groups_list: groupsList,
     trash_list: trashList,
-    budget_overview: budgetOverview
+    budget_overview: budgetOverview,
+    mihoyo_new_arrivals: mihoyoNewArrivals
   }
 }
 

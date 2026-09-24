@@ -115,8 +115,8 @@ describe('mcp write tool handlers', () => {
       quantity: 2,
       acquiredAt: '2026-01-01',
       isWishlist: false,
-      // 白名单外字段应被剥离
       images: ['x.png'],
+      // 白名单外字段应被剥离
       trashed: true,
       id: 'hack'
     })
@@ -129,8 +129,41 @@ describe('mcp write tool handlers', () => {
       characters: ['初音未来'],
       quantity: 2,
       acquiredAt: '2026-01-01',
-      isWishlist: false
+      isWishlist: false,
+      images: ['x.png']
     })
+  })
+
+  it('goods_add 透传米游铺上新字段（goodsId/image/saleAt）用于加心愿单', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store })
+
+    await handlers.goods_add({
+      name: '芙宁娜立牌',
+      ip: '原神',
+      category: '立牌',
+      goodsId: '20281435296093289056407',
+      price: '129',
+      saleAt: '2026-03-01',
+      image: 'https://img.example/cover.jpg',
+      isWishlist: true
+    })
+
+    expect(store.addGoods).toHaveBeenCalledWith({
+      name: '芙宁娜立牌',
+      ip: '原神',
+      category: '立牌',
+      goodsId: '20281435296093289056407',
+      price: '129',
+      saleAt: '2026-03-01',
+      image: 'https://img.example/cover.jpg',
+      isWishlist: true
+    })
+  })
+
+  it('goods_add 校验 images 需为字符串数组', async () => {
+    const handlers = createMcpWriteToolHandlers({ goodsStore: createFakeStore() })
+    await expect(handlers.goods_add({ name: 'x', images: 'a.png' })).rejects.toThrow('images')
   })
 
   it('goods_update 兼容真实 store 的解包数组 list（回归：pinia shallowRef 解包后 list.value 为 undefined）', async () => {

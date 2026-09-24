@@ -24,7 +24,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；活动增删改用 events_add/events_update/events_delete；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
   '分组/套组用 groups_list 总览、groups_manage 增删改与成员管理；回收站列表用 trash_list，永久清理用 goods_purge；批量改字段用 goods_update_many；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
-  '吃谷预算用 budget_overview 看超支情况、budget_set 修改；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
+  '吃谷预算用 budget_overview 看超支情况、budget_set 修改；米游铺上新用 mihoyo_new_arrivals（商品/积分/满赠），要加心愿单用 goods_add（isWishlist: true，带 goodsId/price/saleAt/image）；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
 
@@ -49,6 +49,10 @@ const GOODS_MUTABLE_FIELDS = {
   actualPriceCurrency: { type: 'string', description: '实付价币种，如 CNY' },
   quantity: { type: 'integer', minimum: 1, description: '数量，默认 1' },
   acquiredAt: { type: 'string', description: '入手日期，格式 YYYY-MM-DD' },
+  saleAt: { type: 'string', description: '开售日期，格式 YYYY-MM-DD' },
+  goodsId: { type: 'string', description: '米游铺商品 ID（从 mihoyo_new_arrivals 原样带入）' },
+  image: { type: 'string', description: '封面图 URL' },
+  images: { type: 'array', items: { type: 'string' }, description: '图片 URL 列表' },
   isWishlist: { type: 'boolean', description: '是否为愿望单条目' },
   note: { type: 'string', description: '备注' }
 }
@@ -57,7 +61,7 @@ const GOODS_MUTABLE_FIELDS = {
 export const MCP_WRITE_TOOL_DEFINITIONS = [
   {
     name: 'goods_add',
-    description: '新增一条谷子（isWishlist 为 true 时加入愿望单）。name 必填，其余可选；返回新条目的 id 与关键字段。',
+    description: '新增一条谷子（isWishlist 为 true 时加入愿望单）。name 必填，其余可选；返回新条目的 id 与关键字段。从米游铺上新加心愿单时：先 mihoyo_new_arrivals 取条目，再传 name/ip/category/goodsId/price/saleAt/image/isWishlist: true。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -493,11 +497,11 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'navigate',
-    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。看活动分布用 event_map（活动地图）。',
+    description: '页面跳转链接：返回 buttonLink（app:// 协议）供你在回复里输出跳转按钮，不会自动跳转，用户点击按钮才打开页面。goods_detail/goods_edit/event_detail/event_edit 需要 id；其余页面直接给 page。看活动分布用 event_map（活动地图）；看米游铺上新用 mihoyo_new_arrivals。',
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/group_detail/goods_detail/goods_edit/event_detail/event_edit' },
+        page: { type: 'string', description: '页面：home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/mihoyo_new_arrivals/group_detail/goods_detail/goods_edit/event_detail/event_edit' },
         id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id，group_detail 传分组 id）' }
       },
       required: ['page']
@@ -731,6 +735,31 @@ export const MCP_TOOL_DEFINITIONS = [
         month: { type: 'integer', minimum: 1, maximum: 12, description: '只看某月（1-12），需与 year 搭配' },
         limit: { type: 'integer', minimum: 1, maximum: 200, default: 50, description: '返回记录条数上限' },
         offset: { type: 'integer', minimum: 0, default: 0 }
+      }
+    }
+  },
+  {
+    name: 'mihoyo_new_arrivals',
+    description:
+      '查询米游铺上新速览（商品上新 / 积分兑换 / 满赠）。回答「米游铺上新了什么」「原神有什么新品」「积分兑换有什么」「满赠送什么」类问题必须用本工具。' +
+      '结果含 goodsId/价格/开售时间/封面；用户要加心愿单时，用返回字段调 goods_add（isWishlist: true，带 goodsId/price/saleAt/image），不要自己编商品信息。' +
+      '要打开完整上新页时用 navigate（page=mihoyo_new_arrivals）。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        catalog: {
+          type: 'string',
+          enum: ['shop', 'point', 'gift', 'all'],
+          default: 'shop',
+          description: '目录：shop=商品上新（默认）、point=积分兑换、gift=满赠、all=三类全查（较慢）'
+        },
+        shopCode: {
+          type: 'string',
+          enum: ['ys', 'xqtd', 'bh3', 'zzz'],
+          description: '只看某店铺：ys=原神、xqtd=星穹铁道、bh3=崩坏3、zzz=绝区零；缺省四店'
+        },
+        query: { type: 'string', description: '按商品名关键词过滤（包含匹配）' },
+        limit: { type: 'integer', minimum: 1, maximum: 50, default: 20, description: '返回条数上限' }
       }
     }
   }
