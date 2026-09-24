@@ -660,7 +660,7 @@ const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const aiChat = useAiChatStore()
 
-/** 上下文占用粗算（约 2 字符≈1 token）；阈值见 CONVO_MAX_CHARS 自动压缩 */
+/** 上下文占用：接口 usage 原文，不做字符预估 */
 const contextUsage = computed(() => {
   try {
     return aiChat.getContextUsage?.() || null
@@ -668,32 +668,40 @@ const contextUsage = computed(() => {
     return null
   }
 })
-/** 圆环只表示「对话历史」增长；固定开销（工具+系统提示词）不占环，点开才看 */
+/** 圆环 = 最近一次请求的 prompt_tokens / 上限（真实上下文） */
 const modelConfigured = computed(() =>
   Boolean(String(aiChat.config?.baseUrl || '').trim()
     && String(aiChat.config?.model || '').trim()
     && String(aiChat.config?.apiKey || '').trim())
 )
 const showContextRing = computed(() => modelConfigured.value && aiChat.messages.length > 0)
-const contextTokensLabel = computed(() => formatTokenCount(contextUsage.value?.historyTokens || 0))
-const budgetTokensLabel = computed(() => formatTokenCount(contextUsage.value?.budgetTokens || 0))
-const fixedTokensLabel = computed(() => formatTokenCount(contextUsage.value?.fixedTokens || 0))
+const hasRealUsage = computed(() => contextUsage.value?.source === 'api')
+const contextTokensLabel = computed(() => {
+  if (!hasRealUsage.value) return '—'
+  return formatTokenCount(contextUsage.value?.promptTokens || 0)
+})
+const outputTokensLabel = computed(() => formatTokenCount(contextUsage.value?.completionTokens || 0))
+const limitTokensLabel = computed(() => {
+  const max = contextUsage.value?.maxContextTokens || 0
+  return max ? formatTokenCount(max) : t('aiChat.contextNoLimit')
+})
 const contextRatio = computed(() => {
   const usage = contextUsage.value
-  if (!usage?.budgetTokens) return 0
-  return Math.max(0, Math.min(1, (usage.historyTokens || 0) / usage.budgetTokens))
+  if (!usage?.maxContextTokens || !usage.promptTokens) return 0
+  return Math.max(0, Math.min(1, usage.promptTokens / usage.maxContextTokens))
 })
 const contextRingStyle = computed(() => {
   const c = 2 * Math.PI * 8
   return { strokeDasharray: `${(c * contextRatio.value).toFixed(1)} ${c.toFixed(1)}` }
 })
-const contextTitle = computed(() =>
-  t('aiChat.contextDetail', {
-    chat: contextTokensLabel.value,
-    fixed: fixedTokensLabel.value,
-    limit: budgetTokensLabel.value
+const contextTitle = computed(() => {
+  if (!hasRealUsage.value) return t('aiChat.contextNoUsage')
+  return t('aiChat.contextDetail', {
+    context: contextTokensLabel.value,
+    output: outputTokensLabel.value,
+    limit: limitTokensLabel.value
   })
-)
+})
 function showContextToast() {
   showToast(contextTitle.value)
 }
