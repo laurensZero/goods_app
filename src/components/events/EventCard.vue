@@ -76,6 +76,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
 import { formatEventDateDisplay } from '@/utils/events/eventDates'
 import { usePresetsStore } from '@/stores/presets'
@@ -121,11 +122,7 @@ function startLongPress(x, y) {
   gestureMoved.value = false
   longPressTimer.value = window.setTimeout(() => {
     longPressTriggered.value = true
-    try {
-      navigator.vibrate?.(50)
-    } catch {
-      // ignore vibration failures
-    }
+    vibrate(HAPTIC_MEDIUM)
     emit('long-press', props.event.id)
   }, 500)
 }

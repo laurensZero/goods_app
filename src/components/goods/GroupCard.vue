@@ -68,6 +68,7 @@ import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 
 const props = defineProps({
   group: { type: Object, required: true },
@@ -150,7 +151,7 @@ function startLongPress(x, y) {
   longPressTriggered = false
   longPressTimer = setTimeout(() => {
     longPressTriggered = true
-    try { navigator.vibrate?.(50) } catch {}
+    vibrate(HAPTIC_MEDIUM)
     emit('long-press')
   }, 500)
 }

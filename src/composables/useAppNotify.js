@@ -10,27 +10,14 @@ import {
 import { formatDate } from '@/utils/format'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { Capacitor } from '@capacitor/core'
-import { Haptics } from '@capacitor/haptics'
+import { vibrate, HAPTIC_NOTICE } from '@/utils/platform/haptics'
 import i18n from '@/locales'
 
 const NOTIFY_DURATION = 6000
 
 // ---- 震动反馈 ----
-async function triggerVibration() {
-  // 原生端优先使用 Capacitor Haptics（Android WebView 的 navigator.vibrate 常不可用）
-  if (Capacitor.isNativePlatform()) {
-    try {
-      await Haptics.vibrate({ duration: 120 })
-      return
-    } catch {
-      // fall through 到 Web Vibration API
-    }
-  }
-  try {
-    navigator.vibrate?.([50, 30, 50])
-  } catch {
-    // ignore vibration failures
-  }
+function triggerVibration() {
+  vibrate(HAPTIC_NOTICE)
 }
 
 /**

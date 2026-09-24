@@ -57,6 +57,7 @@
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMonthLabel } from '@/utils/format'
+import { vibrate as hapticVibrate, HAPTIC_TICK } from '@/utils/platform/haptics'
 import { monthIndexFromRailRatio } from '@/utils/goods/timelineScrubber'
 
 const props = defineProps({
@@ -222,13 +223,11 @@ function setScrollLock(enabled) {
   }
 }
 
-function vibrate(ms = 6) {
+function vibrate(ms = HAPTIC_TICK) {
   const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()
   if (now - lastVibrateAt < 70) return
   lastVibrateAt = now
-  try {
-    navigator.vibrate?.(ms)
-  } catch {}
+  hapticVibrate(ms)
 }
 
 function quoteAttr(value) {
@@ -603,7 +602,7 @@ function applyPointerToIndex(clientY) {
   const next = resolveIndexFromClientY(clientY)
   if (next !== activeIndex.value) {
     activeIndex.value = next
-    vibrate(6)
+    vibrate()
     const max = Math.max(1, props.months.length - 1)
     setIndicatorProgress(props.months.length <= 1 ? 0 : next / max, { smooth: false })
   }

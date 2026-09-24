@@ -50,6 +50,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import { resolveRechargePresetImage } from '@/utils/recharge/rechargeImages'
 
 const props = defineProps({
@@ -103,7 +104,7 @@ function startLongPress(x, y) {
   longPressTimer.value = window.setTimeout(() => {
     longPressTimer.value = 0
     suppressClick.value = true
-    try { navigator.vibrate?.(50) } catch {}
+    vibrate(HAPTIC_MEDIUM)
     emit('hold', props.record)
   }, LONG_PRESS_MS)
 }
