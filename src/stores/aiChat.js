@@ -28,7 +28,7 @@ import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
-import { prepareConvoForRequest, compactConvo } from '@/services/ai/contextCompact'
+import { prepareConvoForRequest, compactConvo, estimateTokensFromChars, CONVO_MAX_CHARS } from '@/services/ai/contextCompact'
 import {
   createUndoTrackingExecutor,
   applyUndoEntries,
@@ -361,12 +361,17 @@ function loadConfig() {
  * 把原始对话裁剪到上限：从最早一条可截断的 user 消息处切，
  * 保证 tool 消息不会与配对的 assistant.tool_calls 断开。
  * @param {Array<Record<string, unknown>>} convo
+ * @param {number} [maxContextTokens] 模型上下文上限（token），0=未指定
  */
-function trimConvo(convo) {
+function trimConvo(convo, maxContextTokens = 0) {
   if (!Array.isArray(convo)) return convo || []
   // 业界做法：先清旧 tool 结果，再按字符预算从旧到新裁，保持 tool_calls 配对
   let next = compactConvo(convo, { keepRecentToolRounds: 1 })
-  next = prepareConvoForRequest(next, { keepRecentToolRounds: 1, maxChars: 48000 })
+  const limit = Number(maxContextTokens) || 0
+  const maxChars = limit > 0
+    ? Math.max(8000, Math.floor(limit * 0.65 * 2))
+    : CONVO_MAX_CHARS
+  next = prepareConvoForRequest(next, { keepRecentToolRounds: 1, maxChars })
   if (next.length <= MAX_CONVO_MESSAGES) return next
   const keepFrom = next.length - MAX_CONVO_MESSAGES
   for (let i = keepFrom; i < next.length; i += 1) {
@@ -443,6 +448,63 @@ export const useAiChatStore = defineStore('aiChat', () => {
 
   function hasWebSearchEnabled() {
     return Boolean(String(config.value?.searchApiKey || '').trim())
+  }
+
+  /** 固定开销（工具 schema + 系统提示词）缓存，避免每次 UI 重算 2 万字 JSON */
+  let cachedFixedChars = 0
+  function getFixedContextChars() {
+    if (cachedFixedChars > 0) return cachedFixedChars
+    const toolsJson = JSON.stringify([
+      ...MCP_TOOL_DEFINITIONS,
+      ...MCP_WRITE_TOOL_DEFINITIONS,
+      ...VISION_TOOL_DEFINITIONS,
+      ...ATTACHMENT_TOOL_DEFINITIONS,
+      ...TABLE_TOOL_DEFINITIONS,
+      ...WEB_SEARCH_TOOL_DEFINITIONS
+    ])
+    const system = buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() })
+    cachedFixedChars = toolsJson.length + system.length
+    return cachedFixedChars
+  }
+
+  /**
+   * 当前上下文占用（字符/token 粗算，约 2 字符≈1 token）。
+   * budgetChars：自动压缩阈值。若用户配置了 maxContextTokens，
+   * 按「上限 × 65%」折算成字符预算（给输出/工具轮留余量）；否则用 CONVO_MAX_CHARS。
+   */
+  function getContextUsage() {
+    let historyChars = 0
+    for (const msg of messages.value || []) {
+      historyChars += String(msg?.content || '').length
+      historyChars += String(msg?.reasoning || '').length
+      for (const step of msg?.steps || []) {
+        historyChars += String(step?.name || '').length
+        try {
+          historyChars += JSON.stringify(step?.args || {}).length
+        } catch {
+          historyChars += 24
+        }
+      }
+    }
+    const fixedChars = getFixedContextChars()
+    const chars = fixedChars + historyChars
+    const maxContextTokens = Number(config.value?.maxContextTokens) || 0
+    const budgetChars = maxContextTokens > 0
+      ? Math.max(8000, Math.floor(maxContextTokens * 0.65 * 2))
+      : CONVO_MAX_CHARS
+    return {
+      chars,
+      tokens: estimateTokensFromChars(chars),
+      historyChars,
+      historyTokens: estimateTokensFromChars(historyChars),
+      fixedTokens: estimateTokensFromChars(fixedChars),
+      maxContextTokens,
+      budgetChars,
+      budgetTokens: maxContextTokens > 0
+        ? Math.floor(maxContextTokens * 0.65)
+        : estimateTokensFromChars(CONVO_MAX_CHARS),
+      compactKeepToolRounds: 1
+    }
   }
 
   function activeSession() {
@@ -1102,7 +1164,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
       if (turnUndoEntries.length > 0) {
         assistant.undoJournal = { entries: turnUndoEntries, undone: false }
       }
-      rawConvo = trimConvo(result.convo)
+      rawConvo = trimConvo(result.convo, Number(config.value?.maxContextTokens) || 0)
       // 立即回写到会话对象：切走再切回时上下文才不丢（不能只靠防抖持久化）
       const doneSession = activeSession()
       if (doneSession) {
@@ -1176,6 +1238,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     updateConfig, clearMessages, send, stopStreaming, sendQueuedNow, undoWrite,
     answerAskUser,
     addAttachments, removeAttachment, clearAttachments,
-    newSession, switchSession, deleteSession, renameSession
+    newSession, switchSession, deleteSession, renameSession,
+    getContextUsage
   }
 })

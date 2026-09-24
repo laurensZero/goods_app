@@ -78,5 +78,9 @@
   "aiChat.voiceRecording": "録音中 — もう一度タップで停止…",
   "aiChat.voiceTranscribing": "認識中…",
   "aiChat.voiceFailed": "音声認識に失敗しました。もう一度お試しください",
-  "aiChat.voiceUnsupported": "この環境では録音できません"
+  "aiChat.voiceUnsupported": "この環境では録音できません",
+  "aiChat.contextUsage": "約 {tokens} トークン",
+  "aiChat.contextAutoCompact": "{limit} 超で履歴を自動圧縮",
+  "aiChat.maxContextTokens": "モデルのコンテキスト上限",
+  "aiChat.maxContextTokensPlaceholder": "例: 128000、0=未指定"
 }

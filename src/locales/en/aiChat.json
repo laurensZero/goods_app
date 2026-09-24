@@ -78,5 +78,9 @@
   "aiChat.voiceRecording": "Recording — tap again to stop…",
   "aiChat.voiceTranscribing": "Transcribing…",
   "aiChat.voiceFailed": "Speech recognition failed, please try again",
-  "aiChat.voiceUnsupported": "Recording is not supported in this environment"
+  "aiChat.voiceUnsupported": "Recording is not supported in this environment",
+  "aiChat.contextUsage": "~{tokens} tokens",
+  "aiChat.contextAutoCompact": "auto-compact history past {limit}",
+  "aiChat.maxContextTokens": "Model context limit",
+  "aiChat.maxContextTokensPlaceholder": "e.g. 128000, 0=unspecified"
 }

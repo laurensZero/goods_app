@@ -328,6 +328,10 @@
         </div>
       </div>
 
+      <p class="chat-compose__meta">
+        {{ t('aiChat.contextUsage', { tokens: contextTokensLabel }) }}
+        · {{ t('aiChat.contextAutoCompact', { limit: budgetTokensLabel }) }}
+      </p>
       <div class="chat-compose__row">
         <div class="chat-compose__attach-wrap">
           <button
@@ -493,6 +497,11 @@
           <input v-model.trim="settingsDraft.apiKey" type="password" autocomplete="off" spellcheck="false" />
         </label>
         <label class="settings-field">
+          <span class="settings-field__label">{{ t('aiChat.maxContextTokens') }}</span>
+          <input v-model.trim="settingsDraft.maxContextTokens" type="number" min="0" step="1000" autocomplete="off" :placeholder="t('aiChat.maxContextTokensPlaceholder')" />
+        </label>
+
+        <label class="settings-field">
           <span class="settings-field__label">{{ t('aiChat.searchApiKey') }}</span>
           <input v-model.trim="settingsDraft.searchApiKey" type="password" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.searchApiKeyPlaceholder')" />
         </label>
@@ -623,6 +632,23 @@ defineOptions({ name: 'AiChatPanel' })
 const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const aiChat = useAiChatStore()
+
+/** 上下文占用粗算（约 2 字符≈1 token）；阈值见 CONVO_MAX_CHARS 自动压缩 */
+const contextUsage = computed(() => {
+  try {
+    return aiChat.getContextUsage?.() || null
+  } catch {
+    return null
+  }
+})
+const contextTokensLabel = computed(() => formatTokenCount(contextUsage.value?.tokens || 0))
+const budgetTokensLabel = computed(() => formatTokenCount(contextUsage.value?.budgetTokens || 0))
+
+function formatTokenCount(n) {
+  const num = Number(n) || 0
+  if (num >= 1000) return `${(num / 1000).toFixed(num >= 10000 ? 0 : 1)}k`
+  return String(num)
+}
 const playerStore = useMediaPlayerStore()
 
 const inputText = ref('')
@@ -630,7 +656,7 @@ const inputRef = ref(null)
 const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
 const showHistory = ref(false)
-const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '', asrModel: '' })
+const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '', asrModel: '', maxContextTokens: '' })
 const maxAttachments = MAX_ATTACHMENTS
 /** 流式中输入区是否已有可入队内容（文字或附件） */
 const canQueueSend = computed(() => Boolean(inputText.value.trim()) || aiChat.attachments.length > 0)
@@ -1345,6 +1371,7 @@ function openSettings() {
   settingsDraft.apiKey = aiChat.config.apiKey
   settingsDraft.searchApiKey = aiChat.config.searchApiKey || ''
   settingsDraft.asrModel = aiChat.config.asrModel || ''
+  settingsDraft.maxContextTokens = aiChat.config.maxContextTokens ? String(aiChat.config.maxContextTokens) : ''
   showSettings.value = true
 }
 
@@ -1355,7 +1382,8 @@ function saveSettings() {
     visionModel: settingsDraft.visionModel,
     apiKey: settingsDraft.apiKey,
     searchApiKey: settingsDraft.searchApiKey,
-    asrModel: settingsDraft.asrModel
+    asrModel: settingsDraft.asrModel,
+    maxContextTokens: Math.max(0, Number(settingsDraft.maxContextTokens) || 0)
   })
   showSettings.value = false
   showToast(t('aiChat.saved'))
@@ -2400,6 +2428,15 @@ function removeSession(id) {
 .chat-compose__thumb-remove svg {
   width: 10px;
   height: 10px;
+}
+
+.chat-compose__meta {
+  margin: 0 0 6px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--app-text-secondary, #8a8a8a);
+  opacity: 0.85;
+  user-select: none;
 }
 
 .chat-compose__row {

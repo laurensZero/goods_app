@@ -10,7 +10,35 @@ export const TOOL_RESULT_MAX_CHARS = 4000
 /** 保留完整内容的最近 tool 轮数（更早的 tool 结果清成占位符） */
 export const DEFAULT_KEEP_RECENT_TOOL_ROUNDS = 1
 
+/** 发送前对话历史字符预算（超过就从旧到新裁） */
+export const CONVO_MAX_CHARS = 48000
+
 const CLEARED_TOOL_PLACEHOLDER = '（历史工具结果已省略）'
+
+/** 粗算 token：中英混排约 2 字符/token，仅用于 UI 展示「约 X」 */
+export function estimateTokensFromChars(chars) {
+  return Math.max(0, Math.round((Number(chars) || 0) / 2))
+}
+
+/**
+ * 估算整段对话字符数（content + reasoning + tool_calls 参数）。
+ * @param {Array<Record<string, any>>} convo
+ * @returns {number}
+ */
+export function estimateConvoChars(convo) {
+  let n = 0
+  for (const msg of convo || []) {
+    if (typeof msg?.content === 'string') n += msg.content.length
+    if (typeof msg?.reasoning === 'string') n += msg.reasoning.length
+    if (Array.isArray(msg?.tool_calls)) {
+      for (const call of msg.tool_calls) {
+        n += String(call?.function?.name || '').length
+        n += String(call?.function?.arguments || '').length
+      }
+    }
+  }
+  return n
+}
 
 /**
  * @param {unknown} payload
@@ -23,24 +51,6 @@ export function serializeToolResult(payload, maxChars = TOOL_RESULT_MAX_CHARS) {
     json = `${json.slice(0, maxChars)}…[已截断]`
   }
   return json
-}
-
-/**
- * @param {Array<Record<string, any>>} convo
- * @returns {number}
- */
-export function estimateConvoChars(convo) {
-  let n = 0
-  for (const msg of convo || []) {
-    if (typeof msg?.content === 'string') n += msg.content.length
-    if (Array.isArray(msg?.tool_calls)) {
-      for (const call of msg.tool_calls) {
-        n += String(call?.function?.name || '').length
-        n += String(call?.function?.arguments || '').length
-      }
-    }
-  }
-  return n
 }
 
 /**
@@ -95,7 +105,7 @@ export function compactConvo(convo, options = {}) {
  * @param {{ keepRecentToolRounds?: number, maxChars?: number }} [options]
  */
 export function prepareConvoForRequest(convo, options = {}) {
-  const maxChars = options.maxChars ?? 48000
+  const maxChars = options.maxChars ?? CONVO_MAX_CHARS
   let next = compactConvo(convo, options)
   // 字符预算裁剪：尽量从含 tool 的旧块开刀
   while (estimateConvoChars(next) > maxChars && next.length > 2) {
