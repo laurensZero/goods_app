@@ -12,16 +12,14 @@ export function useSmartTagging(form) {
   const tagSuggestions = ref({
     categorySuggestion: null,
     ipSuggestion: null,
-    characterSuggestions: [],
-    tagSuggestions: []
+    characterSuggestions: []
   })
 
   // 记录已被用户主动忽略的字段，防止再提示
   const ignoredFields = ref({
     category: false,
     ip: false,
-    characters: false,
-    tags: false
+    characters: false
   })
 
   // Cache extracted tags and characters from goods list - only recompute when list changes
@@ -91,8 +89,7 @@ export function useSmartTagging(form) {
       tagSuggestions.value = {
         categorySuggestion: null,
         ipSuggestion: null,
-        characterSuggestions: [],
-        tagSuggestions: []
+        characterSuggestions: []
       }
       return
     }
@@ -123,9 +120,14 @@ export function useSmartTagging(form) {
       result.characterSuggestions = (result.characterSuggestions || [])
         .filter(s => !existing.has(s.value.toLowerCase()))
     }
-    if (ignoredFields.value.tags || (form.tags && form.tags.length)) result.tagSuggestions = []
+    // 自定义标签不再由智能填写推荐
+    result.tagSuggestions = []
 
-    tagSuggestions.value = result
+    tagSuggestions.value = {
+      categorySuggestion: result.categorySuggestion || null,
+      ipSuggestion: result.ipSuggestion || null,
+      characterSuggestions: result.characterSuggestions || []
+    }
   }
 
   function applySuggestion({ field, value }) {
@@ -138,19 +140,11 @@ export function useSmartTagging(form) {
         if (!form.characters.includes(c)) form.characters.push(c)
       })
     }
-    else if (field === 'tags') {
-      if (!form.tags) form.tags = []
-      const newTags = Array.isArray(value) ? value : [value]
-      newTags.forEach(t => {
-        if (!form.tags.includes(t)) form.tags.push(t)
-      })
-    }
 
     // 应用完后从面板中移除
     if (field === 'category') tagSuggestions.value.categorySuggestion = null
     if (field === 'ip') tagSuggestions.value.ipSuggestion = null
     if (field === 'characters') tagSuggestions.value.characterSuggestions = []
-    if (field === 'tags') tagSuggestions.value.tagSuggestions = []
   }
 
   function ignoreSuggestion({ field }) {
@@ -158,7 +152,6 @@ export function useSmartTagging(form) {
     if (field === 'category') tagSuggestions.value.categorySuggestion = null
     if (field === 'ip') tagSuggestions.value.ipSuggestion = null
     if (field === 'characters') tagSuggestions.value.characterSuggestions = []
-    if (field === 'tags') tagSuggestions.value.tagSuggestions = []
   }
 
   function applyAllSuggestions() {
@@ -166,9 +159,6 @@ export function useSmartTagging(form) {
     if (tagSuggestions.value.ipSuggestion) applySuggestion({ field: 'ip', value: tagSuggestions.value.ipSuggestion.value })
     if (tagSuggestions.value.characterSuggestions && tagSuggestions.value.characterSuggestions.length) {
       applySuggestion({ field: 'characters', value: tagSuggestions.value.characterSuggestions.map(c => c.value) })
-    }
-    if (tagSuggestions.value.tagSuggestions && tagSuggestions.value.tagSuggestions.length) {
-      applySuggestion({ field: 'tags', value: tagSuggestions.value.tagSuggestions.map(t => t.value) })
     }
   }
 
