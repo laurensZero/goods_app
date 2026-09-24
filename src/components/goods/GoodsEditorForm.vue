@@ -207,6 +207,13 @@
                   <span v-if="nameError" class="field-error">{{ nameError }}</span>
                 </label>
 
+                <TagSuggestionPanel
+                  :suggestions="tagSuggestions"
+                  @apply="applySuggestion"
+                  @ignore="ignoreSuggestion"
+                  @apply-all="applyAllSuggestions"
+                />
+
                 <div class="field">
                   <span class="field-label">{{ t('common.category') }}</span>
                   <AppSelect v-model="form.category" :options="presets.categories" :placeholder="t('goods.editor.categoryPlaceholder')" />
@@ -418,13 +425,6 @@
                     :placeholder="t('goods.editor.sizePlaceholder')"
                   />
                 </label>
-
-                <TagSuggestionPanel
-                  :suggestions="tagSuggestions"
-                  @apply="applySuggestion"
-                  @ignore="ignoreSuggestion"
-                  @apply-all="applyAllSuggestions"
-                />
 
                 <div class="field">
                   <span class="field-label">{{ t('goods.editor.customTags') }}</span>

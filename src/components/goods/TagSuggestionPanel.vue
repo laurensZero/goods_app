@@ -50,22 +50,6 @@
         <button class="btn-action btn-action--danger" @click="ignoreField('characters')">{{ t('goods.suggestion.ignore') }}</button>
       </div>
     </div>
-
-    <!-- 标签建议 -->
-    <div v-if="suggestions.tagSuggestions && suggestions.tagSuggestions.length > 0" class="suggestion-item">
-      <div class="suggestion-item__main">
-        <span class="suggestion-item__label">{{ t('common.tag') }}</span>
-        <span class="suggestion-item__value">
-          <span v-for="(tag, idx) in suggestions.tagSuggestions" :key="idx" class="tag">
-            {{ tag.value }}
-          </span>
-        </span>
-      </div>
-      <div class="suggestion-item__actions">
-        <button class="btn-action" @click="applyField('tags', suggestions.tagSuggestions.map(tag => tag.value))">{{ t('goods.suggestion.apply') }}</button>
-        <button class="btn-action btn-action--danger" @click="ignoreField('tags')">{{ t('goods.suggestion.ignore') }}</button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -82,8 +66,7 @@ const props = defineProps({
     default: () => ({
       categorySuggestion: null,
       ipSuggestion: null,
-      characterSuggestions: [],
-      tagSuggestions: []
+      characterSuggestions: []
     })
   }
 })
@@ -93,8 +76,7 @@ const emit = defineEmits(['apply', 'ignore', 'apply-all'])
 const hasSuggestions = computed(() => {
   return props.suggestions.categorySuggestion ||
          props.suggestions.ipSuggestion ||
-         (props.suggestions.characterSuggestions && props.suggestions.characterSuggestions.length > 0) ||
-         (props.suggestions.tagSuggestions && props.suggestions.tagSuggestions.length > 0)
+         (props.suggestions.characterSuggestions && props.suggestions.characterSuggestions.length > 0)
 })
 
 const formatConfidence = (level) => {
