@@ -186,6 +186,7 @@
   "common.updateNotes": "更新說明",
   "common.updatedAt": "更新於 {date}",
   "common.variant": "款式",
+  "common.size": "尺寸",
   "common.viewDetail": "檢視詳情",
   "common.webUpdate.currentVsLatest": "目前資源 v{current}，可用資源为 v{latest}",
   "common.webUpdate.downloadAndRestart": "下载并下次啟動生效",

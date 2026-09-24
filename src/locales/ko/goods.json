@@ -312,6 +312,8 @@
   "goods.editor.unitStatusSavedDesc": "일부 개별 상태가 저장되어 있습니다",
   "goods.editor.variant": "변형",
   "goods.editor.variantPlaceholder": "예: 블라인드 박스 A타입 / 초판",
+  "goods.editor.size": "크기",
+  "goods.editor.sizePlaceholder": "예: 58mm / 약 15×20cm",
   "goods.editor.visualInfo": "비주얼 소재",
   "goods.editor.wishlist": "위시리스트",
   "goods.heroFallback": "G",

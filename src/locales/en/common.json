@@ -186,6 +186,7 @@
   "common.updateNotes": "Update Notes",
   "common.updatedAt": "Updated {date}",
   "common.variant": "Variant",
+  "common.size": "Size",
   "common.viewDetail": "View Details",
   "common.webUpdate.currentVsLatest": "Current: v{current}, Available: v{latest}",
   "common.webUpdate.downloadAndRestart": "Download & Restart on Next Launch",

@@ -58,6 +58,7 @@ export function useGoodsEditorForm(options = {}) {
   const form = reactive({
     name: '',
     variant: '',
+    size: '',
     category: '',
     ip: '',
     goodsId: '',
@@ -100,6 +101,7 @@ export function useGoodsEditorForm(options = {}) {
     return JSON.stringify({
       name: form.name,
       variant: form.variant,
+      size: form.size,
       category: form.category,
       ip: form.ip,
       goodsId: form.goodsId,
@@ -351,6 +353,7 @@ export function useGoodsEditorForm(options = {}) {
         originalTimeline.value = Array.isArray(item.statusTimeline) ? [...item.statusTimeline] : []
         form.name = item.name ?? ''
         form.variant = item.variant ?? ''
+        form.size = item.size ?? ''
         form.category = item.category ?? ''
         form.ip = item.ip ?? ''
         form.goodsId = item.goodsId ?? ''

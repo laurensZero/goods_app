@@ -340,4 +340,14 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 21,
+    description: 'Add goods.size column (single-line size text)',
+    up: async (db) => {
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('size')) {
+        await db.run("ALTER TABLE goods ADD COLUMN size TEXT DEFAULT ''")
+      }
+    }
+  },
 ]

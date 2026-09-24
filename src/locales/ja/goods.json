@@ -312,6 +312,8 @@
   "goods.editor.unitStatusSavedDesc": "一部の個別ステータスが保存されています",
   "goods.editor.variant": "バリエーション",
   "goods.editor.variantPlaceholder": "例：ブラインドボックスAタイプ / 初版",
+  "goods.editor.size": "サイズ",
+  "goods.editor.sizePlaceholder": "例：58mm / 約15×20cm",
   "goods.editor.visualInfo": "ビジュアル素材",
   "goods.editor.wishlist": "ウィッシュリスト",
   "goods.heroFallback": "G",

@@ -164,6 +164,11 @@
               <strong class="info-value">{{ displayVariantText }}</strong>
             </article>
 
+            <article v-if="item.size" class="info-tile">
+              <span class="info-label">{{ t('common.size') }}</span>
+              <strong class="info-value">{{ item.size }}</strong>
+            </article>
+
             <article v-if="!item.isWishlist && hasUnitHoldingDays" class="info-tile">
               <span class="info-label">{{ t('goods.detail.unitHoldingDays') }}</span>
               <strong class="info-value">{{ unitHoldingDaysText }}</strong>

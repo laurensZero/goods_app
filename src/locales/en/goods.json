@@ -312,6 +312,8 @@
   "goods.editor.unitStatusSavedDesc": "Some per-unit statuses have been saved",
   "goods.editor.variant": "Variant",
   "goods.editor.variantPlaceholder": "e.g., Blind Box Type A / First Edition",
+  "goods.editor.size": "Size",
+  "goods.editor.sizePlaceholder": "e.g., 58mm / approx. 15×20cm",
   "goods.editor.visualInfo": "Visual Materials",
   "goods.editor.wishlist": "Wishlist",
   "goods.heroFallback": "G",
