@@ -9,7 +9,7 @@
  */
 
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
-import { serializeToolResult } from './contextCompact'
+import { maxCharsForTool, serializeToolResult } from './contextCompact'
 
 const HTTP_TIMEOUT_MS = 120000
 /** 流式看门狗：数据持续到达证明链路存活，总时长上限放宽到 5 分钟 */
@@ -30,7 +30,9 @@ export const DEFAULT_AI_CONFIG = Object.freeze({
    * 模型最大上下文（token）。OpenAI 兼容接口通常不回传该值，
    * 0=未指定：自动压缩阈值退回 CONVO_MAX_CHARS 粗算；>0 时按此上限的 ~65% 裁历史。
    */
-  maxContextTokens: 0
+  maxContextTokens: 0,
+  /** 全局下拉手势唤起 AI 助手（任意页面顶部下拉并停顿）。默认开启。 */
+  pullDownEnabled: true
 })
 
 /** HTTP/服务端错误，带状态码与原始响应文本便于排障 */
@@ -588,7 +590,7 @@ export async function runChatCompletion(options) {
       convo.push({
         role: 'tool',
         tool_call_id: String(call?.id || ''),
-        content: serializeToolResult(resultPayload ?? null)
+        content: serializeToolResult(resultPayload ?? null, maxCharsForTool(name))
       })
     }
   }

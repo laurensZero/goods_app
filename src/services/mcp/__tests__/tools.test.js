@@ -893,6 +893,50 @@ describe('mcp tool handlers', () => {
       id: 't2', title: '手写曲', source: 'manual', playable: false
     })
     expect(result.events[0].tracks[1].note).toContain('未关联在线音源')
+    expect(result.events[0].tracksTotal).toBe(2)
+    expect(result.events[0].trackHasMore).toBe(false)
+  })
+
+  it('event_tracks 曲目分页：trackLimit/trackOffset 取完整歌单，trackHasMore 标记还有更多', async () => {
+    const db = createFakeDb()
+    db.getEvents = async () => [{
+      id: 'e-long',
+      name: '长 setlist',
+      tracks: Array.from({ length: 5 }, (_, i) => ({
+        id: `t${i}`,
+        title: `Song ${i}`,
+        artist: 'A',
+        source: 'manual',
+        neteaseSongId: '',
+        qqSongId: '',
+        bilibiliVideoId: ''
+      }))
+    }]
+    const handlers = createMcpToolHandlers(db)
+
+    const first = await handlers.event_tracks({ eventId: 'e-long', includeTracks: true, trackLimit: 2 })
+    expect(first.events[0].tracks).toHaveLength(2)
+    expect(first.events[0].tracksTotal).toBe(5)
+    expect(first.events[0].trackOffset).toBe(0)
+    expect(first.events[0].trackHasMore).toBe(true)
+
+    const next = await handlers.event_tracks({
+      eventId: 'e-long',
+      includeTracks: true,
+      trackLimit: 2,
+      trackOffset: 2
+    })
+    expect(next.events[0].tracks[0].id).toBe('t2')
+    expect(next.events[0].trackHasMore).toBe(true)
+
+    const last = await handlers.event_tracks({
+      eventId: 'e-long',
+      includeTracks: true,
+      trackLimit: 2,
+      trackOffset: 4
+    })
+    expect(last.events[0].tracks).toHaveLength(1)
+    expect(last.events[0].trackHasMore).toBe(false)
   })
 
   it('event_tracks 支持 eventId 精确查询与歌名/演出名关键词', async () => {

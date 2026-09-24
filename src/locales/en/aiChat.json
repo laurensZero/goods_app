@@ -86,5 +86,7 @@
   "aiChat.maxContextTokensPlaceholder": "e.g. 128000, 0=auto-detect",
   "aiChat.detectContext": "Auto-detect",
   "aiChat.contextDetected": "Detected limit ~{tokens}",
-  "aiChat.contextDetectFailed": "Could not detect; please enter manually"
+  "aiChat.contextDetectFailed": "Could not detect; please enter manually",
+  "aiChat.pullDownEnabled": "Pull down to open assistant",
+  "aiChat.pullDownEnabledHint": "When on, pull down from the top of any page and pause to open the AI assistant. When off, use the full chat page only."
 }

@@ -222,18 +222,20 @@ function trackListOf(value) {
   return Array.isArray(value) ? value : []
 }
 
-/** 曲目 → MCP 输出（含在线音源可播状态） */
+/** 曲目 → MCP 输出（含在线音源可播状态）。空 album / 0 时长省略，减少完整歌单体积 */
 function trackView(track) {
   const neteaseSongId = asText(track?.neteaseSongId).trim()
   const qqSongId = asText(track?.qqSongId).trim()
   const bilibiliVideoId = asText(track?.bilibiliVideoId).trim()
   const playable = Boolean(neteaseSongId || qqSongId || bilibiliVideoId)
+  const album = asText(track?.album).trim()
+  const durationMs = Math.max(0, Number(track?.durationMs) || 0)
   return {
     id: asText(track?.id).trim(),
     title: asText(track?.title).trim(),
     artist: asText(track?.artist).trim(),
-    album: asText(track?.album).trim(),
-    durationMs: Math.max(0, Number(track?.durationMs) || 0),
+    ...(album ? { album } : {}),
+    ...(durationMs ? { durationMs } : {}),
     source: asText(track?.source).trim() || 'manual',
     playable,
     ...(playable ? {} : { note: '仅手动录入、未关联在线音源，无法直接播放' })
@@ -750,6 +752,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
    * 演出曲单：演出基本信息 + 曲目概况/明细（含在线音源关联与可播状态）。
    * 默认只给 tracksSummary 概况——用户没问歌单时模型不应该罗列曲目，
    * 所以明细（含 trackId）只在传 includeTracks: true 时返回。
+   * includeTracks 时曲目按 trackOffset/trackLimit 分页，避免长 setlist 被工具结果上限截断；
+   * trackHasMore 为 true 时按 trackOffset 翻页取全。
    * @param {Record<string, any>} args
    */
   async function eventTracks(args) {
@@ -760,6 +764,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     if (eventId && query) throw new Error('eventId 与 query 二选一，不要同时传')
     const limit = Math.min(Math.max(asInt(args.limit) || 10, 1), 50)
     const offset = Math.max(asInt(args.offset), 0)
+    const trackLimit = Math.min(Math.max(asInt(args.trackLimit) || 100, 1), 200)
+    const trackOffset = Math.max(asInt(args.trackOffset), 0)
 
     let candidates = events.filter((event) => !event.deleted)
     if (eventId) {
@@ -783,7 +789,11 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         }
         if (visibleTracks.length === 0) continue
       }
-      const view = visibleTracks.map(trackView)
+      // 概况按全量曲目统计；明细分页，防止一场长 setlist 撑爆工具结果
+      const fullView = visibleTracks.map(trackView)
+      const pageTracks = includeTracks
+        ? fullView.slice(trackOffset, trackOffset + trackLimit)
+        : null
       const latitude = asText(event.latitude).trim()
       const longitude = asText(event.longitude).trim()
       matched.push({
@@ -811,18 +821,26 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         description: truncate(event.description),
         photosCount: trackListOf(event.photos).length,
         // 照片 uri 解析成可直接展示的地址；cloud-image:// 在此换成公开 URL，
-        // 避免模型把内部引用「脑补」成错误的 Supabase 链接
+        // 避免模型把内部引用「脑补」成错误的 Supabase 链接。
+        // 要曲目明细时少带照片，把字节让给完整歌单。
         photos: (await Promise.all(
           trackListOf(event.photos)
-            .slice(0, 12)
+            .slice(0, includeTracks ? 4 : 12)
             .map(async (photo) => ({
               uri: await toDisplayImageUri(typeof photo === 'string' ? photo : photo?.uri),
               caption: asText(typeof photo === 'string' ? '' : photo?.caption).trim()
             }))
         )).filter((photo) => photo.uri),
         linkedGoodsCount: Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0,
-        tracksSummary: trackSummary(view),
-        ...(includeTracks ? { tracks: view } : {})
+        tracksSummary: trackSummary(fullView),
+        ...(includeTracks && pageTracks
+          ? {
+              tracks: pageTracks,
+              tracksTotal: fullView.length,
+              trackOffset,
+              trackHasMore: trackOffset + pageTracks.length < fullView.length
+            }
+          : {})
       })
     }
 
@@ -833,8 +851,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       limit,
       hasMore: offset + page.length < matched.length,
       hint: includeTracks
-        ? '播放用 music_play（传 eventId + trackId）；playable 为 false 的曲目无法播放'
-        : '默认只返回曲单概况；用户要完整歌单、找具体歌或要播放时，再传 includeTracks: true 获取曲目明细（含 trackId）',
+        ? '播放用 music_play（传 eventId + trackId）；playable 为 false 的曲目无法播放。曲目已分页：trackHasMore 为 true 时用 trackOffset/trackLimit 继续取，直到取完再列完整歌单；回复只写「序号. 歌名 — 歌手」'
+        : '默认只返回曲单概况；用户要完整歌单、找具体歌或要播放时，再传 includeTracks: true 获取曲目明细（含 trackId，长曲单用 trackOffset 翻页）',
       events: page
     }
   }

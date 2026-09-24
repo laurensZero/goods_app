@@ -518,6 +518,17 @@
           <input v-model.trim="settingsDraft.searchApiKey" type="password" autocomplete="off" spellcheck="false" :placeholder="t('aiChat.searchApiKeyPlaceholder')" />
         </label>
 
+        <label class="settings-field settings-field--toggle">
+          <span class="settings-field__label">{{ t('aiChat.pullDownEnabled') }}</span>
+          <input
+            class="settings-toggle"
+            type="checkbox"
+            :checked="pullDownEnabled"
+            @change="onPullDownToggle"
+          />
+        </label>
+        <p class="ai-settings-body__hint">{{ t('aiChat.pullDownEnabledHint') }}</p>
+
         <div class="ai-settings-body__actions">
           <button class="settings-clear" type="button" @click="clearChat">{{ t('aiChat.clearChat') }}</button>
           <button class="settings-save" type="button" @click="saveSettings">{{ t('aiChat.save') }}</button>
@@ -696,6 +707,9 @@ const bottomAnchorRef = ref(null)
 const showSettings = ref(false)
 const showHistory = ref(false)
 const settingsDraft = reactive({ baseUrl: '', model: '', apiKey: '', visionModel: '', searchApiKey: '', asrModel: '', maxContextTokens: '' })
+
+/** 全局下拉唤起开关：即时生效（不必等「保存」，与接口配置解耦） */
+const pullDownEnabled = ref(true)
 const maxAttachments = MAX_ATTACHMENTS
 /** 流式中输入区是否已有可入队内容（文字或附件） */
 const canQueueSend = computed(() => Boolean(inputText.value.trim()) || aiChat.attachments.length > 0)
@@ -1411,7 +1425,16 @@ function openSettings() {
   settingsDraft.searchApiKey = aiChat.config.searchApiKey || ''
   settingsDraft.asrModel = aiChat.config.asrModel || ''
   settingsDraft.maxContextTokens = aiChat.config.maxContextTokens ? String(aiChat.config.maxContextTokens) : ''
+  pullDownEnabled.value = aiChat.config.pullDownEnabled !== false
   showSettings.value = true
+}
+
+/** @param {Event} event */
+function onPullDownToggle(event) {
+  const target = event.target
+  const next = target instanceof HTMLInputElement ? target.checked : true
+  pullDownEnabled.value = next
+  aiChat.updateConfig({ pullDownEnabled: next })
 }
 
 async function saveSettings() {
@@ -3004,6 +3027,23 @@ function removeSession(id) {
   font-size: 14px;
   outline: none;
   transition: border-color 0.2s ease;
+}
+
+.settings-field--toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.settings-toggle {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--app-text);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 .settings-field input:focus {

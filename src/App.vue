@@ -53,6 +53,7 @@ import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
 import { useAppNotify } from '@/composables/useAppNotify'
 import { usePullDownGesture } from '@/composables/usePullDownGesture'
+import { isPullDownGestureEnabled } from '@/utils/ai/assistantPrefs'
 import { useSurveyStore } from '@/stores/survey'
 import { useLegalStore } from '@/stores/legal'
 import { createLogger } from '@/utils/logger'
@@ -214,7 +215,7 @@ useDeepLinks({
 
 const aiAssistantVisible = ref(false)
 usePullDownGesture({
-  enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value,
+  enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value && isPullDownGestureEnabled(),
   onTrigger: () => {
     aiAssistantVisible.value = true
   }
