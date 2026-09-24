@@ -53,10 +53,94 @@ export function normalizeBaseUrl(url) {
 }
 
 /**
+ * 本地模型名 → 上下文上限（token）表。
+ * Cherry Studio / LobeChat 等「填了 API 就能显示上下文」主要靠：
+ * ① /models 多字段探测（OpenRouter 等有 context_length）
+ * ② 本地热门模型元数据表（官方 OpenAI 兼容接口往往只给 id）
+ * @type {Array<{ re: RegExp, tokens: number }>}
+ */
+const MODEL_CONTEXT_HINTS = [
+  { re: /gpt-6|gpt-5|o[1-4](?:-|$)|o[1-4]-mini/i, tokens: 400_000 },
+  { re: /gpt-4o|gpt-4-turbo|gpt-4-0125|gpt-4-1106/i, tokens: 128_000 },
+  { re: /gpt-4(?!o|turbo)/i, tokens: 8_192 },
+  { re: /gpt-3\.5/i, tokens: 16_385 },
+  { re: /claude-(?:sonnet|opus|haiku|3-7|3-5|4)/i, tokens: 200_000 },
+  { re: /claude-2|claude-instant/i, tokens: 100_000 },
+  { re: /deepseek/i, tokens: 128_000 },
+  { re: /qwen3|qwen-max|qwen-plus|qwen2\.5|qwen2/i, tokens: 131_072 },
+  { re: /qwen/i, tokens: 32_768 },
+  { re: /glm-4|glm-5|chatglm/i, tokens: 128_000 },
+  { re: /gemini-(?:2|3|1\.5)/i, tokens: 1_048_576 },
+  { re: /gemini/i, tokens: 32_768 },
+  { re: /moonshot|kimi/i, tokens: 128_000 },
+  { re: /doubao|skylark/i, tokens: 128_000 },
+  { re: /step-|minimax|abab/i, tokens: 256_000 },
+  { re: /llama-3|llama3/i, tokens: 128_000 },
+  { re: /mistral|mixtral|codestral/i, tokens: 32_768 },
+  { re: /grok/i, tokens: 131_072 },
+]
+
+/**
+ * 从模型名猜上下文（不依赖网络）。
+ * @param {string} modelName
+ * @returns {number} 0=猜不到
+ */
+export function guessModelContextFromName(modelName) {
+  const name = String(modelName || '').trim().toLowerCase()
+  if (!name) return 0
+  // 1) 名字里的 32k / 128k / 1m
+  const named = name.match(/(?:^|[^0-9])(\d{2,4})k(?:$|[^0-9a-z])/i)
+  if (named) {
+    const k = Number(named[1])
+    if (Number.isFinite(k) && k >= 8) return k * 1000
+  }
+  if (/(?:^|[^0-9])1m(?:$|[^0-9a-z])/.test(name) || /-1m(?:$|[^0-9a-z])/.test(name)) return 1_000_000
+  if (/200k/.test(name)) return 200_000
+  if (/128k/.test(name)) return 128_000
+  if (/256k/.test(name)) return 256_000
+  // 2) 热门模型表（跳过 tokens=0 的占位规则）
+  for (const hint of MODEL_CONTEXT_HINTS) {
+    if (hint.tokens > 0 && hint.re.test(name)) return hint.tokens
+  }
+  return 0
+}
+
+/**
+ * 从 /models 返回的模型对象里抠上下文字段（各家网关字段名不统一）。
+ * @param {any} hit
+ * @returns {number} 0=未知
+ */
+function extractContextFromModelObject(hit) {
+  if (!hit || typeof hit !== 'object') return 0
+  const candidates = [
+    hit.context_length,
+    hit.contextLength,
+    hit.context_window,
+    hit.contextWindow,
+    hit.max_context_length,
+    hit.maxContextLength,
+    hit.context_len,
+    hit.max_tokens,
+    hit.maxTokens,
+    hit.n_ctx,
+    hit.top_level?.context_length,
+    hit.meta?.context_length,
+    hit.meta?.max_context_length,
+    hit.per_request_limits?.max_tokens,
+    hit.capabilities?.context,
+  ]
+  for (const raw of candidates) {
+    const n = Number(raw)
+    if (Number.isFinite(n) && n >= 1000) return Math.floor(n)
+  }
+  return 0
+}
+
+/**
  * 尽力探测模型最大上下文（token）。
- * OpenAI 兼容 /models 多数只返回 id，不带 context_length；
- * OpenRouter / 部分网关会在模型对象上给 context_length / max_context_length。
- * 读不到返回 0，由用户手填 maxContextTokens 或退回本地字符预算。
+ * 策略与 Cherry Studio / LobeChat 同类客户端一致：
+ * ① GET /models 多字段探测（OpenRouter/硅基流动/One-API 等常带 context_length）
+ * ② 读不到时用本地热门模型名表估算
  * @param {{ baseUrl: string, apiKey: string, model?: string }} config
  * @returns {Promise<number>} 0=未知
  */
@@ -64,42 +148,49 @@ export async function fetchModelContextLimit(config) {
   const baseUrl = normalizeBaseUrl(config?.baseUrl)
   const apiKey = String(config?.apiKey || '').trim()
   const model = String(config?.model || '').trim()
-  if (!baseUrl || !apiKey) return 0
 
-  const url = `${baseUrl}/models`
-  const headers = { Authorization: `Bearer ${apiKey}` }
-  try {
-    /** @type {any} */
-    let data
-    if (Capacitor.isNativePlatform()) {
-      const response = await CapacitorHttp.request({
-        url,
-        method: 'GET',
-        headers,
-        connectTimeout: 15000,
-        readTimeout: 15000
-      })
-      if (Number(response?.status || 0) >= 400) return 0
-      data = typeof response?.data === 'string' ? tryParseJson(response.data) : response?.data
-    } else {
-      const response = await fetch(url, { method: 'GET', headers })
-      if (!response.ok) return 0
-      data = tryParseJson(await response.text())
+  let fromApi = 0
+  if (baseUrl && apiKey) {
+    const url = `${baseUrl}/models`
+    const headers = { Authorization: `Bearer ${apiKey}` }
+    try {
+      /** @type {any} */
+      let data
+      if (Capacitor.isNativePlatform()) {
+        const response = await CapacitorHttp.request({
+          url,
+          method: 'GET',
+          headers,
+          connectTimeout: 15000,
+          readTimeout: 15000
+        })
+        if (Number(response?.status || 0) < 400) {
+          data = typeof response?.data === 'string' ? tryParseJson(response.data) : response?.data
+        }
+      } else {
+        const response = await fetch(url, { method: 'GET', headers })
+        if (response.ok) data = tryParseJson(await response.text())
+      }
+
+      const list = Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.models) ? data.models
+          : Array.isArray(data) ? data
+            : []
+      if (list.length) {
+        const lower = model.toLowerCase()
+        const hit = (model && list.find((m) => {
+          const id = String(m?.id || m?.name || m?.model || '').trim().toLowerCase()
+          return id === lower || id.endsWith(`/${lower}`) || lower.endsWith(`/${id}`)
+        })) || list[0]
+        fromApi = extractContextFromModelObject(hit)
+      }
+    } catch {
+      // 网络/鉴权失败时退回本地表
     }
-
-    const list = Array.isArray(data?.data) ? data.data : Array.isArray(data?.models) ? data.models : []
-    if (!list.length) return 0
-    const hit = model
-      ? list.find((m) => String(m?.id || m?.name || '').trim() === model) || list[0]
-      : list[0]
-    const raw = hit?.context_length ?? hit?.contextWindow ?? hit?.max_context_length
-      ?? hit?.context_len ?? hit?.top_level?.context_length
-      ?? hit?.per_request_limits?.max_tokens
-    const n = Number(raw)
-    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0
-  } catch {
-    return 0
   }
+
+  if (fromApi > 0) return fromApi
+  return guessModelContextFromName(model)
 }
 
 /**

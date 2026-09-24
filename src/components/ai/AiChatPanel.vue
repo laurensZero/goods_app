@@ -498,7 +498,10 @@
         </label>
         <label class="settings-field">
           <span class="settings-field__label">{{ t('aiChat.maxContextTokens') }}</span>
-          <input v-model.trim="settingsDraft.maxContextTokens" type="number" min="0" step="1000" autocomplete="off" :placeholder="t('aiChat.maxContextTokensPlaceholder')" />
+          <div class="settings-field__row">
+            <input v-model.trim="settingsDraft.maxContextTokens" type="number" min="0" step="1000" autocomplete="off" :placeholder="t('aiChat.maxContextTokensPlaceholder')" />
+            <button class="settings-field__detect" type="button" @click="detectContextLimit">{{ t('aiChat.detectContext') }}</button>
+          </div>
         </label>
 
         <label class="settings-field">
@@ -608,7 +611,7 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useAiChatStore } from '@/stores/aiChat'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { useWideViewport } from '@/composables/viewport/useWideViewport'
-import { normalizeBaseUrl } from '@/services/ai/chatClient'
+import { normalizeBaseUrl, fetchModelContextLimit, guessModelContextFromName } from '@/services/ai/chatClient'
 import { transcribeAudio } from '@/services/ai/asrClient'
 import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
@@ -1375,7 +1378,17 @@ function openSettings() {
   showSettings.value = true
 }
 
-function saveSettings() {
+async function saveSettings() {
+  let maxContextTokens = Math.max(0, Number(settingsDraft.maxContextTokens) || 0)
+  // 未手填时自动探测（/models 字段 + 本地模型名表），与 Cherry Studio 等客户端同策略
+  if (!maxContextTokens) {
+    maxContextTokens = guessModelContextFromName(settingsDraft.model)
+      || await fetchModelContextLimit({
+        baseUrl: normalizeBaseUrl(settingsDraft.baseUrl),
+        apiKey: settingsDraft.apiKey,
+        model: settingsDraft.model
+      })
+  }
   aiChat.updateConfig({
     baseUrl: normalizeBaseUrl(settingsDraft.baseUrl),
     model: settingsDraft.model,
@@ -1383,10 +1396,26 @@ function saveSettings() {
     apiKey: settingsDraft.apiKey,
     searchApiKey: settingsDraft.searchApiKey,
     asrModel: settingsDraft.asrModel,
-    maxContextTokens: Math.max(0, Number(settingsDraft.maxContextTokens) || 0)
+    maxContextTokens
   })
+  settingsDraft.maxContextTokens = maxContextTokens ? String(maxContextTokens) : ''
   showSettings.value = false
   showToast(t('aiChat.saved'))
+}
+
+async function detectContextLimit() {
+  const tokens = guessModelContextFromName(settingsDraft.model)
+    || await fetchModelContextLimit({
+      baseUrl: normalizeBaseUrl(settingsDraft.baseUrl),
+      apiKey: settingsDraft.apiKey,
+      model: settingsDraft.model
+    })
+  if (tokens > 0) {
+    settingsDraft.maxContextTokens = String(tokens)
+    showToast(t('aiChat.contextDetected', { tokens: String(tokens) }))
+  } else {
+    showToast(t('aiChat.contextDetectFailed'))
+  }
 }
 
 function stopVoiceSession() {
@@ -2849,6 +2878,58 @@ function removeSession(id) {
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 600;
+}
+
+.settings-field__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-field__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-field__detect {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border, #d0d0d0);
+  border-radius: 8px;
+  background: var(--app-bg-secondary, #f5f5f5);
+  color: var(--app-text, #222);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-field__detect:active {
+  opacity: 0.75;
+}
+
+.settings-field__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-field__row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-field__detect {
+  flex-shrink: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--app-border, #d0d0d0);
+  border-radius: 8px;
+  background: var(--app-bg-secondary, #f5f5f5);
+  color: var(--app-text, #222);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings-field__detect:active {
+  opacity: 0.75;
 }
 
 .settings-field input {
