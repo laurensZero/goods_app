@@ -2724,11 +2724,19 @@ function removeSession(id) {
   box-sizing: border-box;
 }
 
-/* 空输入：占位左对齐，单行在输入框内垂直居中 */
+/* 空输入：占位单行垂直居中（clip 防止过长文案换行撑高） */
 .chat-compose__input:placeholder-shown {
   padding-top: 0;
   padding-bottom: 0;
   line-height: 36px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-compose__input::placeholder {
+  color: var(--app-text-tertiary);
+  opacity: 1;
 }
 
 /* 有内容：恢复正常上下内边距，多行滚动 */

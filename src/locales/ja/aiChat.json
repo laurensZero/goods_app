@@ -2,7 +2,7 @@
   "aiChat.description": "OpenAI 互換 API で自分の AI につなぎ、コレクションの照会・集計・整理・修正まで任せられます。",
   "aiChat.entryMeta": "コレクションデータに直結した内蔵 AI チャット",
   "aiChat.inputPlaceholder": "コレクションについて聞く…",
-  "aiChat.inputPlaceholderQueued": "返答中 — 入力し続けるとキューに入ります",
+  "aiChat.inputPlaceholderQueued": "返答中 — キュー入力…",
   "aiChat.send": "送信",
   "aiChat.sendQueued": "キューに入れて送信",
   "aiChat.stopGeneration": "生成を停止",
