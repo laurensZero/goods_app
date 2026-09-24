@@ -13,6 +13,7 @@ import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
 import { verifyBundleZipAuth } from '@/utils/bundleAuth'
 import { sha256Hex } from '@/utils/platform/fileHash'
+import { startLocalFileServer, stopLocalFileServer } from '@/utils/platform/localFileServer'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 
 const log = createLogger('web-update')
@@ -477,14 +478,9 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         throw new Error('无法读取本地资源包路径。')
       }
 
-      // CapGo 原生 download 走 HTTP 栈，file:// 会报 Failed to download。
-      // 依次尝试 WebView 本地服务 URL / file URI / 绝对路径。
+      // CapGo download 只吃 http/https（HttpURLConnection）。云端是 HTTPS 直链，
+      // 本地用回环 HTTP 喂同一条安装链路；file:// / 绝对路径会 Failed to download。
       const pathWithoutScheme = String(uri).replace(/^file:\/\//, '')
-      const downloadUrls = [
-        Capacitor.convertFileSrc(uri),
-        uri,
-        pathWithoutScheme
-      ].filter((url, index, urls) => url && urls.indexOf(url) === index)
 
       listener = await CapacitorUpdater.addListener('download', (state) => {
         const percent = Number(state?.percent)
@@ -492,20 +488,20 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         downloadProgress.value = Number(Math.max(0, Math.min(100, percent)).toFixed(1))
       })
 
+      const localHttpUrl = await startLocalFileServer(pathWithoutScheme)
       let bundle = null
       let lastDownloadError = null
-      for (const downloadUrl of downloadUrls) {
-        try {
-          bundle = await CapacitorUpdater.download({
-            version,
-            url: downloadUrl,
-            checksum
-          })
-          break
-        } catch (error) {
-          lastDownloadError = error
-          log.warn('install-local:source-failed', { url: downloadUrl }, error)
-        }
+      try {
+        bundle = await CapacitorUpdater.download({
+          version,
+          url: localHttpUrl,
+          checksum
+        })
+      } catch (error) {
+        lastDownloadError = error
+        log.warn('install-local:source-failed', { url: localHttpUrl }, error)
+      } finally {
+        await stopLocalFileServer()
       }
       if (!bundle && lastDownloadError) throw lastDownloadError
 
