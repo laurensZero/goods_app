@@ -207,22 +207,6 @@
                   <span v-if="nameError" class="field-error">{{ nameError }}</span>
                 </label>
 
-                <label class="field">
-                  <span class="field-label">{{ t('goods.editor.variant') }}</span>
-                  <input
-                    v-model="form.variant"
-                    type="text"
-                    :placeholder="t('goods.editor.variantPlaceholder')"
-                  />
-                </label>
-
-                <TagSuggestionPanel
-                  :suggestions="tagSuggestions"
-                  @apply="applySuggestion"
-                  @ignore="ignoreSuggestion"
-                  @apply-all="applyAllSuggestions"
-                />
-
                 <div class="field">
                   <span class="field-label">{{ t('common.category') }}</span>
                   <AppSelect v-model="form.category" :options="presets.categories" :placeholder="t('goods.editor.categoryPlaceholder')" />
@@ -407,6 +391,24 @@
                     @submit="submitQuickCharacter"
                   />
                 </div>
+              </div>
+            </section>
+
+              <section v-show="activeTab === 'extra'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'extra' }">
+              <div class="section-head">
+                <p class="section-label">{{ t('goods.editor.extraInfo') }}</p>
+                <h2 class="section-title">{{ t('goods.editor.tabExtra') }}</h2>
+              </div>
+
+              <div class="field-card">
+                <label class="field">
+                  <span class="field-label">{{ t('goods.editor.variant') }}</span>
+                  <input
+                    v-model="form.variant"
+                    type="text"
+                    :placeholder="t('goods.editor.variantPlaceholder')"
+                  />
+                </label>
 
                 <label class="field">
                   <span class="field-label">{{ t('goods.editor.size') }}</span>
@@ -417,20 +419,18 @@
                   />
                 </label>
 
+                <TagSuggestionPanel
+                  :suggestions="tagSuggestions"
+                  @apply="applySuggestion"
+                  @ignore="ignoreSuggestion"
+                  @apply-all="applyAllSuggestions"
+                />
+
                 <div class="field">
                   <span class="field-label">{{ t('goods.editor.customTags') }}</span>
                   <TagInput v-model="form.tags" :placeholder="t('goods.editor.tagPlaceholder')" />
                 </div>
-              </div>
-            </section>
 
-              <section v-show="activeTab === 'location'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'location' }">
-              <div class="section-head">
-                <p class="section-label">{{ t('goods.editor.locationInfo') }}</p>
-                <h2 class="section-title">{{ t('goods.editor.locationTitle') }}</h2>
-              </div>
-
-              <div class="field-card">
                 <div class="field">
                   <span class="field-label">{{ t('goods.editor.storageLocation') }}</span>
                   <StorageLocationInput
@@ -1301,8 +1301,8 @@ const tabItems = computed(() => {
       badge: Boolean(nameError.value || !String(form.name || '').trim())
     },
     {
-      key: 'location',
-      label: t('goods.editor.tabLocation')
+      key: 'extra',
+      label: t('goods.editor.tabExtra')
     },
     {
       key: 'images',
