@@ -2,7 +2,7 @@
   "aiChat.description": "透過 OpenAI 相容介面連接你自己的 AI，查詢、統計、整理甚至修改收藏資料。",
   "aiChat.entryMeta": "內建 AI 聊天視窗，直連你的收藏資料",
   "aiChat.inputPlaceholder": "問問你的收藏…",
-  "aiChat.inputPlaceholderQueued": "回覆中，可繼續輸入排隊…",
+  "aiChat.inputPlaceholderQueued": "回覆中，可排隊…",
   "aiChat.send": "傳送",
   "aiChat.sendQueued": "排隊發送",
   "aiChat.stopGeneration": "停止生成",

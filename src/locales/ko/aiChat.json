@@ -2,7 +2,7 @@
   "aiChat.description": "OpenAI 호환 API로 자신만의 AI를 연결해 컬렉션 조회, 통계, 정리, 수정까지 맡겨보세요.",
   "aiChat.entryMeta": "컬렉션 데이터에 직결된 내장 AI 채팅",
   "aiChat.inputPlaceholder": "컬렉션에 대해 물어보세요…",
-  "aiChat.inputPlaceholderQueued": "답변 중 — 계속 입력하면 대기열에 쌓입니다",
+  "aiChat.inputPlaceholderQueued": "답변 중 — 입력 시 대기…",
   "aiChat.send": "보내기",
   "aiChat.sendQueued": "대기열에 추가",
   "aiChat.stopGeneration": "생성 중지",

@@ -59,6 +59,11 @@ describe('chatClient', () => {
     expect(normalizeUsage({})).toBeNull()
   })
 
+  it('normalizeUsage 对已归一化结果幂等（流式收包会叠一层，不能丢）', () => {
+    const once = normalizeUsage({ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 })
+    expect(normalizeUsage(once)).toEqual(once)
+  })
+
   it('回传接口 usage：多轮工具时 prompt 取末轮、completion 累计', async () => {
     CapacitorHttp.request
       .mockResolvedValueOnce(completion(null, [

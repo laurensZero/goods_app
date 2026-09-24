@@ -2,7 +2,7 @@
   "aiChat.description": "Connect your own AI via an OpenAI-compatible API to query, summarize, organize and even modify your collection.",
   "aiChat.entryMeta": "Built-in AI chat wired to your collection data",
   "aiChat.inputPlaceholder": "Ask about your collection…",
-  "aiChat.inputPlaceholderQueued": "Replying — keep typing to queue…",
+  "aiChat.inputPlaceholderQueued": "Replying — queue…",
   "aiChat.send": "Send",
   "aiChat.sendQueued": "Queue send",
   "aiChat.stopGeneration": "Stop generating",

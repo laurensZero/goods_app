@@ -221,15 +221,16 @@ function tryParseJson(text) {
 
 /**
  * 归一化接口回传的 token 用量（OpenAI usage / 部分网关的 input_tokens·output_tokens）。
- * 一律取接口原文，不做字符估算。
+ * 一律取接口原文，不做字符估算。兼容已归一化的 camelCase（幂等，流式/非流式可叠一层）。
  * @param {unknown} raw
  * @returns {{ promptTokens: number, completionTokens: number, totalTokens: number } | null}
  */
 export function normalizeUsage(raw) {
   if (!raw || typeof raw !== 'object') return null
-  const promptTokens = Math.max(0, Number(/** @type {any} */ (raw).prompt_tokens ?? /** @type {any} */ (raw).input_tokens) || 0)
-  const completionTokens = Math.max(0, Number(/** @type {any} */ (raw).completion_tokens ?? /** @type {any} */ (raw).output_tokens) || 0)
-  const totalTokens = Math.max(0, Number(/** @type {any} */ (raw).total_tokens) || (promptTokens + completionTokens))
+  const anyRaw = /** @type {any} */ (raw)
+  const promptTokens = Math.max(0, Number(anyRaw.promptTokens ?? anyRaw.prompt_tokens ?? anyRaw.input_tokens) || 0)
+  const completionTokens = Math.max(0, Number(anyRaw.completionTokens ?? anyRaw.completion_tokens ?? anyRaw.output_tokens) || 0)
+  const totalTokens = Math.max(0, Number(anyRaw.totalTokens ?? anyRaw.total_tokens) || (promptTokens + completionTokens))
   if (!promptTokens && !completionTokens && !totalTokens) return null
   return { promptTokens, completionTokens, totalTokens }
 }

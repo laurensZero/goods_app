@@ -2,7 +2,7 @@
   "aiChat.description": "通过 OpenAI 兼容接口连接你自己的 AI，查询、统计、整理甚至修改收藏数据。",
   "aiChat.entryMeta": "内置 AI 聊天窗口，直连你的收藏数据",
   "aiChat.inputPlaceholder": "问问你的收藏…",
-  "aiChat.inputPlaceholderQueued": "回复中，可继续输入排队…",
+  "aiChat.inputPlaceholderQueued": "回复中，可排队…",
   "aiChat.send": "发送",
   "aiChat.sendQueued": "排队发送",
   "aiChat.stopGeneration": "停止生成",
