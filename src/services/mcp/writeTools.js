@@ -22,6 +22,8 @@ const WRITABLE_FIELDS = new Set([
   'name', 'category', 'ip', 'characters', 'tags', 'variant', 'storageLocation',
   'price', 'actualPrice', 'currency', 'actualPriceCurrency', 'quantity',
   'acquiredAt', 'isWishlist', 'note',
+  // 米游铺上新/导入：外部商品 ID 与封面
+  'goodsId', 'image', 'images',
   // 收藏状态与出售信息
   'collectStatus', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'saleAt',
   // 逐件字段（整体替换，需传完整数组）
@@ -122,6 +124,9 @@ function sanitizeWritable(args, options = {}) {
   }
   if (data.tags !== undefined && !Array.isArray(data.tags)) {
     throw new Error('tags 需为字符串数组')
+  }
+  if (data.images !== undefined && !Array.isArray(data.images)) {
+    throw new Error('images 需为字符串数组')
   }
   for (const unitKey of ['unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'unitSaleInfoList']) {
     if (data[unitKey] !== undefined && !Array.isArray(data[unitKey])) {

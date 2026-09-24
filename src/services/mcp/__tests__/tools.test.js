@@ -2,12 +2,17 @@ import { describe, it, expect, vi } from 'vitest'
 import { createMcpToolHandlers, createMcpServer } from '../tools'
 import { MCP_TOOL_DEFINITIONS } from '../toolDefinitions'
 
-const { fetchTrackLyricsMock, searchNeteaseMock, searchQQMock, searchBiliMock, fetchNeteaseCoverMapMock } = vi.hoisted(() => ({
+const {
+  fetchTrackLyricsMock, searchNeteaseMock, searchQQMock, searchBiliMock, fetchNeteaseCoverMapMock,
+  fetchMihoyoNewArrivalsMock, fetchMihoyoGiftArrivalsMock
+} = vi.hoisted(() => ({
   fetchTrackLyricsMock: vi.fn(),
   searchNeteaseMock: vi.fn(),
   searchQQMock: vi.fn(),
   searchBiliMock: vi.fn(),
-  fetchNeteaseCoverMapMock: vi.fn()
+  fetchNeteaseCoverMapMock: vi.fn(),
+  fetchMihoyoNewArrivalsMock: vi.fn(),
+  fetchMihoyoGiftArrivalsMock: vi.fn()
 }))
 vi.mock('@/utils/music/trackLyrics', () => ({ fetchTrackLyrics: fetchTrackLyricsMock }))
 vi.mock('@/utils/music/neteaseMusic', () => ({
@@ -16,6 +21,11 @@ vi.mock('@/utils/music/neteaseMusic', () => ({
 }))
 vi.mock('@/utils/music/qqMusic', () => ({ searchQQSongs: searchQQMock }))
 vi.mock('@/utils/music/bilibiliMusic', () => ({ searchBilibiliVideos: searchBiliMock }))
+vi.mock('@/utils/mihoyo/newArrivals', () => ({
+  fetchMihoyoNewArrivals: fetchMihoyoNewArrivalsMock,
+  fetchMihoyoGiftArrivals: fetchMihoyoGiftArrivalsMock,
+  MIHOYO_NEW_ARRIVAL_SHOPS: ['ys', 'xqtd', 'bh3', 'zzz']
+}))
 
 /** 内存假 db：固定数据集，覆盖单位价、多币种、愿望单、回收站等分支 */
 function createFakeDb() {
@@ -420,6 +430,89 @@ describe('mcp tool handlers', () => {
     const result = await handlers.budget_overview()
     expect(result.budget).toMatchObject({ monthly: 0, yearly: 0 })
     expect(result.current.monthProgress.hasBudget).toBe(false)
+  })
+
+  it('mihoyo_new_arrivals 查询商品上新并映射价格/开售时间/店铺名', async () => {
+    fetchMihoyoNewArrivalsMock.mockResolvedValue({
+      items: [
+        {
+          goods_id: '1001',
+          name: '【原神】芙宁娜立牌',
+          cover_url: 'https://img.example/a.jpg',
+          price_cents: 12900,
+          point: 0,
+          sale_time: 1767225600,
+          shop_code: 'ys',
+          catalog: 'shop',
+          is_new: true
+        },
+        {
+          goods_id: '1002',
+          name: '星琼挂件',
+          cover_url: '',
+          price_cents: 0,
+          point: 0,
+          sale_time: 0,
+          shop_code: 'xqtd',
+          catalog: 'shop'
+        }
+      ],
+      errors: [{ shopCode: 'bh3', message: 'timeout' }]
+    })
+
+    const handlers = createMcpToolHandlers(createFakeDb())
+    const result = await handlers.mihoyo_new_arrivals({ catalog: 'shop', query: '芙宁娜' })
+
+    expect(fetchMihoyoNewArrivalsMock).toHaveBeenCalledWith('shop', ['ys', 'xqtd', 'bh3', 'zzz'])
+    expect(result.total).toBe(1)
+    expect(result.items[0]).toMatchObject({
+      goodsId: '1001',
+      name: '【原神】芙宁娜立牌',
+      shopCode: 'ys',
+      shopName: '原神',
+      catalog: 'shop',
+      priceYuan: 129,
+      points: null,
+      isNew: true,
+      coverUrl: 'https://img.example/a.jpg'
+    })
+    expect(result.items[0].saleAt).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(result.partialErrors).toHaveLength(1)
+  })
+
+  it('mihoyo_new_arrivals 支持 shopCode 过滤、gift 目录与参数校验', async () => {
+    fetchMihoyoGiftArrivalsMock.mockResolvedValue({
+      items: [
+        {
+          goods_id: 'g1',
+          name: '镭射卡A',
+          cover_url: 'https://img.example/g.jpg',
+          price_cents: 0,
+          point: 0,
+          sale_time: 0,
+          shop_code: 'zzz',
+          catalog: 'gift',
+          is_gift: true,
+          gift_activity_id: 'act1',
+          gift_activity_name: '满赠活动'
+        }
+      ],
+      errors: []
+    })
+
+    const handlers = createMcpToolHandlers(createFakeDb())
+    const result = await handlers.mihoyo_new_arrivals({ catalog: 'gift', shopCode: 'zzz' })
+    expect(fetchMihoyoGiftArrivalsMock).toHaveBeenCalledWith(['zzz'])
+    expect(result.items[0]).toMatchObject({
+      goodsId: 'g1',
+      isGift: true,
+      giftActivityName: '满赠活动',
+      shopName: '绝区零',
+      onSale: true
+    })
+
+    await expect(handlers.mihoyo_new_arrivals({ catalog: 'nope' })).rejects.toThrow('catalog')
+    await expect(handlers.mihoyo_new_arrivals({ shopCode: 'zz' })).rejects.toThrow('shopCode')
   })
 
   it('spending_summary 按月汇总谷子消费与充值（官方逐件口径），支持年份过滤', async () => {
