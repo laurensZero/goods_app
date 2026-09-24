@@ -329,6 +329,8 @@ export default defineConfig({
   build: {
     // 允许顶层 await / 现代语法（含残留依赖产物）
     target: 'es2022',
+    // 跳过 gzip 体积统计，CI/本地 build 都更快（不影响产物）
+    reportCompressedSize: false,
     // 按需生成 sourcemap（BUILD_SOURCEMAP=1 npm run build）：
     // 用于符号化反馈日志里的压缩堆栈；默认关闭，避免 .map 被打进 OTA zip/APK
     sourcemap: process.env.BUILD_SOURCEMAP === '1' ? 'hidden' : false,

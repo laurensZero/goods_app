@@ -84,13 +84,16 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 
-gradle.taskGraph.whenReady { taskGraph ->
-    def needsReleaseBuild = taskGraph.allTasks.any { task ->
-        def taskName = task.name.toLowerCase()
-        taskName.contains('release')
-    }
-    if (needsReleaseBuild && !hasReleaseSigning) {
-        throw new GradleException('Release signing is not configured. Set ANDROID_KEYSTORE_FILE, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD, or create android/keystore.properties.')
+// 签名校验放在执行期：taskGraph.whenReady 与 configuration-cache 不兼容
+tasks.configureEach { task ->
+    def taskName = task.name.toLowerCase()
+    def isReleaseArtifact = taskName.contains('release') &&
+        (taskName.contains('assemble') || taskName.contains('bundle') || taskName.contains('package'))
+    if (!isReleaseArtifact) return
+    task.doFirst {
+        if (!hasReleaseSigning) {
+            throw new GradleException('Release signing is not configured. Set ANDROID_KEYSTORE_FILE, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD, or create android/keystore.properties.')
+        }
     }
 }
 
