@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { runChatCompletion, generateChatTitle, toOpenAiTools, normalizeBaseUrl, AiRequestError } from '../chatClient'
+import { runChatCompletion, generateChatTitle, toOpenAiTools, normalizeBaseUrl, normalizeUsage, AiRequestError } from '../chatClient'
 
 const platform = vi.hoisted(() => ({ native: true }))
 
@@ -23,10 +23,12 @@ function nativeResponse(status, data) {
   return { status, data }
 }
 
-function completion(content, toolCalls) {
+function completion(content, toolCalls, usage) {
   const message = { role: 'assistant', content }
   if (toolCalls) message.tool_calls = toolCalls
-  return { status: 200, data: { choices: [{ message }] } }
+  const data = { choices: [{ message }] }
+  if (usage) data.usage = usage
+  return { status: 200, data }
 }
 
 beforeEach(() => {
@@ -44,6 +46,42 @@ describe('chatClient', () => {
     expect(tools).toEqual([
       { type: 'function', function: { name: 'goods_search', description: 'search', parameters: { type: 'object', properties: {} } } }
     ])
+  })
+
+  it('normalizeUsage 识别 OpenAI/兼容字段，无用量返回 null', () => {
+    expect(normalizeUsage({ prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 })).toEqual({
+      promptTokens: 10, completionTokens: 5, totalTokens: 15
+    })
+    expect(normalizeUsage({ input_tokens: 3, output_tokens: 2 })).toEqual({
+      promptTokens: 3, completionTokens: 2, totalTokens: 5
+    })
+    expect(normalizeUsage(null)).toBeNull()
+    expect(normalizeUsage({})).toBeNull()
+  })
+
+  it('回传接口 usage：多轮工具时 prompt 取末轮、completion 累计', async () => {
+    CapacitorHttp.request
+      .mockResolvedValueOnce(completion(null, [
+        { id: 'call-1', function: { name: 'goods_search', arguments: '{}' } }
+      ], { prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 }))
+      .mockResolvedValueOnce(completion('最终回答', null, { prompt_tokens: 200, completion_tokens: 30, total_tokens: 230 }))
+
+    const result = await runChatCompletion({
+      config: CONFIG,
+      messages: [{ role: 'user', content: 'hi' }],
+      tools: TOOLS,
+      executor: EXECUTOR
+    })
+
+    expect(result.usage).toEqual({ promptTokens: 200, completionTokens: 40, totalTokens: 340, rounds: 2 })
+  })
+
+  it('接口不回传 usage 时结果 usage 为 null（不字符预估）', async () => {
+    CapacitorHttp.request.mockResolvedValueOnce(completion('你好'))
+    const result = await runChatCompletion({
+      config: CONFIG, messages: [{ role: 'user', content: 'hi' }], tools: TOOLS, executor: EXECUTOR
+    })
+    expect(result.usage).toBeNull()
   })
 
   it('缺少配置时直接抛错', async () => {

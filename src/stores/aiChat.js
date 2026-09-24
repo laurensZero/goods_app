@@ -29,7 +29,7 @@ import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
 import { AI_CHAT_CONFIG_STORAGE_KEY } from '@/utils/ai/assistantPrefs'
-import { prepareConvoForRequest, compactConvo, estimateTokensFromChars, CONVO_MAX_CHARS } from '@/services/ai/contextCompact'
+import { prepareConvoForRequest, compactConvo, CONVO_MAX_CHARS } from '@/services/ai/contextCompact'
 import {
   createUndoTrackingExecutor,
   applyUndoEntries,
@@ -254,6 +254,8 @@ function createSessionRecord() {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     messages: [],
+    /** 最近一次接口回传的 token 用量（不做字符预估） */
+    lastUsage: null,
     convo: []
   }
 }
@@ -302,6 +304,15 @@ function sanitizeSession(session) {
       undoJournal: sanitizeUndoJournal(m.undoJournal) || undefined
     }))
   const convo = Array.isArray(session?.convo) ? session.convo.filter((m) => m && typeof m.role === 'string') : []
+  const rawUsage = session?.lastUsage
+  const lastUsage = rawUsage && typeof rawUsage === 'object'
+    ? {
+        promptTokens: Math.max(0, Number(rawUsage.promptTokens) || 0),
+        completionTokens: Math.max(0, Number(rawUsage.completionTokens) || 0),
+        totalTokens: Math.max(0, Number(rawUsage.totalTokens) || 0),
+        rounds: Math.max(1, Number(rawUsage.rounds) || 1)
+      }
+    : null
   sessionSeq += 1
   return {
     id: String(session?.id || `sess-${Date.now()}-${sessionSeq}`),
@@ -310,7 +321,8 @@ function sanitizeSession(session) {
     createdAt: Number(session?.createdAt) || Date.now(),
     updatedAt: Number(session?.updatedAt) || Date.now(),
     messages,
-    convo
+    convo,
+    lastUsage
   }
 }
 
@@ -452,59 +464,38 @@ export const useAiChatStore = defineStore('aiChat', () => {
     return Boolean(String(config.value?.searchApiKey || '').trim())
   }
 
-  /** 固定开销（工具 schema + 系统提示词）缓存，避免每次 UI 重算 2 万字 JSON */
-  let cachedFixedChars = 0
-  function getFixedContextChars() {
-    if (cachedFixedChars > 0) return cachedFixedChars
-    const toolsJson = JSON.stringify([
-      ...MCP_TOOL_DEFINITIONS,
-      ...MCP_WRITE_TOOL_DEFINITIONS,
-      ...VISION_TOOL_DEFINITIONS,
-      ...ATTACHMENT_TOOL_DEFINITIONS,
-      ...TABLE_TOOL_DEFINITIONS,
-      ...WEB_SEARCH_TOOL_DEFINITIONS
-    ])
-    const system = buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() })
-    cachedFixedChars = toolsJson.length + system.length
-    return cachedFixedChars
+  /** 最近一次接口回传的 usage（真实计费口径）；null = 本轮尚未回传 */
+  const lastUsage = ref(null)
+
+  /** @param {{ promptTokens?: number, completionTokens?: number, totalTokens?: number, rounds?: number } | null | undefined} usage */
+  function applyUsage(usage) {
+    if (!usage || !(usage.promptTokens || usage.completionTokens || usage.totalTokens)) return
+    lastUsage.value = {
+      promptTokens: Math.max(0, Number(usage.promptTokens) || 0),
+      completionTokens: Math.max(0, Number(usage.completionTokens) || 0),
+      totalTokens: Math.max(0, Number(usage.totalTokens) || 0),
+      rounds: Math.max(1, Number(usage.rounds) || 1)
+    }
+    const session = activeSession()
+    if (session) session.lastUsage = { ...lastUsage.value }
   }
 
   /**
-   * 当前上下文占用（字符/token 粗算，约 2 字符≈1 token）。
-   * budgetChars：自动压缩阈值。若用户配置了 maxContextTokens，
-   * 按「上限 × 65%」折算成字符预算（给输出/工具轮留余量）；否则用 CONVO_MAX_CHARS。
+   * 当前上下文占用：一律取接口回传的 usage，不做字符预估。
+   * promptTokens = 最近一次请求的输入（系统提示词+工具+历史，即真实上下文）；
+   * completionTokens = 本轮回复合计。
+   * budgetTokens = 配置的 maxContextTokens（圆环分母）；未配置则为 0。
    */
   function getContextUsage() {
-    let historyChars = 0
-    for (const msg of messages.value || []) {
-      historyChars += String(msg?.content || '').length
-      historyChars += String(msg?.reasoning || '').length
-      for (const step of msg?.steps || []) {
-        historyChars += String(step?.name || '').length
-        try {
-          historyChars += JSON.stringify(step?.args || {}).length
-        } catch {
-          historyChars += 24
-        }
-      }
-    }
-    const fixedChars = getFixedContextChars()
-    const chars = fixedChars + historyChars
+    const u = lastUsage.value
     const maxContextTokens = Number(config.value?.maxContextTokens) || 0
-    const budgetChars = maxContextTokens > 0
-      ? Math.max(8000, Math.floor(maxContextTokens * 0.65 * 2))
-      : CONVO_MAX_CHARS
     return {
-      chars,
-      tokens: estimateTokensFromChars(chars),
-      historyChars,
-      historyTokens: estimateTokensFromChars(historyChars),
-      fixedTokens: estimateTokensFromChars(fixedChars),
+      source: u ? 'api' : 'none',
+      promptTokens: u?.promptTokens || 0,
+      completionTokens: u?.completionTokens || 0,
+      totalTokens: u?.totalTokens || 0,
       maxContextTokens,
-      budgetChars,
-      budgetTokens: maxContextTokens > 0
-        ? Math.floor(maxContextTokens * 0.65)
-        : estimateTokensFromChars(CONVO_MAX_CHARS),
+      budgetTokens: maxContextTokens,
       compactKeepToolRounds: 1
     }
   }
@@ -517,6 +508,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
   function activateSession(session) {
     activeSessionId.value = session.id
     messages.value = session.messages
+    lastUsage.value = session.lastUsage ? { ...session.lastUsage } : null
     rawConvo = [
       { role: 'system', content: buildSystemPrompt({ hasWebSearch: hasWebSearchEnabled() }) },
       ...session.convo.filter((m) => m.role !== 'system')
@@ -680,7 +672,9 @@ export const useAiChatStore = defineStore('aiChat', () => {
     if (session) {
       session.convo = []
       session.updatedAt = Date.now()
+      session.lastUsage = null
     }
+    lastUsage.value = null
     rawConvo = buildFreshConvo()
     lastError.value = ''
     persistSessionsNow()
@@ -1157,12 +1151,13 @@ export const useAiChatStore = defineStore('aiChat', () => {
           turnUndoEntries
         )
       })
-      devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length, reasoningLen: result.reasoning?.length || 0 })
+      devLog('reply:resolved', { contentLen: result.content.length, steps: result.steps.length, reasoningLen: result.reasoning?.length || 0, usage: result.usage || null })
       // 已被 ↵ 抢占：丢弃本轮结果，避免污染新会话轮次
       if (token !== turnToken) return
       assistant.content = result.content
       assistant.reasoning = result.reasoning || ''
       assistant.pending = false
+      applyUsage(result.usage)
       if (turnUndoEntries.length > 0) {
         assistant.undoJournal = { entries: turnUndoEntries, undone: false }
       }

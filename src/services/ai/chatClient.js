@@ -220,6 +220,21 @@ function tryParseJson(text) {
 }
 
 /**
+ * 归一化接口回传的 token 用量（OpenAI usage / 部分网关的 input_tokens·output_tokens）。
+ * 一律取接口原文，不做字符估算。
+ * @param {unknown} raw
+ * @returns {{ promptTokens: number, completionTokens: number, totalTokens: number } | null}
+ */
+export function normalizeUsage(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const promptTokens = Math.max(0, Number(/** @type {any} */ (raw).prompt_tokens ?? /** @type {any} */ (raw).input_tokens) || 0)
+  const completionTokens = Math.max(0, Number(/** @type {any} */ (raw).completion_tokens ?? /** @type {any} */ (raw).output_tokens) || 0)
+  const totalTokens = Math.max(0, Number(/** @type {any} */ (raw).total_tokens) || (promptTokens + completionTokens))
+  if (!promptTokens && !completionTokens && !totalTokens) return null
+  return { promptTokens, completionTokens, totalTokens }
+}
+
+/**
  * POST JSON 并解析响应。原生走 CapacitorHttp.request（不受 WebView CORS 限制，
  * 返回 {status,data}）；Web 走 fetch（CapacitorHttp 在 Web 上无 fetch 方法）。
  * @param {string} url
@@ -349,7 +364,7 @@ function toProxyRequest(url, headers) {
  * @param {unknown} body
  * @param {(delta: { reasoning?: string, content?: string, reset?: boolean }) => void} [onDelta]
  * @param {AbortSignal} [externalSignal] 外部打断信号（用户点停止）
- * @returns {Promise<{ content: string, reasoning: string, toolCalls: Array<Record<string, any>> }>}
+ * @returns {Promise<{ content: string, reasoning: string, toolCalls: Array<Record<string, any>>, usage: { promptTokens: number, completionTokens: number, totalTokens: number } | null }>}
  */
 async function streamChatRound(url, headers, body, onDelta, externalSignal) {
   if (typeof fetch !== 'function' || typeof window === 'undefined') {
@@ -368,7 +383,8 @@ async function streamChatRound(url, headers, body, onDelta, externalSignal) {
     const response = await fetch(requestUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...requestHeaders },
-      body: JSON.stringify(body),
+      // include_usage：流式末尾补一段 usage（choices 可为空），与 Cherry Studio 等客户端同策略
+      body: JSON.stringify({ ...body, stream_options: { include_usage: true } }),
       signal: controller.signal
     })
     if (!response.ok) {
@@ -387,6 +403,8 @@ async function streamChatRound(url, headers, body, onDelta, externalSignal) {
     /** @type {Array<Record<string, any>>} */
     const toolCalls = []
     let sawData = false
+    /** @type {{ promptTokens: number, completionTokens: number, totalTokens: number } | null} */
+    let usage = null
 
     /** @param {string} rawLine */
     const handleLine = (rawLine) => {
@@ -402,6 +420,9 @@ async function streamChatRound(url, headers, body, onDelta, externalSignal) {
       } catch {
         return
       }
+      // usage 可能挂在无 choices 的收尾 chunk，必须先于 delta 判断
+      const chunkUsage = normalizeUsage(json?.usage)
+      if (chunkUsage) usage = chunkUsage
       const delta = json?.choices?.[0]?.delta
       if (!delta) return
       const reasoningDelta = String(delta.reasoning_content ?? delta.reasoning ?? '')
@@ -436,11 +457,11 @@ async function streamChatRound(url, headers, body, onDelta, externalSignal) {
     }
     if (buffer.trim()) handleLine(buffer)
 
-    if (!sawData && !content && !reasoning && toolCalls.length === 0) {
+    if (!sawData && !content && !reasoning && toolCalls.length === 0 && !usage) {
       throw new Error('流式响应为空')
     }
 
-    return { content, reasoning, toolCalls: toolCalls.filter(Boolean) }
+    return { content, reasoning, toolCalls: toolCalls.filter(Boolean), usage }
   } catch (e) {
     if (e instanceof Error && e.name === 'AbortError' && externalSignal?.aborted) {
       throw new DOMException('已停止生成', 'AbortError')
@@ -484,7 +505,7 @@ export function toOpenAiTools(definitions) {
 /**
  * 执行一次「可能含多轮工具调用」的完整对话请求。
  * @param {RunChatOptions} options
- * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>>, reasoning: string }>}
+ * @returns {Promise<{ content: string, steps: Array<{ name: string, args: Record<string, any>, ok: boolean, error?: string }>, convo: Array<Record<string, unknown>>, reasoning: string, usage: { promptTokens: number, completionTokens: number, totalTokens: number, rounds: number } | null }>}
  */
 export async function runChatCompletion(options) {
   const { config, messages, tools, executor, onStep, onDelta, maxToolRounds = MAX_TOOL_ROUNDS, signal } = options
@@ -503,6 +524,19 @@ export async function runChatCompletion(options) {
   const steps = []
   /** @type {string[]} 各轮思维链（reasoning_content / reasoning），非流式下随最终消息一起返回 */
   const reasoningParts = []
+  // 多轮工具累计用量：prompt 取最后一轮（当时真实上下文），completion/total 求和
+  /** @type {{ promptTokens: number, completionTokens: number, totalTokens: number, rounds: number } | null} */
+  let usageTotal = null
+  /** @param {{ promptTokens: number, completionTokens: number, totalTokens: number } | null | undefined} raw */
+  const accumulateUsage = (raw) => {
+    const u = normalizeUsage(raw)
+    if (!u) return
+    if (!usageTotal) usageTotal = { promptTokens: 0, completionTokens: 0, totalTokens: 0, rounds: 0 }
+    usageTotal.promptTokens = u.promptTokens
+    usageTotal.completionTokens += u.completionTokens
+    usageTotal.totalTokens += u.totalTokens
+    usageTotal.rounds += 1
+  }
 
   for (let round = 0; round <= maxToolRounds; round++) {
     if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
@@ -520,6 +554,7 @@ export async function runChatCompletion(options) {
         choice = { role: 'assistant', content: streamed.content }
         if (streamed.toolCalls.length > 0) choice.tool_calls = streamed.toolCalls
         if (streamed.reasoning) reasoningParts.push(streamed.reasoning)
+        accumulateUsage(streamed.usage)
       } catch (error) {
         // 用户主动打断：原样抛出，不回退非流式
         if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
@@ -537,6 +572,7 @@ export async function runChatCompletion(options) {
       }
       const roundReasoning = String(choice.reasoning_content ?? choice.reasoning ?? '').trim()
       if (roundReasoning) reasoningParts.push(roundReasoning)
+      accumulateUsage(data?.usage)
     }
     convo.push(choice)
 
@@ -548,12 +584,12 @@ export async function runChatCompletion(options) {
       // 部分模型/网关会把完整回答写进思维链而 content 为空——直接返回会让用户
       // 看到一条没有正文的空消息（观感即「卡住了」）。此时把思维链顶上当正文。
       if (!content.trim() && reasoning.trim()) {
-        return { content: reasoning, steps, convo, reasoning: '' }
+        return { content: reasoning, steps, convo, reasoning: '', usage: usageTotal }
       }
       if (!content.trim()) {
         throw new Error('AI 返回了空回复，请重试')
       }
-      return { content, steps, convo, reasoning }
+      return { content, steps, convo, reasoning, usage: usageTotal }
     }
 
     for (const call of toolCalls) {
