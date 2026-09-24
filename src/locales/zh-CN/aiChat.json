@@ -86,5 +86,7 @@
   "aiChat.maxContextTokensPlaceholder": "如 128000，0=自动检测",
   "aiChat.detectContext": "自动检测",
   "aiChat.contextDetected": "已识别上限约 {tokens}",
-  "aiChat.contextDetectFailed": "未能识别，请手动填写"
+  "aiChat.contextDetectFailed": "未能识别，请手动填写",
+  "aiChat.pullDownEnabled": "下拉弹出助手",
+  "aiChat.pullDownEnabledHint": "开启后，在任意页面顶部下拉并停顿一下即可唤起 AI 助手。关闭后只能从完整页面进入。"
 }

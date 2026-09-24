@@ -2,10 +2,30 @@
 /**
  * 上下文压缩：工具结果截断 + 历史 tool 结果清空（对齐业界 tool-result clearing / context editing）。
  * 目标是压住每轮固定开销之外「越滚越大」的对话历史。
+ *
+ * 截断策略：结构化裁剪优先（裁大数组尾部/长字符串，保持合法 JSON 并留下「还有多少」标记），
+ * 最后才硬切——硬切会把 JSON 切断，模型既读不到剩余曲目也不知道还有更多。
  */
 
 /** 单条工具结果写入历史时的最大 JSON 字符数（约 2–3k token） */
 export const TOOL_RESULT_MAX_CHARS = 4000
+
+/**
+ * 按工具放宽上限：完整歌单/专辑曲目/搜索列表等一次要给全的数据，4k 不够一场演唱会 setlist。
+ * 未列出的工具走默认 4000。
+ */
+export const TOOL_RESULT_MAX_CHARS_BY_TOOL = {
+  event_tracks: 12000,
+  goods_detail: 8000,
+  goods_search: 8000,
+  music_search: 6000,
+  music_lyrics: 10000,
+  events_list: 6000,
+  trash_list: 6000,
+  groups_list: 6000,
+  collection_overview: 6000,
+  wishlist_overview: 6000
+}
 
 /** 保留完整内容的最近 tool 轮数（更早的 tool 结果清成占位符） */
 export const DEFAULT_KEEP_RECENT_TOOL_ROUNDS = 1
@@ -41,16 +61,114 @@ export function estimateConvoChars(convo) {
 }
 
 /**
+ * 工具结果写入历史时的字符预算。
+ * @param {string} [toolName]
+ * @returns {number}
+ */
+export function maxCharsForTool(toolName) {
+  return TOOL_RESULT_MAX_CHARS_BY_TOOL[toolName] ?? TOOL_RESULT_MAX_CHARS
+}
+
+/** @param {unknown} value */
+function jsonLen(value) {
+  try {
+    return JSON.stringify(value ?? null)?.length ?? 0
+  } catch {
+    return String(value ?? '').length
+  }
+}
+
+/**
+ * 结构化裁剪到 maxChars：
+ * - 数组：从尾部丢元素，末尾留一条「已省略 N 项，共 M 项」标记（模型知道还有更多）
+ * - 对象：反复裁最大字段（数组/对象递归，字符串截断）
+ * @param {unknown} value
+ * @param {number} maxChars
+ * @returns {unknown}
+ */
+function shrinkValueToFit(value, maxChars) {
+  if (jsonLen(value) <= maxChars) return value
+
+  if (typeof value === 'string') {
+    const cut = Math.max(16, maxChars - 16)
+    return value.length > cut ? `${value.slice(0, cut)}…[已截断]` : value
+  }
+
+  if (Array.isArray(value)) {
+    const MARKER_RESERVE = 36
+    /** @type {unknown[]} */
+    const kept = []
+    let used = 2
+    for (const item of value) {
+      const itemSize = jsonLen(item) + (kept.length ? 1 : 0)
+      if (used + itemSize + MARKER_RESERVE > maxChars) break
+      kept.push(item)
+      used += itemSize
+    }
+    const omitted = value.length - kept.length
+    if (omitted > 0) {
+      kept.push(`…[已省略 ${omitted} 项，共 ${value.length} 项]`)
+    }
+    if (kept.length === 0) return [`…[已省略 ${value.length} 项，共 ${value.length} 项]`]
+    return kept
+  }
+
+  if (value && typeof value === 'object') {
+    /** @type {Record<string, any>} */
+    const out = { ...value }
+    for (let guard = 0; guard < 16 && jsonLen(out) > maxChars; guard += 1) {
+      let heaviest = ''
+      let heaviestSize = 0
+      for (const [key, v] of Object.entries(out)) {
+        const size = jsonLen(v)
+        if (size > heaviestSize) {
+          heaviestSize = size
+          heaviest = key
+        }
+      }
+      if (!heaviest || heaviestSize <= 4) break
+      const current = out[heaviest]
+      const share = Math.max(64, Math.floor((maxChars * heaviestSize) / Math.max(1, jsonLen(out))) - 24)
+      if (Array.isArray(current) || (current && typeof current === 'object')) {
+        const next = shrinkValueToFit(current, share)
+        if (jsonLen(next) < heaviestSize) {
+          out[heaviest] = next
+        } else if (Array.isArray(current)) {
+          out[heaviest] = current.length > 1
+            ? [current[0], `…[已省略 ${current.length - 1} 项，共 ${current.length} 项]`]
+            : [`…[已省略 ${current.length} 项]`]
+        } else {
+          out[heaviest] = '…[已省略]'
+        }
+      } else if (typeof current === 'string') {
+        const cut = Math.max(32, share - 16)
+        out[heaviest] = current.length > cut ? `${current.slice(0, cut)}…[已截断]` : current
+      } else {
+        out[heaviest] = '…[已省略]'
+      }
+    }
+    return out
+  }
+
+  return value
+}
+
+/**
  * @param {unknown} payload
  * @param {number} [maxChars]
  * @returns {string}
  */
 export function serializeToolResult(payload, maxChars = TOOL_RESULT_MAX_CHARS) {
-  let json = JSON.stringify(payload ?? null)
-  if (json.length > maxChars) {
-    json = `${json.slice(0, maxChars)}…[已截断]`
+  if (typeof payload === 'string') {
+    return payload.length <= maxChars ? payload : `${payload.slice(0, Math.max(0, maxChars - 12))}…[已截断]`
   }
-  return json
+  let json = JSON.stringify(payload ?? null)
+  if (json.length <= maxChars) return json
+
+  const shrunk = shrinkValueToFit(payload ?? null, Math.max(32, maxChars - 2))
+  json = JSON.stringify(shrunk)
+  if (json.length <= maxChars) return json
+  return `${json.slice(0, Math.max(0, maxChars - 12))}…[已截断]`
 }
 
 /**

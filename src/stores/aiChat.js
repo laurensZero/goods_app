@@ -28,6 +28,7 @@ import { createMoneyEnrichers } from '@/services/mcp/moneyContext'
 import { createMcpWriteToolHandlers } from '@/services/mcp/writeTools'
 import { MCP_TOOL_DEFINITIONS, MCP_WRITE_TOOL_DEFINITIONS } from '@/services/mcp/toolDefinitions'
 import { runChatCompletion, generateChatTitle, DEFAULT_AI_CONFIG } from '@/services/ai/chatClient'
+import { AI_CHAT_CONFIG_STORAGE_KEY } from '@/utils/ai/assistantPrefs'
 import { prepareConvoForRequest, compactConvo, estimateTokensFromChars, CONVO_MAX_CHARS } from '@/services/ai/contextCompact'
 import {
   createUndoTrackingExecutor,
@@ -42,7 +43,7 @@ import { createLogger } from '@/utils/logger'
 
 const log = createLogger('ai-chat')
 
-const CONFIG_STORAGE_KEY = 'goods_ai_chat_config'
+const CONFIG_STORAGE_KEY = AI_CHAT_CONFIG_STORAGE_KEY
 /** 发送历史时保留的原始消息上限（超出后从最早的完整轮次截断） */
 const MAX_CONVO_MESSAGES = 80
 /** 单条消息最多携带的视觉附件数（控制体积与 token 成本） */
@@ -194,7 +195,7 @@ function buildSystemPrompt(options = {}) {
     '分组/套组 → groups_list / groups_manage；回收站 → trash_list（恢复 goods_restore，永久删 goods_purge）',
     '预算剩余/超支 → budget_overview；改预算 → budget_set',
     '活动/展览/场馆坐标/花了多少 → events_list（坐标先读本地 latitude/longitude，禁止为此 web_search）',
-    '演出曲单 → event_tracks（默认只给 tracksSummary 概况；用户要完整歌单/找歌/播放才 includeTracks:true）',
+    '演出曲单 → event_tracks（默认只给 tracksSummary 概况；用户要完整歌单/找歌/播放才 includeTracks:true，trackHasMore 时用 trackOffset 翻页取全）',
     '歌词 → music_lyrics；在线搜歌 → music_search；充值总览 → recharge_summary，精确到项目 → recharge_search',
     '米游铺上新/积分/满赠 → mihoyo_new_arrivals；CD/专辑 → goods_search(hasTracks:true) + goods_detail.tracks',
     '看图识别 → vision_analyze（仅用户明确要求分析图片时）；挂聊天图到数据 → attachment_apply',
@@ -217,7 +218,7 @@ function buildSystemPrompt(options = {}) {
     '- 图片/照片 URL 从工具结果逐字符复制，禁止重写拼接；非 http(s)/data: 的 uri 原样 ![描述](uri) 或说明在应用内查看。',
     '- 跳转绝不自动跳：用 navigate 的 buttonLink 或 app://<page>[/id] 做按钮；「谷子」≠「出谷」。',
     '- 时间范围用 acquiredAfter/Before，按 unitAcquiredAtList 逐件看；排序/最贵最新用 goods_search 的 sortBy，不要拉全量自排；列表只做概览不整表罗列。',
-    '- event_tracks 没要歌单就只用一句话概括 tracksSummary，禁止罗列曲目。',
+    '- event_tracks 没要歌单就只用一句话概括 tracksSummary，禁止罗列曲目；列完整歌单时先翻页取全，回复只写「序号. 歌名 — 歌手」，禁止罗列 album/时长/id，禁止因结果截断就少报。',
     '- 附件图/表格标记不自动处理；goods_purge/删组/批量不可逆操作前先确认。',
     '- memory_save 只记长期偏好，收藏数据禁止入记忆；ask_user 不用于开放问题。',
     '- 圈内黑话拿不准勿编词源，说「圈内一般指…」；语气平等不说教。'

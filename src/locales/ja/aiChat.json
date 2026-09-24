@@ -86,5 +86,7 @@
   "aiChat.maxContextTokensPlaceholder": "例: 128000、0=自動検出",
   "aiChat.detectContext": "自動検出",
   "aiChat.contextDetected": "上限を検出しました（約 {tokens}）",
-  "aiChat.contextDetectFailed": "検出できません。手動で入力してください"
+  "aiChat.contextDetectFailed": "検出できません。手動で入力してください",
+  "aiChat.pullDownEnabled": "プルダウンでアシスタントを開く",
+  "aiChat.pullDownEnabledHint": "オンにすると、任意のページ上部を下に引っ張って一時停止すると AI アシスタントを開けます。オフの場合は通常のチャットページのみです。"
 }

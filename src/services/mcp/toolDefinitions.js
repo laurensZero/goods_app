@@ -618,13 +618,15 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'event_tracks',
-    description: '查演出信息与曲单概况（含照片）。默认只给 tracksSummary；要完整歌单/播放才 includeTracks:true。',
+    description: '查演出信息与曲单概况（含照片）。默认只给 tracksSummary；要完整歌单/播放才 includeTracks:true，长曲单用 trackOffset 翻页取全。',
     inputSchema: {
       type: 'object',
       properties: {
         eventId: { type: 'string', description: '演出 id，来自 events_list；传了 eventId 就只返回这一场（即使曲单为空）' },
         query: { type: 'string', description: '关键词：优先匹配演出名（命中返回整场曲单概况），否则匹配曲目歌名/歌手。与 eventId 二选一' },
         includeTracks: { type: 'boolean', default: false, description: '为 true 时返回具体曲目明细（含 trackId，供展示歌单或播放）；缺省只给 tracksSummary 概况' },
+        trackOffset: { type: 'integer', minimum: 0, default: 0, description: '曲目分页偏移（配合 includeTracks）。trackHasMore 为 true 时递增翻页取完整歌单' },
+        trackLimit: { type: 'integer', minimum: 1, maximum: 200, default: 100, description: '单次返回曲目条数' },
         limit: { type: 'integer', minimum: 1, maximum: 50, default: 10, description: '返回演出场数上限' },
         offset: { type: 'integer', minimum: 0, default: 0 }
       }
