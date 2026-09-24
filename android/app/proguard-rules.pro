@@ -29,6 +29,8 @@
 # ── Custom plugins ─────────────────────────────────────────────────────────
 -keep class com.goodsapp.collector.NativeMusicBridgePlugin { *; }
 -keep class com.goodsapp.collector.MihoyoSessionImportPlugin { *; }
+-keep class com.goodsapp.collector.LocalFileServerPlugin { *; }
+-keep class com.goodsapp.collector.McpServerPlugin { *; }
 
 # ── Capacitor Cordova plugins ──────────────────────────────────────────────
 -keep class org.apache.cordova.** { *; }
