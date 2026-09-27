@@ -29,12 +29,21 @@ export function normalizeEventDates(list, max = MAX_DAY_TICKETS) {
   const out = []
   for (const item of raw) {
     const s = String(item || '').trim()
-    if (!isDateStr(s) || seen.has(s)) continue
+    if (!isRealDateStr(s) || seen.has(s)) continue
     seen.add(s)
     out.push(s)
   }
   out.sort()
   return out.slice(0, max)
+}
+
+/** YYYY-MM-DD 且是真实存在的日历日（排除 2026-02-31 这类） */
+function isRealDateStr(value) {
+  const s = String(value || '').trim()
+  if (!isDateStr(s)) return false
+  const [y, m, d] = s.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d
 }
 
 /**
@@ -48,7 +57,7 @@ export function resolveEventDates(event = {}) {
   const legacySelected = normalizeEventDates(event.selectedDates)
   if (legacySelected.length > 0) return legacySelected
   const start = String(event.startDate || '').trim()
-  if (!isDateStr(start)) return []
+  if (!isRealDateStr(start)) return []
   return expandContinuousRange(start, event.endDate)
 }
 

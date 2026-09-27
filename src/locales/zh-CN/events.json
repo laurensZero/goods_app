@@ -53,7 +53,7 @@
   "events.dateSheet.week.thu": "四",
   "events.dateSheet.week.fri": "五",
   "events.dateSheet.week.sat": "六",
-  "events.detail.selectedDates": "单独日期",
+  "events.detail.selectedDates": "日期",
   "events.addEdit.deleteExpense": "删除",
   "events.addEdit.editHeroTitle": "调整这场活动的记录信息",
   "events.addEdit.editLabel": "EDIT EVENT",

@@ -245,39 +245,41 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
     const { data, error } = await withRetry(() => db.rpc('sync_push', {
-      p_goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
-      p_goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
-      p_groups: toGroupRows(groups, deviceIdRef, currentUserId, false),
-      p_groups_trash: toGroupRows(groupsTrash, deviceIdRef, currentUserId, true),
-      p_group_items: toGroupItemRows(groupItems, deviceIdRef, currentUserId, false),
-      p_group_items_trash: toGroupItemRows(groupItemsTrash, deviceIdRef, currentUserId, true),
-      p_recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false, currentUserId)).filter(Boolean),
-      p_recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true, currentUserId)).filter(Boolean),
-      p_events: toEventRows(events, deviceIdRef, currentUserId, false),
-      p_events_trash: toEventRows(eventsTrash, deviceIdRef, currentUserId, true),
-      p_batch_drafts: toBatchDraftRows(batchDrafts, deviceIdRef, currentUserId, false),
-      p_batch_drafts_trash: toBatchDraftRows(batchDraftsTrash, deviceIdRef, currentUserId, true),
-      p_presets: presets ? {
-        categories: JSON.stringify(presets.categories || []),
-        ips: JSON.stringify(presets.ips || []),
-        characters: JSON.stringify(presets.characters || []),
-        storage_locations: JSON.stringify(presets.storageLocations || []),
-        event_types: JSON.stringify(presets.eventTypes || [])
-      } : {},
-      p_delete_goods: deleteGoods || [],
-      p_delete_groups: deleteGroups || [],
-      p_delete_group_items: deleteGroupItems || [],
-      p_delete_recharge: deleteRecharge || [],
-      p_delete_events: deleteEvents || [],
-      p_delete_batch_drafts: deleteBatchDrafts || [],
-      p_device_id: currentDeviceId,
-      p_synced_at: syncedAt,
-      p_image_bucket: imageBucket,
-      p_budget_monthly: budgetMonthly,
-      p_budget_yearly: budgetYearly,
-      p_recharge_updated_at: rechargeUpdatedAt || null,
-      p_event_updated_at: eventUpdatedAt || null,
-      p_source: source || ''
+      payload: {
+        goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
+        goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
+        groups: toGroupRows(groups, deviceIdRef, currentUserId, false),
+        groups_trash: toGroupRows(groupsTrash, deviceIdRef, currentUserId, true),
+        group_items: toGroupItemRows(groupItems, deviceIdRef, currentUserId, false),
+        group_items_trash: toGroupItemRows(groupItemsTrash, deviceIdRef, currentUserId, true),
+        recharge: recharge.map(r => toRechargeRow(r, currentDeviceId, false, currentUserId)).filter(Boolean),
+        recharge_trash: rechargeTrash.map(r => toRechargeRow(r, currentDeviceId, true, currentUserId)).filter(Boolean),
+        events: toEventRows(events, deviceIdRef, currentUserId, false),
+        events_trash: toEventRows(eventsTrash, deviceIdRef, currentUserId, true),
+        batch_drafts: toBatchDraftRows(batchDrafts, deviceIdRef, currentUserId, false),
+        batch_drafts_trash: toBatchDraftRows(batchDraftsTrash, deviceIdRef, currentUserId, true),
+        presets: presets ? {
+          categories: JSON.stringify(presets.categories || []),
+          ips: JSON.stringify(presets.ips || []),
+          characters: JSON.stringify(presets.characters || []),
+          storage_locations: JSON.stringify(presets.storageLocations || []),
+          event_types: JSON.stringify(presets.eventTypes || [])
+        } : {},
+        delete_goods: deleteGoods || [],
+        delete_groups: deleteGroups || [],
+        delete_group_items: deleteGroupItems || [],
+        delete_recharge: deleteRecharge || [],
+        delete_events: deleteEvents || [],
+        delete_batch_drafts: deleteBatchDrafts || [],
+        device_id: currentDeviceId,
+        synced_at: syncedAt,
+        image_bucket: imageBucket,
+        budget_monthly: budgetMonthly,
+        budget_yearly: budgetYearly,
+        recharge_updated_at: rechargeUpdatedAt || null,
+        event_updated_at: eventUpdatedAt || null,
+        source: source || ''
+      }
     }))
 
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))

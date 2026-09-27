@@ -341,6 +341,7 @@ import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { buildCountdownList } from '@/utils/events/countdown'
+import { getFirstEventDate, resolveEventDates } from '@/utils/events/eventDates'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { clearRouteTransitionFallback, playRouteSceneSlide, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 import { cleanupAllHeroes, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
@@ -494,8 +495,7 @@ const filteredEvents = computed(() => {
       event.location,
       event.city,
       event.description,
-      event.startDate,
-      event.endDate,
+      ...resolveEventDates(event),
       EVENT_TYPE_LABELS.value[event.type] || event.type || '',
       ...(Array.isArray(event.tags) ? event.tags : []),
       ...(Array.isArray(event.tracks) ? event.tracks.flatMap((track) => [track?.title, track?.artist, track?.album]) : [])
@@ -512,8 +512,9 @@ const filteredEvents = computed(() => {
 // Merged: sort + group into a single pass
 const groupedEventsByYear = computed(() => {
   const getEvtTime = (evt) => {
-    if (evt?.startDate) {
-      const d = new Date(evt.startDate.replace(/-/g, '/'))
+    const first = getFirstEventDate(evt)
+    if (first) {
+      const d = new Date(first.replace(/-/g, '/'))
       if (!Number.isNaN(d.getTime())) return d.getTime()
     }
     return evt?.createdAt || 0
@@ -540,7 +541,7 @@ const groupedEventsByYear = computed(() => {
   // Group by year-month in a single pass
   const grouped = {}
   for (const event of sorted) {
-    let sourceDate = event?.startDate || ''
+    let sourceDate = getFirstEventDate(event) || ''
     if (!sourceDate && event?.createdAt) {
       const d = new Date(event.createdAt)
       if (!Number.isNaN(d.getTime())) {

@@ -53,7 +53,7 @@
   "events.dateSheet.week.thu": "木",
   "events.dateSheet.week.fri": "金",
   "events.dateSheet.week.sat": "土",
-  "events.detail.selectedDates": "個別日程",
+  "events.detail.selectedDates": "日程",
   "events.addEdit.deleteExpense": "削除",
   "events.addEdit.editHeroTitle": "イベント情報を更新",
   "events.addEdit.editLabel": "イベント編集",

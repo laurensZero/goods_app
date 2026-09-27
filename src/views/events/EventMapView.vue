@@ -123,6 +123,7 @@
 </template>
 
 <script setup>
+import { getFirstEventDate, resolveEventDates } from '@/utils/events/eventDates'
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -228,7 +229,7 @@ const mapPins = computed(() => {
   return {
     pins: [...pinsMap.values()].map((pin) => ({
       ...pin,
-      events: [...pin.events].sort((a, b) => String(b.startDate || '').localeCompare(String(a.startDate || '')))
+      events: [...pin.events].sort((a, b) => String(getFirstEventDate(b) || '').localeCompare(String(getFirstEventDate(a) || '')))
     })),
     unlocated
   }
@@ -271,7 +272,7 @@ const selectedPinTitle = computed(() => {
 const isDarkMap = computed(() => themeStore.appliedAppearance === 'dark')
 
 function eventMeta(evt) {
-  const parts = [String(evt?.startDate || '').trim(), String(evt?.location || '').trim(), String(evt?.city || '').trim()].filter(Boolean)
+  const parts = [...resolveEventDates(evt), String(evt?.location || '').trim(), String(evt?.city || '').trim()].filter(Boolean)
   return parts.join(' · ')
 }
 
