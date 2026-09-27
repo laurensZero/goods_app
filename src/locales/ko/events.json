@@ -53,7 +53,7 @@
   "events.dateSheet.week.thu": "목",
   "events.dateSheet.week.fri": "금",
   "events.dateSheet.week.sat": "토",
-  "events.detail.selectedDates": "개별 날짜",
+  "events.detail.selectedDates": "날짜",
   "events.addEdit.deleteExpense": "삭제",
   "events.addEdit.editHeroTitle": "이벤트 정보 업데이트",
   "events.addEdit.editLabel": "이벤트 편집",

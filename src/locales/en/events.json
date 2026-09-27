@@ -53,7 +53,7 @@
   "events.dateSheet.week.thu": "Thu",
   "events.dateSheet.week.fri": "Fri",
   "events.dateSheet.week.sat": "Sat",
-  "events.detail.selectedDates": "Selected Days",
+  "events.detail.selectedDates": "Days",
   "events.addEdit.deleteExpense": "Delete",
   "events.addEdit.editHeroTitle": "Update event record info",
   "events.addEdit.editLabel": "EDIT EVENT",

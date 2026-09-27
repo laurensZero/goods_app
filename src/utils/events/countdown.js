@@ -1,3 +1,5 @@
+import { resolveEventDates } from './eventDates'
+
 const DAY_MS = 86400000
 
 export const COUNTDOWN_STATUS = {
@@ -36,13 +38,22 @@ export function diffInDays(earlier, later) {
 }
 
 // 状态判定：今天 < start → upcoming；start ≤ 今天 ≤ end → ongoing；今天 > end → past
+function eventDateBounds(event) {
+  const dates = resolveEventDates(event)
+  if (dates.length === 0) return { start: null, end: null }
+  return {
+    start: parseEventDate(dates[0]),
+    end: parseEventDate(dates[dates.length - 1]) || parseEventDate(dates[0])
+  }
+}
+
 export function computeCountdown(event, now = new Date()) {
-  const start = parseEventDate(event?.startDate)
+  const { start, end: endRaw } = eventDateBounds(event)
   if (!start) {
     return { status: COUNTDOWN_STATUS.UNDATED, days: 0, endsInDays: -1 }
   }
 
-  const end = parseEventDate(event?.endDate) || start
+  const end = endRaw || start
   const today = startOfToday(now)
 
   if (today.getTime() < start.getTime()) {
@@ -74,7 +85,8 @@ function compareById(a, b) {
 }
 
 function eventTimeMs(entry, field) {
-  const date = parseEventDate(entry.event?.[field])
+  const { start, end } = eventDateBounds(entry.event)
+  const date = field === 'startDate' ? start : end
   return date ? date.getTime() : 0
 }
 
