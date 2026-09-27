@@ -592,6 +592,109 @@ export function getHoldingDaysFromDate(date) {
   return days >= 0 ? days : null
 }
 
+const HOLDING_OWNED_STATUS = '已拥有'
+const HOLDING_EXIT_STATUSES = new Set(['已出', '已赠出', '丢失'])
+const HOLDING_PENDING_STATUSES = new Set(['待发货', '待补款', '待补邮'])
+
+/**
+ * 两个 YYYY-MM-DD 之间的整天数(本地时区,不含时分秒)。end 早于 start 时返回 null。
+ * @param {string} startYmd
+ * @param {string} endYmd
+ * @returns {number|null}
+ */
+function daysBetweenYmd(startYmd, endYmd) {
+  const start = normalizeTimelineDate(startYmd)
+  const end = normalizeTimelineDate(endYmd)
+  if (!start || !end) return null
+  const [y1, m1, d1] = start.split('-').map(Number)
+  const [y2, m2, d2] = end.split('-').map(Number)
+  const diff = new Date(y2, m2 - 1, d2).getTime() - new Date(y1, m1 - 1, d1).getTime()
+  const days = Math.floor(diff / 86400000)
+  return days >= 0 ? days : null
+}
+
+/**
+ * 持有区间：从时间线「已拥有」起算，到退出日；未退出则到今天。
+ * 多件时传 unitIndex 取该件区间；整件传 null 只认整批条目。
+ * 时间线从未进入「已拥有」且仍在途(待*)时返回 null(尚未持有)。
+ * @param {object} item
+ * @param {number|null} [unitIndex]
+ * @returns {{ start: string, end: string, days: number }|null}
+ */
+export function getHoldingPeriod(item, unitIndex = null) {
+  const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : []
+  const hasUnitIndex = Number.isInteger(unitIndex)
+
+  /** @type {Array<{status: string, at: string}>} */
+  const scoped = []
+  for (const entry of timeline) {
+    if (!entry || typeof entry !== 'object') continue
+    const date = normalizeTimelineDate(entry.at)
+    if (!date) continue
+    const status = String(entry.status || '').trim()
+    if (!status) continue
+
+    if (hasUnitIndex) {
+      const scope = getEntryUnitIndexes(entry)
+      if (scope !== null && !scope.includes(unitIndex)) continue
+    } else if (getEntryUnitIndexes(entry) !== null) {
+      continue
+    }
+    scoped.push({ status, at: date })
+  }
+  scoped.sort((a, b) => a.at.localeCompare(b.at))
+
+  // 当前这段连续持有：每次重新进入「已拥有」重置起点；退出状态封口
+  let holdStart = ''
+  let holdEnd = ''
+  for (const e of scoped) {
+    if (e.status === HOLDING_OWNED_STATUS) {
+      holdStart = e.at
+      holdEnd = ''
+    } else if (HOLDING_EXIT_STATUSES.has(e.status) && holdStart) {
+      holdEnd = e.at
+    }
+  }
+
+  if (!holdStart) {
+    const fallback = normalizeTimelineDate(
+      hasUnitIndex
+        ? (Array.isArray(item?.unitAcquiredAtList) ? item.unitAcquiredAtList[unitIndex] : '') || item?.acquiredAt
+        : item?.acquiredAt
+    )
+    const currentStatus = String(
+      hasUnitIndex
+        ? (Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList[unitIndex] : '') || item?.collectStatus
+        : item?.collectStatus
+    ).trim() || HOLDING_OWNED_STATUS
+
+    // 在途未入手不算持有；已持有/在售/想出/已退出可用购入日兜底
+    if (fallback && !HOLDING_PENDING_STATUSES.has(currentStatus)) {
+      holdStart = fallback
+      if (!holdEnd && HOLDING_EXIT_STATUSES.has(currentStatus)) {
+        holdEnd = scoped.find((e) => HOLDING_EXIT_STATUSES.has(e.status))?.at || ''
+      }
+    }
+  }
+
+  if (!holdStart) return null
+
+  const end = holdEnd || formatDate(new Date(), 'YYYY-MM-DD')
+  const days = daysBetweenYmd(holdStart, end)
+  if (days === null) return null
+  return { start: holdStart, end, days }
+}
+
+/**
+ * 持有天数：从时间线「已拥有」起算。详见 {@link getHoldingPeriod}。
+ * @param {object} item
+ * @param {number|null} [unitIndex]
+ * @returns {number|null}
+ */
+export function getHoldingDays(item, unitIndex = null) {
+  return getHoldingPeriod(item, unitIndex)?.days ?? null
+}
+
 /**
  * 编辑保存时的时间线自动维护——唯一入口,集中原先散落在编辑器里的全部规则。
  *

@@ -8,6 +8,7 @@ import {
   makeUnitScopeFields,
   getEntryUnitIndexes,
   getTimelineStartDate,
+  getHoldingPeriod,
   buildAcquisitionTimelineEntries,
   ensureInitialTimeline,
   maintainTimelineOnGoodsUpdate,
@@ -346,5 +347,90 @@ describe('maintainTimelineOnGoodsUpdate (store 层自动维护)', () => {
     const previous = { isWishlist: false, collectStatus: '已拥有', statusTimeline: [{ status: '已拥有', at: '2026-01-01' }] }
     const data = { note: '换个备注' }
     expect(maintainTimelineOnGoodsUpdate(previous, data)).toBe(data)
+  })
+})
+
+describe('getHoldingPeriod 从时间线「已拥有」起算', () => {
+  it('仍持有时算到今天', () => {
+    const item = {
+      collectStatus: '已拥有',
+      acquiredAt: '2026-01-01',
+      statusTimeline: [{ status: '已拥有', at: '2026-01-01' }]
+    }
+    const period = getHoldingPeriod(item)
+    expect(period.start).toBe('2026-01-01')
+    expect(period.days).toBeGreaterThanOrEqual(0)
+  })
+
+  it('已出算到退出日，而不是「已出 xx 天」', () => {
+    const item = {
+      collectStatus: '已出',
+      acquiredAt: '2026-01-01',
+      statusTimeline: [
+        { status: '已拥有', at: '2026-01-01' },
+        { status: '已出', at: '2026-01-11' }
+      ]
+    }
+    const period = getHoldingPeriod(item)
+    expect(period).toEqual({ start: '2026-01-01', end: '2026-01-11', days: 10 })
+  })
+
+  it('想出/在售不打断持有，起点仍是已拥有', () => {
+    const item = {
+      collectStatus: '想出',
+      statusTimeline: [
+        { status: '已拥有', at: '2026-01-01' },
+        { status: '想出', at: '2026-03-01' }
+      ]
+    }
+    const period = getHoldingPeriod(item)
+    expect(period.start).toBe('2026-01-01')
+  })
+
+  it('在途待发货且从未已拥有时返回 null', () => {
+    const item = {
+      collectStatus: '待发货',
+      acquiredAt: '2026-01-01',
+      statusTimeline: [{ status: '待发货', at: '2026-01-01' }]
+    }
+    expect(getHoldingPeriod(item)).toBeNull()
+  })
+
+  it('重新进入已拥有后按最近一段持有计算', () => {
+    const item = {
+      collectStatus: '已拥有',
+      statusTimeline: [
+        { status: '已拥有', at: '2026-01-01' },
+        { status: '已出', at: '2026-02-01' },
+        { status: '已拥有', at: '2026-03-01' }
+      ]
+    }
+    const period = getHoldingPeriod(item)
+    expect(period.start).toBe('2026-03-01')
+  })
+
+  it('多件按逐件归属取各自的已拥有', () => {
+    const item = {
+      quantity: 2,
+      collectStatus: '已拥有',
+      unitCollectStatusList: ['已拥有', '已出'],
+      statusTimeline: [
+        { status: '已拥有', at: '2026-01-01', unitIndex: 0 },
+        { status: '已拥有', at: '2026-01-05', unitIndex: 1 },
+        { status: '已出', at: '2026-01-15', unitIndex: 1 }
+      ]
+    }
+    expect(getHoldingPeriod(item, 0)?.start).toBe('2026-01-01')
+    const unit1 = getHoldingPeriod(item, 1)
+    expect(unit1).toEqual({ start: '2026-01-05', end: '2026-01-15', days: 10 })
+  })
+
+  it('时间线缺失时用购入日期兜底（已持有）', () => {
+    const item = {
+      collectStatus: '已拥有',
+      acquiredAt: '2026-01-01',
+      statusTimeline: []
+    }
+    expect(getHoldingPeriod(item)?.start).toBe('2026-01-01')
   })
 })

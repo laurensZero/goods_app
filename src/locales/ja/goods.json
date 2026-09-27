@@ -273,7 +273,7 @@
   "goods.editor.targetInfo": "目標情報",
   "goods.editor.targetPriceLabel": "目標価格",
   "goods.editor.timelineHint": "このアイテムのステータス変更を記録します。自動記録または手動で追加できます。",
-  "goods.editor.timelineUnitDisabledHint": "保有日数は個別の購入日から独立して計算されます。タイムラインは各個体のステータス遷移履歴を記録します。",
+  "goods.editor.timelineUnitDisabledHint": "保有日数はタイムラインの「入手済み」から算出し、退出日または今日までです。タイムラインは各個体のステータス遷移履歴を記録します。",
   "goods.editor.timelineNotePlaceholder": "メモ（任意）",
   "goods.editor.unitCharacter": "ユニット{index} キャラクター",
   "goods.editor.unitCharacterCollapseDesc": "各ユニットにキャラクターを対応させます",

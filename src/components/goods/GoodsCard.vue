@@ -133,9 +133,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import {
   hasCollectStatusMatch,
-  resolvePrimaryCollectStatus,
   areAllCopiesExited,
-  formatCollectStatusSummary,
   formatPendingStatusSummary
 } from '@/utils/goods/status'
 
@@ -323,17 +321,6 @@ const unitHoldingDaysList = computed(() => props.item._unitHoldingDaysList ?? []
 const hasUnitHoldingDays = computed(() => props.item._hasUnitHoldingDays ?? false)
 const holdingDays = computed(() => props.item._holdingDays ?? null)
 
-function getStatusShort(status) {
-  const map = {
-    '待发货': 'status.short.pendingShipment',
-    '待补款': 'status.short.pendingPayment',
-    '待补邮': 'status.short.pendingPostage'
-  }
-  const key = map[status]
-  return key ? t(key) : null
-}
-
-const primaryStatus = computed(() => props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item))
 const pendingBadgeText = computed(() => formatPendingStatusSummary(props.item))
 const isPending = computed(() => props.item._isPending ?? (!props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮'])))
 const isExited = computed(() => props.item._isExited ?? areAllCopiesExited(props.item))
@@ -349,30 +336,13 @@ const statusDaysText = computed(() => {
     const maxDays = Math.max(...daysList)
     const daysUnit = t('common.daysUnit')
     const daysStr = minDays === maxDays ? `${minDays} ${daysUnit}` : `${minDays}~${maxDays} ${daysUnit}`
-
-    // Collect unique statuses
-    const statusSet = new Set(list.map((e) => e.status))
-    if (statusSet.size === 1) {
-      const status = list[0].status
-      const short = getStatusShort(status)
-      if (short) return `${short} ${daysStr}`
-      if (status === '已拥有') return `${t('goods.card.holding')} ${daysStr}`
-      return `${status} ${daysStr}`
-    }
-
-    const summary = formatCollectStatusSummary(props.item, { compact: true })
-    return `${summary} · ${daysStr}`
+    return `${t('goods.card.holding')} ${daysStr}`
   }
 
   const days = holdingDays.value
   if (days === null) return ''
 
-  const daysUnit = t('common.daysUnit')
-  const primary = primaryStatus.value
-  const short = getStatusShort(primary)
-  if (short) return `${short} ${days} ${daysUnit}`
-  if (primary === '已拥有' || !primary) return `${t('goods.card.holding')} ${days} ${daysUnit}`
-  return `${primary} ${days} ${daysUnit}`
+  return `${t('goods.card.holding')} ${days} ${t('common.daysUnit')}`
 })
 
 const showCategory = computed(() => props.density !== 'compact' && !!props.item.category)

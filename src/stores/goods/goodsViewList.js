@@ -17,11 +17,7 @@ import {
   hasCollectStatusMatch,
   areAllCopiesExited
 } from '@/utils/goods/status'
-import {
-  getTimelineStartDate,
-  getHoldingDaysFromDate,
-  normalizeTimelineDate
-} from '@/utils/goods/statusTimeline'
+import { getHoldingPeriod } from '@/utils/goods/statusTimeline'
 
 /**
  * @param {object} item
@@ -60,38 +56,30 @@ export function computePriceFields(item, exchangeRate) {
  */
 function computeHoldingFields(item) {
   // --- unitHoldingDaysList ---
+  // 多件按逐件时间线「已拥有」起算(整批条目对所有件生效)
   const quantity = Math.max(1, Number(item.quantity) || 1)
   let unitHoldingDaysList = []
   if (quantity >= 2) {
-    const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
-    if (unitDates.length > 0) {
-      const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
-      const entries = unitDates
-        .map((date, i) => {
-          const normalizedDate = String(date || '').trim()
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
-          const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
-          const days = getHoldingDaysFromDate(normalizedDate)
-          if (days === null) return null
-          return { days, status, date: normalizedDate }
-        })
-        .filter(Boolean)
-      const seenDays = new Set()
-      unitHoldingDaysList = entries.filter((entry) => {
-        if (seenDays.has(entry.days)) return false
-        seenDays.add(entry.days)
-        return true
-      })
-    }
+    const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
+    const entries = Array.from({ length: quantity }, (_, i) => {
+      const period = getHoldingPeriod(item, i)
+      if (!period) return null
+      const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
+      return { days: period.days, status, date: period.start }
+    }).filter(Boolean)
+    const seenDays = new Set()
+    unitHoldingDaysList = entries.filter((entry) => {
+      if (seenDays.has(entry.days)) return false
+      seenDays.add(entry.days)
+      return true
+    })
   }
 
   // --- holdingDays (only when no per-unit holding days) ---
   const hasUnitHoldingDays = unitHoldingDaysList.length > 0
   let holdingDays = null
   if (!hasUnitHoldingDays) {
-    const primaryStatus = resolvePrimaryCollectStatus(item)
-    const holdingDate = getTimelineStartDate(item, primaryStatus) || normalizeTimelineDate(item.acquiredAt)
-    holdingDays = getHoldingDaysFromDate(holdingDate)
+    holdingDays = getHoldingPeriod(item)?.days ?? null
   }
 
   return {
