@@ -58,11 +58,11 @@ CREATE TABLE IF NOT EXISTS events (
   user_id UUID REFERENCES auth.users(id),
   name TEXT DEFAULT '',
   type TEXT DEFAULT '',
-  start_date TEXT DEFAULT '',
-  end_date TEXT DEFAULT '',
-  selected_dates JSONB DEFAULT '[]',
   dates JSONB DEFAULT '[]',
   location TEXT DEFAULT '',
+  city TEXT DEFAULT '',
+  latitude TEXT DEFAULT '',
+  longitude TEXT DEFAULT '',
   description TEXT DEFAULT '',
   cover_image TEXT DEFAULT '',
   cover_image_data JSONB DEFAULT '{}',
@@ -213,8 +213,8 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS day_ticket_list JSONB DEFAULT '[]';
-ALTER TABLE events ADD COLUMN IF NOT EXISTS selected_dates JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS dates JSONB DEFAULT '[]';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
 
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -335,9 +335,6 @@ BEGIN
   IF NEW.deleted IS DISTINCT FROM OLD.deleted
     OR NEW.name IS DISTINCT FROM OLD.name
     OR NEW.type IS DISTINCT FROM OLD.type
-    OR NEW.start_date IS DISTINCT FROM OLD.start_date
-    OR NEW.end_date IS DISTINCT FROM OLD.end_date
-    OR NEW.selected_dates IS DISTINCT FROM OLD.selected_dates
     OR NEW.dates IS DISTINCT FROM OLD.dates
     OR NEW.location IS DISTINCT FROM OLD.location
     OR NEW.city IS DISTINCT FROM OLD.city
@@ -1034,309 +1031,96 @@ GRANT EXECUTE ON FUNCTION sync_pull(TIMESTAMPTZ) TO authenticated;
 -- 返回类型从 void 改为 jsonb，必须先 DROP 再 CREATE
 DROP FUNCTION IF EXISTS sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz);
 DROP FUNCTION IF EXISTS sync_push(jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, text[], text[], text[], text[], text[], text[], text, timestamptz, text, real, real, timestamptz, timestamptz);
-CREATE OR REPLACE FUNCTION sync_push(
-  p_goods            jsonb DEFAULT '[]',
-  p_goods_trash      jsonb DEFAULT '[]',
-  p_groups           jsonb DEFAULT '[]',
-  p_groups_trash     jsonb DEFAULT '[]',
-  p_group_items      jsonb DEFAULT '[]',
-  p_group_items_trash jsonb DEFAULT '[]',
-  p_recharge         jsonb DEFAULT '[]',
-  p_recharge_trash   jsonb DEFAULT '[]',
-  p_events           jsonb DEFAULT '[]',
-  p_events_trash     jsonb DEFAULT '[]',
-  p_batch_drafts     jsonb DEFAULT '[]',
-  p_batch_drafts_trash jsonb DEFAULT '[]',
-  p_presets          jsonb DEFAULT '{}',
-  p_delete_goods     text[] DEFAULT '{}',
-  p_delete_groups    text[] DEFAULT '{}',
-  p_delete_group_items text[] DEFAULT '{}',
-  p_delete_recharge  text[] DEFAULT '{}',
-  p_delete_events    text[] DEFAULT '{}',
-  p_delete_batch_drafts text[] DEFAULT '{}',
-  p_device_id        text DEFAULT '',
-  p_synced_at        timestamptz DEFAULT now(),
-  p_image_bucket     text DEFAULT 'goods-images',
-  p_budget_monthly   real DEFAULT 0,
-  p_budget_yearly    real DEFAULT 0,
-  p_recharge_updated_at timestamptz DEFAULT NULL,
-  p_event_updated_at timestamptz DEFAULT NULL
-)
-RETURNS jsonb AS $fn$
+CREATE OR REPLACE FUNCTION sync_push(payload jsonb DEFAULT '{}'::jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn$
 DECLARE
-  -- 服务器时间水位：与 sync_manifest 触发器写入的 synced_at 同为事务时间戳，二者一致
-  v_synced_at TIMESTAMPTZ := now();
+  v_synced_at timestamptz := coalesce((payload->>'synced_at')::timestamptz, now());
+  v_set text;
+  v_arr jsonb;
+  v_table text;
+  v_keys text[] := ARRAY['goods','goods_trash','goods_groups','goods_groups_trash',
+                         'goods_group_items','goods_group_items_trash',
+                         'recharge_records','recharge_records_trash',
+                         'events','events_trash','batch_drafts','batch_drafts_trash'];
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
   END IF;
-
   PERFORM set_config('app.is_sync_push', 'true', true);
 
-  -- 1. Delete
-  IF array_length(p_delete_goods, 1) > 0 THEN
-    DELETE FROM goods WHERE id = ANY(p_delete_goods);
+  -- deletes
+  IF coalesce(jsonb_array_length(payload->'delete_goods'), 0) > 0 THEN
+    DELETE FROM goods WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_goods'));
   END IF;
-  IF array_length(p_delete_groups, 1) > 0 THEN
-    DELETE FROM goods_groups WHERE id = ANY(p_delete_groups);
+  IF coalesce(jsonb_array_length(payload->'delete_groups'), 0) > 0 THEN
+    DELETE FROM goods_groups WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_groups'));
   END IF;
-  IF array_length(p_delete_group_items, 1) > 0 THEN
-    DELETE FROM goods_group_items WHERE id = ANY(p_delete_group_items);
+  IF coalesce(jsonb_array_length(payload->'delete_group_items'), 0) > 0 THEN
+    DELETE FROM goods_group_items WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_group_items'));
   END IF;
-  IF array_length(p_delete_recharge, 1) > 0 THEN
-    DELETE FROM recharge_records WHERE id = ANY(p_delete_recharge);
+  IF coalesce(jsonb_array_length(payload->'delete_recharge'), 0) > 0 THEN
+    DELETE FROM recharge_records WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_recharge'));
   END IF;
-  IF array_length(p_delete_events, 1) > 0 THEN
-    DELETE FROM events WHERE id = ANY(p_delete_events);
+  IF coalesce(jsonb_array_length(payload->'delete_events'), 0) > 0 THEN
+    DELETE FROM events WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_events'));
   END IF;
-  IF array_length(p_delete_batch_drafts, 1) > 0 THEN
-    DELETE FROM batch_drafts WHERE id = ANY(p_delete_batch_drafts);
-  END IF;
-
-  -- 2. Upsert goods
-  IF jsonb_array_length(p_goods) > 0 THEN
-    INSERT INTO goods
-    SELECT * FROM jsonb_populate_recordset(null::goods, p_goods)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, category = EXCLUDED.category, ip = EXCLUDED.ip,
-      goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
-      trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
-      storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
-      size = EXCLUDED.size,
-      price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
-      acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
-      sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,
-      sale_reminder_offsets = EXCLUDED.sale_reminder_offsets,
-      unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
-      unit_actual_price_list = EXCLUDED.unit_actual_price_list,
-      unit_character_list = EXCLUDED.unit_character_list,
-      unit_collect_status_list = EXCLUDED.unit_collect_status_list,
-      images = EXCLUDED.images,
-      tracks = EXCLUDED.tracks, note = EXCLUDED.note,
-      quantity = EXCLUDED.quantity, points = EXCLUDED.points,
-      currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
-      collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
-      shipping_events = EXCLUDED.shipping_events,
-      status_timeline = EXCLUDED.status_timeline,
-      manual_orders = EXCLUDED.manual_orders,
-      sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
-      sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
-      unit_sale_info_list = EXCLUDED.unit_sale_info_list,
-      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id
-      -- LWW 守卫：远端行更新于入参时拒绝覆盖（防止旧活跃副本破坏更新的墓碑）
-      WHERE goods.updated_at <= EXCLUDED.updated_at;
+  IF coalesce(jsonb_array_length(payload->'delete_batch_drafts'), 0) > 0 THEN
+    DELETE FROM batch_drafts WHERE id IN (SELECT jsonb_array_elements_text(payload->'delete_batch_drafts'));
   END IF;
 
-  -- 3. Upsert goods_trash
-  IF jsonb_array_length(p_goods_trash) > 0 THEN
-    INSERT INTO goods
-    SELECT * FROM jsonb_populate_recordset(null::goods, p_goods_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, category = EXCLUDED.category, ip = EXCLUDED.ip,
-      goods_id = EXCLUDED.goods_id, is_wishlist = EXCLUDED.is_wishlist,
-      trashed = EXCLUDED.trashed, characters = EXCLUDED.characters, tags = EXCLUDED.tags,
-      storage_location = EXCLUDED.storage_location, variant = EXCLUDED.variant,
-      size = EXCLUDED.size,
-      price = EXCLUDED.price, actual_price = EXCLUDED.actual_price,
-      acquired_at = EXCLUDED.acquired_at, sale_at = EXCLUDED.sale_at,
-      sale_reminder_enabled = EXCLUDED.sale_reminder_enabled,
-      sale_reminder_offsets = EXCLUDED.sale_reminder_offsets,
-      unit_acquired_at_list = EXCLUDED.unit_acquired_at_list,
-      unit_actual_price_list = EXCLUDED.unit_actual_price_list,
-      unit_character_list = EXCLUDED.unit_character_list,
-      unit_collect_status_list = EXCLUDED.unit_collect_status_list,
-      images = EXCLUDED.images,
-      tracks = EXCLUDED.tracks, note = EXCLUDED.note,
-      quantity = EXCLUDED.quantity, points = EXCLUDED.points,
-      currency = EXCLUDED.currency, actual_price_currency = EXCLUDED.actual_price_currency,
-      collect_status = EXCLUDED.collect_status, shipping_fee = EXCLUDED.shipping_fee,
-      shipping_events = EXCLUDED.shipping_events,
-      status_timeline = EXCLUDED.status_timeline,
-      manual_orders = EXCLUDED.manual_orders,
-      sell_price = EXCLUDED.sell_price, sell_platform = EXCLUDED.sell_platform,
-      sell_fee = EXCLUDED.sell_fee, sell_date = EXCLUDED.sell_date,
-      unit_sale_info_list = EXCLUDED.unit_sale_info_list,
-      updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id
-      WHERE goods.updated_at <= EXCLUDED.updated_at;
-  END IF;
+  -- 业务行 upsert：payload 键 → 物理表；SET 列运行时生成，加列不用改这里
+  -- 客户端 payload 键名（与 to*Rows 域一致）：
+  --   goods / goods_trash / groups / groups_trash / group_items / group_items_trash
+  --   recharge / recharge_trash / events / events_trash / batch_drafts / batch_drafts_trash
+  FOR v_table, v_arr IN
+    SELECT * FROM (VALUES
+      ('goods',              payload->'goods'),
+      ('goods',              payload->'goods_trash'),
+      ('goods_groups',       payload->'groups'),
+      ('goods_groups',       payload->'groups_trash'),
+      ('goods_group_items',  payload->'group_items'),
+      ('goods_group_items',  payload->'group_items_trash'),
+      ('recharge_records',   payload->'recharge'),
+      ('recharge_records',   payload->'recharge_trash'),
+      ('events',             payload->'events'),
+      ('events',             payload->'events_trash'),
+      ('batch_drafts',       payload->'batch_drafts'),
+      ('batch_drafts',       payload->'batch_drafts_trash')
+    ) AS t(tab, arr)
+  LOOP
+    CONTINUE WHEN v_arr IS NULL OR jsonb_typeof(v_arr) IS DISTINCT FROM 'array' OR jsonb_array_length(v_arr) = 0;
 
-  -- 4. Upsert groups
-  IF jsonb_array_length(p_groups) > 0 THEN
-    INSERT INTO goods_groups
-    SELECT * FROM jsonb_populate_recordset(null::goods_groups, p_groups)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, type = EXCLUDED.type, summary_mode = EXCLUDED.summary_mode,
-      total_amount = EXCLUDED.total_amount, currency = EXCLUDED.currency,
-      cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
-      display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE goods_groups.updated_at <= EXCLUDED.updated_at;
-  END IF;
+    SELECT string_agg(format('%I = EXCLUDED.%I', c.column_name, c.column_name), ', ')
+      INTO v_set
+      FROM information_schema.columns c
+     WHERE c.table_schema = 'public' AND c.table_name = v_table AND c.column_name <> 'id';
 
-  -- 4b. Upsert groups_trash
-  IF jsonb_array_length(p_groups_trash) > 0 THEN
-    INSERT INTO goods_groups
-    SELECT * FROM jsonb_populate_recordset(null::goods_groups, p_groups_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, type = EXCLUDED.type, summary_mode = EXCLUDED.summary_mode,
-      total_amount = EXCLUDED.total_amount, currency = EXCLUDED.currency,
-      cover_mode = EXCLUDED.cover_mode, cover_item_id = EXCLUDED.cover_item_id,
-      display_mode = EXCLUDED.display_mode, note = EXCLUDED.note,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE goods_groups.updated_at <= EXCLUDED.updated_at;
-  END IF;
+    EXECUTE format(
+      'INSERT INTO %I SELECT * FROM jsonb_populate_recordset(null::%I, $1)
+       ON CONFLICT (id) DO UPDATE SET %s
+       WHERE %I.updated_at <= EXCLUDED.updated_at',
+      v_table, v_table, v_set, v_table
+    ) USING v_arr;
+  END LOOP;
 
-  -- 5. Upsert group_items
-  IF jsonb_array_length(p_group_items) > 0 THEN
-    INSERT INTO goods_group_items
-    SELECT * FROM jsonb_populate_recordset(null::goods_group_items, p_group_items)
-    ON CONFLICT (id) DO UPDATE SET
-      group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
-      sort_order = EXCLUDED.sort_order,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE goods_group_items.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 5b. Upsert group_items_trash
-  IF jsonb_array_length(p_group_items_trash) > 0 THEN
-    INSERT INTO goods_group_items
-    SELECT * FROM jsonb_populate_recordset(null::goods_group_items, p_group_items_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      group_id = EXCLUDED.group_id, goods_id = EXCLUDED.goods_id,
-      sort_order = EXCLUDED.sort_order,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE goods_group_items.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 6. Upsert recharge
-  IF jsonb_array_length(p_recharge) > 0 THEN
-    INSERT INTO recharge_records
-    SELECT * FROM jsonb_populate_recordset(null::recharge_records, p_recharge)
-    ON CONFLICT (id) DO UPDATE SET
-      game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
-      charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
-      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id
-      WHERE recharge_records.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 7. Upsert recharge_trash
-  IF jsonb_array_length(p_recharge_trash) > 0 THEN
-    INSERT INTO recharge_records
-    SELECT * FROM jsonb_populate_recordset(null::recharge_records, p_recharge_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      game = EXCLUDED.game, item_name = EXCLUDED.item_name, amount = EXCLUDED.amount,
-      charged_at = EXCLUDED.charged_at, note = EXCLUDED.note, image = EXCLUDED.image,
-      deleted = EXCLUDED.deleted, updated_at = EXCLUDED.updated_at, synced_by = EXCLUDED.synced_by,
-      user_id = EXCLUDED.user_id
-      WHERE recharge_records.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 8. Upsert events
-  IF jsonb_array_length(p_events) > 0 THEN
-    INSERT INTO events
-    SELECT * FROM jsonb_populate_recordset(null::events, p_events)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, type = EXCLUDED.type,
-      start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      selected_dates = EXCLUDED.selected_dates,
-      dates = EXCLUDED.dates,
-      location = EXCLUDED.location, city = EXCLUDED.city,
-      latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-      description = EXCLUDED.description,
-      cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
-      photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
-      ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
-      day_ticket_list = EXCLUDED.day_ticket_list,
-      other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
-      linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE events.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 8b. Upsert events_trash
-  IF jsonb_array_length(p_events_trash) > 0 THEN
-    INSERT INTO events
-    SELECT * FROM jsonb_populate_recordset(null::events, p_events_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      name = EXCLUDED.name, type = EXCLUDED.type,
-      start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
-      selected_dates = EXCLUDED.selected_dates,
-      dates = EXCLUDED.dates,
-      location = EXCLUDED.location, city = EXCLUDED.city,
-      latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-      description = EXCLUDED.description,
-      cover_image = EXCLUDED.cover_image, cover_image_data = EXCLUDED.cover_image_data,
-      photos = EXCLUDED.photos, ticket_price = EXCLUDED.ticket_price,
-      ticket_type = EXCLUDED.ticket_type, seat_info = EXCLUDED.seat_info,
-      day_ticket_list = EXCLUDED.day_ticket_list,
-      other_expenses = EXCLUDED.other_expenses, tracks = EXCLUDED.tracks,
-      linked_goods_ids = EXCLUDED.linked_goods_ids, tags = EXCLUDED.tags,
-      deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id
-      WHERE events.updated_at <= EXCLUDED.updated_at;
-  END IF;
-
-  -- 8c. Upsert batch_drafts
-  IF jsonb_array_length(p_batch_drafts) > 0 THEN
-    INSERT INTO batch_drafts
-    SELECT * FROM jsonb_populate_recordset(null::batch_drafts, p_batch_drafts)
-    ON CONFLICT (id) DO UPDATE SET
-      slot = EXCLUDED.slot, batch_id = EXCLUDED.batch_id,
-      is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
-      defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
-  END IF;
-
-  -- 8d. Upsert batch_drafts_trash
-  IF jsonb_array_length(p_batch_drafts_trash) > 0 THEN
-    INSERT INTO batch_drafts
-    SELECT * FROM jsonb_populate_recordset(null::batch_drafts, p_batch_drafts_trash)
-    ON CONFLICT (id) DO UPDATE SET
-      slot = EXCLUDED.slot, batch_id = EXCLUDED.batch_id,
-      is_wishlist = EXCLUDED.is_wishlist, items = EXCLUDED.items,
-      defaults = EXCLUDED.defaults, deleted = EXCLUDED.deleted,
-      updated_at = EXCLUDED.updated_at, created_at = EXCLUDED.created_at,
-      synced_by = EXCLUDED.synced_by, user_id = EXCLUDED.user_id;
-  END IF;
-
-  -- 9. Upsert presets
-  IF p_presets != '{}'::jsonb THEN
-    INSERT INTO sync_presets (user_id, categories, ips, characters, storage_locations)
-    VALUES (auth.uid(),
-      COALESCE((p_presets->>'categories')::jsonb, '[]'::jsonb),
-      COALESCE((p_presets->>'ips')::jsonb, '[]'::jsonb),
-      COALESCE((p_presets->>'characters')::jsonb, '[]'::jsonb),
-      COALESCE((p_presets->>'storage_locations')::jsonb, '[]'::jsonb)
-    )
-    ON CONFLICT (user_id) DO UPDATE SET
-      categories = EXCLUDED.categories, ips = EXCLUDED.ips,
-      characters = EXCLUDED.characters, storage_locations = EXCLUDED.storage_locations;
-  END IF;
-
-  -- 10. Upsert manifest（synced_at 用服务器时间；触发器亦会强制 now()，二者一致）
   INSERT INTO sync_manifest (
     user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    auth.uid(), p_device_id, v_synced_at, p_image_bucket,
-    p_recharge_updated_at, p_event_updated_at, p_budget_monthly, p_budget_yearly,
+    auth.uid(),
+    coalesce(payload->>'device_id', ''),
+    v_synced_at,
+    coalesce(payload->>'image_bucket', 'goods-images'),
+    (payload->>'recharge_updated_at')::timestamptz,
+    (payload->>'event_updated_at')::timestamptz,
+    coalesce((payload->>'budget_monthly')::real, 0),
+    coalesce((payload->>'budget_yearly')::real, 0),
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
@@ -1347,7 +1131,7 @@ BEGIN
       AND name NOT LIKE '%.emptyFolderPlaceholder'
       AND (
             (storage.foldername(name))[1] = auth.uid()::text
-            OR (position('/' in name) = 0 AND owner_id = auth.uid()::text)
+            OR (position('/' in name) = 0 AND owner_id = auth.uid()::text::text)
           ))
   ) ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
@@ -1367,22 +1151,13 @@ BEGIN
 
   RETURN jsonb_build_object('synced_at', v_synced_at);
 END;
-$fn$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
+$fn$;
+
 
 -- 函数重建后 ACL 重置，先撤回默认的 PUBLIC EXECUTE 再单独授权
-REVOKE ALL ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
-  jsonb, jsonb, jsonb,
-  text[], text[], text[], text[], text[], text[],
-  text, timestamptz, text, real, real, timestamptz, timestamptz
-) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION sync_push(jsonb) FROM PUBLIC, anon;
 
-GRANT EXECUTE ON FUNCTION sync_push(
-  jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb, jsonb,
-  jsonb, jsonb, jsonb,
-  text[], text[], text[], text[], text[], text[],
-  text, timestamptz, text, real, real, timestamptz, timestamptz
-) TO authenticated;
+GRANT EXECUTE ON FUNCTION sync_push(jsonb) TO authenticated;
 
 
 -- ============================================================
@@ -1661,3 +1436,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_ota_releases_channel_type_version
 
 -- goods.shipping_events：多笔运费事件 [{date, fee}]
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS shipping_events JSONB DEFAULT '[]'::jsonb;
+
+-- PostgREST schema cache（改函数后必刷）
+NOTIFY pgrst, 'reload schema';
+

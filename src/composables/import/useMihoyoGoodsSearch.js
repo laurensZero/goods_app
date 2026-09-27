@@ -197,12 +197,18 @@ export function useMihoyoGoodsSearch(options = {}) {
     return ''
   }
 
+  // 封面增强只做展示优化，不能抢满网络/桥接并发，否则用户首次点选的款式加载会被拖慢
+  const ENHANCE_CONCURRENCY = 2
+
   async function enhanceSearchResultImages(list, keyword) {
     const hint = normalizeSearchHintText(keyword)
     if (!hint || !Array.isArray(list) || !list.length) return
 
-    await Promise.allSettled(list.map(async (item) => {
-      const goodsId = String(item?.goods_id || '').trim()
+    const items = [...list]
+    let cursor = 0
+
+    async function enhanceOne(item) {
+      const goodsId = String(item?.goods_id || item?.goodsId || '').trim()
       if (!goodsId) return
 
       const cacheKey = `${goodsId}::${hint}`
@@ -214,26 +220,40 @@ export function useMihoyoGoodsSearch(options = {}) {
         return
       }
 
-      const { skuCovers, skuVariants, coverUrl, price } = await fetchGoodsDetail(goodsId)
-      if ((item.price == null || Number(item.price) <= 0) && price != null) {
-        item.price = Number(price)
-      }
-      if (!Array.isArray(skuVariants) || skuVariants.length <= 1) {
-        searchResultVariantCoverCache.set(cacheKey, '')
-        return
-      }
+      try {
+        const { skuCovers, skuVariants, coverUrl, price } = await fetchGoodsDetail(goodsId)
+        if ((item.price == null || Number(item.price) <= 0) && price != null) {
+          item.price = Number(price)
+        }
+        if (!Array.isArray(skuVariants) || skuVariants.length <= 1) {
+          searchResultVariantCoverCache.set(cacheKey, '')
+          return
+        }
 
-      const variants = skuVariants.map((variant) => ({
-        ...variant,
-        cover_url: skuCovers?.[variant.key] || variant.cover_url || coverUrl || '',
-      }))
-      const preferredCover = resolvePreferredVariantCover(variants, hint)
-      searchResultVariantCoverCache.set(cacheKey, preferredCover)
+        const variants = skuVariants.map((variant) => ({
+          ...variant,
+          cover_url: skuCovers?.[variant.key] || variant.cover_url || coverUrl || '',
+        }))
+        const preferredCover = resolvePreferredVariantCover(variants, hint)
+        searchResultVariantCoverCache.set(cacheKey, preferredCover)
 
-      if (preferredCover) {
-        item.search_cover_url = preferredCover
+        if (preferredCover) {
+          item.search_cover_url = preferredCover
+        }
+      } catch {
+        // 单条封面增强失败不影响其余结果
       }
-    }))
+    }
+
+    async function worker() {
+      while (cursor < items.length) {
+        const item = items[cursor]
+        cursor += 1
+        await enhanceOne(item)
+      }
+    }
+
+    await Promise.all(Array.from({ length: Math.min(ENHANCE_CONCURRENCY, items.length) }, () => worker()))
   }
 
   async function fetchRoleSearchPage(roleTargets, page) {

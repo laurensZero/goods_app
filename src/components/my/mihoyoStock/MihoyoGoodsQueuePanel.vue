@@ -71,12 +71,13 @@
       </div>
     </div>
 
-    <!-- 手机端：滑动指示点 -->
+    <!-- 手机端：滑动指示点（宽度/颜色跟随 scrollLeft 连续变化，滑到哪指到哪） -->
     <div v-if="!isTablet && queue.length > 1" class="sku-deck-dots">
       <span
-        v-for="entry in queue"
+        v-for="(entry, index) in queue"
         :key="entry.uid"
         class="sku-deck-dot"
+        :style="dotStyle(index)"
         :class="{ 'sku-deck-dot--on': entry.uid === activeUid }"
       />
     </div>
@@ -132,6 +133,8 @@ defineExpose({
 // 通过 ResizeObserver 自动同步，空白区随之消失。
 let deckHeightObserver = null
 let deckScrollFrame = 0
+// 连续滑动进度 0..n-1：指示点跟手用（activeUid 仍由父组件防抖后更新）
+const deckProgress = ref(0)
 
 function setDeckHeight(slide) {
   const deck = deckEl.value
@@ -144,6 +147,14 @@ function findSlide(uid) {
   const deck = deckEl.value
   if (!deck || !uid) return null
   return Array.from(deck.children).find((slide) => slide.dataset.uid === uid) || null
+}
+
+function syncDeckProgressFromScroll() {
+  const deck = deckEl.value
+  if (!deck || !deck.clientWidth) return
+  const max = Math.max(0, (deck.children.length || 1) - 1)
+  const raw = deck.scrollLeft / deck.clientWidth
+  deckProgress.value = Math.max(0, Math.min(raw, max))
 }
 
 function syncDeckHeight(uid = props.activeUid) {
@@ -169,24 +180,46 @@ function handleDeckScroll() {
     deckScrollFrame = 0
     const deck = deckEl.value
     if (!deck || !deck.clientWidth) return
+    syncDeckProgressFromScroll()
     const index = Math.max(0, Math.min(
-      Math.round(deck.scrollLeft / deck.clientWidth),
+      Math.round(deckProgress.value),
       deck.children.length - 1,
     ))
     setDeckHeight(deck.children[index])
   })
 }
 
-onMounted(syncDeckHeight)
+function dotStyle(index) {
+  // 与当前页距离越近越“亮/越宽”，中点时相邻两点各半，指示条连续滑动
+  const on = Math.max(0, 1 - Math.abs(index - deckProgress.value))
+  return { '--dot-on': on }
+}
+
+onMounted(() => {
+  syncDeckHeight()
+  syncDeckProgressFromScroll()
+})
 
 watch(
   () => props.activeUid,
-  () => nextTick(syncDeckHeight)
+  () => nextTick(() => {
+    syncDeckHeight()
+    // 外部直接改 activeUid（未滑动）时，指示点对齐到目标卡片
+    const deck = deckEl.value
+    if (!deck) return
+    const idx = props.queue.findIndex((e) => e.uid === props.activeUid)
+    if (idx >= 0 && Math.abs(deck.scrollLeft - idx * deck.clientWidth) < 2) {
+      deckProgress.value = idx
+    }
+  })
 )
 
 watch(
   () => props.queue.length,
-  () => nextTick(syncDeckHeight)
+  () => nextTick(() => {
+    syncDeckHeight()
+    syncDeckProgressFromScroll()
+  })
 )
 
 watch(
@@ -256,17 +289,27 @@ onBeforeUnmount(() => {
 }
 
 .sku-deck-dot {
-  width: 6px;
+  /* --dot-on: 0..1，由 scrollLeft 连续驱动；不加 transition，跟手 */
+  width: calc(6px + 12px * var(--dot-on, 0));
   height: 6px;
-  border-radius: 50%;
+  border-radius: 4px;
   background: var(--app-border);
-  transition: background 0.2s, width 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.sku-deck-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--app-chip-accent-text);
+  opacity: var(--dot-on, 0);
 }
 
 .sku-deck-dot--on {
-  width: 18px;
-  border-radius: 4px;
-  background: var(--app-chip-accent-text);
+  /* 无障碍/状态兜底：无 CSS 变量时仍能看出当前项 */
+  background: var(--app-border);
 }
 
 /* 底部操作区（按钮样式由使用方提供） */
