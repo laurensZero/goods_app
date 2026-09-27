@@ -351,7 +351,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import { formatCollectStatusSummary, getCollectStatusEntries, hasCollectStatusMatch, resolvePrimaryCollectStatus } from '@/utils/goods/status'
 import { GOODS_IMAGE_KIND_OPTIONS, getPrimaryGoodsImage, normalizeGoodsImageList } from '@/utils/goods/images'
-import { appendStatusTimelineEntry, syncUnitStatusTimeline, getTimelineStartDate, getHoldingDaysFromDate } from '@/utils/goods/statusTimeline'
+import { appendStatusTimelineEntry, syncUnitStatusTimeline, getHoldingPeriod } from '@/utils/goods/statusTimeline'
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant, getDisplayGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
@@ -827,23 +827,14 @@ const unitHoldingDaysList = computed(() => {
   const quantity = Math.max(1, Number(it.quantity) || 1)
   if (quantity < 2) return []
 
-  const unitDates = Array.isArray(it.unitAcquiredAtList) ? it.unitAcquiredAtList : []
-  if (unitDates.length === 0) return []
-
   const unitStatuses = Array.isArray(it.unitCollectStatusList) ? it.unitCollectStatusList : []
 
-  const entries = unitDates
-    .map((date, i) => {
-      const normalizedDate = String(date || '').trim()
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(normalizedDate)) return null
-
-      const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
-      const days = getHoldingDaysFromDate(normalizedDate)
-      if (days === null) return null
-
-      return { date: normalizedDate, days, status }
-    })
-    .filter(Boolean)
+  const entries = Array.from({ length: quantity }, (_, i) => {
+    const period = getHoldingPeriod(it, i)
+    if (!period) return null
+    const status = String(unitStatuses[i] || it.collectStatus || '已拥有').trim()
+    return { date: period.start, days: period.days, status }
+  }).filter(Boolean)
 
   const seenDays = new Set()
   return entries.filter((entry) => {
@@ -867,7 +858,7 @@ const holdingDays = computed(() => {
   const it = item.value
   if (!it) return null
 
-  // When per-copy dates exist, use average or primary
+  // When per-copy holding periods exist, use average or primary
   if (hasUnitHoldingDays.value) {
     const list = unitHoldingDaysList.value
     if (list.length === 1) return list[0].days
@@ -875,15 +866,9 @@ const holdingDays = computed(() => {
     return null
   }
 
-  // 优先从时间线获取主要状态的开始日期，回退到购入日期
-  const primaryStatus = resolvePrimaryStatusForItem(it)
-  const holdingDate = getTimelineStartDate(it, primaryStatus) || (it.acquiredAt || '')
-  return getHoldingDaysFromDate(holdingDate)
+  // 从时间线「已拥有」起算，到退出日或今天
+  return getHoldingPeriod(it)?.days ?? null
 })
-
-function resolvePrimaryStatusForItem(it) {
-  return resolvePrimaryCollectStatus(it)
-}
 
 const collectStatusEntries = computed(() => getCollectStatusEntries(item.value))
 const hasMultipleStatusEntries = computed(() => collectStatusEntries.value.length > 1 || (collectStatusEntries.value[0] && collectStatusEntries.value[0].count > 1))
@@ -896,11 +881,8 @@ const statusChipText = computed(() => {
 })
 
 const detailStatusLabel = computed(() => {
-  const it = item.value
-  if (!it) return t('goods.detail.holdingDays')
-  const primary = resolvePrimaryStatusForItem(it)
-  if (primary === '已拥有' || !primary) return t('goods.detail.holdingDays')
-  return hasMultipleStatusEntries.value ? formatCollectStatusSummary(it) : primary
+  // 持有时长一律从时间线「已拥有」起算，标签不再随当前状态切换
+  return t('goods.detail.holdingDays')
 })
 
 function handleDelete() {

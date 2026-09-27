@@ -1,3 +1,5 @@
+import { getHoldingPeriod } from '@/utils/goods/statusTimeline'
+
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
 function safeDate(str) {
@@ -464,12 +466,23 @@ export function buildOverviewStats(list) {
       totalSpent += price
     }
 
-    const d = safeDate(item.acquiredAt)
-    if (d) {
-      const now = new Date()
-      const days = Math.floor((now - d) / 86400000)
-      totalHoldingDays += days
-      holdingCount += 1
+    // 持有天数从时间线「已拥有」起算；多件取逐件平均
+    if (qty >= 2) {
+      const unitDays = []
+      for (let i = 0; i < qty; i++) {
+        const period = getHoldingPeriod(item, i)
+        if (period) unitDays.push(period.days)
+      }
+      if (unitDays.length > 0) {
+        totalHoldingDays += unitDays.reduce((a, b) => a + b, 0) / unitDays.length
+        holdingCount += 1
+      }
+    } else {
+      const period = getHoldingPeriod(item)
+      if (period) {
+        totalHoldingDays += period.days
+        holdingCount += 1
+      }
     }
   }
 

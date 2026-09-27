@@ -273,7 +273,7 @@
   "goods.editor.targetInfo": "Target Info",
   "goods.editor.targetPriceLabel": "Target Price",
   "goods.editor.timelineHint": "Track status changes for this item, auto-recorded or manually added.",
-  "goods.editor.timelineUnitDisabledHint": "Holding days are calculated independently from each unit's purchase date; the timeline records per-unit status history.",
+  "goods.editor.timelineUnitDisabledHint": "Holding days start from the \"Owned\" entry in the timeline, through exit date or today; the timeline records per-unit status history.",
   "goods.editor.timelineNotePlaceholder": "Note (optional)",
   "goods.editor.unitCharacter": "Unit {index} Character",
   "goods.editor.unitCharacterCollapseDesc": "Each unit corresponds to a character",
