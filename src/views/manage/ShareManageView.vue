@@ -151,13 +151,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, nextTick } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
-import { listUserShares, toggleShareDisabled, deleteShare, getShare } from '@/services/shareService'
+import { listUserShares, toggleShareDisabled, deleteShare } from '@/services/shareService'
 import { buildShareUrl } from '@/config/share'
 import { useAuthStore } from '@/stores/auth'
 import { formatDate } from '@/utils/format'
@@ -225,7 +225,8 @@ function parseShareRow(row) {
     sharedAt: row.created_at || '',
     firstGoodsName: firstGoods.name || t('share.unnamed'),
     coverUri,
-    disabled: !!row.disabled
+    disabled: !!row.disabled,
+    goods
   }
 }
 
@@ -249,18 +250,9 @@ async function loadShares() {
   }
 }
 
-async function shareAgain(share) {
-  // Load full payload from DB for poster generation
-  let loadedItems = []
-  try {
-    const result = await getShare(share.shareId)
-    if (result?.payload?.goods?.length) {
-      loadedItems = result.payload.goods
-    }
-  } catch {
-    // ignore, fall back to summary data
-  }
-
+function shareAgain(share) {
+  // 列表加载时 listUserShares 已带 payload.goods，直接用，不等网络
+  let loadedItems = share.goods || []
   if (loadedItems.length === 0) {
     loadedItems = [{
       name: share.firstGoodsName || t('share.unnamed'),
@@ -274,7 +266,7 @@ async function shareAgain(share) {
     code: share.shareId,
     url: buildShareLink(share)
   }
-  void nextTick().then(() => { showShareSheet.value = true })
+  showShareSheet.value = true
   copiedId.value = share.shareId
   window.setTimeout(() => { if (copiedId.value === share.shareId) copiedId.value = '' }, 2000)
 }
