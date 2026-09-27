@@ -1204,6 +1204,21 @@ async function handleSave() {
 
 onMounted(() => {
   updateViewport()
+  // 预热标签上下文：首次点选搜索结果时会同步 resolve 标签，
+  // 若此时才扫全库商品建上下文，点选会卡到「好久才加入选择」。
+  // 放到下一空闲帧，避免卡住页面打开。
+  const warm = () => {
+    try {
+      seedHistoricalTagContextFromGoods()
+    } catch {
+      // 预热失败不影响后续懒建
+    }
+  }
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(warm, { timeout: 500 })
+  } else {
+    setTimeout(warm, 0)
+  }
 })
 </script>
 

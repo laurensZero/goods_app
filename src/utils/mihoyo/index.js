@@ -470,11 +470,23 @@ function collectSkuLookupKeys(rawKey, sku = {}) {
 }
 
 /**
- * 获取 detail 接口数据：
- *   mainImages  - main_url 展示图数组
- *   skuCovers   - { [key]: cover_url } 每个 SKU 的专属封面图
+ * 商品详情缓存：搜索结果封面增强与入队选款会拉同一 goods_id。
+ * 成功结果按 ID 缓存，并发请求去重，避免首次点选时被同款重复请求拖慢。
  */
-export async function fetchGoodsDetail(goodsId) {
+const goodsDetailCache = new Map()
+const goodsDetailInflight = new Map()
+
+function cloneGoodsDetailResult(result) {
+  return {
+    ...result,
+    mainImages: [...(result.mainImages || [])],
+    skuCovers: { ...(result.skuCovers || {}) },
+    skuPrices: { ...(result.skuPrices || {}) },
+    skuVariants: (result.skuVariants || []).map((v) => ({ ...v })),
+  }
+}
+
+async function requestGoodsDetailOnce(goodsId) {
   const reqHeaders = {
     'Referer': 'https://www.mihoyogift.com/',
     'x-rpc-language': 'zh-cn',
@@ -536,6 +548,33 @@ export async function fetchGoodsDetail(goodsId) {
   } catch {
     return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '', ok: false }
   }
+}
+
+/**
+ * 获取 detail 接口数据（带会话级缓存 + 并发去重）：
+ *   mainImages  - main_url 展示图数组
+ *   skuCovers   - { [key]: cover_url } 每个 SKU 的专属封面图
+ */
+export async function fetchGoodsDetail(goodsId) {
+  const id = String(goodsId || '').trim()
+  if (!id) {
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '', ok: false }
+  }
+
+  const cached = goodsDetailCache.get(id)
+  if (cached) return cloneGoodsDetailResult(cached)
+
+  const inflight = goodsDetailInflight.get(id)
+  if (inflight) return cloneGoodsDetailResult(await inflight)
+
+  const promise = requestGoodsDetailOnce(id).then((result) => {
+    if (result?.ok) goodsDetailCache.set(id, result)
+    return result
+  }).finally(() => {
+    goodsDetailInflight.delete(id)
+  })
+  goodsDetailInflight.set(id, promise)
+  return cloneGoodsDetailResult(await promise)
 }
 
 /**
