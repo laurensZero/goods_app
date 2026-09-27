@@ -996,10 +996,8 @@ export function createMcpWriteToolHandlers({
        const record = await eventsStore.addEventRecord({
          name,
          type: String(args?.type || ''),
-         startDate: String(args?.startDate || ''),
-         endDate: String(args?.endDate || args?.startDate || ''),
-         selectedDates: Array.isArray(args?.selectedDates)
-           ? args.selectedDates.map((d) => String(d || '')).filter(Boolean)
+         dates: Array.isArray(args?.dates)
+           ? args.dates.map((d) => String(d || '')).filter(Boolean)
            : [],
          city,
          location,
@@ -1020,9 +1018,7 @@ export function createMcpWriteToolHandlers({
            id: record.id,
            name: record.name,
            type: record.type,
-           startDate: record.startDate,
-           endDate: record.endDate,
-           selectedDates: record.selectedDates || [],
+           dates: record.dates || [],
            city: record.city,
            location: record.location,
            latitude: record.latitude || '',
@@ -1049,7 +1045,7 @@ export function createMcpWriteToolHandlers({
        /** @type {Record<string, any>} */
        const patch = {}
        const keys = [
-         'name', 'type', 'startDate', 'endDate', 'selectedDates', 'city', 'location',
+         'name', 'type', 'dates', 'city', 'location',
          'ticketPrice', 'ticketType', 'seatInfo', 'description',
          'linkedGoodsIds', 'tags'
        ]

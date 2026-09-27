@@ -350,4 +350,42 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 22,
+    description: 'Add events.dates JSON column and backfill from startDate/endDate/selectedDates',
+    up: async (db) => {
+      const cols = await db.getTableColumns('events')
+      if (!cols.has('dates')) {
+        await db.run("ALTER TABLE events ADD COLUMN dates TEXT DEFAULT '[]'")
+      }
+      // 回填：selectedDates 非空优先，否则展开 start~end（上限 31 天）
+      const rows = await db.query('SELECT id, startDate, endDate, selectedDates, dates FROM events')
+      for (const r of rows) {
+        let dates = []
+        try {
+          const cur = typeof r.dates === 'string' ? JSON.parse(r.dates || '[]') : (r.dates || [])
+          if (Array.isArray(cur) && cur.length > 0) continue
+        } catch { /* fall through to legacy */ }
+        try {
+          const selected = typeof r.selectedDates === 'string' ? JSON.parse(r.selectedDates || '[]') : (r.selectedDates || [])
+          if (Array.isArray(selected) && selected.length > 0) {
+            dates = selected.filter(Boolean).map(String).sort()
+          } else if (r.startDate) {
+            const start = String(r.startDate).trim()
+            const end = String(r.endDate || r.startDate).trim()
+            if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
+              const startMs = new Date(`${start}T00:00:00`).getTime()
+              const endMs = /^\d{4}-\d{2}-\d{2}$/.test(end) ? new Date(`${end}T00:00:00`).getTime() : startMs
+              const count = Math.min(31, Math.max(1, Math.round((endMs - startMs) / 86400000) + 1))
+              dates = Array.from({ length: count }, (_, i) => {
+                const d = new Date(startMs + i * 86400000)
+                return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+              })
+            }
+          }
+        } catch { dates = [] }
+        await db.run('UPDATE events SET dates = ? WHERE id = ?', [JSON.stringify(dates), r.id])
+      }
+    }
+  },
 ]
