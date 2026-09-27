@@ -850,7 +850,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
   function getExecutor() {
     if (!executorCache) {
       const goodsStore = useGoodsStore()
-      const readHandlers = createMcpToolHandlers(db, createMoneyEnrichers(), null, {
+      const readHandlers = createMcpToolHandlers(db, createMoneyEnrichers(), { read: readBudgetSettings }, {
         // cloud-image:// → 公开可访问 URL（先热缓存解析真实存储路径，避免拼出 404）
         resolveDisplayUri: async (uri) => {
           const value = String(uri || '').trim()
