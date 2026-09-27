@@ -222,10 +222,20 @@ export function useMihoyoGoodsQueue(options = {}) {
     if (!el) return
     clearTimeout(deckScrollTimer)
     deckScrollTimer = setTimeout(() => {
-      const idx = Math.round(el.scrollLeft / el.clientWidth)
-      const entry = queue.value[idx]
+      const step = getDeckSlideStep(el)
+      const idx = step > 0 ? Math.round(el.scrollLeft / step) : 0
+      const entry = queue.value[Math.max(0, Math.min(idx, queue.value.length - 1))]
       if (entry && entry.uid !== activeUid.value) activateQueueEntry(entry.uid)
     }, 80)
+  }
+
+  /** 相邻两张卡片步进（含 gap），用 offsetLeft 差值 */
+  function getDeckSlideStep(el) {
+    if (!el?.children?.length) return 0
+    if (el.children.length > 1) {
+      return el.children[1].offsetLeft - el.children[0].offsetLeft
+    }
+    return el.children[0].offsetWidth || el.clientWidth || 0
   }
 
   // 让滑动卡片定位到当前激活项（等待 DOM 更新后再滚动，确保队列已重排）
@@ -235,7 +245,9 @@ export function useMihoyoGoodsQueue(options = {}) {
     const idx = queue.value.findIndex((e) => e.uid === activeUid.value)
     if (idx < 0) return
     nextTick(() => {
-      el.scrollTo({ left: idx * el.clientWidth, behavior: 'smooth' })
+      const slide = el.children[idx]
+      const left = slide ? slide.offsetLeft : idx * el.clientWidth
+      el.scrollTo({ left, behavior: 'smooth' })
     })
   }
 

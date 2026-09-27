@@ -149,11 +149,22 @@ function findSlide(uid) {
   return Array.from(deck.children).find((slide) => slide.dataset.uid === uid) || null
 }
 
+/** 相邻两张卡片的步进（含 gap）；用 offsetLeft 差值，避免 slide 不是严格 100% 宽时算错 */
+function getSlideStep(deck) {
+  if (!deck?.children?.length) return 0
+  if (deck.children.length > 1) {
+    return deck.children[1].offsetLeft - deck.children[0].offsetLeft
+  }
+  return deck.children[0].offsetWidth || deck.clientWidth
+}
+
 function syncDeckProgressFromScroll() {
   const deck = deckEl.value
   if (!deck || !deck.clientWidth) return
   const max = Math.max(0, (deck.children.length || 1) - 1)
-  const raw = deck.scrollLeft / deck.clientWidth
+  const step = getSlideStep(deck)
+  if (step <= 0) return
+  const raw = deck.scrollLeft / step
   deckProgress.value = Math.max(0, Math.min(raw, max))
 }
 
@@ -208,7 +219,8 @@ watch(
     const deck = deckEl.value
     if (!deck) return
     const idx = props.queue.findIndex((e) => e.uid === props.activeUid)
-    if (idx >= 0 && Math.abs(deck.scrollLeft - idx * deck.clientWidth) < 2) {
+    const slide = idx >= 0 ? deck.children[idx] : null
+    if (slide && Math.abs(deck.scrollLeft - slide.offsetLeft) < 2) {
       deckProgress.value = idx
     }
   })
@@ -256,6 +268,8 @@ onBeforeUnmount(() => {
 /* 手机端：左右滑动卡片，一屏一卡 */
 .sku-deck {
   display: flex;
+  /* 卡片之间留缝，翻页时不会两张贴在一起 */
+  gap: 14px;
   /* 卡片不拉伸到最高那张的高度，容器高度由 JS 跟随当前激活卡片 */
   align-items: flex-start;
   overflow-x: auto;
