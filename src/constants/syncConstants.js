@@ -25,7 +25,9 @@ export const MANIFEST_VERSION = 1
 //      supabase/supabase-migration-event-selected-dates.sql。
 // v11: goods.size TEXT —— 尺寸单行文本（如「58mm」「约15×20cm」）。发布前执行
 //      supabase/supabase-migration-goods-size.sql。
-export const SYNC_SCHEMA_VERSION = 11
+// v12: events.dates JSON array replaces startDate/endDate/selectedDates. Run
+//      supabase/supabase-migration-event-dates.sql before release.
+export const SYNC_SCHEMA_VERSION = 12
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

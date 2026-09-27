@@ -301,7 +301,7 @@ function resolveSchemaKey(schemaKey, filename, headers) {
   if (lower.has('groupid') && lower.has('goodsid')) return 'goods_group_items'
   if (lower.has('eventid') && lower.has('title')) return 'event_tracks'
   if (lower.has('chargedat') && lower.has('amount')) return 'recharge'
-  if (lower.has('startdate') && lower.has('enddate')) return 'events'
+  if (lower.has('dates') || (lower.has('startdate') && lower.has('enddate'))) return 'events'
   if (lower.has('summarymode')) return 'goods_groups'
   if (lower.has('path') && !lower.has('name')) return 'storage_locations'
   if (lower.has('name') && lower.has('ip') && !lower.has('price')) return 'characters'

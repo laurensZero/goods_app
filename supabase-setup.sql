@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS events (
   start_date TEXT DEFAULT '',
   end_date TEXT DEFAULT '',
   selected_dates JSONB DEFAULT '[]',
+  dates JSONB DEFAULT '[]',
   location TEXT DEFAULT '',
   description TEXT DEFAULT '',
   cover_image TEXT DEFAULT '',
@@ -213,6 +214,7 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS day_ticket_list JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS selected_dates JSONB DEFAULT '[]';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS dates JSONB DEFAULT '[]';
 
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -336,6 +338,7 @@ BEGIN
     OR NEW.start_date IS DISTINCT FROM OLD.start_date
     OR NEW.end_date IS DISTINCT FROM OLD.end_date
     OR NEW.selected_dates IS DISTINCT FROM OLD.selected_dates
+    OR NEW.dates IS DISTINCT FROM OLD.dates
     OR NEW.location IS DISTINCT FROM OLD.location
     OR NEW.city IS DISTINCT FROM OLD.city
     OR NEW.latitude IS DISTINCT FROM OLD.latitude
@@ -1247,6 +1250,7 @@ BEGIN
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
       selected_dates = EXCLUDED.selected_dates,
+      dates = EXCLUDED.dates,
       location = EXCLUDED.location, city = EXCLUDED.city,
       latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
       description = EXCLUDED.description,
@@ -1270,6 +1274,7 @@ BEGIN
       name = EXCLUDED.name, type = EXCLUDED.type,
       start_date = EXCLUDED.start_date, end_date = EXCLUDED.end_date,
       selected_dates = EXCLUDED.selected_dates,
+      dates = EXCLUDED.dates,
       location = EXCLUDED.location, city = EXCLUDED.city,
       latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
       description = EXCLUDED.description,

@@ -13,7 +13,7 @@ import {
   normalizeDayTicketList,
   resolveCompleteDayTicketTotal
 } from '@/utils/events/dayTickets'
-import { resolveEventDateFields } from '@/utils/events/eventDates'
+import { resolveEventDates, normalizeEventDates, getFirstEventDate } from '@/utils/events/eventDates'
 
 function normalizeOtherExpenses(expenses) {
   if (!Array.isArray(expenses)) return []
@@ -28,7 +28,8 @@ function normalizeOtherExpenses(expenses) {
 }
 
 function getSortDate(event) {
-  if (event?.startDate) return event.startDate
+  const first = getFirstEventDate(event)
+  if (first) return first
   if (!event || !event.createdAt) return '0000-00-00'
   const d = new Date(event.createdAt)
   if (Number.isNaN(d.getTime())) return '0000-00-00'
@@ -53,22 +54,16 @@ function diffRemovedManagedImagePaths(previousEvent, nextEvent) {
 export function normalizeEvent(data) {
   const now = Date.now()
   const id = data.id || String(now)
-  const dateFields = resolveEventDateFields({
-    startDate: data.startDate,
-    endDate: data.endDate,
-    selectedDates: data.selectedDates
-  })
-  const { startDate, endDate, selectedDates } = dateFields
-  const dayTicketList = normalizeDayTicketList(data.dayTicketList, startDate, endDate, selectedDates)
+  // 单一 dates JSON 数组；兼容旧 startDate/endDate/selectedDates 回填
+  const dates = resolveEventDates(data)
+  const dayTicketList = normalizeDayTicketList(data.dayTicketList, dates)
   // 逐天价格填满时以逐天总和为准（表单已同步，这里兜底备份导入等旁路写入）
-  const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, startDate, endDate, selectedDates)
+  const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, dates)
   return {
     id,
     name: String(data.name || '').trim(),
     type: String(data.type || '').trim(),
-    startDate,
-    endDate,
-    selectedDates,
+    dates,
     location: String(data.location || '').trim(),
     city: String(data.city || '').trim(),
     latitude: String(data.latitude || '').trim(),
@@ -129,7 +124,7 @@ export const useEventsStore = defineStore('events', () => {
     const grouped = {}
 
     for (const event of sorted) {
-      const yearMonth = getYearMonth(event.startDate)
+      const yearMonth = getYearMonth(getFirstEventDate(event))
       const key = yearMonth && yearMonth.length >= 7 ? yearMonth : 'undated'
       if (!grouped[key]) grouped[key] = []
       grouped[key].push(event)
@@ -212,15 +207,16 @@ export const useEventsStore = defineStore('events', () => {
     // 部分更新（如 attachment_apply 只传 photos）不得把未传的数组字段清空
     if (hasOwn('tracks')) normalizedData.tracks = normalizeTracks(data?.tracks)
     if (hasOwn('otherExpenses')) normalizedData.otherExpenses = normalizeOtherExpenses(data?.otherExpenses)
-    const nextStartDate = String(normalizedData.startDate ?? previous.startDate ?? '').trim()
-    const nextEndDate = String(normalizedData.endDate ?? previous.endDate ?? '').trim()
-    if (hasOwn('dayTicketList') || hasOwn('startDate') || hasOwn('endDate')) {
+    const nextDates = hasOwn('dates') || hasOwn('startDate') || hasOwn('selectedDates')
+      ? resolveEventDates({ ...previous, ...normalizedData })
+      : resolveEventDates(previous)
+    normalizedData.dates = normalizeEventDates(nextDates)
+    if (hasOwn('dayTicketList') || hasOwn('dates') || hasOwn('startDate') || hasOwn('selectedDates')) {
       normalizedData.dayTicketList = normalizeDayTicketList(
         hasOwn('dayTicketList') ? data?.dayTicketList : previous.dayTicketList,
-        nextStartDate,
-        nextEndDate
+        normalizedData.dates
       )
-      const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, nextStartDate, nextEndDate)
+      const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, normalizedData.dates)
       if (dayTicketTotal) normalizedData.ticketPrice = dayTicketTotal
     }
 
@@ -441,6 +437,8 @@ export const useEventsStore = defineStore('events', () => {
           coverImageData: normalizedCoverImageData || existing.coverImageData || null,
           updatedAt: shouldBackfillCoverImageData ? existingUpdatedAt : event.updatedAt
         }
+        next.dates = resolveEventDates(next)
+        next.dayTicketList = normalizeDayTicketList(next.dayTicketList, next.dates)
         next.tracks = normalizeTracks(next.tracks)
         recordsToSave.push(next)
         for (const path of diffRemovedManagedImagePaths(existing, next)) {

@@ -1,47 +1,55 @@
 // @ts-check
 /**
- * 活动日期：时间段（开始–结束连续区间）与单独几天（可不连续）。
- * 空 selectedDates = 连续区间；非空 = 仅这些天（start/end 取 min/max 便于排序展示）。
+ * 活动日期：唯一存储为 dates JSON 数组（YYYY-MM-DD，升序、去重）。
+ * - []           → 无日期
+ * - 连续若干天   → 展示时收成 `start - end`
+ * - 不连续若干天 → 展示时列出各天
+ *
+ * 不再使用 startDate / endDate / selectedDates 三列，避免同步时互相覆盖。
  */
 
 import { isDateStr, MAX_DAY_TICKETS } from './dayTickets'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 
-/** 校验、去重、升序；非法项丢弃 */
-export function normalizeSelectedDates(list) {
-  if (!Array.isArray(list)) return []
+/** 校验、去重、升序、截断；兼容 JSON 字符串与脏数据 */
+export function normalizeEventDates(list, max = MAX_DAY_TICKETS) {
+  let raw = list
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim()
+    if (!trimmed) return []
+    try {
+      raw = JSON.parse(trimmed)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(raw)) return []
   const seen = new Set()
   const out = []
-  for (const item of list) {
+  for (const item of raw) {
     const s = String(item || '').trim()
     if (!isDateStr(s) || seen.has(s)) continue
     seen.add(s)
     out.push(s)
   }
   out.sort()
-  return out
+  return out.slice(0, max)
 }
 
-/** 解析 start/end/selectedDates，产出规范字段（bounds 与列表一致） */
-export function resolveEventDateFields({ startDate, endDate, selectedDates } = {}) {
-  const selected = normalizeSelectedDates(selectedDates)
-  if (selected.length > 0) {
-    const capped = selected.slice(0, MAX_DAY_TICKETS)
-    return {
-      startDate: capped[0],
-      endDate: capped[capped.length - 1],
-      selectedDates: capped
-    }
-  }
-  const start = String(startDate || '').trim()
-  let end = String(endDate || '').trim()
-  if (start && (!isDateStr(end) || end < start)) end = start
-  return {
-    startDate: isDateStr(start) ? start : '',
-    endDate: isDateStr(start) ? end : '',
-    selectedDates: []
-  }
+/**
+ * 从活动对象提取 dates；兼容旧三列（startDate/endDate/selectedDates）以便迁移回填。
+ * dates 为空时回退旧字段，避免升级后历史数据丢日期。
+ */
+export function resolveEventDates(event = {}) {
+  if (event == null) return []
+  const current = normalizeEventDates(event.dates)
+  if (current.length > 0) return current
+  const legacySelected = normalizeEventDates(event.selectedDates)
+  if (legacySelected.length > 0) return legacySelected
+  const start = String(event.startDate || '').trim()
+  if (!isDateStr(start)) return []
+  return expandContinuousRange(start, event.endDate)
 }
 
 /** 某日 + offset 天 → YYYY-MM-DD */
@@ -66,43 +74,32 @@ export function expandContinuousRange(startDate, endDate, max = MAX_DAY_TICKETS)
   return Array.from({ length: count }, (_, i) => addDays(start, i)).filter(Boolean)
 }
 
-/**
- * 活动「有效日期」列表：
- * - selectedDates 非空 → 这些天（可能不连续）
- * - 否则 → start~end 连续区间
- */
-export function getEventDayDates(startDate, endDate, selectedDates = null, max = MAX_DAY_TICKETS) {
-  const selected = normalizeSelectedDates(selectedDates)
-  if (selected.length > 0) return selected.slice(0, max)
-  return expandContinuousRange(startDate, endDate, max)
+/** 活动有效日列表 = dates */
+export function getEventDayDates(eventOrDates, max = MAX_DAY_TICKETS) {
+  if (Array.isArray(eventOrDates) || typeof eventOrDates === 'string') {
+    return normalizeEventDates(eventOrDates, max)
+  }
+  return resolveEventDates(eventOrDates).slice(0, max)
 }
 
-/** 是否恰好覆盖 start~end 的完整连续区间 */
-export function isFullContinuousRange(selectedDates, startDate, endDate) {
-  const selected = normalizeSelectedDates(selectedDates)
-  if (selected.length === 0) return true
-  const continuous = expandContinuousRange(startDate, endDate)
+/** 首日（排序用） */
+export function getFirstEventDate(event) {
+  const dates = resolveEventDates(event)
+  return dates[0] || ''
+}
+
+/** 是否恰好是完整连续区间 */
+export function isFullContinuousRange(dates) {
+  const selected = normalizeEventDates(dates, Number.MAX_SAFE_INTEGER)
+  if (selected.length <= 1) return true
+  const continuous = expandContinuousRange(selected[0], selected[selected.length - 1], Number.MAX_SAFE_INTEGER)
   if (continuous.length !== selected.length) return false
   return continuous.every((d, i) => d === selected[i])
 }
 
-/**
- * 把日历选中的天收敛为存储字段：
- * - 空 → 清空
- * - 连续完整一段 → range（selectedDates 空）
- * - 否则 → selectedDates + min/max bounds
- */
+/** 日历选中的天 → 存储用 dates 数组 */
 export function selectionToEventDates(dates) {
-  const selected = normalizeSelectedDates(dates)
-  if (selected.length === 0) {
-    return { startDate: '', endDate: '', selectedDates: [] }
-  }
-  const start = selected[0]
-  const end = selected[selected.length - 1]
-  if (isFullContinuousRange(selected, start, end)) {
-    return { startDate: start, endDate: end, selectedDates: [] }
-  }
-  return { startDate: start, endDate: end, selectedDates: selected.slice(0, MAX_DAY_TICKETS) }
+  return normalizeEventDates(dates)
 }
 
 /** 日历月视图格子：前置 null 补齐，后为 YYYY-MM-DD */
@@ -126,22 +123,19 @@ export function buildMonthCells(year, month) {
  * - 无日期 → ''
  * - 单日 → 该日
  * - 连续区间 → `start - end`
- * - 单独几天：优先列出日（MM-DD），过多时用 start~end + 天数
- * - 可含空隙（如 8/22 + 9/1–9/6），不必是一整段
+ * - 不连续几天：≤8 天列出 MM-DD，过多时 `start - end · N 天`
  */
 export function formatEventDateDisplay(event, { daysUnit = '天' } = {}) {
-  const { startDate, endDate, selectedDates } = resolveEventDateFields(event || {})
-  if (!startDate && selectedDates.length === 0) return ''
-  if (selectedDates.length === 0) {
-    if (!endDate || endDate === startDate) return startDate
-    return `${startDate} - ${endDate}`
+  const dates = Array.isArray(event) ? normalizeEventDates(event) : resolveEventDates(event)
+  if (dates.length === 0) return ''
+  if (dates.length === 1) return dates[0]
+  const start = dates[0]
+  const end = dates[dates.length - 1]
+  if (isFullContinuousRange(dates)) {
+    return `${start} - ${end}`
   }
-  if (selectedDates.length === 1) return selectedDates[0]
-  if (isFullContinuousRange(selectedDates, startDate, endDate)) {
-    return `${startDate} - ${endDate}`
+  if (dates.length <= 8) {
+    return dates.map((d) => d.slice(5)).join('、')
   }
-  if (selectedDates.length <= 8) {
-    return selectedDates.map((d) => d.slice(5)).join('、')
-  }
-  return `${startDate} - ${endDate} · ${selectedDates.length}${daysUnit}`
+  return `${start} - ${end} · ${dates.length}${daysUnit}`
 }

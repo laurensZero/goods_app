@@ -171,16 +171,14 @@ import {
   addDays,
   buildMonthCells,
   isFullContinuousRange,
-  normalizeSelectedDates,
+  normalizeEventDates,
   selectionToEventDates
 } from '@/utils/events/eventDates'
 import { isDateStr } from '@/utils/events/dayTickets'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  startDate: { type: String, default: '' },
-  endDate: { type: String, default: '' },
-  selectedDates: { type: Array, default: () => [] }
+  dates: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['update:modelValue', 'confirm'])
@@ -315,13 +313,13 @@ function expandBetween(a, b) {
 }
 
 function isContinuousSelection(dates) {
-  const sorted = normalizeSelectedDates(dates)
+  const sorted = normalizeEventDates(dates)
   if (sorted.length <= 1) return true
   return isFullContinuousRange(sorted, sorted[0], sorted[sorted.length - 1])
 }
 
 const summaryLabel = computed(() => {
-  const sorted = normalizeSelectedDates(draftDates.value)
+  const sorted = normalizeEventDates(draftDates.value)
   if (!sorted.length) return t('events.dateSheet.summaryEmpty')
   if (isContinuousSelection(sorted)) {
     if (sorted.length === 1) return t('events.dateSheet.summaryRange', { start: sorted[0], end: sorted[0] })
@@ -550,14 +548,10 @@ function onMonthSwipeEnd(e) {
 }
 
 function seedFromProps() {
-  const selected = normalizeSelectedDates(props.selectedDates)
+  const selected = normalizeEventDates(props.dates)
   if (selected.length > 0) {
     draftDates.value = [...selected]
-  } else if (props.startDate) {
-    const start = props.startDate
-    const end = isDateStr(props.endDate) && props.endDate >= start ? props.endDate : start
-    draftDates.value = expandBetween(start, end)
-  } else {
+    } else {
     draftDates.value = []
   }
   const focus = draftDates.value[0] || todayStr
@@ -674,7 +668,7 @@ function onGridPointerMove(e) {
   dragTarget.value = cell
   if (dragMoved.value) {
     const span = expandBetween(dragAnchor.value, cell)
-    draftDates.value = normalizeSelectedDates([...dragBase.value, ...span])
+    draftDates.value = normalizeEventDates([...dragBase.value, ...span])
   }
 }
 
@@ -710,7 +704,7 @@ function onGridPointerUp(e) {
   const set = new Set(draftDates.value)
   if (set.has(anchor)) set.delete(anchor)
   else set.add(anchor)
-  draftDates.value = normalizeSelectedDates([...set])
+  draftDates.value = normalizeEventDates([...set])
 }
 
 function clearSelection() {

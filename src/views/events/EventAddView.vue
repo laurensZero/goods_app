@@ -440,9 +440,7 @@
 
     <EventDateSheet
       v-model="showEventDateSheet"
-      :start-date="form.startDate"
-      :end-date="form.endDate"
-      :selected-dates="form.selectedDates"
+      :dates="form.dates"
       @confirm="onEventDateConfirm"
     />
 
@@ -489,7 +487,7 @@ import { readEventLinkedGoodsPickerResult } from '@/utils/events/eventLinkedGood
 import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue'
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { getDayDate, normalizeDayTicketPrice, parseDayCount } from '@/utils/events/dayTickets'
-import { formatEventDateDisplay } from '@/utils/events/eventDates'
+import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import NavBar from '@/components/common/NavBar.vue'
@@ -565,9 +563,7 @@ function syncEventAddScrollLock(active) {
 const form = reactive({
   name: '',
   type: '',
-  startDate: '',
-  endDate: '',
-  selectedDates: [],
+  dates: [],
   location: '',
   city: '',
   latitude: '',
@@ -592,9 +588,7 @@ function serializeEventFormSnapshot() {
   return JSON.stringify({
     name: form.name,
     type: form.type,
-    startDate: form.startDate,
-    endDate: form.endDate,
-    selectedDates: form.selectedDates,
+    dates: form.dates,
     location: form.location,
     city: form.city,
     latitude: form.latitude,
@@ -748,12 +742,12 @@ const hasOtherExpenseValidationError = computed(() => (
 const showDayTicketInput = ref(false)
 const dayTicketPanelRef = ref(null)
 
-const dayCount = computed(() => parseDayCount(form.startDate, form.endDate, form.selectedDates))
+const dayCount = computed(() => parseDayCount(form.dates))
 
 const showEventDateSheet = ref(false)
 
 const eventDateDisplay = computed(() => formatEventDateDisplay(
-  { startDate: form.startDate, endDate: form.endDate, selectedDates: form.selectedDates },
+  form.dates,
   { daysUnit: t('events.dateSheet.daysUnit') }
 ))
 
@@ -762,11 +756,7 @@ function openEventDateSheet() {
 }
 
 function onEventDateConfirm(payload) {
-  form.startDate = String(payload?.startDate || '')
-  form.endDate = String(payload?.endDate || form.startDate)
-  form.selectedDates = Array.isArray(payload?.selectedDates)
-    ? payload.selectedDates.map((d) => String(d || '')).filter(Boolean)
-    : []
+  form.dates = Array.isArray(payload) ? payload.map((d) => String(d || '')).filter(Boolean) : []
 }
 
 const hasDayTicketValue = computed(() => (
@@ -814,7 +804,7 @@ const dayTicketValidation = computed(() => (
 const hasDayTicketValidationError = computed(() => dayTicketValidation.value.some(Boolean))
 
 function dayDateAt(index) {
-  return getDayDate(form.startDate, index, form.selectedDates)
+  return getDayDate(form.dates, index)
 }
 
 // 日期区间变化时增减行：已有值保留，新行留空；行数始终与天数对齐（模板 v-model 依赖下标存在）
@@ -831,7 +821,7 @@ function syncDayTicketListLength() {
 }
 
 watch(
-  () => [form.startDate, form.endDate, form.selectedDates],
+  () => form.dates,
   () => {
     syncDayTicketListLength()
   }
@@ -883,9 +873,7 @@ function buildDraftPayload() {
     form: {
       name: String(form.name || ''),
       type: String(form.type || ''),
-      startDate: String(form.startDate || ''),
-      endDate: String(form.endDate || ''),
-      selectedDates: Array.isArray(form.selectedDates) ? [...form.selectedDates] : [],
+      dates: Array.isArray(form.dates) ? [...form.dates] : [],
       location: String(form.location || ''),
       city: String(form.city || ''),
       latitude: String(form.latitude || ''),
@@ -909,10 +897,8 @@ function applyFormSnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return
   form.name = String(snapshot.name || '')
   form.type = String(snapshot.type || '')
-  form.startDate = String(snapshot.startDate || '')
-  form.endDate = String(snapshot.endDate || '')
-  form.selectedDates = Array.isArray(snapshot.selectedDates)
-    ? snapshot.selectedDates.map((d) => String(d || '')).filter(Boolean)
+  form.dates = Array.isArray(snapshot.dates)
+    ? snapshot.dates.map((d) => String(d || '')).filter(Boolean)
     : []
   form.location = String(snapshot.location || '')
   form.city = String(snapshot.city || '')
@@ -1016,11 +1002,7 @@ async function loadEditData() {
 
   form.name = existing.name || ''
   form.type = existing.type || ''
-  form.startDate = existing.startDate || ''
-  form.endDate = existing.endDate || ''
-  form.selectedDates = Array.isArray(existing.selectedDates)
-    ? existing.selectedDates.map((d) => String(d || '')).filter(Boolean)
-    : []
+  form.dates = resolveEventDates(existing)
   form.location = existing.location || ''
   form.city = existing.city || ''
   form.latitude = existing.latitude || ''
@@ -1117,9 +1099,7 @@ async function handleSubmit() {
     return
   }
 
-  if (!form.endDate && form.startDate && (!Array.isArray(form.selectedDates) || form.selectedDates.length === 0)) {
-    form.endDate = form.startDate
-  }
+
 
   if (form.type !== 'exhibition') {
     form.ticketType = ''

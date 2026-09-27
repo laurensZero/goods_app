@@ -62,7 +62,7 @@
               <span class="hero-chip" :class="typeChipClass">{{ typeLabel }}</span>
               <span v-if="event.tags?.length" class="hero-chip hero-chip--tag">{{ event.tags[0] }}</span>
               <span v-if="event.location" class="hero-date">{{ event.location }}</span>
-              <span v-if="event.startDate" class="hero-date">{{ dateDisplay }}</span>
+              <span v-if="dateDisplay" class="hero-date">{{ dateDisplay }}</span>
             </div>
 
             <h1 class="hero-title">{{ event.name }}</h1>
@@ -244,7 +244,7 @@ import { getCachedImageThumb, peekImageThumb } from '@/utils/image/thumb'
 import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown } from '@/utils/markdown'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
-import { formatEventDateDisplay } from '@/utils/events/eventDates'
+import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
 import { usePresetsStore } from '@/stores/presets'
 
 defineOptions({ name: 'EventDetailView' })
@@ -528,16 +528,11 @@ const infoItems = computed(() => {
   if (event.value.type) {
     items.push({ label: t('events.detail.eventType'), value: typeLabel.value })
   }
-  if (event.value.startDate) {
-    items.push({ label: t('events.detail.startDate'), value: event.value.startDate })
-  }
-  if (event.value.endDate && event.value.endDate !== event.value.startDate) {
-    items.push({ label: t('events.detail.endDate'), value: event.value.endDate })
-  }
-  if (Array.isArray(event.value.selectedDates) && event.value.selectedDates.length > 0) {
+  const eventDates = resolveEventDates(event.value)
+  if (eventDates.length > 0) {
     items.push({
       label: t('events.detail.selectedDates'),
-      value: event.value.selectedDates.join('、')
+      value: eventDates.join('、')
     })
   }
   if (event.value.location) {
