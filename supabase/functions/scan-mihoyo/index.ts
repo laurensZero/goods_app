@@ -201,14 +201,25 @@ async function fetchGiftActivityDetail(activityId: string): Promise<{
   }
 }
 
+// 赠品 A/B 变体去重键：去掉尾款/预售噪音括号与末尾款式字母（镭射卡A / 镭射卡B → 同一条）
+export function giftDedupeKey(name: string): string {
+  let s = String(name || "").trim()
+  s = s.replace(/【[^】]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^】]*】/g, "")
+  s = s.replace(/（[^）]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^）]*）/g, "")
+  s = s.replace(/\([^)]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^)]*\)/g, "")
+  s = s.replace(
+    /\s*(?:(?:第?\d+|[一二三四五六七八九十两]+)\s*(?:批|批次|期)\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售)(?:[^\s（）()【】\[\]]*)?$/g,
+    "",
+  )
+  s = s.replace(/[A-E]$/, "")
+  return s.trim()
+}
+
 function formatItemLine(catalog: string, it: Record<string, any>): string {
   const name = String(it.name || "未知商品")
   if (catalog === "gift") {
-    const giftNames = Array.isArray(it.gift_names) && it.gift_names.length
-      ? ` ｜ 赠品：${it.gift_names.join("、")}`
-      : ""
-    const promo = it.promotion_text ? ` ｜ ${it.promotion_text}` : ""
-    return `· ${name}${promo}${giftNames}`
+    // 与商品一致：一行一个赠品，不列满减档位
+    return `· ${name}`
   }
   if (catalog === "point") {
     const point = Number(it.point) || 0
@@ -434,6 +445,8 @@ async function scanGiftCatalog(
   const newActivities: Record<string, any>[] = []
   const errors: string[] = []
   let probed = 0
+  // 跨活动 A/B 去重：镭射卡A / 镭射卡B 只出一行
+  const giftKeySeen = new Set<string>()
 
   for (const shopCode of shopCodes) {
     // 只看「即将上架」——上新商品的主列表；开售后再补的满赠
@@ -510,16 +523,34 @@ async function scanGiftCatalog(
           continue
         }
 
-        // 新活动：拉详情拿活动名与赠品列表
+        // 新活动：拆成一行一个赠品（A/B 去重），与商品通知形态一致
         const detail = await fetchGiftActivityDetail(actId)
         const shop = detail.shopCode || shopCode
-        newActivities.push({
-          goods_id: actId,
-          name: detail.name || act.promotion_text || "满赠活动",
-          promotion_text: act.promotion_text || "",
-          gift_names: detail.gifts.map((g) => g.name).filter(Boolean),
-          shop_code: shop,
-        })
+        for (const g of detail.gifts) {
+          const rawName = String(g.name || "").trim()
+          if (!rawName) continue
+          const gKey = giftDedupeKey(rawName) || rawName
+          if (giftKeySeen.has(gKey)) continue
+          giftKeySeen.add(gKey)
+          newActivities.push({
+            goods_id: g.goods_id || `${actId}:${gKey}`,
+            name: gKey,
+            shop_code: shop,
+          })
+        }
+        // 活动详情异常时兜底一行，避免整条通知丢失
+        if (!detail.gifts.length) {
+          const fallbackName = detail.name || act.promotion_text || "满赠活动"
+          const fallbackKey = giftDedupeKey(fallbackName) || fallbackName
+          if (!giftKeySeen.has(fallbackKey)) {
+            giftKeySeen.add(fallbackKey)
+            newActivities.push({
+              goods_id: actId,
+              name: fallbackKey,
+              shop_code: shop,
+            })
+          }
+        }
       }
     }
   }
