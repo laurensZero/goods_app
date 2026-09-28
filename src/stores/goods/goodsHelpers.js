@@ -42,8 +42,11 @@ function parseTimelineYearMonth(value) {
   return isValidYearMonth(yearMonth) ? yearMonth : ''
 }
 
-function shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply = false } = {}) {
+function shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply = false, forceAlign = false } = {}) {
   if (!localItem) return true
+  // forceAlign（强制全量拉取 = 强制对齐云端）：远端行无条件覆盖本地，
+  // 不比较时间戳——本地较新的未推送改动也以云端为准
+  if (forceAlign) return true
   const remoteTs = Number(remoteItem?.updatedAt) || 0
   const localTs = Number(localItem?.updatedAt) || 0
   // forceReapply（同步格式版本升级回填）：时间戳相等也应用远端行，

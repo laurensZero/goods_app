@@ -189,6 +189,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  * @param {object} opts
  * @param {boolean} opts.reconcileMissing - if true, delete local items not present in remote
  * @param {boolean} opts.forceReapply - if true, apply remote rows even when timestamps are equal
+ * @param {boolean} opts.forceAlign - if true, remote always overwrites local (force full pull = align to cloud)
  *   (used by schema-format-version resync to backfill fields an older build stripped from local rows)
  * @param {object} opts.diff - diff result from diffLocalRemote
  * @param {Function} opts.shouldApplyRemoteItem - conflict resolver
@@ -197,7 +198,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false, forceAlign = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -233,12 +234,12 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
 
   // Import new + update existing
   if (goods.length > 0) {
-    await goodsStore.importGoodsBackup(goods)
-    await goodsStore.updateGoodsBackup(goods, { forceReapply })
+    await goodsStore.importGoodsBackup(goods, { forceAlign })
+    await goodsStore.updateGoodsBackup(goods, { forceReapply, forceAlign })
   }
   if (trash.length > 0) {
-    await goodsStore.importTrashBackup(trash)
-    await goodsStore.updateTrashBackup(trash, { forceReapply })
+    await goodsStore.importTrashBackup(trash, { forceAlign })
+    await goodsStore.updateTrashBackup(trash, { forceReapply, forceAlign })
   }
 
   // Reconcile: delete local items not in remote
@@ -283,7 +284,8 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     await rechargeStore.importBackup(allRecharge, {
       reconcileMissing,
       preserveLocalNewerThan: remoteWatermark,
-      forceReapply
+      forceReapply,
+      forceAlign
     })
   }
 
@@ -295,7 +297,8 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     await eventsStore.importEventsBackup(allEvents, {
       reconcileMissing,
       preserveLocalNewerThan: remoteWatermark,
-      forceReapply
+      forceReapply,
+      forceAlign
     })
   }
 
@@ -307,7 +310,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   const allGroups = [...groupsArr, ...groupsTrashArr]
   const allGroupItems = [...groupItemsArr, ...groupItemsTrashArr]
   if (allGroups.length > 0 || allGroupItems.length > 0) {
-    await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems, { forceReapply })
+    await goodsGroupStore.updateGroupsBackup(allGroups, allGroupItems, { forceReapply, forceAlign })
   }
 
   // ── Batch drafts ──
@@ -316,7 +319,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   const batchTrash = remoteData.batchDraftsTrash || []
   const allBatchDrafts = [...batchActive, ...batchTrash]
   if (allBatchDrafts.length > 0) {
-    const applied = await mergeBatchDraftsFromRemote(allBatchDrafts, { forceReapply })
+    const applied = await mergeBatchDraftsFromRemote(allBatchDrafts, { forceReapply, forceAlign })
     if (applied > 0) {
       try {
         const { refreshActiveSlotFromDb } = await import('@/composables/batch/useBatchQueue')
@@ -351,7 +354,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
  * LWW 合并 batch_drafts 到本地 DB（含墓碑）。
  * 返回实际落库条数。
  */
-export async function mergeBatchDraftsFromRemote(remoteDrafts, { forceReapply = false } = {}) {
+export async function mergeBatchDraftsFromRemote(remoteDrafts, { forceReapply = false, forceAlign = false } = {}) {
   const localList = await getAllBatchDrafts()
   const localMap = new Map(localList.map((d) => [String(d.slot || d.id), d]))
   const toApply = []
@@ -390,7 +393,7 @@ export async function mergeBatchDraftsFromRemote(remoteDrafts, { forceReapply = 
       continue
     }
 
-    if (remoteTs > localTs || (forceReapply && remoteTs === localTs)) {
+    if (forceAlign || remoteTs > localTs || (forceReapply && remoteTs === localTs)) {
       const normalized = normalizeBatchDraft(remote)
       toApply.push({
         ...normalized,

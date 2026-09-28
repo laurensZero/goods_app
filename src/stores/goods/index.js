@@ -260,8 +260,8 @@ export const useGoodsStore = defineStore('goods', () => {
   function removeGoods(id) { return crud.removeGoods(id, list, trashList, autoPushGoods) }
   function removeMultipleGoods(ids) { return crud.removeMultipleGoods(ids, list, trashList, autoPushGoods) }
   function restoreTrashItem(id) { return crud.restoreTrashItem(id, list, trashList, autoPushGoods) }
-  async function importGoodsBackup(items) {
-    const result = await _importGoodsBackup(items, list, trashList)
+  async function importGoodsBackup(items, opts) {
+    const result = await _importGoodsBackup(items, list, trashList, opts)
     await clearPurgedTrashIds((items || []).map((item) => item?.id))
     return result
   }
@@ -315,8 +315,8 @@ export const useGoodsStore = defineStore('goods', () => {
     loadFailed.value = false
   }
 
-  function importTrashBackup(items) {
-    return _importTrashBackup(items, list, trashList, purgedTrashIds.value)
+  function importTrashBackup(items, opts) {
+    return _importTrashBackup(items, list, trashList, purgedTrashIds.value, opts)
   }
 
   function updateTrashBackup(items, opts) {

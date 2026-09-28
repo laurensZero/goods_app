@@ -72,6 +72,35 @@ describe('updateGoodsBackup forceReapply（同步格式版本升级回填）', (
   })
 })
 
+describe('updateGoodsBackup forceAlign（强制全量拉取 = 强制对齐云端）', () => {
+  beforeEach(() => {
+    saveItems.mockReset()
+    saveItems.mockResolvedValue(undefined)
+  })
+
+  it('forceAlign=true 时本地较新的行也被远端覆盖', async () => {
+    const list = shallowRef([makeItem('a', 200, { name: 'local-newer' })])
+    const remote = [makeItem('a', 100, { name: 'remote-older' })]
+
+    const updated = await updateGoodsBackup(remote, list, { forceAlign: true })
+
+    expect(updated).toBe(1)
+    expect(list.value[0].name).toBe('remote-older')
+    expect(saveItems).toHaveBeenCalledTimes(1)
+  })
+
+  it('forceAlign=true 时回收站本地较新的行也被远端覆盖', async () => {
+    const trashList = shallowRef([makeItem('t1', 200, { name: 'local-newer', trashed: true })])
+    const remote = [makeItem('t1', 100, { name: 'remote-older', trashed: true })]
+
+    const updated = await updateTrashBackup(remote, trashList, null, { forceAlign: true })
+
+    expect(updated).toBe(1)
+    expect(trashList.value[0].name).toBe('remote-older')
+    expect(saveItems).toHaveBeenCalledTimes(1)
+  })
+})
+
 describe('updateGoodsBackup 保护稀疏字段 goodsId（LWW 空串不覆盖非空）', () => {
   beforeEach(() => {
     saveItems.mockReset()

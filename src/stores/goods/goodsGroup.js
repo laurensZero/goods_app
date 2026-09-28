@@ -332,10 +332,15 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
   // 视为无变化——增量拉取的时钟重叠窗口会反复拉回本机刚推送的行。
   // ⚠️ groups/groupItems 目前直通远端整行（无白名单）。若将来引入白名单裁剪字段，
   // 增删会同步的字段时必须 bump `src/constants/syncConstants.js` 的 SYNC_SCHEMA_VERSION。
-  function mergeRemoteRow(local, remote, markChanged, forceReapply = false) {
+  function mergeRemoteRow(local, remote, markChanged, forceReapply = false, forceAlign = false) {
     if (!remote) return local
     const remoteTs = remote.updatedAt || 0
     const localTs = local.updatedAt || 0
+    if (forceAlign) {
+      if (remote.deleted && local.deleted && remoteTs === localTs) return local
+      markChanged()
+      return remote
+    }
     if (remote.deleted && remoteTs >= localTs) {
       if (local.deleted && remoteTs === localTs) return local
       markChanged()
@@ -348,12 +353,12 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
     return local
   }
 
-  async function updateGroupsBackup(groups, items, { forceReapply = false } = {}) {
+  async function updateGroupsBackup(groups, items, { forceReapply = false, forceAlign = false } = {}) {
     if (Array.isArray(groups) && groups.length > 0) {
       const remoteMap = new Map(groups.map(g => [g.id, g]))
       let changed = false
       const markChanged = () => { changed = true }
-      const merged = groupList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply))
+      const merged = groupList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply, forceAlign))
       // 添加远端有、本地没有的
       const localIds = new Set(groupList.value.map(g => g.id))
       for (const remote of groups) {
@@ -372,7 +377,7 @@ export const useGoodsGroupStore = defineStore('goodsGroup', () => {
       const remoteMap = new Map(items.map(i => [i.id, i]))
       let changed = false
       const markChanged = () => { changed = true }
-      const merged = groupItemList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply))
+      const merged = groupItemList.value.map(local => mergeRemoteRow(local, remoteMap.get(local.id), markChanged, forceReapply, forceAlign))
       const localIds = new Set(groupItemList.value.map(i => i.id))
       for (const remote of items) {
         if (!localIds.has(remote.id)) {

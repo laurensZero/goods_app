@@ -65,13 +65,14 @@ async function refreshList(list) {
   list.value = (await getItems()).map((item) => normalizeGoodsInput(item, item.id))
 }
 
-async function importGoodsBackup(items, list, trashList) {
+async function importGoodsBackup(items, list, trashList, { forceAlign = false } = {}) {
   const existingIds = new Set(list.value.map((item) => item.id))
   const trashIdMap = new Map(trashList.value.map((item) => [item.id, item]))
 
   // 关键守卫：本地刚删除（在回收站里）的条目，远端若仍是 trashed=0 会把它当活跃行拉回。
   // 按 LWW 判定——本地删除时间不早于远端更新时间则保持删除，不恢复；
   // 远端更新时间更新（比如另一台设备重新添加）才恢复并同时移出本地回收站
+  // forceAlign（强制对齐云端）：远端活跃行无条件恢复
   const importableItems = []
   const idsToUnTrash = []
   for (const remoteItem of items) {
@@ -82,7 +83,7 @@ async function importGoodsBackup(items, list, trashList) {
     if (localTrash) {
       const remoteTs = Number(remoteItem.updatedAt) || 0
       const localTs = Number(localTrash.updatedAt) || 0
-      if (remoteTs > localTs) {
+      if (forceAlign || remoteTs > localTs) {
         importableItems.push(remoteItem)
         idsToUnTrash.push(remoteItem.id)
       }
@@ -116,7 +117,7 @@ async function importGoodsBackup(items, list, trashList) {
   return newItems.length
 }
 
-async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
+async function updateGoodsBackup(items, list, { forceReapply = false, forceAlign = false } = {}) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(list.value.map((item) => [item.id, item]))
@@ -124,7 +125,7 @@ async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
   // Filter items that need updating first (cheap), then restore in parallel (expensive I/O)
   const candidates = items.filter((remoteItem) => {
     const localItem = existingMap.get(remoteItem.id)
-    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply })
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply, forceAlign })
   })
 
   const results = await Promise.all(candidates.map(async (remoteItem) => {
@@ -181,7 +182,7 @@ async function updateGoodsBackup(items, list, { forceReapply = false } = {}) {
   return updatedItems.length
 }
 
-async function importTrashBackup(items, list, trashList, purgedTrashIds = null) {
+async function importTrashBackup(items, list, trashList, purgedTrashIds = null, { forceAlign = false } = {}) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingIds = new Set(trashList.value.map((item) => item.id))
@@ -190,6 +191,7 @@ async function importTrashBackup(items, list, trashList, purgedTrashIds = null) 
   // 关键守卫（与 importGoodsBackup 的反向守卫对称）：远端回收站行命中本地活跃行时
   // 按 LWW 裁决——远端删除较新才把活跃行移入回收站（整行覆盖为远端 trashed=1 内容）；
   // 本地较新说明远端墓碑是旧快照，既不导入也不动活跃行
+  // forceAlign（强制对齐云端）：远端墓碑无条件生效
   const importableItems = []
   const idsToTrashLocally = []
   const reminderOffsetsById = new Map()
@@ -201,7 +203,7 @@ async function importTrashBackup(items, list, trashList, purgedTrashIds = null) 
     if (activeItem) {
       const remoteTs = Number(item.updatedAt) || 0
       const localTs = Number(activeItem.updatedAt) || 0
-      if (remoteTs > localTs) {
+      if (forceAlign || remoteTs > localTs) {
         importableItems.push(item)
         idsToTrashLocally.push(id)
         reminderOffsetsById.set(id, activeItem.saleReminderOffsets)
@@ -242,7 +244,7 @@ async function importTrashBackup(items, list, trashList, purgedTrashIds = null) 
   return newItems.length
 }
 
-async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forceReapply = false } = {}) {
+async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forceReapply = false, forceAlign = false } = {}) {
   if (!Array.isArray(items) || items.length === 0) return 0
 
   const existingMap = new Map(trashList.value.map((item) => [item.id, item]))
@@ -250,7 +252,7 @@ async function updateTrashBackup(items, trashList, purgedTrashIds = null, { forc
   const candidates = items.filter((remoteItem) => {
     if (purgedTrashIds?.has(String(remoteItem?.id || '').trim())) return false
     const localItem = existingMap.get(remoteItem.id)
-    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply })
+    return localItem && shouldApplyRemoteBackup(localItem, remoteItem, { forceReapply, forceAlign })
   })
 
   const results = await Promise.all(candidates.map(async (remoteItem) => {
