@@ -123,26 +123,78 @@ describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => 
 
     await mergeToLocal(stores, remote, { forceReapply: true, reconcileMissing: false })
 
+    expect(stores.goodsStore.importGoodsBackup).toHaveBeenCalledWith(
+      [makeItem('a', 100)],
+      { forceAlign: false }
+    )
     expect(stores.goodsStore.updateGoodsBackup).toHaveBeenCalledWith(
       [makeItem('a', 100)],
-      { forceReapply: true }
+      { forceReapply: true, forceAlign: false }
+    )
+    expect(stores.goodsStore.importTrashBackup).toHaveBeenCalledWith(
+      [makeItem('t', 100)],
+      { forceAlign: false }
     )
     expect(stores.goodsStore.updateTrashBackup).toHaveBeenCalledWith(
       [makeItem('t', 100)],
-      { forceReapply: true }
+      { forceReapply: true, forceAlign: false }
     )
     expect(stores.eventsStore.importEventsBackup).toHaveBeenCalledWith(
       [{ id: 'e1', updatedAt: 100 }],
-      expect.objectContaining({ forceReapply: true })
+      expect.objectContaining({ forceReapply: true, forceAlign: false })
     )
     expect(stores.goodsGroupStore.updateGroupsBackup).toHaveBeenCalledWith(
       [{ id: 'g1', updatedAt: 100 }],
       [{ id: 'gi1', updatedAt: 100 }],
-      { forceReapply: true }
+      { forceReapply: true, forceAlign: false }
     )
     expect(stores.rechargeStore.importBackup).toHaveBeenCalledWith(
       [{ id: 'r1', updatedAt: 100 }],
-      expect.objectContaining({ forceReapply: true })
+      expect.objectContaining({ forceReapply: true, forceAlign: false })
+    )
+  })
+
+  it('forceAlign=true 时把该标记透传给 goods/trash/events/groups 的更新入口', async () => {
+    const stores = makeStores()
+    const remote = {
+      goods: [makeItem('a', 100)],
+      trash: [makeItem('t', 100)],
+      events: [{ id: 'e1', updatedAt: 100 }],
+      recharge: [{ id: 'r1', updatedAt: 100 }],
+      groups: [{ id: 'g1', updatedAt: 100 }],
+      groupItems: [{ id: 'gi1', updatedAt: 100 }]
+    }
+
+    await mergeToLocal(stores, remote, { forceAlign: true, reconcileMissing: false })
+
+    expect(stores.goodsStore.importGoodsBackup).toHaveBeenCalledWith(
+      [makeItem('a', 100)],
+      { forceAlign: true }
+    )
+    expect(stores.goodsStore.updateGoodsBackup).toHaveBeenCalledWith(
+      [makeItem('a', 100)],
+      { forceReapply: false, forceAlign: true }
+    )
+    expect(stores.goodsStore.importTrashBackup).toHaveBeenCalledWith(
+      [makeItem('t', 100)],
+      { forceAlign: true }
+    )
+    expect(stores.goodsStore.updateTrashBackup).toHaveBeenCalledWith(
+      [makeItem('t', 100)],
+      { forceReapply: false, forceAlign: true }
+    )
+    expect(stores.eventsStore.importEventsBackup).toHaveBeenCalledWith(
+      [{ id: 'e1', updatedAt: 100 }],
+      expect.objectContaining({ forceAlign: true })
+    )
+    expect(stores.goodsGroupStore.updateGroupsBackup).toHaveBeenCalledWith(
+      [{ id: 'g1', updatedAt: 100 }],
+      [{ id: 'gi1', updatedAt: 100 }],
+      { forceReapply: false, forceAlign: true }
+    )
+    expect(stores.rechargeStore.importBackup).toHaveBeenCalledWith(
+      [{ id: 'r1', updatedAt: 100 }],
+      expect.objectContaining({ forceAlign: true })
     )
   })
 
@@ -161,20 +213,20 @@ describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => 
 
     expect(stores.goodsStore.updateGoodsBackup).toHaveBeenCalledWith(
       [makeItem('a', 100)],
-      { forceReapply: false }
+      { forceReapply: false, forceAlign: false }
     )
     expect(stores.goodsGroupStore.updateGroupsBackup).toHaveBeenCalledWith(
       [{ id: 'g1', updatedAt: 100 }],
       [{ id: 'gi1', updatedAt: 100 }],
-      { forceReapply: false }
+      { forceReapply: false, forceAlign: false }
     )
     expect(stores.eventsStore.importEventsBackup).toHaveBeenCalledWith(
       [{ id: 'e1', updatedAt: 100 }],
-      expect.objectContaining({ forceReapply: false })
+      expect.objectContaining({ forceReapply: false, forceAlign: false })
     )
     expect(stores.rechargeStore.importBackup).toHaveBeenCalledWith(
       [{ id: 'r1', updatedAt: 100 }],
-      expect.objectContaining({ forceReapply: false })
+      expect.objectContaining({ forceReapply: false, forceAlign: false })
     )
   })
 })

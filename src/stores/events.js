@@ -373,7 +373,7 @@ export const useEventsStore = defineStore('events', () => {
 
   // ── Backup import (events-specific: coverImageData backfill, image cleanup) ──
 
-  async function importEventsBackup(events, { reconcileMissing = false, preserveLocalNewerThan = 0, forceReapply = false } = {}) {
+  async function importEventsBackup(events, { reconcileMissing = false, preserveLocalNewerThan = 0, forceReapply = false, forceAlign = false } = {}) {
     const incoming = Array.isArray(events) ? events : []
     const incomingIds = new Set()
     let added = 0
@@ -416,7 +416,7 @@ export const useEventsStore = defineStore('events', () => {
       const existingCoverFileName = String(existing?.coverImageData?.cloudFileName || parseCloudImageUri(existing?.coverImage) || '').trim()
       const shouldBackfillCoverImageData = !!incomingCoverFileName && !existingCoverFileName
 
-      if (incomingUpdatedAt > existingUpdatedAt || shouldBackfillCoverImageData || forceReapply) {
+      if (forceAlign || incomingUpdatedAt > existingUpdatedAt || shouldBackfillCoverImageData || forceReapply) {
         const normalizedCoverImageData = event?.coverImageData && typeof event.coverImageData === 'object'
           ? {
               ...event.coverImageData,

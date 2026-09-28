@@ -38,7 +38,7 @@
   "sync.pullRemote": "Pull Remote Data",
   "sync.pullDesc": "Merge the latest remote data into this device without directly overwriting local collections. Long-press to force a full re-sync.",
   "sync.forcePullTitle": "Force Full Re-sync",
-  "sync.forcePullDesc": "Ignore the local watermark and re-pull all remote data (including rows with equal timestamps) without a conflict prompt. Use when data looks wrong or out of date. Local-only items are not deleted.",
+  "sync.forcePullDesc": "Force-align to cloud: ignore the local watermark, re-pull all remote data, and overwrite matching local rows unconditionally (including newer unpushed local edits) without a conflict prompt. Use when data looks wrong or out of date. Local-only items are not deleted.",
   "sync.forcePullConfirm": "Force Full Re-sync",
   "sync.forcePullComplete": "Force full re-sync completed",
   "sync.backend": "Sync Backend",

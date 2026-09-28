@@ -109,7 +109,7 @@ export function createSyncOrchestrator({
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
-    const { tables, since = 0, silent = false, schemaResync = false } = opts
+    const { tables, since = 0, silent = false, schemaResync = false, forceAlign = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
     let localBatchDrafts = []
@@ -193,7 +193,7 @@ export function createSyncOrchestrator({
       // Schema resync（同步格式版本升级回填）：旧版本拉取时丢弃了新字段并把水位线推进到
       // 这些行之后，增量拉取不会重放它们。此处全量重拉，令所有行参与图片水合，
       // 并让 merge 按 >= 重放相等时间戳的远端行（mergeToLocal 的 forceReapply）。
-      if (schemaResync) {
+      if (schemaResync || forceAlign) {
         diff.changedGoodsIds = new Set((remoteData.goods || []).map(g => g.id))
         diff.changedTrashIds = new Set((remoteData.trash || []).map(t => t.id))
         diff.hasChanges = true
@@ -230,9 +230,10 @@ export function createSyncOrchestrator({
           const imgStats = await hydrateRemoteImages(image, be, remoteData, diff)
           restoredCount = imgStats?.restoredImages || 0
           const merged = await mergeToLocal(storesWithDrafts, remoteData, {
-            reconcileMissing: !remoteData.isIncremental && !schemaResync, diff,
+            reconcileMissing: !remoteData.isIncremental && !schemaResync && !forceAlign, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             forceReapply: schemaResync,
+            forceAlign,
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             resolveRechargeImage: be?.getImagePublicUrl || null
@@ -470,7 +471,15 @@ export function createSyncOrchestrator({
       goodsDiff = diffLocalRemote(stores, remoteData, { incremental: remoteData.isIncremental })
       hasDataDiff = goodsDiff.hasChanges
     }
-    const hasRechargeDataDiff = isRechargeDirty
+    // 兜底：脏标记缺失（历史误清）或增量 diff 漏检本地较新行时，用水位线增量识别待推送变更。
+    // diffLocalRemote/compareStateSync 在 incremental 下跳过 localOnly：远端旧行（updated_at
+    // 早于水位线）不在增量 remoteData 里时，本地较新行会在比对中隐形，导致手动上传误报 no_changes。
+    if (!hasDataDiff
+      && (localChanges.updatedGoods > 0 || localChanges.updatedTrash > 0
+        || localChanges.updatedGroups > 0 || localChanges.updatedGroupItems > 0)) {
+      hasDataDiff = true
+    }
+    let hasRechargeDataDiff = isRechargeDirty
       ? (() => {
           const allLocal = stores.rechargeStore.exportBackup({ includeDeleted: true, stripImage: false }) || []
           const localActive = allLocal.filter(r => !r.deleted)
@@ -479,7 +488,8 @@ export function createSyncOrchestrator({
             || compareStateSync(localTrash, remoteData.rechargeTrash || [], { incremental: false }).hasChanges
         })()
       : false
-    const hasEventDataDiff = isEventsDirty
+    if (!hasRechargeDataDiff && localChanges.updatedRecharge > 0) hasRechargeDataDiff = true
+    let hasEventDataDiff = isEventsDirty
       ? (() => {
           const allEvents = stores.eventsStore.list || []
           const localActive = allEvents.filter(e => !e.deleted)
@@ -488,6 +498,7 @@ export function createSyncOrchestrator({
             || compareStateSync(localTrash, remoteData.eventsTrash || [], { incremental: false }).hasChanges
         })()
       : false
+    if (!hasEventDataDiff && localChanges.updatedEvents > 0) hasEventDataDiff = true
     const hasBatchDraftDataDiff = isBatchDraftDirty
       ? (() => {
           const localActive = localBatchDrafts.filter(d => !d.deleted)

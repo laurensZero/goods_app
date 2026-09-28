@@ -847,8 +847,16 @@ export const useSyncStore = defineStore('sync', () => {
       if (result.conflictData) conflictData.value = result.conflictData
       syncStatus.value = translateStatusMessage(result)
       notifyImageUploadFailure(result, source)
-      clearDirtyDomains(domains)
-      clearDirtyGoodsIds(goodsIds)
+      // 脏标记只在真正推送成功后清理：
+      // - conflict / pulled / no_changes：本地改动可能仍未上云，必须保留
+      // - pulledFirst：拉取后只补推了草稿，goods 脏标记同样要保留
+      const didPush = result?.action === 'pushed' && !result?.pulledFirst
+      if (didPush) {
+        clearDirtyDomains(domains)
+        clearDirtyGoodsIds(goodsIds)
+      } else if (result?.pulledFirst && domains?.has('batchDrafts')) {
+        clearDirtyDomains(new Set(['batchDrafts']))
+      }
       remarkFailedImageItems(result)
       return result
     } catch (error) {
@@ -952,11 +960,11 @@ export const useSyncStore = defineStore('sync', () => {
         return { action: 'skipped', reason: 'maintenance_mode' }
       }
 
-      // 用户主动触发的强制全量同步（长按拉取）：与管理员强制重同步同一路径
-      // （全量重拉 + forceReapply + 不弹冲突）。本地独有行不会被删除。
+      // 用户主动触发的强制全量同步（长按拉取）：强制对齐云端——
+      // 远端行无条件覆盖本地（含本地较新的未推送改动），不弹冲突。本地独有行不会被删除。
       if (forceFull) {
         const result = await withRetry(
-          () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+          () => orchestrator.pull(buildSyncContext(runGen), { silent: true, forceAlign: true }),
           { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
         )
         if (runGen !== syncGeneration) return result
