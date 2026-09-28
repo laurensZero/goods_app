@@ -1,4 +1,4 @@
-// supabase/functions/scan-mihoyo/index.ts
+﻿// supabase/functions/scan-mihoyo/index.ts
 // 米游铺上新扫描器：轮询米游铺 API → 与轻量去重表 mihoyo_monitor_seen diff →
 // 当轮新出现的 goods_id 聚合为消息入 notification_jobs（若条数超限则分多条），
 // notify-dispatch（每分钟 cron）负责投递 QQ。
@@ -8,11 +8,18 @@
 //                                          + 北京 12:01-12:05 / 18:01-18:05 每分钟补扫
 //                                          （补扫从 1 分起，避开与常规扫整点双开）
 //   GET .../scan-mihoyo?catalog=point   积分商城（7 店，需手机头）          —— 每小时
+//   GET .../scan-mihoyo?catalog=gift    满赠复核（12 点 / 18 点上新波次）
 //   GET .../scan-mihoyo?catalog=all     全量（手动/补数据）
+//
+// 满赠目录（修 bug：上新商品当时没挂满赠，过后才补 activity）：
+//   在 12/18 上新扫描里复核即将上架商品的 detail.promotion.gift_activities，
+//   按 activity_id 入 seen（catalog='gift'，goods_id 存 activity_id）→ 新活动才通知。
+//   已见过的商品仍会复核活动列表，后补的满赠不会漏。
 //
 // 去重：seen 表按 (catalog, shop_code, goods_id) 记录已见，已通知商品不再通知；
 //       TTL 按目录区分——商店「即将上架」7 天（开售后从列表消失，重新出现视为重新上架可再通知），
-//       积分商城 90 天（售罄商品会被列表接口摘下、补货后原样放回，生命周期按月计，短 TTL 会误清）。
+//       积分商城 90 天（售罄商品会被列表接口摘下、补货后原样放回，生命周期按月计，短 TTL 会误清），
+//       满赠 30 天（按 activity_id 去重，活动周期通常数周）。
 // 通知：每轮每目录聚合消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
 //       消息内容按用户自选的店铺集合（user_qq_bindings.mihoyo_shops，空=全不选）过滤——
 //       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息，条数超限则分多条发送。
@@ -27,6 +34,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 const MIHOYO_BASE = "https://api-mall.mihoyogift.com"
 const SHOP_LIST_PATH = "/common/homeishop/v1/goods/search_goods_spu_list"
 const POINT_LIST_PATH = "/common/hm_app/v1/goods/point_goods_list"
+const GOODS_DETAIL_PATH = "/common/homeishop/v1/goods/detail"
+const GIFT_ACTIVITY_PATH = "/common/homeishop/v1/activity/gift"
 
 const SHOP_HEADERS = { Referer: "https://www.mihoyogift.com/", "x-rpc-language": "zh-cn" }
 const POINT_HEADERS = {
@@ -45,6 +54,9 @@ const MAX_EMPTY_PAGES = 5
 const MAX_MESSAGE_CHARS = 1500
 const SEEN_TTL_DAYS = 7 // 商店目录：商品从列表消失超过 7 天即清理去重记录
 const POINT_SEEN_TTL_DAYS = 90 // 积分目录：售罄摘下→补货放回很常见，TTL 放宽避免误清
+const GIFT_SEEN_TTL_DAYS = 30 // 满赠目录：按 activity_id 去重，活动周期通常数周
+// 满赠复核：每店最多查多少条商品的 gift_activities（上新列表本就几十条）
+const GIFT_PROBE_LIMIT = 50
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,7 +79,14 @@ async function fetchJson(url: string, headers: Record<string, string>) {
 }
 
 // 拉取某 (catalog, shop_code) 的完整列表（按 data.count 翻页）
-async function fetchCatalogItems(catalog: string, shopCode: string): Promise<Record<string, any>[]> {
+// showSaleType：商店目录默认 2（即将上架）；满赠发现传 3 覆盖最近上架现货
+async function fetchCatalogItems(
+  catalog: string,
+  shopCode: string,
+  showSaleType = "2",
+  limit = PAGE_SIZE,
+  maxPages = MAX_EMPTY_PAGES,
+): Promise<Record<string, any>[]> {
   const isPoint = catalog === "point"
   const baseUrl = `${MIHOYO_BASE}${isPoint ? POINT_LIST_PATH : SHOP_LIST_PATH}`
   const headers = isPoint ? POINT_HEADERS : SHOP_HEADERS
@@ -77,16 +96,16 @@ async function fetchCatalogItems(catalog: string, shopCode: string): Promise<Rec
   let emptyPages = 0
   let count = Infinity
 
-  while (items.length < count && emptyPages < MAX_EMPTY_PAGES) {
+  while (items.length < count && emptyPages < MAX_EMPTY_PAGES && page <= maxPages) {
     const q = new URLSearchParams({
-      limit: String(PAGE_SIZE),
+      limit: String(limit),
       page: String(page),
       shop_code: shopCode,
     })
     if (!isPoint) {
       q.set("category_id", "0")
       q.set("order_by", "online_time")
-      q.set("show_sale_type", "2")
+      q.set("show_sale_type", String(showSaleType))
     }
 
     const data = await fetchJson(`${baseUrl}?${q.toString()}`, headers)
@@ -116,8 +135,81 @@ function formatBeijing(unixSec: number): string {
   return `${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`
 }
 
+// ---------- 满赠 API ----------
+
+/** 商品详情里的 promotion.gift_activities → [{activity_id, promotion_text}] */
+async function fetchGoodsGiftActivityIds(goodsId: string): Promise<{ activity_id: string; promotion_text: string }[]> {
+  const id = String(goodsId || "").trim()
+  if (!id) return []
+  try {
+    const json = await fetchJson(
+      `${MIHOYO_BASE}${GOODS_DETAIL_PATH}?goods_id=${encodeURIComponent(id)}`,
+      SHOP_HEADERS,
+    )
+    const promotion =
+      json?.data?.goods?.promotion ||
+      json?.data?.promotion ||
+      json?.data?.goods?.detail?.promotion ||
+      {}
+    const list = Array.isArray(promotion.gift_activities) ? promotion.gift_activities : []
+    return list
+      .map((item: Record<string, any>) => ({
+        activity_id: String(item?.activity_id || "").trim(),
+        promotion_text: String(item?.promotion_text || "").trim(),
+      }))
+      .filter((item: { activity_id: string }) => item.activity_id)
+  } catch {
+    return []
+  }
+}
+
+/** 公开拉取满赠活动详情（giveaway 页 ID 即 activity_id） */
+async function fetchGiftActivityDetail(activityId: string): Promise<{
+  ok: boolean
+  activityId: string
+  name: string
+  shopCode: string
+  gifts: { goods_id: string; name: string }[]
+}> {
+  const id = String(activityId || "").trim()
+  const empty = { ok: false, activityId: id, name: "", shopCode: "", gifts: [] as { goods_id: string; name: string }[] }
+  if (!id) return empty
+  try {
+    const json = await fetchJson(`${MIHOYO_BASE}${GIFT_ACTIVITY_PATH}?activity_id=${encodeURIComponent(id)}`, SHOP_HEADERS)
+    if (json.retcode !== 0) return empty
+    const data = json?.data || {}
+    const byGoodsId = new Map<string, { goods_id: string; name: string }>()
+    for (const stage of (Array.isArray(data.stages) ? data.stages : [])) {
+      for (const gift of (Array.isArray(stage?.gifts) ? stage.gifts : [])) {
+        const goodsId = String(gift?.goods_id || "").trim()
+        if (!goodsId || byGoodsId.has(goodsId)) continue
+        byGoodsId.set(goodsId, {
+          goods_id: goodsId,
+          name: String(gift?.name || "").trim(),
+        })
+      }
+    }
+    return {
+      ok: true,
+      activityId: id,
+      name: String(data.name || "").trim(),
+      shopCode: String(data.shop?.shop_code || "").trim(),
+      gifts: [...byGoodsId.values()],
+    }
+  } catch {
+    return empty
+  }
+}
+
 function formatItemLine(catalog: string, it: Record<string, any>): string {
   const name = String(it.name || "未知商品")
+  if (catalog === "gift") {
+    const giftNames = Array.isArray(it.gift_names) && it.gift_names.length
+      ? ` ｜ 赠品：${it.gift_names.join("、")}`
+      : ""
+    const promo = it.promotion_text ? ` ｜ ${it.promotion_text}` : ""
+    return `· ${name}${promo}${giftNames}`
+  }
   if (catalog === "point") {
     const point = Number(it.point) || 0
     const price = Number(it.price) > 0
@@ -134,7 +226,7 @@ function formatItemLine(catalog: string, it: Record<string, any>): string {
 }
 
 function buildMessages(catalog: string, newItems: Record<string, any>[]): string[] {
-  const label = catalog === "point" ? "积分兑换" : "即将上架"
+  const label = catalog === "gift" ? "满赠" : catalog === "point" ? "积分兑换" : "即将上架"
   const header = `【米游铺上新】${label}`
   const lines = newItems.map((it) => formatItemLine(catalog, it))
   if (lines.length === 0) return []
@@ -328,6 +420,133 @@ async function scanCatalog(
   return { catalog, shops: shopCodes.length, scanned, new_items: newItems.length, errors, enqueued }
 }
 
+// ---------- 满赠复核扫描 ----------
+// 场景：上新商品开售前常先空挂、过一阵才补满赠。
+//   商品 goods_id 在 12/18 上新那波已进 shop seen；后补的 activity 只能靠
+//   复核 detail.gift_activities 才能发现——按 activity_id 去重，不按商品。
+// 调度：只在 12 点 / 18 点上新波次跑，不必全时段扫。
+
+async function scanGiftCatalog(
+  admin: ReturnType<typeof createClient>,
+  shopCodes: string[],
+) {
+  const nowIso = new Date().toISOString()
+  const newActivities: Record<string, any>[] = []
+  const errors: string[] = []
+  let probed = 0
+
+  for (const shopCode of shopCodes) {
+    // 只看「即将上架」——上新商品的主列表；开售后再补的满赠
+    // 在下一轮活动详情回访里也能从已见 activity 维度兜住
+    let candidates: Record<string, any>[] = []
+    try {
+      candidates = await fetchCatalogItems("shop", shopCode, "2", PAGE_SIZE, 1)
+    } catch (e) {
+      errors.push(`${shopCode}:${e instanceof Error ? e.message : "fetch_failed"}`)
+      continue
+    }
+
+    const seenGoods = new Set<string>()
+    for (const it of candidates) {
+      const goodsId = String(it.goods_id || "")
+      if (!goodsId || seenGoods.has(goodsId)) continue
+      seenGoods.add(goodsId)
+      if (seenGoods.size > GIFT_PROBE_LIMIT) break
+
+      probed++
+      let acts: { activity_id: string; promotion_text: string }[] = []
+      try {
+        acts = await fetchGoodsGiftActivityIds(goodsId)
+      } catch {
+        // 单商品 detail 失败跳过，不中断本轮
+        continue
+      }
+
+      for (const act of acts) {
+        const actId = act.activity_id
+        if (!actId) continue
+
+        // 按 activity_id 去重：已见活动只刷 last_seen，不重复通知
+        const { data: existing } = await admin
+          .from("mihoyo_monitor_seen")
+          .select("goods_id")
+          .eq("catalog", "gift")
+          .eq("shop_code", shopCode)
+          .eq("goods_id", actId)
+          .maybeSingle()
+
+        if (existing) {
+          await admin
+            .from("mihoyo_monitor_seen")
+            .update({ last_seen_at: nowIso })
+            .eq("catalog", "gift")
+            .eq("shop_code", shopCode)
+            .eq("goods_id", actId)
+          continue
+        }
+
+        const { data: claimed, error: insertError } = await admin
+          .from("mihoyo_monitor_seen")
+          .insert(
+            {
+              catalog: "gift",
+              shop_code: shopCode,
+              goods_id: actId,
+              first_seen_at: nowIso,
+              last_seen_at: nowIso,
+            },
+            { onConflict: "catalog,shop_code,goods_id", ignoreDuplicates: true },
+          )
+          .select("goods_id")
+          .maybeSingle()
+        if (insertError && insertError.code !== "23505") throw insertError
+        if (!claimed) {
+          await admin
+            .from("mihoyo_monitor_seen")
+            .update({ last_seen_at: nowIso })
+            .eq("catalog", "gift")
+            .eq("shop_code", shopCode)
+            .eq("goods_id", actId)
+          continue
+        }
+
+        // 新活动：拉详情拿活动名与赠品列表
+        const detail = await fetchGiftActivityDetail(actId)
+        const shop = detail.shopCode || shopCode
+        newActivities.push({
+          goods_id: actId,
+          name: detail.name || act.promotion_text || "满赠活动",
+          promotion_text: act.promotion_text || "",
+          gift_names: detail.gifts.map((g) => g.name).filter(Boolean),
+          shop_code: shop,
+        })
+      }
+    }
+  }
+
+  // TTL：满赠活动 30 天未再出现即清理
+  const cutoff = new Date(Date.now() - GIFT_SEEN_TTL_DAYS * 86_400_000).toISOString()
+  await admin
+    .from("mihoyo_monitor_seen")
+    .delete()
+    .eq("catalog", "gift")
+    .lt("last_seen_at", cutoff)
+
+  let enqueued = { users: 0, jobs: 0 }
+  if (newActivities.length > 0) {
+    const batchKey = await makeBatchKey("gift", newActivities)
+    enqueued = await enqueueBatch(admin, "gift", newActivities, batchKey)
+  }
+
+  return {
+    catalog: "gift",
+    shops: shopCodes.length,
+    scanned: probed,
+    new_items: newActivities.length,
+    errors,
+    enqueued,
+  }
+}
 // ---------- 入口 ----------
 
 serve(async (req) => {
@@ -335,8 +554,12 @@ serve(async (req) => {
 
   const url = new URL(req.url)
   const p = (url.searchParams.get("catalog") || "all").toLowerCase()
-  const catalogs = p === "all" ? ["shop", "point"] : p === "shop" || p === "point" ? [p] : []
-  if (!catalogs.length) return json({ error: "catalog must be shop|point|all" }, 400)
+  const catalogs = p === "all"
+    ? ["shop", "point", "gift"]
+    : p === "shop" || p === "point" || p === "gift"
+      ? [p]
+      : []
+  if (!catalogs.length) return json({ error: "catalog must be shop|point|gift|all" }, 400)
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -346,6 +569,10 @@ serve(async (req) => {
 
   const results = []
   for (const catalog of catalogs) {
+    if (catalog === "gift") {
+      results.push(await scanGiftCatalog(admin, SHOP_CODES))
+      continue
+    }
     results.push(await scanCatalog(admin, catalog, catalog === "point" ? POINT_SHOP_CODES : SHOP_CODES))
   }
   return json({ ok: true, results })

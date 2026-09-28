@@ -1,4 +1,4 @@
-[project]
+﻿[project]
 id = "zvqzicimowfqshgjsrri"
 
 [functions.delete-user]
@@ -16,6 +16,7 @@ schedule = "*/1 * * * *"
 # 米游铺上新扫描：由 pg_cron 或网页端 schedule 两套调度触发
 #   ?catalog=shop   商店「即将上架」全天每 20 分钟 + 北京 12:00-12:05 / 18:00-18:05 每分钟补扫
 #   ?catalog=point  积分商城每小时
+#   ?catalog=gift   满赠复核 12/18（上新商品后补满赠，按 activity_id 去重）
 # （config.toml 每个函数只能写一个 schedule，多个调度用 pg_cron SQL 注册，见计划文档）
 [functions.scan-mihoyo]
 verify_jwt = false
