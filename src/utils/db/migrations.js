@@ -358,8 +358,18 @@ export const MIGRATIONS = [
       if (!cols.has('dates')) {
         await db.run("ALTER TABLE events ADD COLUMN dates TEXT DEFAULT '[]'")
       }
-      // 回填：selectedDates 非空优先，否则展开 start~end（上限 31 天）
-      const rows = await db.query('SELECT id, startDate, endDate, selectedDates, dates FROM events')
+      // 全新库的 CREATE TABLE 已是 dates 新结构，可能没有 startDate/endDate。
+      // 回填只在旧列存在时进行，且 SELECT 列名按实际 schema 拼，避免 “no such column”。
+      const hasStart = cols.has('startDate')
+      const hasEnd = cols.has('endDate')
+      const hasSelected = cols.has('selectedDates')
+      if (!hasStart && !hasEnd && !hasSelected) return
+
+      const selectCols = ['id', 'dates']
+      if (hasStart) selectCols.push('startDate')
+      if (hasEnd) selectCols.push('endDate')
+      if (hasSelected) selectCols.push('selectedDates')
+      const rows = await db.query(`SELECT ${selectCols.join(', ')} FROM events`)
       for (const r of rows) {
         let dates = []
         try {
@@ -367,12 +377,15 @@ export const MIGRATIONS = [
           if (Array.isArray(cur) && cur.length > 0) continue
         } catch { /* fall through to legacy */ }
         try {
-          const selected = typeof r.selectedDates === 'string' ? JSON.parse(r.selectedDates || '[]') : (r.selectedDates || [])
+          const selected = hasSelected
+            ? (typeof r.selectedDates === 'string' ? JSON.parse(r.selectedDates || '[]') : (r.selectedDates || []))
+            : []
           if (Array.isArray(selected) && selected.length > 0) {
             dates = selected.filter(Boolean).map(String).sort()
-          } else if (r.startDate) {
+          } else if (hasStart && r.startDate) {
             const start = String(r.startDate).trim()
-            const end = String(r.endDate || r.startDate).trim()
+            const endRaw = hasEnd ? (r.endDate || r.startDate) : r.startDate
+            const end = String(endRaw).trim()
             if (/^\d{4}-\d{2}-\d{2}$/.test(start)) {
               const startMs = new Date(`${start}T00:00:00`).getTime()
               const endMs = /^\d{4}-\d{2}-\d{2}$/.test(end) ? new Date(`${end}T00:00:00`).getTime() : startMs

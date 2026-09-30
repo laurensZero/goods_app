@@ -6,6 +6,8 @@ export function createNativeAdapter() {
 
   return {
     async open() {
+      // 幂等：连接已建立时不要重复 create/retrieve，避免 init 重试把库句柄换掉
+      if (_db) return
       const { CapacitorSQLite, SQLiteConnection } = await import('@capacitor-community/sqlite')
       const sqlite = new SQLiteConnection(CapacitorSQLite)
       const consistency = await sqlite.checkConnectionsConsistency()

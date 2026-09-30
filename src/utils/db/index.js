@@ -544,30 +544,27 @@ async function _doInitDB() {
   }
 
   db = await getDb()
-  
+
   const t1 = performance.now()
   await db.open()
   const openTime = performance.now() - t1
-  
-  // Only create tables on first init (skip if they already exist)
-  const t2 = performance.now()
-  if (!isInitialized) {
-    // Combine all CREATE TABLE statements into a single execute() call
-    // to reduce overhead of multiple SQL.js invocations
-    // (CREATE TABLE IF NOT EXISTS is idempotent, safe for re-init)
-    const allCreateSQL = [
-      CREATE_TABLE_SQL,
-      CREATE_EVENTS_TABLE_SQL,
-      CREATE_RECHARGE_TABLE_SQL,
-      CREATE_GOODS_GROUPS_TABLE_SQL,
-      CREATE_GOODS_GROUP_ITEMS_TABLE_SQL,
-      CREATE_BATCH_DRAFTS_TABLE_SQL,
-      CREATE_VERSION_TABLE_SQL
-    ].map(sql => sql.trim()).filter(Boolean).join(';\n') + ';'
 
-    await db.execute(allCreateSQL)
-    isInitialized = true
-  }
+  // CREATE TABLE IF NOT EXISTS 幂等，每次 init 都跑。
+  // 不能用 isInitialized 跳过：init 半途失败后重试时若底层库已被重建
+  // （web 端清 IndexedDB / 旧版 open 非幂等），跳过建表会留下空库。
+  const t2 = performance.now()
+  const allCreateSQL = [
+    CREATE_TABLE_SQL,
+    CREATE_EVENTS_TABLE_SQL,
+    CREATE_RECHARGE_TABLE_SQL,
+    CREATE_GOODS_GROUPS_TABLE_SQL,
+    CREATE_GOODS_GROUP_ITEMS_TABLE_SQL,
+    CREATE_BATCH_DRAFTS_TABLE_SQL,
+    CREATE_VERSION_TABLE_SQL
+  ].map(sql => sql.trim().replace(/;+\s*$/, '')).filter(Boolean).join(';\n') + ';'
+
+  await db.execute(allCreateSQL)
+  isInitialized = true
   const createTablesTime = performance.now() - t2
 
   const t2b = performance.now()
