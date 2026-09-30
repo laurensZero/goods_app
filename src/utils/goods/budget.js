@@ -15,6 +15,46 @@ export function parseBudgetAmount(value) {
   return normalized
 }
 
+/** 预算用量分档（按 spent/budget 百分比）：safe <80% ≤ warn ≤100% < over ≤150% < critical */
+export const BUDGET_LEVEL = Object.freeze({
+  NONE: 'none',
+  SAFE: 'safe',
+  WARN: 'warn',
+  OVER: 'over',
+  CRITICAL: 'critical'
+})
+
+/** 预警阈值：达到该用量比例起进入下一档 */
+export const BUDGET_WARN_RATIO = 0.8
+export const BUDGET_OVER_RATIO = 1
+export const BUDGET_CRITICAL_RATIO = 1.5
+
+/**
+ * 按已用百分比分档。未设预算 → none。
+ * @param {number} percent 0–∞，spent/budget*100
+ * @returns {'none'|'safe'|'warn'|'over'|'critical'}
+ */
+export function getBudgetLevelFromPercent(percent) {
+  if (!Number.isFinite(percent) || percent < 0) return BUDGET_LEVEL.NONE
+  if (percent > BUDGET_CRITICAL_RATIO * 100) return BUDGET_LEVEL.CRITICAL
+  if (percent > BUDGET_OVER_RATIO * 100) return BUDGET_LEVEL.OVER
+  if (percent >= BUDGET_WARN_RATIO * 100) return BUDGET_LEVEL.WARN
+  return BUDGET_LEVEL.SAFE
+}
+
+/**
+ * 按花费与预算金额分档。
+ * @param {number} spent
+ * @param {number} budget
+ * @returns {'none'|'safe'|'warn'|'over'|'critical'}
+ */
+export function getBudgetLevel(spent, budget) {
+  const safeBudget = Number.isFinite(budget) ? Math.max(0, budget) : 0
+  if (safeBudget <= 0) return BUDGET_LEVEL.NONE
+  const safeSpent = Number.isFinite(spent) ? Math.max(0, spent) : 0
+  return getBudgetLevelFromPercent((safeSpent / safeBudget) * 100)
+}
+
 /**
  * @returns {Promise<{ monthly: number, yearly: number }>}
  */

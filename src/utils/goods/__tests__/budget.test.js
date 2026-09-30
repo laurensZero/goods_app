@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { parseBudgetAmount, readBudgetSettings, writeBudgetSettings } from '../budget'
+import {
+  parseBudgetAmount,
+  readBudgetSettings,
+  writeBudgetSettings,
+  getBudgetLevel,
+  getBudgetLevelFromPercent,
+  BUDGET_LEVEL
+} from '../budget'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 const storage = vi.hoisted(() => ({
@@ -75,5 +82,38 @@ describe('writeBudgetSettings', () => {
   it('does nothing when patch is empty', async () => {
     await writeBudgetSettings({})
     expect(storage.writePersisted).not.toHaveBeenCalled()
+  })
+})
+
+describe('getBudgetLevelFromPercent', () => {
+  it('returns none when percent is invalid or budget unset', () => {
+    expect(getBudgetLevelFromPercent(NaN)).toBe(BUDGET_LEVEL.NONE)
+    expect(getBudgetLevelFromPercent(-1)).toBe(BUDGET_LEVEL.NONE)
+    expect(getBudgetLevelFromPercent(Infinity)).toBe(BUDGET_LEVEL.NONE)
+  })
+
+  it('tiers by usage percent', () => {
+    expect(getBudgetLevelFromPercent(0)).toBe(BUDGET_LEVEL.SAFE)
+    expect(getBudgetLevelFromPercent(79.9)).toBe(BUDGET_LEVEL.SAFE)
+    expect(getBudgetLevelFromPercent(80)).toBe(BUDGET_LEVEL.WARN)
+    expect(getBudgetLevelFromPercent(100)).toBe(BUDGET_LEVEL.WARN)
+    expect(getBudgetLevelFromPercent(100.1)).toBe(BUDGET_LEVEL.OVER)
+    expect(getBudgetLevelFromPercent(150)).toBe(BUDGET_LEVEL.OVER)
+    expect(getBudgetLevelFromPercent(150.1)).toBe(BUDGET_LEVEL.CRITICAL)
+  })
+})
+
+describe('getBudgetLevel', () => {
+  it('returns none when budget is unset', () => {
+    expect(getBudgetLevel(50, 0)).toBe(BUDGET_LEVEL.NONE)
+    expect(getBudgetLevel(50, -10)).toBe(BUDGET_LEVEL.NONE)
+    expect(getBudgetLevel(50, NaN)).toBe(BUDGET_LEVEL.NONE)
+  })
+
+  it('maps spent/budget into tiers', () => {
+    expect(getBudgetLevel(40, 100)).toBe(BUDGET_LEVEL.SAFE)
+    expect(getBudgetLevel(85, 100)).toBe(BUDGET_LEVEL.WARN)
+    expect(getBudgetLevel(120, 100)).toBe(BUDGET_LEVEL.OVER)
+    expect(getBudgetLevel(200, 100)).toBe(BUDGET_LEVEL.CRITICAL)
   })
 })

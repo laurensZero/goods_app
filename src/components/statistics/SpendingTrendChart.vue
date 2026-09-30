@@ -30,6 +30,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatCurrency } from '@/utils/format'
+import { BUDGET_LEVEL, getBudgetLevel } from '@/utils/goods/budget'
 import ChartWrapper from './ChartWrapper.vue'
 
 const { t } = useI18n()
@@ -158,24 +159,27 @@ const chartOption = computed(() => {
   const values = props.trendData.map((d) => Number(d.value || 0))
   const hasBudget = props.budgetLine > 0
 
-  // Per-bar coloring: red gradient if over budget, normal gradient otherwise
+  // Per-bar coloring by budget level: warn/over/critical use amber→red gradients
+  const levelColorStops = {
+    [BUDGET_LEVEL.WARN]: [
+      { offset: 0, color: '#f59e0b' },
+      { offset: 1, color: 'rgba(245, 158, 11, 0.3)' }
+    ],
+    [BUDGET_LEVEL.OVER]: [
+      { offset: 0, color: '#ef4444' },
+      { offset: 1, color: 'rgba(239, 68, 68, 0.3)' }
+    ],
+    [BUDGET_LEVEL.CRITICAL]: [
+      { offset: 0, color: '#b91c1c' },
+      { offset: 1, color: 'rgba(185, 28, 27, 0.35)' }
+    ]
+  }
   const barData = values.map((v) => {
-    if (hasBudget && v > props.budgetLine) {
-      return {
-        value: v,
-        itemStyle: {
-          borderRadius: [4, 4, 0, 0],
-          color: {
-            type: 'linear',
-            x: 0, y: 0, x2: 0, y2: 1,
-            colorStops: [
-              { offset: 0, color: '#ef4444' },
-              { offset: 1, color: 'rgba(239, 68, 68, 0.3)' }
-            ]
-          }
-        }
-      }
-    }
+    const level = hasBudget ? getBudgetLevel(v, props.budgetLine) : BUDGET_LEVEL.NONE
+    const colorStops = levelColorStops[level] || [
+      { offset: 0, color: colors.text },
+      { offset: 1, color: 'rgba(20, 20, 22, 0.3)' }
+    ]
     return {
       value: v,
       itemStyle: {
@@ -183,10 +187,7 @@ const chartOption = computed(() => {
         color: {
           type: 'linear',
           x: 0, y: 0, x2: 0, y2: 1,
-          colorStops: [
-            { offset: 0, color: colors.text },
-            { offset: 1, color: 'rgba(20, 20, 22, 0.3)' }
-          ]
+          colorStops
         }
       }
     }
