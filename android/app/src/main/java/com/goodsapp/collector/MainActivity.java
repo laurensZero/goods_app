@@ -1,6 +1,7 @@
 package com.goodsapp.collector;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.nfc.NfcAdapter;
 import android.os.Bundle;
 import android.util.Log;
@@ -119,6 +120,26 @@ public class MainActivity extends BridgeActivity {
                             + " acceptThirdPartyAfter=" + acceptThirdPartyAfter);
         } catch (Exception error) {
             Log.w("MainActivity", "WebView media cfg failed", error);
+        }
+    }
+
+    /**
+     * configChanges 含 uiMode 时 Activity 不重建。系统夜间模式变化（含息屏期间定时/省电
+     * 切换）主动把最新外观推给前端，避免 WebView matchMedia 一直停在旧值。
+     */
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        try {
+            boolean isDark = (newConfig.uiMode & Configuration.UI_MODE_NIGHT_MASK)
+                    == Configuration.UI_MODE_NIGHT_YES;
+            JSObject payload = new JSObject();
+            payload.put("appearance", isDark ? "dark" : "light");
+            if (bridge != null) {
+                bridge.triggerWindowJSEvent("goodsappUiModeChange", payload.toString());
+            }
+        } catch (Exception error) {
+            Log.w("MainActivity", "uiMode change notify failed", error);
         }
     }
 
