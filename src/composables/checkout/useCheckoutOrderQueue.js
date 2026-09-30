@@ -412,8 +412,10 @@ function clearQueue() {
 }
 
 function isQueueEntryCancelled(entry) {
-  return cancelledQueueIds.has(String(entry?.id || ''))
-    || !queue.value.some((item) => item.id === entry?.id)
+  if (cancelledQueueIds.has(String(entry?.id || ''))) return true
+  if (!queue.value.some((item) => item.id === entry?.id)) return true
+  // 已成功条目不再继续提交（防止并发单元/重试在成功后仍发单）
+  return entry?.status === 'success'
 }
 
 function createQueueCancelledError() {
@@ -629,6 +631,8 @@ async function createOrderWithRetry(cookie, { addressId, code, remark, items }, 
 // 返回 { ...preCreated, ...orderResult }，orderResult 可能是成功或 { duplicate: true }
 async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () => false, entry = null) {
   const preCreated = await preCreateWithRetry(cookie, payload, maxAttempts, isCancelled, entry)
+  // 拿到 code 后若其它单元已成功/已取消，不再发 createOrder
+  if (isCancelled()) throw createQueueCancelledError()
   const orderResult = await createOrderWithRetry(cookie, {
     addressId: payload.addressId,
     code: preCreated.code,
@@ -641,17 +645,23 @@ async function submitOrderUnit(cookie, payload, maxAttempts, isCancelled = () =>
 // 一笔订单的提交策略：
 //   concurrency=1：单个单元，preCreate 一次拿单 code → createOrder 串行重试（与 B站一致）
 //   concurrency>1：并发 n 个独立单元，每个都走「自己的 preCreate → 自己的 createOrder」，
-//                  各自拿独立 code、各自建单 → 可能产生多笔订单（重复下单可接受，目标是抢到）
+//                  各自拿独立 code、各自建单 → 竞速窗口内可能产生多笔（在途请求无法撤回）
 //                  单元之间按 40–65ms 错峰，降低齐射撞同一限流窗的概率
-// 任一单元真实成功（拿到 order_no）即立即返回；否则等全部结束，有「重复/已存在」也算成功
+// 任一单元真实成功（拿到 order_no）即立即返回，并短路其余单元的 preCreate/createOrder 与重试；
+// 若先收到「重复/已存在」（=单已建），同样短路其余单元，等已起飞单元收尾后用 duplicate 兜底成功。
 async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled = () => false, entry = null) {
   return new Promise((resolve) => {
     let settled = false
     let finished = 0
     let lastError = null
     let duplicate = null
+    // 成功短路：任一单元建单成功/判重后，其余单元停止发起新请求与重试
+    let successStop = false
 
-    if (isCancelled()) {
+    // 用户取消或已成功短路 → 单元应停手
+    const shouldStop = () => successStop || isCancelled()
+
+    if (shouldStop()) {
       resolve({ ok: false, cancelled: true, error: createQueueCancelledError() })
       return
     }
@@ -659,30 +669,55 @@ async function runConcurrentSubmits(cookie, payload, n, maxAttempts, isCancelled
     const finish = () => {
       if (settled || finished < n) return
       if (duplicate) {
+        settled = true
+        successStop = true
         resolve({ ok: true, result: duplicate })
       } else {
         resolve({ ok: false, error: lastError || new Error('下单失败') })
       }
     }
 
+    const settleOrderNo = (result) => {
+      if (settled) return
+      settled = true
+      successStop = true
+      resolve({ ok: true, result })
+    }
+
     for (let i = 0; i < n; i++) {
       const staggerMs = i === 0 ? 0 : i * STAGGER_BASE_MS + Math.random() * STAGGER_JITTER_MS
       const start = () => {
-        submitOrderUnit(cookie, payload, maxAttempts, isCancelled, entry)
+        // 错峰启动前若已成功/取消，不再发起
+        if (shouldStop()) {
+          finished += 1
+          finish()
+          return
+        }
+        submitOrderUnit(cookie, payload, maxAttempts, shouldStop, entry)
           .then((result) => {
+            if (settled) return
             finished += 1
-            if (result.orderNo && !settled) {
-              settled = true
-              resolve({ ok: true, result })
+            if (result.orderNo) {
+              settleOrderNo(result)
               return
             }
-            if (result.duplicate && !duplicate) {
-              duplicate = result
+            if (result.duplicate) {
+              // 单已建：立刻短路其余单元，不再发新的 preCreate/createOrder；
+              // 若在途单元随后带回更完整的 orderNo，仍优先采用。
+              if (!duplicate) duplicate = result
+              successStop = true
             }
             finish()
           })
           .catch((error) => {
-            if (error?.queueCancelled && !settled) {
+            if (settled) return
+            if (error?.queueCancelled) {
+              // 成功短路导致的停手：计入收尾，由 finish() 用 orderNo/duplicate 出结果
+              if (successStop) {
+                finished += 1
+                finish()
+                return
+              }
               settled = true
               resolve({ ok: false, cancelled: true, error })
               return
