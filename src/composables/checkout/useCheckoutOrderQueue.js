@@ -39,10 +39,9 @@ let clockBasePerfMs = 0
 let queueWatcherId = 0
 let queueWakeTimerId = 0
 const cancelledQueueIds = new Set()
-// 多账号并行：同一账号串行，不同账号可同时下单
+// 同账号多任务并行：到点各 SKU 同时开火；任务内 concurrency 再发多路独立下单
 const inFlightIds = new Set()
-const inFlightAccountKeys = new Set()
-const MAX_PARALLEL_ACCOUNT_TASKS = 5
+const MAX_PARALLEL_TASKS = 12
 // 开抢前预热过连接的任务 id → 上次预热时刻（允许临近 T0 再预热一次）
 const prewarmedIds = new Map()
 // 抢购窗口保持屏幕唤醒，避免息屏后 JS 定时器被冻
@@ -806,14 +805,11 @@ async function processQueue() {
 
   /** @type {typeof due} */
   const ready = []
-  const claimedAccounts = new Set(inFlightAccountKeys)
   for (const item of due) {
-    if (ready.length >= MAX_PARALLEL_ACCOUNT_TASKS) break
-    const accKey = getQueueAccountKey(item)
-    // 同一账号串行，避免同 cookie 并发打爆限流；不同账号并行
-    if (claimedAccounts.has(accKey)) continue
-    claimedAccounts.add(accKey)
-    ready.push(item)
+    if (ready.length >= MAX_PARALLEL_TASKS) break
+    if (!inFlightIds.has(String(item.id))) {
+      ready.push(item)
+    }
   }
 
   if (!ready.length) {
@@ -824,17 +820,14 @@ async function processQueue() {
 
   processing.value = true
   await Promise.all(ready.map(async (item) => {
-    const accKey = getQueueAccountKey(item)
     const id = String(item.id)
     inFlightIds.add(id)
-    inFlightAccountKeys.add(accKey)
     try {
       await executeQueuedOrder(item)
     } catch (error) {
       console.warn('[checkoutQueue] execute error', error?.message)
     } finally {
       inFlightIds.delete(id)
-      inFlightAccountKeys.delete(accKey)
     }
   }))
 
