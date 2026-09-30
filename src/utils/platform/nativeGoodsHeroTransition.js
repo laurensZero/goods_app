@@ -296,11 +296,32 @@ function readOriginalImageSource(el) {
   return ''
 }
 
-function readFallbackText(el) {
-  if (!el) return ''
-  const selector = '.cover-fallback, .cover-card__fallback, .event-card__placeholder, .linked-goods-card__placeholder, .cover-initial'
-  const fallback = el.matches?.(selector) ? el : el.querySelector(selector)
-  return String(fallback?.textContent || '').trim().slice(0, 1)
+const FALLBACK_TYPE_SELECTOR = '.cover-fallback, .cover-card__fallback, .event-card__placeholder, .linked-goods-card__placeholder, .cover-initial'
+
+function resolveFallbackLetterEl(el) {
+  if (!el) return null
+  const fallback = el.matches?.(FALLBACK_TYPE_SELECTOR) ? el : el.querySelector(FALLBACK_TYPE_SELECTOR)
+  if (!fallback) return null
+  return fallback.matches?.('.cover-initial') ? fallback : (fallback.querySelector?.('.cover-initial') || fallback)
+}
+
+// 无图占位字母必须按源/目标的真实字号飞行。写死 28px 再跟盒子一起 scale
+// 会既对不齐卡片(44px)也对不齐详情(92px)，过程中看起来就是忽大忽小。
+function readFallbackTypography(el) {
+  const letterEl = resolveFallbackLetterEl(el)
+  let style = null
+  try {
+    style = letterEl ? window.getComputedStyle(letterEl) : null
+  } catch (e) {}
+  const fontSize = Number.parseFloat(style?.fontSize)
+  return {
+    text: String(letterEl?.textContent || '').trim().slice(0, 1),
+    fontSize: Number.isFinite(fontSize) && fontSize > 0 ? fontSize : 28,
+    letterSpacing: style?.letterSpacing || '-0.05em',
+    fontWeight: style?.fontWeight || '700',
+    fontFamily: style?.fontFamily || '',
+    color: style?.color || 'rgba(255,255,255,0.92)'
+  }
 }
 
 // Resolve the hero image source.
@@ -522,13 +543,19 @@ function createHeroNode(snapshot, zIndex = HERO_FORWARD_OVERLAY_Z_INDEX, shadowV
   } else {
     const text = document.createElement('span')
     text.textContent = snapshot.fallbackText || '?'
+    text.dataset.heroFallbackText = 'true'
     text.style.display = 'grid'
     text.style.placeItems = 'center'
     text.style.width = '100%'
     text.style.height = '100%'
-    text.style.fontSize = '28px'
-    text.style.fontWeight = '700'
-    text.style.color = 'rgba(255,255,255,0.92)'
+    text.style.lineHeight = '1'
+    text.style.fontSize = `${snapshot.fallbackFontSize || 28}px`
+    text.style.fontWeight = snapshot.fallbackFontWeight || '700'
+    text.style.letterSpacing = snapshot.fallbackLetterSpacing || '-0.05em'
+    text.style.color = snapshot.fallbackColor || 'rgba(255,255,255,0.92)'
+    if (snapshot.fallbackFontFamily) {
+      text.style.fontFamily = snapshot.fallbackFontFamily
+    }
     clip.appendChild(text)
   }
 
@@ -759,13 +786,20 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   // recalculation — critical for smooth animation on tablets with large
   // hero elements. Layout fallback exists for edge cases where transform
   // scaling causes visual distortion (large aspect ratio changes).
+  //
+  // Fallback-letter heroes always use layout mode: the glyph must keep its
+  // own font-size curve (card 44px ↔ detail 92px). Scaling the whole node
+  // stretches the letter non-uniformly and makes it balloon/shrink mid-flight.
+  const isFallbackHero = !snapshot.imageSrc
   const heroAnimMode = getHeroAnimMode()
   const aspectDelta = Math.abs((snapshot.width / (snapshot.height || 1)) - (targetRect.width / (targetRect.height || 1)))
-  const transformOnly = heroAnimMode === 'transform'
-    ? true
-    : heroAnimMode === 'layout'
-      ? false
-      : shouldPreferTransformOnlyHero(direction, aspectDelta)
+  const transformOnly = isFallbackHero
+    ? false
+    : heroAnimMode === 'transform'
+      ? true
+      : heroAnimMode === 'layout'
+        ? false
+        : shouldPreferTransformOnlyHero(direction, aspectDelta)
 
   try {
     // Hide target and start animation in the same sync block when the
@@ -857,6 +891,36 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     return Promise.resolve()
   }
 
+  // 无图占位字母：字号/字距从源端补间到目标端（卡片 44px ↔ 详情 92px），
+  // 两端落地后与真实元素一致，过程中也不会被盒子缩放拽变形。
+  if (isFallbackHero) {
+    const textEl = node.querySelector('[data-hero-fallback-text]')
+    if (textEl && targetEl) {
+      const fromFs = Number.isFinite(snapshot.fallbackFontSize) ? snapshot.fallbackFontSize : 28
+      const targetLetterEl = resolveFallbackLetterEl(targetEl)
+      const targetType = readFallbackTypography(targetEl)
+      // 目标端没有字母节点时按盒子宽度比估算，避免错误补间到默认 28px。
+      const toFs = targetLetterEl
+        ? targetType.fontSize
+        : (snapshot.width > 0 ? fromFs * (targetRect.width / snapshot.width) : fromFs)
+      const fromLs = snapshot.fallbackLetterSpacing || '-0.05em'
+      const toLs = targetLetterEl ? (targetType.letterSpacing || fromLs) : fromLs
+      if (Math.abs(fromFs - toFs) > 0.5 || fromLs !== toLs) {
+        try {
+          const textAnim = textEl.animate(
+            [
+              { fontSize: `${fromFs}px`, letterSpacing: fromLs },
+              { fontSize: `${toFs}px`, letterSpacing: toLs }
+            ],
+            { duration, easing, fill: 'both' }
+          )
+          activeHeroAnimations.add(textAnim)
+          extraAnimations.push(textAnim)
+        } catch (e) {}
+      }
+    }
+  }
+
   // 回退(关闭)动画时，已售出/已丢失卡片的覆盖层镜像在降落末段逐渐变灰到卡片的
   // 基准灰度(opacity)。去除覆盖层时卡片本身已处于灰色状态——避免灰色“瞬间闪现”，
   // 呈现“慢慢恢复到灰色”的过渡。仅在回退方向生效，打开方向保持原有行为。
@@ -909,6 +973,7 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
   if (!rect) return
 
   const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
+  const fallbackType = readFallbackTypography(sourceEl)
 
   pendingForwardHero = {
     goodsId: String(goodsId),
@@ -921,7 +986,12 @@ export function prepareGoodsHeroForward({ goodsId, sourceEl }) {
     imageSrc,
     imageOriginalSrc,
     hasCoverImage,
-    fallbackText: readFallbackText(sourceEl),
+    fallbackText: fallbackType.text,
+    fallbackFontSize: fallbackType.fontSize,
+    fallbackLetterSpacing: fallbackType.letterSpacing,
+    fallbackFontWeight: fallbackType.fontWeight,
+    fallbackFontFamily: fallbackType.fontFamily,
+    fallbackColor: fallbackType.color,
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }
@@ -986,6 +1056,7 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
   if (!rect) return
 
   const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
+  const fallbackType = readFallbackTypography(sourceEl)
 
   pendingBackHero = {
     goodsId: String(goodsId),
@@ -999,7 +1070,12 @@ export function prepareGoodsHeroBack({ goodsId, sourceEl, targetPath = '' }) {
     imageSrc,
     imageOriginalSrc,
     hasCoverImage,
-    fallbackText: readFallbackText(sourceEl),
+    fallbackText: fallbackType.text,
+    fallbackFontSize: fallbackType.fontSize,
+    fallbackLetterSpacing: fallbackType.letterSpacing,
+    fallbackFontWeight: fallbackType.fontWeight,
+    fallbackFontFamily: fallbackType.fontFamily,
+    fallbackColor: fallbackType.color,
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }
@@ -1067,6 +1143,7 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
   if (!rect) return
 
   const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
+  const fallbackType = readFallbackTypography(sourceEl)
 
   pendingForwardEventHero = {
     eventId: String(eventId),
@@ -1079,7 +1156,12 @@ export function prepareEventHeroForward({ eventId, sourceEl }) {
     imageSrc,
     imageOriginalSrc,
     hasCoverImage,
-    fallbackText: readFallbackText(sourceEl),
+    fallbackText: fallbackType.text,
+    fallbackFontSize: fallbackType.fontSize,
+    fallbackLetterSpacing: fallbackType.letterSpacing,
+    fallbackFontWeight: fallbackType.fontWeight,
+    fallbackFontFamily: fallbackType.fontFamily,
+    fallbackColor: fallbackType.color,
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }
@@ -1143,6 +1225,7 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
   if (!rect) return
 
   const { imageSrc, imageOriginalSrc, hasCoverImage } = resolveHeroImageSrc(sourceEl)
+  const fallbackType = readFallbackTypography(sourceEl)
 
   pendingBackEventHero = {
     eventId: String(eventId),
@@ -1156,7 +1239,12 @@ export function prepareEventHeroBack({ eventId, sourceEl, targetPath = '' }) {
     imageSrc,
     imageOriginalSrc,
     hasCoverImage,
-    fallbackText: readFallbackText(sourceEl),
+    fallbackText: fallbackType.text,
+    fallbackFontSize: fallbackType.fontSize,
+    fallbackLetterSpacing: fallbackType.letterSpacing,
+    fallbackFontWeight: fallbackType.fontWeight,
+    fallbackFontFamily: fallbackType.fontFamily,
+    fallbackColor: fallbackType.color,
     background: window.getComputedStyle(sourceEl).background,
     boxShadow: readBoxShadow(sourceEl)
   }

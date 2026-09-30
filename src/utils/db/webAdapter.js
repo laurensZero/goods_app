@@ -110,6 +110,10 @@ export function createWebAdapter() {
 
   return {
     async open() {
+      // 幂等：已有内存库时绝不再从 IndexedDB 重建。init 失败重试会再次 open()，
+      // 若此时 IDB 已被 devtools 清空/驱逐，重建会把已建好的表冲掉，
+      // 而外层 isInitialized 又会跳过 CREATE → “no such table: goods”。
+      if (_db) return
       const { default: initSqlJs } = await import('sql.js')
       // 基于 BASE_URL 解析而非根绝对路径，兼容 base: './' 与子路径部署
       const wasmUrl = new URL(
