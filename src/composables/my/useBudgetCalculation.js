@@ -2,6 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { calcPeriodSpend } from '@/utils/goods/statistics'
+import { BUDGET_LEVEL, getBudgetLevelFromPercent } from '@/utils/goods/budget'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { useI18n } from 'vue-i18n'
@@ -19,7 +20,8 @@ function buildBudgetProgress(spent, budget) {
       clampedPercent: 0,
       overPercent: 0,
       remaining: 0,
-      isOverBudget: false
+      isOverBudget: false,
+      level: BUDGET_LEVEL.NONE
     }
   }
 
@@ -32,7 +34,8 @@ function buildBudgetProgress(spent, budget) {
     clampedPercent: Math.min(100, Math.max(0, percent)),
     overPercent: Math.min(100, Math.max(0, percent - 100)),
     remaining: safeBudget - safeSpent,
-    isOverBudget: percent > 100
+    isOverBudget: percent > 100,
+    level: getBudgetLevelFromPercent(percent)
   }
 }
 

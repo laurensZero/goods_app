@@ -139,13 +139,13 @@
                 <div class="budget-compact__meta">
                   <span>{{ t('my.monthly') }}</span>
                   <strong>{{ currentPeriodLabel }}</strong>
-                  <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': monthlyBudgetProgress.isOverBudget }">
+                  <span class="budget-compact__percent" :class="`budget-compact__percent--${monthlyBudgetProgress.level}`">
                     {{ monthlyBudgetProgress.hasBudget ? `${monthlyBudgetProgress.percent.toFixed(0)}%` : t('my.notSet') }}
                   </span>
                 </div>
                 <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="monthlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
-                  <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': monthlyBudgetProgress.isOverBudget }" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
-                  <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
+                  <span class="budget-progress__bar" :class="`budget-progress__bar--${monthlyBudgetProgress.level}`" :style="{ width: `${monthlyBudgetProgress.clampedPercent}%` }" />
+                  <span v-if="monthlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :class="`budget-progress__overflow--${monthlyBudgetProgress.level}`" :style="{ width: `${monthlyBudgetProgress.overPercent}%` }" />
                 </div>
                 <div class="budget-compact__foot">{{ formatPrice(monthlyBudgetProgress.spent) }} / {{ monthlyBudgetProgress.hasBudget ? formatPrice(monthlyBudgetProgress.budget) : t('my.notSetFull') }}</div>
               </div>
@@ -154,13 +154,13 @@
                 <div class="budget-compact__meta">
                   <span>{{ t('my.yearly') }}</span>
                   <strong>{{ currentYearLabel }}</strong>
-                  <span class="budget-compact__percent" :class="{ 'budget-compact__percent--over': yearlyBudgetProgress.isOverBudget }">
+                  <span class="budget-compact__percent" :class="`budget-compact__percent--${yearlyBudgetProgress.level}`">
                     {{ yearlyBudgetProgress.hasBudget ? `${yearlyBudgetProgress.percent.toFixed(0)}%` : t('my.notSet') }}
                   </span>
                 </div>
                 <div class="budget-progress budget-progress--compact" role="progressbar" :aria-valuenow="yearlyBudgetProgress.percent" aria-valuemin="0" aria-valuemax="100">
-                  <span class="budget-progress__bar" :class="{ 'budget-progress__bar--over': yearlyBudgetProgress.isOverBudget }" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
-                  <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
+                  <span class="budget-progress__bar" :class="`budget-progress__bar--${yearlyBudgetProgress.level}`" :style="{ width: `${yearlyBudgetProgress.clampedPercent}%` }" />
+                  <span v-if="yearlyBudgetProgress.overPercent > 0" class="budget-progress__overflow" :class="`budget-progress__overflow--${yearlyBudgetProgress.level}`" :style="{ width: `${yearlyBudgetProgress.overPercent}%` }" />
                 </div>
                 <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : t('my.notSetFull') }}</div>
               </div>
@@ -2209,9 +2209,19 @@ onActivated(() => {
   flex-shrink: 0;
 }
 
+.budget-compact__percent--warn {
+  background: color-mix(in srgb, #f1a23a 18%, var(--app-surface-soft));
+  color: #c47a12;
+}
+
 .budget-compact__percent--over {
   background: color-mix(in srgb, #e45b5b 16%, var(--app-surface-soft));
   color: #cd3f3f;
+}
+
+.budget-compact__percent--critical {
+  background: color-mix(in srgb, #b91c1c 22%, var(--app-surface-soft));
+  color: #a11212;
 }
 
 .budget-progress--compact {
@@ -2525,8 +2535,20 @@ onActivated(() => {
   background: linear-gradient(90deg, #4f9cff, #58c892);
 }
 
+.budget-progress__bar--safe {
+  background: linear-gradient(90deg, #4f9cff, #58c892);
+}
+
+.budget-progress__bar--warn {
+  background: linear-gradient(90deg, #f1a23a, #e8c547);
+}
+
 .budget-progress__bar--over {
   background: linear-gradient(90deg, #f1a23a, #e45b5b);
+}
+
+.budget-progress__bar--critical {
+  background: linear-gradient(90deg, #e45b5b, #991b1b);
 }
 
 .budget-progress__overflow {
@@ -2536,6 +2558,10 @@ onActivated(() => {
   height: 100%;
   border-radius: 999px;
   background: rgba(228, 91, 91, 0.42);
+}
+
+.budget-progress__overflow--critical {
+  background: rgba(153, 27, 27, 0.5);
 }
 
 .shortcut-stack {
