@@ -277,6 +277,7 @@ export const useThemeStore = defineStore('theme', () => {
   let mediaQueryList = null
   let removeSystemListener = null
   let removeVisibilityListener = null
+  let syncGeneration = 0
 
   const themeDefinition = computed(() => getThemeDefinition(themeId.value))
   const resolvedAppearance = computed(() => (
@@ -350,15 +351,35 @@ export const useThemeStore = defineStore('theme', () => {
     document.startViewTransition(() => applyTheme())
   }
 
-  function syncSystemAppearance({ forceApply = false } = {}) {
-    if (!canUseDom()) return
+  function isAndroidNative() {
+    return Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android'
+  }
 
-    // 从后台恢复时重新查询系统主题，Android WebView 在后台不会实时更新 matchMedia 状态
-    if (forceApply || !mediaQueryList) {
-      mediaQueryList = window.matchMedia(SYSTEM_DARK_QUERY)
+  function readMatchMediaAppearance() {
+    if (!canUseDom()) return 'light'
+    return window.matchMedia(SYSTEM_DARK_QUERY).matches ? 'dark' : 'light'
+  }
+
+  /**
+   * Android 优先读原生 Configuration。息屏期间系统切深色时 Activity 不重建
+   * （configChanges 含 uiMode），WebView matchMedia 可能一直停在旧值。
+   */
+  async function readSystemAppearance() {
+    if (isAndroidNative()) {
+      try {
+        const result = await AndroidSystemUiTheme.getSystemAppearance()
+        const appearance = String(result?.appearance || '').toLowerCase()
+        if (appearance === 'dark' || appearance === 'light') {
+          return appearance
+        }
+      } catch {
+        // 插件不可用时退回 matchMedia
+      }
     }
+    return readMatchMediaAppearance()
+  }
 
-    const nextAppearance = mediaQueryList.matches ? 'dark' : 'light'
+  function applyResolvedSystemAppearance(nextAppearance, { forceApply = false } = {}) {
     const shouldApplyTheme = appearancePreference.value === APPEARANCE_PREFERENCES.system
       && (forceApply || systemAppearance.value !== nextAppearance)
     // Only animate on genuine runtime system changes, not init or visibility re-sync
@@ -375,6 +396,17 @@ export const useThemeStore = defineStore('theme', () => {
         applyTheme()
       }
     }
+  }
+
+  function syncSystemAppearance({ forceApply = false } = {}) {
+    if (!canUseDom()) return
+
+    const generation = ++syncGeneration
+    void readSystemAppearance().then((nextAppearance) => {
+      // 忽略过期的并发读取（快速 resume / uiMode 事件）
+      if (generation !== syncGeneration) return
+      applyResolvedSystemAppearance(nextAppearance, { forceApply })
+    })
   }
 
   function bindSystemListener() {
@@ -397,9 +429,25 @@ export const useThemeStore = defineStore('theme', () => {
         syncSystemAppearance({ forceApply: true })
       }
     }
-
     document.addEventListener('visibilitychange', visibilityHandler)
-    removeVisibilityListener = () => document.removeEventListener('visibilitychange', visibilityHandler)
+
+    // Android：系统 uiMode 变化时原生主动推送，避免只依赖可能滞后的 matchMedia change
+    const uiModeHandler = (event) => {
+      const appearance = String(event?.detail?.appearance || '').toLowerCase()
+      if (appearance !== 'dark' && appearance !== 'light') {
+        syncSystemAppearance()
+        return
+      }
+      // 前台切换走动画；后台送达时 apply 即可，resume 仍会 force 再同步一次
+      syncGeneration += 1
+      applyResolvedSystemAppearance(appearance, { forceApply: false })
+    }
+    window.addEventListener('goodsappUiModeChange', uiModeHandler)
+
+    removeVisibilityListener = () => {
+      document.removeEventListener('visibilitychange', visibilityHandler)
+      window.removeEventListener('goodsappUiModeChange', uiModeHandler)
+    }
   }
 
   async function init() {
