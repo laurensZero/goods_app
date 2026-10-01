@@ -216,4 +216,14 @@ describe('calcPeriodSpend', () => {
     expect(august).toBeCloseTo(113)
     expect(september).toBeCloseTo(35)
   })
+
+  it('counts a shipping event in a month without goods entries', () => {
+    const withLaterShipping = {
+      ...restockedGoods,
+      shippingFee: '10',
+      shippingEvents: [{ date: '2026-10-01', fee: '10' }]
+    }
+    const october = calcPeriodSpend([withLaterShipping], (d) => d.getFullYear() === 2026 && d.getMonth() === 9)
+    expect(october).toBeCloseTo(10)
+  })
 })
