@@ -105,19 +105,13 @@ function attachShippingToEntries(goodsEntries, item) {
   const events = parseShippingEvents(item?.shippingEvents)
   /** @type {Map<number, number>} attachIndex → fee sum */
   const adds = new Map()
+  const standaloneEntries = []
   const addAtMonth = (yearMonth, fee) => {
     if (!(fee > 0) || !yearMonth) return
     let index = goodsEntries.findIndex((entry) => toYearMonth(entry.date) === yearMonth)
     if (index < 0) {
-      let latestYM = ''
-      index = 0
-      goodsEntries.forEach((entry, i) => {
-        const ym = toYearMonth(entry.date)
-        if (ym >= latestYM) {
-          latestYM = ym
-          index = i
-        }
-      })
+      standaloneEntries.push({ date: safeDate(`${yearMonth}-01`), price: fee })
+      return
     }
     adds.set(index, (adds.get(index) || 0) + fee)
   }
@@ -133,11 +127,13 @@ function attachShippingToEntries(goodsEntries, item) {
     }
   }
 
-  if (adds.size === 0) return goodsEntries
-  return goodsEntries.map((entry, index) => ({
+  const updatedEntries = adds.size === 0
+    ? goodsEntries
+    : goodsEntries.map((entry, index) => ({
     date: entry.date,
     price: entry.price + (adds.get(index) || 0)
-  }))
+    }))
+  return standaloneEntries.length > 0 ? [...updatedEntries, ...standaloneEntries] : updatedEntries
 }
 
 function getItemDatesAndPrices(item) {
