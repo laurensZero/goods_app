@@ -29,6 +29,13 @@
 //   mihoyo_stock:<goods_id> 或 mihoyo_stock:<goods_id>:<sku_key>），
 //   保证同商品同 SKU 缺货→补货的每一轮只提醒一次。
 // - 用户未绑定/关闭 QQ 时不置 in_stock=true：5 分钟后复查，绑定后尽快补发。
+//
+// 请求预算（本函数每分钟跑一次，要压住 Supabase REST 请求数）：
+// - 「用户 QQ 是否活跃」按批一次查出并缓存（createQqActiveChecker），不再每个有货商品
+//   查一次 user_qq_bindings；且只在真的遇到「有货」商品时才查 —— 整批全缺货的分钟
+//   不产生这次请求。
+// - 不再统计「还剩多少待检行」：那是一次多余的 count 请求；需要看追赶进度时直接查
+//   mihoyo_monitor_goods（in_stock=false 且 next_check_at <= now()）即可。
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -65,6 +72,37 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   })
+}
+
+type AdminClient = ReturnType<typeof createClient>
+
+// 用户 QQ 活跃状态检查器：本批涉及的所有 user_id 一次性查出，之后走内存 Set。
+// 懒加载 —— 只有真的判定出「有货」时才发这一次查询；没有有货商品时零开销。
+// 查询失败按「未绑定」处理（与原逐行 maybeSingle 失败的行为一致）：该行保持
+// in_stock=false，5 分钟后复查，绑定恢复后照样补发。
+function createQqActiveChecker(admin: AdminClient, userIds: string[]) {
+  let pending: Promise<Set<string>> | null = null
+
+  return async (userId: string): Promise<boolean> => {
+    if (!pending) {
+      pending = (async () => {
+        const ids = [...new Set(userIds.filter(Boolean))]
+        if (!ids.length) return new Set<string>()
+        const { data, error } = await admin
+          .from("user_qq_bindings")
+          .select("user_id")
+          .in("user_id", ids)
+          .eq("status", "active")
+          .eq("enabled", true)
+        if (error) {
+          console.error("qq_bindings_query_failed", error.message)
+          return new Set<string>()
+        }
+        return new Set((data ?? []).map((b) => String(b.user_id)))
+      })()
+    }
+    return (await pending).has(userId)
+  }
 }
 
 function nextAfterMin(minutes: number, base = Date.now()): string {
@@ -264,7 +302,6 @@ serve(async () => {
     notified: 0,
     rearmed: 0,
     errors: 0,
-    remaining: 0,
   }
 
   // ---------- 批次 1：缺货/未检测行（in_stock=false），按 next_check_at 升序 ----------
@@ -276,6 +313,9 @@ serve(async () => {
     .order("next_check_at", { ascending: true })
     .limit(MAX_ITEMS)
   if (rowsErr) return json({ error: rowsErr.message }, 500)
+
+  // 本批全部涉及用户的 QQ 活跃状态（懒加载：首次判定出「有货」时才真正查一次）
+  const isQqActive = createQqActiveChecker(admin, (rows ?? []).map((r) => String(r.user_id)))
 
   for (const row of rows ?? []) {
     if (Date.now() - startedAt > TIME_BUDGET_MS) break // 超预算，剩下的下一轮
@@ -312,16 +352,11 @@ serve(async () => {
     }
 
     // 有货：只有用户 QQ 活跃才入队并置 in_stock=true（绑定后尽快补发）
-    const { data: binding } = await admin
-      .from("user_qq_bindings")
-      .select("user_id")
-      .eq("user_id", row.user_id)
-      .eq("status", "active")
-      .eq("enabled", true)
-      .maybeSingle()
+    // 活跃状态来自本批一次性预取的 Set（createQqActiveChecker），不再逐商品查库
+    const qqActive = await isQqActive(String(row.user_id))
 
     stats.available++
-    if (!binding) {
+    if (!qqActive) {
       // 未绑定/关闭：保持 in_stock=false，5 分钟后复查，绑定后补发
       await admin
         .from("mihoyo_monitor_goods")
@@ -437,13 +472,6 @@ serve(async () => {
       .eq("id", row.id)
   }
 
-  // 统计还剩多少待检测行（缺货 + 到期的），便于观察追赶进度
-  const { count } = await admin
-    .from("mihoyo_monitor_goods")
-    .select("id", { count: "exact", head: true })
-    .eq("in_stock", false)
-    .lte("next_check_at", new Date().toISOString())
-  stats.remaining = count ?? 0
-
+  // 不再统计 remaining（要多一次 count 请求换一个观察值，不划算）
   return json({ ok: true, stats })
 })

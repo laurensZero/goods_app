@@ -1,4 +1,4 @@
-﻿[project]
+[project]
 id = "zvqzicimowfqshgjsrri"
 
 [functions.delete-user]
@@ -8,7 +8,8 @@ verify_jwt = false
 [functions.qq-webhook]
 verify_jwt = false
 
-# 通知分发器：每分钟投递队列
+# 通知分发器：每分钟投递队列（旧任务清理已移出本函数，改由 pg_cron 每天凌晨
+# 在库内直接 DELETE，见 supabase-migration-notify-cleanup-cron.sql）
 [functions.notify-dispatch]
 verify_jwt = false
 schedule = "*/1 * * * *"
