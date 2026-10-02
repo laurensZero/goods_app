@@ -1,5 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { resolveQQCoverUrl } from '@/utils/music/qqMusic'
+import { extractQQSongMid, resolveQQCoverUrl } from '@/utils/music/qqMusic'
+
+describe('QQ Music song MID extraction', () => {
+  it('parses modern songDetail share links', () => {
+    expect(extractQQSongMid('https://y.qq.com/n/ryqq/songDetail/0039MnYb0qxYhV')).toBe('0039MnYb0qxYhV')
+  })
+
+  it('parses legacy songmid links and bare mids', () => {
+    expect(extractQQSongMid('https://i.y.qq.com/v8/playsong.html?songmid=0039MnYb0qxYhV')).toBe('0039MnYb0qxYhV')
+    expect(extractQQSongMid('0039MnYb0qxYhV')).toBe('0039MnYb0qxYhV')
+  })
+
+  it('does not treat album links as songs', () => {
+    expect(extractQQSongMid('https://y.qq.com/n/ryqq/albumDetail/002fRO0N4FftzY')).toBe('')
+  })
+})
 
 describe('QQ Music cover resolution', () => {
   it('uses a song-level cover when the song has no album', () => {

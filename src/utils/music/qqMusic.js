@@ -255,8 +255,8 @@ export function extractQQSongMid(input) {
   const midMatch = raw.match(/songmid=([a-zA-Z0-9]+)/i)
   if (midMatch) return midMatch[1]
 
-  // URL path format: /song/xxxxx
-  const pathMatch = raw.match(/song\/([a-zA-Z0-9]+)/i)
+  // URL path format: /song/xxxxx 或 /songDetail/xxxxx（新版分享链接）
+  const pathMatch = raw.match(/song(?:Detail)?\/([a-zA-Z0-9]+)/i)
   if (pathMatch) return pathMatch[1]
 
   return ''

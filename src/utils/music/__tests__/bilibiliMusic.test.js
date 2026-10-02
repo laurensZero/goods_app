@@ -48,6 +48,12 @@ describe('Bilibili music helpers', () => {
     expect(parseBilibiliVideoId('BV1xx411c7mD')).toBe('BV1xx411c7mD')
   })
 
+  it('rejects incomplete BV input so it falls back to keyword search', () => {
+    expect(parseBilibiliVideoId('BVx')).toBe('')
+    expect(parseBilibiliVideoId('BV 号怎么用')).toBe('')
+    expect(parseBilibiliVideoId('https://i0.hdslb.com/bfs/archive/x.jpg')).toBe('')
+  })
+
   it('builds a Bilibili video URL', () => {
     expect(buildBilibiliWebUrl('BV1xx411c7mD')).toBe('https://www.bilibili.com/video/BV1xx411c7mD')
   })

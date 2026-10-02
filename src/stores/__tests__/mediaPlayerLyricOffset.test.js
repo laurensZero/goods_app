@@ -35,6 +35,7 @@ vi.mock('@/utils/music/qqMusic', () => ({
 }))
 
 vi.mock('@/utils/music/bilibiliMusic', () => ({
+  fetchBilibiliCoverMap: vi.fn(async () => ({})),
   fetchBilibiliPlayableUrl: vi.fn()
 }))
 

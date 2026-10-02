@@ -9,6 +9,22 @@
     >
       <div class="floating-player__surface">
         <div class="floating-player__head" @pointerdown="startDrag">
+          <div class="floating-player__cover" :class="{ 'floating-player__cover--empty': !currentCoverUrl }">
+            <LazyCachedImage
+              v-if="currentCoverUrl"
+              class="floating-player__cover-image"
+              :src="currentCoverUrl"
+              :alt="currentTrack.title || t('common.unnamed')"
+              :lazy="false"
+              :use-cache="currentTrack.source !== 'qq'"
+              referrerpolicy="no-referrer"
+            />
+            <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 17V6L20 4V15" />
+              <circle cx="6.5" cy="17" r="2.5" />
+              <circle cx="17.5" cy="15" r="2.5" />
+            </svg>
+          </div>
           <div class="floating-player__copy">
             <p class="floating-player__eyebrow">Now Playing</p>
             <strong class="floating-player__title">{{ currentTrack.title || t('common.unnamed') }}</strong>
@@ -217,6 +233,22 @@
             :data-queue-index="index"
             @click="playQueueItem(track)"
           >
+            <span class="floating-player__queue-cover" :class="{ 'floating-player__queue-cover--empty': !trackCoverUrl(track) }">
+              <LazyCachedImage
+                v-if="trackCoverUrl(track)"
+                class="floating-player__queue-cover-image"
+                :src="trackCoverUrl(track)"
+                :alt="track.title || t('common.unnamed')"
+                :lazy="false"
+                :use-cache="track.source !== 'qq'"
+                referrerpolicy="no-referrer"
+              />
+              <svg v-else viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 17V6L20 4V15" />
+                <circle cx="6.5" cy="17" r="2.5" />
+                <circle cx="17.5" cy="15" r="2.5" />
+              </svg>
+            </span>
             <span class="floating-player__queue-index">{{ index + 1 }}</span>
             <span class="floating-player__queue-copy">
               <strong>{{ track.title || t('common.unnamed') }}</strong>
@@ -235,6 +267,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 import { formatTrackDuration } from '@/utils/music/formatTrackDuration'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 defineProps({
   withTabBar: { type: Boolean, default: false }
@@ -256,6 +289,12 @@ const dragState = ref({
 })
 
 const currentTrack = computed(() => playerStore.currentTrack)
+const currentCoverUrl = computed(() => String(currentTrack.value?.coverUrl || '').trim())
+
+/** 播放列表项封面：没有封面时渲染音符占位 */
+function trackCoverUrl(track) {
+  return String(track?.coverUrl || '').trim()
+}
 const miniVisible = computed(() => playerStore.miniVisible)
 const isPlaying = computed(() => playerStore.isPlaying)
 const isLoading = computed(() => playerStore.isLoading)
@@ -701,6 +740,47 @@ onBeforeUnmount(() => {
   touch-action: none;
 }
 
+.floating-player__cover {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
+  color: var(--app-text-tertiary);
+}
+
+.floating-player__cover--empty,
+.floating-player__queue-cover--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floating-player__cover svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.floating-player__cover :deep(.floating-player__cover-image),
+.floating-player__queue-cover :deep(.floating-player__queue-cover-image) {
+  width: 100%;
+  height: 100%;
+}
+
+.floating-player__cover :deep(img),
+.floating-player__queue-cover :deep(img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .floating-player__copy {
   min-width: 0;
   flex: 1;
@@ -1045,6 +1125,27 @@ onBeforeUnmount(() => {
 
 .floating-player__queue-item:active {
   transform: scale(var(--press-scale-button, 0.98));
+}
+
+.floating-player__queue-cover {
+  display: block;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
+  color: var(--app-text-tertiary);
+}
+
+.floating-player__queue-cover svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .floating-player__queue-index {

@@ -41,6 +41,7 @@ import { computed, onActivated, onBeforeUnmount, onMounted, ref, useAttrs, watch
 import { useI18n } from 'vue-i18n'
 import { getCachedImage, invalidateCachedImage, isFileBackedUri, markImageDecoded, peekCachedImage, refreshCachedImage } from '@/utils/image/cache'
 import { getCachedImageThumb, peekImageThumb, refreshCachedImageThumb } from '@/utils/image/thumb'
+import { resolveImageRequestReferrerPolicy } from '@/utils/image/imageRequestPolicy'
 
 defineOptions({ inheritAttrs: false })
 
@@ -153,6 +154,13 @@ async function waitForImgDecode(src, timeoutMs = 400) {
   try {
     const img = new Image()
     img.decoding = 'async'
+    // 探测请求必须和真正挂到 DOM 的 <img> 用同一套 referrer 策略。B 站图片 CDN 对外站
+    // Referer 直接 403，而调用方（EventTrackList/EventTrackEditor 等）已声明
+    // referrerpolicy="no-referrer"；两者不一致时，Blink 内存缓存会按 URL 复用这条
+    // 「带错 Referer 的在途请求」，把随后挂载的 <img> 一起打成 error，最终落到
+    // 「加载失败」占位，直到回前台刷新才恢复（见 utils/image/imageRequestPolicy.js）。
+    const referrerPolicy = resolveImageRequestReferrerPolicy(src)
+    if (referrerPolicy) img.referrerPolicy = referrerPolicy
     img.src = src
     if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       if (typeof img.decode === 'function') await img.decode().catch(() => {})

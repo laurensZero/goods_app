@@ -262,6 +262,26 @@ export function extractNeteaseAlbumId(input) {
   return ''
 }
 
+/**
+ * 从单曲链接 / 分享文案 / 裸 ID 里取歌曲 id。
+ * 支持 music.163.com/song?id=186016 、#/song?id=186016 、/song/186016 、纯数字。
+ * 歌单、专辑链接返回空（交给歌单导入流程处理）。
+ * @param {string} input
+ * @returns {string}
+ */
+export function extractNeteaseSongId(input) {
+  const { raw, normalized } = normalizeNeteaseCollectionInput(input)
+  if (!raw) return ''
+
+  const pathMatch = normalized.match(/song\/(\d{3,})/i)
+  if (pathMatch) return pathMatch[1]
+
+  const directMatch = normalized.match(/(?:^|[?&])id=(\d{3,})/i)
+  if (directMatch && /(?:^|\/)song(?:\/|\?|$)/i.test(normalized)) return directMatch[1]
+
+  return /^\d{3,}$/.test(raw) ? raw : ''
+}
+
 function detectNeteaseCollectionTarget(input) {
   const albumId = extractNeteaseAlbumId(input)
   if (albumId) return { type: 'album', id: albumId }
