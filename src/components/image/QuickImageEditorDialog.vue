@@ -52,8 +52,7 @@
               ref="previewRef"
               class="editor-preview"
               :class="{
-                'editor-preview--plain': activeTab !== 'basic',
-                'editor-preview--export': activeTab === 'export'
+                'editor-preview--plain': activeTab !== 'basic'
               }"
             >
               <img
@@ -61,21 +60,22 @@
                 :src="previewUrl"
                 :alt="t('common.aria.editPreview')"
                 class="editor-image"
-                :class="{ 'editor-image--export-hidden': activeTab === 'export' }"
+                :class="{ 'editor-image--export-hidden': showCanvasPreview }"
               />
 
-              <div
-                v-if="activeTab === 'export' && previewUrl"
-                class="editor-export-preview"
-                :style="whiteBgEnabled ? { background: bgColor } : null"
-              >
-                <img
-                  ref="exportPreviewImageRef"
-                  :src="previewUrl"
-                  :alt="t('common.aria.whiteBgPreview')"
-                  class="editor-export-preview__image"
-                  :class="{ 'editor-export-preview__image--picking': colorPickMode }"
-                  :style="whiteBgPreviewImageStyle"
+              <div v-if="showCanvasPreview" class="editor-canvas-preview">
+                <EditorCanvasPreview
+                  ref="canvasPreviewRef"
+                  :source="compositionSource"
+                  :frame="activeFrame"
+                  :frame-colors="frameColors"
+                  :bg-color="previewBgColor"
+                  :fit-ratio="whiteBgScalePercent / 100"
+                  :brightness="props.simpleMode ? 0 : brightness"
+                  :contrast="props.simpleMode ? 0 : contrast"
+                  :saturation="props.simpleMode ? 0 : saturation"
+                  :labels="frameLabels"
+                  :picking="colorPickMode"
                   @pointerdown="onPickPointerDown"
                   @pointermove="onPickPointerMove"
                   @pointerup="onPickPointerUp"
@@ -139,6 +139,21 @@
                 @update:model-value="cutoutModel = $event"
               />
 
+              <EditorFramePanel
+                v-show="activeTab === 'frame'"
+                :model-value="frameId"
+                :colorway-id="frameColorwayId"
+                :color-overrides="frameColorOverrides"
+                :source="compositionSource"
+                :bg-color="previewBgColor"
+                :fit-ratio-percent="whiteBgScalePercent"
+                :saving="saving"
+                @update:model-value="setFrameId"
+                @update:colorway-id="setFrameColorway"
+                @update:color-overrides="setFrameColorOverrides"
+                @update:fit-ratio-percent="whiteBgScalePercent = $event"
+              />
+
               <EditorExportPanel
                 v-show="activeTab === 'export'"
                 :white-bg-enabled="whiteBgEnabled"
@@ -147,6 +162,8 @@
                 :bg-color="bgColor"
                 :bg-color-picker-open="bgColorPickerOpen"
                 :picking-color="pickingColor"
+                :background-locked="backgroundLocked"
+                :bg-color-locked="bgColorLocked"
                 @update:white-bg-enabled="whiteBgEnabled = $event"
                 @update:white-bg-style="whiteBgStyle = $event"
                 @update:white-bg-scale-percent="whiteBgScalePercent = $event"
@@ -200,16 +217,20 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Cropper from 'cropperjs'
 import 'cropperjs/dist/cropper.css'
 import EditorBasicPanel from '@/components/image/editor/EditorBasicPanel.vue'
+import EditorCanvasPreview from '@/components/image/editor/EditorCanvasPreview.vue'
 import EditorCutoutPanel from '@/components/image/editor/EditorCutoutPanel.vue'
 import EditorExportPanel from '@/components/image/editor/EditorExportPanel.vue'
+import EditorFramePanel from '@/components/image/editor/EditorFramePanel.vue'
+import { FRAME_NONE_ID, getFrameById, isKnownFrameId, resolveFrameColors } from '@/config/imageFrames'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout, checkCloudCutoutPermission } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
+import { clamp } from '@/utils/image/frameRenderer'
 import '@/components/image/editor/editor-panels.css'
 
 const props = defineProps({
@@ -219,14 +240,22 @@ const props = defineProps({
   aspectRatio: { type: Number, default: 0 }
 })
 
+// TODO(外框二次编辑): 这里需要补一个 initialEditState prop，
+// 打开时回填 frameId / colorwayId / colorOverrides / fitRatio / bgColor，
+// 并把「去框底图」作为 sourceFile 传入。方案见 docs/frame-reedit-plan.md
+
 const emit = defineEmits(['update:show', 'save'])
 
 const { t } = useI18n()
 
 const imageRef = ref(null)
-const exportPreviewImageRef = ref(null)
 const previewRef = ref(null)
+const canvasPreviewRef = ref(null)
+const compositionSource = shallowRef(null)
 const activeTab = ref('basic')
+const frameId = ref(FRAME_NONE_ID)
+const frameColorwayId = ref('')
+const frameColorOverrides = ref({})
 const cutoutLoading = ref(false)
 const cutoutLoadingText = ref('')
 const cutoutProgress = ref(0)
@@ -271,9 +300,46 @@ const tabOptions = computed(() => {
   return [
     { value: 'basic', label: t('imageEditor.tabBasic') },
     { value: 'cutout', label: t('imageEditor.tabCutout') },
+    { value: 'frame', label: t('imageEditor.tabFrame') },
     { value: 'export', label: t('imageEditor.tabExport') }
   ]
 })
+
+const activeFrame = computed(() => getFrameById(frameId.value))
+// 模板默认色 → 配色方案 → 手动调色，三者合成真正参与绘制的色板
+const frameColors = computed(() => resolveFrameColors(
+  activeFrame.value,
+  frameColorwayId.value,
+  frameColorOverrides.value
+))
+const showCanvasPreview = computed(() => activeTab.value === 'frame' || activeTab.value === 'export')
+
+/**
+ * 画布底色的归属：
+ *   有外框 → 由模板的 acceptsBackgroundColor 决定吃不吃用户选的颜色
+ *   无外框 → 跟着「自动补背景」开关，关掉就保留透明底
+ */
+const previewBgColor = computed(() => {
+  const frame = activeFrame.value
+  if (frame) return frame.acceptsBackgroundColor === false ? '' : bgColor.value
+  return whiteBgEnabled.value ? bgColor.value : ''
+})
+
+// 外框已接管背景，导出设置里那组背景控件要说明情况而不是变成死控件
+const backgroundLocked = computed(() => Boolean(activeFrame.value) && !props.simpleMode)
+const bgColorLocked = computed(() => Boolean(activeFrame.value) && activeFrame.value.acceptsBackgroundColor === false)
+
+function formatTodayLabel() {
+  const now = new Date()
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}`
+}
+
+const frameLabels = computed(() => ({
+  title: '',
+  code: '',
+  date: formatTodayLabel()
+}))
 
 async function refreshCloudCutoutAvailability() {
   cloudCutoutAvailable.value = await checkCloudCutoutPermission().catch(() => false)
@@ -282,9 +348,78 @@ async function refreshCloudCutoutAvailability() {
 const editorHistory = useEditorHistory()
 const { canUndo, canRedo } = editorHistory
 
-const whiteBgPreviewImageStyle = computed(() => ({
-  transform: whiteBgEnabled.value ? `scale(${Math.max(0.4, Number(whiteBgScalePercent.value || 88) / 100)})` : 'scale(1)'
-}))
+// ---------------------------------------------------------------- 实时合成预览
+
+let compositionImage = null
+let compositionImageUrl = ''
+
+function loadCompositionImage(url) {
+  if (!url) return Promise.resolve(null)
+  if (compositionImage && compositionImageUrl === url) return Promise.resolve(compositionImage)
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      compositionImage = img
+      compositionImageUrl = url
+      resolve(img)
+    }
+    img.onerror = () => resolve(null)
+    img.src = url
+  })
+}
+
+function resetCompositionSource() {
+  compositionImage = null
+  compositionImageUrl = ''
+  compositionSource.value = null
+}
+
+/**
+ * 预览用的「主体」：裁切模式下取当前裁切框，抠图模式下取去背后的结果。
+ * 外框/背景/画面调整由渲染器负责，这里只提供主体本身。
+ */
+async function refreshCompositionSource() {
+  if (!showCanvasPreview.value) return
+  if (cropper) {
+    compositionSource.value = cropper.getCroppedCanvas({
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageSmoothingQuality: 'high'
+    })
+    return
+  }
+  compositionSource.value = await loadCompositionImage(previewUrl.value)
+}
+
+function scheduleCompositionRefresh() {
+  if (!showCanvasPreview.value) return
+  void refreshCompositionSource()
+}
+
+function applyFrameDefaults(frame) {
+  whiteBgScalePercent.value = frame ? Math.round((Number(frame.defaultFitRatio) || 1) * 100) : 88
+  frameColorwayId.value = frame?.colorways?.[0]?.id || ''
+  frameColorOverrides.value = {}
+}
+
+function setFrameId(nextId) {
+  const id = isKnownFrameId(nextId) ? nextId || FRAME_NONE_ID : FRAME_NONE_ID
+  if (frameId.value === id) return
+  frameId.value = id
+  applyFrameDefaults(getFrameById(id))
+  recordEditorHistory()
+}
+
+function setFrameColorway(colorwayId) {
+  if (!colorwayId || frameColorwayId.value === colorwayId) return
+  frameColorwayId.value = colorwayId
+  frameColorOverrides.value = {}
+  recordEditorHistory()
+}
+
+function setFrameColorOverrides(next) {
+  frameColorOverrides.value = next && typeof next === 'object' ? { ...next } : {}
+}
 
 let cropper = null
 const previewUrl = ref('')
@@ -370,7 +505,11 @@ function buildEditorSnapshot() {
     cutoutMaskUrl: cutoutMaskUrl.value || '',
     cutoutPreparedImageUrl: cutoutPreparedImageUrl.value || '',
     cutoutMeta: cutoutMeta ? { ...cutoutMeta } : null,
-    hasCutout: Boolean(cutoutPreparedImageUrl.value && cutoutMaskUrl.value)
+    hasCutout: Boolean(cutoutPreparedImageUrl.value && cutoutMaskUrl.value),
+    frameId: frameId.value,
+    frameColorwayId: frameColorwayId.value,
+    frameColorOverrides: { ...frameColorOverrides.value },
+    whiteBgScalePercent: Number(whiteBgScalePercent.value) || 88
   }
 }
 
@@ -405,6 +544,18 @@ async function applyEditorSnapshot(snapshot) {
       cropRatio.value = snapshot.cropRatio
     }
     flipX = Number(snapshot.flipX) || 1
+    if (snapshot.frameId !== undefined) {
+      frameId.value = isKnownFrameId(snapshot.frameId) ? snapshot.frameId : FRAME_NONE_ID
+    }
+    if (snapshot.frameColorwayId !== undefined) {
+      frameColorwayId.value = snapshot.frameColorwayId || getFrameById(frameId.value)?.colorways?.[0]?.id || ''
+    }
+    if (snapshot.frameColorOverrides !== undefined) {
+      frameColorOverrides.value = { ...(snapshot.frameColorOverrides || {}) }
+    }
+    if (snapshot.whiteBgScalePercent !== undefined) {
+      whiteBgScalePercent.value = Number(snapshot.whiteBgScalePercent) || 88
+    }
 
     if (snapshot.hasCutout) {
       destroyCropper()
@@ -434,6 +585,7 @@ async function applyEditorSnapshot(snapshot) {
 
     await nextTick()
     editorStateSignature = JSON.stringify(buildEditorSnapshot())
+    scheduleCompositionRefresh()
   } finally {
     historyRestoreDepth = Math.max(0, historyRestoreDepth - 1)
   }
@@ -533,6 +685,7 @@ function setCropRatio(value) {
     cropper.setAspectRatio(ratio)
   }
   recordEditorHistory()
+  scheduleCompositionRefresh()
 }
 
 async function initCropper() {
@@ -562,6 +715,7 @@ async function initCropper() {
     aspectRatio: resolveCropperAspectRatio(),
     cropend: () => {
       recordEditorHistory()
+      scheduleCompositionRefresh()
     },
     ready: () => {
       cropper?.setDragMode('move')
@@ -594,6 +748,10 @@ function openFromFile(file) {
   saturation.value = 0
   freeAngle.value = 0
   cropRatio.value = Number(props.aspectRatio) > 0 ? Number(props.aspectRatio) : 'free'
+  frameId.value = FRAME_NONE_ID
+  frameColorwayId.value = ''
+  frameColorOverrides.value = {}
+  resetCompositionSource()
   cutoutLoading.value = false
   cutoutApplyingMask.value = false
   cutoutProgress.value = 0
@@ -669,6 +827,7 @@ function applyFreeAngle(angle) {
 function setFreeAngle(angle) {
   if (!applyFreeAngle(angle)) return
   recordEditorHistory()
+  scheduleCompositionRefresh()
 }
 
 function flipHorizontal() {
@@ -676,6 +835,7 @@ function flipHorizontal() {
   flipX *= -1
   cropper.scaleX(flipX)
   recordEditorHistory()
+  scheduleCompositionRefresh()
 }
 
 function resetCropper() {
@@ -687,6 +847,7 @@ function resetCropper() {
   freeAngle.value = 0
   applyPreviewFilter()
   recordEditorHistory()
+  scheduleCompositionRefresh()
 }
 
 function applyPreviewFilter() {
@@ -840,11 +1001,10 @@ async function pickDominantColor() {
 }
 
 function enterColorPickMode() {
-  if (!previewUrl.value) return
+  if (!previewUrl.value || !showCanvasPreview.value) return
   colorPickMode.value = true
   pickPointerActive = false
   pickMagnifierVisible.value = false
-  void ensurePickSourceImage()
 }
 
 function exitColorPickMode() {
@@ -858,50 +1018,35 @@ const pickMagnifierVisible = ref(false)
 const pickMagnifierStyle = ref({})
 const pickLiveColor = ref('#ffffff')
 let pickPointerActive = false
-let pickSourceImage = null
-let pickSourceUrl = ''
-let lastPickPixel = null
 
-function ensurePickSourceImage() {
-  const url = previewUrl.value
-  if (!url) return Promise.resolve()
-  if (pickSourceImage && pickSourceUrl === url && pickSourceImage.complete && pickSourceImage.naturalWidth > 0) {
-    return Promise.resolve()
-  }
-  const img = new Image()
-  pickSourceImage = img
-  pickSourceUrl = url
-  return new Promise((resolve) => {
-    img.onload = () => resolve()
-    img.onerror = () => resolve()
-    img.src = url
-  })
+function getPreviewCanvas() {
+  return canvasPreviewRef.value?.getCanvas?.() || null
 }
 
 function eventToPickPixel(event) {
-  const img = exportPreviewImageRef.value
-  if (!img || !previewUrl.value) return null
+  const canvas = getPreviewCanvas()
+  if (!canvas || !canvas.width) return null
 
-  const rect = img.getBoundingClientRect()
+  const rect = canvas.getBoundingClientRect()
   if (rect.width <= 0 || rect.height <= 0) return null
 
-  const naturalWidth = Number(img.naturalWidth) || 0
-  const naturalHeight = Number(img.naturalHeight) || 0
-  if (!naturalWidth || !naturalHeight) return null
-
+  const x = Math.round(((event.clientX - rect.left) / rect.width) * canvas.width)
+  const y = Math.round(((event.clientY - rect.top) / rect.height) * canvas.height)
   return {
-    x: Math.max(0, Math.min(naturalWidth - 1, Math.round(((event.clientX - rect.left) / rect.width) * naturalWidth))),
-    y: Math.max(0, Math.min(naturalHeight - 1, Math.round(((event.clientY - rect.top) / rect.height) * naturalHeight)))
+    x: clamp(x, 0, canvas.width - 1),
+    y: clamp(y, 0, canvas.height - 1)
   }
 }
 
-function sampleImagePixelAt(img, x, y) {
-  const canvas = document.createElement('canvas')
-  canvas.width = 1
-  canvas.height = 1
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
-  ctx.drawImage(img, -x, -y)
-  return ctx.getImageData(0, 0, 1, 1).data
+/** 从合成结果里取色：点外框就取外框的颜色，点主体就取主体的颜色。 */
+function sampleImagePixelAt(canvas, x, y) {
+  if (!canvas) return null
+  try {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })
+    return ctx.getImageData(x, y, 1, 1).data
+  } catch {
+    return null
+  }
 }
 
 function updatePickMagnifierPosition(event) {
@@ -919,15 +1064,15 @@ function updatePickMagnifierPosition(event) {
 
 function renderPickMagnifier(pixel) {
   const canvas = pickCanvasRef.value
-  const img = pickSourceImage
-  if (!canvas || !img || !img.complete || !img.naturalWidth) return
+  const source = getPreviewCanvas()
+  if (!canvas || !source || !source.width) return
 
   const ctx = canvas.getContext('2d')
   ctx.save()
   ctx.clearRect(0, 0, PICK_SIZE, PICK_SIZE)
   ctx.translate(PICK_SIZE / 2, PICK_SIZE / 2)
   ctx.scale(PICK_ZOOM, PICK_ZOOM)
-  ctx.drawImage(img, -pixel.x, -pixel.y)
+  ctx.drawImage(source, -pixel.x, -pixel.y)
   ctx.restore()
 
   const center = PICK_SIZE / 2
@@ -940,7 +1085,7 @@ function renderPickMagnifier(pixel) {
   ctx.lineTo(PICK_SIZE, center)
   ctx.stroke()
 
-  const data = sampleImagePixelAt(img, pixel.x, pixel.y)
+  const data = sampleImagePixelAt(source, pixel.x, pixel.y)
   if (data && data[3] >= 128) {
     pickLiveColor.value = rgbToHex(data[0], data[1], data[2])
   }
@@ -953,13 +1098,7 @@ function onPickPointerDown(event) {
   pickMagnifierVisible.value = true
   event.currentTarget.setPointerCapture?.(event.pointerId)
   const pixel = eventToPickPixel(event)
-  lastPickPixel = pixel
   updatePickMagnifierPosition(event)
-  void ensurePickSourceImage().then(() => {
-    if (pickPointerActive && lastPickPixel) {
-      renderPickMagnifier(lastPickPixel)
-    }
-  })
   if (pixel) renderPickMagnifier(pixel)
 }
 
@@ -968,7 +1107,6 @@ function onPickPointerMove(event) {
   event.preventDefault()
   updatePickMagnifierPosition(event)
   const pixel = eventToPickPixel(event)
-  lastPickPixel = pixel
   if (pixel) renderPickMagnifier(pixel)
 }
 
@@ -976,10 +1114,10 @@ function onPickPointerUp(event) {
   if (!colorPickMode.value || !pickPointerActive) return
   pickPointerActive = false
   pickMagnifierVisible.value = false
-  const img = pickSourceImage
+  const source = getPreviewCanvas()
   const pixel = eventToPickPixel(event)
-  if (img && img.complete && img.naturalWidth && pixel) {
-    const data = sampleImagePixelAt(img, pixel.x, pixel.y)
+  if (source && pixel) {
+    const data = sampleImagePixelAt(source, pixel.x, pixel.y)
     if (data && data[3] >= 128) {
       bgColor.value = rgbToHex(data[0], data[1], data[2])
     }
@@ -1000,6 +1138,8 @@ function mapExportProgressText(stage) {
       return t('imageEditor.applyingBC')
     case 'product':
       return t('imageEditor.optimizing')
+    case 'frame':
+      return t('imageEditor.compositingFrame')
     case 'whiteBg':
       return t('imageEditor.compositing')
     case 'alpha':
@@ -1025,7 +1165,11 @@ async function handleSave() {
     const exported = await exportForUpload(sourceBlob, {
       targetMaxBytes: 1024 * 1024,
       skipCompression: true,
-      applyWhiteBg: props.simpleMode ? false : whiteBgEnabled.value,
+      frame: props.simpleMode ? null : activeFrame.value,
+      frameColors: frameColors.value,
+      frameLabels: frameLabels.value,
+      // 有外框时背景由外框合成，这里把开关当作「要背景」，商品图增强才会照常生效
+      applyWhiteBg: props.simpleMode ? false : whiteBgEnabled.value || Boolean(activeFrame.value),
       whiteBgStyle: whiteBgStyle.value,
       whiteBgFitRatio: whiteBgScalePercent.value / 100,
       bgColor: bgColor.value,
@@ -1089,6 +1233,14 @@ watch(
     }
   }
 )
+
+watch(activeTab, () => {
+  scheduleCompositionRefresh()
+})
+
+watch(previewUrl, () => {
+  scheduleCompositionRefresh()
+})
 
 watch([brightness, contrast, saturation], () => {
   applyPreviewFilter()
@@ -1427,31 +1579,13 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-.editor-export-preview {
+/* 实时合成预览：与导出共用 frameRenderer，所见即所得 */
+.editor-canvas-preview {
   position: absolute;
   inset: 0;
   z-index: 3;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  border-radius: var(--radius-card, 18px);
   overflow: hidden;
-  background: #ffffff;
-}
-
-.editor-export-preview__image {
-  display: block;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  transform-origin: center center;
-  transition: transform 160ms ease;
-}
-
-.editor-export-preview__image--picking {
-  cursor: crosshair;
-  touch-action: none;
 }
 
 .editor-pick-hint {
@@ -1557,6 +1691,27 @@ onBeforeUnmount(() => {
 
 .editor-panels::-webkit-scrollbar {
   display: none;
+}
+
+/* 桌面端（精确定位指针）把滚动条露出来，否则内容多了用户不知道还能往下翻 */
+@media (hover: hover) and (pointer: fine) {
+  .editor-panels {
+    scrollbar-width: thin;
+  }
+
+  .editor-panels::-webkit-scrollbar {
+    display: block;
+    width: 6px;
+  }
+
+  .editor-panels::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(120, 120, 128, 0.35);
+  }
+
+  .editor-panels::-webkit-scrollbar-track {
+    background: transparent;
+  }
 }
 
 .editor-history-bar {

@@ -33,3 +33,5 @@ scripts/mihoyo-checkout.mjs
 # 本地架构图 / 项目目录树（仅本机使用，不入库）
 scripts/build-project-tree.mjs
 scripts/check-arch-graph.mjs
+
+design/

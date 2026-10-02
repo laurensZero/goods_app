@@ -401,6 +401,9 @@ function resolveRefName(entry) {
 // ownedEntityIds 为当前用户拥有的实体 ID 集合（含原始与 sanitize 后两种形式）
 // batchDrafts 必须计入：未保存草稿的图若不在 referenced 里，会被 GC 误删（48h 宽限不够时）
 export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [], batchDrafts = [] } = {}) {
+  // TODO(外框二次编辑): 「去框底图」的引用必须在这里登记（建议 key goods:<itemId>:<imageId>:source）。
+  // 不登记的话，推送末尾的孤儿图片回收会把它删掉 —— 同步成功之后才发生，极难定位。
+  // 方案见 docs/frame-reedit-plan.md
   const referencedFiles = new Set()
   const ownedEntityIds = new Set()
 
