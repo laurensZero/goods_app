@@ -158,3 +158,48 @@ describe('utils/image/cache aliasCachedImage', () => {
     expect(peekCachedImage(url)).toBe('')
   })
 })
+
+describe('utils/image/cache B 站封面 Referer 策略', () => {
+  beforeEach(async () => {
+    clearMemoryCache()
+    // 强制走「内存 → 网络」路径，排除 happy-dom 下 Cache API 实现差异
+    vi.stubGlobal('caches', undefined)
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    fetchWithPlatformBridge.mockClear()
+    fetchWithPlatformBridge.mockResolvedValue({
+      ok: true,
+      status: 200,
+      blob: async () => new Blob(['image-bytes'], { type: 'image/jpeg' })
+    })
+  })
+
+  afterEach(() => {
+    clearMemoryCache()
+    vi.unstubAllGlobals()
+  })
+
+  // 回归：B 站图片 CDN 对外站 Referer 一律 403，之前下载必然失败 → 只能回退原始 URL，
+  // 首次添加曲目时封面在 <img> 侧被在途失败请求带崩，表现为「加载失败」。
+  it('B 站图片域按 no-referrer 下载并进内存缓存', async () => {
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    const url = 'https://i1.hdslb.com/bfs/archive/5242750857121e05146d5d5b13a47a2a6dd36e98.jpg'
+
+    const cached = await getCachedImage(url)
+
+    expect(cached.startsWith('blob:')).toBe(true)
+    expect(peekCachedImage(url)).toBe(cached)
+    expect(fetchWithPlatformBridge).toHaveBeenCalledTimes(1)
+    expect(fetchWithPlatformBridge.mock.calls[0][1]).toMatchObject({ referrerPolicy: 'no-referrer' })
+  })
+
+  it('不受 Referer 影响的图床保持默认策略', async () => {
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    const url = 'https://p1.music.126.net/ZGffiDQZrGj5s_hnR1CNbg==/109951165566379710.jpg?param=720y720'
+
+    await getCachedImage(url)
+
+    expect(fetchWithPlatformBridge).toHaveBeenCalledTimes(1)
+    expect(String(fetchWithPlatformBridge.mock.calls[0][0])).toContain('p1.music.126.net')
+    expect(fetchWithPlatformBridge.mock.calls[0][1]?.referrerPolicy).toBeUndefined()
+  })
+})

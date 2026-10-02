@@ -7,6 +7,7 @@
 import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { resolveImageRequestReferrerPolicy } from '@/utils/image/imageRequestPolicy'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -225,6 +226,22 @@ const supportsCacheAPI = typeof caches !== 'undefined'
  * Web 端保持默认（浏览器缓存不计入应用存储，交给浏览器管）。
  */
 const IMAGE_FETCH_INIT = isNative() ? { cache: 'no-store' } : undefined
+
+/**
+ * 下载图片用的 fetch init：`cache` 之外再补上 host 相关的 referrer 策略。
+ * B 站图片 CDN 对外站 Referer 直接 403（见 utils/image/imageRequestPolicy.js），
+ * 不带 Referer 才能下载成功；否则下载永远失败、只能回退原始 URL，持久缓存也写不进去。
+ * @param {string} url
+ * @returns {RequestInit | undefined}
+ */
+function buildImageFetchInit(url) {
+  const referrerPolicy = resolveImageRequestReferrerPolicy(url)
+  if (!IMAGE_FETCH_INIT && !referrerPolicy) return undefined
+  return {
+    ...(IMAGE_FETCH_INIT || {}),
+    ...(referrerPolicy ? { referrerPolicy } : {})
+  }
+}
 
 // --- Layer 1: 内存缓存 ---
 /** @type {Map<string, string>} url -> objectURL 或原始 url */
@@ -473,6 +490,11 @@ function primeImageDecode(src) {
 
   const img = new Image()
   img.decoding = 'async'
+  // 解码预热同样可能拿到「缓存下载失败后回退的原始 URL」；这里的请求会和随后挂载的
+  // <img> 共用 Blink 的 URL 级内存缓存，referrer 策略必须与 <img> 一致，否则会用
+  // 一条带错 Referer 的请求把真正的 <img> 打成 error。
+  const referrerPolicy = resolveImageRequestReferrerPolicy(normalizedSrc)
+  if (referrerPolicy) img.referrerPolicy = referrerPolicy
   img.src = normalizedSrc
 
   if (img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
@@ -717,7 +739,7 @@ export async function getCachedImage(url, options = {}) {
         }
 
         try {
-          const response = await fetchWithPlatformBridge(fetchUrl, IMAGE_FETCH_INIT)
+          const response = await fetchWithPlatformBridge(fetchUrl, buildImageFetchInit(fetchUrl))
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const blob = await response.blob()

@@ -46,6 +46,7 @@
             </button>
           </div>
 
+          <p v-if="searchNotice" class="track-editor__hint" :class="{ 'track-editor__hint--error': searchNoticeError }">{{ searchNotice }}</p>
           <p v-if="searchError" class="track-editor__hint track-editor__hint--error">{{ searchError }}</p>
 
           <div v-if="searchResults.length" ref="searchResultListRef" class="track-editor__result-list" @scroll="onSearchResultScroll">
@@ -174,6 +175,32 @@
               </label>
             </div>
           </div>
+
+          <!-- 手动添加的曲目：粘贴网易云 / QQ / B站链接、歌曲 id 或 BV 号即可升级为在线音源 -->
+          <template v-if="!hasBoundSource(track)">
+            <div class="track-editor__bind-row">
+              <span class="track-editor__bind-label">{{ t('events.tracks.bindSource') }}</span>
+              <input
+                :value="bindInputFor(track)"
+                type="text"
+                :placeholder="t('events.tracks.bindSourcePlaceholder')"
+                :disabled="bindStatusFor(track).busy"
+                @input="setBindInput(track, $event.target.value)"
+                @keydown.enter.prevent="bindTrackSource(sourceIndex)"
+              />
+              <button
+                type="button"
+                class="track-editor__action track-editor__bind-btn"
+                :disabled="bindStatusFor(track).busy || !bindInputFor(track).trim()"
+                @click="bindTrackSource(sourceIndex)"
+              >
+                {{ bindStatusFor(track).busy ? t('events.tracks.bindSourceBusy') : t('events.tracks.bindSourceBtn') }}
+              </button>
+            </div>
+            <p v-if="bindStatusFor(track).message" class="track-editor__hint" :class="{ 'track-editor__hint--error': bindStatusFor(track).error }">
+              {{ bindStatusFor(track).message }}
+            </p>
+          </template>
         </article>
       </div>
 
@@ -190,7 +217,9 @@ import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/music/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/music/qqMusic'
 import { searchBilibiliVideos } from '@/utils/music/bilibiliMusic'
-import { mergeNeteaseTrackCovers } from '@/utils/music/tracks'
+import { buildTrackSourcePatch, mergeNeteaseTrackCovers, mergeTrackSourcePatch } from '@/utils/music/tracks'
+import { parseTrackSourceInput } from '@/utils/music/trackSourceInput'
+import { fetchTrackMetaBySource } from '@/utils/music/trackMeta'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
@@ -226,6 +255,11 @@ const searchPage = ref(1)
 const searchHasMore = ref(true)
 const searchResultListRef = ref(null)
 const neteaseCoverMap = ref({})
+const searchNotice = ref('')
+const searchNoticeError = ref(false)
+// 手动曲目「绑定音源」：输入与状态都按曲目 id 存，避免拖拽排序/整表重发后错位
+const bindInputs = reactive({})
+const bindStatus = reactive({})
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 const displayTracks = computed(() => tracks.value
@@ -468,6 +502,10 @@ function normalizeTrack(track = {}) {
     neteaseSongId: String(track.neteaseSongId || '').trim(),
     qqSongId: String(track.qqSongId || '').trim(),
     bilibiliVideoId,
+    // 歌词匹配结果（媒体播放器写入）：这里必须透传，否则任何一次整表重发
+    // （加一首歌、改一个字段）都会把它们静默抹掉
+    lyricSource: String(track.lyricSource || '').trim(),
+    lyricSongId: String(track.lyricSongId || '').trim(),
     note: String(track.note || '').trim()
   }
 }
@@ -500,6 +538,119 @@ function appendTracks(items) {
 
 function addManualTrack() {
   updateTracks([...tracks.value, buildManualTrack()])
+}
+
+function sourceLabel(source) {
+  if (source === 'qq') return t('events.tracks.qqMusic')
+  if (source === 'bilibili') return t('events.tracks.bilibili')
+  return t('events.tracks.netease')
+}
+
+function buildTrackFromSource(source, id, meta) {
+  const patch = buildTrackSourcePatch(source, id, meta)
+  if (!patch) return null
+  return normalizeTrack({
+    // B 站沿用搜索结果里的稳定 id，绑定/去重行为与搜索添加一致
+    id: source === 'bilibili' ? `bili_${id}` : `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    ...patch,
+    note: ''
+  })
+}
+
+/**
+ * 粘贴 BV 号 / 单曲链接后直接拉元数据添加，不走关键词搜索。
+ */
+async function addTrackFromSourceInput({ source, id }) {
+  searchLoading.value = true
+  searchError.value = ''
+  searchNotice.value = ''
+  searchNoticeError.value = false
+  try {
+    const meta = await fetchTrackMetaBySource(source, id)
+    if (!meta) throw new Error(t('events.tracks.bindSourceFailed'))
+    const track = buildTrackFromSource(source, id, meta)
+    if (!track) throw new Error(t('events.tracks.bindSourceInvalid'))
+
+    if (tracks.value.some((item) => buildTrackDedupKey(item) === buildTrackDedupKey(track))) {
+      searchNoticeError.value = true
+      searchNotice.value = t('events.tracks.bindSourceDuplicate')
+      return
+    }
+
+    appendTracks([track])
+    searchKeyword.value = ''
+    searchResults.value = []
+    searchNotice.value = t('events.tracks.directAddSuccess', {
+      source: sourceLabel(source),
+      title: track.title || t('events.tracks.unnamedTrack')
+    })
+  } catch (error) {
+    searchNoticeError.value = true
+    searchNotice.value = error?.message || t('events.tracks.bindSourceFailed')
+  } finally {
+    searchLoading.value = false
+  }
+}
+
+function hasBoundSource(track) {
+  return Boolean(
+    String(track?.neteaseSongId || '').trim()
+    || String(track?.qqSongId || '').trim()
+    || String(track?.bilibiliVideoId || '').trim()
+  )
+}
+
+function bindInputFor(track) {
+  return bindInputs[String(track?.id || '')] || ''
+}
+
+function bindStatusFor(track) {
+  return bindStatus[String(track?.id || '')] || {}
+}
+
+function setBindInput(track, value) {
+  const key = String(track?.id || '')
+  if (!key) return
+  bindInputs[key] = String(value || '')
+  const status = bindStatus[key]
+  if (status?.message) {
+    bindStatus[key] = { busy: false, message: '', error: false }
+  }
+}
+
+/**
+ * 把手动添加的曲目升级为在线音源：粘贴链接 / 歌曲 id / BV 号 → 拉元数据 → 填音源字段。
+ * 曲目原本写好的曲名、歌手、专辑、备注不会被覆盖（只在为空时补全）。
+ */
+async function bindTrackSource(index) {
+  const track = tracks.value[index]
+  if (!track) return
+  const key = String(track.id || '')
+  const parsed = parseTrackSourceInput(bindInputs[key], { allowBareId: true })
+  if (!parsed) {
+    bindStatus[key] = { busy: false, message: t('events.tracks.bindSourceInvalid'), error: true }
+    return
+  }
+
+  bindStatus[key] = { busy: true, message: '', error: false }
+  try {
+    const meta = await fetchTrackMetaBySource(parsed.source, parsed.id)
+    if (!meta) throw new Error(t('events.tracks.bindSourceFailed'))
+
+    const patch = buildTrackSourcePatch(parsed.source, parsed.id, meta)
+    const nextTrack = normalizeTrack(mergeTrackSourcePatch(tracks.value[index] || {}, patch))
+
+    if (tracks.value.some((item, itemIndex) => itemIndex !== index && buildTrackDedupKey(item) === buildTrackDedupKey(nextTrack))) {
+      bindStatus[key] = { busy: false, message: t('events.tracks.bindSourceDuplicate'), error: true }
+      return
+    }
+
+    updateTracks(tracks.value.map((item, itemIndex) => (itemIndex === index ? nextTrack : item)))
+    delete bindInputs[key]
+    bindStatus[key] = { busy: false, message: '', error: false }
+  } catch (error) {
+    bindStatus[key] = { busy: false, message: error?.message || t('events.tracks.bindSourceFailed'), error: true }
+  }
 }
 
 function removeTrack(index) {
@@ -562,8 +713,17 @@ async function runSongSearch() {
     return
   }
 
+  // 粘贴 BV 号 / 单曲链接（网易云 / QQ / B站）时直接按音源添加，不做关键词搜索
+  const parsedSource = parseTrackSourceInput(keyword)
+  if (parsedSource) {
+    await addTrackFromSourceInput(parsedSource)
+    return
+  }
+
   searchLoading.value = true
   searchError.value = ''
+  searchNotice.value = ''
+  searchNoticeError.value = false
   searchPage.value = 1
   searchHasMore.value = true
   try {
@@ -1062,6 +1222,25 @@ async function importPlaylist() {
   line-height: 1.7;
 }
 
+.track-editor__bind-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.track-editor__bind-label {
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.track-editor__bind-btn {
+  height: var(--input-height);
+  padding: 0 16px;
+}
+
 @media (max-width: 720px) {
   .track-editor__hero,
   .track-editor__item-head {
@@ -1075,7 +1254,8 @@ async function importPlaylist() {
   }
 
   .track-editor__import-grid,
-  .track-editor__input-row {
+  .track-editor__input-row,
+  .track-editor__bind-row {
     grid-template-columns: 1fr;
   }
 

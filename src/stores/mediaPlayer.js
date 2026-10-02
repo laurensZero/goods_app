@@ -1,8 +1,9 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchNeteaseLyrics, fetchNeteasePlayableUrl, fetchNeteaseSongCoverMap } from '@/utils/music/neteaseMusic'
-import { fetchQQPlayableUrl, fetchQQLyrics, fetchQQSongCoverMap } from '@/utils/music/qqMusic'
+import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/music/neteaseMusic'
+import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/music/qqMusic'
 import { fetchBilibiliPlayableUrl } from '@/utils/music/bilibiliMusic'
+import { buildTrackCoverCacheKey, fetchTrackCoverUrl } from '@/utils/music/trackCover'
 import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 import { useEventsStore } from '@/stores/events'
 import { addBilibiliPlayerListener, bilibiliPlayer, isAndroidBilibiliPlayer, playBilibiliNative } from '@/utils/platform/bilibiliPlayer'
@@ -639,25 +640,17 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
   }
 
-  // 事件等入口存的曲目不带封面（封面是列表 UI 懒加载的），播放时补齐供通知栏显示
+  // 事件等入口存的曲目不带封面（封面是列表 UI 懒加载的），播放时补齐供浮窗 / 通知栏显示。
+  // 三种音源都要覆盖：早期实现只认网易云 / QQ，B 站曲目的封面一直是空的。
   async function ensureTrackCover(track) {
     const trackId = getTrackIdentity(track)
     if (!trackId) return
-    const neteaseSongId = String(track?.neteaseSongId || '').trim()
-    const qqSongId = String(track?.qqSongId || '').trim()
-    if (!neteaseSongId && !qqSongId) return
+    const cacheKey = buildTrackCoverCacheKey(track)
+    if (!cacheKey) return
 
-    const cacheKey = neteaseSongId ? `netease:${neteaseSongId}` : `qq:${qqSongId}`
     let coverUrl = trackCoverCache.get(cacheKey)
     if (coverUrl === undefined) {
-      try {
-        const map = neteaseSongId
-          ? await fetchNeteaseSongCoverMap([neteaseSongId])
-          : await fetchQQSongCoverMap([qqSongId])
-        coverUrl = String(map?.[neteaseSongId || qqSongId] || '').trim()
-      } catch {
-        coverUrl = ''
-      }
+      coverUrl = await fetchTrackCoverUrl(track)
       trackCoverCache.set(cacheKey, coverUrl)
     }
     if (!coverUrl) return

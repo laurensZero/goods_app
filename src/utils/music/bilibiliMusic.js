@@ -367,8 +367,10 @@ export function buildBilibiliWebUrl(bvid) {
 
 export function parseBilibiliVideoId(input) {
   const raw = String(input || '').trim()
-  const match = raw.match(/(?:video\/)?(BV[a-zA-Z0-9]+)/i)
-  return match ? match[1] : ''
+  // BV 号固定为 BV + 10 位字符。旧的 BV[a-zA-Z0-9]+ 会把 "BVx" 这样的输入也当成视频号，
+  // 让「粘贴 BV/链接添加」在输入笔误时去请求接口报错，而不是回落成普通搜索。
+  const match = raw.match(/BV[0-9A-Za-z]{10}/i)
+  return match ? match[0] : ''
 }
 
 export { md5 }
