@@ -28,6 +28,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(McpServerPlugin.class);
         registerPlugin(NativeTimePlugin.class);
         registerPlugin(LocalFileServerPlugin.class);
+        registerPlugin(AppCachePlugin.class);
 
         Intent normalizedIntent = normalizeNfcIntent(getIntent());
         if (normalizedIntent != null) {

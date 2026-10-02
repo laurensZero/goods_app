@@ -216,6 +216,16 @@ export function isFileBackedUri(url) {
 
 const supportsCacheAPI = typeof caches !== 'undefined'
 
+/**
+ * 原生端图片以 img-cache 作为唯一持久层：默认的 HTTP 缓存会在 WebView 的 cacheDir
+ * 里再存一份同样的字节（Android WebView 自 r304670 起把 HTTP 缓存放进 getCacheDir，
+ * 见 Chromium aw_browser_context.cc），既让同一张图翻倍占用，又完全绕过 LRU 上限——
+ * 那是「设了 512MB 上限、安卓设置却显示 818MB」的主要来源。
+ * no-store 只是不再往那份重复缓存写；命中仍走内存/Cache API/img-cache，语义不变。
+ * Web 端保持默认（浏览器缓存不计入应用存储，交给浏览器管）。
+ */
+const IMAGE_FETCH_INIT = isNative() ? { cache: 'no-store' } : undefined
+
 // --- Layer 1: 内存缓存 ---
 /** @type {Map<string, string>} url -> objectURL 或原始 url */
 const memoryCache = new Map()
@@ -707,7 +717,7 @@ export async function getCachedImage(url, options = {}) {
         }
 
         try {
-          const response = await fetchWithPlatformBridge(fetchUrl)
+          const response = await fetchWithPlatformBridge(fetchUrl, IMAGE_FETCH_INIT)
           if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
           const blob = await response.blob()
