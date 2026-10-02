@@ -8,6 +8,7 @@ import { wrapSyncError, PHASE_READ_MANIFEST, PHASE_READ_REMOTE, PHASE_PULL, PHAS
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from './syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from './syncPushPipeline'
 import { flushDbWrites, saveItems, saveEvents, saveGroups, saveGroupItems, saveRechargeRecords, getAllBatchDrafts } from '@/utils/db'
+import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 import { PULL_CLOCK_OVERLAP_MS } from '@/constants/syncConstants'
 
 // 增量拉取的 since 回退一个重叠窗口，吸收设备间时钟偏移（行内 updated_at 为客户端时间）；
@@ -19,6 +20,11 @@ import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
 
 const log = createLogger('sync:orchestrator')
+
+// ── 孤儿图片回收节流 ──
+// 键持久化（Preferences/localStorage），重启后仍生效；每天最多扫一次云端文件表并发删除。
+const ORPHAN_GC_LAST_AT_KEY = 'sync_orphan_image_gc_at'
+const ORPHAN_GC_MIN_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 // ── crash-safe push：pending-push 标记 ──
 // 写远端前持久化标记（ctx 内存 + 存储），推送完整落盘（本地水位线已保存）后清除
@@ -274,8 +280,10 @@ export function createSyncOrchestrator({
       dirtyGoodsCount: dirtyGoodsIds ? dirtyGoodsIds.size : 0
     })
 
-    // 读取 manifest 缓存维护模式（覆盖 quickPush 路径不经过 fullSync 的情况）
-    if (be.readManifest) {
+    // 读取 manifest 缓存维护模式（覆盖 quickPush 路径不经过 fullSync 的情况）。
+    // 调用方（sync store）在进入同步前已做过同一检查时用 maintenanceChecked 跳过，
+    // 避免每轮同步多打一次 sync_manifest REST。
+    if (be.readManifest && !opts.maintenanceChecked) {
       try {
         const preManifest = await be.readManifest()
         if (preManifest?.maintenanceMode && ctx.saveMaintenanceMode) {
@@ -767,26 +775,37 @@ export function createSyncOrchestrator({
     // 必须放在 purgeSyncedDeleted 之前：已删除活动的墓碑引用此时仍在本地，其照片会被保留。
     // batchDrafts 必须计入本地 + 本次推送 payload：刚上传但本地尚未写 cloudFileName 的图不能被 GC。
     // 整体 try/catch，回收失败绝不影响同步结果。
+    //
+    // 节流到「每天一次」：回收要全量扫一遍云端文件表 + 逐条发 Storage 删除请求，而孤儿只在
+    // 删除商品/活动后缓慢产生。原先每轮 push 都做，等于编辑/批量录入时每轮都要付这份开销。
+    // 48h 宽限期仍在，日级回收不会误删刚上传的图。
     if (be.getImagePublicUrl && typeof be.removeImages === 'function') {
       try {
-        const localDraftsForGc = draftSnapshot || []
-        const pushedDrafts = [
-          ...(batchDraftSyncData?.batchDrafts || []),
-          ...(batchDraftSyncData?.batchDraftsTrash || [])
-        ]
-        const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
-          goods: stores.goodsStore.list,
-          trash: stores.goodsStore.trashList,
-          events: stores.eventsStore.list || [],
-          recharge: stores.rechargeStore?.records || [],
-          batchDrafts: [...localDraftsForGc, ...pushedDrafts]
-        })
-        const orphanFiles = image.collectSupabaseOrphanImageFiles(existingImageCloud, { referencedFiles, ownedEntityIds })
-        if (orphanFiles.length > 0) {
-          await trackSyncStep(i18n.global.t('sync.step.cleanOrphanImages'), async () => {
-            const result = await be.removeImages(orphanFiles)
-            return i18n.global.t('sync.step.cleanOrphanImages.result', { removed: result?.removed ?? 0, failed: result?.failed ?? 0 })
-          }, { startDetail: i18n.global.t('sync.step.cleanOrphanImages.start', { count: orphanFiles.length }), category: 'image' })
+        const lastGcAt = Number(await readSyncKey(ORPHAN_GC_LAST_AT_KEY)) || 0
+        if (lastGcAt && Date.now() - lastGcAt < ORPHAN_GC_MIN_INTERVAL_MS) {
+          log.debug('orphan image GC skipped (daily throttle)')
+        } else {
+          const localDraftsForGc = draftSnapshot || []
+          const pushedDrafts = [
+            ...(batchDraftSyncData?.batchDrafts || []),
+            ...(batchDraftSyncData?.batchDraftsTrash || [])
+          ]
+          const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+            goods: stores.goodsStore.list,
+            trash: stores.goodsStore.trashList,
+            events: stores.eventsStore.list || [],
+            recharge: stores.rechargeStore?.records || [],
+            batchDrafts: [...localDraftsForGc, ...pushedDrafts]
+          })
+          const orphanFiles = image.collectSupabaseOrphanImageFiles(existingImageCloud, { referencedFiles, ownedEntityIds })
+          if (orphanFiles.length > 0) {
+            await trackSyncStep(i18n.global.t('sync.step.cleanOrphanImages'), async () => {
+              const result = await be.removeImages(orphanFiles)
+              return i18n.global.t('sync.step.cleanOrphanImages.result', { removed: result?.removed ?? 0, failed: result?.failed ?? 0 })
+            }, { startDetail: i18n.global.t('sync.step.cleanOrphanImages.start', { count: orphanFiles.length }), category: 'image' })
+          }
+          // 抛错时不写时间戳：下一轮同步重试
+          await writeSyncKey(ORPHAN_GC_LAST_AT_KEY, String(Date.now()))
         }
       } catch (e) {
         log.warn('orphan image GC failed (non-fatal):', e)

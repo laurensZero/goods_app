@@ -33,7 +33,10 @@ vi.mock('@/utils/sync/storage', () => ({
 function mockClient(url) {
   return {
     supabaseUrl: url,
-    supabaseKey: KEY
+    supabaseKey: KEY,
+    auth: { stopAutoRefresh: vi.fn() },
+    realtime: { disconnect: vi.fn() },
+    removeAllChannels: vi.fn()
   }
 }
 
@@ -260,5 +263,101 @@ describe('cloudflare proxy endpoint', () => {
     mod.initSupabaseClient(PRIMARY, KEY)
     expect(mod.getDataEndpointId()).toBe('cf')
     expect(mod.getDataPlaneUrl()).toBe(CF)
+  })
+})
+
+// 回归：client 反复重建会泄漏 GoTrue 自动刷新定时器（30s setInterval + visibilitychange
+// 监听，旧实例无法回收），长时间编辑/新增时累积成上百个后台任务 → 持续发热 + 并发
+// refresh_token 轮换把 session 刷掉。这些用例钉住「探测成功不重建」和「替换必销毁旧实例」。
+describe('client lifecycle (no churn, no leak)', () => {
+  it('does not rebuild the client when the probe succeeds', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    const first = mod.initSupabaseClient(PRIMARY, KEY)
+    mockProbeReachable([PRIMARY])
+
+    const ok = await mod.reconnectSupabase({ force: true })
+
+    expect(ok).toBe(true)
+    expect(mod.getSupabaseClient()).toBe(first)
+    expect(createClientMock).toHaveBeenCalledTimes(1)
+    expect(first.auth.stopAutoRefresh).not.toHaveBeenCalled()
+  })
+
+  it('disposes the previous client and notifies subscribers on endpoint switch', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    const first = mod.initSupabaseClient(PRIMARY, KEY)
+    const seen = []
+    const off = mod.onSupabaseClientChange((client) => seen.push(client))
+
+    expect(await mod.switchDataEndpoint('backup')).toBe(true)
+
+    const second = mod.getSupabaseClient()
+    expect(second).not.toBe(first)
+    expect(first.auth.stopAutoRefresh).toHaveBeenCalledTimes(1)
+    expect(first.removeAllChannels).toHaveBeenCalledTimes(1)
+    expect(first.realtime.disconnect).toHaveBeenCalledTimes(1)
+    expect(seen).toEqual([second])
+
+    off()
+  })
+
+  it('stops notifying after the change listener unsubscribes', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    mod.initSupabaseClient(PRIMARY, KEY)
+    const listener = vi.fn()
+    mod.onSupabaseClientChange(listener)()
+
+    await mod.switchDataEndpoint('backup')
+
+    expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('keeps the existing client when a builtin endpoint probe fails (no churn)', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    const first = mod.initSupabaseClient(PRIMARY, KEY)
+    mockProbeReachable([])
+
+    const ok = await mod.reconnectSupabase({ force: true })
+
+    // 网络不通不代表 client 有问题：实例继续复用，不新建也不销毁
+    expect(ok).toBe(false)
+    expect(mod.getSupabaseClient()).toBe(first)
+    expect(createClientMock).toHaveBeenCalledTimes(1)
+    expect(first.auth.stopAutoRefresh).not.toHaveBeenCalled()
+  })
+
+  it('disposes and clears the client when a custom endpoint probe fails', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    const custom = 'https://my-custom.supabase.co'
+    const first = mod.initSupabaseClient(custom, KEY, { custom: true })
+    mockProbeReachable([])
+
+    const ok = await mod.reconnectSupabase({ force: true })
+
+    // 自建实例无备用：探测失败即置空，但必须先停掉旧实例的自动刷新定时器再丢弃
+    expect(ok).toBe(false)
+    expect(first.auth.stopAutoRefresh).toHaveBeenCalledTimes(1)
+    expect(first.realtime.disconnect).toHaveBeenCalledTimes(1)
+
+    createClientMock.mockClear()
+    const next = mod.getSupabaseClient()
+    expect(next).not.toBe(first)
+    expect(createClientMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('disposes the client on clearSupabaseClient', async () => {
+    const mod = await freshClient()
+    createClientMock.mockImplementation((url) => mockClient(url))
+    const first = mod.initSupabaseClient(PRIMARY, KEY)
+
+    mod.clearSupabaseClient()
+
+    expect(first.auth.stopAutoRefresh).toHaveBeenCalledTimes(1)
+    expect(first.removeAllChannels).toHaveBeenCalledTimes(1)
   })
 })

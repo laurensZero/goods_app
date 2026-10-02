@@ -1,5 +1,5 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import { getSupabaseClient, reconnectSupabase } from '@/utils/sync/supabaseClient'
+import { getSupabaseClient, reconnectSupabase, onSupabaseClientChange } from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { createLogger } from '@/utils/logger'
 
@@ -227,6 +227,16 @@ export function useRealtimeSync({ syncStore }) {
     }, 2000)
   }
 
+  // client 实例被替换（端点切换 / 重建 / 探活失败置空）时，旧 channel 已随旧实例销毁。
+  // 这里主动退订：client 非空就在新实例上立刻重订阅，为空则交给健康巡检重建，
+  // 避免停留在已死的连接上永远等不到数据。
+  const stopClientWatch = onSupabaseClientChange((client) => {
+    unsubscribe()
+    rebuildAttempt = 0
+    clearRebuildTimer()
+    if (client && canOperate()) void subscribe()
+  })
+
   // user / 同步后端就绪（或变化）时（重新）订阅；任一未就绪则退订
   const authStore = useAuthStore()
   watch(
@@ -250,6 +260,7 @@ export function useRealtimeSync({ syncStore }) {
   })
 
   onBeforeUnmount(() => {
+    stopClientWatch()
     clearRebuildTimer()
     stopHealthCheck()
     if (visibilityDebounceTimer) { clearTimeout(visibilityDebounceTimer); visibilityDebounceTimer = null }

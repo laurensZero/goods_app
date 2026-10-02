@@ -496,13 +496,58 @@ export const useSyncStore = defineStore('sync', () => {
   // ── Auto-push (Realtime) ──
 
   const SYNC_TIMEOUT_MS = 3 * 60 * 1000 // 3 min safety net
+  // 自动推送节流。原先 500ms 防抖且同步完成即立刻续跑，连续编辑/批量录入时
+  // 同步首尾相接（每轮固定 5~6 次 HTTPS），射频长时间无法降档 → 手机发烫。
+  //
+  // 两个窗口配合，兼顾「快」和「不烧」：
+  //   - 停顿 ≥10s 后再改一条 → 3s 后就推（同步的及时性能感觉到）
+  //   - 连续编辑             → 窗口内多次改动合并，稳态每 10s 一轮，不丢数据
+  // 稳态开销 ≤6 轮/分钟，每轮经前奏节流后基本只剩 1 次推送请求（改前是 60+ 请求/分钟）。
+  // 手动同步（设置里的同步按钮、长按拉取、批量流程的云端检查）不受这两个窗口约束，始终全速。
+  const AUTO_PUSH_DEBOUNCE_MS = 3 * 1000
+  const AUTO_PUSH_MIN_GAP_MS = 10 * 1000
+  // 每轮同步固定开销的节流窗口。这些值不需要每轮新鲜：心跳是设备存活上报，
+  // 维护模式是兜底开关，设备强制重同步是管理员低频操作。分钟级节流可省掉大部分请求。
+  const HEARTBEAT_MIN_INTERVAL_MS = 30 * 60 * 1000
+  const MAINTENANCE_CHECK_MIN_INTERVAL_MS = 10 * 60 * 1000
+  const DEVICE_RESYNC_CHECK_MIN_INTERVAL_MS = 5 * 60 * 1000
   let syncTimeoutId = null
   let autoPushTimer = null
   let pendingAutoPush = false
+  let lastSyncStartedAt = 0
+  let lastHeartbeatAt = 0
+  let lastMaintenanceCheckAt = 0
+  let lastDeviceResyncCheckAt = 0
   const DIRTY_DOMAINS_KEY = 'sync_dirty_domains'
   const DIRTY_GOODS_IDS_KEY = 'sync_dirty_goods_ids'
   const dirtyDomains = new Set()
   const dirtyGoodsIds = new Set()
+
+  /**
+   * 心跳上报（节流）。冷启动的 reportHeartbeat() 不受节流影响，保证设备存活可见。
+   */
+  function maybeHeartbeatDevice() {
+    const now = Date.now()
+    if (lastHeartbeatAt && now - lastHeartbeatAt < HEARTBEAT_MIN_INTERVAL_MS) return
+    lastHeartbeatAt = now
+    void heartbeatDevice()
+  }
+
+  /**
+   * 预读 manifest 里的维护模式（节流）。维护模式是低频开关，
+   * 10 分钟内复用上次结果即可，不必每轮同步都打一次 REST。
+   */
+  async function refreshMaintenanceMode() {
+    const now = Date.now()
+    if (lastMaintenanceCheckAt && now - lastMaintenanceCheckAt < MAINTENANCE_CHECK_MIN_INTERVAL_MS) return
+    lastMaintenanceCheckAt = now
+    try {
+      const manifest = await activeBackend.readManifest()
+      if (manifest?.maintenanceMode) {
+        maintenanceMode.value = manifest.maintenanceMode
+      }
+    } catch (_) { /* 维护模式读取失败不影响同步 */ }
+  }
 
   function markDomainDirty(domain) {
     if (domain) {
@@ -543,22 +588,41 @@ export const useSyncStore = defineStore('sync', () => {
     writeSyncKey(DIRTY_GOODS_IDS_KEY, dirtyGoodsIds.size > 0 ? [...dirtyGoodsIds].join(',') : '')
   }
 
+  /**
+   * 安排一次自动同步。同时受「防抖窗口」和「两轮自动同步最小间隔」约束：
+   * - 已有定时器时不重置：窗口内的所有改动合并成同一轮（10s 内改两三次只推一轮，不丢）
+   * - 距上轮同步不足 10s 时顺延，避免刚推完又立刻开新的一轮
+   * 结果：空闲后首次改动 3s 内推送；连续编辑时稳态 10s 一轮。
+   */
+  function scheduleAutoPush() {
+    if (autoPushTimer) return
+    const sinceLastSync = Date.now() - lastSyncStartedAt
+    const delay = Math.max(AUTO_PUSH_DEBOUNCE_MS, AUTO_PUSH_MIN_GAP_MS - sinceLastSync)
+    autoPushTimer = setTimeout(async () => {
+      autoPushTimer = null
+      if (isPulling.value || isSyncing.value) {
+        pendingAutoPush = true
+        return
+      }
+      lastSyncStartedAt = Date.now()
+      try {
+        await doSync({ source: 'auto' })
+      } catch (error) {
+        publishSyncNotice({
+          source: 'auto',
+          level: 'error',
+          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
+        })
+      }
+    }, delay)
+  }
+
   function flushPendingAutoPush() {
     if (!pendingAutoPush) return
     if (isPulling.value || isSyncing.value) return
 
     pendingAutoPush = false
-    if (autoPushTimer) {
-      clearTimeout(autoPushTimer)
-      autoPushTimer = null
-    }
-
-    autoPushTimer = setTimeout(() => {
-      autoPushTimer = null
-      if (!isPulling.value && !isSyncing.value) {
-        void doSync({ source: 'auto' })
-      }
-    }, 0)
+    scheduleAutoPush()
   }
 
   function autoPushGoods(domain) {
@@ -570,21 +634,7 @@ export const useSyncStore = defineStore('sync', () => {
       return
     }
 
-    const debounceMs = 500
-
-    if (autoPushTimer) clearTimeout(autoPushTimer)
-    autoPushTimer = setTimeout(async () => {
-      autoPushTimer = null
-      try {
-        await doSync({ source: 'auto' })
-      } catch (error) {
-        publishSyncNotice({
-          source: 'auto',
-          level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
-        })
-      }
-    }, debounceMs)
+    scheduleAutoPush()
   }
 
   async function setSyncPaused(paused) {
@@ -717,6 +767,10 @@ export const useSyncStore = defineStore('sync', () => {
   async function maybeForceDeviceResync(runGen) {
     try {
       if (typeof activeBackend?.readDeviceRow !== 'function') return false
+      // 管理员的强制重同步是低频人工操作，5 分钟内已查过就不必每轮同步再查一次
+      const checkNow = Date.now()
+      if (lastDeviceResyncCheckAt && checkNow - lastDeviceResyncCheckAt < DEVICE_RESYNC_CHECK_MIN_INTERVAL_MS) return false
+      lastDeviceResyncCheckAt = checkNow
       const row = await activeBackend.readDeviceRow()
       const serverTs = row?.forceResyncAt || ''
       if (!serverTs) return false
@@ -767,11 +821,12 @@ export const useSyncStore = defineStore('sync', () => {
     }
     ensureBackendReady()
 
-    // 同步前快探一次（10s 节流）：主站不通立即切备用，避免管道里干等 TCP 超时
+    // 同步前快探一次（5 分钟节流；网络错误走 force 立即探）：探测成功不会重建 client
     try { await reconnectSupabase() } catch { /* 探测失败交由管道重试处理 */ }
 
     // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
+    lastSyncStartedAt = Date.now()
     syncSource.value = source
     isSyncing.value = true; lastError.value = ''; conflictData.value = null
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
@@ -788,16 +843,11 @@ export const useSyncStore = defineStore('sync', () => {
       // 换账号后必须先清掉旧账号的水位线 / pendingPush，再构建同步上下文
       await ensureSyncAccountConsistent()
 
-      // 设备心跳上报（fire-and-forget）
-      void heartbeatDevice()
+      // 设备心跳上报（节流，fire-and-forget）
+      maybeHeartbeatDevice()
 
-      // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
-      try {
-        const manifest = await activeBackend.readManifest()
-        if (manifest?.maintenanceMode) {
-          maintenanceMode.value = manifest.maintenanceMode
-        }
-      } catch (_) {}
+      // 预读 manifest 缓存维护模式（节流；下面已检查过，orchestrator 不再重复拉一次）
+      await refreshMaintenanceMode()
 
       // 检查维护模式
       if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
@@ -839,7 +889,7 @@ export const useSyncStore = defineStore('sync', () => {
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
-        () => orchestrator.sync(buildSyncContext(runGen), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
+        () => orchestrator.sync(buildSyncContext(runGen), { dirtyDomains: domains, dirtyGoodsIds: goodsIds, maintenanceChecked: true }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       // 代际过期（超时重置已接管 UI）：跳过状态更新与脏标记清理，避免与新一轮同步互相覆盖
@@ -917,6 +967,7 @@ export const useSyncStore = defineStore('sync', () => {
 
     // 先进入同步状态，让按钮立即给出加载反馈（转圈/禁用），再进行后续网络请求
     const runGen = ++syncGeneration
+    lastSyncStartedAt = Date.now()
     syncSource.value = source
     isSyncing.value = true; isPulling.value = true
     lastError.value = ''
@@ -939,16 +990,11 @@ export const useSyncStore = defineStore('sync', () => {
         return { action: 'skipped', reason: 'account_switched' }
       }
 
-      // 设备心跳上报（fire-and-forget）
-      void heartbeatDevice()
+      // 设备心跳上报（节流，fire-and-forget）
+      maybeHeartbeatDevice()
 
-      // 预读 manifest 缓存维护模式
-      try {
-        const manifest = await activeBackend.readManifest()
-        if (manifest?.maintenanceMode) {
-          maintenanceMode.value = manifest.maintenanceMode
-        }
-      } catch (_) {}
+      // 预读 manifest 缓存维护模式（节流）
+      await refreshMaintenanceMode()
 
       // 检查维护模式
       if (isFeatureBlocked(maintenanceMode.value, FEATURE_KEYS.SYNC_ALL)) {
