@@ -27,6 +27,7 @@ import { dispatchAndroidBackButton } from './utils/platform/androidBackButton'
 import { hasOverlays } from './composables/useDialogBackButton'
 import { runWithRouteTransition } from './utils/routeTransition'
 import { cleanupImageCache, signalImageCacheRefresh } from './utils/image/cache'
+import { runCacheMaintenance } from './utils/storage/cacheMaintenance'
 import { createLogger } from './utils/logger'
 import { handleAuthCallback } from './utils/supabase/auth'
 import { cleanupDownloadedApkFiles } from './stores/appUpdate'
@@ -130,6 +131,8 @@ function setupAndroidResumeListener(theme) {
   const handleAppVisible = () => {
     theme.syncSystemAppearance({ forceApply: true })
     void cleanupImageCache()
+    // 缓存目录残留（分享海报/更新包/CapGo 分片）同样只在 cache 预算之外，回前台顺手回收
+    void runCacheMaintenance()
     signalImageCacheRefresh('resume')
   }
 
@@ -267,6 +270,7 @@ async function bootstrap() {
   // 顺序很重要：先挂载 DOM，再初始化重的 store
   void deferredStoreInit()
   void reconcileBundlesAfterNativeUpdate()
+  void runCacheMaintenance()
 
   // MCP 服务：dev 由 Vite dev server 提供入口（页面桥接）；
   // 原生端由 McpServer 插件（NanoHTTPD）提供入口（转发回页面协议层）

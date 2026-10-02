@@ -218,6 +218,23 @@
           </article>
 
           <article class="info-card">
+            <p class="info-kicker">{{ t('about.browserCache') }}</p>
+            <h3 class="info-value">{{ resourceSizeBrowserCache }}</h3>
+            <p v-if="IS_NATIVE" class="info-meta">{{ t('about.cacheTotalMeta', { size: resourceSizeCacheTotal }) }}</p>
+            <p class="info-desc">{{ t('about.browserCacheDesc') }}</p>
+            <div class="resource-actions">
+              <button
+                type="button"
+                class="dialog-btn dialog-btn--secondary"
+                :disabled="isClearingBrowserCache"
+                @click="handleClearBrowserCache"
+              >
+                {{ t('about.clearBrowserCache') }}
+              </button>
+            </div>
+          </article>
+
+          <article class="info-card">
             <p class="info-kicker">{{ t('about.localCutoutModel') }}</p>
             <h3 class="info-value">{{ resourceSizeModel }}</h3>
             <p class="info-desc">{{ t('about.localCutoutModelDesc') }}</p>
@@ -364,6 +381,7 @@ import {
   getNativeCacheLimitMb,
   setNativeCacheLimitMb
 } from '@/utils/image/cache'
+import { clearWebViewCache, getAppCacheStats } from '@/utils/storage/appCache'
 import packageJson from '../../../package.json'
 import capacitorConfig from '../../../capacitor.config.json'
 import { resolveMockAppVersion, resolveMockBundleVersion, isDevVersionMockEnabled } from '@/utils/dev/mockVersion'
@@ -716,6 +734,9 @@ onBeforeUnmount(() => {
 const resourceSizeCacheImage = ref('--')
 const resourceSizeModel = ref('--')
 const resourceSizeUpdate = ref('--')
+const resourceSizeBrowserCache = ref('--')
+const resourceSizeCacheTotal = ref('--')
+const isClearingBrowserCache = ref(false)
 
 async function calculateDirectorySize(path, directory) {
   let total = 0
@@ -747,6 +768,7 @@ async function refreshResourceSizes() {
     resourceSizeCacheImage.value = t('about.webManagedByBrowser')
     resourceSizeModel.value = t('about.webNoSaved')
     resourceSizeUpdate.value = t('about.webNotUsed')
+    resourceSizeBrowserCache.value = t('about.webManagedByBrowser')
     return
   }
 
@@ -760,6 +782,14 @@ async function refreshResourceSizes() {
 
   calculateDirectorySize('updates', Directory.Cache).then(size => {
     resourceSizeUpdate.value = size > 0 ? formatSize(size) : '0 B'
+  })
+
+  // 安卓设置里的「缓存」是整个 cacheDir（含 WebView HTTP 缓存），只有原生插件能量到；
+  // 旧 APK 里没有该插件时保持 '--'，避免显示一个假的 0。
+  getAppCacheStats().then((stats) => {
+    if (!stats) return
+    resourceSizeBrowserCache.value = formatSize(stats.webView)
+    resourceSizeCacheTotal.value = formatSize(stats.total)
   })
 }
 
@@ -792,6 +822,20 @@ async function handleClearImageCache() {
     refreshResourceSizes()
   } catch (error) {
     showToast(t('about.clearImageCacheFailed'))
+  }
+}
+
+async function handleClearBrowserCache() {
+  if (isClearingBrowserCache.value) return
+  isClearingBrowserCache.value = true
+  try {
+    const ok = await clearWebViewCache()
+    showToast(ok ? t('about.browserCacheCleared') : t('about.clearBrowserCacheFailed'))
+  } catch (error) {
+    showToast(t('about.clearBrowserCacheFailed'))
+  } finally {
+    isClearingBrowserCache.value = false
+    refreshResourceSizes()
   }
 }
 
