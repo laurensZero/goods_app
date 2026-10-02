@@ -147,6 +147,9 @@ const goodsStore = useGoodsStore()
 const syncStore = useSyncStore()
 const { toastMsg, showToast } = useToast()
 
+// 进入单项编辑前的云端检查节流窗口（见 editItem）：避免批量录入时逐条触发整轮同步
+const CLOUD_CHECK_MIN_INTERVAL_MS = 5 * 60 * 1000
+
 const showDefaults = ref(false)
 const showMissingImageConfirm = ref(false)
 const showClearDraftConfirm = ref(false)
@@ -220,8 +223,14 @@ async function editItem(id) {
   try {
     // 先把当前内存队列落库，再检查云端，避免云端旧草稿覆盖本地刚编辑的内容。
     await flushBatchDraft()
+    // 云端检查（远端删除/旧草稿）按时间节流：原先每进一条单项编辑都跑一整轮 sync，
+    // 批量录入几十条就是几十轮 HTTPS，是「录入时手机发烫」的主要来源之一。
+    // 5 分钟内刚同步过就直接进编辑，未推送的改动仍在脏标记里，由自动同步补推。
     if (syncStore.isSupabaseMode()) {
-      await syncStore.sync({ source: 'batch-edit' })
+      const lastSyncedAt = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+      if (!lastSyncedAt || Date.now() - lastSyncedAt > CLOUD_CHECK_MIN_INTERVAL_MS) {
+        await syncStore.sync({ source: 'batch-edit' })
+      }
     }
   } catch (e) {
     // 云端检查失败不阻塞本地编辑；后续自动同步仍会重试。

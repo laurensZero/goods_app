@@ -7,6 +7,46 @@ import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
 
 let supabase = null
 
+// ── client 生命周期 ──
+// 每次替换实例都必须先停掉旧实例：auth-js 对每个 autoRefreshToken: true 的客户端都会
+// 起一个 30s 的 setInterval 自动刷新定时器 + 一个 visibilitychange 监听，闭包持有实例
+// 因而无法被 GC。旧版本在「探测成功」时也会重建 client，长时间编辑/新增（同步频繁触发）
+// 会累积上百个后台定时器 → 持续耗电发热；并发刷新同一个 refresh_token 还会撞上轮换，
+// 把共享 session 刷掉导致静默登出。
+const clientChangeListeners = new Set()
+
+function disposeClient(client) {
+  if (!client) return
+  try { client.auth?.stopAutoRefresh?.() } catch { /* ignore */ }
+  try { client.removeAllChannels?.() } catch { /* ignore */ }
+  try { client.realtime?.disconnect?.() } catch { /* ignore */ }
+}
+
+function setSupabaseClient(next) {
+  const previous = supabase
+  supabase = next
+  if (!previous || previous === next) return next
+  // 先通知订阅者，让它们从旧实例上干净退订（Realtime channel），再销毁旧实例；
+  // 反过来会对已被 removeAllChannels 移除的 channel 再次退订，产生无谓告警。
+  for (const listener of [...clientChangeListeners]) {
+    try { listener(next) } catch (e) { console.warn('[supabase] client change listener failed:', e?.message) }
+  }
+  disposeClient(previous)
+  return next
+}
+
+/**
+ * 订阅 Supabase client 实例替换事件（端点切换 / 重建 / 探活失败置空）。
+ * 旧实例已被 dispose，Realtime 订阅者需要据此在新实例上重新订阅。
+ * @param {(client: object|null) => void} listener
+ * @returns {() => void} 取消订阅
+ */
+export function onSupabaseClientChange(listener) {
+  if (typeof listener !== 'function') return () => {}
+  clientChangeListeners.add(listener)
+  return () => { clientChangeListeners.delete(listener) }
+}
+
 // 数据面端点选择：primary = 官方直连，backup = 自建反代；仅内置配置参与主备切换
 // 持久化上次可用端点，弱网下次启动可直接走备用，省去首连超时
 const DATA_ENDPOINT_KEY = 'sync_data_endpoint'
@@ -22,8 +62,11 @@ const PROBE_TIMEOUT_MS = 1500
 const BACKUP_PROBE_TIMEOUT_MS = 3000
 // 数据面请求超时（storage 上传除外）
 const DATA_FETCH_TIMEOUT_MS = 12_000
-// 探测节流：同步/启动连续触发时不反复打两端
-const PROBE_THROTTLE_MS = 10_000
+// 探测节流：同步/启动连续触发时不反复打两端。
+// 不要调小：每轮自动同步都会调一次 reconnectSupabase，10s 的窗口在连续编辑时
+// 会变成「每 10s 一次探测请求」；5 分钟已足够发现端点长期不可用，
+// 真正的网络错误仍由 reconnectOnNetworkError 走 force 立即探测。
+const PROBE_THROTTLE_MS = 5 * 60 * 1000
 let _dataEndpoint = PRIMARY_ENDPOINT
 // 自建实例（同步设置手动填写）时锁定 URL，不参与主备切换
 let _customLocked = false
@@ -298,7 +341,7 @@ export function initSupabaseClient(url, anonKey, options = {}) {
   }
   _initUrl = url
   _initKey = anonKey
-  supabase = buildClient(url, anonKey)
+  setSupabaseClient(buildClient(url, anonKey))
   return supabase
 }
 
@@ -407,9 +450,9 @@ export async function switchDataEndpoint(target) {
   if (!url) return false
   const key = _initKey || SUPABASE_ANON_KEY
   if (!key) return false
-  supabase = buildClient(url, key)
   _initUrl = url
   _initKey = key
+  setSupabaseClient(buildClient(url, key))
   await persistDataEndpoint(url)
   await persistManualEndpointFlag(true)
   _manualFailSince = 0
@@ -451,10 +494,10 @@ export async function testSupabaseConnection(url, anonKey) {
 }
 
 /**
- * 清除 Supabase Client 实例
+ * 清除 Supabase Client 实例（会停掉旧实例的自动刷新定时器与 Realtime 连接）
  */
 export function clearSupabaseClient() {
-  supabase = null
+  setSupabaseClient(null)
 }
 
 /**
@@ -465,15 +508,16 @@ export function isSupabaseConfigured() {
 }
 
 /**
- * 重建 Supabase Client 连接
- * 用于 Android 后台回收后刷新 DNS 缓存和连接池；
- * 当前端点网络失败且启用备用反代时自动切换到另一端点并持久化。
- *
+ * 探测并（仅在必要时）重建 Supabase Client 连接
  * 只探当前端点；失败也不自动切备用（主站可能只是慢）。仅手动 switchDataEndpoint 切换。
+ *
+ * 语义：**探测成功时不再重建 client**。旧实例可用就没有任何理由替换它 ——
+ * 每次替换都会新建一个 GoTrue 客户端（30s 自动刷新定时器 + visibilitychange 监听，
+ * 旧实例无法回收）并让 Realtime 通道重建。只在探测失败、或现有实例已经不存在时重建。
  * @param {{ force?: boolean, parallelProbe?: boolean }} [options]
  *   - force: 跳过探测节流（网络错误回调里用）
  *   - parallelProbe: 主备同时探测（仅冷启动）
- * @returns {Promise<boolean>} 是否重建成功
+ * @returns {Promise<boolean>} 当前端点是否可用
  */
 export async function reconnectSupabase({ force = false, parallelProbe = false } = {}) {
   const key = _initKey || SUPABASE_ANON_KEY
@@ -484,6 +528,7 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
   const now = Date.now()
   if (
     !force &&
+    supabase &&
     _lastProbeOk &&
     _lastProbedUrl === preferred &&
     now - _lastProbeAt < PROBE_THROTTLE_MS
@@ -491,10 +536,14 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
     return true
   }
 
+  // 现有实例已经指向该端点时无需重建（探测成功路径）
+  const clientMatches = (url) => !!supabase && _initUrl === url && _initKey === key
+
   const apply = async (url) => {
-    supabase = buildClient(url, key)
+    if (clientMatches(url)) return true
     _initUrl = url
     _initKey = key
+    setSupabaseClient(buildClient(url, key))
     await persistDataEndpoint(url)
     return true
   }
@@ -523,7 +572,8 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
     _lastProbedUrl = preferred
     if (!reachable) {
       console.warn('[supabase] endpoint unreachable:', preferred)
-      supabase = null
+      // 停掉旧实例再置空：否则它的定时器会一直留在后台
+      setSupabaseClient(null)
       return false
     }
     _manualFailSince = 0
