@@ -123,6 +123,10 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
     ? String(entry.kind).trim()
     : (fallbackIndex === 0 ? 'primary' : 'custom')
 
+  // TODO(外框二次编辑): 这里是白名单，未登记的字段会被直接丢弃。
+  // 新增 edit / editSourceUri 时必须同步改 sanitizeGoodsImagesForSync，
+  // 并登记到 collectReferencedImageState，否则会被孤儿回收删文件。
+  // 方案见 docs/frame-reedit-plan.md
   return {
     id: String(entry.id || createGoodsImageId()).trim(),
     uri,
@@ -258,6 +262,9 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
   if (normalizedImages.length === 0) return []
 
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
+  // TODO(外框二次编辑): 这里的白名单决定什么能推上云。
+  // 加字段时两处白名单（本函数 + normalizeGoodsImageEntry）必须同时改，漏一处会静默丢字段。
+  // 方案见 docs/frame-reedit-plan.md
   const syncImages = normalizedImages
     .filter((entry) => preparedImages || isExportableGoodsImage(entry))
     .map((entry) => {

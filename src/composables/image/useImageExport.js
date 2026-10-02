@@ -1,3 +1,5 @@
+import { renderFrameComposition } from '@/utils/image/frameRenderer'
+
 async function loadPica() {
   const mod = await import('pica')
   return mod.default || mod
@@ -262,6 +264,32 @@ export function useImageExport() {
     return canvasToBlob(outputCanvas, 'image/jpeg', 0.96)
   }
 
+  /**
+   * 外框合成：与编辑器实时预览共用 frameRenderer，
+   * 因此预览里看到的构图就是导出的构图。
+   */
+  async function composeFramed(inputBlob, options = {}) {
+    const sourceCanvas = await decodeBlobToCanvas(inputBlob)
+    const outputWidth = Math.max(1, Number(options.outputWidth) || 1200)
+    const outputHeight = Math.max(1, Number(options.outputHeight) || 1200)
+    const outputCanvas = createCanvas(outputWidth, outputHeight)
+    const ctx = outputCanvas.getContext('2d')
+
+    renderFrameComposition(ctx, {
+      width: outputWidth,
+      height: outputHeight,
+      source: sourceCanvas,
+      frame: options.frame || null,
+      frameColors: options.frameColors || null,
+      fitRatio: options.fitRatio,
+      background: { color: options.bgColor || '#ffffff' },
+      adjustments: options.adjustments || {},
+      labels: options.labels || {}
+    })
+
+    return canvasToBlob(outputCanvas, 'image/jpeg', 0.96)
+  }
+
   async function compressUnderTarget(inputBlob, options = {}) {
     await ensurePica()
     return await compressUnderTargetImpl(inputBlob, options, picaInstance)
@@ -292,7 +320,8 @@ export function useImageExport() {
       (Number(options.contrast) || 0) !== 0 ||
       (Number(options.saturation) || 0) !== 0
 
-    if (hasAdjustments) {
+    // 有外框时由渲染器统一施加画面调整，这里不再单独处理，避免叠加两次
+    if (hasAdjustments && !options.frame) {
       emitProgress(16, '应用亮度/对比度...', 'adjust')
       const adjustmentCanvas = await decodeBlobToCanvas(workingBlob)
       const adjustedCanvas = applyCanvasAdjustmentsToCanvas(adjustmentCanvas, {
@@ -315,7 +344,24 @@ export function useImageExport() {
       })
     }
 
-    if (options.applyWhiteBg) {
+    if (options.frame) {
+      emitProgress(30, '合成外框中...', 'frame')
+      workingBlob = await composeFramed(workingBlob, {
+        frame: options.frame,
+        frameColors: options.frameColors,
+        fitRatio: options.whiteBgFitRatio,
+        bgColor: options.bgColor || '#ffffff',
+        outputWidth: options.whiteBgWidth || 1200,
+        outputHeight: options.whiteBgHeight || 1200,
+        adjustments: {
+          brightness: Number(options.brightness) || 0,
+          contrast: Number(options.contrast) || 0,
+          saturation: Number(options.saturation) || 0
+        },
+        labels: options.frameLabels || {}
+      })
+      preferredFormat = 'image/jpeg'
+    } else if (options.applyWhiteBg) {
       emitProgress(30, '合成背景中...', 'whiteBg')
       workingBlob = await composeWhiteBackground(workingBlob, {
         bgColor: options.bgColor || '#ffffff',
@@ -374,6 +420,7 @@ export function useImageExport() {
 
   return {
     composeWhiteBackground,
+    composeFramed,
     compressUnderTarget,
     compressImageToBlob: compressImageToBlob,
     exportForUpload
