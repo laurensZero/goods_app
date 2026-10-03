@@ -8,6 +8,12 @@ import {
   splitStorageLocationPath
 } from '@/utils/storage/storageLocations'
 import { isBuiltinEventType } from '@/constants/eventTypes'
+import {
+  CUSTOM_FIELD_NAME_MAX,
+  createCustomFieldDefId,
+  isCustomFieldType,
+  normalizeCustomFieldDefs
+} from '@/utils/goods/customFields'
 
 const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
@@ -18,12 +24,14 @@ const STORAGE_KEY_FAV_CAT = 'goods_presets_favorite_categories'
 const STORAGE_KEY_FAV_IP = 'goods_presets_favorite_ips'
 const STORAGE_KEY_FAV_CHR = 'goods_presets_favorite_characters'
 const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
+const STORAGE_KEY_CUSTOM_FIELD_DEFS = 'goods_presets_custom_field_defs'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
 const DEFAULT_CHARACTERS = []
 const DEFAULT_STORAGE_LOCATIONS = []
 const DEFAULT_EVENT_TYPES = []
+const DEFAULT_CUSTOM_FIELD_DEFS = []
 
 function cloneList(list) {
   return JSON.parse(JSON.stringify(list))
@@ -238,6 +246,7 @@ export const usePresetsStore = defineStore('presets', () => {
   const characters = ref(cloneList(DEFAULT_CHARACTERS))
   const storageLocations = ref(cloneList(DEFAULT_STORAGE_LOCATIONS))
   const eventTypes = ref(cloneList(DEFAULT_EVENT_TYPES))
+  const customFieldDefs = ref(cloneList(DEFAULT_CUSTOM_FIELD_DEFS))
   const favoriteCategories = ref([])
   const favoriteIps = ref([])
   const favoriteCharacters = ref([])
@@ -306,7 +315,7 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes] = await Promise.all([
+    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes, fieldDefs] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
@@ -314,13 +323,15 @@ export const usePresetsStore = defineStore('presets', () => {
       readPersistedList(STORAGE_KEY_FAV_CAT, []),
       readPersistedList(STORAGE_KEY_FAV_IP, []),
       readPersistedList(STORAGE_KEY_FAV_CHR, []),
-      readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES)
+      readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES),
+      readPersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, DEFAULT_CUSTOM_FIELD_DEFS)
     ])
     categories.value = cat
     ips.value = ip
     characters.value = chr
     storageLocations.value = loc
     eventTypes.value = normalizeEventTypesList(evtTypes)
+    customFieldDefs.value = normalizeCustomFieldDefs(fieldDefs)
     favoriteCategories.value = Array.isArray(favCat) ? favCat : []
     favoriteIps.value = Array.isArray(favIp) ? favIp : []
     favoriteCharacters.value = Array.isArray(favChr) ? favChr : []
@@ -345,7 +356,8 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_IP, ips.value),
       writePersistedList(STORAGE_KEY_CHR, characters.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
-      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
+      writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
     ])
 
     isReady.value = true
@@ -604,6 +616,126 @@ export const usePresetsStore = defineStore('presets', () => {
     return true
   }
 
+  // ── 自定义字段定义（随 presets 同步；值随 goods 行同步）──
+  // 字段**改名不影响已填值**（值以 def.id 为键，这是 id 设计的意义）。
+  // 但 select 的**选项改名/删除会留下旧值**，需要顺带改写 goods 的值：
+  // 见 docs/goods-custom-fields-plan.md P1-7（goodsBatchRename.replaceCustomFieldOptionValue）。
+  async function persistCustomFieldDefs() {
+    await writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
+  }
+
+  function findCustomFieldDefIndex(id) {
+    const target = String(id || '').trim()
+    if (!target) return -1
+    return customFieldDefs.value.findIndex((item) => item.id === target)
+  }
+
+  /** 新建定义；名称重复或已达上限返回 null */
+  async function addCustomFieldDef({ name, type = 'text', options = [] } = {}) {
+    const created = normalizeCustomFieldDefs([
+      { id: createCustomFieldDefId(), name, type, options }
+    ])[0]
+    if (!created) return null
+    if (customFieldDefs.value.some((item) => item.name === created.name)) return null
+
+    const next = normalizeCustomFieldDefs([...customFieldDefs.value, created])
+    if (next.length <= customFieldDefs.value.length) return null
+
+    customFieldDefs.value = next
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return next[next.length - 1]
+  }
+
+  async function updateCustomFieldDefName(id, name) {
+    const index = findCustomFieldDefIndex(id)
+    if (index === -1) return false
+
+    const current = customFieldDefs.value[index]
+    const next = String(name || '').trim().slice(0, CUSTOM_FIELD_NAME_MAX)
+    if (!next) return false
+    if (current.name === next) return true
+    if (customFieldDefs.value.some((item, i) => i !== index && item.name === next)) return false
+
+    const updated = [...customFieldDefs.value]
+    updated.splice(index, 1, { ...current, name: next })
+    customFieldDefs.value = updated
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return true
+  }
+
+  /** 切换类型；select → 其它类型会清空 options（由归一化保证） */
+  async function updateCustomFieldDefType(id, type) {
+    const index = findCustomFieldDefIndex(id)
+    if (index === -1 || !isCustomFieldType(type)) return false
+
+    const current = customFieldDefs.value[index]
+    const nextType = String(type)
+    if (current.type === nextType) return true
+
+    const normalized = normalizeCustomFieldDefs([{ ...current, type: nextType }])[0]
+    if (!normalized) return false
+
+    const updated = [...customFieldDefs.value]
+    updated.splice(index, 1, normalized)
+    customFieldDefs.value = updated
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return true
+  }
+
+  /** 覆盖 select 字段的选项列表（去重/去空/超上限由归一化处理） */
+  async function updateCustomFieldDefOptions(id, options) {
+    const index = findCustomFieldDefIndex(id)
+    if (index === -1) return false
+
+    const current = customFieldDefs.value[index]
+    const normalized = normalizeCustomFieldDefs([{ ...current, type: 'select', options }])[0]
+    if (!normalized) return false
+
+    const updated = [...customFieldDefs.value]
+    updated.splice(index, 1, normalized)
+    customFieldDefs.value = updated
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return true
+  }
+
+  /** 删除定义；返回被删除的定义（调用方据此提示影响范围 / 清理孤儿值） */
+  async function removeCustomFieldDef(id) {
+    const index = findCustomFieldDefIndex(id)
+    if (index === -1) return null
+
+    const removed = customFieldDefs.value[index]
+    customFieldDefs.value = customFieldDefs.value.filter((item) => item.id !== removed.id)
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return removed
+  }
+
+  /** 按 id 顺序重排；未列出的定义保留原相对顺序追加（不静默丢定义） */
+  async function reorderCustomFieldDefs(orderedIds) {
+    if (!Array.isArray(orderedIds)) return false
+
+    const remaining = new Map(customFieldDefs.value.map((item) => [item.id, item]))
+    const next = []
+    for (const rawId of orderedIds) {
+      const def = remaining.get(String(rawId || '').trim())
+      if (!def) continue
+      remaining.delete(def.id)
+      next.push(def)
+    }
+    for (const def of customFieldDefs.value) {
+      if (remaining.has(def.id)) next.push(def)
+    }
+
+    customFieldDefs.value = normalizeCustomFieldDefs(next)
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return true
+  }
+
   async function addIp(name) {
     const normalized = name.trim()
     if (!normalized || ips.value.includes(normalized)) return false
@@ -848,6 +980,12 @@ export const usePresetsStore = defineStore('presets', () => {
       eventTypes.value = normalizeEventTypesList(evtRaw)
     }
 
+    // customFieldDefs：只有远端确实带了该键才覆盖。
+    // 云端未迁移（列不存在）时 reader 会省略该键，此时保留本地定义而不是清空。
+    if (snapshot.customFieldDefs !== undefined) {
+      customFieldDefs.value = normalizeCustomFieldDefs(snapshot.customFieldDefs)
+    }
+
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_IP, ips.value),
@@ -856,7 +994,8 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value),
       writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value),
       writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
-      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+      writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
+      writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
     ])
   }
 
@@ -914,6 +1053,7 @@ export const usePresetsStore = defineStore('presets', () => {
     characters,
     storageLocations,
     eventTypes,
+    customFieldDefs,
     storageLocationTree,
     storageLocationPaths,
     isReady,
@@ -926,6 +1066,12 @@ export const usePresetsStore = defineStore('presets', () => {
     removeEventType,
     updateEventTypeName,
     updateEventTypeShowTracks,
+    addCustomFieldDef,
+    removeCustomFieldDef,
+    updateCustomFieldDefName,
+    updateCustomFieldDefType,
+    updateCustomFieldDefOptions,
+    reorderCustomFieldDefs,
     addIp,
     removeIp,
     updateIpName,

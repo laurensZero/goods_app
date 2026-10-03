@@ -427,5 +427,20 @@
   "preset.thisPreset": "this preset",
   "goods.addMethod.collage": "Free Collage",
   "goods.addMethod.collageDesc": "Combine images into one, then add as a goods image",
-  "goods.image.addCollage": "Collage"
+  "goods.image.addCollage": "Collage",
+  "goods.editor.customFieldsSection": "Custom fields",
+  "goods.editor.customFieldTextPlaceholder": "Enter a value",
+  "goods.editor.customFieldNumberPlaceholder": "Number",
+  "goods.editor.customFieldDatePlaceholder": "Select a date",
+  "goods.editor.customFieldNoOptions": "No options yet — add some in settings first",
+  "goods.editor.customFieldAdd": "Add field",
+  "goods.editor.customFieldsEmptyHint": "No custom fields on this item yet — tap “Add field” to pick or create one.",
+  "goods.editor.customFieldRemove": "Remove field",
+  "goods.editor.customFieldPickerTitle": "Add a custom field",
+  "goods.editor.customFieldPickerEmpty": "All available fields are already added — create a new one instead.",
+  "goods.editor.customFieldQuickCreate": "Create a new field",
+  "goods.editor.customFieldQuickName": "Field name",
+  "goods.editor.customFieldQuickOptions": "Options (comma separated, can be empty)",
+  "goods.editor.customFieldQuickSubmit": "Create and add",
+  "goods.editor.customFieldSelectPlaceholder": "Select"
 }

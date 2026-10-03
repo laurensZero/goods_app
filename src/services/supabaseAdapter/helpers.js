@@ -21,9 +21,10 @@ import i18n from '@/locales'
 // 但 pull 侧要读回分桶，归入 SELECT 的服务器生成列。
 // goods：业务字段。手动序统一放在 manualOrders JSON：
 // { custom, createdAt, acquiredAt, name, price } —— custom=自定义完整序，其余=各模式同键次级序
-export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'manualOrders']
+// 自定义字段值统一放在 customFields JSON：{ <defId>: string }（键 = sync_presets.custom_field_defs 的 id）
+export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'manualOrders', 'customFields']
 export const GOODS_COLS = [...GOODS_BUSINESS_KEYS, 'syncedBy', 'userId']
-export const GOODS_JSON_OBJECT_KEYS = ['manualOrders']
+export const GOODS_JSON_OBJECT_KEYS = ['manualOrders', 'customFields']
 export const GOODS_SELECT_COLS = [...GOODS_BUSINESS_KEYS.map(camelToSnake), 'trashed', 'updated_at', 'user_id'].join(', ')
 
 // recharge：deleted 同 trashed——push 侧由 toRechargeRow 显式写入，pull 侧需要读回
@@ -276,6 +277,9 @@ export function toGoodsRows(items, deviceIdRef, isTrash = false, userId) {
     ...pickCols(item, GOODS_COLS),
     manualOrders: (item.manualOrders && typeof item.manualOrders === 'object' && !Array.isArray(item.manualOrders))
       ? item.manualOrders
+      : {},
+    customFields: (item.customFields && typeof item.customFields === 'object' && !Array.isArray(item.customFields))
+      ? item.customFields
       : {},
     isWishlist: item.isWishlist ? 1 : 0,
     saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,

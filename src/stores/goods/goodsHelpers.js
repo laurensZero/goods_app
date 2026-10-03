@@ -15,6 +15,7 @@ import {
 import { normalizeCharacterName } from '@/stores/presets'
 import { normalizeStorageLocationValue } from '@/utils/storage/storageLocations'
 import { normalizeTracks } from '@/utils/music/tracks'
+import { normalizeCustomFields } from '@/utils/goods/customFields'
 
 const VALID_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮', '已拥有', '丢失', '已赠出', '想出', '已出', '在售'])
 
@@ -489,6 +490,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
     unitSaleInfoList: isWishlist ? [] : normalizeUnitSaleInfoList(data.unitSaleInfoList, data.quantity),
     statusTimeline: normalizeStatusTimeline(data.statusTimeline),
     manualOrders: normalizeManualOrders(data.manualOrders),
+    customFields: normalizeCustomFields(data.customFields),
     trashed: normalizeBooleanFlag(data.trashed)
   }
 }
@@ -525,6 +527,13 @@ function mergeGoodsRecord(existing, incoming) {
   const mergedShippingFee = mergedShippingEvents.length > 0
     ? String(Math.round(sumShippingEvents(mergedShippingEvents) * 100) / 100)
     : (existing.shippingFee === '' || existing.shippingFee == null ? incoming.shippingFee : existing.shippingFee)
+  // 自定义字段：键并集，existing 优先（incoming 独有的键用于回填已填值）。
+  // 语义与 goodsId 回填、manualOrders 本地优先一致；不显式写这条会被下面的
+  // `...existing` 打底整块丢掉 incoming 的值。归一再排一次键序，保证序列化稳定。
+  const mergedCustomFields = normalizeCustomFields({
+    ...normalizeCustomFields(incoming.customFields),
+    ...normalizeCustomFields(existing.customFields)
+  })
 
   return {
     ...existing,
@@ -585,6 +594,7 @@ function mergeGoodsRecord(existing, incoming) {
       ...(existing.statusTimeline || []),
       ...(incoming.statusTimeline || [])
     ]),
+    customFields: mergedCustomFields,
     quantity: mergedQuantity,
     updatedAt: Date.now()
   }

@@ -427,5 +427,20 @@
   "preset.thisPreset": "该预设",
   "goods.addMethod.collage": "自由拼图",
   "goods.addMethod.collageDesc": "多图拼成一张后，作为谷子图片添加",
-  "goods.image.addCollage": "拼图"
+  "goods.image.addCollage": "拼图",
+  "goods.editor.customFieldsSection": "自定义字段",
+  "goods.editor.customFieldTextPlaceholder": "填写内容",
+  "goods.editor.customFieldNumberPlaceholder": "数字",
+  "goods.editor.customFieldDatePlaceholder": "选择日期",
+  "goods.editor.customFieldNoOptions": "该字段还没有选项，请先在设置里添加",
+  "goods.editor.customFieldAdd": "添加字段",
+  "goods.editor.customFieldsEmptyHint": "这件谷子还没有自定义字段，点「添加字段」选择或新建。",
+  "goods.editor.customFieldRemove": "移除字段",
+  "goods.editor.customFieldPickerTitle": "添加自定义字段",
+  "goods.editor.customFieldPickerEmpty": "可用的字段都添加过了，可以直接新建。",
+  "goods.editor.customFieldQuickCreate": "快速新建字段",
+  "goods.editor.customFieldQuickName": "字段名称",
+  "goods.editor.customFieldQuickOptions": "选项（用逗号分隔，可留空）",
+  "goods.editor.customFieldQuickSubmit": "创建并添加",
+  "goods.editor.customFieldSelectPlaceholder": "请选择"
 }

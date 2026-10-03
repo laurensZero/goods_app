@@ -230,3 +230,34 @@ describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => 
     )
   })
 })
+
+describe('mergeToLocal presets（本地未推送的改动不被远端快照覆盖）', () => {
+  it('默认应用远端 presets 快照', async () => {
+    const stores = makeStores()
+    const presets = { categories: [{ name: 'A' }], customFieldDefs: [] }
+
+    await mergeToLocal(stores, { goods: [], trash: [], presets }, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(presets)
+  })
+
+  it('preserveLocalPresets=true 时跳过远端 presets（保护刚新增/删除的字段定义）', async () => {
+    const stores = makeStores()
+    const presets = { categories: [{ name: 'A' }], customFieldDefs: [] }
+
+    await mergeToLocal(stores, { goods: [], trash: [], presets }, {
+      reconcileMissing: false,
+      preserveLocalPresets: true
+    })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('远端没有 presets 时不调用快照替换', async () => {
+    const stores = makeStores()
+
+    await mergeToLocal(stores, { goods: [], trash: [] }, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
+  })
+})

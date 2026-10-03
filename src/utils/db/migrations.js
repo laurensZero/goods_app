@@ -432,4 +432,16 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 25,
+    description: 'Add goods.customFields JSON (user-defined field values)',
+    up: async (db) => {
+      // 自定义字段值：{ <defId>: string }，defId 对应 sync_presets.custom_field_defs 的 id。
+      // 键序/清洗统一由 utils/goods/customFields.js 的 normalizeCustomFields 负责。
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('customFields')) {
+        await db.run("ALTER TABLE goods ADD COLUMN customFields TEXT DEFAULT '{}'")
+      }
+    }
+  },
 ]

@@ -321,6 +321,7 @@ const EventTypeManageView = defineAsyncComponent(() => import('@/views/events/Ev
 const IpManageView = defineAsyncComponent(() => import('@/views/manage/IpManageView.vue'))
 const CharacterManageView = defineAsyncComponent(() => import('@/views/manage/CharacterManageView.vue'))
 const StorageLocationsView = defineAsyncComponent(() => import('@/views/manage/StorageLocationsView.vue'))
+const CustomFieldManageView = defineAsyncComponent(() => import('@/views/manage/CustomFieldManageView.vue'))
 const ThemeView = defineAsyncComponent(() => import('@/views/manage/ThemeView.vue'))
 const TrashView = defineAsyncComponent(() => import('@/views/goods/TrashView.vue'))
 const SyncView = defineAsyncComponent(() => import('@/views/manage/SyncView.vue'))
@@ -401,7 +402,7 @@ const activeManageEntry = computed(() =>
 
 const manageComponentMap = {
   categories: CategoryManageView, eventTypes: EventTypeManageView, ips: IpManageView, characters: CharacterManageView,
-  storage: StorageLocationsView, theme: ThemeView, trash: TrashView,
+  storage: StorageLocationsView, customFields: CustomFieldManageView, theme: ThemeView, trash: TrashView,
   sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
   notifications: NotifySettingsView, mcp: McpSettingsView, mihoyoFeatures: MihoyoFeaturesView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
   mihoyoStockMonitor: MihoyoStockMonitorView,
@@ -698,6 +699,7 @@ onBeforeRouteLeave((to) => {
 .mihoyo-icon { background: rgba(90, 200, 250, 0.12); color: #38bdf8; }
 .feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .survey-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
+.custom-field-icon { background: rgba(214, 92, 168, 0.14); color: #c9558f; }
 
 .settings-nav__copy,
 .mobile-entry__copy {

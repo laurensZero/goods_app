@@ -92,7 +92,9 @@ export function useGoodsEditorForm(options = {}) {
     sellFee: '',
     sellDate: '',
     unitSaleInfoList: [],
-    statusTimeline: []
+    statusTimeline: [],
+    // 自定义字段值 { <defId>: string }；定义列表来自 presets.customFieldDefs
+    customFields: {}
   })
 
   const formBaseline = ref('')
@@ -135,7 +137,9 @@ export function useGoodsEditorForm(options = {}) {
       sellFee: form.sellFee,
       sellDate: form.sellDate,
       unitSaleInfoList: form.unitSaleInfoList,
-      statusTimeline: form.statusTimeline
+      statusTimeline: form.statusTimeline,
+      // 漏加会破坏「未保存改动」基线与自动保存判定
+      customFields: form.customFields
     })
   }
 
@@ -171,6 +175,10 @@ export function useGoodsEditorForm(options = {}) {
   const showDatePicker = ref(false)
   const showUnitDatePicker = ref(false)
   const showSaleDateTimePicker = ref(false)
+  const showCustomFieldDatePicker = ref(false)
+  const customFieldDatePickerValue = ref([])
+  // 正在编辑的 date 型自定义字段 id（AppDatePicker 是共享的，一次只服务一个字段）
+  const activeCustomFieldDateId = ref('')
   const showCharPicker = ref(false)
   const datePickerValue = ref(toDatePickerValue(form.acquiredAt))
   const unitDatePickerValue = ref(toDatePickerValue(form.acquiredAt))
@@ -395,6 +403,9 @@ export function useGoodsEditorForm(options = {}) {
         form.sellFee = item.sellFee ?? ''
         form.sellDate = item.sellDate ?? ''
         form.unitSaleInfoList = Array.isArray(item.unitSaleInfoList) ? item.unitSaleInfoList.map((v) => (v ? { ...v } : null)) : []
+        form.customFields = item.customFields && typeof item.customFields === 'object' && !Array.isArray(item.customFields)
+          ? { ...item.customFields }
+          : {}
         showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
         showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
         showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())
@@ -1036,6 +1047,39 @@ export function useGoodsEditorForm(options = {}) {
     showDatePicker.value = false
   }
 
+  /** 打开某个 date 型自定义字段的日期选择器（空值/脏值默认定位到今天） */
+  function openCustomFieldDatePicker(defId) {
+    const current = String(form.customFields?.[defId] || '').trim()
+    customFieldDatePickerValue.value = toDatePickerValue(
+      /^\d{4}-\d{2}-\d{2}$/.test(current) ? current : formatDate(new Date(), 'YYYY-MM-DD')
+    )
+    activeCustomFieldDateId.value = defId
+    showCustomFieldDatePicker.value = true
+  }
+
+  function onCustomFieldDateConfirm({ selectedValues }) {
+    const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
+    const defId = activeCustomFieldDateId.value
+    if (defId) setCustomFieldValue(defId, `${year}-${month}-${day}`)
+    customFieldDatePickerValue.value = [year, month, day]
+    showCustomFieldDatePicker.value = false
+    activeCustomFieldDateId.value = ''
+  }
+
+  function setCustomFieldValue(defId, value) {
+    if (!defId) return
+    if (!form.customFields || typeof form.customFields !== 'object' || Array.isArray(form.customFields)) {
+      form.customFields = {}
+    }
+    const next = String(value == null ? '' : value)
+    if (next) form.customFields[defId] = next
+    else delete form.customFields[defId]
+  }
+
+  function clearCustomFieldValue(defId) {
+    setCustomFieldValue(defId, '')
+  }
+
   function onUnitDateConfirm({ selectedValues }) {
     const index = activeUnitDateIndex.value
     if (index < 0 || index >= quantityNumber.value) {
@@ -1107,6 +1151,13 @@ export function useGoodsEditorForm(options = {}) {
     showUnitDatePicker,
     showShippingDatePicker,
     showSaleDateTimePicker,
+    showCustomFieldDatePicker,
+    customFieldDatePickerValue,
+    activeCustomFieldDateId,
+    openCustomFieldDatePicker,
+    onCustomFieldDateConfirm,
+    setCustomFieldValue,
+    clearCustomFieldValue,
     showCharPicker,
     datePickerValue,
     unitDatePickerValue,

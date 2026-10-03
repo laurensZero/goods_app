@@ -37,6 +37,7 @@ import {
 } from '@/constants/syncConstants'
 import packageJson from '../../package.json'
 import { normalizeVersionTag } from '@/utils/github/release'
+import { normalizeCustomFieldDefs } from '@/utils/goods/customFields'
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
@@ -364,7 +365,11 @@ export const useSyncStore = defineStore('sync', () => {
       eventTypes: presets.eventTypes.map((item) => ({
         name: String(item?.name || '').trim(),
         showTracks: Boolean(item?.showTracks)
-      })).filter((item) => item.name)
+      })).filter((item) => item.name),
+      // 键的位置必须与 reader.readPresets 完全一致，且两侧共用 normalizeCustomFieldDefs：
+      // syncOrchestrator 用 JSON.stringify(local) !== JSON.stringify(remote) 判预设差异，
+      // 键序/默认值只要有一点不对称就会「永远有差异」→ 每次同步都推送。
+      customFieldDefs: normalizeCustomFieldDefs(presets.customFieldDefs)
     }
   }
 

@@ -95,6 +95,7 @@ const CREATE_TABLE_SQL = `
     sellDate   TEXT DEFAULT '',
     unitSaleInfoList TEXT DEFAULT '[]',
     manualOrders TEXT DEFAULT '{}',
+    customFields TEXT DEFAULT '{}',
     updatedAt  INTEGER DEFAULT 0,
     trashed    INTEGER DEFAULT 0,
     deletedAt TEXT DEFAULT ''
@@ -253,6 +254,7 @@ const GOODS_REQUIRED_COLUMNS = [
   ['sellDate', "TEXT DEFAULT ''"],
   ['unitSaleInfoList', "TEXT DEFAULT '[]'"],
   ['manualOrders', "TEXT DEFAULT '{}'"],
+  ['customFields', "TEXT DEFAULT '{}'"],
   ['updatedAt', 'INTEGER DEFAULT 0'],
   ['trashed', 'INTEGER DEFAULT 0'],
   ['deletedAt', "TEXT DEFAULT ''"]
@@ -378,6 +380,7 @@ function prepareGoodsRecord(item) {
     unitSaleInfoList = [],
     statusTimeline = [],
     manualOrders = {},
+    customFields = {},
     trashed = false,
     deletedAt = ''
   } = item
@@ -422,6 +425,7 @@ function prepareGoodsRecord(item) {
     unitSaleInfoStr: JSON.stringify(Array.isArray(unitSaleInfoList) ? unitSaleInfoList : []),
     statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : []),
     manualOrdersStr: stringifyJsonObject(manualOrders, '{}'),
+    customFieldsStr: stringifyJsonObject(customFields, '{}'),
     trashed: trashed ? 1 : 0,
     deletedAt: String(deletedAt || '')
   }
@@ -435,13 +439,13 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 // SELECT 列清单须与 GOODS_INSERT_SQL 列保持一致，避免增列时漏改其中一边
-const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,trashed,deletedAt'
+const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,trashed,deletedAt'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.size, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.trashed, record.deletedAt]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.size, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.customFieldsStr, record.trashed, record.deletedAt]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,dates,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,dayTicketList,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -703,6 +707,14 @@ function mapGoodsRow(r) {
     manualOrders: (() => {
       try {
         const parsed = typeof r.manualOrders === 'string' ? JSON.parse(r.manualOrders || '{}') : r.manualOrders
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+      } catch {
+        return {}
+      }
+    })(),
+    customFields: (() => {
+      try {
+        const parsed = typeof r.customFields === 'string' ? JSON.parse(r.customFields || '{}') : r.customFields
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
       } catch {
         return {}
