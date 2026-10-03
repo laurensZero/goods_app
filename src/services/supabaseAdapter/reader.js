@@ -373,6 +373,14 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       }
     })() : null
 
+    // 预设块的服务器时间戳（sync_push 每次写入都会刷新）。
+    // 放在 presets 之外：它不是预设内容，混进去会让 hasPresetsDiff 的
+    // JSON 比较永远判为「有差异」→ 每次同步都白推一遍。
+    // 列不存在（旧实例）时给 0，调用方据此跳过时效判断。
+    const presetsUpdatedAt = presetsRow && presetsRow.updated_at != null
+      ? normalizeTimestamp(presetsRow.updated_at)
+      : 0
+
     return {
       manifest,
       goods: (data.goods || []).map(mapGoods),
@@ -387,7 +395,8 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       groupItemsTrash,
       batchDrafts,
       batchDraftsTrash,
-      presets
+      presets,
+      presetsUpdatedAt
     }
   }
 

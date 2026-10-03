@@ -338,7 +338,10 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   // 状态当成本地真值推上云。此时保留本地，并由 orchestrator 在 pull 后补推一次。
   // （用户显式选择「使用云端数据」的 pull 路径不传该标记，仍是云端优先。）
   if (remoteData.presets && presetsStore && !preserveLocalPresets) {
-    await presetsStore.replacePresetsSnapshot(remoteData.presets)
+    await presetsStore.replacePresetsSnapshot(remoteData.presets, {
+      // 块级时钟（服务器时间）：用于挡掉「pull 在本地推送之前发出」的过期响应
+      updatedAt: remoteData.presetsUpdatedAt || 0
+    })
   }
 
   // ── Budget settings ──

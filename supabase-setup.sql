@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS sync_presets (
   categories JSONB DEFAULT '[]',
   ips JSONB DEFAULT '[]',
   characters JSONB DEFAULT '[]',
-  storage_locations JSONB DEFAULT '[]'
+  storage_locations JSONB DEFAULT '[]',
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
 -- goods_groups 表（谷子组）
@@ -229,6 +230,8 @@ ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.u
 -- 因此补列不需要重发数据。
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS event_types JSONB DEFAULT '[]';
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS custom_field_defs JSONB DEFAULT '[]';
+-- 预设块的服务器时间时钟：sync_push 每次写 presets 都会刷新它（客户端据此识别过期响应）
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
