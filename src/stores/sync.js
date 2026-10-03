@@ -505,12 +505,13 @@ export const useSyncStore = defineStore('sync', () => {
   // 同步首尾相接（每轮固定 5~6 次 HTTPS），射频长时间无法降档 → 手机发烫。
   //
   // 两个窗口配合，兼顾「快」和「不烧」：
-  //   - 停顿 ≥10s 后再改一条 → 3s 后就推（同步的及时性能感觉到）
-  //   - 连续编辑             → 窗口内多次改动合并，稳态每 10s 一轮，不丢数据
-  // 稳态开销 ≤6 轮/分钟，每轮经前奏节流后基本只剩 1 次推送请求（改前是 60+ 请求/分钟）。
-  // 手动同步（设置里的同步按钮、长按拉取、批量流程的云端检查）不受这两个窗口约束，始终全速。
-  const AUTO_PUSH_DEBOUNCE_MS = 3 * 1000
-  const AUTO_PUSH_MIN_GAP_MS = 10 * 1000
+  //   - 空闲后再改一条 → 1s 内推（跨设备验证时感觉得到）
+  //   - 连续编辑       → 窗口内改动合并，稳态 5s 一轮
+  // 稳态开销 ≤12 轮/分钟，且每轮经前奏节流后基本只剩 1 次推送请求（改前是 60+ 请求/分钟）。
+  // 进后台时由 flushAutoPushNow() 立刻放行，不受这两个窗口约束。
+  // 手动同步（设置里的同步按钮、长按拉取、批量流程的云端检查）同样始终全速。
+  const AUTO_PUSH_DEBOUNCE_MS = 1 * 1000
+  const AUTO_PUSH_MIN_GAP_MS = 5 * 1000
   // 每轮同步固定开销的节流窗口。这些值不需要每轮新鲜：心跳是设备存活上报，
   // 维护模式是兜底开关，设备强制重同步是管理员低频操作。分钟级节流可省掉大部分请求。
   const HEARTBEAT_MIN_INTERVAL_MS = 30 * 60 * 1000
@@ -595,31 +596,71 @@ export const useSyncStore = defineStore('sync', () => {
 
   /**
    * 安排一次自动同步。同时受「防抖窗口」和「两轮自动同步最小间隔」约束：
-   * - 已有定时器时不重置：窗口内的所有改动合并成同一轮（10s 内改两三次只推一轮，不丢）
-   * - 距上轮同步不足 10s 时顺延，避免刚推完又立刻开新的一轮
-   * 结果：空闲后首次改动 3s 内推送；连续编辑时稳态 10s 一轮。
+   * - 已有定时器时不重置：窗口内的所有改动合并成同一轮（窗口内改两三次只推一轮，不丢）
+   * - 距上轮同步不足最小间隔时顺延，避免刚推完又立刻开新的一轮
+   * 结果：空闲后首次改动 1s 内推送；连续编辑时稳态 5s 一轮。
    */
   function scheduleAutoPush() {
     if (autoPushTimer) return
     const sinceLastSync = Date.now() - lastSyncStartedAt
     const delay = Math.max(AUTO_PUSH_DEBOUNCE_MS, AUTO_PUSH_MIN_GAP_MS - sinceLastSync)
-    autoPushTimer = setTimeout(async () => {
+    autoPushTimer = setTimeout(() => {
       autoPushTimer = null
       if (isPulling.value || isSyncing.value) {
-        pendingAutoPush = true
+        markPendingAutoPush()
         return
       }
-      lastSyncStartedAt = Date.now()
-      try {
-        await doSync({ source: 'auto' })
-      } catch (error) {
-        publishSyncNotice({
-          source: 'auto',
-          level: 'error',
-          message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
-        })
-      }
+      void runAutoSync()
     }, delay)
+  }
+
+  /**
+   * 标记「有改动等待推送」并确保一定有一个定时器在跑。
+   * 不能只置 pendingAutoPush：若某条同步路径的 finally 因代际过期被跳过，
+   * 就会出现 pending 为真但没有任何定时器的死状态，改动要等下一次编辑才可能上去。
+   */
+  function markPendingAutoPush() {
+    pendingAutoPush = true
+    scheduleAutoPush()
+  }
+
+  async function runAutoSync() {
+    lastSyncStartedAt = Date.now()
+    try {
+      await doSync({ source: 'auto' })
+    } catch (error) {
+      publishSyncNotice({
+        source: 'auto',
+        level: 'error',
+        message: syncSuggestion.value || syncStatus.value || error?.message || i18n.global.t('sync.pullFailed', { error: '' })
+      })
+    }
+  }
+
+  function hasPendingLocalChanges() {
+    return !!autoPushTimer || pendingAutoPush || dirtyDomains.size > 0 || dirtyGoodsIds.size > 0
+  }
+
+  /**
+   * 立刻推送挂起的本地改动，忽略防抖/最小间隔窗口。
+   * 用于「马上要进后台」这个最后时机：Android WebView 在后台会挂起定时器，
+   * 落在 1~5s 窗口里的改动可能一直推不上去（切到另一台设备看就是「没同步」）。
+   * 与 useBatchQueue 在 pagehide/visibilitychange 里 flushBatchDraft 是同一套时机。
+   */
+  function flushAutoPushNow() {
+    if (!isSupabaseMode() || syncPaused.value) return
+    if (!hasPendingLocalChanges()) return
+    if (isPulling.value || isSyncing.value) {
+      // 正在跑同步：交给它的 finally 续排（那里会调 flushPendingAutoPush）
+      markPendingAutoPush()
+      return
+    }
+    if (autoPushTimer) {
+      clearTimeout(autoPushTimer)
+      autoPushTimer = null
+    }
+    pendingAutoPush = false
+    void runAutoSync()
   }
 
   function flushPendingAutoPush() {
@@ -635,11 +676,19 @@ export const useSyncStore = defineStore('sync', () => {
     markDomainDirty(domain)
     if (syncPaused.value) return
     if (isPulling.value || isSyncing.value) {
-      pendingAutoPush = true
+      markPendingAutoPush()
       return
     }
 
     scheduleAutoPush()
+  }
+
+  // 进后台/关页面前把挂起的推送放出去（应用生命周期内常驻，与 store 同生共死）
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', () => { flushAutoPushNow() })
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flushAutoPushNow()
+    })
   }
 
   async function setSyncPaused(paused) {
@@ -1221,7 +1270,7 @@ export const useSyncStore = defineStore('sync', () => {
     clearConflict, resetConfig,
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,
-    syncPaused, setSyncPaused,
+    syncPaused, setSyncPaused, flushAutoPushNow,
     restoreImageFromCloud,
     getPublicImageURL,
     maintenanceMode,

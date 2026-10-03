@@ -227,6 +227,8 @@ onMounted(async () => {
     try {
       appStateListener = await CapacitorApp.addListener('appStateChange', ({ isActive }) => {
         if (isActive) void recoverFromBlankResume()
+        // 进后台前把挂起的推送立刻放出去：后台会挂起定时器，防抖窗口内的改动可能一直推不上去
+        else syncStore.flushAutoPushNow()
       })
     } catch (error) {
       shellLog.warn('app-state-listener-failed', error)

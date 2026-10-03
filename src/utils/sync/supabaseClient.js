@@ -511,9 +511,10 @@ export function isSupabaseConfigured() {
  * 探测并（仅在必要时）重建 Supabase Client 连接
  * 只探当前端点；失败也不自动切备用（主站可能只是慢）。仅手动 switchDataEndpoint 切换。
  *
- * 语义：**探测成功时不再重建 client**。旧实例可用就没有任何理由替换它 ——
- * 每次替换都会新建一个 GoTrue 客户端（30s 自动刷新定时器 + visibilitychange 监听，
- * 旧实例无法回收）并让 Realtime 通道重建。只在探测失败、或现有实例已经不存在时重建。
+ * 语义：**探测成功时不重建 client，探测失败时也不销毁**。旧实例可用就没有任何理由
+ * 替换它 —— 每次替换都会新建一个 GoTrue 客户端（30s 自动刷新定时器 + visibilitychange
+ * 监听，旧实例无法回收）并让 Realtime 通道重建；而探测失败只说明网络不通，
+ * 销毁实例会连 Realtime 通道一起打断。只有端点/密钥变化或手动切换才真正重建。
  * @param {{ force?: boolean, parallelProbe?: boolean }} [options]
  *   - force: 跳过探测节流（网络错误回调里用）
  *   - parallelProbe: 主备同时探测（仅冷启动）
@@ -572,8 +573,9 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
     _lastProbedUrl = preferred
     if (!reachable) {
       console.warn('[supabase] endpoint unreachable:', preferred)
-      // 停掉旧实例再置空：否则它的定时器会一直留在后台
-      setSupabaseClient(null)
+      // 保留现有实例：探测失败只说明网络不通，不代表 client 坏了。
+      // 置空会连带销毁它的 Realtime 通道（要等 30s 健康巡检才恢复），而 WS 在网络恢复后
+      // 本可自行重连；数据面请求失败由 withRetry + reconnectOnNetworkError 负责重试。
       return false
     }
     _manualFailSince = 0
