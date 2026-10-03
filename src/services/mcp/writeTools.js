@@ -16,8 +16,17 @@ import { buildSharePayload, generateShareId } from '../../utils/share/goods'
 import { buildShareUrl } from '../../config/share'
 import { createShare, findMatchingShare, updateShare, toggleShareDisabled, deleteShare, listUserShares } from '../shareService'
 import { addUserMemory, removeUserMemory } from '../../utils/ai/userMemory'
+import {
+  CUSTOM_FIELD_VALUE_MAX,
+  normalizeCustomFieldDefs,
+  normalizeCustomFields
+} from '../../utils/goods/customFields'
 
-/** goods_add / goods_update 允许透传给 store 的字段白名单 */
+/**
+ * goods_add / goods_update 允许透传给 store 的字段白名单。
+ * 注意：customFields 刻意不在里面 —— 它的键是用户自定义的字段名，需要
+ * 先按定义解析成 defId、并与条目已有值做增量合并，走下面的 sanitizeCustomFieldPatch。
+ */
 const WRITABLE_FIELDS = new Set([
   'name', 'category', 'ip', 'characters', 'tags', 'variant', 'storageLocation',
   'price', 'actualPrice', 'currency', 'actualPriceCurrency', 'quantity',
@@ -67,14 +76,17 @@ function presetActionArgs(args) {
   const entity = String(args?.entity || '').trim()
   const action = String(args?.action || '').trim()
   const name = String(args?.name || '').trim()
-  if (!['category', 'ip', 'character', 'storage_location', 'event_type'].includes(entity)) {
-    throw new Error('entity 需为 category/ip/character/storage_location/event_type')
+  if (!['category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field'].includes(entity)) {
+    throw new Error('entity 需为 category/ip/character/storage_location/event_type/custom_field')
   }
-  if (!['add', 'remove', 'rename', 'set_show_tracks'].includes(action)) {
-    throw new Error('action 需为 add/remove/rename/set_show_tracks')
+  if (!['add', 'remove', 'rename', 'set_show_tracks', 'set_options', 'set_scopes'].includes(action)) {
+    throw new Error('action 需为 add/remove/rename/set_show_tracks/set_options/set_scopes')
   }
   if (action === 'set_show_tracks' && entity !== 'event_type') {
     throw new Error('set_show_tracks 仅支持 event_type')
+  }
+  if ((action === 'set_options' || action === 'set_scopes') && entity !== 'custom_field') {
+    throw new Error('set_options/set_scopes 仅支持 custom_field')
   }
   if (action === 'rename' && entity === 'storage_location') {
     throw new Error('收纳位置暂不支持重命名，可删除后重建')
@@ -92,8 +104,74 @@ function presetActionArgs(args) {
     name,
     newName: String(args?.newName || '').trim(),
     ip: String(args?.ip || '').trim(),
-    showTracks: args?.showTracks === undefined ? undefined : Boolean(args.showTracks)
+    showTracks: args?.showTracks === undefined ? undefined : Boolean(args.showTracks),
+    fieldType: String(args?.fieldType || '').trim(),
+    options: Array.isArray(args?.options) ? args.options.map((item) => String(item ?? '')) : [],
+    scopes: Array.isArray(args?.scopes) ? args.scopes.map((item) => String(item ?? '')) : []
   }
+}
+
+/**
+ * 把 AI 传入的 customFields（键 = 字段名，也兼容 defId）解析成 { defId: 值 | null } 增量。
+ * - null → 取消该字段（从条目上移除键）；其余值按定义类型校验后存字符串
+ * - select 必须是该字段的选项之一，number 需数字，date 需 YYYY-MM-DD
+ * @param {Record<string, any>} raw
+ * @param {{ id: string, name: string, type: string, options: string[] }[]} defs
+ * @returns {Record<string, string | null> | null} 未传 customFields 时返回 null
+ */
+function sanitizeCustomFieldPatch(raw, defs) {
+  if (raw === undefined) return null
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('customFields 需为对象：{ 字段名: 值 }')
+  }
+  if (defs.length === 0) {
+    throw new Error('当前还没有自定义字段，请先在「管理 → 自定义字段」新建，或让我用 presets_manage（entity=custom_field）创建')
+  }
+
+  const byKey = new Map()
+  for (const def of defs) {
+    byKey.set(def.name, def)
+    byKey.set(def.id, def)
+  }
+
+  const available = defs.map((def) => def.name).join('、')
+  /** @type {Record<string, string | null>} */
+  const patch = {}
+  for (const [rawKey, rawValue] of Object.entries(raw)) {
+    const key = String(rawKey || '').trim()
+    const def = byKey.get(key)
+    if (!def) throw new Error(`自定义字段「${key}」不存在；可用字段：${available}`)
+
+    if (rawValue === null) {
+      patch[def.id] = null
+      continue
+    }
+
+    const text = String(rawValue ?? '').trim()
+    if (text) {
+      if (def.type === 'select' && !def.options.includes(text)) {
+        throw new Error(`字段「${def.name}」只接受这些值：${def.options.join('、') || '（该字段还没有选项）'}`)
+      }
+      if (def.type === 'number' && !Number.isFinite(Number(text))) {
+        throw new Error(`字段「${def.name}」需为数字`)
+      }
+      if (def.type === 'date' && !DATE_PATTERN.test(text)) {
+        throw new Error(`字段「${def.name}」需为 YYYY-MM-DD 格式`)
+      }
+    }
+    patch[def.id] = text.slice(0, CUSTOM_FIELD_VALUE_MAX)
+  }
+  return patch
+}
+
+/** 增量合并到条目既有值：null 删键、其余覆盖，未提到的字段保持不变 */
+function mergeCustomFieldPatch(existing, patch) {
+  const next = { ...normalizeCustomFields(existing) }
+  for (const [defId, value] of Object.entries(patch)) {
+    if (value === null) delete next[defId]
+    else next[defId] = value
+  }
+  return normalizeCustomFields(next)
 }
 
 /**
@@ -201,12 +279,25 @@ export function createMcpWriteToolHandlers({
   budgetApi,
   router
 }) {
+  /** 当前自定义字段定义（归一化后使用，保证与 store / 同步侧口径一致） */
+  function customFieldDefsOf() {
+    return normalizeCustomFieldDefs(presetsStore?.customFieldDefs || [])
+  }
+
+  /** 自定义字段需要与条目已有值逐条合并，所以按 id 取条目 */
+  function findGoods(id) {
+    const target = String(id || '').trim()
+    return listOf(goodsStore?.list).find((item) => item?.id === target) || null
+  }
+
   return {
     /**
      * @param {Record<string, any>} args
      */
     async goods_add(args) {
       const data = sanitizeWritable(args, { requireName: true })
+      const customFieldPatch = sanitizeCustomFieldPatch(args?.customFields, customFieldDefsOf())
+      if (customFieldPatch) data.customFields = mergeCustomFieldPatch(null, customFieldPatch)
       const created = await goodsStore.addGoods(data)
       if (!created?.id) throw new Error('新增失败')
       return {
@@ -221,7 +312,8 @@ export function createMcpWriteToolHandlers({
           isWishlist: Boolean(created.isWishlist),
           quantity: created.quantity,
           acquiredAt: created.acquiredAt
-        }
+        },
+        ...(customFieldPatch ? { customFields: data.customFields } : {})
       }
     },
 
@@ -232,15 +324,22 @@ export function createMcpWriteToolHandlers({
       const { id, ...rest } = args || {}
       const targetId = String(id || '').trim()
       if (!targetId) throw new Error('id 必填')
-      if (!listOf(goodsStore.list).some((item) => item?.id === targetId)) {
+      const item = findGoods(targetId)
+      if (!item) {
         throw new Error(`未找到 id 为 ${targetId} 的条目（回收站中的条目请先用 goods_restore 恢复）`)
       }
       const data = sanitizeWritable(rest)
+      const customFieldPatch = sanitizeCustomFieldPatch(rest?.customFields, customFieldDefsOf())
+      if (customFieldPatch) data.customFields = mergeCustomFieldPatch(item.customFields, customFieldPatch)
       if (Object.keys(data).length === 0) {
         throw new Error('没有可更新的字段')
       }
       await goodsStore.updateGoods(targetId, data)
-      return { ok: true, id: targetId }
+      return {
+        ok: true,
+        id: targetId,
+        ...(customFieldPatch ? { customFields: data.customFields } : {})
+      }
     },
 
     /**
@@ -289,8 +388,17 @@ export function createMcpWriteToolHandlers({
 
       const { ids: _ignored, ...rest } = args || {}
       const data = sanitizeWritable(rest)
-      if (Object.keys(data).length === 0) throw new Error('没有可更新的字段')
-      if (typeof goodsStore.updateMultipleGoods !== 'function') {
+      const customFieldPatch = sanitizeCustomFieldPatch(rest?.customFields, customFieldDefsOf())
+      if (Object.keys(data).length === 0 && !customFieldPatch) throw new Error('没有可更新的字段')
+
+      if (customFieldPatch) {
+        // 各条目已有的字段值不同，必须逐条合并（不能共用同一份 data）
+        for (const id of ids) {
+          const item = findGoods(id)
+          const customFields = mergeCustomFieldPatch(item?.customFields, customFieldPatch)
+          await goodsStore.updateGoods(id, { ...data, customFields })
+        }
+      } else if (typeof goodsStore.updateMultipleGoods !== 'function') {
         // 退化路径：逐条更新，保证单测/旧 store 兼容
         for (const id of ids) {
           await goodsStore.updateGoods(id, data)
@@ -298,7 +406,12 @@ export function createMcpWriteToolHandlers({
       } else {
         await goodsStore.updateMultipleGoods(ids, data)
       }
-      return { ok: true, updated: ids.length, ids, fields: Object.keys(data) }
+      return {
+        ok: true,
+        updated: ids.length,
+        ids,
+        fields: [...Object.keys(data), ...(customFieldPatch ? ['customFields'] : [])]
+      }
     },
 
     /**
@@ -602,6 +715,12 @@ export function createMcpWriteToolHandlers({
             name: presetName(item),
             showTracks: Boolean(item && typeof item === 'object' && item.showTracks)
           })),
+          customFields: customFieldDefsOf().slice(0, 80).map((def) => ({
+            name: def.name,
+            type: def.type,
+            ...(def.options.length > 0 ? { options: def.options } : {}),
+            scopes: def.scopes
+          })),
           builtinEventTypes: ['exhibition', 'concert', 'other']
         }
       }
@@ -613,7 +732,7 @@ export function createMcpWriteToolHandlers({
      */
     async presets_manage(args) {
       if (!presetsStore) throw new Error('预设模块不可用')
-      const { entity, action, name, newName, ip, showTracks } = presetActionArgs(args)
+      const { entity, action, name, newName, ip, showTracks, fieldType, options, scopes } = presetActionArgs(args)
 
       if (entity === 'storage_location') {
         if (action === 'add') {
@@ -662,6 +781,57 @@ export function createMcpWriteToolHandlers({
           await presetsStore.updateEventTypeName(name, newName)
           await eventsStore.renameEventType(name, newName)
         }
+      } else if (entity === 'custom_field') {
+        const defs = customFieldDefsOf()
+        if (action === 'add') {
+          const created = await presetsStore.addCustomFieldDef({ name, type: fieldType || 'text', options })
+          if (!created) throw new Error(`同名字段已存在或已达数量上限：${name}`)
+          if (Array.isArray(scopes) && scopes.length > 0) {
+            await presetsStore.updateCustomFieldDefScopes(created.id, scopes)
+          }
+          return { ok: true, entity, action, name, field: { id: created.id, type: created.type, options: created.options } }
+        }
+
+        const def = defs.find((item) => item.name === name)
+        if (!def) {
+          const available = defs.map((item) => item.name).join('、') || '（无）'
+          throw new Error(`未找到自定义字段「${name}」；现有字段：${available}`)
+        }
+
+        if (action === 'remove') {
+          await presetsStore.removeCustomFieldDef(def.id)
+          // 值不清理会变成永久孤儿键（不展示但一直随行同步）
+          if (typeof goodsStore.clearCustomFieldValues === 'function') {
+            await goodsStore.clearCustomFieldValues(def.id)
+          }
+          return { ok: true, entity, action, name, removed: true }
+        }
+
+        if (action === 'set_scopes') {
+          const applied = await presetsStore.updateCustomFieldDefScopes(def.id, scopes)
+          if (!applied) throw new Error('生效范围更新失败')
+          return { ok: true, entity, action, name, scopes }
+        }
+
+        if (action === 'set_options') {
+          if (def.type !== 'select') throw new Error(`字段「${name}」不是下拉类型，不能设置选项`)
+          const oldOptions = Array.isArray(def.options) ? def.options : []
+          await presetsStore.updateCustomFieldDefOptions(def.id, options)
+          const updated = customFieldDefsOf().find((item) => item.id === def.id)
+          const kept = new Set(updated?.options || [])
+          // 被移除的选项：清空已填值（重命名请让用户在管理页操作，位置对应关系只有 UI 说得清）
+          const removedOptions = oldOptions.filter((option) => !kept.has(option))
+          for (const option of removedOptions) {
+            if (typeof goodsStore.clearCustomFieldValues === 'function') {
+              await goodsStore.clearCustomFieldValues(def.id, option)
+            }
+          }
+          return { ok: true, entity, action, name, options: updated?.options || [], clearedOptions: removedOptions }
+        }
+
+        const renamed = await presetsStore.updateCustomFieldDefName(def.id, newName)
+        if (!renamed) throw new Error(`重命名失败（名称重复或为空）：${newName}`)
+        return { ok: true, entity, action, name, newName }
       } else {
         if (action === 'add') await presetsStore.addCharacter(name, ip)
         else if (action === 'remove') await presetsStore.removeCharacter(name)

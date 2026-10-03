@@ -82,6 +82,9 @@ describe('replacePresetsSnapshot 块级时钟（服务器时间域）', () => {
 
     await presets.replacePresetsSnapshot(snapshot('A', defs), { updatedAt: 5000 })
 
-    expect(presets.customFieldDefs).toEqual(defs)
+    // 缺 scopes 的旧数据按「两边都生效」归一化
+    expect(presets.customFieldDefs).toEqual([
+      { id: 'cf_1', name: '联动限定', type: 'text', options: [], scopes: ['collection', 'wishlist'] }
+    ])
   })
 })

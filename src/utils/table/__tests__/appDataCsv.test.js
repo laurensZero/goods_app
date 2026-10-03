@@ -63,6 +63,28 @@ describe('appDataCsv', () => {
     expect(items[0].coverImage).toBe('https://example.com/a.jpg')
   })
 
+  it('goods 表带上 customFields（JSON 对象）与 size 并原样回读', () => {
+    const csv = rowsToCsv(CSV_SCHEMAS.goods, [{
+      name: '限定吧唧',
+      variant: '异色',
+      size: '58mm',
+      customFields: { cf_rarity: '限定', cf_box: '有盒' }
+    }])
+    expect(csv.split('\r\n')[0]).toContain('customFields')
+    expect(csv.split('\r\n')[0]).toContain('size')
+
+    const { items, errors } = parseAppCsv(csv, 'goods')
+    expect(errors).toHaveLength(0)
+    expect(items[0].size).toBe('58mm')
+    expect(items[0].customFields).toEqual({ cf_rarity: '限定', cf_box: '有盒' })
+  })
+
+  it('customFields 里 JSON 非法时报错而不是静默丢字段', () => {
+    const csv = 'name,customFields\n谷子,"{bad"\n'
+    const { errors } = parseAppCsv(csv, 'goods')
+    expect(errors[0].error).toContain('customFields')
+  })
+
   it('buildAppCsvFiles backfills coverImage from primary image', () => {
     const files = buildAppCsvFiles({
       goods: [{

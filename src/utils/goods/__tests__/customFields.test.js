@@ -5,8 +5,10 @@ import {
   CUSTOM_FIELD_OPTION_MAX,
   CUSTOM_FIELD_VALUE_MAX,
   createCustomFieldDefId,
+  isCustomFieldInScope,
   isCustomFieldType,
   normalizeCustomFieldDefs,
+  normalizeCustomFieldScopes,
   normalizeCustomFields
 } from '../customFields'
 
@@ -15,8 +17,29 @@ describe('normalizeCustomFieldDefs', () => {
     const [def] = normalizeCustomFieldDefs([
       { options: ['A'], type: 'select', name: ' 联动限定 ', id: 'cf_1' }
     ])
-    expect(Object.keys(def)).toEqual(['id', 'name', 'type', 'options'])
-    expect(def).toEqual({ id: 'cf_1', name: '联动限定', type: 'select', options: ['A'] })
+    expect(Object.keys(def)).toEqual(['id', 'name', 'type', 'options', 'scopes'])
+    expect(def).toEqual({
+      id: 'cf_1',
+      name: '联动限定',
+      type: 'select',
+      options: ['A'],
+      scopes: ['collection', 'wishlist']
+    })
+  })
+
+  it('显式生效范围原样保留；缺省 = 两边都生效', () => {
+    const defs = normalizeCustomFieldDefs([
+      { id: 'cf_a', name: '只收藏', scopes: ['collection'] },
+      { id: 'cf_b', name: '只心愿', scopes: ['wishlist'] },
+      { id: 'cf_c', name: '两边', scopes: ['collection', 'wishlist'] },
+      { id: 'cf_d', name: '没写' }
+    ])
+    expect(defs.map((def) => def.scopes)).toEqual([
+      ['collection'],
+      ['wishlist'],
+      ['collection', 'wishlist'],
+      ['collection', 'wishlist']
+    ])
   })
 
   it('非数组 / 脏项 / 无名 / 重名 都被丢弃', () => {
@@ -75,7 +98,8 @@ describe('normalizeCustomFieldDefs', () => {
   it('幂等：normalize 后的结果再归一化不变（同步两侧对称的前提）', () => {
     const input = [
       { id: 'cf_1', name: 'A', type: 'select', options: ['X', 'X', 'Y'] },
-      { name: 'B', type: 'number' }
+      { name: 'B', type: 'number' },
+      { id: 'cf_2', name: 'C', type: 'text', scopes: ['wishlist'] }
     ]
     const once = normalizeCustomFieldDefs(input)
     expect(normalizeCustomFieldDefs(once)).toEqual(once)
@@ -93,6 +117,40 @@ describe('normalizeCustomFieldDefs', () => {
     expect(isCustomFieldType('select')).toBe(true)
     expect(isCustomFieldType('boolean')).toBe(false)
     expect(isCustomFieldType(undefined)).toBe(false)
+  })
+})
+
+describe('normalizeCustomFieldScopes / isCustomFieldInScope', () => {
+  it('非数组 / 空数组 / 全非法都回落成两边都生效', () => {
+    const both = ['collection', 'wishlist']
+    expect(normalizeCustomFieldScopes(null)).toEqual(both)
+    expect(normalizeCustomFieldScopes(undefined)).toEqual(both)
+    expect(normalizeCustomFieldScopes('collection')).toEqual(both)
+    expect(normalizeCustomFieldScopes([])).toEqual(both)
+    expect(normalizeCustomFieldScopes(['bogus'])).toEqual(both)
+    expect(normalizeCustomFieldScopes([' collection ', 'bogus'])).toEqual(['collection'])
+  })
+
+  it('去重并按固定顺序（collection → wishlist）输出', () => {
+    expect(normalizeCustomFieldScopes(['wishlist', 'collection', 'wishlist']))
+      .toEqual(['collection', 'wishlist'])
+  })
+
+  it('返回值是新数组，改它不会污染常量', () => {
+    const scopes = normalizeCustomFieldScopes(null)
+    scopes.push('x')
+    expect(normalizeCustomFieldScopes(null)).toEqual(['collection', 'wishlist'])
+  })
+
+  it('isCustomFieldInScope：缺 scopes 视为两边生效', () => {
+    expect(isCustomFieldInScope({}, 'collection')).toBe(true)
+    expect(isCustomFieldInScope({}, 'wishlist')).toBe(true)
+    expect(isCustomFieldInScope(null, 'wishlist')).toBe(true)
+    expect(isCustomFieldInScope({ scopes: ['collection'] }, 'collection')).toBe(true)
+    expect(isCustomFieldInScope({ scopes: ['collection'] }, 'wishlist')).toBe(false)
+    // 空 scope（不过滤）一律通过
+    expect(isCustomFieldInScope({ scopes: ['collection'] }, '')).toBe(true)
+    expect(isCustomFieldInScope({ scopes: [] }, 'wishlist')).toBe(true)
   })
 })
 

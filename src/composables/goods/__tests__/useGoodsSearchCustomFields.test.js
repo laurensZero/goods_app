@@ -52,10 +52,10 @@ const items = [
 ]
 
 /** 在独立 effectScope 里建 composable，避免 onScopeDispose 脱离 scope 告警 */
-function setup(defs = []) {
+function setup(defs = [], viewScope = 'collection') {
   presetsMock.customFieldDefs.value = defs
   const scope = effectScope()
-  const api = scope.run(() => useGoodsSearch(computed(() => items), { scope: 'collection' }))
+  const api = scope.run(() => useGoodsSearch(computed(() => items), { scope: viewScope }))
   return { api, scope }
 }
 
@@ -98,6 +98,36 @@ describe('customFieldFilterGroups', () => {
     await nextTick()
     const [rarity] = api.customFieldFilterGroups.value
     expect(rarity.options.map((option) => option.value)).toContain('已下架')
+    scope.stop()
+  })
+})
+
+describe('生效范围（scopes）', () => {
+  it('只收藏生效的字段不出现在心愿筛选中', async () => {
+    const { api, scope } = setup([{ ...DEF_RARITY, scopes: ['collection'] }], 'wishlist')
+    await nextTick()
+    expect(api.customFieldFilterGroups.value).toHaveLength(0)
+    scope.stop()
+  })
+
+  it('只心愿生效的字段出现在心愿筛选、不出现在收藏筛选', async () => {
+    const wishlistOnly = { ...DEF_RARITY, scopes: ['wishlist'] }
+
+    const wishlist = setup([wishlistOnly], 'wishlist')
+    await nextTick()
+    expect(wishlist.api.customFieldFilterGroups.value.map((group) => group.defId)).toEqual(['cf_rarity'])
+    wishlist.scope.stop()
+
+    const collection = setup([wishlistOnly], 'collection')
+    await nextTick()
+    expect(collection.api.customFieldFilterGroups.value).toHaveLength(0)
+    collection.scope.stop()
+  })
+
+  it('缺 scopes 的字段两边都出现', async () => {
+    const { api, scope } = setup([DEF_RARITY], 'wishlist')
+    await nextTick()
+    expect(api.customFieldFilterGroups.value.map((group) => group.defId)).toEqual(['cf_rarity'])
     scope.stop()
   })
 })

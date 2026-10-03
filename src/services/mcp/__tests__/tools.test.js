@@ -1038,3 +1038,123 @@ describe('mcp tool handlers', () => {
     expect(resolveDisplayUri).not.toHaveBeenCalled()
   })
 })
+
+describe('mcp read tools：自定义字段', () => {
+  const DEFS = [
+    { id: 'cf_rarity', name: '稀有度', type: 'select', options: ['限定', '通贩'] },
+    { id: 'cf_box', name: '有盒', type: 'select', options: ['有盒', '无盒'] }
+  ]
+  const customFieldApi = { listDefs: () => DEFS }
+
+  function createDbWithCustomFields() {
+    const db = createFakeDb()
+    db.getItems.mockImplementation(async () => [
+      {
+        id: 'g1', name: 'A', isWishlist: false, quantity: 1, price: '10', updatedAt: 300,
+        characters: [], tags: [], images: [], statusTimeline: [],
+        customFields: { cf_rarity: '限定', cf_box: '' }
+      },
+      {
+        id: 'g2', name: 'B', isWishlist: false, quantity: 1, price: '20', updatedAt: 200,
+        characters: [], tags: [], images: [], statusTimeline: [],
+        customFields: { cf_rarity: '通贩', cf_orphan: 'x' }
+      },
+      {
+        id: 'g3', name: 'C', isWishlist: true, quantity: 1, price: '30', updatedAt: 100,
+        characters: [], tags: [], images: [], statusTimeline: [], customFields: {}
+      }
+    ])
+    return db
+  }
+
+  it('goods_search / goods_detail 输出带字段名的值，孤儿键与空值按场景处理', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields(), {}, null, null, customFieldApi)
+
+    const search = await handlers.goods_search({})
+    const byId = new Map(search.items.map((/** @type {any} */ item) => [item.id, item]))
+    // 空串（已添加未填）在列表里不占位
+    expect(byId.get('g1').customFields).toEqual({ 稀有度: '限定' })
+    // 定义已删的孤儿键不展示
+    expect(byId.get('g2').customFields).toEqual({ 稀有度: '通贩' })
+    // 一个字段都没有的条目不输出该键
+    expect(byId.get('g3')).not.toHaveProperty('customFields')
+
+    // 详情带上「已添加但未填」（空串）
+    const detail = await handlers.goods_detail({ id: 'g1' })
+    expect(detail.customFields).toEqual({ 稀有度: '限定', 有盒: '' })
+  })
+
+  it('没有注入自定义字段定义时整体省略（不把 cf_xxx 丢给模型）', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields())
+
+    const search = await handlers.goods_search({})
+    expect(search.items[0]).not.toHaveProperty('customFields')
+
+    const detail = await handlers.goods_detail({ id: 'g1' })
+    expect(detail).not.toHaveProperty('customFields')
+  })
+
+  it('goods_search 支持按自定义字段筛选（字段间 AND、数组内 OR）', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields(), {}, null, null, customFieldApi)
+
+    const single = await handlers.goods_search({ customFields: { 稀有度: '限定' } })
+    expect(single.items.map((/** @type {any} */ item) => item.id)).toEqual(['g1'])
+
+    const multi = await handlers.goods_search({ customFields: { 稀有度: ['限定', '通贩'] } })
+    expect(multi.items.map((/** @type {any} */ item) => item.id)).toEqual(['g1', 'g2'])
+
+    // 空串不命中任何值；未填该字段的条目也不命中
+    const boxed = await handlers.goods_search({ customFields: { 有盒: '有盒' } })
+    expect(boxed.items).toEqual([])
+  })
+
+  it('goods_search 自定义字段筛选：未知字段名 / 没有字段时给出明确报错', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields(), {}, null, null, customFieldApi)
+    await expect(handlers.goods_search({ customFields: { 没有这个: 'x' } })).rejects.toThrow('不存在')
+    await expect(handlers.goods_search({ customFields: 'x' })).rejects.toThrow('需为对象')
+
+    const noDefs = createMcpToolHandlers(createDbWithCustomFields())
+    await expect(noDefs.goods_search({ customFields: { 稀有度: '限定' } })).rejects.toThrow('还没有自定义字段')
+  })
+
+  it('custom_fields_list 返回名称/类型/选项/已填件数', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields(), {}, null, null, customFieldApi)
+
+    const result = await handlers.custom_fields_list()
+    expect(result.total).toBe(2)
+    expect(result.fields[0]).toMatchObject({
+      name: '稀有度',
+      type: 'select',
+      options: ['限定', '通贩'],
+      scopes: ['collection', 'wishlist'],
+      filledCount: 2
+    })
+    // 空串不算已填
+    expect(result.fields[1]).toMatchObject({ name: '有盒', type: 'select', options: ['有盒', '无盒'], filledCount: 0 })
+
+    // 非 select 类型不输出空的 options
+    const withText = createMcpToolHandlers(createDbWithCustomFields(), {}, null, null, {
+      listDefs: () => [...DEFS, { id: 'cf_memo', name: '备注', type: 'text', options: [] }]
+    })
+    const listed = await withText.custom_fields_list()
+    expect(listed.total).toBe(3)
+    expect(listed.fields[2]).not.toHaveProperty('options')
+  })
+
+  it('custom_fields_list 在没有任何字段时给出创建引导', async () => {
+    const handlers = createMcpToolHandlers(createDbWithCustomFields())
+
+    const result = await handlers.custom_fields_list()
+    expect(result.total).toBe(0)
+    expect(result.fields).toEqual([])
+    expect(result.note).toContain('presets_manage')
+  })
+
+  it('工具定义暴露 custom_fields_list 与各处的 customFields 参数', () => {
+    const names = MCP_TOOL_DEFINITIONS.map((tool) => tool.name)
+    expect(names).toContain('custom_fields_list')
+
+    const search = MCP_TOOL_DEFINITIONS.find((tool) => tool.name === 'goods_search')
+    expect(search.inputSchema.properties.customFields).toBeTruthy()
+  })
+})

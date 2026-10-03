@@ -87,6 +87,23 @@ describe('writeUndo', () => {
     }))
   })
 
+  it('AI 写自定义字段值也能撤回（整块快照 + 写回）', async () => {
+    const deps = createStores()
+    deps.goodsStore.list.value[0].customFields = { cf_rarity: '通贩', cf_price: '100' }
+
+    const before = await captureUndoBefore('goods_update', {
+      id: 'g1',
+      customFields: { cf_rarity: '限定' }
+    }, deps)
+    expect(before.fields.customFields).toEqual({ cf_rarity: '通贩', cf_price: '100' })
+
+    const entry = buildUndoEntry('goods_update', { id: 'g1' }, before, { ok: true })
+    await applyUndoEntry(entry, deps)
+    expect(deps.goodsStore.updateGoods).toHaveBeenCalledWith('g1', {
+      customFields: { cf_rarity: '通贩', cf_price: '100' }
+    })
+  })
+
   it('goods_add 撤回 = 移入回收站；goods_delete 撤回 = 恢复', async () => {
     const deps = createStores()
     const addBefore = await captureUndoBefore('goods_add', { name: '新吧唧' }, deps)
