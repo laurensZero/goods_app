@@ -276,6 +276,7 @@
       :visible-character-options="searchVisibleCharacterOptions"
       :has-collapsed-character-options="searchHasCollapsedCharacterOptions"
       :show-all-character-options="searchShowAllCharacterOptions"
+      :custom-field-filter-groups="searchCustomFieldFilterGroups"
       :storage-location-tree="searchStorageLocationTree"
       :has-unassigned-storage-location="searchHasUnassignedStorageLocation"
       :active-filter-count="searchActiveFilterCount"
@@ -287,6 +288,7 @@
       @update-keyword="handleSearchUpdateKeyword"
       @update-field="handleSearchUpdateField"
       @toggle-filter="handleSearchToggleFilter"
+      @toggle-custom-field="handleSearchToggleCustomFieldFilter"
       @toggle-character-expand="handleSearchToggleCharacterExpand"
       @reset="handleResetFilters"
       @select-preset="searchApplyPreset"
@@ -560,6 +562,8 @@ const {
   removePreset: searchRemovePreset,
   resetFilters: searchResetFilters,
   toggleFilterValue: searchToggleFilterValue,
+  customFieldFilterGroups: searchCustomFieldFilterGroups,
+  toggleCustomFieldFilter: searchToggleCustomFieldFilter,
   formatPresetSummary: searchFormatPresetSummary
 } = useGoodsSearch(computed(() => store.collectionViewList), { scope: 'collection' })
 
@@ -683,6 +687,7 @@ function handleHeroSearch() {
 function handleSearchUpdateKeyword(value) { searchFilters.keyword = value }
 function handleSearchUpdateField({ key, value }) { searchFilters[key] = value }
 function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key, value) }
+function handleSearchToggleCustomFieldFilter({ defId, value }) { searchToggleCustomFieldFilter(defId, value) }
 function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }
 
 function checkNfcStorageFilter() {

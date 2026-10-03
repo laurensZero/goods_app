@@ -1196,6 +1196,12 @@
   color: var(--app-text-tertiary);
 }
 
+/* ── 同一 tab 内「字段卡片 → 下一节标题」的跨节留白 ──
+   .section-head 只有 margin-bottom，紧跟 .field-card 时会贴在一起（附加信息 → 自定义字段） */
+.field-card + .section-head {
+  margin-top: var(--section-gap);
+}
+
 /* ── 自定义字段：section 内的空态提示 ── */
 .custom-fields-empty {
   margin: 0;
