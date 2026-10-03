@@ -11,6 +11,7 @@ import {
   GOODS_FILTER_DATE_PRESET_OPTIONS
 } from '@/utils/goods/filters'
 import { normalizeStorageLocationValue, splitStorageLocationPath, buildStorageLocationPath } from '@/utils/storage/storageLocations'
+import { isCustomFieldInScope } from '@/utils/goods/customFields'
 import { writePersisted } from '@/utils/platform/storage'
 
 // 关键词匹配偏好（拼音/大小写/备注）跨会话记住上次选择
@@ -240,6 +241,7 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
 
     for (const def of customFieldDefs.value) {
       if (String(def?.type || '') !== 'select') continue
+      if (!isCustomFieldInScope(def, scope)) continue
       const defId = String(def?.id || '').trim()
       if (!defId) continue
 

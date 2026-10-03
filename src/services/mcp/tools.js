@@ -13,6 +13,7 @@ import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
+import { normalizeCustomFieldDefs } from '../../utils/goods/customFields'
 import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/music/neteaseMusic'
 import { searchQQSongs } from '../../utils/music/qqMusic'
 import { searchBilibiliVideos } from '../../utils/music/bilibiliMusic'
@@ -113,10 +114,37 @@ function effectivePrice(item) {
 }
 
 /**
+ * 自定义字段值 → { 字段名: 值 }。只输出「定义仍存在」的字段（孤儿键静默隐藏），
+ * 避免把 cf_xxx 这种内部 id 丢给模型；缺定义接口时整体省略。
+ * @param {any} item
+ * @param {{ id: string, name: string }[]} defs
+ * @param {{ includeEmpty?: boolean }} [options] includeEmpty=true 时带上已添加但未填的字段（空串）
+ * @returns {{ customFields: Record<string, string> } | null}
+ */
+function customFieldsView(item, defs, options = {}) {
+  const includeEmpty = options.includeEmpty === true
+  if (!Array.isArray(defs) || defs.length === 0) return null
+
+  const values = item?.customFields
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return null
+
+  /** @type {Record<string, string>} */
+  const named = {}
+  for (const def of defs) {
+    if (!Object.prototype.hasOwnProperty.call(values, def.id)) continue
+    const text = asText(values[def.id]).trim()
+    if (!text && !includeEmpty) continue
+    named[def.name] = text
+  }
+  return Object.keys(named).length > 0 ? { customFields: named } : null
+}
+
+/**
  * @param {any} item
  * @param {(amount: number, currency: string) => number} [convert]
+ * @param {{ id: string, name: string }[]} [customFieldDefs]
  */
-function goodsListItem(item, convert = null) {
+function goodsListItem(item, convert = null, customFieldDefs = []) {
   const actualCurrency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
   const officialCurrency = asText(item.currency || 'CNY').trim() || 'CNY'
   // 花费折算：非愿望单用官方逐件口径（getItemSpendEntries：shippingEvents 分笔归月 / 单笔挂最晚月、状态排除，
@@ -165,6 +193,7 @@ function goodsListItem(item, convert = null) {
     ...(priceCNY !== null ? { priceCNY } : {}),
     // CD/专辑等带曲目列表的条目给概况；明细走 goods_detail
     tracksSummary: trackSummary(trackListOf(item.tracks).map(trackView)),
+    ...(customFieldsView(item, customFieldDefs) || {}),
     note: truncate(item.note),
     updatedAt: Number(item.updatedAt) || 0
   }
@@ -265,9 +294,18 @@ const HOME_EXCLUDED_STATUSES = new Set(['已赠出', '已出', '丢失'])
  *   吃谷预算读取注入（见 utils/goods/budget.js）；缺省视为未设置预算。
  * @param {{ resolveDisplayUri?: (uri: string) => Promise<string> | string }} [imageOptions]
  *   图片展示 URI 解析：cloud-image:// → 公开可访问 URL，避免把内部引用丢给模型。
+ * @param {{ listDefs?: () => any[] }} [customFieldApi]
+ *   自定义字段定义读取（由调用方注入 presets store）：用于输出带字段名的值、
+ *   按字段名筛选、以及 custom_fields_list。缺省时这些能力整体省略。
  */
-export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, imageOptions = null) {
+export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, imageOptions = null, customFieldApi = null) {
   const { getItems, getTrashedItems, getEvents, getRechargeRecords } = dbApi
+
+  /** 当前自定义字段定义（归一化后使用，保证与 store/同步侧口径一致） */
+  function listCustomFieldDefs() {
+    const raw = typeof customFieldApi?.listDefs === 'function' ? customFieldApi.listDefs() : []
+    return normalizeCustomFieldDefs(raw)
+  }
   const { enrichItems = null, convertToCNY = null } = money
   const resolveDisplayUri = typeof imageOptions?.resolveDisplayUri === 'function'
     ? imageOptions.resolveDisplayUri
@@ -292,6 +330,49 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     } catch {
       return value
     }
+  }
+
+  /**
+   * 自定义字段筛选：{ 字段名: 值 | 值数组 }，字段之间 AND、字段内 OR、值精确匹配。
+   * 未知字段名直接报错（比静默返回空结果有用）。
+   * @returns {Array<{ defId: string, wanted: string[] }> | null}
+   */
+  function parseCustomFieldQuery(raw, defs) {
+    if (raw === undefined || raw === null) return null
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      throw new Error('customFields 筛选需为对象：{ 字段名: 值 }')
+    }
+    if (defs.length === 0) {
+      throw new Error('当前还没有自定义字段，无法按自定义字段筛选；可用 custom_fields_list 确认')
+    }
+
+    const byKey = new Map()
+    for (const def of defs) {
+      byKey.set(def.name, def)
+      byKey.set(def.id, def)
+    }
+
+    const entries = []
+    for (const [key, value] of Object.entries(raw)) {
+      const def = byKey.get(String(key || '').trim())
+      if (!def) {
+        const available = defs.map((item) => item.name).join('、') || '（无）'
+        throw new Error(`自定义字段「${key}」不存在；可用字段：${available}`)
+      }
+      const wanted = (Array.isArray(value) ? value : [value])
+        .map((entry) => asText(entry).trim())
+        .filter(Boolean)
+      if (wanted.length > 0) entries.push({ defId: def.id, wanted })
+    }
+
+    return entries.length > 0 ? entries : null
+  }
+
+  function matchesCustomFieldQuery(item, query) {
+    if (!query) return true
+    const values = item?.customFields
+    const usable = values && typeof values === 'object' && !Array.isArray(values) ? values : null
+    return query.every(({ defId, wanted }) => wanted.includes(usable ? asText(usable[defId]).trim() : ''))
   }
 
   async function loadEnrichedItems() {
@@ -484,6 +565,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     const hasTracks = args.hasTracks === true
     const limit = Math.min(Math.max(asInt(args.limit) || 20, 1), 100)
     const offset = Math.max(asInt(args.offset), 0)
+    const customFieldDefs = listCustomFieldDefs()
+    const customFieldQuery = parseCustomFieldQuery(args.customFields, customFieldDefs)
 
     const SORT_FIELDS = new Set(['updatedAt', 'acquiredAt', 'saleAt', 'price', 'actualPrice', 'quantity'])
     const sortBy = SORT_FIELDS.has(asText(args.sortBy).trim()) ? asText(args.sortBy).trim() : 'updatedAt'
@@ -529,6 +612,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         const characters = Array.isArray(item.characters) ? item.characters : []
         if (!characters.some((/** @type {unknown} */ c) => asText(c).trim().toLowerCase() === character)) return false
       }
+      if (!matchesCustomFieldQuery(item, customFieldQuery)) return false
       if (query) {
         const haystack = [
           item.name, item.ip, item.category, item.variant, item.note, item.storageLocation, item.goodsId,
@@ -555,7 +639,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       offset,
       limit,
       hasMore: offset + page.length < matched.length,
-      items: page.map((item) => goodsListItem(item, convertToCNY))
+      items: page.map((item) => goodsListItem(item, convertToCNY, customFieldDefs))
     }
   }
 
@@ -567,6 +651,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     if (!id) throw new Error('缺少参数 id')
     const [active, trashed] = await Promise.all([getItems(), getTrashedItems()])
     const item = active.find((entry) => entry.id === id) || trashed.find((entry) => entry.id === id)
+    const customFieldDefs = listCustomFieldDefs()
     if (!item) throw new Error(`未找到 id 为 ${id} 的条目（可能已被彻底删除）`)
 
     const statusTimeline = Array.isArray(item.statusTimeline) ? item.statusTimeline : []
@@ -596,7 +681,45 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       coverUrl: images.find((image) => image.isPrimary)?.uri || images[0]?.uri || '',
       imagesCount: images.length,
       statusTimeline: statusTimeline.slice(-TIMELINE_MAX_ENTRIES),
-      note: item.note
+      note: item.note,
+      // 详情把「已添加但未填」的字段也带上（空串），AI 才能区分「没这个字段」和「填了空」
+      ...(customFieldsView(item, customFieldDefs, { includeEmpty: true }) || {})
+    }
+  }
+
+  /**
+   * 自定义字段定义清单（名称/类型/选项/生效范围/已填件数）：写值前先拿字段名。
+   */
+  async function customFieldsList() {
+    const defs = listCustomFieldDefs()
+    if (defs.length === 0) {
+      return {
+        total: 0,
+        fields: [],
+        note: '用户还没有自定义字段；如用户要求新增，可用 presets_manage（entity=custom_field, action=add）创建'
+      }
+    }
+
+    const items = await getItems()
+    /** @type {Map<string, number>} */
+    const filled = new Map()
+    for (const item of items) {
+      const values = item?.customFields
+      if (!values || typeof values !== 'object' || Array.isArray(values)) continue
+      for (const def of defs) {
+        if (asText(values[def.id]).trim()) filled.set(def.id, (filled.get(def.id) || 0) + 1)
+      }
+    }
+
+    return {
+      total: defs.length,
+      fields: defs.map((def) => ({
+        name: def.name,
+        type: def.type,
+        ...(def.options.length > 0 ? { options: def.options } : {}),
+        scopes: def.scopes,
+        filledCount: filled.get(def.id) || 0
+      }))
     }
   }
 
@@ -1765,6 +1888,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
   return {
     goods_search: goodsSearch,
     goods_detail: goodsDetail,
+    custom_fields_list: customFieldsList,
     collection_overview: collectionOverview,
     spending_summary: spendingSummary,
     character_leaderboard: characterLeaderboard,
@@ -1791,13 +1915,14 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
  *   money?: object,
  *   budgetApi?: { read?: () => Promise<{ monthly: number, yearly: number }> },
  *   allowWriteTools?: boolean,
- *   writeHandlers?: Record<string, (args: Record<string, any>) => Promise<unknown>>
+ *   writeHandlers?: Record<string, (args: Record<string, any>) => Promise<unknown>>,
+ *   customFieldApi?: { listDefs?: () => any[] }
  * }} params
  *   allowWriteTools 开启且提供 writeHandlers（依赖 store 实例，由调用方注入）时，
  *   写工具才会注册并可被外部调用。
  */
-export function createMcpServer({ dbApi, money = {}, budgetApi = null, allowWriteTools = false, writeHandlers = null }) {
-  const readHandlers = createMcpToolHandlers(dbApi, money, budgetApi)
+export function createMcpServer({ dbApi, money = {}, budgetApi = null, allowWriteTools = false, writeHandlers = null, customFieldApi = null }) {
+  const readHandlers = createMcpToolHandlers(dbApi, money, budgetApi, null, customFieldApi)
   const handlers = (allowWriteTools && writeHandlers)
     ? { ...readHandlers, ...writeHandlers }
     : readHandlers

@@ -25,6 +25,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '分组/套组用 groups_list 总览、groups_manage 增删改与成员管理；回收站列表用 trash_list，永久清理用 goods_purge；批量改字段用 goods_update_many；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
   '吃谷预算用 budget_overview 看超支情况、budget_set 修改；米游铺上新用 mihoyo_new_arrivals（商品/积分/满赠），要加心愿单用 goods_add（isWishlist: true，带 goodsId/price/saleAt/image）；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
+  '谷子自定义字段：先 custom_fields_list 看用户已有哪些字段（名称/类型/可选值/生效范围），填值用 goods_add/goods_update 的 customFields（键=字段名，只传要改的，未传不动）；用户要新建字段用 presets_manage（entity=custom_field）。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
 
@@ -54,7 +55,12 @@ const GOODS_MUTABLE_FIELDS = {
   image: { type: 'string', description: '封面 URL' },
   images: { type: 'array', items: { type: 'string' }, description: '图片 URL 列表' },
   isWishlist: { type: 'boolean', description: '是否愿望单' },
-  note: { type: 'string', description: '备注' }
+  note: { type: 'string', description: '备注' },
+  customFields: {
+    type: 'object',
+    description: '自定义字段值：键=字段名（见 custom_fields_list），值=字符串/数字（select 必须是该字段的选项之一），null=取消该字段。只传要改的字段，未传的保持不变。',
+    additionalProperties: { type: ['string', 'number', 'null'] }
+  }
 }
 
 /** @type {McpToolDefinition[]} */
@@ -304,7 +310,12 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
         acquiredAt: { type: 'string', description: '入手日期 YYYY-MM-DD' },
         isWishlist: { type: 'boolean', description: '是否愿望单' },
         note: { type: 'string', description: '备注' },
-        collectStatus: { type: 'string', description: '收集状态' }
+        collectStatus: { type: 'string', description: '收集状态' },
+        customFields: {
+          type: 'object',
+          description: '自定义字段值：键=字段名（见 custom_fields_list），值=字符串/数字，null=取消该字段；逐条与各条目已有值合并，未传的字段不动。',
+          additionalProperties: { type: ['string', 'number', 'null'] }
+        }
       },
       required: ['ids']
     }
@@ -357,16 +368,19 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
   },
   {
     name: 'presets_manage',
-    description: '预设增删改（分类/IP/角色/活动类型/收纳位置）。改名会级联更新条目；activity_type 可 set_show_tracks。',
+    description: '预设增删改（分类/IP/角色/活动类型/收纳位置/自定义字段）。改名会级联更新条目；activity_type 可 set_show_tracks；自定义字段可 add/remove/rename/set_options/set_scopes。',
     inputSchema: {
       type: 'object',
       properties: {
-        entity: { type: 'string', enum: ['category', 'ip', 'character', 'storage_location', 'event_type'], description: '要操作的预设类型' },
-        action: { type: 'string', enum: ['add', 'remove', 'rename', 'set_show_tracks'], description: '操作类型；storage_location 仅支持 add；set_show_tracks 仅 event_type' },
-        name: { type: 'string', description: '预设名称' },
+        entity: { type: 'string', enum: ['category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field'], description: '要操作的预设类型' },
+        action: { type: 'string', enum: ['add', 'remove', 'rename', 'set_show_tracks', 'set_options', 'set_scopes'], description: '操作类型；storage_location 仅支持 add；set_show_tracks 仅 event_type；set_options/set_scopes 仅 custom_field' },
+        name: { type: 'string', description: '预设名称（自定义字段填字段名）' },
         newName: { type: 'string', description: 'rename 时的新名称' },
         ip: { type: 'string', description: 'entity=character 且 action=add 时可选，角色所属 IP' },
-        showTracks: { type: 'boolean', description: 'entity=event_type 时：add 可选是否开启曲目展示；set_show_tracks 必填目标开关值' }
+        showTracks: { type: 'boolean', description: 'entity=event_type 时：add 可选是否开启曲目展示；set_show_tracks 必填目标开关值' },
+        fieldType: { type: 'string', enum: ['text', 'select', 'number', 'date'], description: 'entity=custom_field 且 action=add 时的字段类型，默认 text' },
+        options: { type: 'array', items: { type: 'string' }, description: 'entity=custom_field 且类型为 select 时的选项列表（set_options 用它整体替换）' },
+        scopes: { type: 'array', items: { type: 'string', enum: ['collection', 'wishlist'] }, description: 'entity=custom_field 的生效范围（可多选），默认两边都生效；set_scopes 用它整体替换' }
       },
       required: ['entity', 'action', 'name']
     }
@@ -535,6 +549,11 @@ export const MCP_TOOL_DEFINITIONS = [
         wishlistOnly: { type: 'boolean', description: '只看愿望单' },
         collectionOnly: { type: 'boolean', description: '只看收藏（问「收藏了什么」必传 true）' },
         hasTracks: { type: 'boolean', description: '只要带曲目的 CD/专辑' },
+        customFields: {
+          type: 'object',
+          description: '按自定义字段筛选：键=字段名（见 custom_fields_list），值=值或值数组；字段之间 AND、数组内 OR、值精确匹配。',
+          additionalProperties: { type: ['string', 'number', 'array'] }
+        },
         acquiredAfter: { type: 'string', description: '任一件入手日期 ≥ YYYY-MM-DD' },
         acquiredBefore: { type: 'string', description: '任一件入手日期 ≤ YYYY-MM-DD' },
         priceMin: { type: 'number', description: '价格下限' },
@@ -556,6 +575,11 @@ export const MCP_TOOL_DEFINITIONS = [
       },
       required: ['id']
     }
+  },
+  {
+    name: 'custom_fields_list',
+    description: '列出用户自定义字段：名称/类型/可选值/生效范围/已填件数。给谷子填自定义字段前先调用它拿字段名与选项。',
+    inputSchema: { type: 'object', properties: {} }
   },
   {
     name: 'collection_overview',

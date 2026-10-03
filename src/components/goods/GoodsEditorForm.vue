@@ -1031,6 +1031,7 @@
     <CustomFieldPickerSheet
       v-model="showCustomFieldPicker"
       :attached-ids="attachedCustomFieldIds"
+      :scope="editorScope"
       @pick="attachCustomField"
     />
 
@@ -1213,6 +1214,12 @@ const attachedCustomFieldIds = computed(() =>
 const attachedCustomFieldDefs = computed(() =>
   presets.customFieldDefs.filter((def) => hasCustomFieldKey(def.id))
 )
+
+/**
+ * 当前编辑的是收藏还是心愿：字段定义的「生效范围」据此过滤选择器里的可选项。
+ * 已添加的字段不受范围影响照常渲染 —— 收藏↔心愿互转时不能让已填的值凭空消失。
+ */
+const editorScope = computed(() => (form.isWishlist ? 'wishlist' : 'collection'))
 
 function hasCustomFieldKey(defId) {
   return Object.prototype.hasOwnProperty.call(form.customFields || {}, defId)

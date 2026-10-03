@@ -89,7 +89,9 @@ const GOODS_UPDATE_KEYS = [
   'acquiredAt', 'isWishlist', 'note',
   'collectStatus', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'saleAt',
   'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList',
-  'unitCollectStatusList', 'unitSaleInfoList'
+  'unitCollectStatusList', 'unitSaleInfoList',
+  // 整块快照/写回：AI 填的自定义字段值也能一键撤回
+  'customFields'
 ]
 
 const EVENT_UPDATE_KEYS = [

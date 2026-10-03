@@ -12,7 +12,7 @@ const JSON_COLUMNS = new Set([
   'characters', 'tags', 'tracks', 'photos', 'dayTicketList', 'otherExpenses',
   'linkedGoodsIds', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
   'unitAcquiredAtList', 'unitSaleInfoList', 'statusTimeline', 'saleReminderOffsets',
-  'images'
+  'images', 'customFields'
 ])
 
 const ARRAY_SPLIT_COLUMNS = new Set(['characters', 'tags'])
@@ -35,23 +35,23 @@ const DATE_FORMATS = [
 export const CSV_SCHEMAS = {
   goods: [
     'id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags',
-    'storageLocation', 'variant', 'price', 'actualPrice', 'currency', 'actualPriceCurrency',
+    'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'currency', 'actualPriceCurrency',
     'points', 'quantity', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets',
     'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
     'coverImage', 'images', 'tracks', 'note',
     'collectStatus', 'shippingFee',
     'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList',
-    'statusTimeline', 'manualOrders', 'updatedAt'
+    'statusTimeline', 'manualOrders', 'customFields', 'updatedAt'
   ],
   trash: [
     'id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags',
-    'storageLocation', 'variant', 'price', 'actualPrice', 'currency', 'actualPriceCurrency',
+    'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'currency', 'actualPriceCurrency',
     'points', 'quantity', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets',
     'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
     'coverImage', 'images', 'tracks', 'note',
     'collectStatus', 'shippingFee',
     'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList',
-    'statusTimeline', 'manualOrders', 'deletedAt', 'updatedAt'
+    'statusTimeline', 'manualOrders', 'customFields', 'deletedAt', 'updatedAt'
   ],
   events: [
     'id', 'name', 'type', 'startDate', 'endDate', 'location', 'city',

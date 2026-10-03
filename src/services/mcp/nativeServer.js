@@ -76,7 +76,9 @@ function handleRawRequest(rawBody) {
       money: createMoneyEnrichers(),
       budgetApi: { read: readBudgetSettings },
       allowWriteTools: Boolean(allowExternalWrites),
-      writeHandlers: allowExternalWrites ? buildWriteHandlers() : undefined
+      writeHandlers: allowExternalWrites ? buildWriteHandlers() : undefined,
+      // 自定义字段定义来自 presets store（惰性读取，避免模块加载期就要求 pinia 已装配）
+      customFieldApi: { listDefs: () => usePresetsStore().customFieldDefs }
     })
   }
   return mcpHandler.handleRaw(rawBody)

@@ -15,6 +15,14 @@
 /** 第一版支持的字段类型（注册表：加类型只改这里 + UI 渲染分支） */
 export const CUSTOM_FIELD_TYPES = ['text', 'select', 'number', 'date']
 
+/**
+ * 字段生效范围（可多选）：收藏 / 心愿。顺序即 UI 展示顺序。
+ * 缺失或全非法 → 回落 `DEFAULT_CUSTOM_FIELD_SCOPES`（= 两边都生效），
+ * 这样旧数据（没有 scopes 键）行为与加入该设置之前完全一致。
+ */
+export const CUSTOM_FIELD_SCOPES = ['collection', 'wishlist']
+export const DEFAULT_CUSTOM_FIELD_SCOPES = [...CUSTOM_FIELD_SCOPES]
+
 /** 定义数量上限，防止脏数据撑爆 presets 行 */
 export const CUSTOM_FIELD_DEF_MAX = 30
 /** 单个 select 字段的选项数量上限 */
@@ -29,6 +37,29 @@ export const CUSTOM_FIELD_VALUE_MAX = 500
 
 export function isCustomFieldType(type) {
   return CUSTOM_FIELD_TYPES.includes(String(type || ''))
+}
+
+/**
+ * 归一化生效范围：只保留已知值、去重、按 CUSTOM_FIELD_SCOPES 顺序输出。
+ * 非数组 / 过滤后为空 → 两边都生效（不允许「哪都不生效」否则字段在 UI 里彻底消失）。
+ * @param {unknown} input
+ * @returns {string[]}
+ */
+export function normalizeCustomFieldScopes(input) {
+  if (!Array.isArray(input)) return [...DEFAULT_CUSTOM_FIELD_SCOPES]
+
+  const given = new Set(input.map((item) => String(item || '').trim()))
+  const scopes = CUSTOM_FIELD_SCOPES.filter((scope) => given.has(scope))
+  return scopes.length ? scopes : [...DEFAULT_CUSTOM_FIELD_SCOPES]
+}
+
+/** 字段是否在某个视图（collection / wishlist）生效；缺 scopes 视为两边都生效 */
+export function isCustomFieldInScope(def, scope) {
+  const target = String(scope || '').trim()
+  if (!target) return true
+
+  const scopes = Array.isArray(def?.scopes) ? def.scopes : DEFAULT_CUSTOM_FIELD_SCOPES
+  return scopes.length === 0 || scopes.includes(target)
 }
 
 // 确定性短哈希：给「缺失 id / 重复 id」的脏数据兜底。
@@ -74,9 +105,9 @@ function normalizeOptionList(input) {
  * - id 缺失/超长/重复 → 确定性兜底 id（撞 id 会让值错配到别的字段）
  * - options 仅 select 保留
  * - 超过 CUSTOM_FIELD_DEF_MAX 条 → 丢弃尾部
- * - 输出键顺序固定为 id → name → type → options
+ * - 输出键顺序固定为 id → name → type → options → scopes
  * @param {unknown} input
- * @returns {{ id: string, name: string, type: string, options: string[] }[]}
+ * @returns {{ id: string, name: string, type: string, options: string[], scopes: string[] }[]}
  */
 export function normalizeCustomFieldDefs(input) {
   if (!Array.isArray(input)) return []
@@ -107,7 +138,8 @@ export function normalizeCustomFieldDefs(input) {
       id,
       name,
       type,
-      options: type === 'select' ? normalizeOptionList(raw.options) : []
+      options: type === 'select' ? normalizeOptionList(raw.options) : [],
+      scopes: normalizeCustomFieldScopes(raw.scopes)
     })
 
     if (normalized.length >= CUSTOM_FIELD_DEF_MAX) break

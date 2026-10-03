@@ -633,9 +633,9 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   /** 新建定义；名称重复或已达上限返回 null */
-  async function addCustomFieldDef({ name, type = 'text', options = [] } = {}) {
+  async function addCustomFieldDef({ name, type = 'text', options = [], scopes } = {}) {
     const created = normalizeCustomFieldDefs([
-      { id: createCustomFieldDefId(), name, type, options }
+      { id: createCustomFieldDefId(), name, type, options, scopes }
     ])[0]
     if (!created) return null
     if (customFieldDefs.value.some((item) => item.name === created.name)) return null
@@ -694,6 +694,22 @@ export const usePresetsStore = defineStore('presets', () => {
 
     const current = customFieldDefs.value[index]
     const normalized = normalizeCustomFieldDefs([{ ...current, type: 'select', options }])[0]
+    if (!normalized) return false
+
+    const updated = [...customFieldDefs.value]
+    updated.splice(index, 1, normalized)
+    customFieldDefs.value = updated
+    await persistCustomFieldDefs()
+    autoPushPresets()
+    return true
+  }
+
+  /** 覆盖生效范围（收藏 / 心愿，可多选；空/非法回落两边都生效） */
+  async function updateCustomFieldDefScopes(id, scopes) {
+    const index = findCustomFieldDefIndex(id)
+    if (index === -1) return false
+
+    const normalized = normalizeCustomFieldDefs([{ ...customFieldDefs.value[index], scopes }])[0]
     if (!normalized) return false
 
     const updated = [...customFieldDefs.value]
@@ -1086,6 +1102,7 @@ export const usePresetsStore = defineStore('presets', () => {
     removeCustomFieldDef,
     updateCustomFieldDefName,
     updateCustomFieldDefType,
+    updateCustomFieldDefScopes,
     updateCustomFieldDefOptions,
     reorderCustomFieldDefs,
     addIp,

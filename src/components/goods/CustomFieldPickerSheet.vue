@@ -100,14 +100,17 @@ import { usePresetsStore } from '@/stores/presets'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import {
   CUSTOM_FIELD_NAME_MAX,
-  CUSTOM_FIELD_TYPES
+  CUSTOM_FIELD_TYPES,
+  isCustomFieldInScope
 } from '@/utils/goods/customFields'
 import AppSheet from '@/components/common/AppSheet.vue'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   /** 当前商品已添加的字段 id（用于过滤掉不可再选的定义） */
-  attachedIds: { type: Array, default: () => [] }
+  attachedIds: { type: Array, default: () => [] },
+  /** 当前视图（collection / wishlist）：只列出在该范围生效的定义；空 = 不过滤 */
+  scope: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue', 'pick'])
@@ -126,7 +129,9 @@ const hasAttached = computed(() => props.attachedIds.length > 0)
 
 const available = computed(() => {
   const attached = new Set(props.attachedIds)
-  return presets.customFieldDefs.filter((def) => !attached.has(def.id))
+  return presets.customFieldDefs.filter((def) => (
+    !attached.has(def.id) && isCustomFieldInScope(def, props.scope)
+  ))
 })
 
 function typeLabel(type) {

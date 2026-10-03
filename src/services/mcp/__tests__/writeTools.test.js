@@ -896,3 +896,246 @@ it('settings_overview 返回主题/通知/预设清单', async () => {
     })
   })
 })
+
+describe('mcp write tools：自定义字段', () => {
+  /** 带定义的可变 presets 假 store（用于验证选项替换/删除的级联） */
+  function createCustomFieldPresetsStore() {
+    const defs = [
+      { id: 'cf_rarity', name: '稀有度', type: 'select', options: ['限定', '通贩'], scopes: ['collection', 'wishlist'] },
+      { id: 'cf_price', name: '到手价', type: 'number', options: [], scopes: ['collection', 'wishlist'] },
+      { id: 'cf_date', name: '发售日', type: 'date', options: [], scopes: ['collection', 'wishlist'] }
+    ]
+    return {
+      get customFieldDefs() { return defs },
+      addCustomFieldDef: vi.fn(async ({ name, type = 'text', options = [] }) => {
+        const created = { id: `cf_new_${name}`, name, type, options, scopes: ['collection', 'wishlist'] }
+        defs.push(created)
+        return created
+      }),
+      removeCustomFieldDef: vi.fn(async (id) => {
+        const index = defs.findIndex((item) => item.id === id)
+        return index >= 0 ? defs.splice(index, 1)[0] : null
+      }),
+      updateCustomFieldDefName: vi.fn(async () => true),
+      updateCustomFieldDefScopes: vi.fn(async (id, scopes) => {
+        const def = defs.find((item) => item.id === id)
+        if (def) def.scopes = [...scopes]
+        return true
+      }),
+      updateCustomFieldDefOptions: vi.fn(async (id, options) => {
+        const def = defs.find((item) => item.id === id)
+        if (def) def.options = [...options]
+        return true
+      })
+    }
+  }
+
+  function createStoreWithCustomFields() {
+    const store = createFakeStore()
+    store.list.value = [
+      { id: 'g1', name: 'A', customFields: { cf_rarity: '通贩', cf_price: '100' } },
+      { id: 'g2', name: 'B' }
+    ]
+    store.clearCustomFieldValues = vi.fn(async () => {})
+    return store
+  }
+
+  it('goods_add 按字段名写入自定义字段（值统一存字符串）', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    const result = await handlers.goods_add({
+      name: '新条目',
+      customFields: { 稀有度: '限定', 到手价: 88 }
+    })
+
+    expect(store.addGoods).toHaveBeenCalledWith(expect.objectContaining({
+      customFields: { cf_price: '88', cf_rarity: '限定' }
+    }))
+    expect(result.customFields).toEqual({ cf_price: '88', cf_rarity: '限定' })
+  })
+
+  it('goods_add 也能用 defId 作键；未传 customFields 时不写该字段', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    await handlers.goods_add({ name: 'A', customFields: { cf_rarity: '通贩' } })
+    expect(store.addGoods).toHaveBeenLastCalledWith(expect.objectContaining({
+      customFields: { cf_rarity: '通贩' }
+    }))
+
+    await handlers.goods_add({ name: 'B' })
+    expect(store.addGoods.mock.calls[1][0]).not.toHaveProperty('customFields')
+  })
+
+  it('按类型校验自定义字段值，非法时给出可用值/字段名', async () => {
+    const store = createFakeStore()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    await expect(handlers.goods_add({ name: 'A', customFields: { 稀有度: '绝版' } })).rejects.toThrow('只接受这些值：限定、通贩')
+    await expect(handlers.goods_add({ name: 'A', customFields: { 到手价: 'abc' } })).rejects.toThrow('需为数字')
+    await expect(handlers.goods_add({ name: 'A', customFields: { 发售日: '2026/01/01' } })).rejects.toThrow('YYYY-MM-DD')
+    await expect(handlers.goods_add({ name: 'A', customFields: { 不存在: 'x' } })).rejects.toThrow('不存在')
+    await expect(handlers.goods_add({ name: 'A', customFields: 'x' })).rejects.toThrow('需为对象')
+    expect(store.addGoods).not.toHaveBeenCalled()
+  })
+
+  it('一个自定义字段都没有时给出明确引导', async () => {
+    const store = createFakeStore()
+    const { presetsStore } = createFakeSettingsStores()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
+
+    await expect(handlers.goods_add({ name: 'A', customFields: { 稀有度: '限定' } }))
+      .rejects.toThrow('还没有自定义字段')
+  })
+
+  it('goods_update 与条目已有值增量合并，null 取消该字段', async () => {
+    const store = createStoreWithCustomFields()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    const result = await handlers.goods_update({
+      id: 'g1',
+      customFields: { 稀有度: '限定', 到手价: null }
+    })
+
+    expect(store.updateGoods).toHaveBeenCalledWith('g1', { customFields: { cf_rarity: '限定' } })
+    expect(result.customFields).toEqual({ cf_rarity: '限定' })
+  })
+
+  it('goods_update 只传 customFields 时不算空更新；校验失败时不落库', async () => {
+    const store = createStoreWithCustomFields()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    // g2 没有 customFields 键，照样能加
+    await handlers.goods_update({ id: 'g2', customFields: { 到手价: '20' } })
+    expect(store.updateGoods).toHaveBeenLastCalledWith('g2', { customFields: { cf_price: '20' } })
+
+    await expect(handlers.goods_update({ id: 'g1', customFields: { 稀有度: '绝版' } })).rejects.toThrow('只接受')
+    expect(store.updateGoods).toHaveBeenCalledTimes(1)
+  })
+
+  it('goods_update_many 逐条合并（各条目既有值不同）', async () => {
+    const store = createStoreWithCustomFields()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore()
+    })
+
+    const result = await handlers.goods_update_many({
+      ids: ['g1', 'g2'],
+      customFields: { 稀有度: '限定' }
+    })
+
+    expect(store.updateMultipleGoods).not.toHaveBeenCalled()
+    expect(store.updateGoods).toHaveBeenNthCalledWith(1, 'g1', {
+      customFields: { cf_price: '100', cf_rarity: '限定' }
+    })
+    expect(store.updateGoods).toHaveBeenNthCalledWith(2, 'g2', {
+      customFields: { cf_rarity: '限定' }
+    })
+    expect(result.fields).toEqual(['customFields'])
+  })
+
+  it('presets_manage 管理自定义字段：新建（含类型/选项/范围）', async () => {
+    const store = createFakeStore()
+    const presetsStore = createCustomFieldPresetsStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
+
+    const added = await handlers.presets_manage({
+      entity: 'custom_field',
+      action: 'add',
+      name: '初版限定',
+      fieldType: 'select',
+      options: ['A', 'B'],
+      scopes: ['wishlist']
+    })
+
+    expect(added.ok).toBe(true)
+    expect(presetsStore.addCustomFieldDef).toHaveBeenCalledWith({ name: '初版限定', type: 'select', options: ['A', 'B'] })
+    expect(presetsStore.updateCustomFieldDefScopes).toHaveBeenCalledWith('cf_new_初版限定', ['wishlist'])
+  })
+
+  it('presets_manage 管理自定义字段：改名 / 改范围 / 不存在的字段报错', async () => {
+    const store = createFakeStore()
+    const presetsStore = createCustomFieldPresetsStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
+
+    const renamed = await handlers.presets_manage({
+      entity: 'custom_field', action: 'rename', name: '稀有度', newName: '稀有等级'
+    })
+    expect(renamed.newName).toBe('稀有等级')
+    expect(presetsStore.updateCustomFieldDefName).toHaveBeenCalledWith('cf_rarity', '稀有等级')
+
+    const scoped = await handlers.presets_manage({
+      entity: 'custom_field', action: 'set_scopes', name: '稀有度', scopes: ['collection']
+    })
+    expect(scoped.scopes).toEqual(['collection'])
+    expect(presetsStore.updateCustomFieldDefScopes).toHaveBeenLastCalledWith('cf_rarity', ['collection'])
+
+    await expect(handlers.presets_manage({ entity: 'custom_field', action: 'rename', name: '没有这个', newName: 'x' }))
+      .rejects.toThrow('未找到自定义字段')
+    await expect(handlers.presets_manage({ entity: 'category', action: 'set_scopes', name: '吧唧', scopes: ['collection'] }))
+      .rejects.toThrow('仅支持 custom_field')
+  })
+
+  it('presets_manage 管理自定义字段：选项整体替换会清空被删选项的值', async () => {
+    const store = createStoreWithCustomFields()
+    const presetsStore = createCustomFieldPresetsStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
+
+    const result = await handlers.presets_manage({
+      entity: 'custom_field', action: 'set_options', name: '稀有度', options: ['限定', '会场限定']
+    })
+
+    expect(presetsStore.updateCustomFieldDefOptions).toHaveBeenCalledWith('cf_rarity', ['限定', '会场限定'])
+    expect(result.options).toEqual(['限定', '会场限定'])
+    expect(result.clearedOptions).toEqual(['通贩'])
+    expect(store.clearCustomFieldValues).toHaveBeenCalledWith('cf_rarity', '通贩')
+
+    await expect(handlers.presets_manage({
+      entity: 'custom_field', action: 'set_options', name: '到手价', options: ['1']
+    })).rejects.toThrow('不是下拉类型')
+  })
+
+  it('presets_manage 管理自定义字段：删除同时清理已填值', async () => {
+    const store = createStoreWithCustomFields()
+    const presetsStore = createCustomFieldPresetsStore()
+    const handlers = createMcpWriteToolHandlers({ goodsStore: store, presetsStore })
+
+    const removed = await handlers.presets_manage({ entity: 'custom_field', action: 'remove', name: '稀有度' })
+
+    expect(removed.ok).toBe(true)
+    expect(presetsStore.removeCustomFieldDef).toHaveBeenCalledWith('cf_rarity')
+    expect(store.clearCustomFieldValues).toHaveBeenCalledWith('cf_rarity')
+  })
+
+  it('settings_overview 带上自定义字段清单', async () => {
+    const store = createFakeStore()
+    const { themeStore, notifyStore } = createFakeSettingsStores()
+    const handlers = createMcpWriteToolHandlers({
+      goodsStore: store,
+      presetsStore: createCustomFieldPresetsStore(),
+      themeStore,
+      notifyStore
+    })
+
+    const overview = await handlers.settings_overview()
+    expect(overview.presets.customFields.map((field) => field.name)).toEqual(['稀有度', '到手价', '发售日'])
+    expect(overview.presets.customFields[0].options).toEqual(['限定', '通贩'])
+  })
+})

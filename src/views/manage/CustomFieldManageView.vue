@@ -91,6 +91,21 @@
             </button>
           </div>
 
+          <p class="field-caption field-caption--gap">{{ t('manage.customField.scopeCaption') }}</p>
+          <div class="scope-grid">
+            <button
+              v-for="scope in CUSTOM_FIELD_SCOPES"
+              :key="scope"
+              type="button"
+              class="scope-option"
+              :class="{ 'scope-option--active': draftScopes.includes(scope) }"
+              @click="toggleDraftScope(scope)"
+            >
+              {{ scopeLabel(scope) }}
+            </button>
+          </div>
+          <p class="field-hint">{{ t('manage.customField.scopeHint') }}</p>
+
           <template v-if="draftType === 'select'">
             <p class="field-caption field-caption--gap">{{ t('manage.customField.optionsCaption') }}</p>
             <div v-for="(option, index) in draftOptions" :key="index" class="option-row">
@@ -156,8 +171,11 @@ import {
   CUSTOM_FIELD_NAME_MAX,
   CUSTOM_FIELD_OPTION_LABEL_MAX,
   CUSTOM_FIELD_OPTION_MAX,
+  CUSTOM_FIELD_SCOPES,
   CUSTOM_FIELD_TYPES,
-  normalizeCustomFieldDefs
+  DEFAULT_CUSTOM_FIELD_SCOPES,
+  normalizeCustomFieldDefs,
+  normalizeCustomFieldScopes
 } from '@/utils/goods/customFields'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -189,10 +207,21 @@ function typeLabel(type) {
   return t(`manage.customField.type.${type}`)
 }
 
+function scopeLabel(scope) {
+  return t(`manage.customField.scope.${scope}`)
+}
+
+/** 生效范围摘要（收藏库 / 心愿单；缺 scopes 的旧数据视为两边都生效） */
+function scopeSummary(def) {
+  const scopes = normalizeCustomFieldScopes(def?.scopes)
+  return scopes.map((scope) => scopeLabel(scope)).join(' · ')
+}
+
 function rowMeta(def) {
   const filled = t('manage.customField.filledCount', { count: filledCount(def.id) })
-  if (def.type !== 'select' || def.options.length === 0) return filled
-  return `${filled} · ${def.options.join(' / ')}`
+  const head = `${filled} · ${scopeSummary(def)}`
+  if (def.type !== 'select' || def.options.length === 0) return head
+  return `${head} · ${def.options.join(' / ')}`
 }
 
 // ── 表单（新建 / 编辑共用）──
@@ -200,6 +229,7 @@ const editingDefId = ref('')
 const draftName = ref('')
 const draftType = ref('text')
 const draftOptions = ref([])
+const draftScopes = ref([...DEFAULT_CUSTOM_FIELD_SCOPES])
 const formError = ref('')
 const nameInputRef = ref(null)
 
@@ -213,6 +243,7 @@ function closeSheet() {
   draftName.value = ''
   draftType.value = 'text'
   draftOptions.value = []
+  draftScopes.value = [...DEFAULT_CUSTOM_FIELD_SCOPES]
   formError.value = ''
 }
 
@@ -238,8 +269,24 @@ async function openEdit(def) {
   draftName.value = def.name
   draftType.value = def.type
   draftOptions.value = [...def.options]
+  draftScopes.value = normalizeCustomFieldScopes(def.scopes)
   await nextTick()
   nameInputRef.value?.focus()
+}
+
+/**
+ * 生效范围可多选；取消最后一个勾选时回落成「两边都生效」。
+ * 不允许出现空 scope —— 空值会让字段在编辑页和筛选里彻底消失，用户无法自救
+ * （`normalizeCustomFieldScopes` 对空数组也是同样的回落，行为保持一致）。
+ */
+function toggleDraftScope(scope) {
+  const target = String(scope || '')
+  if (!CUSTOM_FIELD_SCOPES.includes(target)) return
+
+  const next = draftScopes.value.includes(target)
+    ? draftScopes.value.filter((item) => item !== target)
+    : [...draftScopes.value, target]
+  draftScopes.value = next.length ? normalizeCustomFieldScopes(next) : [...DEFAULT_CUSTOM_FIELD_SCOPES]
 }
 
 function addDraftOption() {
@@ -281,7 +328,8 @@ async function saveSheet() {
     const created = await presets.addCustomFieldDef({
       name,
       type: draftType.value,
-      options: draftOptions.value
+      options: draftOptions.value,
+      scopes: draftScopes.value
     })
     if (!created) {
       formError.value = t('manage.customField.errorExists')
@@ -309,6 +357,12 @@ async function saveSheet() {
   const oldOptions = [...current.options]
   if (current.type !== draftType.value) {
     await presets.updateCustomFieldDefType(defId, draftType.value)
+  }
+
+  const currentScopes = normalizeCustomFieldScopes(current.scopes)
+  const nextScopes = normalizeCustomFieldScopes(draftScopes.value)
+  if (currentScopes.join('|') !== nextScopes.join('|')) {
+    await presets.updateCustomFieldDefScopes(defId, nextScopes)
   }
 
   if (draftType.value === 'select') {
@@ -539,7 +593,14 @@ async function confirmDelete() {
   gap: 8px;
 }
 
-.type-option {
+.scope-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.type-option,
+.scope-option {
   height: 38px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -553,6 +614,12 @@ async function confirmDelete() {
   border-color: rgba(124, 77, 204, 0.4);
   background: rgba(150, 100, 250, 0.14);
   color: #7c4dcc;
+}
+
+.scope-option--active {
+  border-color: rgba(52, 168, 130, 0.42);
+  background: rgba(52, 168, 130, 0.14);
+  color: #1f8a68;
 }
 
 .option-row {
@@ -628,4 +695,10 @@ async function confirmDelete() {
 :global(html.theme-dark) .type-select { background: rgba(150, 100, 250, 0.2); color: #c4a1ff; }
 :global(html.theme-dark) .type-number { background: rgba(250, 149, 90, 0.2); color: #f2a869; }
 :global(html.theme-dark) .type-date { background: rgba(52, 168, 130, 0.22); color: #6fd5b2; }
+
+:global(html.theme-dark) .scope-option--active {
+  border-color: rgba(111, 213, 178, 0.45);
+  background: rgba(52, 168, 130, 0.22);
+  color: #6fd5b2;
+}
 </style>

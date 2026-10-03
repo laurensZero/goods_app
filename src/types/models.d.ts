@@ -120,6 +120,11 @@ export interface GoodsItem {
     name?: number
     price?: number
   }
+  /**
+   * 自定义字段值：键 = presets.customFieldDefs 的 id，值统一存字符串。
+   * 键存在 = 这件谷子「添加了」该字段（空串 = 已添加未填）；定义见 utils/goods/customFields.js
+   */
+  customFields: Record<string, string>
   /** 本地软删除标记：trashed=1 的行 getItems 不返回，回收站通过 Preferences 单独管理 */
   trashed: boolean
 }
