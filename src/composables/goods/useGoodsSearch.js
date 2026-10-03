@@ -223,6 +223,73 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     { immediate: true }
   )
 
+  // --- Custom field filter groups (select 型；值来自条目实际填写 + 预设选项顺序) ---
+  const customFieldDefs = computed(() => (
+    Array.isArray(presets.customFieldDefs) ? presets.customFieldDefs : []
+  ))
+
+  /**
+   * 每个 select 型自定义字段一组 chip：
+   * - 只列出「源列表里真的出现过」的值（与分类/IP 筛选一致，避免选了必然 0 结果）
+   * - 已选中但源列表已无匹配的值也保留，否则用户看不到、也取消不掉
+   * - 顺序按预设 options，未登记的值按字母序垫后
+   */
+  const customFieldFilterGroups = computed(() => {
+    /** @type {Array<{ defId: string, name: string, options: Array<{ label: string, value: string }> }>} */
+    const groups = []
+
+    for (const def of customFieldDefs.value) {
+      if (String(def?.type || '') !== 'select') continue
+      const defId = String(def?.id || '').trim()
+      if (!defId) continue
+
+      const present = new Set()
+      for (const item of sourceList.value) {
+        const value = String(item?.customFields?.[defId] ?? '').trim()
+        if (value) present.add(value)
+      }
+      for (const value of filters.customFields[defId] || []) present.add(value)
+      if (!present.size) continue
+
+      const ordered = []
+      const seen = new Set()
+      for (const raw of Array.isArray(def.options) ? def.options : []) {
+        const value = String(raw || '').trim()
+        if (!value || seen.has(value) || !present.has(value)) continue
+        ordered.push(value)
+        seen.add(value)
+      }
+      for (const value of [...present].filter((entry) => !seen.has(entry)).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))) {
+        ordered.push(value)
+      }
+
+      groups.push({
+        defId,
+        name: String(def?.name || '').trim(),
+        options: ordered.map((value) => ({ label: value, value }))
+      })
+    }
+
+    return groups
+  })
+
+  // 字段定义被删除/改成非 select 时清掉残留筛选，否则该字段会永远筛不出任何条目
+  watch(
+    () => customFieldDefs.value.map((def) => [String(def?.id || ''), String(def?.type || '')].join(':')).join('|'),
+    () => {
+      const allowed = new Set(customFieldFilterGroups.value.map((group) => group.defId))
+      const keys = Object.keys(filters.customFields)
+      if (keys.every((key) => allowed.has(key))) return
+
+      const next = {}
+      for (const key of keys) {
+        if (allowed.has(key)) next[key] = filters.customFields[key]
+      }
+      filters.customFields = next
+    },
+    { immediate: true }
+  )
+
   // --- Storage location tree with item counts ---
   const hasUnassignedStorageLocation = computed(() => (
     sourceList.value.some((item) => !normalizeStorageLocationValue(item.storageLocation))
@@ -330,6 +397,31 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
       : [...current, value]
   }
 
+  /**
+   * 自定义字段筛选开关。不能复用 toggleFilterValue：它按数组处理 filters[key]，
+   * 传 'customFields' 会把整个对象写成数组。这里整对象替换，保证 key 增减都被追踪。
+   */
+  function toggleCustomFieldFilter(defId, value) {
+    const key = String(defId || '').trim()
+    if (!key) return
+
+    const current = Array.isArray(filters.customFields[key]) ? [...filters.customFields[key]] : []
+    const next = current.includes(value)
+      ? current.filter((item) => item !== value)
+      : [...current, value]
+
+    const nextMap = { ...filters.customFields }
+    if (next.length) nextMap[key] = next
+    else delete nextMap[key]
+    filters.customFields = nextMap
+  }
+
+  /** defId → 字段名（预设摘要里展示用户看得懂的名字） */
+  function customFieldNameOf(defId) {
+    const hit = customFieldDefs.value.find((def) => String(def?.id || '') === defId)
+    return String(hit?.name || '').trim() || defId
+  }
+
   function assignFilters(nextFilters) {
     const normalized = normalizeGoodsFilterConditions({
       ...nextFilters,
@@ -359,6 +451,13 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
       const preset = GOODS_FILTER_DATE_PRESET_OPTIONS.find((item) => item.value === normalized.acquiredPreset)
       if (preset) segments.push(preset.label)
     }
+    const customEntries = Object.entries(normalized.customFields)
+    if (customEntries.length) {
+      segments.push(customEntries
+        .slice(0, 2)
+        .map(([defId, values]) => `${customFieldNameOf(defId)}:${values.slice(0, 2).join("/")}`)
+        .join(' '))
+    }
 
     return segments.length ? segments.slice(0, 3).join(' · ') : t('search.onlyKeywordsOrBasic')
   }
@@ -387,6 +486,7 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     visibleCharacterOptions,
     hasUnassignedStorageLocation,
     storageLocationTree,
+    customFieldFilterGroups,
 
     // Preset operations
     searchPresets,
@@ -398,6 +498,7 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
 
     // Helpers
     toggleFilterValue,
+    toggleCustomFieldFilter,
     assignFilters,
     formatPresetSummary
   }

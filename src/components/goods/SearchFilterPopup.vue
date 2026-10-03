@@ -341,6 +341,22 @@
                   </div>
                 </div>
 
+                <!-- Custom fields (select type only in v1) -->
+                <div v-for="group in customFieldFilterGroups" :key="group.defId" class="field-block">
+                  <label class="field-label">{{ group.name }}</label>
+                  <div class="chip-wrap">
+                    <button
+                      v-for="option in group.options"
+                      :key="`${group.defId}-${option.value}`"
+                      type="button"
+                      :class="['chip', { 'chip--active': (filters.customFields?.[group.defId] || []).includes(option.value) }]"
+                      @click="$emit('toggle-custom-field', { defId: group.defId, value: option.value })"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
+
                 <!-- Storage Location (collection scope only) -->
                 <div v-if="scope === 'collection' && (storageLocationTree.length || hasUnassignedStorageLocation)" class="field-block">
                   <label class="field-label">{{ t('search.storageLocation') }}</label>
@@ -432,7 +448,8 @@ const emit = defineEmits([
   'save-preset',
   'update-preset',
   'remove-preset',
-  'toggle-character-expand'
+  'toggle-character-expand',
+  'toggle-custom-field'
 ])
 
 const props = defineProps({
@@ -444,6 +461,7 @@ const props = defineProps({
   visibleCharacterOptions: { type: Array, default: () => [] },
   hasCollapsedCharacterOptions: { type: Boolean, default: false },
   showAllCharacterOptions: { type: Boolean, default: false },
+  customFieldFilterGroups: { type: Array, default: () => [] },
   storageLocationTree: { type: Array, default: () => [] },
   hasUnassignedStorageLocation: { type: Boolean, default: false },
   activeFilterCount: { type: Number, default: 0 },

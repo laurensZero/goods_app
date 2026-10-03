@@ -60,6 +60,28 @@ function normalizeStringList(list) {
   )]
 }
 
+/**
+ * 自定义字段筛选条件：{ [defId]: string[] }。
+ * - 只保留非空数组；defId 按字典序排序后建对象，保证 `areGoodsFilterConditionsEqual`
+ *   的 JSON 字符串比较稳定（对象键序 = 插入序，乱序会导致预设被误判为「有差异」）
+ * - 值为精确匹配（select 型第一版）；空数组 = 该字段不筛
+ * @param {unknown} input
+ * @returns {Record<string, string[]>}
+ */
+export function normalizeCustomFieldFilters(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return /** @type {any} */ ({})
+
+  /** @type {Record<string, string[]>} */
+  const result = {}
+  for (const defId of Object.keys(input).sort()) {
+    const id = String(defId || '').trim()
+    if (!id) continue
+    const values = normalizeStringList(/** @type {any} */ (input)[defId])
+    if (values.length) result[id] = values
+  }
+  return result
+}
+
 function normalizeNumberLike(value) {
   if (value == null) return ''
   const text = String(value).trim()
@@ -206,6 +228,36 @@ function matchesCollectStatusFilter(selectedStatuses, item) {
   })
 }
 
+/** 条目上的自定义字段值 → { defId: '字符串值' }（空值/非对象统一丢弃） */
+function normalizeCustomFieldValues(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+
+  /** @type {Record<string, string>} */
+  const result = {}
+  for (const [defId, raw] of Object.entries(value)) {
+    const id = String(defId || '').trim()
+    const text = raw == null ? '' : String(raw).trim()
+    if (id && text) result[id] = text
+  }
+  return result
+}
+
+/**
+ * 自定义字段筛选：所有被筛选的字段都命中才通过（字段之间 AND，字段内多值 OR）。
+ * 值按精确匹配；条目未填该字段（或为空）时只有「未命中」一种结果。
+ */
+function matchesCustomFieldFilters(customFieldFilters, item) {
+  const defIds = Object.keys(customFieldFilters)
+  if (!defIds.length) return true
+
+  const values = normalizeCustomFieldValues(item?.customFields)
+  return defIds.every((defId) => {
+    const selected = customFieldFilters[defId]
+    if (!selected?.length) return true
+    return selected.includes(values[defId] || '')
+  })
+}
+
 function sortGoodsList(list, sortBy) {
   const sorted = [...list]
 
@@ -288,6 +340,7 @@ export function createDefaultGoodsFilters(overrides = {}) {
     hasImage: DEFAULT_TOGGLE,
     hasNote: DEFAULT_TOGGLE,
     collectStatuses: [],
+    customFields: {},
     sortBy: DEFAULT_SORT,
     matchPinyin: true,
     matchCase: false,
@@ -312,6 +365,7 @@ export function normalizeGoodsFilterConditions(input = {}) {
   normalized.hasImage = normalizeToggleValue(input.hasImage)
   normalized.hasNote = normalizeToggleValue(input.hasNote)
   normalized.collectStatuses = normalizeStringList(input.collectStatuses)
+  normalized.customFields = normalizeCustomFieldFilters(input.customFields)
   normalized.sortBy = normalizeSortValue(input.sortBy)
   // 拼音匹配开关：默认开启；显式传 false 才关闭
   normalized.matchPinyin = input.matchPinyin !== false
@@ -343,6 +397,7 @@ export function countActiveGoodsFilters(input, options = {}) {
   if (filters.hasImage !== DEFAULT_TOGGLE) count += 1
   if (filters.hasNote !== DEFAULT_TOGGLE) count += 1
   if (filters.collectStatuses.length) count += 1
+  count += Object.keys(filters.customFields).length
   if (filters.sortBy !== DEFAULT_SORT) count += 1
   // matchPinyin / matchCase / includeNote 只影响关键词匹配方式，不计入筛选条件数量
 
@@ -390,6 +445,7 @@ export function applyGoodsFilters(list, input) {
     if (filters.hasNote === 'no' && hasNote) return false
 
     if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
+    if (!matchesCustomFieldFilters(filters.customFields, item)) return false
 
     return true
   })
@@ -438,6 +494,7 @@ export function filterGoodsList(list, input) {
     if (filters.hasNote === 'no' && hasNote) return false
 
     if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
+    if (!matchesCustomFieldFilters(filters.customFields, item)) return false
 
     return true
   })

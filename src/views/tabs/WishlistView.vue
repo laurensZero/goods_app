@@ -216,6 +216,7 @@
       :visible-character-options="searchVisibleCharacterOptions"
       :has-collapsed-character-options="searchHasCollapsedCharacterOptions"
       :show-all-character-options="searchShowAllCharacterOptions"
+      :custom-field-filter-groups="searchCustomFieldFilterGroups"
       :storage-location-tree="[]"
       :has-unassigned-storage-location="false"
       :active-filter-count="searchActiveFilterCount"
@@ -227,6 +228,7 @@
       @update-keyword="handleSearchUpdateKeyword"
       @update-field="handleSearchUpdateField"
       @toggle-filter="handleSearchToggleFilter"
+      @toggle-custom-field="handleSearchToggleCustomFieldFilter"
       @toggle-character-expand="handleSearchToggleCharacterExpand"
       @reset="searchResetFilters"
       @select-preset="searchApplyPreset"
@@ -413,6 +415,8 @@ const {
   removePreset: searchRemovePreset,
   resetFilters: searchResetFilters,
   toggleFilterValue: searchToggleFilterValue,
+  customFieldFilterGroups: searchCustomFieldFilterGroups,
+  toggleCustomFieldFilter: searchToggleCustomFieldFilter,
   formatPresetSummary: searchFormatPresetSummary
 } = useGoodsSearch(computed(() => store.wishlistViewList), { scope: 'wishlist' })
 
@@ -1083,6 +1087,7 @@ function goToNewArrivals() {
 function handleSearchUpdateKeyword(value) { searchFilters.keyword = value }
 function handleSearchUpdateField({ key, value }) { searchFilters[key] = value }
 function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key, value) }
+function handleSearchToggleCustomFieldFilter({ defId, value }) { searchToggleCustomFieldFilter(defId, value) }
 function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }
 
 function persistHomeMode(mode) {
