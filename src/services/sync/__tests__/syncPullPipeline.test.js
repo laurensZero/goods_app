@@ -232,13 +232,13 @@ describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => 
 })
 
 describe('mergeToLocal presets（本地未推送的改动不被远端快照覆盖）', () => {
-  it('默认应用远端 presets 快照', async () => {
+  it('默认应用远端 presets 快照（并透传块级时钟）', async () => {
     const stores = makeStores()
     const presets = { categories: [{ name: 'A' }], customFieldDefs: [] }
 
-    await mergeToLocal(stores, { goods: [], trash: [], presets }, { reconcileMissing: false })
+    await mergeToLocal(stores, { goods: [], trash: [], presets, presetsUpdatedAt: 1234 }, { reconcileMissing: false })
 
-    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(presets)
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(presets, { updatedAt: 1234 })
   })
 
   it('preserveLocalPresets=true 时跳过远端 presets（保护刚新增/删除的字段定义）', async () => {

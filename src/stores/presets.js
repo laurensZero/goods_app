@@ -25,6 +25,8 @@ const STORAGE_KEY_FAV_IP = 'goods_presets_favorite_ips'
 const STORAGE_KEY_FAV_CHR = 'goods_presets_favorite_characters'
 const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
 const STORAGE_KEY_CUSTOM_FIELD_DEFS = 'goods_presets_custom_field_defs'
+// 已应用/已确认的远端预设块时间戳（服务器时间域，毫秒字符串）
+const STORAGE_KEY_PRESETS_REMOTE_AT = 'goods_presets_remote_updated_at'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
@@ -927,7 +929,18 @@ export const usePresetsStore = defineStore('presets', () => {
     return [...removedIds]
   }
 
-  async function replacePresetsSnapshot(snapshot = {}) {
+  async function replacePresetsSnapshot(snapshot = {}, { updatedAt = 0 } = {}) {
+    const remoteUpdatedAt = Number(updatedAt) || 0
+    const lastAppliedRemoteAt = Number(await readPersisted(STORAGE_KEY_PRESETS_REMOTE_AT)) || 0
+
+    // 过期响应保护：pull 是在本地推送之前发出的（或早于已经应用过的块）时，
+    // 它带回的是更旧的预设块。直接应用会让本地预设回退 —— 这是「刚加的字段又没了」
+    // 的另一条路径。时间戳由服务器 now() 生成，同一时钟域，可直接比较。
+    if (remoteUpdatedAt > 0 && lastAppliedRemoteAt > 0 && remoteUpdatedAt < lastAppliedRemoteAt) {
+      console.warn('[presets] skip stale remote snapshot', { remoteUpdatedAt, lastAppliedRemoteAt })
+      return
+    }
+
     // Helper: 兼容三种格式
     // 1) 旧格式 ["..."]  → 数组，元素是字符串
     // 2) 过渡格式 {n: [...], f: [...]} → 对象，有 n/f 键
@@ -995,7 +1008,10 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value),
       writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
-      writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
+      writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value),
+      ...(remoteUpdatedAt > 0
+        ? [writePersisted(STORAGE_KEY_PRESETS_REMOTE_AT, String(remoteUpdatedAt))]
+        : [])
     ])
   }
 
