@@ -330,7 +330,7 @@ describe('client lifecycle (no churn, no leak)', () => {
     expect(first.auth.stopAutoRefresh).not.toHaveBeenCalled()
   })
 
-  it('disposes and clears the client when a custom endpoint probe fails', async () => {
+  it('keeps the client alive when a custom endpoint probe fails (realtime survives)', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))
     const custom = 'https://my-custom.supabase.co'
@@ -339,14 +339,12 @@ describe('client lifecycle (no churn, no leak)', () => {
 
     const ok = await mod.reconnectSupabase({ force: true })
 
-    // 自建实例无备用：探测失败即置空，但必须先停掉旧实例的自动刷新定时器再丢弃
+    // 探测失败只说明网络不通：实例必须保留，否则会连带销毁 Realtime 通道，
+    // 切换到另一台设备验证时会长时间收不到变更（要等 30s 健康巡检才恢复）。
     expect(ok).toBe(false)
-    expect(first.auth.stopAutoRefresh).toHaveBeenCalledTimes(1)
-    expect(first.realtime.disconnect).toHaveBeenCalledTimes(1)
-
-    createClientMock.mockClear()
-    const next = mod.getSupabaseClient()
-    expect(next).not.toBe(first)
+    expect(mod.getSupabaseClient()).toBe(first)
+    expect(first.auth.stopAutoRefresh).not.toHaveBeenCalled()
+    expect(first.realtime.disconnect).not.toHaveBeenCalled()
     expect(createClientMock).toHaveBeenCalledTimes(1)
   })
 
