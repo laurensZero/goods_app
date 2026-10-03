@@ -18,6 +18,12 @@ export default [
     meta: { titleKey: 'nav.ipManage' }
   },
   {
+    path: '/manage/custom-fields',
+    name: 'manage-custom-fields',
+    component: () => import('@/views/manage/CustomFieldManageView.vue'),
+    meta: { titleKey: 'manage.customFields' }
+  },
+  {
     path: '/manage/characters',
     name: 'manage-characters',
     component: () => import('@/views/manage/CharacterManageView.vue'),

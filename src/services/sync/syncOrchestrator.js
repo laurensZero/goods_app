@@ -592,6 +592,8 @@ export function createSyncOrchestrator({
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
+            // 本地 presets 有未推送改动（刚新建/删除自定义字段、改分类…）时不被远端快照覆盖
+            preserveLocalPresets: isPresetsDirty,
             resolveRechargeImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
@@ -609,14 +611,16 @@ export function createSyncOrchestrator({
       await flushDbWrites().catch(() => {})
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       await saveServerWatermark(ctx, remoteManifest?.lastSyncAt)
-      // 拉取后本地仍有草稿脏域：立刻再推一次，避免 doSync 的 clearDirtyDomains 吞掉 batchDrafts
-      if (draftsDomainDirty || hasBatchDraftDataDiff) {
+      // 拉取后本地仍有脏域：立刻再推一次，避免 doSync 的 clearDirtyDomains 吞掉这些改动。
+      // presets：上面按 preserveLocalPresets 保住了本地定义，这里必须把它推到云端，
+      // 否则脏标记被清掉后云端会一直停留在旧快照（新增/删除的字段不再同步）。
+      if (draftsDomainDirty || hasBatchDraftDataDiff || isPresetsDirty) {
         const pushAfterPull = await doPush(ctx, stores, be, {
           hasDataDiff: false,
           hasRechargeDataDiff: false,
           hasEventDataDiff: false,
-          hasBatchDraftDataDiff: true,
-          hasPresetsDiff: false,
+          hasBatchDraftDataDiff: Boolean(draftsDomainDirty || hasBatchDraftDataDiff),
+          hasPresetsDiff: Boolean(isPresetsDirty),
           remoteData,
           localBatchDrafts,
           source: syncSource

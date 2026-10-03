@@ -72,27 +72,43 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (error) console.warn('[supabase] device force_resync clear warning:', error.message)
   }
 
+  // 注意：当前没有调用方 —— 后端适配器（supabaseAdapter/index.js）只装配了 pushAll，
+  // presets 实际由 sync_push 的 payload.presets 分支落库（见 pushAll）。
+  // 这里与 payload 保持同构，避免以后接回来时漏字段。
   async function writePresets(presetsData) {
     const db = getDb()
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    // 后加的列：自建/未迁移实例可能没有，报错时逐个摘掉重试，保证其余预设仍可同步
+    const optionalCols = {
+      event_types: JSON.stringify(presetsData.eventTypes || []),
+      custom_field_defs: JSON.stringify(presetsData.customFieldDefs || [])
+    }
     const presetsRow = {
       categories: JSON.stringify(presetsData.categories || []),
       ips: JSON.stringify(presetsData.ips || []),
       characters: JSON.stringify(presetsData.characters || []),
       storage_locations: JSON.stringify(presetsData.storageLocations || []),
-      event_types: JSON.stringify(presetsData.eventTypes || []),
+      ...optionalCols,
       user_id: currentUserId || null
     }
     let { error } = await withRetry(() =>
       db.from('sync_presets').upsert(presetsRow, { onConflict: 'user_id' })
     )
-    // 自建/未迁移实例尚无 event_types 列时，退回旧列集，保证其余预设仍可同步
-    if (error && /event_types/i.test(error.message || '')) {
+    if (error) {
+      const message = error.message || ''
       const fallbackRow = { ...presetsRow }
-      delete fallbackRow.event_types
-      ;({ error } = await withRetry(() =>
-        db.from('sync_presets').upsert(fallbackRow, { onConflict: 'user_id' })
-      ))
+      let dropped = false
+      for (const column of Object.keys(optionalCols)) {
+        if (new RegExp(column, 'i').test(message)) {
+          delete fallbackRow[column]
+          dropped = true
+        }
+      }
+      if (dropped) {
+        ;({ error } = await withRetry(() =>
+          db.from('sync_presets').upsert(fallbackRow, { onConflict: 'user_id' })
+        ))
+      }
     }
     if (error) console.warn('[supabase] presets upsert warning:', error.message)
   }
@@ -263,7 +279,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
           ips: JSON.stringify(presets.ips || []),
           characters: JSON.stringify(presets.characters || []),
           storage_locations: JSON.stringify(presets.storageLocations || []),
-          event_types: JSON.stringify(presets.eventTypes || [])
+          event_types: JSON.stringify(presets.eventTypes || []),
+          custom_field_defs: JSON.stringify(presets.customFieldDefs || [])
         } : {},
         delete_goods: deleteGoods || [],
         delete_groups: deleteGroups || [],

@@ -31,7 +31,11 @@ export const MANIFEST_VERSION = 1
 //      的配方与去框底图引用（images 是已同步的 JSON 列，无需云端迁移）。
 //      旧版本归一化会剥掉这三个字段并把行写回云端，故必须强制一次全量重拉。
 //      见 docs/frame-reedit-plan.md 阶段二。
-export const SYNC_SCHEMA_VERSION = 13
+// v14: goods.customFields JSON —— 用户自定义字段的值 { <defId>: string }，
+//      定义列表随 sync_presets.custom_field_defs 同步。发布前执行
+//      supabase/supabase-migration-goods-custom-fields.sql；presets 推送链路
+//      见 docs/goods-custom-fields-plan.md（前置验证）。
+export const SYNC_SCHEMA_VERSION = 14
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

@@ -75,6 +75,18 @@ export function useManageEntries() {
       stats: [{ label: t('manage.statEventTypeCount'), value: `${presets.eventTypes.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statEventList') }]
     },
     {
+      key: 'customFields', group: 'preset', title: t('manage.customFields'), kicker: t('manage.customFieldKicker'),
+      meta: t('manage.customFieldMeta', { count: presets.customFieldDefs.length }),
+      detail: t('manage.customFieldDetail'),
+      summary: t('manage.customFieldSummary'),
+      recommendation: t('manage.customFieldRecommendation'),
+      primaryLabel: t('manage.customFieldPrimaryLabel'), secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'custom-field-icon',
+      iconPaths: ['M4 6h16', 'M4 12h10', 'M4 18h7', 'M17 15l3 3', 'M20 15l-3 3'],
+      path: '/manage/custom-fields',
+      stats: [{ label: t('manage.statCustomFieldCount'), value: `${presets.customFieldDefs.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
+    },
+    {
       key: 'ips', group: 'preset', title: t('manage.ipManage'), kicker: t('manage.ipKicker'),
       meta: t('manage.ipMeta', { count: presets.ips.length }),
       detail: t('manage.ipDetail'),

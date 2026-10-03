@@ -427,5 +427,20 @@
   "preset.thisPreset": "このプリセット",
   "goods.addMethod.collage": "フリー コラージュ",
   "goods.addMethod.collageDesc": "複数画像を 1 枚に合わせて商品画像として追加",
-  "goods.image.addCollage": "コラージュ"
+  "goods.image.addCollage": "コラージュ",
+  "goods.editor.customFieldsSection": "カスタム項目",
+  "goods.editor.customFieldTextPlaceholder": "内容を入力",
+  "goods.editor.customFieldNumberPlaceholder": "数値",
+  "goods.editor.customFieldDatePlaceholder": "日付を選択",
+  "goods.editor.customFieldNoOptions": "選択肢がまだありません。設定で追加してください",
+  "goods.editor.customFieldAdd": "項目を追加",
+  "goods.editor.customFieldsEmptyHint": "このグッズにはまだカスタム項目がありません。「項目を追加」から選択または新規作成できます。",
+  "goods.editor.customFieldRemove": "項目を外す",
+  "goods.editor.customFieldPickerTitle": "カスタム項目を追加",
+  "goods.editor.customFieldPickerEmpty": "利用できる項目はすべて追加済みです。新規作成できます。",
+  "goods.editor.customFieldQuickCreate": "項目を新規作成",
+  "goods.editor.customFieldQuickName": "項目名",
+  "goods.editor.customFieldQuickOptions": "選択肢（カンマ区切り、空でも可）",
+  "goods.editor.customFieldQuickSubmit": "作成して追加",
+  "goods.editor.customFieldSelectPlaceholder": "選択してください"
 }

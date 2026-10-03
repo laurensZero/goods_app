@@ -28,7 +28,9 @@ import {
   replaceCategoryName as _replaceCategoryName,
   replaceIpName as _replaceIpName,
   replaceCharacterName as _replaceCharacterName,
-  syncCharacterIp as _syncCharacterIp
+  syncCharacterIp as _syncCharacterIp,
+  clearCustomFieldValues as _clearCustomFieldValues,
+  renameCustomFieldOptionValue as _renameCustomFieldOptionValue
 } from '@/stores/goods/goodsBatchRename'
 import {
   addMultipleGoods as _addMultipleGoods,
@@ -298,6 +300,16 @@ export const useGoodsStore = defineStore('goods', () => {
     return _syncCharacterIp(name, nextIp, previousIp, list, trashList)
   }
 
+  /** 清除某自定义字段的值（删字段定义时调用；onlyValue 非空则只清该选项值） */
+  function clearCustomFieldValues(defId, onlyValue = null) {
+    return _clearCustomFieldValues(defId, onlyValue, list, trashList, autoPushGoods)
+  }
+
+  /** select 选项改名后级联改写已填值 */
+  function renameCustomFieldOptionValue(defId, oldValue, newValue) {
+    return _renameCustomFieldOptionValue(defId, oldValue, newValue, list, trashList, autoPushGoods)
+  }
+
   function replaceStorageLocationPrefix(oldPrefix, newPrefix) {
     return _replaceStorageLocationPrefix(oldPrefix, newPrefix, list, autoPushGoods)
   }
@@ -362,6 +374,8 @@ export const useGoodsStore = defineStore('goods', () => {
     replaceIpName,
     replaceCharacterName,
     syncCharacterIp,
+    clearCustomFieldValues,
+    renameCustomFieldOptionValue,
     replaceStorageLocationPrefix,
     clearStorageLocationPrefix,
     addMultipleGoods,

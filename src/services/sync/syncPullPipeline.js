@@ -198,7 +198,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false, forceAlign = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false, forceAlign = false, preserveLocalPresets = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -331,7 +331,13 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   }
 
   // ── Presets ──
-  if (remoteData.presets && presetsStore) {
+  // 本地 presets 有「尚未推送」的改动时不能被远端快照覆盖：presets 是整块 LWW，
+  // 而冲突判定（getLocalChangesSince）只数 goods/events/recharge/groups，
+  // 所以「刚新建（或删除）一个自定义字段」后的自动 pull 会把这次改动整个抹掉 ——
+  // 表现为「刚加的字段在编辑页找不到」「删掉的字段又回来了」，随后推送还会把被抹掉的
+  // 状态当成本地真值推上云。此时保留本地，并由 orchestrator 在 pull 后补推一次。
+  // （用户显式选择「使用云端数据」的 pull 路径不传该标记，仍是云端优先。）
+  if (remoteData.presets && presetsStore && !preserveLocalPresets) {
     await presetsStore.replacePresetsSnapshot(remoteData.presets)
   }
 

@@ -128,6 +128,75 @@ async function replaceCharacterName(oldName, newName, list, trashList, triggerSy
   if (typeof triggerSync === 'function') triggerSync(changedIds)
 }
 
+// ── 自定义字段值维护 ──
+// 字段定义（presets）与字段值（goods.customFields）分开存在，所以「删字段 / 选项改名」
+// 必须显式改写 goods 行，否则各设备仍留着旧值（孤儿键不展示但会一直同步）。
+// mutateCustomFieldValues(defId, mutator)：mutator 返回新值，返回 null/'' 表示删除该键。
+async function mutateCustomFieldValues(defId, mutator, list, trashList, triggerSync) {
+  const targetId = String(defId || '').trim()
+  if (!targetId || typeof mutator !== 'function') return
+
+  let listChanged = false
+  let trashChanged = false
+  const changedIds = []
+  const now = Date.now()
+
+  const applyTo = (item, markChanged) => {
+    const current = item?.customFields
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return item
+    if (!Object.prototype.hasOwnProperty.call(current, targetId)) return item
+
+    const nextValue = mutator(current[targetId])
+    if (nextValue === undefined) return item
+
+    const nextFields = { ...current }
+    if (nextValue === null || nextValue === '') delete nextFields[targetId]
+    else nextFields[targetId] = String(nextValue)
+
+    markChanged()
+    changedIds.push(item.id)
+    return { ...item, customFields: nextFields, updatedAt: now }
+  }
+
+  list.value = list.value.map((item) => applyTo(item, () => { listChanged = true }))
+  trashList.value = trashList.value.map((item) => applyTo(item, () => { trashChanged = true }))
+
+  if (!listChanged && !trashChanged) return
+
+  const changedIdSet = new Set(changedIds)
+  const updatedItems = [
+    ...list.value.filter((item) => changedIdSet.has(item.id)),
+    ...trashList.value.filter((item) => changedIdSet.has(item.id))
+  ]
+
+  await Promise.all([
+    updatedItems.length > 0 ? saveItems(updatedItems) : Promise.resolve()
+  ])
+
+  if (typeof triggerSync === 'function') triggerSync(changedIds)
+}
+
+/**
+ * 清除某个自定义字段的值。
+ * @param {string} defId 字段定义 id
+ * @param {string|null} onlyValue 只清除等于该值的项；null = 清除该字段所有值
+ */
+async function clearCustomFieldValues(defId, onlyValue, list, trashList, triggerSync) {
+  const filterValue = onlyValue == null ? null : String(onlyValue)
+  return mutateCustomFieldValues(defId, (value) => {
+    if (filterValue != null && String(value) !== filterValue) return undefined
+    return null
+  }, list, trashList, triggerSync)
+}
+
+/** select 选项改名级联更新已填值 */
+async function renameCustomFieldOptionValue(defId, oldValue, newValue, list, trashList, triggerSync) {
+  const from = String(oldValue == null ? '' : oldValue).trim()
+  const to = String(newValue == null ? '' : newValue).trim()
+  if (!from || !to || from === to) return
+  return mutateCustomFieldValues(defId, (value) => (String(value) === from ? to : undefined), list, trashList, triggerSync)
+}
+
 async function syncCharacterIp(name, nextIp, previousIp, list, trashList) {
   const characterName = normalizeCharacterName(name)
   const currentIp = String(previousIp || '').trim()
@@ -178,5 +247,7 @@ export {
   replaceCategoryName,
   replaceIpName,
   replaceCharacterName,
-  syncCharacterIp
+  syncCharacterIp,
+  clearCustomFieldValues,
+  renameCustomFieldOptionValue
 }

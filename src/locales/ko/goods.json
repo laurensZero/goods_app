@@ -427,5 +427,20 @@
   "preset.thisPreset": "이 프리셋",
   "goods.addMethod.collage": "자유 콜라주",
   "goods.addMethod.collageDesc": "여러 이미지를 하나로 합쳐 상품 이미지로 추가",
-  "goods.image.addCollage": "콜라주"
+  "goods.image.addCollage": "콜라주",
+  "goods.editor.customFieldsSection": "사용자 정의 필드",
+  "goods.editor.customFieldTextPlaceholder": "내용 입력",
+  "goods.editor.customFieldNumberPlaceholder": "숫자",
+  "goods.editor.customFieldDatePlaceholder": "날짜 선택",
+  "goods.editor.customFieldNoOptions": "선택 항목이 없습니다. 설정에서 먼저 추가하세요",
+  "goods.editor.customFieldAdd": "필드 추가",
+  "goods.editor.customFieldsEmptyHint": "이 굿즈에는 아직 사용자 정의 필드가 없습니다. \"필드 추가\"를 눌러 선택하거나 새로 만드세요.",
+  "goods.editor.customFieldRemove": "필드 제거",
+  "goods.editor.customFieldPickerTitle": "사용자 정의 필드 추가",
+  "goods.editor.customFieldPickerEmpty": "사용 가능한 필드를 모두 추가했습니다. 새로 만들 수 있습니다.",
+  "goods.editor.customFieldQuickCreate": "필드 새로 만들기",
+  "goods.editor.customFieldQuickName": "필드 이름",
+  "goods.editor.customFieldQuickOptions": "선택 항목(쉼표로 구분, 비워둘 수 있음)",
+  "goods.editor.customFieldQuickSubmit": "만들고 추가",
+  "goods.editor.customFieldSelectPlaceholder": "선택하세요"
 }

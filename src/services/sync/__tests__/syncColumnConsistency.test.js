@@ -35,7 +35,7 @@ const TABLES = [
     cols: GOODS_COLS,
     selectCols: GOODS_SELECT_COLS,
     // 与改造前手写串逐字一致的现网值（golden）
-    goldenSelect: 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, size, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, shipping_events, sell_price, sell_platform, sell_fee, sell_date, unit_sale_info_list, status_timeline, manual_orders, trashed, updated_at, user_id'
+    goldenSelect: 'id, name, category, ip, goods_id, is_wishlist, characters, tags, storage_location, variant, size, price, actual_price, acquired_at, sale_at, sale_reminder_enabled, sale_reminder_offsets, unit_acquired_at_list, unit_actual_price_list, unit_character_list, unit_collect_status_list, images, tracks, note, quantity, points, currency, actual_price_currency, collect_status, shipping_fee, shipping_events, sell_price, sell_platform, sell_fee, sell_date, unit_sale_info_list, status_timeline, manual_orders, custom_fields, trashed, updated_at, user_id'
   },
   {
     name: 'recharge_records',
@@ -124,9 +124,11 @@ describe('sync column spec consistency', () => {
     expect([...normalizedKeys].sort()).toEqual([...GOODS_BUSINESS_KEYS].sort())
   })
 
-  it('GOODS_JSON_OBJECT_KEYS is manualOrders only', () => {
-    expect(GOODS_JSON_OBJECT_KEYS).toEqual(['manualOrders'])
-    expect(GOODS_BUSINESS_KEYS).toContain('manualOrders')
+  it('GOODS_JSON_OBJECT_KEYS covers the goods JSON object columns', () => {
+    expect(GOODS_JSON_OBJECT_KEYS).toEqual(['manualOrders', 'customFields'])
+    for (const key of GOODS_JSON_OBJECT_KEYS) {
+      expect(GOODS_BUSINESS_KEYS).toContain(key)
+    }
   })
 
   it('normalizeBatchDraft whitelist matches the batch_drafts business keys', () => {

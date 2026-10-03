@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS goods (
   sell_date TEXT DEFAULT '',
   unit_sale_info_list JSONB DEFAULT '[]',
   manual_orders JSONB DEFAULT '{}',
+  custom_fields JSONB DEFAULT '{}',
   synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -203,6 +204,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_fee TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS manual_orders JSONB DEFAULT '{}';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS size TEXT DEFAULT '';
 -- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
 ALTER TABLE goods DROP COLUMN IF EXISTS image;
@@ -222,6 +224,11 @@ ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NUL
 ALTER TABLE sync_manifest ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+-- event_types / custom_field_defs：都是随 presets 同步的 JSONB 数组列。
+-- 缺列时客户端 sync_push 的 presets 分支不会 SET 该列（旧客户端 payload 不含该键），
+-- 因此补列不需要重发数据。
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS event_types JSONB DEFAULT '[]';
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS custom_field_defs JSONB DEFAULT '[]';
 
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
@@ -321,6 +328,7 @@ BEGIN
     OR NEW.sell_date IS DISTINCT FROM OLD.sell_date
     OR NEW.unit_sale_info_list IS DISTINCT FROM OLD.unit_sale_info_list
     OR NEW.manual_orders IS DISTINCT FROM OLD.manual_orders
+    OR NEW.custom_fields IS DISTINCT FROM OLD.custom_fields
   THEN NEW.updated_at = now();
   ELSE NEW.updated_at = OLD.updated_at;
   END IF;

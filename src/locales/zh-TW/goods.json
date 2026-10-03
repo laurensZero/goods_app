@@ -427,5 +427,20 @@
   "preset.thisPreset": "该预設",
   "goods.addMethod.collage": "自由拼圖",
   "goods.addMethod.collageDesc": "多圖拼成一張後，作為谷子圖片新增",
-  "goods.image.addCollage": "拼圖"
+  "goods.image.addCollage": "拼圖",
+  "goods.editor.customFieldsSection": "自訂欄位",
+  "goods.editor.customFieldTextPlaceholder": "填寫內容",
+  "goods.editor.customFieldNumberPlaceholder": "數字",
+  "goods.editor.customFieldDatePlaceholder": "選擇日期",
+  "goods.editor.customFieldNoOptions": "該欄位還沒有選項，請先在設定裡新增",
+  "goods.editor.customFieldAdd": "新增欄位",
+  "goods.editor.customFieldsEmptyHint": "這件穀子還沒有自訂欄位，點「新增欄位」選擇或新建。",
+  "goods.editor.customFieldRemove": "移除欄位",
+  "goods.editor.customFieldPickerTitle": "新增自訂欄位",
+  "goods.editor.customFieldPickerEmpty": "可用的欄位都新增過了，可以直接新建。",
+  "goods.editor.customFieldQuickCreate": "快速新增欄位",
+  "goods.editor.customFieldQuickName": "欄位名稱",
+  "goods.editor.customFieldQuickOptions": "選項（用逗號分隔，可留空）",
+  "goods.editor.customFieldQuickSubmit": "建立並新增",
+  "goods.editor.customFieldSelectPlaceholder": "請選擇"
 }

@@ -129,6 +129,11 @@
               <strong class="info-value">{{ item.tags.map((tag) => `#${tag}`).join('、') }}</strong>
             </article>
 
+            <article v-for="tile in customFieldTiles" :key="tile.id" class="info-tile">
+              <span class="info-label">{{ tile.name }}</span>
+              <strong class="info-value">{{ tile.value }}</strong>
+            </article>
+
             <article class="info-tile">
               <span class="info-label">{{ item.isWishlist ? t('goods.detail.expectedDate') : t('goods.detail.purchaseDate') }}</span>
               <strong class="info-value">{{ acquiredAtDisplayText }}</strong>
@@ -345,6 +350,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
 import { resolveCollectionTotalValue } from '@/stores/goods/goodsHelpers'
 import { formatDate } from '@/utils/format'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
@@ -390,6 +396,7 @@ const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 const props = defineProps({ id: { type: String, required: true } })
 const router = useRouter()
 const store = useGoodsStore()
+const presets = usePresetsStore()
 const exchangeRate = useExchangeRateStore()
 const stockMonitorStore = useMihoyoStockMonitorStore()
 const mihoyoFeaturesStore = useMihoyoFeaturesStore()
@@ -474,6 +481,14 @@ async function playGoodsHeroForwardWhenReady() {
 }
 
 const item = computed(() => store.getById(props.id))
+// 自定义字段：按定义顺序取「有值」的项；没定义的孤儿键不展示（值保留在数据里）
+const customFieldTiles = computed(() => {
+  const values = item.value?.customFields
+  if (!values || typeof values !== 'object') return []
+  return presets.customFieldDefs
+    .map((def) => ({ id: def.id, name: def.name, value: String(values[def.id] || '').trim() }))
+    .filter((tile) => tile.value)
+})
 const trackList = computed(() =>
   (Array.isArray(item.value?.tracks) ? item.value.tracks : []).filter((entry) => entry?.title || entry?.artist || entry?.neteaseSongId || entry?.qqSongId)
 )

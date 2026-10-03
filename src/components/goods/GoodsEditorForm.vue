@@ -441,6 +441,77 @@
                   />
                 </div>
               </div>
+
+              <div class="section-head">
+                <p class="section-label">{{ t('goods.editor.extraInfo') }}</p>
+                <h2 class="section-title">{{ t('goods.editor.customFieldsSection') }}</h2>
+              </div>
+
+              <div class="field-card">
+                <div v-if="attachedCustomFieldDefs.length === 0" class="field">
+                  <span class="field-label">{{ t('goods.editor.customFieldsSection') }}</span>
+                  <p class="custom-fields-empty">{{ t('goods.editor.customFieldsEmptyHint') }}</p>
+                </div>
+
+                <div v-for="def in attachedCustomFieldDefs" :key="def.id" class="field">
+                  <div class="inline-actions">
+                    <span class="inline-actions__label">{{ def.name }}</span>
+                    <button class="inline-clear-btn" type="button" @click="detachCustomField(def.id)">
+                      {{ t('goods.editor.customFieldRemove') }}
+                    </button>
+                  </div>
+
+                  <AppSelect
+                    v-if="def.type === 'select'"
+                    v-model="form.customFields[def.id]"
+                    :options="customFieldOptions(def)"
+                    :placeholder="t('goods.editor.customFieldSelectPlaceholder')"
+                  />
+
+                  <button
+                    v-else-if="def.type === 'date'"
+                    class="date-field"
+                    type="button"
+                    @pointerdown="flushActiveInput"
+                    @click="openCustomFieldDatePicker(def.id)"
+                  >
+                    <span :class="{ 'date-field__value--placeholder': !form.customFields[def.id] }">
+                      {{ form.customFields[def.id] || t('goods.editor.customFieldDatePlaceholder') }}
+                    </span>
+
+                    <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <rect x="3" y="5" width="18" height="16" rx="3" />
+                      <path d="M8 3V7" />
+                      <path d="M16 3V7" />
+                      <path d="M3 10H21" />
+                    </svg>
+                  </button>
+
+                  <input
+                    v-else-if="def.type === 'number'"
+                    v-model="form.customFields[def.id]"
+                    type="number"
+                    inputmode="decimal"
+                    step="any"
+                    :placeholder="t('goods.editor.customFieldNumberPlaceholder')"
+                  />
+
+                  <input
+                    v-else
+                    v-model="form.customFields[def.id]"
+                    type="text"
+                    :placeholder="t('goods.editor.customFieldTextPlaceholder')"
+                  />
+                </div>
+
+                <button class="field-add-btn" type="button" @click="openCustomFieldPicker">
+                  <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 3V13" />
+                    <path d="M3 8H13" />
+                  </svg>
+                  {{ t('goods.editor.customFieldAdd') }}
+                </button>
+              </div>
             </section>
 
               <section v-show="activeTab === 'images'" class="tab-panel" :class="{ 'tab-panel--active': activeTab === 'images' }">
@@ -946,6 +1017,23 @@
       @confirm="onSellDateConfirm"
     />
 
+    <AppDatePicker
+      v-model:show="showCustomFieldDatePicker"
+      v-model="customFieldDatePickerValue"
+      :z-index="2005"
+      :is-tablet="isTabletViewport"
+      :title="customFieldDatePickerTitle"
+      :min-date="minDate"
+      :max-date="maxDate"
+      @confirm="onCustomFieldDateConfirm"
+    />
+
+    <CustomFieldPickerSheet
+      v-model="showCustomFieldPicker"
+      :attached-ids="attachedCustomFieldIds"
+      @pick="attachCustomField"
+    />
+
     <DangerConfirmDialog
       v-model:show="showLeaveConfirm"
       :title="t('common.unsavedLeaveTitle')"
@@ -978,6 +1066,7 @@ import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import EventTrackEditor from '@/components/events/EventTrackEditor.vue'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
+import CustomFieldPickerSheet from '@/components/goods/CustomFieldPickerSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -1044,6 +1133,11 @@ const {
   showDatePicker,
   showUnitDatePicker,
   showShippingDatePicker,
+  showCustomFieldDatePicker,
+  customFieldDatePickerValue,
+  activeCustomFieldDateId,
+  openCustomFieldDatePicker,
+  onCustomFieldDateConfirm,
   showSaleDateTimePicker,
   showCharPicker,
   datePickerValue,
@@ -1107,6 +1201,60 @@ const {
   initialIsWishlist: props.initialIsWishlist,
   getMotionSourceEl: () => previewMediaRef.value,
   beforeNavigateAway: () => leaveGuardSlot.current?.markLeaveAllowed()
+})
+
+// ── 自定义字段（定义来自 presets，值随商品保存）──
+// 「这件谷子添加了哪些字段」= customFields 里是否存在该键（空串 = 已添加未填）。
+// 因此编辑页只渲染已添加的字段，而不是把所有定义都铺出来。
+const attachedCustomFieldIds = computed(() =>
+  Object.keys(form.customFields || {})
+)
+
+const attachedCustomFieldDefs = computed(() =>
+  presets.customFieldDefs.filter((def) => hasCustomFieldKey(def.id))
+)
+
+function hasCustomFieldKey(defId) {
+  return Object.prototype.hasOwnProperty.call(form.customFields || {}, defId)
+}
+
+/** select 的可选项；值不在定义里（选项被删/改名前的旧值）时也补进去，避免看不到已存值 */
+function customFieldOptions(def) {
+  const options = Array.isArray(def?.options) ? [...def.options] : []
+  const current = String(form.customFields?.[def.id] || '').trim()
+  if (current && !options.includes(current)) options.unshift(current)
+  return options
+}
+
+/** 把某个字段添加到这件谷子（空串 = 已添加未填） */
+function attachCustomField(defId) {
+  if (!defId) return
+  const current = form.customFields && typeof form.customFields === 'object' && !Array.isArray(form.customFields)
+    ? form.customFields
+    : {}
+  if (Object.prototype.hasOwnProperty.call(current, defId)) return
+  form.customFields = { ...current, [defId]: '' }
+}
+
+/** 从这件谷子移除某个字段（整对象替换，确保响应式一定刷新） */
+function detachCustomField(defId) {
+  const current = form.customFields
+  if (!current || typeof current !== 'object' || Array.isArray(current)) return
+  if (!Object.prototype.hasOwnProperty.call(current, defId)) return
+  const next = { ...current }
+  delete next[defId]
+  form.customFields = next
+}
+
+const showCustomFieldPicker = ref(false)
+
+function openCustomFieldPicker() {
+  showCustomFieldPicker.value = true
+}
+
+const customFieldDatePickerTitle = computed(() => {
+  const def = presets.customFieldDefs.find((item) => item.id === activeCustomFieldDateId.value)
+  return def?.name || t('goods.editor.customFieldDatePlaceholder')
 })
 
 const leaveGuard = useUnsavedLeaveGuard({ isDirty: hasUnsavedChanges })
