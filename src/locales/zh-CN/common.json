@@ -298,6 +298,7 @@
   "imageEditor.pickingColor": "取色中...",
   "imageEditor.tapToPick": "按住图片移动取色，松手选中",
   "imageEditor.preparing": "准备导出...",
+  "imageEditor.preparingBacking": "生成底图中...",
   "imageEditor.productEnhance": "商品图增强",
   "imageEditor.ratio16to9": "16:9",
   "imageEditor.ratio1to1": "1:1",

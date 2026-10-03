@@ -344,7 +344,16 @@ async function markImagesAsRemote(preparedImagesByItemId, list, trashList) {
             storageMode: 'cloud-local',
             cloudFileName: prepared.cloudFileName,
             mimeType: prepared.mimeType || images[idx]?.mimeType || '',
-            fileSize: Number(prepared.fileSize) > 0 ? Number(prepared.fileSize) : (Number(images[idx]?.fileSize) || 0)
+            fileSize: Number(prepared.fileSize) > 0 ? Number(prepared.fileSize) : (Number(images[idx]?.fileSize) || 0),
+            // 外框「去框底图」上传后同样要回写云端文件名：孤儿回收按**本地**引用集判定，
+            // 本地不知道文件名的话，48h 宽限一过就会把底图删掉（见 docs/frame-reedit-plan.md 坑 ②）
+            ...(prepared.edit
+              ? {
+                  edit: prepared.edit,
+                  editSourceUri: prepared.editSourceUri || images[idx]?.editSourceUri || '',
+                  editSourceCloudFileName: prepared.editSourceCloudFileName || ''
+                }
+              : {})
           }
           changed = true
         }

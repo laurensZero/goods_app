@@ -14,7 +14,9 @@ import {
   normalizeBudgetValue,
   getLatestRechargeTimestamp,
   shouldPullRechargeByManifest,
-  collectReferencedImageState
+  collectReferencedImageState,
+  buildImageEditSourceFilename,
+  buildImageFilename
 } from '../shared'
 
 describe('getItemTimestamp', () => {
@@ -398,6 +400,52 @@ describe('collectReferencedImageState', () => {
     expect(referencedFiles.has('goods-image__g1__legacy__1.jpg')).toBe(true)
   })
 
+  it('登记外框二次编辑的「去框底图」，否则孤儿回收会删掉它', () => {
+    const backingName = 'goods-image__g1__img1s__1.jpg'
+    const { referencedFiles } = collectReferencedImageState({
+      goods: [{
+        id: 'g1',
+        images: [{
+          id: 'img1',
+          uri: 'cloud-image://goods-image__g1__img1__1.jpg',
+          cloudFileName: 'goods-image__g1__img1__1.jpg',
+          edit: { version: 1, frameId: 'wave' },
+          editSourceUri: `cloud-image://${backingName}`,
+          editSourceCloudFileName: backingName
+        }]
+      }]
+    })
+    expect(referencedFiles.has(backingName)).toBe(true)
+    expect(referencedFiles.has('goods-image__g1__img1__1.jpg')).toBe(true)
+  })
+
+  it('回收站里的行也带着底图引用（软删除期间不能删文件）', () => {
+    const backingName = 'goods-image__t1__img1s__2.jpg'
+    const { referencedFiles } = collectReferencedImageState({
+      trash: [{
+        id: 't1',
+        images: [{
+          id: 'img1',
+          uri: 'cloud-image://goods-image__t1__img1__2.jpg',
+          edit: { version: 1, frameId: 'wave' },
+          editSourceCloudFileName: backingName
+        }]
+      }]
+    })
+    expect(referencedFiles.has(backingName)).toBe(true)
+  })
+
+  it('配方被清掉（关掉外框）后底图引用不再登记，交给孤儿回收', () => {
+    const backingName = 'goods-image__t1__img1s__2.jpg'
+    const { referencedFiles } = collectReferencedImageState({
+      trash: [{
+        id: 't1',
+        images: [{ id: 'img1', uri: 'cloud-image://goods-image__t1__img1__2.jpg', editSourceCloudFileName: backingName }]
+      }]
+    })
+    expect(referencedFiles.has(backingName)).toBe(false)
+  })
+
   it('collects event cover and photo refs, including deleted events', () => {
     const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
       events: [{
@@ -429,5 +477,36 @@ describe('collectReferencedImageState', () => {
     const { referencedFiles, ownedEntityIds } = collectReferencedImageState()
     expect(referencedFiles.size).toBe(0)
     expect(ownedEntityIds.size).toBe(0)
+  })
+})
+
+describe('buildImageEditSourceFilename', () => {
+  const item = { id: 'g1', updatedAt: 1700000000000 }
+  const imageEntry = { id: 'img_1' }
+
+  it('第三段与成品图不同：底图加 s 后缀', () => {
+    const product = buildImageFilename(item, imageEntry, 'image/jpeg')
+    const backing = buildImageEditSourceFilename(item, imageEntry, 'image/png')
+    expect(product).toBe('goods-image__g1__img_1__1700000000000.jpg')
+    expect(backing).toBe('goods-image__g1__img_1s__1700000000000.png')
+    // 归属校验按 __ 切段匹配：前三段必须不同，否则两张图会被当成同一张的版本
+    expect(backing.split('__').slice(0, 3)).not.toEqual(product.split('__').slice(0, 3))
+  })
+
+  it('已有云端文件名时原样复用（不因时间戳变化产生新文件）', () => {
+    const existing = 'goods-image__g1__img_1s__1699999999999.jpg'
+    expect(buildImageEditSourceFilename(item, {
+      ...imageEntry,
+      editSourceCloudFileName: existing
+    }, 'image/png')).toBe(existing)
+    expect(buildImageEditSourceFilename(item, {
+      ...imageEntry,
+      editSourceUri: `cloud-image://${existing}`
+    }, 'image/png')).toBe(existing)
+  })
+
+  it('扩展名取自本机底图文件名（抠图保留 png 透明通道）', () => {
+    const name = buildImageEditSourceFilename(item, imageEntry, '', 'user-images/edit_source_1.png')
+    expect(name.endsWith('.png')).toBe(true)
   })
 })

@@ -298,6 +298,7 @@
   "imageEditor.pickingColor": "抽出中...",
   "imageEditor.tapToPick": "画像を長押しして移動し、離して選択",
   "imageEditor.preparing": "エクスポートを準備中...",
+  "imageEditor.preparingBacking": "ベース画像を生成中...",
   "imageEditor.productEnhance": "商品画像強調",
   "imageEditor.ratio16to9": "16:9",
   "imageEditor.ratio1to1": "1:1",

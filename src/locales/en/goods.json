@@ -336,6 +336,7 @@
   "goods.image.preparing": "Preparing...",
   "goods.image.quickEdit": "Quick Edit Image",
   "goods.image.reading": "Loading...",
+  "goods.image.reeditFrame": "Re-edit Frame",
   "goods.image.refresh": "Refresh Images",
   "goods.image.refreshed": "Cache cleared and images reloaded",
   "goods.image.refreshFailed": "Failed to refresh images, please try again",

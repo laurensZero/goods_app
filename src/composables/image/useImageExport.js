@@ -7,6 +7,8 @@ async function loadPica() {
 
 const DEFAULT_TARGET_MAX_BYTES = 1024 * 1024
 const DEFAULT_EDGE_STEPS = [1600, 1440, 1280, 1152, 1024]
+// 「去框底图」只需要撑住 1200×1200 的成品构图，再大就是白占空间
+const DEFAULT_BACKING_MAX_EDGE = 1600
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -290,6 +292,32 @@ export function useImageExport() {
     return canvasToBlob(outputCanvas, 'image/jpeg', 0.96)
   }
 
+  /**
+   * 「去框底图」：裁切 / 抠图之后、还没叠外框的主体，画面调整一并烘进去。
+   *
+   * 它是二次编辑的输入，不是成品——所以不套背景、不套外框，也不做 ≤1MB 压缩：
+   * 抠过图的必须留 PNG 透明通道，否则重编辑时主体四周会糊上黑底。
+   */
+  async function composeBackingImage(inputBlob, options = {}) {
+    const sourceCanvas = await decodeBlobToCanvas(inputBlob)
+    const adjustedCanvas = applyCanvasAdjustmentsToCanvas(sourceCanvas, options.adjustments || {})
+    const maxEdge = Math.max(1, Number(options.maxEdge) || DEFAULT_BACKING_MAX_EDGE)
+    const outputCanvas = await resizeCanvasByMaxEdge(adjustedCanvas, maxEdge, await ensurePica())
+
+    // 透明通道判定放在原图上：调整与缩放都不会凭空造出/吃掉 alpha
+    const keepAlpha = await blobHasTransparency(inputBlob).catch(() => false)
+    const format = keepAlpha ? 'image/png' : 'image/jpeg'
+    const blob = await canvasToBlob(outputCanvas, format, 0.94)
+
+    return {
+      blob,
+      format,
+      width: outputCanvas.width,
+      height: outputCanvas.height,
+      keepAlpha
+    }
+  }
+
   async function compressUnderTarget(inputBlob, options = {}) {
     await ensurePica()
     return await compressUnderTargetImpl(inputBlob, options, picaInstance)
@@ -421,6 +449,7 @@ export function useImageExport() {
   return {
     composeWhiteBackground,
     composeFramed,
+    composeBackingImage,
     compressUnderTarget,
     compressImageToBlob: compressImageToBlob,
     exportForUpload

@@ -62,11 +62,19 @@ export function createSyncImageService({
 
           // Supabase: replace cloud-image:// with public URL, skip download
           if (isSupabase) {
+            const editSourceCloudFileName = String(
+              imageEntry.editSourceCloudFileName || parseCloudImageUri(imageEntry.editSourceUri) || ''
+            ).trim()
             return {
               ...imageEntry,
               uri: currentBackend.getImagePublicUrl(cloudFileName),
               storageMode: 'remote',
-              cloudFileName
+              cloudFileName,
+              // 去框底图同样换成公开 URL：另一台设备点「重新编辑外框」时直接拉回本地
+              editSourceUri: editSourceCloudFileName
+                ? currentBackend.getImagePublicUrl(editSourceCloudFileName)
+                : String(imageEntry.editSourceUri || ''),
+              editSourceCloudFileName
             }
           }
 

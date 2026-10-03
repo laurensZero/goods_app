@@ -298,6 +298,7 @@
   "imageEditor.pickingColor": "Picking...",
   "imageEditor.tapToPick": "Hold and drag on the image to pick, release to select",
   "imageEditor.preparing": "Preparing export...",
+  "imageEditor.preparingBacking": "Preparing base image...",
   "imageEditor.productEnhance": "Product Enhancement",
   "imageEditor.ratio16to9": "16:9",
   "imageEditor.ratio1to1": "1:1",

@@ -117,6 +117,39 @@ describe('createSyncImageService', () => {
       batchDraftImagePrefix: 'batch-draft-image__'
     })
 
+    it('hydrate 时把去框底图的 cloud-image:// 也换成公开 URL（另一台设备才能直接拉）', async () => {
+      const backingName = 'goods-image__g1__img_1s__1.jpg'
+      const hydrateService = createSyncImageService({
+        backend: {
+          getImagePublicUrl: (name) => `https://cdn.example.com/${name}`
+        },
+        getBackend: null,
+        trackSyncStep: mockTrackSyncStep,
+        imageFilePrefix: 'goods-image__',
+        eventCoverPrefix: 'event-cover__',
+        eventPhotoPrefix: 'event-photo__',
+        rechargeImagePrefix: 'recharge-image__',
+        batchDraftImagePrefix: 'batch-draft-image__'
+      })
+
+      const [item] = await hydrateService.hydrateRemoteItemsWithImages([{
+        id: 'g1',
+        images: [{
+          id: 'img_1',
+          uri: 'cloud-image://goods-image__g1__img_1__1.jpg',
+          storageMode: 'cloud-local',
+          cloudFileName: 'goods-image__g1__img_1__1.jpg',
+          edit: { version: 1, frameId: 'wave' },
+          editSourceUri: `cloud-image://${backingName}`,
+          editSourceCloudFileName: backingName
+        }]
+      }], null, { restoredImages: 0 })
+
+      expect(item.images[0].uri).toBe('https://cdn.example.com/goods-image__g1__img_1__1.jpg')
+      expect(item.images[0].editSourceUri).toBe(`https://cdn.example.com/${backingName}`)
+      expect(item.images[0].editSourceCloudFileName).toBe(backingName)
+    })
+
     const OLD_CREATED_AT = '2020-01-01T00:00:00Z'
     const ownedIds = () => new Set(['1712000000000', 'evt1', 'collection', 'wishlist'])
 
