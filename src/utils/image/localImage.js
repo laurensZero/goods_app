@@ -203,7 +203,35 @@ export function extractManagedLocalImagePath(value) {
   return extractAppLocalPath(text) || ''
 }
 
+/**
+ * 托管本地文件是否还在。用于「有配方但底图丢了」的判定：
+ * 丢了就别显示二次编辑入口，否则一点就是框上加框。
+ *
+ * Web 端的图片就是 data URL（没有文件系统），URL 在即算在。
+ * @param {string} uri
+ * @param {string} [localPath]
+ * @returns {Promise<boolean>}
+ */
+export async function localImageFileExists(uri, localPath = '') {
+  const text = String(uri || '').trim()
+  if (!text) return false
+  if (text.startsWith('data:image/')) return true
+  if (!Capacitor.isNativePlatform()) return false
+
+  const path = extractAppLocalPath(text) || extractManagedLocalImagePath(localPath)
+  if (!path) return false
+  try {
+    await Filesystem.stat({ path, directory: Directory.Data })
+    return true
+  } catch {
+    return false
+  }
+}
+
 export function collectManagedLocalImagePathsFromImageList(images) {
+  // 「去框底图」刻意不在这里登记：它不挂在 images[i] 上（同步会整行覆盖，本地字段会被抹掉），
+  // 而是由 image_edits.sourcePath 单独记账。删图/删商品/离开编辑页时走
+  // utils/image/imageEdit.js 的 forget* 系列回收，见 docs/frame-reedit-plan.md。
   const refs = new Set()
   if (!Array.isArray(images)) return refs
 

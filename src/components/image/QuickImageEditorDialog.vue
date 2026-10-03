@@ -227,6 +227,7 @@ import EditorCutoutPanel from '@/components/image/editor/EditorCutoutPanel.vue'
 import EditorExportPanel from '@/components/image/editor/EditorExportPanel.vue'
 import EditorFramePanel from '@/components/image/editor/EditorFramePanel.vue'
 import { FRAME_NONE_ID, getFrameById, isKnownFrameId, resolveFrameColors } from '@/config/imageFrames'
+import { buildImageEditRecipe, normalizeImageEditRecipe } from '@/utils/image/imageEditRecipe'
 import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout, checkCloudCutoutPermission } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
@@ -237,12 +238,10 @@ const props = defineProps({
   show: { type: Boolean, default: false },
   sourceFile: { type: Object, default: null },
   simpleMode: { type: Boolean, default: false },
-  aspectRatio: { type: Number, default: 0 }
+  aspectRatio: { type: Number, default: 0 },
+  // 二次编辑：非空表示 sourceFile 是「去框底图」，且要按这份配方回填外框状态
+  initialEditState: { type: Object, default: null }
 })
-
-// TODO(外框二次编辑): 这里需要补一个 initialEditState prop，
-// 打开时回填 frameId / colorwayId / colorOverrides / fitRatio / bgColor，
-// 并把「去框底图」作为 sourceFile 传入。方案见 docs/frame-reedit-plan.md
 
 const emit = defineEmits(['update:show', 'save'])
 
@@ -284,6 +283,8 @@ const cutoutMaskUrl = ref('')
 const cutoutQualityHint = ref('')
 const cutoutModel = ref('falcon')
 const cloudCutoutAvailable = ref(false)
+// 二次编辑：外框上的日期标签要沿用上次保存的那天，不能因为今天再打开就跳日期
+const labelDateOverride = ref('')
 const {
   applyCutoutMask,
   applyCloudCutoutMask,
@@ -291,7 +292,7 @@ const {
   createCloudCutoutMask,
   isCutoutModelReady
 } = useImageCutout()
-const { exportForUpload } = useImageExport()
+const { exportForUpload, composeBackingImage } = useImageExport()
 
 const tabOptions = computed(() => {
   if (props.simpleMode) {
@@ -330,6 +331,7 @@ const backgroundLocked = computed(() => Boolean(activeFrame.value) && !props.sim
 const bgColorLocked = computed(() => Boolean(activeFrame.value) && activeFrame.value.acceptsBackgroundColor === false)
 
 function formatTodayLabel() {
+  if (labelDateOverride.value) return labelDateOverride.value
   const now = new Date()
   const pad = (value) => String(value).padStart(2, '0')
   return `${now.getFullYear()}.${pad(now.getMonth() + 1)}.${pad(now.getDate())}`
@@ -421,9 +423,29 @@ function setFrameColorOverrides(next) {
   frameColorOverrides.value = next && typeof next === 'object' ? { ...next } : {}
 }
 
+/**
+ * 基础阶段（裁切/旋转/翻转/抠图/画面调整）被动过 → 底图必须重算。
+ * 宁可多算一次也不要漏：漏了就是把旧的调整叠在新画面上。
+ */
+function markBasicStageDirty() {
+  basicStageDirty.value = true
+}
+
+/** 二次编辑且基础阶段没动 → 直接复用传入的底图，少一次有损重编码 */
+function needsFreshBackingImage() {
+  if (!isReeditSession) return true
+  return basicStageDirty.value || isCropMeaningful()
+}
+
 let cropper = null
 const previewUrl = ref('')
 let flipX = 1
+// 二次编辑：本次会话的输入是「去框底图」+ 配方
+let isReeditSession = false
+// 用户是否动过基础阶段（裁切/旋转/翻转/抠图/画面调整）——动过就必须重新生成底图
+const basicStageDirty = ref(false)
+// 「去框底图」的边长上限：撑得住 1200×1200 成品就够，再大只是白占空间
+const BACKING_MAX_EDGE = 1600
 let previousHtmlOverflow = ''
 let previousHtmlOverscrollBehavior = ''
 let previousBodyOverflow = ''
@@ -560,6 +582,8 @@ async function applyEditorSnapshot(snapshot) {
     if (snapshot.hasCutout) {
       destroyCropper()
       clearCutoutSession()
+      // 撤销/重做回到抠图态也算动过基础阶段
+      markBasicStageDirty()
       previewUrl.value = snapshot.cutoutPreviewUrl || ''
       cutoutPreparedImageUrl.value = snapshot.cutoutPreparedImageUrl || ''
       cutoutMaskUrl.value = snapshot.cutoutMaskUrl || ''
@@ -734,12 +758,18 @@ function openFromFile(file) {
   editorHistory.reset()
   editorStateSignature = ''
 
+  // 二次编辑：sourceFile 是上次保存的「去框底图」，配方决定外框/配色/占比/框内背景
+  const recipe = props.simpleMode ? null : normalizeImageEditRecipe(props.initialEditState)
+  isReeditSession = Boolean(recipe)
+  // 底图已经把裁切/抠图/画面调整烘进去了；用户不动基础阶段就复用原文件，避免二次编码
+  basicStageDirty.value = !isReeditSession
+
   previewUrl.value = createTrackedObjectUrl(file)
   activeTab.value = 'basic'
   whiteBgEnabled.value = true
   whiteBgStyle.value = 'standard'
-  whiteBgScalePercent.value = 88
-  bgColor.value = '#ffffff'
+  whiteBgScalePercent.value = recipe ? Math.round(recipe.fitRatio * 100) : 88
+  bgColor.value = recipe?.bgColor || '#ffffff'
   bgColorPickerOpen.value = false
   colorPickMode.value = false
   pickingColor.value = false
@@ -748,9 +778,10 @@ function openFromFile(file) {
   saturation.value = 0
   freeAngle.value = 0
   cropRatio.value = Number(props.aspectRatio) > 0 ? Number(props.aspectRatio) : 'free'
-  frameId.value = FRAME_NONE_ID
-  frameColorwayId.value = ''
-  frameColorOverrides.value = {}
+  frameId.value = recipe ? recipe.frameId : FRAME_NONE_ID
+  frameColorwayId.value = recipe ? recipe.colorwayId : ''
+  frameColorOverrides.value = recipe ? { ...recipe.colorOverrides } : {}
+  labelDateOverride.value = recipe?.labelsDate || ''
   resetCompositionSource()
   cutoutLoading.value = false
   cutoutApplyingMask.value = false
@@ -826,6 +857,7 @@ function applyFreeAngle(angle) {
 
 function setFreeAngle(angle) {
   if (!applyFreeAngle(angle)) return
+  markBasicStageDirty()
   recordEditorHistory()
   scheduleCompositionRefresh()
 }
@@ -834,6 +866,7 @@ function flipHorizontal() {
   if (!cropper) return
   flipX *= -1
   cropper.scaleX(flipX)
+  markBasicStageDirty()
   recordEditorHistory()
   scheduleCompositionRefresh()
 }
@@ -845,6 +878,7 @@ function resetCropper() {
   contrast.value = 0
   saturation.value = 0
   freeAngle.value = 0
+  markBasicStageDirty()
   applyPreviewFilter()
   recordEditorHistory()
   scheduleCompositionRefresh()
@@ -928,6 +962,7 @@ async function runCutout() {
     destroyCropper()
     freeAngle.value = 0
     previewUrl.value = createTrackedObjectUrl(cutoutBlob)
+    markBasicStageDirty()
     recordEditorHistory()
   } catch (error) {
     errorText.value = error?.message || t('imageEditor.cutoutFailed')
@@ -1183,10 +1218,40 @@ async function handleSave() {
       fileName: props.sourceFile?.name || `image_${Date.now()}`
     })
 
+    // 外框二次编辑：配方 + 「去框底图」一起交给宿主落库（阶段一仅本地，见 docs/frame-reedit-plan.md）
+    const editRecipe = props.simpleMode
+      ? null
+      : buildImageEditRecipe({
+        frameId: frameId.value,
+        colorwayId: frameColorwayId.value,
+        colorOverrides: frameColorOverrides.value,
+        fitRatioPercent: whiteBgScalePercent.value,
+        bgColor: bgColor.value,
+        labelsDate: frameLabels.value.date
+      })
+
+    let backingBlob = null
+    if (editRecipe && needsFreshBackingImage()) {
+      // 底图是在导出之后补做的，进度条别停在 100% 上假装已完成
+      saveProgress.value = Math.min(saveProgress.value, 96)
+      saveProgressText.value = t('imageEditor.preparingBacking')
+      const backing = await composeBackingImage(sourceBlob, {
+        adjustments: {
+          brightness: Number(brightness.value) || 0,
+          contrast: Number(contrast.value) || 0,
+          saturation: Number(saturation.value) || 0
+        },
+        maxEdge: BACKING_MAX_EDGE
+      })
+      backingBlob = backing.blob
+    }
+
     emit('save', {
       ...exported,
       compressedUnder1MB: exported.underTarget,
-      previewUrl: createTrackedObjectUrl(exported.file)
+      previewUrl: createTrackedObjectUrl(exported.file),
+      editRecipe,
+      backingBlob
     })
     emit('update:show', false)
   } catch (error) {
@@ -1244,6 +1309,9 @@ watch(previewUrl, () => {
 
 watch([brightness, contrast, saturation], () => {
   applyPreviewFilter()
+  if (Number(brightness.value) || Number(contrast.value) || Number(saturation.value)) {
+    markBasicStageDirty()
+  }
 })
 
 async function commitCrop() {
@@ -1256,6 +1324,7 @@ async function commitCrop() {
       flipX = 1
       freeAngle.value = 0
       previewUrl.value = createTrackedObjectUrl(blob)
+      markBasicStageDirty()
     } else {
       destroyCropper()
       freeAngle.value = 0

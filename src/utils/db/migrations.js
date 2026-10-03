@@ -401,4 +401,35 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 23,
+    description: 'Create image_edits table (local frame re-edit recipes)',
+    up: async (db) => {
+      // 外框「二次编辑」的本地表：配方副本 + 去框底图的本机位置（纯本地，不进同步）。
+      // 为什么不把底图路径挂在 goods.images[i] 上：同步是双向的，拉取 LWW 会整行覆盖 images，
+      // 本地专用字段会被静默抹掉。见 docs/frame-reedit-plan.md。
+      await db.execute(`
+        CREATE TABLE IF NOT EXISTS image_edits (
+          imageId     TEXT PRIMARY KEY NOT NULL,
+          goodsId     TEXT NOT NULL DEFAULT '',
+          recipe      TEXT NOT NULL DEFAULT '{}',
+          sourceUri   TEXT DEFAULT '',
+          sourcePath  TEXT DEFAULT '',
+          updatedAt   INTEGER DEFAULT 0
+        );
+      `)
+    }
+  },
+  {
+    version: 24,
+    description: 'Add image_edits.sourceCloudFileName (stale local backing detection)',
+    up: async (db) => {
+      // 本机底图对应的云端文件名。与 images[i].editSourceCloudFileName 不一致时说明
+      // 别的设备已经把底图换过了，本机这份是旧的，二次编辑要以云端为准
+      const cols = await db.getTableColumns('image_edits')
+      if (!cols.has('sourceCloudFileName')) {
+        await db.run("ALTER TABLE image_edits ADD COLUMN sourceCloudFileName TEXT DEFAULT ''")
+      }
+    }
+  },
 ]

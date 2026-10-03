@@ -1,5 +1,6 @@
 // @ts-check
 import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/image/localImage'
+import { preserveImageEditRecipe } from '@/utils/image/imageEditRecipe'
 
 export const GOODS_IMAGE_KIND_OPTIONS = [
   { value: 'primary', label: '主图' },
@@ -123,10 +124,10 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
     ? String(entry.kind).trim()
     : (fallbackIndex === 0 ? 'primary' : 'custom')
 
-  // TODO(外框二次编辑): 这里是白名单，未登记的字段会被直接丢弃。
-  // 新增 edit / editSourceUri 时必须同步改 sanitizeGoodsImagesForSync，
-  // 并登记到 collectReferencedImageState，否则会被孤儿回收删文件。
-  // 方案见 docs/frame-reedit-plan.md
+  // 字段白名单：未登记的字段会被直接丢弃。
+  // 新增图片字段时要同时改 sanitizeGoodsImagesForSync / ForExport，
+  // 会同步的文件名引用还要登记到 collectReferencedImageState，否则会被孤儿回收删文件
+  const edit = preserveImageEditRecipe(entry.edit)
   return {
     id: String(entry.id || createGoodsImageId()).trim(),
     uri,
@@ -137,7 +138,12 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
     cloudFileName,
     mimeType: String(entry.mimeType || '').trim(),
     fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
-    isPrimary: entry.isPrimary === true
+    isPrimary: entry.isPrimary === true,
+    // 外框二次编辑：配方 + 去框底图的云端位置。
+    // 底图的**本地**路径不进这里（同步行会被远端整行覆盖），在 image_edits 表里单独记账
+    edit,
+    editSourceUri: edit ? String(entry.editSourceUri || '').trim() : '',
+    editSourceCloudFileName: edit ? String(entry.editSourceCloudFileName || '').trim() : ''
   }
 }
 
@@ -220,7 +226,16 @@ export async function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
   if (normalizedImages.length === 0) return []
 
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
+  // 备份要能还原「外框二次编辑」状态，所以配方与底图的云端引用跟着一起导出
   const exportableImages = (await Promise.all(normalizedImages.map(async (entry) => {
+    const edit = preserveImageEditRecipe(entry.edit)
+    const editSourceCloudFileName = edit
+      ? String(entry.editSourceCloudFileName || parseCloudImageUri(entry.editSourceUri) || '').trim()
+      : ''
+    const editFields = edit
+      ? { edit, editSourceUri: entry.editSourceUri, editSourceCloudFileName }
+      : {}
+
     if (isExportableGoodsImage(entry)) {
       return {
         id: entry.id,
@@ -228,7 +243,8 @@ export async function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
         kind: entry.kind,
         label: entry.label,
         storageMode: 'remote',
-        isPrimary: entry.id === primaryId
+        isPrimary: entry.id === primaryId,
+        ...editFields
       }
     }
 
@@ -243,7 +259,8 @@ export async function sanitizeGoodsImagesForExport(images, fallbackImage = '') {
       kind: 'primary',
       label: entry.label,
       storageMode: 'inline-local',
-      isPrimary: true
+      isPrimary: true,
+      ...editFields
     }
   }))).filter(Boolean)
 
@@ -262,9 +279,7 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
   if (normalizedImages.length === 0) return []
 
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
-  // TODO(外框二次编辑): 这里的白名单决定什么能推上云。
-  // 加字段时两处白名单（本函数 + normalizeGoodsImageEntry）必须同时改，漏一处会静默丢字段。
-  // 方案见 docs/frame-reedit-plan.md
+  // 白名单决定什么能推上云；与 normalizeGoodsImageEntry 必须同时改，漏一处会静默丢字段
   const syncImages = normalizedImages
     .filter((entry) => preparedImages || isExportableGoodsImage(entry))
     .map((entry) => {
@@ -275,6 +290,10 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
       if (typeof uri === 'string' && uri.startsWith('data:')) {
         uri = cloudFileName ? `cloud-image://${cloudFileName}` : ''
       }
+      const edit = preserveImageEditRecipe(entry.edit)
+      const editSourceCloudFileName = edit
+        ? String(entry.editSourceCloudFileName || parseCloudImageUri(entry.editSourceUri) || '').trim()
+        : ''
       return {
         id: entry.id,
         uri,
@@ -284,7 +303,11 @@ export function sanitizeGoodsImagesForSync(images, preparedImages = null) {
         cloudFileName,
         mimeType: entry.mimeType || '',
         fileSize: Number(entry.fileSize) > 0 ? Number(entry.fileSize) : 0,
-        isPrimary: entry.id === primaryId
+        isPrimary: entry.id === primaryId,
+        // 配方只在真的套了框时才有值；底图只留云端引用，本地路径永远不推
+        edit,
+        editSourceUri: edit ? (editSourceCloudFileName ? `cloud-image://${editSourceCloudFileName}` : '') : '',
+        editSourceCloudFileName: edit ? editSourceCloudFileName : ''
       }
     })
 
@@ -338,7 +361,8 @@ export async function sanitizeGoodsImagesForShare(images, fallbackImage = '') {
   if (normalizedImages.length === 0) return []
 
   const primaryId = normalizedImages.find((entry) => entry.isPrimary)?.id || normalizedImages[0].id
-  // Only include remote images (URLs) — skip local/base64 images to keep payload small
+  // Only include remote images (URLs) — skip local/base64 images to keep payload small.
+  // 分享**刻意不带** edit / editSource*：分享只需要成品图，配方是本地编辑状态（白名单在这里天然排除）
   const shareableImages = normalizedImages
     .filter((entry) => isExportableGoodsImage(entry))
     .map((entry) => ({

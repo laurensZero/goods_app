@@ -27,7 +27,11 @@ export const MANIFEST_VERSION = 1
 //      supabase/supabase-migration-goods-size.sql。
 // v12: events.dates JSON array replaces startDate/endDate/selectedDates. Run
 //      supabase/supabase-migration-event-dates.sql before release.
-export const SYNC_SCHEMA_VERSION = 12
+// v13: goods.images[i].edit / editSourceUri / editSourceCloudFileName —— 图片外框「二次编辑」
+//      的配方与去框底图引用（images 是已同步的 JSON 列，无需云端迁移）。
+//      旧版本归一化会剥掉这三个字段并把行写回云端，故必须强制一次全量重拉。
+//      见 docs/frame-reedit-plan.md 阶段二。
+export const SYNC_SCHEMA_VERSION = 13
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

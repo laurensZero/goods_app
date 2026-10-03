@@ -130,7 +130,7 @@
               :disabled="isPreparingEdit"
               @click="openQuickEdit(activeImage)"
             >
-              {{ isPreparingEdit ? t('goods.image.preparing') : t('goods.image.quickEdit') }}
+              {{ quickEditLabel }}
             </button>
             <button
               type="button"
@@ -164,6 +164,7 @@
     <QuickImageEditorDialog
       v-model:show="showQuickEditor"
       :source-file="editingSourceFile"
+      :initial-edit-state="editingInitialEditState"
       @save="handleQuickEditSave"
     />
     <QuickCollageDialog
@@ -192,7 +193,12 @@ import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
-import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage } from '@/utils/image/localImage'
+import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage, deleteManagedLocalImages } from '@/utils/image/localImage'
+import {
+  forgetImageEditState,
+  persistImageEditState,
+  readImageEditState
+} from '@/utils/image/imageEdit'
 import { invalidateCachedImage, signalImageCacheRefresh } from '@/utils/image/cache'
 import { trackEditorSessionLocalImage } from '@/composables/goods/useGoodsEditorForm'
 
@@ -220,6 +226,12 @@ const showQuickEditor = ref(false)
 const showCollageDialog = ref(false)
 const editingSourceFile = ref(null)
 const editingTargetId = ref('')
+// 打开编辑器时读到的那份二次编辑状态（底图 + 配方）；仅本地，见 docs/frame-reedit-plan.md
+const editingEditState = ref(null)
+const editingInitialEditState = computed(() => editingEditState.value?.recipe || null)
+// 当前预览图的二次编辑状态；没有可用底图时为 null，按钮文案也就不会变成「重新编辑外框」
+const activeImageEdit = ref(null)
+let imageEditLookupToken = 0
 
 const kindOptions = GOODS_IMAGE_KIND_OPTIONS
 const kindSelectOptions = GOODS_IMAGE_KIND_OPTIONS.map((option) => ({
@@ -246,6 +258,30 @@ watch(
     activeImageId.value = nextImages.find((image) => image.isPrimary)?.id || nextImages[0].id
   },
   { immediate: true, deep: true }
+)
+
+// 有可用底图才显示「重新编辑外框」：换设备/重装/图是同步来的都没有本地配方，
+// 此时按钮仍是「快速编辑图片」，不会一点就框上加框（见 docs/frame-reedit-plan.md 坑 ③）
+const quickEditLabel = computed(() => {
+  if (isPreparingEdit.value) return t('goods.image.preparing')
+  return activeImageEdit.value ? t('goods.image.reeditFrame') : t('goods.image.quickEdit')
+})
+
+async function refreshActiveImageEdit(imageId = '') {
+  const token = ++imageEditLookupToken
+  const id = imageId || activeImage.value?.id || ''
+  const target = id ? images.value.find((image) => image.id === id) || null : null
+  const state = target ? await readImageEditState(target) : null
+  if (token !== imageEditLookupToken) return
+  activeImageEdit.value = state
+}
+
+watch(
+  () => activeImage.value?.id || '',
+  (id) => {
+    void refreshActiveImageEdit(id)
+  },
+  { immediate: true }
 )
 
 function emitImages(nextImages) {
@@ -327,32 +363,30 @@ async function openQuickEdit(image) {
   if (!image?.id || !image?.uri || isPreparingEdit.value) return
 
   isPreparingEdit.value = true
+  // 每次打开都显式重置，避免上一张图的配方串到这一张
+  editingEditState.value = null
   try {
-    let dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
-
-    // 本地文件丢失，尝试从云端恢复
-    if (!dataUrl?.startsWith('data:image/') && image.cloudFileName) {
-      showToast(t('goods.image.localLost'))
-      const syncStore = useSyncStore()
-      const cloudDataUrl = await syncStore.restoreImageFromCloud(image.cloudFileName)
-      if (cloudDataUrl?.startsWith('data:image/')) {
-        const response = await fetch(cloudDataUrl)
-        const blob = await response.blob()
-        const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg')
-        const file = new File([blob], `restored_${Date.now()}.${ext}`, { type: blob.type })
-        const saved = await saveLocalImage(file)
-        const updatedImages = images.value.map((img) => {
-          if (img.id !== image.id) return img
-          return { ...img, uri: saved.uri, localUri: saved.uri, localPath: saved.localPath, storageMode: inferGoodsImageStorageMode(saved.uri) }
-        })
-        emitImages(updatedImages)
-        // 持久化到数据库，避免下次进入时再次丢失
-        if (props.goodsId) {
-          const goodsStore = useGoodsStore()
-          goodsStore.updateGoods(props.goodsId, { images: updatedImages })
+    // 有配方（images[i].edit 或本地副本）→ 编辑底图并回填状态，这才是真正的二次编辑
+    const editState = await readImageEditState(image)
+    let dataUrl = ''
+    if (editState) {
+      dataUrl = await readLocalImageAsDataUrl(editState.sourceUri, editState.sourcePath || '')
+      if (dataUrl?.startsWith('data:image/')) {
+        editingEditState.value = editState
+        // 底图是刚从云端拉回来的：落一份本地副本，下次不用再下载
+        if (editState.fromCloud) {
+          void cacheImageEditSourceLocally(image, dataUrl, editState)
         }
-        dataUrl = cloudDataUrl
+      } else {
+        // 配方在、底图本机与云端都拿不到 → 丢掉死记录，退回普通编辑
+        dataUrl = ''
+        editingEditState.value = null
+        activeImageEdit.value = null
       }
+    }
+
+    if (!dataUrl) {
+      dataUrl = await resolveEditableImageDataUrl(image)
     }
 
     if (!dataUrl?.startsWith('data:image/')) {
@@ -360,7 +394,9 @@ async function openQuickEdit(image) {
       return
     }
 
-    const sourceFile = dataUrlToFile(dataUrl, image.id)
+    // 底图与成品图同名会让人分不清，底图给个独立种子
+    const fileSeed = editingEditState.value ? `${image.id}_source` : image.id
+    const sourceFile = dataUrlToFile(dataUrl, fileSeed)
     editingTargetId.value = image.id
     editingSourceFile.value = sourceFile
     showQuickEditor.value = true
@@ -371,15 +407,83 @@ async function openQuickEdit(image) {
   }
 }
 
+/**
+ * 把从云端拉回来的底图落成本地文件，并更新本地定位表（配方副本一并写，保持两边一致）。
+ * 失败不影响本次编辑，只是下次还要再下一次。
+ */
+async function cacheImageEditSourceLocally(image, dataUrl, editState) {
+  try {
+    const match = String(dataUrl).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/)
+    const mime = match ? match[1] : 'image/jpeg'
+    const ext = mime.includes('png') ? 'png' : 'jpg'
+    const binary = atob(String(dataUrl).split(',')[1])
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i)
+    const saved = await saveLocalImage(new File(
+      [bytes],
+      `edit_source_${Date.now()}.${ext}`,
+      { type: mime, lastModified: Date.now() }
+    ))
+    trackEditorSessionLocalImage(saved.localPath)
+    await persistImageEditState({
+      imageId: image.id,
+      goodsId: props.goodsId || '',
+      recipe: editState.recipe,
+      sourceUri: saved.uri,
+      sourcePath: saved.localPath || '',
+      // 记下这份本地副本对应哪个云端文件，别的设备换过之后本机才知道要重新下载
+      sourceCloudFileName: editState.sourceCloudFileName || ''
+    })
+  } catch (error) {
+    console.warn('[image-manager] 缓存云端底图失败:', error?.message)
+  }
+}
+
+/**
+ * 成品图的本地数据：本地文件优先，丢了再从云端回捞并落回本地。
+ * @returns {Promise<string>} data URL，失败返回空串
+ */
+async function resolveEditableImageDataUrl(image) {
+  let dataUrl = await readLocalImageAsDataUrl(image.uri, image.localPath || '')
+  if (dataUrl?.startsWith('data:image/') || !image.cloudFileName) return dataUrl || ''
+
+  showToast(t('goods.image.localLost'))
+  const syncStore = useSyncStore()
+  const cloudDataUrl = await syncStore.restoreImageFromCloud(image.cloudFileName)
+  if (!cloudDataUrl?.startsWith('data:image/')) return ''
+
+  const response = await fetch(cloudDataUrl)
+  const blob = await response.blob()
+  const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg')
+  const file = new File([blob], `restored_${Date.now()}.${ext}`, { type: blob.type })
+  const saved = await saveLocalImage(file)
+  const updatedImages = images.value.map((img) => {
+    if (img.id !== image.id) return img
+    return { ...img, uri: saved.uri, localUri: saved.uri, localPath: saved.localPath, storageMode: inferGoodsImageStorageMode(saved.uri) }
+  })
+  emitImages(updatedImages)
+  // 持久化到数据库，避免下次进入时再次丢失
+  if (props.goodsId) {
+    const goodsStore = useGoodsStore()
+    goodsStore.updateGoods(props.goodsId, { images: updatedImages })
+  }
+  return cloudDataUrl
+}
+
 async function handleQuickEditSave(result) {
   if (!result?.file || !editingTargetId.value) return
+
+  const targetId = editingTargetId.value
+  const previousEdit = editingEditState.value
+  const recipe = result.editRecipe || null
+  const backingBlob = result.backingBlob || null
 
   try {
     const saved = await saveLocalImage(result.file)
     // 快速编辑每次保存都会生成新文件；被替换下来的旧文件若也是会话内新建，已在集合中
     trackEditorSessionLocalImage(saved.localPath)
     emitImages(images.value.map((image) => {
-      if (image.id !== editingTargetId.value) return image
+      if (image.id !== targetId) return image
         return {
           ...image,
           uri: saved.uri,
@@ -388,14 +492,60 @@ async function handleQuickEditSave(result) {
           localPath: saved.localPath,
         cloudFileName: '',
         mimeType: '',
-        fileSize: 0
+        fileSize: 0,
+        // 配方随行同步（阶段二）：别的设备靠它 + 底图的云端引用做二次编辑。
+        // 底图重新生成时清掉旧的云端引用，让上传环节按新内容取一个新文件名
+        edit: recipe || null,
+        editSourceUri: recipe ? (backingBlob ? '' : (image.editSourceUri || '')) : '',
+        editSourceCloudFileName: recipe ? (backingBlob ? '' : (image.editSourceCloudFileName || '')) : ''
       }
     }))
+
+    if (recipe) {
+      let sourceUri = previousEdit?.sourceUri || ''
+      let sourcePath = previousEdit?.sourcePath || ''
+      let sourceCloudFileName = previousEdit?.sourceCloudFileName || ''
+      if (backingBlob) {
+        const ext = backingBlob.type?.includes('png') ? 'png' : 'jpg'
+        const backing = await saveLocalImage(new File(
+          [backingBlob],
+          `edit_source_${Date.now()}.${ext}`,
+          { type: backingBlob.type || 'image/jpeg', lastModified: Date.now() }
+        ))
+        trackEditorSessionLocalImage(backing.localPath)
+        // 换上了新底图，旧底图文件不再被任何配方引用
+        if (previousEdit?.sourcePath && previousEdit.sourcePath !== backing.localPath) {
+          void deleteManagedLocalImages([previousEdit.sourcePath])
+        }
+        sourceUri = backing.uri
+        sourcePath = backing.localPath || ''
+        // 本机这份就是最新的，不需要跟云端比对新旧
+        sourceCloudFileName = ''
+      }
+      if (sourceUri) {
+        await persistImageEditState({
+          imageId: targetId,
+          goodsId: props.goodsId || '',
+          recipe,
+          sourceUri,
+          sourcePath,
+          sourceCloudFileName
+        })
+      }
+    } else if (previousEdit) {
+      // 关掉外框后保存：成品图本身就是干净底图，配方与底图一起作废
+      await forgetImageEditState(targetId)
+    }
+
+    if (targetId === (activeImage.value?.id || '')) {
+      void refreshActiveImageEdit(targetId)
+    }
   } catch (error) {
     console.error('[image-manager] 保存编辑图片失败', error)
   } finally {
     editingSourceFile.value = null
     editingTargetId.value = ''
+    editingEditState.value = null
   }
 }
 
@@ -497,6 +647,8 @@ async function refreshImages() {
 
 function removeImage(targetId) {
   const nextImages = images.value.filter((image) => image.id !== targetId)
+  // 图片没了，它的二次编辑配方与底图文件也没有意义了
+  void forgetImageEditState(targetId)
   if (nextImages.length === 0) {
     activeImageId.value = ''
     emitImages([])

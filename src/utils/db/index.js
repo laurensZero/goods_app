@@ -185,6 +185,20 @@ const CREATE_BATCH_DRAFTS_TABLE_SQL = `
   );
 `
 
+// 外框二次编辑配方表：纯本地，不进同步（见 utils/image/imageEdit.js）。
+// sourceUri / sourcePath 指向「去框底图」——它不在 images 数组里，只能靠这张表找到并清理
+const CREATE_IMAGE_EDITS_TABLE_SQL = `
+  CREATE TABLE IF NOT EXISTS image_edits (
+    imageId     TEXT PRIMARY KEY NOT NULL,
+    goodsId     TEXT NOT NULL DEFAULT '',
+    recipe      TEXT NOT NULL DEFAULT '{}',
+    sourceUri   TEXT DEFAULT '',
+    sourcePath  TEXT DEFAULT '',
+    sourceCloudFileName TEXT DEFAULT '',
+    updatedAt   INTEGER DEFAULT 0
+  );
+`
+
 const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER NOT NULL)'
 // 取最后一项的 version 字段而非数组长度，避免两者脱钩时误判
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
@@ -560,6 +574,7 @@ async function _doInitDB() {
       CREATE_GOODS_GROUPS_TABLE_SQL,
       CREATE_GOODS_GROUP_ITEMS_TABLE_SQL,
       CREATE_BATCH_DRAFTS_TABLE_SQL,
+      CREATE_IMAGE_EDITS_TABLE_SQL,
       CREATE_VERSION_TABLE_SQL
     ].map(sql => sql.trim().replace(/;+\s*$/, '')).filter(Boolean).join(';\n') + ';'
 
@@ -1230,6 +1245,188 @@ export async function deleteBatchDraft(slot) {
     await db.run('DELETE FROM batch_drafts WHERE slot = ?', [slot])
   } catch (e) {
     console.error('[db] deleteBatchDraft failed:', e)
+    throw e
+  }
+}
+
+// ---------------------------------------------------------------- 外框二次编辑配方
+//
+// image_edits 是**纯本地**表：配方存在这里而不是 goods.images[i]，
+// 因为同步拉取会用远端整行覆盖 images，挂在里面的本地字段会被静默抹掉。
+// 底图（sourceUri/sourcePath）不在 images 数组里，所以删图/删商品时必须经这张表回收文件。
+// 业务侧统一走 utils/image/imageEdit.js，不要直接在这里拼 SQL。
+
+const IMAGE_EDIT_INSERT_SQL = 'INSERT OR REPLACE INTO image_edits (imageId,goodsId,recipe,sourceUri,sourcePath,sourceCloudFileName,updatedAt) VALUES (?,?,?,?,?,?,?)'
+const IMAGE_EDIT_SELECT_COLUMNS = 'imageId,goodsId,recipe,sourceUri,sourcePath,sourceCloudFileName,updatedAt'
+
+function mapImageEditRow(row) {
+  let recipe = null
+  try {
+    recipe = JSON.parse(row.recipe || '{}')
+  } catch {
+    recipe = null
+  }
+  if (!recipe || typeof recipe !== 'object' || Array.isArray(recipe)) recipe = null
+  return {
+    imageId: String(row.imageId || ''),
+    goodsId: String(row.goodsId || ''),
+    recipe,
+    sourceUri: String(row.sourceUri || ''),
+    sourcePath: String(row.sourcePath || ''),
+    sourceCloudFileName: String(row.sourceCloudFileName || ''),
+    updatedAt: Number(row.updatedAt) || 0
+  }
+}
+
+/** 逗号占位符，配合 values 展开使用 */
+function buildPlaceholders(count) {
+  return new Array(count).fill('?').join(',')
+}
+
+/**
+ * @param {string} imageId
+ * @returns {Promise<null | { imageId: string, goodsId: string, recipe: Record<string, any> | null, sourceUri: string, sourcePath: string, updatedAt: number }>}
+ */
+export async function getImageEdit(imageId) {
+  const id = String(imageId || '')
+  if (!id) return null
+  await initDB()
+  try {
+    const rows = await db.query(
+      `SELECT ${IMAGE_EDIT_SELECT_COLUMNS} FROM image_edits WHERE imageId = ?`,
+      [id]
+    )
+    if (!rows.length) return null
+    return mapImageEditRow(rows[0])
+  } catch (e) {
+    console.error('[db] getImageEdit failed:', e)
+    throw e
+  }
+}
+
+/**
+ * @param {string} goodsId
+ * @returns {Promise<ReturnType<typeof mapImageEditRow>[]>}
+ */
+export async function getImageEditsByGoodsId(goodsId) {
+  const id = String(goodsId || '')
+  if (!id) return []
+  await initDB()
+  try {
+    const rows = await db.query(
+      `SELECT ${IMAGE_EDIT_SELECT_COLUMNS} FROM image_edits WHERE goodsId = ? ORDER BY updatedAt DESC`,
+      [id]
+    )
+    return rows.map(mapImageEditRow)
+  } catch (e) {
+    console.error('[db] getImageEditsByGoodsId failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 全量读取——仅供一次性迁移 / 自检使用
+ * @returns {Promise<ReturnType<typeof mapImageEditRow>[]>}
+ */
+export async function getAllImageEdits() {
+  await initDB()
+  try {
+    const rows = await db.query(`SELECT ${IMAGE_EDIT_SELECT_COLUMNS} FROM image_edits ORDER BY updatedAt DESC`)
+    return rows.map(mapImageEditRow)
+  } catch (e) {
+    console.error('[db] getAllImageEdits failed:', e)
+    throw e
+  }
+}
+
+/**
+ * @param {{ imageId: string, goodsId?: string, recipe: Record<string, any>, sourceUri: string, sourcePath?: string, sourceCloudFileName?: string, updatedAt?: number }} edit
+ */
+export async function saveImageEdit(edit) {
+  const imageId = String(edit?.imageId || '')
+  if (!imageId) throw new Error('[db] saveImageEdit: imageId is required')
+  await initDB()
+  try {
+    await db.run(IMAGE_EDIT_INSERT_SQL, [
+      imageId,
+      String(edit.goodsId || ''),
+      stringifyJsonObject(edit.recipe),
+      String(edit.sourceUri || ''),
+      String(edit.sourcePath || ''),
+      String(edit.sourceCloudFileName || ''),
+      Number(edit.updatedAt) || Date.now()
+    ])
+  } catch (e) {
+    console.error('[db] saveImageEdit failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 删除单行（不碰文件，文件回收由调用方决定）
+ * @param {string} imageId
+ */
+export async function deleteImageEdit(imageId) {
+  const id = String(imageId || '')
+  if (!id) return
+  await initDB()
+  try {
+    await db.run('DELETE FROM image_edits WHERE imageId = ?', [id])
+  } catch (e) {
+    console.error('[db] deleteImageEdit failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 批量删除并**返回被删掉的行**，调用方据此回收底图文件。
+ * @param {string[]} imageIds
+ * @returns {Promise<ReturnType<typeof mapImageEditRow>[]>}
+ */
+export async function deleteImageEditsByImageIds(imageIds) {
+  const ids = [...new Set((imageIds || []).map((id) => String(id || '')).filter(Boolean))]
+  if (!ids.length) return []
+  await initDB()
+  try {
+    const rows = await db.query(
+      `SELECT ${IMAGE_EDIT_SELECT_COLUMNS} FROM image_edits WHERE imageId IN (${buildPlaceholders(ids.length)})`,
+      ids
+    )
+    if (!rows.length) return []
+    await db.run(
+      `DELETE FROM image_edits WHERE imageId IN (${buildPlaceholders(ids.length)})`,
+      ids
+    )
+    return rows.map(mapImageEditRow)
+  } catch (e) {
+    console.error('[db] deleteImageEditsByImageIds failed:', e)
+    throw e
+  }
+}
+
+/**
+ * 按底图路径删除（未保存就离开编辑页时的清理走这里）并返回删除条数
+ * @param {string[]} sourcePaths
+ * @returns {Promise<number>}
+ */
+export async function deleteImageEditsBySourcePaths(sourcePaths) {
+  const paths = [...new Set((sourcePaths || []).map((path) => String(path || '')).filter(Boolean))]
+  if (!paths.length) return 0
+  await initDB()
+  try {
+    const rows = await db.query(
+      `SELECT imageId FROM image_edits WHERE sourcePath IN (${buildPlaceholders(paths.length)})`,
+      paths
+    )
+    if (!rows.length) return 0
+    const ids = rows.map((row) => String(row.imageId))
+    await db.run(
+      `DELETE FROM image_edits WHERE imageId IN (${buildPlaceholders(ids.length)})`,
+      ids
+    )
+    return ids.length
+  } catch (e) {
+    console.error('[db] deleteImageEditsBySourcePaths failed:', e)
     throw e
   }
 }

@@ -8,6 +8,7 @@ import {
   deleteManagedLocalImages,
   extractManagedLocalImagePath
 } from '@/utils/image/localImage'
+import { forgetImageEditsBySourcePaths } from '@/utils/image/imageEdit'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
@@ -443,6 +444,8 @@ export function useGoodsEditorForm(options = {}) {
     const orphans = candidates.filter((path) => !referenced.has(path))
     if (orphans.length > 0) {
       void deleteManagedLocalImages(orphans)
+      // 底图也是本会话新建的孤儿文件：文件删了，对应的配方行也不能留
+      void forgetImageEditsBySourcePaths(orphans)
     }
   }
 

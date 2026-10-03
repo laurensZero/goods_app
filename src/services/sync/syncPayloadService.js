@@ -4,6 +4,7 @@ import {
   buildEventCoverFilename,
   buildEventPhotoFilename,
   buildImageFilename,
+  buildImageEditSourceFilename,
   buildRechargeImageFilename,
   buildBatchDraftImageFilename,
   buildImageSyncStats,
@@ -15,7 +16,7 @@ import {
   readBudgetSettings
 } from '@/utils/sync/shared'
 import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, parseStoragePublicImageUrl, sanitizeGoodsItemForSync } from '@/utils/goods/images'
-import { getAllBatchDrafts } from '@/utils/db'
+import { getAllBatchDrafts, getAllImageEdits } from '@/utils/db'
 import { isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
 import {
   SYNC_PAYLOAD_VERSION,
@@ -43,6 +44,26 @@ export function createSyncPayloadService({
     return {
       monthly: normalizeBudgetValue(input?.monthly),
       yearly: normalizeBudgetValue(input?.yearly)
+    }
+  }
+
+  /**
+   * 去框底图的本机定位表：imageId → { sourceUri, sourcePath }。
+   * 表里没有行（没套过框 / 换设备）时返回空表，正常零成本。
+   */
+  async function loadImageEditSources() {
+    try {
+      const rows = await getAllImageEdits()
+      const map = new Map()
+      for (const row of rows || []) {
+        const imageId = String(row?.imageId || '')
+        if (!imageId) continue
+        map.set(imageId, { sourceUri: String(row.sourceUri || ''), sourcePath: String(row.sourcePath || '') })
+      }
+      return map
+    } catch (e) {
+      console.warn('[sync] loadImageEditSources failed, 底图本轮不上传:', e?.message)
+      return new Map()
     }
   }
 
@@ -99,7 +120,7 @@ export function createSyncPayloadService({
     }
   }
 
-  async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+  async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources = null) {
     // Include legacy single-image fields so old records can still upload local images.
     const normalizedImages = normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')
     if (normalizedImages.length === 0) return []
@@ -208,7 +229,86 @@ export function createSyncPayloadService({
       })
     }
 
-    return preparedImages
+    // 外框二次编辑：配方随行同步，底图另存一份云端文件（文件名第三段与成品图区分）。
+    // 一张都没套过框时直接返回，不走调度器
+    if (!preparedImages.some((entry) => entry?.edit)) return preparedImages
+    return await processWithConcurrency(preparedImages, async (entry) => (
+      await prepareImageEditSourceForSync(item, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources)
+    ), 4)
+  }
+
+  /**
+   * 为「套过外框」的图片准备去框底图的上传。
+   *
+   * 底图不在 images[i] 的本地字段里（同步行会被远端整行覆盖），本机路径存在 image_edits 表，
+   * 这里按 imageId 取出来读盘上传，回填 editSourceCloudFileName / editSourceUri。
+   * 本机没有底图（换设备刚拉下来的行）时只维持云端引用，不做下载——下载发生在用户真的点二次编辑时。
+   */
+  async function prepareImageEditSourceForSync(item, imageEntry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources) {
+    const recipe = imageEntry?.edit || null
+    if (!recipe) return imageEntry
+
+    const existingCloudFileName = String(
+      imageEntry?.editSourceCloudFileName || parseCloudImageUri(imageEntry?.editSourceUri) || ''
+    ).trim()
+    const keepExisting = () => ({
+      ...imageEntry,
+      editSourceUri: existingCloudFileName ? buildCloudImageUri(existingCloudFileName) : '',
+      editSourceCloudFileName: existingCloudFileName
+    })
+    if (existingCloudFileName) referencedImageFiles.add(existingCloudFileName)
+
+    const local = editSources?.get(String(imageEntry.id || '')) || null
+    if (!local?.sourceUri && !local?.sourcePath) return keepExisting()
+
+    let imageDataUrl = await readLocalImageAsDataUrl(local.sourceUri, local.sourcePath).catch(() => null)
+    if (!String(imageDataUrl || '').startsWith('data:image/')) return keepExisting()
+
+    let parsedData = parseImageDataUrl(imageDataUrl)
+    if (!parsedData) return keepExisting()
+
+    // 抠过图的底图必须留住透明通道（PNG）；扩展名在写盘时就按 blob 类型定好了
+    const hasAlpha = /\.png$/i.test(String(local.sourcePath || '')) || /^data:image\/png/i.test(imageDataUrl)
+    if (parsedData.fileSize > imageFileSizeLimit) {
+      const compressedBlob = await compressImageToBlob(imageDataUrl, {
+        maxBytes: imageFileSizeLimit - 1024,
+        maxEdge: 1280,
+        format: hasAlpha ? 'image/png' : 'image/jpeg'
+      }).catch(() => null)
+      if (compressedBlob) {
+        const reader = new FileReader()
+        const compressedDataUrl = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result)
+          reader.onerror = reject
+          reader.readAsDataURL(compressedBlob)
+        })
+        const compressedParsed = parseImageDataUrl(compressedDataUrl)
+        if (compressedParsed) {
+          imageDataUrl = compressedDataUrl
+          parsedData = compressedParsed
+        }
+      }
+    }
+
+    // 压不下去就不上传：本机照样能二次编辑，别的设备退化成「快速编辑」，但同步不至于失败
+    if (parsedData.fileSize > imageFileSizeLimit) return keepExisting()
+
+    const cloudFileName = buildImageEditSourceFilename(item, imageEntry, parsedData.mimeType, local.sourcePath)
+    referencedImageFiles.add(cloudFileName)
+
+    if (existingImageFiles?.has(cloudFileName)) {
+      imageStats.reusedImages += 1
+    } else if (imageFiles) {
+      imageFiles[cloudFileName] = { content: imageDataUrl }
+      imageStats.uploadedImages += 1
+    }
+    imageStats.imageUpdatedAt = new Date().toISOString()
+
+    return {
+      ...imageEntry,
+      editSourceUri: buildCloudImageUri(cloudFileName),
+      editSourceCloudFileName: cloudFileName
+    }
   }
 
   async function prepareEventCoverForSync(event, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
@@ -417,6 +517,8 @@ export function createSyncPayloadService({
     const referencedImageFiles = new Set()
     const imageFiles = {}
     const existingImageFiles = new Map(Object.entries(existingImageCloud?.files || {}))
+    // 去框底图的**本机**路径只在本地表里（不能挂同步行），推送前一次性取出来按 imageId 索引
+    const editSources = await loadImageEditSources()
 
     let filteredGoods = sourceGoods.filter((item) => !incremental || lastSyncTime <= 0 || getItemTimestamp(item) > lastSyncTime)
     // Fast path: only process specific dirty items
@@ -424,7 +526,7 @@ export function createSyncPayloadService({
       filteredGoods = filteredGoods.filter((item) => dirtyIds.has(item.id))
     }
     const goods = await processWithConcurrency(filteredGoods, async (item) => {
-      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources)
       return sanitizeGoodsItemForSync(item, preparedImages)
     }, 8)
 
@@ -433,7 +535,7 @@ export function createSyncPayloadService({
       filteredTrash = filteredTrash.filter((item) => dirtyIds.has(item.id))
     }
     const trash = await processWithConcurrency(filteredTrash, async (item) => {
-      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles)
+      const preparedImages = await prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources)
       return sanitizeGoodsItemForSync(item, preparedImages)
     }, 8)
 

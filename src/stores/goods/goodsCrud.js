@@ -6,6 +6,7 @@ import {
   collectManagedLocalImagePathsFromGoodsItem,
   deleteManagedLocalImages
 } from '@/utils/image/localImage'
+import { forgetImageEditsForGoodsItems, forgetImageEditsForRemovedImages } from '@/utils/image/imageEdit'
 import {
   normalizeGoodsInput,
   normalizeTrashItem,
@@ -134,7 +135,12 @@ export async function updateGoods(id, data, list, onMutate) {
   list.value[idx] = next
   triggerRef(list)
   try {
-    await Promise.all([addItem(next), deleteManagedLocalImages(removedPaths)])
+    await Promise.all([
+      addItem(next),
+      deleteManagedLocalImages(removedPaths),
+      // 图片被换掉/移除后，外框配方与「去框底图」一起作废（底图不在 images 里，只能靠 id 找）
+      forgetImageEditsForRemovedImages(previous, next)
+    ])
   } catch (e) {
     console.error('[goods] updateGoods DB write failed:', e)
     throw e
@@ -356,7 +362,8 @@ export async function deleteTrashItem(id, trashList, onMutate, onPermanentlyDele
     await Promise.all([
       deleteItems([id]),
       cancelSaleReminderNotifications(id, existing?.saleReminderOffsets),
-      deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing))
+      deleteManagedLocalImages(collectManagedLocalImagePathsFromGoodsItem(existing)),
+      forgetImageEditsForGoodsItems([existing])
     ])
   } catch (e) {
     console.error('[goods] deleteTrashItem DB write failed:', e)
@@ -390,6 +397,7 @@ export async function emptyTrash(trashList, onMutate, onPermanentlyDeleted) {
   try {
     await Promise.all([
       deleteItems(removedItems.map((item) => item.id)),
+      forgetImageEditsForGoodsItems(removedItems),
       ...removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets))
     ])
     await deleteManagedLocalImages(removedPaths)
@@ -427,6 +435,7 @@ export async function deleteGoodsPermanently(ids, list, onMutate) {
   try {
     await deleteItems(targetIds)
     await Promise.all(removedItems.map((item) => cancelSaleReminderNotifications(item.id, item.saleReminderOffsets)))
+    await forgetImageEditsForGoodsItems(removedItems)
     await deleteManagedLocalImages(removedPaths)
   } catch (e) {
     console.error('[goods] deleteGoodsPermanently DB write failed:', e)
