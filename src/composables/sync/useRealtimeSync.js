@@ -17,6 +17,14 @@ const HEALTH_CHECK_MS = 30_000
 // 底层 WebSocket 静默断开（Android 切网/休眠后常见）时 phoenix 可能自己重连，
 // 连续两轮巡检仍为断开才判定真死，避免与库自带重连打架
 const SOCKET_DOWN_TICKS = 2
+// 连接尝试可能永远卡在 CONNECTING（phoenix 不给它超时，channel.join 也一直排队不回调），
+// 此时只能靠强拆 disconnect() 重新 connect()
+const SOCKET_KICK_WAIT_MS = 2000
+// subscribe() 之后迟迟收不到任何状态回调 = 回调没挂上（同名 channel 复用）或 join 一直排队
+const SUBSCRIBE_WATCHDOG_MS = 15_000
+const STALE_CHANNEL_WAIT_MS = 1500
+const CHANNEL_NAME = 'data-realtime'
+const CHANNEL_TOPIC = `realtime:${CHANNEL_NAME}`
 
 /**
  * 模块级共享状态：App.vue 只实例化一次，云同步设置页（SyncView）直接读它展示实时推送状态。
@@ -49,6 +57,8 @@ export function useRealtimeSync({ syncStore }) {
   let isRebuilding = false
   let healthTimer = null
   let visibilityDebounceTimer = null
+  let subscribeWatchdogTimer = null
+  let isSubscribing = false
 
   function doPull(tables) {
     if (syncStore.syncPaused) return
@@ -95,10 +105,52 @@ export function useRealtimeSync({ syncStore }) {
   function unsubscribe() {
     if (pullDebounceTimer) { clearTimeout(pullDebounceTimer); pullDebounceTimer = null }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
+    clearSubscribeWatchdog()
     if (channel.value) {
       try { channel.value.unsubscribe() } catch { /* ignore */ }
       channel.value = null
       isConnected.value = false
+    }
+  }
+
+  function clearSubscribeWatchdog() {
+    if (subscribeWatchdogTimer) {
+      clearTimeout(subscribeWatchdogTimer)
+      subscribeWatchdogTimer = null
+    }
+  }
+
+  // 底层 WebSocket 不通/卡住时先强拆：RealtimeClient.connect() 会被 isConnecting() 短路，
+  // 只重订阅救不回来。返回是否执行了强拆（执行了就无需再走端点探测）。
+  async function kickDeadSocket() {
+    const realtime = getSupabaseClient()?.realtime
+    if (!realtime || typeof realtime.isConnected !== 'function') return false
+    if (realtime.isConnected()) return false
+    if (typeof realtime.disconnect === 'function') {
+      try {
+        await Promise.race([
+          realtime.disconnect(),
+          new Promise((resolve) => setTimeout(resolve, SOCKET_KICK_WAIT_MS))
+        ])
+      } catch { /* ignore */ }
+    }
+    return true
+  }
+
+  // supabase-js 按 topic 复用 channel：上一次 unsubscribe 是异步的，残留实例若还停在
+  // leaving/joining，subscribe() 会跳过回调注册（既不 SUBSCRIBED 也不报错），
+  // 状态就永远停在 connecting。这里先把同名残留清干净再新建。
+  async function dropStaleChannels(db) {
+    const stale = (typeof db.getChannels === 'function' ? db.getChannels() : [])
+      .filter((item) => item?.topic === CHANNEL_TOPIC)
+    for (const item of stale) {
+      try {
+        await Promise.race([
+          item.unsubscribe(),
+          new Promise((resolve) => setTimeout(resolve, STALE_CHANNEL_WAIT_MS))
+        ])
+      } catch { /* ignore */ }
+      try { item.teardown?.() } catch { /* ignore */ }
     }
   }
 
@@ -144,8 +196,10 @@ export function useRealtimeSync({ syncStore }) {
     try {
       log.info('rebuilding channel:', reason, 'attempt', rebuildAttempt + 1)
       unsubscribe()
-      // 静默断连/错误后刷新客户端，避免复用已死的 WebSocket / 过期 DNS 缓存
-      if (reason !== 'health' && reason !== 'subscribe-failed' && reason !== 'socket-down') {
+      // WebSocket 已死/卡在 CONNECTING：先强拆让它重新 connect；
+      // socket 活着时才走端点探测，避免复用过期 DNS 缓存 / 半死实例
+      const kicked = await kickDeadSocket()
+      if (!kicked && reason !== 'health' && reason !== 'subscribe-failed') {
         await reconnectSupabase()
       }
       await subscribe()
@@ -177,8 +231,10 @@ export function useRealtimeSync({ syncStore }) {
   }
 
   async function subscribe() {
-    if (channel.value) return
+    if (channel.value || isSubscribing) return
     if (!syncStore.isSupabaseMode()) return
+    isSubscribing = true
+    clearSubscribeWatchdog()
 
     try {
       const db = getSupabaseClient()
@@ -191,7 +247,9 @@ export function useRealtimeSync({ syncStore }) {
       const userId = authStore.user?.id
       if (!userId) return
 
-      let builder = db.channel('data-realtime')
+      await dropStaleChannels(db)
+
+      let builder = db.channel(CHANNEL_NAME)
       for (const table of REALTIME_TABLES) {
         builder = builder.on('postgres_changes', {
           event: '*',
@@ -201,6 +259,7 @@ export function useRealtimeSync({ syncStore }) {
         }, handleRemoteChange)
       }
       channel.value = builder.subscribe((status) => {
+        clearSubscribeWatchdog()
         isConnected.value = status === 'SUBSCRIBED'
         log.info('channel status:', status)
         if (status === 'SUBSCRIBED') {
@@ -216,10 +275,19 @@ export function useRealtimeSync({ syncStore }) {
         }
         publishState(status)
       })
+      // 回调迟迟不来 = 没挂上或 join 一直排队：强制走重建，别让状态卡在 connecting
+      subscribeWatchdogTimer = setTimeout(() => {
+        subscribeWatchdogTimer = null
+        if (isConnected.value || document.hidden) return
+        log.warn('subscribe watchdog fired, forcing rebuild')
+        scheduleRebuild('subscribe-timeout')
+      }, SUBSCRIBE_WATCHDOG_MS)
       publishState()
     } catch (e) {
       console.warn('[realtime] subscribe failed:', e.message)
       scheduleRebuild('subscribe-failed')
+    } finally {
+      isSubscribing = false
     }
   }
 
@@ -232,18 +300,17 @@ export function useRealtimeSync({ syncStore }) {
       if (!canOperate()) return
       if (isRebuilding || rebuildTimer) return
 
-      // 底层 WebSocket 静默断开：channel 级回调可能一动不动，这里直接探 socket。
-      // phoenix 自带重连，连续两轮巡检仍为断开才判定真死并重建。
+      // 底层 WebSocket 静默断开/卡住：channel 级回调可能一动不动，这里直接探 socket。
+      // 卡在 CONNECTING 时 phoenix 不会自己超时，同样要算死（否则永远停在 connecting）。
+      // 连续两轮巡检为断开才判定真死，避免与库自带重连打架。
       const realtime = getSupabaseClient()?.realtime
-      const socketDead = !!realtime
-        && typeof realtime.isConnected === 'function'
-        && !realtime.isConnected()
-        && !(typeof realtime.isConnecting === 'function' && realtime.isConnecting())
+      const socketDead = !!realtime && typeof realtime.isConnected === 'function' && !realtime.isConnected()
       if (socketDead) {
         socketDownTicks += 1
         if (socketDownTicks >= SOCKET_DOWN_TICKS) {
           socketDownTicks = 0
-          scheduleRebuild('socket-down')
+          const stuck = typeof realtime.isConnecting === 'function' && !!realtime.isConnecting()
+          scheduleRebuild(stuck ? 'socket-stuck' : 'socket-down')
         }
         return
       }

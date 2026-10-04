@@ -790,6 +790,8 @@ const REALTIME_REASON_KEYS = {
   TIMED_OUT: 'sync.realtimeReason.connection',
   CLOSED: 'sync.realtimeReason.connection',
   'socket-down': 'sync.realtimeReason.connection',
+  'socket-stuck': 'sync.realtimeReason.stuck',
+  'subscribe-timeout': 'sync.realtimeReason.timeout',
   health: 'sync.realtimeReason.health',
   'no-client': 'sync.realtimeReason.noClient',
   'subscribe-failed': 'sync.realtimeReason.failed',

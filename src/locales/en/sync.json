@@ -321,6 +321,8 @@
   "sync.realtimeAttempt": "Retry {n}",
   "sync.realtimeReconnect": "Reconnect now",
   "sync.realtimeReason.connection": "Connection lost",
+  "sync.realtimeReason.stuck": "Connection stuck",
+  "sync.realtimeReason.timeout": "Subscribe timed out",
   "sync.realtimeReason.health": "Health check found it offline",
   "sync.realtimeReason.noClient": "Client not ready",
   "sync.realtimeReason.failed": "Reconnect failed",

@@ -321,6 +321,8 @@
   "sync.realtimeAttempt": "{n}번째 다시 연결 시도",
   "sync.realtimeReconnect": "지금 다시 연결",
   "sync.realtimeReason.connection": "연결이 끊겼습니다",
+  "sync.realtimeReason.stuck": "연결이 멈췄습니다",
+  "sync.realtimeReason.timeout": "구독 시간 초과",
   "sync.realtimeReason.health": "상태 확인 중 끊김 감지",
   "sync.realtimeReason.noClient": "클라이언트 준비 안됨",
   "sync.realtimeReason.failed": "다시 연결 실패",

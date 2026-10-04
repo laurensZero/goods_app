@@ -321,6 +321,8 @@
   "sync.realtimeAttempt": "{n} 回目の再接続",
   "sync.realtimeReconnect": "今すぐ再接続",
   "sync.realtimeReason.connection": "接続が切断されました",
+  "sync.realtimeReason.stuck": "接続が固まっています",
+  "sync.realtimeReason.timeout": "購読がタイムアウト",
   "sync.realtimeReason.health": "ヘルスチェックで切断を検出",
   "sync.realtimeReason.noClient": "クライアント未準備",
   "sync.realtimeReason.failed": "再接続に失敗",

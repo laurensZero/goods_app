@@ -5,8 +5,11 @@ import { realtimeState, requestRealtimeReconnect, useRealtimeSync } from '@/comp
 
 const mocks = vi.hoisted(() => ({
   callbacks: [],
+  staleChannels: [],
   socketUp: { value: true },
+  socketConnecting: { value: false },
   auth: { user: { id: 'user-1' } },
+  disconnect: vi.fn(async () => 'ok'),
   reconnectSupabase: vi.fn(async () => true)
 }))
 
@@ -21,9 +24,11 @@ vi.mock('@/utils/sync/supabaseClient', () => {
   return {
     getSupabaseClient: vi.fn(() => ({
       channel: () => builder,
+      getChannels: () => mocks.staleChannels,
       realtime: {
         isConnected: () => mocks.socketUp.value,
-        isConnecting: () => false
+        isConnecting: () => mocks.socketConnecting.value,
+        disconnect: mocks.disconnect
       }
     })),
     reconnectSupabase: mocks.reconnectSupabase,
@@ -67,8 +72,11 @@ describe('useRealtimeSync realtime state', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     mocks.callbacks.length = 0
+    mocks.staleChannels.length = 0
     mocks.socketUp.value = true
+    mocks.socketConnecting.value = false
     mocks.auth.user = { id: 'user-1' }
+    mocks.disconnect.mockClear()
     mocks.reconnectSupabase.mockClear()
     realtimeState.value = { status: 'idle', reason: '', attempt: 0, changedAt: 0 }
     syncStore = createSyncStore()
@@ -80,8 +88,14 @@ describe('useRealtimeSync realtime state', () => {
     vi.useRealTimers()
   })
 
-  it('subscribe 成功后置为 connected', () => {
+  // subscribe 内部有 await（清理残留 channel），需要先把微任务跑完
+  async function mountReady() {
     wrapper = mountRealtime(syncStore)
+    await vi.advanceTimersByTimeAsync(0)
+  }
+
+  it('subscribe 成功后置为 connected', async () => {
+    await mountReady()
     expect(realtimeState.value.status).toBe('connecting')
 
     emitStatus('SUBSCRIBED')
@@ -91,7 +105,7 @@ describe('useRealtimeSync realtime state', () => {
   })
 
   it('CHANNEL_ERROR 进入 reconnecting 并按退避自动重建恢复', async () => {
-    wrapper = mountRealtime(syncStore)
+    await mountReady()
     emitStatus('SUBSCRIBED')
 
     emitStatus('CHANNEL_ERROR')
@@ -109,7 +123,7 @@ describe('useRealtimeSync realtime state', () => {
   })
 
   it('暂停自动同步后置为 disabled', async () => {
-    wrapper = mountRealtime(syncStore)
+    await mountReady()
     emitStatus('SUBSCRIBED')
 
     syncStore.syncPaused = true
@@ -117,8 +131,32 @@ describe('useRealtimeSync realtime state', () => {
     expect(realtimeState.value.status).toBe('disabled')
   })
 
+  it('回调迟迟不来：看门狗强制重建，状态不卡在 connecting', async () => {
+    await mountReady()
+    expect(realtimeState.value.status).toBe('connecting')
+
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect(realtimeState.value.status).toBe('reconnecting')
+    expect(realtimeState.value.reason).toBe('subscribe-timeout')
+  })
+
+  it('同名残留 channel 会被清掉再重建（避免复用后回调挂不上）', async () => {
+    const stale = {
+      topic: 'realtime:data-realtime',
+      unsubscribe: vi.fn(async () => 'ok'),
+      teardown: vi.fn()
+    }
+    mocks.staleChannels.push(stale)
+
+    await mountReady()
+
+    expect(stale.unsubscribe).toHaveBeenCalled()
+    expect(stale.teardown).toHaveBeenCalled()
+    expect(realtimeState.value.status).toBe('connecting')
+  })
+
   it('WebSocket 静默断开：连续两轮巡检才判定真死并重建', async () => {
-    wrapper = mountRealtime(syncStore)
+    await mountReady()
     emitStatus('SUBSCRIBED')
     mocks.socketUp.value = false
 
@@ -131,11 +169,27 @@ describe('useRealtimeSync realtime state', () => {
 
     await vi.advanceTimersByTimeAsync(3000)
     expect(realtimeState.value.status).toBe('connecting')
+    expect(mocks.disconnect).toHaveBeenCalled()
     expect(mocks.reconnectSupabase).not.toHaveBeenCalled()
   })
 
+  it('卡在 CONNECTING 的 socket 也会被强拆重连（否则永远停在 connecting）', async () => {
+    await mountReady()
+    emitStatus('SUBSCRIBED')
+    mocks.socketUp.value = false
+    mocks.socketConnecting.value = true
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(realtimeState.value.status).toBe('reconnecting')
+    expect(realtimeState.value.reason).toBe('socket-stuck')
+
+    await vi.advanceTimersByTimeAsync(3000)
+    expect(mocks.disconnect).toHaveBeenCalled()
+    expect(realtimeState.value.status).toBe('connecting')
+  })
+
   it('requestRealtimeReconnect 立即重建并重置退避', async () => {
-    wrapper = mountRealtime(syncStore)
+    await mountReady()
     emitStatus('CHANNEL_ERROR')
     expect(realtimeState.value.status).toBe('reconnecting')
 

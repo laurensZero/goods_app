@@ -321,6 +321,8 @@
   "sync.realtimeAttempt": "第 {n} 次重連",
   "sync.realtimeReconnect": "立即重連",
   "sync.realtimeReason.connection": "連線中斷",
+  "sync.realtimeReason.stuck": "連線卡住",
+  "sync.realtimeReason.timeout": "訂閱逾時",
   "sync.realtimeReason.health": "巡檢發現斷線",
   "sync.realtimeReason.noClient": "用戶端未就緒",
   "sync.realtimeReason.failed": "重連失敗",
