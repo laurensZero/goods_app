@@ -50,7 +50,7 @@
               <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
               <template v-for="anno in shot.meta.annos" :key="anno.n">
                 <span class="guide-anno" :style="annoStyle(anno)">
-                  <i class="guide-anno__dot">{{ anno.n }}</i>
+                  <i class="guide-anno__dot">{{ shot.numOffset + anno.n }}</i>
                 </span>
                 <span
                   class="guide-anno-label"
@@ -202,15 +202,24 @@ const section = computed(() => {
     steps: messageArray(`${base}.steps`),
     tip: t(`${base}.tip`),
     faq: meta.id === 'faq' ? faqItems() : [],
-    shots: meta.shots
-      .filter((key) => shotManifest[key])
-      .map((key) => ({
-        key,
-        meta: shotManifest[key],
-        url: GUIDE_SHOT_BASE + shotManifest[key].file,
-        failed: failedShots.value.has(key)
-      }))
-  }
+      shots: (() => {
+        // 同章节内标号连续：第二张图从上一张的最后一个编号接着数
+        let numOffset = 0
+        return meta.shots
+          .filter((key) => shotManifest[key])
+          .map((key) => {
+            const shot = {
+              key,
+              meta: shotManifest[key],
+              url: GUIDE_SHOT_BASE + shotManifest[key].file,
+              failed: failedShots.value.has(key),
+              numOffset
+            }
+            numOffset += shotManifest[key].annos?.length || 0
+            return shot
+          })
+      })()
+    }
 })
 
 const prevSection = computed(() => buildPagerItem(sectionIndex.value - 1))
