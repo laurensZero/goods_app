@@ -169,6 +169,7 @@ const activeMonthLabel = computed(() => {
 })
 const activeMeta = computed(() => {
   if (!activeMonth.value) return ''
+  if (activeMonth.value.shippingOnly) return t('home.timeline.shippingOnly')
   return t('leaderboard.items', { count: activeMonth.value.count || 0 })
 })
 

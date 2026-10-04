@@ -27,11 +27,12 @@
           <div class="tl-month-header">
             <span class="tl-month-label">{{ formatMonthLabel(monthGroup.month) }}</span>
             <div class="tl-month-meta">
-              <span class="tl-month-count">{{ t('leaderboard.items', { count: monthGroup.count }) }}</span>
+              <span v-if="monthGroup.shippingOnly" class="tl-month-count">{{ t('home.timeline.shippingOnly') }}</span>
+              <span v-else class="tl-month-count">{{ t('leaderboard.items', { count: monthGroup.count }) }}</span>
               <span v-if="monthGroup.totalSpend > 0" class="tl-month-spend">{{ formatPrice(monthGroup.totalSpend) }}</span>
             </div>
           </div>
-          <div class="tl-thumb-grid">
+          <div v-if="monthGroup.items.length > 0" class="tl-thumb-grid">
             <button
               v-for="item in monthGroup.items"
               :key="item.id"

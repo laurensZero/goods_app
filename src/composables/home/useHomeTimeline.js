@@ -56,8 +56,14 @@ export function getTimelineDisplayTotal(item) {
   return (base * quantity) + shipping
 }
 
+/**
+ * @returns {{ entries: object[], uncoveredShippingByMonth: Map<string, number> }}
+ *   uncoveredShippingByMonth：官方口径里有花费、但该商品在该月没有任何入手记录的月份
+ *   （statistics.attachShippingToEntries 生成的独立运费条目），金额即该月运费。
+ */
 function buildTimelineEntries(goodsList, sortDirection = 'desc') {
   const entries = []
+  const uncoveredShippingByMonth = new Map()
 
   const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
   for (const item of goodsList) {
@@ -113,6 +119,17 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         monthMap.set(yearMonth, [])
       }
       monthMap.get(yearMonth).push(pair)
+    }
+
+    // 花费月份 ⊄ 入手月份的部分：只有「独立运费条目」会落在无同月入手记录的月份
+    // （如 8 月入手、10 月补运费）。这些金额不挂任何条目，需单独汇总，
+    // 否则该月合计与年度合计都会漏算。
+    for (const [spendYearMonth, spendAmount] of spendByMonth) {
+      if (!(spendAmount > 0) || monthMap.has(spendYearMonth)) continue
+      uncoveredShippingByMonth.set(
+        spendYearMonth,
+        (uncoveredShippingByMonth.get(spendYearMonth) || 0) + spendAmount
+      )
     }
 
     const monthEntries = Array.from(monthMap.entries()).map(([yearMonth, monthPairs], index) => {
@@ -181,10 +198,10 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         sortedEntries[slotIndex] = monthEntries[i]
       })
     }
-    return sortedEntries
+    return { entries: sortedEntries, uncoveredShippingByMonth }
   }
 
-  return entries
+  return { entries, uncoveredShippingByMonth }
 }
 
 export function useHomeTimeline({
@@ -196,13 +213,18 @@ export function useHomeTimeline({
   getInitialVisibleTimelineMonths,
   offsetOfMonth
 }) {
-  const timelineEntries = computed(() => {
-    if (displayDensity.value !== 'timeline') return []
+  const timelineBuild = computed(() => {
+    if (displayDensity.value !== 'timeline') {
+      return { entries: [], uncoveredShippingByMonth: new Map() }
+    }
     // displayList already contains the normal collection page's filtering,
     // grouping, and sorting result. Keep that order here for the month
     // sequence; entries within one month are re-ordered by their own date.
     return buildTimelineEntries(displayList.value, sortDirection.value)
   })
+
+  const timelineEntries = computed(() => timelineBuild.value.entries)
+  const uncoveredShippingByMonth = computed(() => timelineBuild.value.uncoveredShippingByMonth)
 
   // Flat month list — single source of truth for month ordering.
   // 必须按 yearMonth 时间序排，不能沿用 displayList 首次出现顺序：
@@ -210,11 +232,7 @@ export function useHomeTimeline({
   // 导致「2 月排在 1 月下面」这类时间线倒挂。
   const allTimelineMonthList = computed(() => {
     const monthMap = new Map()
-
-    for (const item of timelineEntries.value) {
-      if (!item.timelineYearMonth) continue
-      const yearMonth = item.timelineYearMonth
-
+    const getOrCreateMonthGroup = (yearMonth) => {
       let monthGroup = monthMap.get(yearMonth)
       if (!monthGroup) {
         monthGroup = {
@@ -227,10 +245,29 @@ export function useHomeTimeline({
         }
         monthMap.set(yearMonth, monthGroup)
       }
+      return monthGroup
+    }
 
+    for (const item of timelineEntries.value) {
+      if (!item.timelineYearMonth) continue
+      const yearMonth = item.timelineYearMonth
+
+      const monthGroup = getOrCreateMonthGroup(yearMonth)
       monthGroup.items.push(item)
       monthGroup.count += Number(item.quantity) || 1
       monthGroup.totalSpend += Number(item.totalValueNumber) || 0
+    }
+
+    // 无同月入手记录的运费：并入对应月份合计（已有月份块只加金额，
+    // 没有月份块则新建纯运费月份块，count 保持 0、不产出缩略图）。
+    for (const [yearMonth, shippingAmount] of uncoveredShippingByMonth.value) {
+      if (!(shippingAmount > 0)) continue
+      let monthGroup = monthMap.get(yearMonth)
+      if (!monthGroup) {
+        monthGroup = getOrCreateMonthGroup(yearMonth)
+        monthGroup.shippingOnly = true
+      }
+      monthGroup.totalSpend += shippingAmount
     }
 
     const directionFactor = sortDirection.value === 'asc' ? 1 : -1

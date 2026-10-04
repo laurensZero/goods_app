@@ -210,4 +210,63 @@ describe('useHomeTimeline', () => {
     expect(timeline.allTimelineMonthList.value.map((m) => m.yearMonth)).toEqual(['2026-01', '2025-12'])
     expect(timeline.timelineYearGroups.value.map((g) => g.year)).toEqual(['2026', '2025'])
   })
+
+  it('creates a shipping-only month block so later shipping enters month and year totals', () => {
+    const item = {
+      id: 'ship-oct',
+      name: '八月谷子',
+      quantity: 1,
+      acquiredAt: '2026-08-15',
+      actualPrice: '100',
+      shippingFee: '8',
+      shippingEvents: [{ date: '2026-10-05', fee: '8' }],
+      collectStatus: '已拥有'
+    }
+    const timeline = setupTimeline([item])
+    const months = timeline.allTimelineMonthList.value
+
+    expect(months.map((m) => m.yearMonth)).toEqual(['2026-10', '2026-08'])
+
+    const october = months.find((m) => m.yearMonth === '2026-10')
+    expect(october.shippingOnly).toBe(true)
+    expect(october.items).toEqual([])
+    expect(october.count).toBe(0)
+    expect(october.totalSpend).toBe(8)
+
+    const august = months.find((m) => m.yearMonth === '2026-08')
+    expect(august.totalSpend).toBe(100)
+
+    expect(timeline.timelineYearGroups.value[0].yearTotal).toBe(108)
+  })
+
+  it('merges later shipping into an existing month without inflating its count', () => {
+    const shipped = {
+      id: 'ship-oct-merge',
+      name: '八月谷子',
+      quantity: 1,
+      acquiredAt: '2026-08-15',
+      actualPrice: '100',
+      shippingFee: '8',
+      shippingEvents: [{ date: '2026-10-05', fee: '8' }],
+      collectStatus: '已拥有'
+    }
+    const octoberGoods = {
+      id: 'oct-goods',
+      name: '十月谷子',
+      quantity: 2,
+      acquiredAt: '2026-10-10',
+      actualPrice: '60',
+      totalValueNumber: 60,
+      collectStatus: '已拥有'
+    }
+    const timeline = setupTimeline([shipped, octoberGoods])
+
+    const months = timeline.allTimelineMonthList.value
+    const october = months.find((m) => m.yearMonth === '2026-10')
+    expect(october.shippingOnly).toBeUndefined()
+    expect(october.count).toBe(2)
+    expect(october.totalSpend).toBe(68)
+
+    expect(timeline.timelineYearGroups.value[0].yearTotal).toBe(168)
+  })
 })
