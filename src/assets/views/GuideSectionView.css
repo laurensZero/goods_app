@@ -216,7 +216,7 @@
   border: 2px solid #fff;
 }
 
-/* 框旁文字提示：HTML 覆盖在截图上，坐标来自 manifest（百分比） */
+/* 标注文字 pill：位置由 GuideSectionView.layoutLabels() 实测后写入（锚在红框右上角，越界自动回退） */
 .guide-anno-label {
   position: absolute;
   z-index: 2;
@@ -230,9 +230,12 @@
   line-height: 1.4;
   letter-spacing: 0.01em;
   pointer-events: none;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  max-width: 100%;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+  transition:
+    left 0.18s ease,
+    top 0.18s ease;
 }
 
 /* ── 提示 / FAQ ─────────────────────────────── */

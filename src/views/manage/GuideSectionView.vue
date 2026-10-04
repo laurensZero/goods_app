@@ -30,6 +30,7 @@
             v-for="shot in section.shots"
             :key="shot.key"
             class="guide-shot"
+            :data-shot="shot.key"
           >
             <div
               class="guide-shot__frame"
@@ -43,6 +44,7 @@
                 :alt="section.title"
                 loading="lazy"
                 decoding="async"
+                @load="scheduleLayout"
                 @error="markShotFailed(shot.key)"
               />
               <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
@@ -50,7 +52,11 @@
                 <span class="guide-anno" :style="annoStyle(anno)">
                   <i class="guide-anno__dot">{{ anno.n }}</i>
                 </span>
-                <span class="guide-anno-label" :style="annoLabelStyle(anno)">
+                <span
+                  class="guide-anno-label"
+                  :data-n="anno.n"
+                  :style="labelStyle(shot.key, anno.n)"
+                >
                   {{ shotLabel(shot, anno) }}
                 </span>
               </template>
@@ -108,7 +114,7 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
@@ -234,26 +240,91 @@ function annoStyle(anno) {
 }
 
 /**
- * 框旁文字提示的定位（与框同级、以截图为定位上下文）：
- * - 垂直：框下方有 ≥6% 余量则贴下方，否则贴上方；
- * - 水平：框偏右则右缘对齐，否则左缘对齐；
- * - maxWidth 按可用余量收紧，保证提示不会被 frame 的 overflow 裁掉。
+ * 标注文字统一锚在红框右上角，放不下时按 右上 → 右下 → 左上 → 左下 回退。
+ * 每个候选位校验：不出图、不压编号点、不压其它红框、不压已放置的文字。
+ * 位置以 px 存储（依赖实测的 pill 尺寸），视口/语言变化时由 layoutLabels() 重算。
  */
-function annoLabelStyle(anno) {
-  const below = 100 - (anno.y + anno.h) >= 6 || anno.y < 6
-  const rightSide = anno.x + anno.w / 2 > 50
-  const style = below
-    ? { top: `${anno.y + anno.h + 1}%` }
-    : { bottom: `${100 - anno.y + 1}%` }
-  if (rightSide) {
-    style.right = `${100 - (anno.x + anno.w)}%`
-    style.maxWidth = `${Math.max(anno.x + anno.w - 2, 14)}%`
-  } else {
-    style.left = `${anno.x}%`
-    style.maxWidth = `${Math.max(100 - anno.x - 2, 14)}%`
-  }
-  return style
+const labelPos = ref({})
+
+function labelStyle(shotKey, n) {
+  const pos = labelPos.value[`${shotKey}:${n}`]
+  if (!pos) return { visibility: 'hidden' }
+  return { left: `${pos.left}px`, top: `${pos.top}px` }
 }
+
+const rectsOverlap = (a, b, pad = 2) =>
+  Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > pad &&
+  Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > pad
+
+function layoutLabels() {
+  const root = pageBodyRef.value
+  if (!root) return
+  const next = {}
+  for (const figure of root.querySelectorAll('.guide-shot')) {
+    const shotKey = figure.dataset.shot
+    const meta = shotManifest[shotKey]
+    const frame = figure.querySelector('.guide-shot__frame')
+    if (!frame || !meta?.annos?.length) continue
+    const fw = frame.clientWidth
+    const fh = frame.clientHeight
+    if (!fw || !fh) continue
+    const boxes = meta.annos.map((a) => ({
+      n: a.n,
+      left: (a.x / 100) * fw,
+      top: (a.y / 100) * fh,
+      width: (a.w / 100) * fw,
+      height: (a.h / 100) * fh
+    }))
+    const placed = []
+    for (const box of boxes) {
+      const el = frame.querySelector(`.guide-anno-label[data-n="${box.n}"]`)
+      if (!el) continue
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (!w || !h) continue
+      // 阻挡物：只有已放置的文字互相不能压（框是半透明描边，压住框可接受）
+      const placedHit = (c) => placed.some((p) => rectsOverlap({ ...c, width: w, height: h }, p))
+      // 锚点始终贴着自己的框：上/下两档高度 × 右对齐/左对齐/居中三档水平位。
+      // 上方锚点留 16px 让开编号点（框左上 22px 圆 + 2px 边）；
+      // 撞到已放文字时沿框边滑到下一档，不做远距离逃逸。
+      const tops = [box.top - h - 16, box.top + box.height + 4]
+      const lefts = [
+        box.left + box.width - w,
+        box.left,
+        box.left + box.width / 2 - w / 2
+      ]
+      const candidates = tops.flatMap((top) => lefts.map((left) => ({ left, top })))
+      const inB = (c) => c.left >= 0 && c.top >= 0 && c.left + w <= fw && c.top + h <= fh
+      const area = (c) =>
+        placed.reduce((sum, p) => {
+          const x = Math.min(c.left + w, p.left + p.width) - Math.max(c.left, p.left)
+          const y = Math.min(c.top + h, p.top + p.height) - Math.max(c.top, p.top)
+          return sum + Math.max(0, x) * Math.max(0, y)
+        }, 0)
+      const legal = candidates.filter(inB)
+      const pick =
+        legal.find((c) => area(c) === 0) ||
+        legal.sort((a, b) => area(a) - area(b))[0] ||
+        candidates[0]
+      // 兜底：夹回图内，避免被 frame 的 overflow 裁掉
+      const left = Math.min(Math.max(pick.left, 0), Math.max(fw - w, 0))
+      const top = Math.min(Math.max(pick.top, 0), Math.max(fh - h, 0))
+      placed.push({ left, top, width: w, height: h })
+      next[`${shotKey}:${box.n}`] = { left, top }
+    }
+  }
+  labelPos.value = next
+}
+
+let layoutRaf = 0
+function scheduleLayout() {
+  if (layoutRaf) return
+  layoutRaf = window.requestAnimationFrame(() => {
+    layoutRaf = 0
+    layoutLabels()
+  })
+}
+
 
 function openSection(id) {
   runWithRouteTransition(() => router.replace(`/manage/guide/${id}`), { direction: 'forward' })
@@ -275,16 +346,47 @@ watch(
   }
 )
 
-onMounted(() => {
+// pill 尺寸依赖渲染结果：章节/语言切换、图片尺寸就绪、容器宽度变化都要重排
+watch([() => route.params.section, locale], async () => {
+  labelPos.value = {}
+  await nextTick()
+  scheduleLayout()
+})
+
+let shotsObserver = null
+
+function observeShots() {
+  shotsObserver?.disconnect()
+  const root = pageBodyRef.value
+  if (!root || typeof ResizeObserver === 'undefined') return
+  shotsObserver = new ResizeObserver(() => scheduleLayout())
+  root.querySelectorAll('.guide-shot__frame').forEach((el) => shotsObserver.observe(el))
+  shotsObserver.observe(root)
+}
+
+onMounted(async () => {
   if (sectionIndex.value < 0) {
     router.replace('/manage/guide')
     return
   }
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
+  await nextTick()
+  scheduleLayout()
+  observeShots()
 })
 
-onActivated(resetPageScrollTop)
+onActivated(async () => {
+  resetPageScrollTop()
+  await nextTick()
+  scheduleLayout()
+  observeShots()
+})
+
+onBeforeUnmount(() => {
+  shotsObserver?.disconnect()
+  if (layoutRaf) window.cancelAnimationFrame(layoutRaf)
+})
 </script>
 
 <style scoped src="@/assets/views/GuideSectionView.css"></style>
