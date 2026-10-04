@@ -3,109 +3,487 @@
     "file": "home.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "search",
+        "x": 48.4,
+        "y": 5.1,
+        "w": 6.5,
+        "h": 4
+      },
+      {
+        "n": 2,
+        "label": "summary",
+        "x": 13.9,
+        "y": 14,
+        "w": 72.1,
+        "h": 20.9
+      },
+      {
+        "n": 3,
+        "label": "views",
+        "x": 56.3,
+        "y": 4.9,
+        "w": 29.7,
+        "h": 4.5
+      },
+      {
+        "n": 4,
+        "label": "addFab",
+        "x": 87,
+        "y": 83.3,
+        "w": 10.1,
+        "h": 6.2
+      }
+    ]
   },
   "stats-view": {
     "file": "stats-view.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "overview",
+        "x": 11.1,
+        "y": 14,
+        "w": 77.9,
+        "h": 20.3
+      },
+      {
+        "n": 2,
+        "label": "charts",
+        "x": 11.1,
+        "y": 46.7,
+        "w": 77.9,
+        "h": 53.3
+      }
+    ]
   },
   "my-page": {
     "file": "my-page.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "account",
+        "x": 11.1,
+        "y": 14,
+        "w": 77.9,
+        "h": 65.9
+      },
+      {
+        "n": 2,
+        "label": "cloudSync",
+        "x": 13.9,
+        "y": 89.8,
+        "w": 72.1,
+        "h": 10.2
+      },
+      {
+        "n": 3,
+        "label": "budget",
+        "x": 17.6,
+        "y": 49.6,
+        "w": 64.9,
+        "h": 28.1
+      }
+    ]
   },
   "add-sheet": {
     "file": "add-sheet.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "manual",
+        "x": 3.6,
+        "y": 50.2,
+        "w": 92.8,
+        "h": 8
+      },
+      {
+        "n": 2,
+        "label": "batch",
+        "x": 3.6,
+        "y": 58.4,
+        "w": 92.8,
+        "h": 8
+      }
+    ]
   },
   "add-form": {
     "file": "add-form.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "cover",
+        "x": 13.9,
+        "y": 10.2,
+        "w": 72.1,
+        "h": 44.3
+      },
+      {
+        "n": 2,
+        "label": "save",
+        "x": 12,
+        "y": 92,
+        "w": 76.1,
+        "h": 5.8
+      }
+    ]
   },
   "add-form-more": {
     "file": "add-form-more.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "tabs",
+        "x": 13.9,
+        "y": 2.7,
+        "w": 72.1,
+        "h": 6.7
+      },
+      {
+        "n": 2,
+        "label": "name",
+        "x": 19,
+        "y": 52.3,
+        "w": 62,
+        "h": 5.3
+      }
+    ]
   },
   "batch-queue": {
     "file": "batch-queue.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "progress",
+        "x": 13.9,
+        "y": 9.6,
+        "w": 72.1,
+        "h": 9.1
+      },
+      {
+        "n": 2,
+        "label": "item",
+        "x": 13.9,
+        "y": 20.9,
+        "w": 72.1,
+        "h": 8
+      },
+      {
+        "n": 3,
+        "label": "save",
+        "x": 12,
+        "y": 92,
+        "w": 76.1,
+        "h": 5.8
+      }
+    ]
   },
   "batch-item": {
     "file": "batch-item.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "image",
+        "x": 28.3,
+        "y": 9.6,
+        "w": 43.5,
+        "h": 26.7
+      },
+      {
+        "n": 2,
+        "label": "fields",
+        "x": 13.9,
+        "y": 43.7,
+        "w": 72.1,
+        "h": 50.3
+      }
+    ]
   },
   "search-panel": {
     "file": "search-panel.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "searchInput",
+        "x": 14.7,
+        "y": 20,
+        "w": 79,
+        "h": 5.3
+      },
+      {
+        "n": 2,
+        "label": "filters",
+        "x": 6.3,
+        "y": 35.2,
+        "w": 87.3,
+        "h": 11.2
+      }
+    ]
   },
   "toolbar-menu": {
     "file": "toolbar-menu.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "head",
+        "x": 3.4,
+        "y": 34.9,
+        "w": 93.1,
+        "h": 5.5
+      },
+      {
+        "n": 2,
+        "label": "options",
+        "x": 3.4,
+        "y": 41.9,
+        "w": 93.1,
+        "h": 31.2
+      },
+      {
+        "n": 3,
+        "label": "grouping",
+        "x": 3.4,
+        "y": 76.3,
+        "w": 93.1,
+        "h": 21.7
+      }
+    ]
   },
   "goods-detail": {
     "file": "goods-detail.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "cover",
+        "x": 13.9,
+        "y": 9.6,
+        "w": 72.1,
+        "h": 44.3
+      },
+      {
+        "n": 2,
+        "label": "price",
+        "x": 15.9,
+        "y": 71.9,
+        "w": 64.1,
+        "h": 8
+      }
+    ]
   },
   "goods-edit": {
     "file": "goods-edit.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "cover",
+        "x": 13.9,
+        "y": 10.2,
+        "w": 72.1,
+        "h": 44.3
+      },
+      {
+        "n": 2,
+        "label": "tabs",
+        "x": 13.9,
+        "y": 72.3,
+        "w": 72.1,
+        "h": 6.7
+      },
+      {
+        "n": 3,
+        "label": "save",
+        "x": 12,
+        "y": 92,
+        "w": 76.1,
+        "h": 5.8
+      }
+    ]
   },
   "group-detail": {
     "file": "group-detail.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "summary",
+        "x": 11.1,
+        "y": 10,
+        "w": 77.9,
+        "h": 7.6
+      },
+      {
+        "n": 2,
+        "label": "members",
+        "x": 11.1,
+        "y": 17.6,
+        "w": 77.9,
+        "h": 82.4
+      }
+    ]
   },
   "wishlist": {
     "file": "wishlist.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "budget",
+        "x": 13.9,
+        "y": 14,
+        "w": 72.1,
+        "h": 20.9
+      },
+      {
+        "n": 2,
+        "label": "card",
+        "x": 13.9,
+        "y": 51.7,
+        "w": 35,
+        "h": 32.9
+      },
+      {
+        "n": 3,
+        "label": "addFab",
+        "x": 87,
+        "y": 83.3,
+        "w": 10.1,
+        "h": 6.2
+      }
+    ]
   },
   "trash": {
     "file": "trash.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "restore",
+        "x": 31.7,
+        "y": 56.4,
+        "w": 10.1,
+        "h": 4.2
+      },
+      {
+        "n": 2,
+        "label": "delete",
+        "x": 43.3,
+        "y": 56.4,
+        "w": 15.2,
+        "h": 4.2
+      },
+      {
+        "n": 3,
+        "label": "clear",
+        "x": 50.9,
+        "y": 36.5,
+        "w": 35.1,
+        "h": 5.3
+      }
+    ]
   },
   "events-list": {
     "file": "events-list.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "summary",
+        "x": 13.9,
+        "y": 14,
+        "w": 72.1,
+        "h": 27.7
+      },
+      {
+        "n": 2,
+        "label": "card",
+        "x": 13.9,
+        "y": 51.9,
+        "w": 35.1,
+        "h": 39.4
+      },
+      {
+        "n": 3,
+        "label": "add",
+        "x": 87,
+        "y": 83.3,
+        "w": 10.1,
+        "h": 6.2
+      }
+    ]
   },
   "event-detail": {
     "file": "event-detail.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "ticket",
+        "x": 19,
+        "y": 79.7,
+        "w": 62,
+        "h": 8
+      }
+    ]
   },
   "recharge": {
     "file": "recharge.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "summary",
+        "x": 11.1,
+        "y": 14,
+        "w": 77.9,
+        "h": 20.9
+      },
+      {
+        "n": 2,
+        "label": "add",
+        "x": 87,
+        "y": 83.3,
+        "w": 10.1,
+        "h": 6.2
+      },
+      {
+        "n": 3,
+        "label": "list",
+        "x": 13.9,
+        "y": 52.2,
+        "w": 72.1,
+        "h": 47.8
+      }
+    ]
   },
   "month-cards": {
     "file": "month-cards.webp",
@@ -117,31 +495,116 @@
     "file": "statistics.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "overview",
+        "x": 11.1,
+        "y": 14,
+        "w": 77.9,
+        "h": 20.3
+      },
+      {
+        "n": 2,
+        "label": "charts",
+        "x": 11.1,
+        "y": 46.7,
+        "w": 77.9,
+        "h": 53.3
+      }
+    ]
   },
   "sale-ledger": {
     "file": "sale-ledger.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "summary",
+        "x": 13.9,
+        "y": 20.9,
+        "w": 72.1,
+        "h": 19.2
+      },
+      {
+        "n": 2,
+        "label": "list",
+        "x": 13.9,
+        "y": 49.9,
+        "w": 72.1,
+        "h": 26.5
+      }
+    ]
   },
   "import-center": {
     "file": "import-center.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "search",
+        "x": 13.9,
+        "y": 11.6,
+        "w": 72.1,
+        "h": 16.3
+      },
+      {
+        "n": 2,
+        "label": "url",
+        "x": 13.9,
+        "y": 31.4,
+        "w": 72.1,
+        "h": 24.5
+      },
+      {
+        "n": 3,
+        "label": "entries",
+        "x": 13.9,
+        "y": 58.6,
+        "w": 72.1,
+        "h": 16.5
+      }
+    ]
   },
   "taobao-import": {
     "file": "taobao-import.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "filePick",
+        "x": 13.9,
+        "y": 38.4,
+        "w": 72.1,
+        "h": 20.9
+      }
+    ]
   },
   "sync": {
     "file": "sync.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "status",
+        "x": 13.9,
+        "y": 11.1,
+        "w": 72.1,
+        "h": 34.7
+      },
+      {
+        "n": 2,
+        "label": "upload",
+        "x": 13.9,
+        "y": 55.7,
+        "w": 72.1,
+        "h": 15
+      }
+    ]
   },
   "settings-data": {
     "file": "settings-data.webp",
@@ -153,18 +616,61 @@
     "file": "shares-manage.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "stats",
+        "x": 13.9,
+        "y": 29,
+        "w": 72.1,
+        "h": 12.8
+      }
+    ]
   },
   "theme": {
     "file": "theme.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "preview",
+        "x": 13.9,
+        "y": 19.5,
+        "w": 72.1,
+        "h": 22.1
+      },
+      {
+        "n": 2,
+        "label": "palette",
+        "x": 13.9,
+        "y": 57,
+        "w": 72.1,
+        "h": 43
+      }
+    ]
   },
   "notify": {
     "file": "notify.webp",
     "w": 552,
     "h": 898,
-    "annos": []
+    "annos": [
+      {
+        "n": 1,
+        "label": "master",
+        "x": 71.7,
+        "y": 48.6,
+        "w": 9.2,
+        "h": 3.5
+      },
+      {
+        "n": 2,
+        "label": "types",
+        "x": 11.1,
+        "y": 57.5,
+        "w": 77.9,
+        "h": 42.5
+      }
+    ]
   }
 }
