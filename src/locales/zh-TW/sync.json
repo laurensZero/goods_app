@@ -308,5 +308,21 @@
   "sync.endpointUnreachable": "不可達",
   "sync.endpointSwitched": "已切換到 {name}",
   "sync.endpointSwitchFailed": "切換失敗",
-  "sync.endpointLatency": "{ms} ms"
+  "sync.endpointLatency": "{ms} ms",
+  "sync.realtime": "即時推送",
+  "sync.realtimeConnecting": "連線中",
+  "sync.realtimeConnected": "已連線",
+  "sync.realtimeReconnecting": "重連中",
+  "sync.realtimeDisconnected": "已斷線",
+  "sync.realtimeDisabled": "未啟用",
+  "sync.realtimeHint": "監聽雲端變更，斷線會自動重連",
+  "sync.realtimePausedHint": "已暫停自動同步，即時推送隨之停止",
+  "sync.realtimeLoggedOutHint": "未登入或未設定同步，即時推送未執行",
+  "sync.realtimeAttempt": "第 {n} 次重連",
+  "sync.realtimeReconnect": "立即重連",
+  "sync.realtimeReason.connection": "連線中斷",
+  "sync.realtimeReason.health": "巡檢發現斷線",
+  "sync.realtimeReason.noClient": "用戶端未就緒",
+  "sync.realtimeReason.failed": "重連失敗",
+  "sync.realtimeReason.manual": "手動重連"
 }

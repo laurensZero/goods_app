@@ -308,5 +308,21 @@
   "sync.endpointUnreachable": "到達不可",
   "sync.endpointSwitched": "{name} に切り替えました",
   "sync.endpointSwitchFailed": "切り替えに失敗しました",
-  "sync.endpointLatency": "{ms} ms"
+  "sync.endpointLatency": "{ms} ms",
+  "sync.realtime": "リアルタイム同期",
+  "sync.realtimeConnecting": "接続中",
+  "sync.realtimeConnected": "接続済み",
+  "sync.realtimeReconnecting": "再接続中",
+  "sync.realtimeDisconnected": "切断されています",
+  "sync.realtimeDisabled": "無効",
+  "sync.realtimeHint": "クラウドの変更を監視し、切断時は自動で再接続します",
+  "sync.realtimePausedHint": "自動同期が一時停止中のため、リアルタイム同期も停止しています",
+  "sync.realtimeLoggedOutHint": "サインインして同期を設定するとリアルタイム同期が有効になります",
+  "sync.realtimeAttempt": "{n} 回目の再接続",
+  "sync.realtimeReconnect": "今すぐ再接続",
+  "sync.realtimeReason.connection": "接続が切断されました",
+  "sync.realtimeReason.health": "ヘルスチェックで切断を検出",
+  "sync.realtimeReason.noClient": "クライアント未準備",
+  "sync.realtimeReason.failed": "再接続に失敗",
+  "sync.realtimeReason.manual": "手動再接続"
 }

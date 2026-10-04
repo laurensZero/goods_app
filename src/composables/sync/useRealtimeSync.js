@@ -14,6 +14,27 @@ const REALTIME_TABLES = ['goods', 'events', 'recharge_records', 'goods_groups', 
 const REBUILD_BASE_MS = 2000
 const REBUILD_MAX_MS = 60_000
 const HEALTH_CHECK_MS = 30_000
+// 底层 WebSocket 静默断开（Android 切网/休眠后常见）时 phoenix 可能自己重连，
+// 连续两轮巡检仍为断开才判定真死，避免与库自带重连打架
+const SOCKET_DOWN_TICKS = 2
+
+/**
+ * 模块级共享状态：App.vue 只实例化一次，云同步设置页（SyncView）直接读它展示实时推送状态。
+ * status: idle | disabled | connecting | connected | reconnecting | disconnected
+ */
+export const realtimeState = ref({
+  status: 'idle',
+  reason: '',
+  attempt: 0,
+  changedAt: 0
+})
+
+let reconnectRequestHandler = null
+
+/** 手动触发一次立即重连（设置页「立即重连」按钮），未初始化时静默忽略 */
+export function requestRealtimeReconnect() {
+  reconnectRequestHandler?.()
+}
 
 export function useRealtimeSync({ syncStore }) {
   const log = createLogger('realtime')
@@ -95,15 +116,36 @@ export function useRealtimeSync({ syncStore }) {
     return !!authStore.user?.id
   }
 
+  function computeStatus() {
+    if (!canOperate()) return 'disabled'
+    // 重建排队/进行中优先：静默断线时本地 isConnected 可能还停在 true
+    if (isRebuilding || rebuildTimer) return 'reconnecting'
+    if (isConnected.value) return 'connected'
+    if (channel.value) return 'connecting'
+    return 'disconnected'
+  }
+
+  // 把当前连接状态发布到模块级 realtimeState，供设置页展示。
+  // 只在 status / reason / attempt 真变化时写入，避免巡检心跳刷屏 changedAt。
+  function publishState(reason) {
+    const status = computeStatus()
+    const prev = realtimeState.value
+    const keepReason = status === 'reconnecting' || status === 'disconnected'
+    const nextReason = keepReason ? (reason !== undefined ? reason : prev.reason) : ''
+    if (prev.status === status && prev.reason === nextReason && prev.attempt === rebuildAttempt) return
+    realtimeState.value = { status, reason: nextReason, attempt: rebuildAttempt, changedAt: Date.now() }
+  }
+
   async function rebuildChannel(reason) {
     if (isRebuilding) return
-    if (!canOperate()) return
+    if (!canOperate()) { publishState(); return }
     isRebuilding = true
+    publishState(reason)
     try {
       log.info('rebuilding channel:', reason, 'attempt', rebuildAttempt + 1)
       unsubscribe()
       // 静默断连/错误后刷新客户端，避免复用已死的 WebSocket / 过期 DNS 缓存
-      if (reason !== 'health' && reason !== 'subscribe-failed') {
+      if (reason !== 'health' && reason !== 'subscribe-failed' && reason !== 'socket-down') {
         await reconnectSupabase()
       }
       await subscribe()
@@ -112,12 +154,13 @@ export function useRealtimeSync({ syncStore }) {
       scheduleRebuild('rebuild-failed')
     } finally {
       isRebuilding = false
+      publishState()
     }
   }
 
   function scheduleRebuild(reason) {
     if (rebuildTimer) return
-    if (!canOperate()) return
+    if (!canOperate()) { publishState(); return }
 
     const backoff = Math.min(REBUILD_BASE_MS * (2 ** rebuildAttempt), REBUILD_MAX_MS)
     const jitter = backoff * (0.7 + Math.random() * 0.6)
@@ -125,10 +168,12 @@ export function useRealtimeSync({ syncStore }) {
     rebuildAttempt = Math.min(rebuildAttempt + 1, 6)
 
     log.info('schedule rebuild:', reason, `in ${delay}ms`)
+    // 先挂上定时器再发布状态：publishState 靠 rebuildTimer 判定 reconnecting
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null
       void rebuildChannel(reason)
     }, delay)
+    publishState(reason)
   }
 
   async function subscribe() {
@@ -161,18 +206,24 @@ export function useRealtimeSync({ syncStore }) {
         if (status === 'SUBSCRIBED') {
           rebuildAttempt = 0
           clearRebuildTimer()
+          publishState('')
           return
         }
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
           // 先清掉半死 channel，再走退避重建；realtime client 不会自动从 channel 级错误恢复
           scheduleRebuild(status)
+          return
         }
+        publishState(status)
       })
+      publishState()
     } catch (e) {
       console.warn('[realtime] subscribe failed:', e.message)
       scheduleRebuild('subscribe-failed')
     }
   }
+
+  let socketDownTicks = 0
 
   function startHealthCheck() {
     stopHealthCheck()
@@ -180,10 +231,30 @@ export function useRealtimeSync({ syncStore }) {
       if (document.hidden) return
       if (!canOperate()) return
       if (isRebuilding || rebuildTimer) return
+
+      // 底层 WebSocket 静默断开：channel 级回调可能一动不动，这里直接探 socket。
+      // phoenix 自带重连，连续两轮巡检仍为断开才判定真死并重建。
+      const realtime = getSupabaseClient()?.realtime
+      const socketDead = !!realtime
+        && typeof realtime.isConnected === 'function'
+        && !realtime.isConnected()
+        && !(typeof realtime.isConnecting === 'function' && realtime.isConnecting())
+      if (socketDead) {
+        socketDownTicks += 1
+        if (socketDownTicks >= SOCKET_DOWN_TICKS) {
+          socketDownTicks = 0
+          scheduleRebuild('socket-down')
+        }
+        return
+      }
+      socketDownTicks = 0
+
       // channel 还在但未 SUBSCRIBED：静默半死，触发轻量重建
       if (!channel.value || !isConnected.value) {
         scheduleRebuild('health')
+        return
       }
+      publishState()
     }, HEALTH_CHECK_MS)
   }
 
@@ -202,7 +273,10 @@ export function useRealtimeSync({ syncStore }) {
       stopHealthCheck()
       unsubscribe()
     }
+    publishState()
   })
+
+  watch(() => syncStore.syncPaused, () => publishState())
 
   async function handleVisibilityChange() {
     if (document.hidden) {
@@ -223,6 +297,7 @@ export function useRealtimeSync({ syncStore }) {
         const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
         try { await syncStore.pull({ tables, since, source: 'visibility' }) } catch { /* ignore */ }
         startHealthCheck()
+        publishState()
       }
     }, 2000)
   }
@@ -235,7 +310,16 @@ export function useRealtimeSync({ syncStore }) {
     rebuildAttempt = 0
     clearRebuildTimer()
     if (client && canOperate()) void subscribe()
+    publishState()
   })
+
+  // 设置页「立即重连」：清掉退避定时器，立刻做一次全量重建
+  reconnectRequestHandler = () => {
+    if (!canOperate()) return
+    clearRebuildTimer()
+    rebuildAttempt = 0
+    void rebuildChannel('manual')
+  }
 
   // user / 同步后端就绪（或变化）时（重新）订阅；任一未就绪则退订
   const authStore = useAuthStore()
@@ -251,6 +335,7 @@ export function useRealtimeSync({ syncStore }) {
         stopHealthCheck()
         unsubscribe()
       }
+      publishState()
     },
     { immediate: true }
   )
@@ -266,6 +351,8 @@ export function useRealtimeSync({ syncStore }) {
     if (visibilityDebounceTimer) { clearTimeout(visibilityDebounceTimer); visibilityDebounceTimer = null }
     unsubscribe()
     document.removeEventListener('visibilitychange', handleVisibilityChange)
+    reconnectRequestHandler = null
+    realtimeState.value = { status: 'idle', reason: '', attempt: 0, changedAt: Date.now() }
   })
 
   return { isConnected, subscribe, unsubscribe }

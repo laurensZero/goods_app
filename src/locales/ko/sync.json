@@ -308,5 +308,21 @@
   "sync.endpointUnreachable": "연결 불가",
   "sync.endpointSwitched": "{name}(으)로 전환했습니다",
   "sync.endpointSwitchFailed": "전환에 실패했습니다",
-  "sync.endpointLatency": "{ms} ms"
+  "sync.endpointLatency": "{ms} ms",
+  "sync.realtime": "실시간 동기화",
+  "sync.realtimeConnecting": "연결 중",
+  "sync.realtimeConnected": "연결됨",
+  "sync.realtimeReconnecting": "다시 연결 중",
+  "sync.realtimeDisconnected": "연결 끊김",
+  "sync.realtimeDisabled": "사용 안 함",
+  "sync.realtimeHint": "클라우드 변경을 감시하며 끊기면 자동으로 다시 연결합니다",
+  "sync.realtimePausedHint": "자동 동기화가 일시 중지되어 실시간 동기화도 꺼져 있습니다",
+  "sync.realtimeLoggedOutHint": "로그인하고 동기화를 설정하면 실시간 동기화가 실행됩니다",
+  "sync.realtimeAttempt": "{n}번째 다시 연결 시도",
+  "sync.realtimeReconnect": "지금 다시 연결",
+  "sync.realtimeReason.connection": "연결이 끊겼습니다",
+  "sync.realtimeReason.health": "상태 확인 중 끊김 감지",
+  "sync.realtimeReason.noClient": "클라이언트 준비 안됨",
+  "sync.realtimeReason.failed": "다시 연결 실패",
+  "sync.realtimeReason.manual": "수동 다시 연결"
 }

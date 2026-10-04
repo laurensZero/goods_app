@@ -308,5 +308,21 @@
   "sync.endpointUnreachable": "Unreachable",
   "sync.endpointSwitched": "Switched to {name}",
   "sync.endpointSwitchFailed": "Switch failed",
-  "sync.endpointLatency": "{ms} ms"
+  "sync.endpointLatency": "{ms} ms",
+  "sync.realtime": "Realtime",
+  "sync.realtimeConnecting": "Connecting",
+  "sync.realtimeConnected": "Connected",
+  "sync.realtimeReconnecting": "Reconnecting",
+  "sync.realtimeDisconnected": "Disconnected",
+  "sync.realtimeDisabled": "Off",
+  "sync.realtimeHint": "Watches for cloud changes and reconnects automatically",
+  "sync.realtimePausedHint": "Auto sync is paused, so realtime is off",
+  "sync.realtimeLoggedOutHint": "Sign in and configure sync to run realtime",
+  "sync.realtimeAttempt": "Retry {n}",
+  "sync.realtimeReconnect": "Reconnect now",
+  "sync.realtimeReason.connection": "Connection lost",
+  "sync.realtimeReason.health": "Health check found it offline",
+  "sync.realtimeReason.noClient": "Client not ready",
+  "sync.realtimeReason.failed": "Reconnect failed",
+  "sync.realtimeReason.manual": "Manual reconnect"
 }

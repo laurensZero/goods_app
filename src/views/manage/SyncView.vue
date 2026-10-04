@@ -51,16 +51,16 @@
             <span class="status-badge" :class="statusBadgeClass">{{ statusBadgeText }}</span>
           </div>
 
-          <div class="hero-grid">
-            <div class="hero-metric">
-              <p class="hero-metric__label">{{ t('sync.recentSync') }}</p>
-              <p class="hero-metric__value">{{ lastSyncDisplay }}</p>
+            <div class="hero-grid">
+              <div class="hero-metric">
+                <p class="hero-metric__label">{{ t('sync.recentSync') }}</p>
+                <p class="hero-metric__value">{{ lastSyncDisplay }}</p>
+              </div>
+              <div v-if="showSupabaseUrl" class="hero-metric">
+                <p class="hero-metric__label">{{ remoteIdLabel }}</p>
+                <p class="hero-metric__value hero-metric__value--mono">{{ remoteIdDisplay }}</p>
+              </div>
             </div>
-            <div class="hero-metric">
-              <p class="hero-metric__label">{{ remoteIdLabel }}</p>
-              <p class="hero-metric__value hero-metric__value--mono">{{ remoteIdDisplay }}</p>
-            </div>
-          </div>
         </article>
       </section>
 
@@ -92,7 +92,7 @@
 
             <div class="detail-list">
               <template v-if="syncStore.syncBackend === 'supabase'">
-                <div class="detail-row">
+                <div v-if="showSupabaseUrl" class="detail-row">
                   <span class="detail-label">{{ t('sync.supabaseUrl') }}</span>
                   <span class="detail-value detail-value--mono">{{ supabaseUrlDisplay }}</span>
                 </div>
@@ -117,6 +117,26 @@
               <div class="detail-row">
                 <span class="detail-label">{{ t('sync.deviceId') }}</span>
                 <span class="detail-value detail-value--mono">{{ syncStore.deviceId }}</span>
+              </div>
+
+              <div v-if="syncStore.isSupabaseMode()" class="realtime-block">
+                <div class="detail-row realtime-row">
+                  <span class="detail-label">{{ t('sync.realtime') }}</span>
+                  <span class="detail-value realtime-status" :class="`realtime-status--${realtimeStatus}`">
+                    {{ realtimeStatusText }}
+                  </span>
+                </div>
+                <div v-if="realtimeSubText" class="realtime-meta">
+                  <span class="realtime-meta__text">{{ realtimeSubText }}</span>
+                  <button
+                    v-if="realtimeCanReconnect"
+                    type="button"
+                    class="realtime-reconnect-btn"
+                    @click="handleRealtimeReconnect"
+                  >
+                    {{ t('sync.realtimeReconnect') }}
+                  </button>
+                </div>
               </div>
 
               <div v-if="syncStore.isSupabaseMode()" class="endpoint-block">
@@ -587,6 +607,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { formatDate } from '@/utils/format'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
+import { realtimeState, requestRealtimeReconnect } from '@/composables/sync/useRealtimeSync'
 import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -753,6 +774,58 @@ const lastSyncDisplay = computed(() => {
   if (!syncStore.lastSyncedAt) return t('sync.neverSynced')
   return formatTime(syncStore.lastSyncedAt)
 })
+
+// ── Realtime 推送状态（useRealtimeSync 发布到模块级 realtimeState）──
+const REALTIME_STATUS_TEXT_KEYS = {
+  idle: 'sync.realtimeConnecting',
+  connecting: 'sync.realtimeConnecting',
+  connected: 'sync.realtimeConnected',
+  reconnecting: 'sync.realtimeReconnecting',
+  disconnected: 'sync.realtimeDisconnected',
+  disabled: 'sync.realtimeDisabled'
+}
+
+const REALTIME_REASON_KEYS = {
+  CHANNEL_ERROR: 'sync.realtimeReason.connection',
+  TIMED_OUT: 'sync.realtimeReason.connection',
+  CLOSED: 'sync.realtimeReason.connection',
+  'socket-down': 'sync.realtimeReason.connection',
+  health: 'sync.realtimeReason.health',
+  'no-client': 'sync.realtimeReason.noClient',
+  'subscribe-failed': 'sync.realtimeReason.failed',
+  'rebuild-failed': 'sync.realtimeReason.failed',
+  manual: 'sync.realtimeReason.manual'
+}
+
+const realtimeStatus = computed(() => realtimeState.value.status)
+
+const realtimeStatusText = computed(() => t(REALTIME_STATUS_TEXT_KEYS[realtimeState.value.status] || REALTIME_STATUS_TEXT_KEYS.idle))
+
+const realtimeCanReconnect = computed(() => {
+  const status = realtimeState.value.status
+  return status === 'reconnecting' || status === 'disconnected'
+})
+
+const realtimeSubText = computed(() => {
+  const state = realtimeState.value
+  if (state.status === 'connected') return t('sync.realtimeHint')
+  if (state.status === 'disabled') {
+    return syncStore.syncPaused ? t('sync.realtimePausedHint') : t('sync.realtimeLoggedOutHint')
+  }
+  const parts = []
+  if (state.status === 'reconnecting' && state.attempt > 0) {
+    parts.push(t('sync.realtimeAttempt', { n: state.attempt }))
+  }
+  const reasonKey = REALTIME_REASON_KEYS[state.reason]
+  if (reasonKey) parts.push(t(reasonKey))
+  if (state.changedAt) parts.push(t('common.updatedAt', { date: formatTime(new Date(state.changedAt).toISOString()) }))
+  return parts.join(' · ')
+})
+
+function handleRealtimeReconnect() {
+  vibrate(HAPTIC_MEDIUM)
+  requestRealtimeReconnect()
+}
 
 const statusBadgeClass = computed(() => {
   if (syncStore.isSyncing) return 'badge--syncing'
@@ -1125,6 +1198,8 @@ async function handleReset() {
 
 // ── Supabase 后端配置 ──────────────────────────────────
 const syncBackendLabel = computed(() => 'Supabase')
+// 用内置配置时没有自定义地址可展示（显示为 Built-in），URL 行与顶部 hero 指标一并隐藏
+const showSupabaseUrl = computed(() => !!syncStore.supabaseUrl || !isSupabaseConfigured())
 const supabaseUrlDisplay = computed(() => {
   if (syncStore.supabaseUrl) return syncStore.supabaseUrl
   if (isSupabaseConfigured()) return 'Built-in'
@@ -1532,5 +1607,66 @@ watch(() => syncStore.isPulling, (cur, prev) => {
 :global(html.theme-dark) .endpoint-row__status--ok { color: #5dcea0; }
 :global(html.theme-dark) .endpoint-row__status--bad { color: #f08d8d; }
 :global(html.theme-dark) .endpoint-row__badge { color: #8ab4ff; }
+
+/* Realtime 推送状态 */
+.realtime-block {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 10px;
+}
+.realtime-row {
+  border-bottom: none;
+  padding-bottom: 2px;
+}
+.realtime-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.realtime-status::before {
+  content: '';
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.realtime-status--connected { color: #2f9e64; }
+.realtime-status--connecting,
+.realtime-status--idle { color: var(--color-primary, #3b82f6); }
+.realtime-status--reconnecting { color: #d07a0b; }
+.realtime-status--disconnected { color: #d45454; }
+.realtime-status--disabled { color: var(--app-text-tertiary); }
+:global(html.theme-dark) .realtime-status--connected { color: #5dcea0; }
+:global(html.theme-dark) .realtime-status--reconnecting { color: #f0b357; }
+:global(html.theme-dark) .realtime-status--disconnected { color: #f08d8d; }
+.realtime-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 2px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.realtime-meta__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.realtime-reconnect-btn {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.10));
+  background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.realtime-reconnect-btn:active {
+  transform: scale(var(--press-scale-card, 0.98));
+}
 </style>
 
