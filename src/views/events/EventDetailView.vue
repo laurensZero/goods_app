@@ -181,7 +181,7 @@
                     :skeleton-delay-ms="120"
                     class="linked-goods-card__img"
                   />
-                  <div v-else class="linked-goods-card__placeholder">{{ goods.name?.trim()?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
+                  <div v-else class="linked-goods-card__placeholder" :data-cover-tone="getCoverTone(goods.category)">{{ goods.name?.trim()?.charAt(0) || t('goods.heroFallbackGoods') }}</div>
                 </div>
                 <span class="linked-goods-card__name">{{ goods.name }}</span>
               </a>
@@ -245,6 +245,7 @@ import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown } from '@/utils/markdown'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
 import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
+import { getCoverTone } from '@/utils/goods/coverTone'
 import { usePresetsStore } from '@/stores/presets'
 
 defineOptions({ name: 'EventDetailView' })
@@ -1387,8 +1388,8 @@ function tryPlayLinkedGoodsBackHero() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #2c2f38, #242731);
-  color: rgba(255, 255, 255, 0.82);
+  background: var(--cover-tone);
+  color: var(--cover-tone-text);
   font-size: 22px;
   font-weight: 700;
 }

@@ -690,13 +690,17 @@
   height: 76px;
   border-radius: var(--radius-card);
   overflow: hidden;
-  background: #eeeef0;
+  background: var(--app-surface-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: var(--app-shadow-sm);
   position: relative;
   z-index: 1;
+}
+
+.preview-media--empty {
+  background: var(--cover-tone);
 }
 
 .preview-image {
@@ -708,7 +712,7 @@
 .preview-fallback {
   font-size: 26px;
   font-weight: 700;
-  color: var(--app-text-tertiary);
+  color: var(--cover-tone-text);
   line-height: 1;
 }
 

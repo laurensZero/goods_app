@@ -7,7 +7,12 @@
         <section class="manage-hero">
           <div class="preview-stage">
             <div class="preview-glow" />
-            <div ref="previewMediaRef" class="preview-media" :class="{ 'preview-media--empty': !primaryPreviewImage }">
+            <div
+              ref="previewMediaRef"
+              class="preview-media"
+              :class="{ 'preview-media--empty': !primaryPreviewImage }"
+              :data-cover-tone="previewCoverTone"
+            >
               <LazyCachedImage
                 v-if="primaryPreviewImage"
                 :key="`${primaryPreviewImage}-${previewImageRefreshKey}`"
@@ -1073,6 +1078,7 @@ import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
+import { getCoverTone } from '@/utils/goods/coverTone'
 import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
 
 const { t } = useI18n()
@@ -1203,6 +1209,10 @@ const {
   getMotionSourceEl: () => previewMediaRef.value,
   beforeNavigateAway: () => leaveGuardSlot.current?.markLeaveAllowed()
 })
+
+const previewCoverTone = computed(() => (
+  primaryPreviewImage.value ? null : getCoverTone(form.category)
+))
 
 // ── 自定义字段（定义来自 presets，值随商品保存）──
 // 「这件谷子添加了哪些字段」= customFields 里是否存在该键（空串 = 已添加未填）。

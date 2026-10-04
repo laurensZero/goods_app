@@ -419,7 +419,11 @@
           <section class="manage-hero">
             <div class="preview-stage">
               <div class="preview-glow" />
-              <div class="preview-media" :class="{ 'preview-media--empty': !form.image }">
+              <div
+                class="preview-media"
+                :class="{ 'preview-media--empty': !form.image }"
+                :data-cover-tone="previewCoverTone"
+              >
                 <img v-if="form.image" :src="form.image" :alt="form.name" class="preview-image" />
                 <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || t('goods.heroFallbackGoods') }}</span>
               </div>
@@ -639,6 +643,7 @@ import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
+import { getCoverTone } from '@/utils/goods/coverTone'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import NavBar from '@/components/common/NavBar.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -834,6 +839,8 @@ const form = reactive({
 })
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
+
+const previewCoverTone = computed(() => (form.image ? null : getCoverTone(form.category)))
 
 function handleIgnoreSuggestion({ field }) {
   if (field === 'characters') {

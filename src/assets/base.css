@@ -70,6 +70,22 @@
   --app-chip-accent-border: rgba(32, 112, 192, 0.24);
   --app-panel-bg: var(--app-surface);
   --app-panel-border: var(--app-border);
+  --cover-tone: var(--cover-tone-other);
+  --cover-tone-text: rgba(20, 20, 22, 0.72);
+  --cover-hero-letter-size: 92px;
+  --cover-tone-figure: linear-gradient(135deg, #e6e9ef, #ccd3de);
+  --cover-tone-charm: linear-gradient(135deg, #dde9fb, #c1d5f6);
+  --cover-tone-standee: linear-gradient(135deg, #daf1ec, #b7e3da);
+  --cover-tone-badge: linear-gradient(135deg, #ebe1f8, #d5c5f2);
+  --cover-tone-card: linear-gradient(135deg, #ddf2e6, #bde6d1);
+  --cover-tone-postcard: linear-gradient(135deg, #fbe4ec, #f6c8d9);
+  --cover-tone-shikishi: linear-gradient(135deg, #fdeadb, #fbd8bc);
+  --cover-tone-album: linear-gradient(135deg, #f6e7dc, #e8cfbd);
+  --cover-tone-apparel: linear-gradient(135deg, #f7f0d6, #ecdfad);
+  --cover-tone-ticket: linear-gradient(135deg, #dcf0f7, #bfe3f0);
+  --cover-tone-artbook: linear-gradient(135deg, #e4e3fa, #cccaf5);
+  --cover-tone-gift: linear-gradient(135deg, #fbe2ef, #f7c7e0);
+  --cover-tone-other: linear-gradient(135deg, #ecedf1, #dbdce2);
   /* Z 层级规范（低 → 高）。同层内需要微调时用 calc(var(--z-*) + n) */
   --z-float: 40;            /* 悬浮控件（浮动底栏等） */
   --z-sheet-backdrop: 80;   /* 页面级 sheet 遮罩 */
@@ -78,6 +94,20 @@
   --z-dialog: 1100;         /* 应用级对话框（更新、公告等） */
   --z-dialog-high: 1150;    /* 需要盖过普通对话框的对话框 */
 }
+
+[data-cover-tone="figure"] { --cover-tone: var(--cover-tone-figure); }
+[data-cover-tone="charm"] { --cover-tone: var(--cover-tone-charm); }
+[data-cover-tone="standee"] { --cover-tone: var(--cover-tone-standee); }
+[data-cover-tone="badge"] { --cover-tone: var(--cover-tone-badge); }
+[data-cover-tone="card"] { --cover-tone: var(--cover-tone-card); }
+[data-cover-tone="postcard"] { --cover-tone: var(--cover-tone-postcard); }
+[data-cover-tone="shikishi"] { --cover-tone: var(--cover-tone-shikishi); }
+[data-cover-tone="album"] { --cover-tone: var(--cover-tone-album); }
+[data-cover-tone="apparel"] { --cover-tone: var(--cover-tone-apparel); }
+[data-cover-tone="ticket"] { --cover-tone: var(--cover-tone-ticket); }
+[data-cover-tone="artbook"] { --cover-tone: var(--cover-tone-artbook); }
+[data-cover-tone="gift"] { --cover-tone: var(--cover-tone-gift); }
+[data-cover-tone="other"] { --cover-tone: var(--cover-tone-other); }
 
 /* ====================================================
    全局动态基建 (Global Motion Baseline)
@@ -648,6 +678,20 @@ html.theme-dark {
   --app-chip-accent-border: rgba(124, 154, 216, 0.30);
   --app-panel-bg: rgba(24, 24, 28, 0.96);
   --app-panel-border: rgba(255, 255, 255, 0.08);
+  --cover-tone-text: rgba(255, 255, 255, 0.86);
+  --cover-tone-figure: linear-gradient(135deg, #2c2c2e, #3a3a3c);
+  --cover-tone-charm: linear-gradient(135deg, #1c3a5e, #2a5298);
+  --cover-tone-standee: linear-gradient(135deg, #12433c, #1f7065);
+  --cover-tone-badge: linear-gradient(135deg, #3a1c5e, #6a3d9a);
+  --cover-tone-card: linear-gradient(135deg, #1c4a3a, #2e7d5c);
+  --cover-tone-postcard: linear-gradient(135deg, #4a2032, #8a3a58);
+  --cover-tone-shikishi: linear-gradient(135deg, #4a3018, #8a5a20);
+  --cover-tone-album: linear-gradient(135deg, #4a2c1c, #8b4513);
+  --cover-tone-apparel: linear-gradient(135deg, #4a3a1c, #8b6914);
+  --cover-tone-ticket: linear-gradient(135deg, #123a45, #1f6070);
+  --cover-tone-artbook: linear-gradient(135deg, #242350, #4a48a0);
+  --cover-tone-gift: linear-gradient(135deg, #4a1f38, #8a3a66);
+  --cover-tone-other: linear-gradient(135deg, #3a3a3a, #5a5a5a);
 }
 
 html.theme-dark,

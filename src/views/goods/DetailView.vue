@@ -31,7 +31,7 @@
       <section class="detail-shell">
         <section class="cover-stage">
           <div class="cover-glow" />
-          <div ref="coverCardRef" class="cover-card" :style="coverCardStyle">
+          <div ref="coverCardRef" class="cover-card" :data-cover-tone="coverToneAttr">
             <button
               v-if="activeImage?.uri"
               type="button"
@@ -361,6 +361,7 @@ import { appendStatusTimelineEntry, syncUnitStatusTimeline, getHoldingPeriod } f
 import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant, getDisplayGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
+import { getCoverTone } from '@/utils/goods/coverTone'
 import { renderMarkdown } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
@@ -567,33 +568,15 @@ const cartShopCode = ref('')
 const stockMonitorAdding = ref(false)
 const { toastMsg, showToast } = useToast()
 
-const colorMap = {
-  手办: ['#2c2c2e', '#3a3a3c'],
-  挂件: ['#1c3a5e', '#2a5298'],
-  徽章: ['#3a1c5e', '#6a3d9a'],
-  卡片: ['#1c4a3a', '#2e7d5c'],
-  'CD/专辑': ['#4a2c1c', '#8b4513'],
-  服饰: ['#4a3a1c', '#8b6914'],
-  其他: ['#3a3a3a', '#5a5a5a']
-}
-
-const coverBg = computed(() => {
-  const [from, to] = colorMap[item.value?.category] ?? ['#2c2c2e', '#3a3a3c']
-  return `linear-gradient(135deg, ${from}, ${to})`
-})
-const coverCardStyle = computed(() => {
-  const style = {}
-  if (!activeImage.value?.uri) {
-    style.background = coverBg.value
-  }
-  return style
-})
+const coverTone = computed(() => getCoverTone(item.value?.category))
 
 const galleryImages = computed(() => normalizeGoodsImageList(item.value?.images))
 const activeImage = computed(() => (
   galleryImages.value.find((image) => image.id === activeImageId.value)
   || getPrimaryGoodsImage(galleryImages.value)
 ))
+
+const coverToneAttr = computed(() => (activeImage.value?.uri ? null : coverTone.value))
 
 /** 共享照片查看器：谷子全部图片，支持缩放与左右翻页 */
 const goodsPreviewPhotos = computed(() => galleryImages.value
@@ -1342,6 +1325,10 @@ function getImageKindLabel(kind) {
   background: linear-gradient(180deg, var(--app-surface-soft), var(--app-surface-muted));
 }
 
+.cover-card[data-cover-tone] {
+  background: var(--cover-tone);
+}
+
 /* 点主图打开全屏查看（与活动照片/AI 聊天共用 PhotoPreviewViewer） */
 .cover-zoom-btn {
   display: block;
@@ -1368,8 +1355,8 @@ function getImageKindLabel(kind) {
 }
 
 .cover-initial {
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 92px;
+  color: var(--cover-tone-text);
+  font-size: var(--cover-hero-letter-size);
   font-weight: 700;
   line-height: 1;
   letter-spacing: -0.06em;
@@ -1920,7 +1907,7 @@ function getImageKindLabel(kind) {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .cover-card {
+:global(html.theme-dark) .cover-card:not([data-cover-tone]) {
     background: linear-gradient(180deg, #242428, #1a1a1d);
   }
 

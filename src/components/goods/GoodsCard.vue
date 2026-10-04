@@ -38,7 +38,7 @@
         ref="coverEl"
         :class="['card-cover', { 'card-cover--with-image': item.coverImage }]"
         :data-goods-hero-id="String(item.id || '')"
-        :style="coverStyle"
+        :data-cover-tone="coverToneAttr"
       >
         <LazyCachedImage
           v-if="item.coverImage"
@@ -136,6 +136,7 @@ import {
   areAllCopiesExited,
   formatPendingStatusSummary
 } from '@/utils/goods/status'
+import { getCoverTone } from '@/utils/goods/coverTone'
 
 const { t } = useI18n()
 
@@ -291,28 +292,9 @@ function onTagsMouseUp() {
   window.removeEventListener('mouseup', onTagsMouseUp)
 }
 
-const colorMap = {
-  手办: ['#2c2c2e', '#3a3a3c'],
-  挂件: ['#1c3a5e', '#2a5298'],
-  徽章: ['#3a1c5e', '#6a3d9a'],
-  卡片: ['#1c4a3a', '#2e7d5c'],
-  'CD/专辑': ['#4a2c1c', '#8b4513'],
-  服饰: ['#4a3a1c', '#8b6914'],
-  其他: ['#3a3a3a', '#5a5a5a']
-}
+const coverTone = computed(() => getCoverTone(props.item.category))
 
-const coverBg = computed(() => {
-  const [from, to] = colorMap[props.item.category] ?? ['#2c2c2e', '#3a3a3c']
-  return `linear-gradient(135deg, ${from}, ${to})`
-})
-
-const coverStyle = computed(() => {
-  const style = {}
-  if (!props.item.coverImage) {
-    style.background = coverBg.value
-  }
-  return style
-})
+const coverToneAttr = computed(() => (props.item.coverImage ? null : coverTone.value))
 
 const coverInitial = computed(() => (props.item.name ?? '?').trim().charAt(0).toUpperCase() || '?')
 
@@ -652,6 +634,10 @@ const priceCNYHint = computed(() => {
   background-position: center;
 }
 
+.card-cover[data-cover-tone] {
+  background: var(--cover-tone);
+}
+
 .card-cover--with-image {
   padding: 0;
 }
@@ -667,7 +653,7 @@ const priceCNYHint = computed(() => {
 }
 
 .cover-initial {
-  color: rgba(255, 255, 255, 0.86);
+  color: var(--cover-tone-text);
   font-size: 44px;
   font-weight: 700;
   line-height: 1;

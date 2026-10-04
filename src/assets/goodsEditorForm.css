@@ -148,6 +148,7 @@
 }
 
 .preview-media {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: var(--radius-large);
@@ -160,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(145deg, #202127, #3b3d46);
+  background: var(--cover-tone);
 }
 
 .preview-image {
@@ -170,10 +171,11 @@
 }
 
 .preview-fallback {
-  color: rgba(255, 255, 255, 0.88);
-  font-size: 54px;
+  color: var(--cover-tone-text);
+  font-size: var(--cover-hero-letter-size);
   font-weight: 700;
   line-height: 1;
+  letter-spacing: -0.06em;
 }
 
 .hero-card {
@@ -1089,7 +1091,7 @@
     box-shadow: 0 0 0 4px rgba(199, 68, 68, 0.2);
   }
 /* 预览图占位背景（无图片时） */
-:global(html.theme-dark) .preview-media {
+:global(html.theme-dark) .preview-media:not([data-cover-tone]) {
     background: linear-gradient(180deg, #1a1a1e, #252528);
   }
 :global(html.theme-dark) .add-page .date-field,
