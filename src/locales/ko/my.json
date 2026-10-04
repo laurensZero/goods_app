@@ -28,6 +28,8 @@
   "my.connectedShort": "연결됨",
   "my.gotoLogin": "로그인",
   "my.settingsDesc": "카테고리, 테마, 휴지통, 가져오기/내보내기 및 동기화 설정.",
+  "my.guide": "사용 가이드",
+  "my.guideDesc": "기능 사용법을 그림과 함께 설명합니다. 문제가 생기면 이 가이드를 검색하세요.",
   "my.aboutApp": "앱 정보",
   "my.aboutDesc": "버전 정보, 업데이트 항목 및 사용 가이드.",
   "my.accountSync": "계정 및 동기화",

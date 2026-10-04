@@ -52,6 +52,7 @@ import {
 } from '@/utils/platform/webAndroidPromo'
 import { fetchLatestApkDownloadUrl } from '@/utils/updateHelpers'
 import { showGlobalToast } from '@/utils/globalToast'
+import { isCaptureMode } from '@/utils/captureMode'
 
 const { t } = useI18n()
 const SHOW_DELAY_MS = 1200
@@ -91,6 +92,7 @@ watch(visible, (value) => {
 })
 
 onMounted(() => {
+  if (isCaptureMode()) return
   if (!isWebAndroidPromoTarget(globalThis.navigator?.userAgent)) return
   if (isWebApkPromoDismissed()) return
 

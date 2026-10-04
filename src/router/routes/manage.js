@@ -60,6 +60,18 @@ export default [
     meta: { titleKey: 'nav.feedback' }
   },
   {
+    path: '/manage/guide',
+    name: 'manage-guide',
+    component: () => import('@/views/manage/GuideView.vue'),
+    meta: { titleKey: 'nav.guide' }
+  },
+  {
+    path: '/manage/guide/:section',
+    name: 'manage-guide-section',
+    component: () => import('@/views/manage/GuideSectionView.vue'),
+    meta: { titleKey: 'nav.guide' }
+  },
+  {
     path: '/manage/about',
     name: 'manage-about',
     component: () => import('@/views/manage/AboutView.vue'),

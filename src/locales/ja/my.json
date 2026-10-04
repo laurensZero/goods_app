@@ -28,6 +28,8 @@
   "my.connectedShort": "接続済み",
   "my.gotoLogin": "ログイン",
   "my.settingsDesc": "カテゴリ、テーマ、ゴミ箱、読み込み/書き出し、同期の設定。",
+  "my.guide": "使い方ガイド",
+  "my.guideDesc": "機能の使い方を図解。困ったらまずこのガイドを検索。",
   "my.aboutApp": "アプリについて",
   "my.aboutDesc": "バージョン情報、アップデートエントリー、使い方ガイド。",
   "my.accountSync": "アカウントと同期",

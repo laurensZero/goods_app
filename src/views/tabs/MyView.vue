@@ -243,6 +243,25 @@
               </svg>
             </button>
 
+            <button type="button" class="shortcut-row" @click="openGuide">
+              <span class="shortcut-row__icon shortcut-row__icon--guide">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <path d="M9 7h6" />
+                  <path d="M9 11h6" />
+                </svg>
+              </span>
+              <span class="shortcut-row__copy">
+                <span class="shortcut-row__kicker">Guide</span>
+                <span class="shortcut-row__title">{{ t('my.guide') }}</span>
+                <span class="shortcut-row__desc">{{ t('my.guideDesc') }}</span>
+              </span>
+              <svg class="shortcut-row__arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M9 6l6 6-6 6" />
+              </svg>
+            </button>
+
             <button type="button" class="shortcut-row" @click="openAbout">
               <span class="shortcut-row__icon shortcut-row__icon--about">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1133,6 +1152,10 @@ function closeBudgetDialog() {
 
 function openAbout() {
   runWithRouteTransition(() => router.push('/manage/about'), { direction: 'forward' })
+}
+
+function openGuide() {
+  runWithRouteTransition(() => router.push('/manage/guide'), { direction: 'forward' })
 }
 
 function openLogoutDialog() {
@@ -2622,6 +2645,11 @@ onActivated(() => {
 .shortcut-row__icon--about {
   background: rgba(68, 150, 255, 0.14);
   color: #3d82ef;
+}
+
+.shortcut-row__icon--guide {
+  background: rgba(255, 95, 69, 0.14);
+  color: #ff5f45;
 }
 
 .shortcut-row__copy {

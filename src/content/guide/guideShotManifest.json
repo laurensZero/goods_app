@@ -1,0 +1,170 @@
+{
+  "home": {
+    "file": "home.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "stats-view": {
+    "file": "stats-view.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "my-page": {
+    "file": "my-page.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "add-sheet": {
+    "file": "add-sheet.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "add-form": {
+    "file": "add-form.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "add-form-more": {
+    "file": "add-form-more.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "batch-queue": {
+    "file": "batch-queue.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "batch-item": {
+    "file": "batch-item.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "search-panel": {
+    "file": "search-panel.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "toolbar-menu": {
+    "file": "toolbar-menu.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "goods-detail": {
+    "file": "goods-detail.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "goods-edit": {
+    "file": "goods-edit.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "group-detail": {
+    "file": "group-detail.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "wishlist": {
+    "file": "wishlist.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "trash": {
+    "file": "trash.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "events-list": {
+    "file": "events-list.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "event-detail": {
+    "file": "event-detail.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "recharge": {
+    "file": "recharge.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "month-cards": {
+    "file": "month-cards.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "statistics": {
+    "file": "statistics.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "sale-ledger": {
+    "file": "sale-ledger.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "import-center": {
+    "file": "import-center.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "taobao-import": {
+    "file": "taobao-import.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "sync": {
+    "file": "sync.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "settings-data": {
+    "file": "settings-data.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "shares-manage": {
+    "file": "shares-manage.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "theme": {
+    "file": "theme.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  },
+  "notify": {
+    "file": "notify.webp",
+    "w": 552,
+    "h": 898,
+    "annos": []
+  }
+}

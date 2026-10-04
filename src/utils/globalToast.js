@@ -9,6 +9,7 @@
  * App.vue 中渲染：<AppToast :message="globalToastMsg" />
  */
 import { ref } from 'vue'
+import { isCaptureMode } from '@/utils/captureMode'
 
 export const globalToastMsg = ref('')
 
@@ -17,6 +18,7 @@ let lastToastText = ''
 let lastToastAt = 0
 
 export function showGlobalToast(message, duration = 2600) {
+  if (isCaptureMode()) return
   const nextMessage = String(message || '').trim()
   if (!nextMessage) return
   const now = Date.now()

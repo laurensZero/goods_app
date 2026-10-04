@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { LEGAL_ACCEPTED_KEY, LEGAL_DOCS_VERSION } from '@/constants/legalConstants'
+import { isCaptureMode } from '@/utils/captureMode'
 
 export const useLegalStore = defineStore('legal', () => {
   const gateVisible = ref(false)
@@ -21,6 +22,11 @@ export const useLegalStore = defineStore('legal', () => {
   async function checkGate() {
     if (checked.value) return gateReady
     checked.value = true
+    // 截图模式：不弹协议门禁，直接放行（不写入已同意标记）
+    if (isCaptureMode()) {
+      resolveGate()
+      return gateReady
+    }
     try {
       const accepted = await readPersisted(LEGAL_ACCEPTED_KEY)
       if (accepted !== LEGAL_DOCS_VERSION) {

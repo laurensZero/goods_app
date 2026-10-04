@@ -28,6 +28,8 @@
   "my.connectedShort": "已连接",
   "my.gotoLogin": "去登录",
   "my.settingsDesc": "分类、主题、回收站、导入导出和同步配置。",
+  "my.guide": "使用指南",
+  "my.guideDesc": "图文讲解功能用法，遇到问题先搜这里。",
   "my.aboutApp": "关于应用",
   "my.aboutDesc": "版本信息、更新入口和使用说明。",
   "my.accountSync": "账号与同步",

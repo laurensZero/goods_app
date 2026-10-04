@@ -9,6 +9,7 @@ import { useLegalStore } from '@/stores/legal'
 import { useRechargeStore } from '@/stores/recharge'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useSyncStore } from '@/stores/sync'
+import { isCaptureMode } from '@/utils/captureMode'
 
 export function useAppStartup() {
   const eventsStore = useEventsStore()
@@ -22,6 +23,8 @@ export function useAppStartup() {
   const legalStore = useLegalStore()
 
   onMounted(async () => {
+    const captureMode = isCaptureMode()
+
     // 恢复数据面端点偏好后只探当前端点；失败再探备用（与其它场景一致）
     await loadEndpointPreference()
     await reconnectSupabase({ force: true })
@@ -39,13 +42,15 @@ export function useAppStartup() {
 
     // 启动即自动检测更新：原生 / 生产 PWA / PC dev 模拟统一走同一行为
     // （appUpdate 与 webUpdate 均走 Supabase；webUpdate 在生产 PWA 会自行判定 disabled）
-    void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
-      // silent fail on startup update check
-    })
+    if (!captureMode) {
+      void appUpdateStore.checkForUpdates({ source: 'startup' }).catch(() => {
+        // silent fail on startup update check
+      })
 
-    void webUpdateStore.checkForUpdates().catch(() => {
-      // silent fail on startup web bundle update check
-    })
+      void webUpdateStore.checkForUpdates().catch(() => {
+        // silent fail on startup web bundle update check
+      })
+    }
 
     // Supabase Auth 初始化（必须在 sync 之前，确保登录状态可用）
     try {
@@ -69,24 +74,26 @@ export function useAppStartup() {
     await legalReady
 
     // 公告检查；结束后再检查角色生日彩蛋（公告弹窗未关时等它关闭，避免弹窗叠加）
-    void announcementStore.checkAndDecide().catch(() => {
-      // silent fail on startup announcement check
-    }).then(() => {
-      const runBirthdayCheck = () => {
-        void characterBirthdayStore.checkAndDecide().catch(() => {
-          // silent fail on startup birthday check
+    if (!captureMode) {
+      void announcementStore.checkAndDecide().catch(() => {
+        // silent fail on startup announcement check
+      }).then(() => {
+        const runBirthdayCheck = () => {
+          void characterBirthdayStore.checkAndDecide().catch(() => {
+            // silent fail on startup birthday check
+          })
+        }
+        if (!announcementStore.dialogVisible) {
+          runBirthdayCheck()
+          return
+        }
+        const stop = watch(() => announcementStore.dialogVisible, (visible) => {
+          if (visible) return
+          stop()
+          runBirthdayCheck()
         })
-      }
-      if (!announcementStore.dialogVisible) {
-        runBirthdayCheck()
-        return
-      }
-      const stop = watch(() => announcementStore.dialogVisible, (visible) => {
-        if (visible) return
-        stop()
-        runBirthdayCheck()
       })
-    })
+    }
     // Supabase 模式：应用启动时增量拉取
     if (syncStore.isSupabaseMode() && !syncStore.syncPaused && !syncStore.isSyncing && !syncStore.isPulling) {
       const tables = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']

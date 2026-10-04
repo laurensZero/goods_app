@@ -27,6 +27,8 @@
   "my.connectedShort": "Connected",
   "my.gotoLogin": "Login",
   "my.settingsDesc": "Categories, theme, trash, import/export and sync settings.",
+  "my.guide": "User Guide",
+  "my.guideDesc": "Illustrated how-tos for every feature — search here first.",
   "my.aboutApp": "About App",
   "my.aboutDesc": "Version info, update entry and usage guide.",
   "my.accountSync": "Account & Sync",

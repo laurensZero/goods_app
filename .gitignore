@@ -35,3 +35,6 @@ scripts/build-project-tree.mjs
 scripts/check-arch-graph.mjs
 
 design/
+
+guide-shots/
+scripts/guide-capture.mjs

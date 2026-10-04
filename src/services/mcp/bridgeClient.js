@@ -19,6 +19,7 @@ import { createLogger } from '@/utils/logger'
 import { useMcpSettingsStore } from '@/stores/mcpSettings'
 import { usePresetsStore } from '@/stores/presets'
 import { createMcpToolHandlers } from './tools'
+import { buildPageWriteHandlers } from './pageWriteHandlers'
 import { createMoneyEnrichers } from './moneyContext'
 import { readBudgetSettings } from '@/utils/goods/budget'
 import * as db from '@/utils/db'
@@ -135,14 +136,19 @@ function openSocket(token) {
  */
 async function handleCall(message) {
   if (!toolHandlers) {
-    toolHandlers = /** @type {any} */ (createMcpToolHandlers(
+    const readHandlers = createMcpToolHandlers(
       db,
       createMoneyEnrichers(),
       { read: readBudgetSettings },
       null,
       // 自定义字段定义来自 presets store（惰性读取，避免模块加载期就要求 pinia 已装配）
       { listDefs: () => usePresetsStore().customFieldDefs }
-    ))
+    )
+    // 写工具双门禁：服务端 GOODS_MCP_ALLOW_WRITES=1 + 设置页允许外部写入
+    const { allowExternalWrites } = useMcpSettingsStore().settings
+    toolHandlers = allowExternalWrites
+      ? { ...readHandlers, ...buildPageWriteHandlers() }
+      : readHandlers
   }
   const reply = { type: 'result', id: message.id }
   try {

@@ -11,6 +11,7 @@ import { formatDate } from '@/utils/format'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
 import { Capacitor } from '@capacitor/core'
 import { vibrate, HAPTIC_NOTICE } from '@/utils/platform/haptics'
+import { isCaptureMode } from '@/utils/captureMode'
 import i18n from '@/locales'
 
 const NOTIFY_DURATION = 6000
@@ -52,6 +53,9 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
 
   function push({ text, subText, goodsId, iconType, duration, actions, saleAt, persistent, key, forceAutoClose, notes } = {}) {
     if (!text) return
+
+    // 截图模式：不弹任何应用内通知（同步/开售/更新等）
+    if (isCaptureMode()) return null
 
     // 检查通知是否启用
     if (!notifySettingsStore.effectiveSettings.enabled) return null

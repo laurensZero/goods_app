@@ -56,6 +56,7 @@ import { usePullDownGesture } from '@/composables/usePullDownGesture'
 import { isPullDownGestureEnabled } from '@/utils/ai/assistantPrefs'
 import { useSurveyStore } from '@/stores/survey'
 import { useLegalStore } from '@/stores/legal'
+import { isCaptureMode } from '@/utils/captureMode'
 import { createLogger } from '@/utils/logger'
 
 const shellLog = createLogger('app-shell')
@@ -176,7 +177,7 @@ async function recoverFromBlankResume() {
 }
 
 watch(() => surveyStore.isLoaded, async (loaded) => {
-  if (!loaded) return
+  if (!loaded || isCaptureMode()) return
   await legalStore.gateReady
   setTimeout(() => {
     surveyPopupRef.value?.checkPopup()

@@ -1,0 +1,187 @@
+{
+  "guide.navTitle": "User Guide",
+  "guide.title": "User Guide",
+  "guide.subtitle": "From basics to advanced — look up collection, events, top-ups, cloud sync and other core features here",
+  "guide.metaSections": "{count} sections",
+  "guide.searchPlaceholder": "Search the guide: features, steps, keywords",
+  "guide.clearSearch": "Clear search",
+  "guide.contents": "Contents",
+  "guide.searchHits": "{count} sections match \"{query}\"",
+  "guide.sectionKicker": "Section {n}",
+  "guide.tipLabel": "Tip",
+  "guide.shotFallback": "Screenshot failed to load — check your network and reopen this page",
+  "guide.noResultTitle": "No matching content",
+  "guide.noResultDesc": "Try another keyword, e.g. \"batch add\", \"cloud sync\", \"wishlist\"",
+  "guide.footnote": "Screenshots reflect the mobile UI; features follow the current release. Questions? Contact us via My → Feedback.",
+  "guide.prevSection": "Previous",
+  "guide.nextSection": "Next",
+  "guide.s.overview.title": "Overview · Getting started",
+  "guide.s.overview.desc": "Four tabs at the bottom — take a minute to learn the layout and get started faster.",
+  "guide.s.overview.steps": [
+    "\"My Goods\" is the collection home: search and view switches on top, summary card and grid below.",
+    "Four tabs at the bottom: Collection, Events, Recharge and My — switch with one tap.",
+    "The top of the collection page also switches between Collection, Wishlist and Stats views.",
+    "Tap the floating + button to add goods; long-press a card for multi-select, batch edit, grouping and sharing."
+  ],
+  "guide.s.overview.tip": "A \"back to top\" button appears after scrolling; switch light/dark theme under My → Settings.",
+  "guide.s.add.title": "Adding goods",
+  "guide.s.add.desc": "Manual entry, batch photo pick, miHoYo shop import, share import or QR import — five ways to choose.",
+  "guide.s.add.steps": [
+    "Tap the + button on the home page and pick an add method: manual, batch, or an import option.",
+    "Fill in the name and choose category, IP, character and storage location; both listed price and actual price are supported.",
+    "Add multiple images and set the primary one; with quantity above 1 you can record price and date per unit.",
+    "Once saved the entry appears in the list; long-press for batch edit or grouping."
+  ],
+  "guide.s.add.tip": "Pre-build categories, IPs and characters in Settings to pick them from a dropdown and power later filters and stats.",
+  "guide.s.batch.title": "Batch add",
+  "guide.s.batch.desc": "Pick many photos at once, fill shared defaults in the queue, then fine-tune each item.",
+  "guide.s.batch.steps": [
+    "Choose \"Batch add\" from the add-method sheet and select multiple product photos.",
+    "On the queue page set shared defaults for all items: category, IP, storage location, price, etc.",
+    "Tap an item to edit its name, images and price differences.",
+    "Confirm and commit everything in one go; quitting midway saves a draft you can resume later."
+  ],
+  "guide.s.batch.tip": "Queue image files are owned by their items — removing or replacing an image cleans up local files too, no double storage.",
+  "guide.s.search.title": "Search & filter",
+  "guide.s.search.desc": "Keywords plus multi-dimensional filters and sorting; save common conditions as presets.",
+  "guide.s.search.steps": [
+    "Tap the search button to search by name, IP or character — pinyin also matches.",
+    "Combine filters by category, IP, character, storage location and price range in the filter panel.",
+    "The toolbar switches sort order, card density and grouping display.",
+    "Save the current conditions as a filter preset and apply it later in one tap."
+  ],
+  "guide.s.search.tip": "The search button lights up while filters are active; tap the × next to it to reset everything at once.",
+  "guide.s.detail.title": "Detail & edit",
+  "guide.s.detail.desc": "The detail page gathers all fields, the status timeline and per-unit breakdown.",
+  "guide.s.detail.steps": [
+    "Tap a card to open details: large image, price, storage location, notes and custom fields.",
+    "For multi-unit items, view price, acquisition date and sale status per unit.",
+    "The status timeline records order, arrival and shipping milestones — add new statuses anytime.",
+    "Tap edit to change fields; deletion moves the item to trash and can be restored."
+  ],
+  "guide.s.detail.tip": "You can also record a sale right from the detail page — completed sales flow into the sale ledger.",
+  "guide.s.groups.title": "Groups (sets)",
+  "guide.s.groups.desc": "Bundle related goods into sets for unified display, stats and sharing.",
+  "guide.s.groups.steps": [
+    "Long-press cards to multi-select, then tap \"Create group\" to bundle them into a set.",
+    "The group detail page shows members and total price with auto or manual summaries.",
+    "Groups can live inside collection folders and appear aggregated in the list.",
+    "Dissolving a group only removes the relation — the goods themselves are never deleted."
+  ],
+  "guide.s.groups.tip": "Group totals count toward the collection value and sync across devices via cloud sync.",
+  "guide.s.wishlist.title": "Wishlist",
+  "guide.s.wishlist.desc": "Keep a separate want-list and always know how much more you plan to spend.",
+  "guide.s.wishlist.steps": [
+    "Toggle \"Add to wishlist\" when creating a goods entry, or move an owned item to the wishlist while editing.",
+    "The wishlist page shows expected total and distribution so you can prioritize.",
+    "Convert to collection in one tap once acquired — price and images carry over.",
+    "Wishlist shares search, filter, sorting and batch operations with the collection."
+  ],
+  "guide.s.wishlist.tip": "Batch-convert wishlist items to collection at once, or share them with friends for a second opinion.",
+  "guide.s.trash.title": "Trash",
+  "guide.s.trash.desc": "Deletes go to trash first; nothing is wiped until you confirm permanent removal.",
+  "guide.s.trash.steps": [
+    "Deleted goods move to trash and disappear from the main list and search results.",
+    "Search the trash by keyword and restore items back to the list in one tap.",
+    "Permanently remove entries you no longer want — this cannot be undone.",
+    "Clearing and permanent deletion always ask for confirmation to avoid mistakes."
+  ],
+  "guide.s.trash.tip": "Deletion state syncs to the cloud, so other devices won't \"resync\" removed data back.",
+  "guide.s.events.title": "Events",
+  "guide.s.events.desc": "Concerts, expos and meetups — tickets, spending and memories in one place.",
+  "guide.s.events.steps": [
+    "Create an event: name, type, dates, city and venue, with map pinning for venues.",
+    "Link the goods you got at the event and record tickets, travel and on-site spending.",
+    "For performances, build a playlist to play songs and view lyrics in-app.",
+    "Event photos and notes are stored together for later reminiscing."
+  ],
+  "guide.s.events.tip": "The event map shows all venues you've visited with one-tap navigation.",
+  "guide.s.recharge.title": "Recharge & monthly cards",
+  "guide.s.recharge.desc": "Record game top-ups one by one; monthly card claims and expiry at a glance.",
+  "guide.s.recharge.steps": [
+    "Tap + on the recharge page: pick the game, amount, date and payment channel.",
+    "Records aggregate by time; the stats page shows monthly top-up curves and composition.",
+    "The monthly card calendar shows claim status and expiry for every card.",
+    "Enable monthly card expiry reminders in notification settings so you never miss a claim."
+  ],
+  "guide.s.recharge.tip": "Multi-currency amounts are supported and auto-converted to CNY for statistics.",
+  "guide.s.stats.title": "Statistics",
+  "guide.s.stats.desc": "Character rankings, spending composition and collection value on one screen.",
+  "guide.s.stats.steps": [
+    "The stats view aggregates owned count and spending per character into a leaderboard.",
+    "Charts show category composition, monthly spending trends and collection growth.",
+    "Total collection value includes sets and per-unit details, matching the list's calculation.",
+    "Switch the statistics range to view different periods."
+  ],
+  "guide.s.stats.tip": "Wishlist and collection are counted separately — wants are never mixed into owns.",
+  "guide.s.sale.title": "Sale ledger",
+  "guide.s.sale.desc": "Sales, listings, recovery and profit/loss — every resale tracked clearly.",
+  "guide.s.sale.steps": [
+    "Record a sale from the detail page or batch actions — as \"sold\" or \"listed\".",
+    "The ledger summarizes recovered amount, active listings and overall profit/loss.",
+    "Multi-unit items can be sold unit by unit with separate prices and dates.",
+    "Filter details by time and status to review your resale rhythm."
+  ],
+  "guide.s.sale.tip": "Listed items stay in your collection and move out automatically once sold, counting toward recovery.",
+  "guide.s.import.title": "Import data",
+  "guide.s.import.desc": "miHoYo shop, Taobao orders, share codes and backup files — all importable.",
+  "guide.s.import.steps": [
+    "miHoYo shop import: configure the account or paste cookies to pull orders in bulk.",
+    "Taobao order import: paste order content and products with prices are recognized automatically.",
+    "Share import: open a friend's link or enter a code to add the whole list to your collection.",
+    "Backup import: pick a JSON backup file under Settings → Data to restore everything."
+  ],
+  "guide.s.import.tip": "A preview is shown before importing so you can drop unwanted entries first.",
+  "guide.s.sync.title": "Cloud sync & backup",
+  "guide.s.sync.desc": "Supabase multi-device sync — or stay fully local if you never enable it.",
+  "guide.s.sync.steps": [
+    "Sign in under My → Cloud sync and enable sync to upload data automatically.",
+    "Incremental merge compares timestamps; newer edits win on conflict.",
+    "Network failures retry automatically and the sync page shows clear error reasons.",
+    "Export a JSON backup from Settings → Data regularly for an extra local copy."
+  ],
+  "guide.s.sync.tip": "On a new phone, sign into the same account with sync enabled to restore everything.",
+  "guide.s.share.title": "Share with friends",
+  "guide.s.share.desc": "Generate a share link for your list — friends can preview and import it.",
+  "guide.s.share.steps": [
+    "Long-press to multi-select goods and tap Share to create a link without private fields.",
+    "The share management page lists all links — disable or delete them anytime.",
+    "Friends open the link to preview the list and can import it whole into their own collection.",
+    "Create multiple links by theme and share them with different friends."
+  ],
+  "guide.s.share.tip": "Shares stay in sync with your current collection; disabling a link revokes access immediately.",
+  "guide.s.theme.title": "Theme · Language · Notifications",
+  "guide.s.theme.desc": "Appearance, language and alerts — configure them to your taste.",
+  "guide.s.theme.steps": [
+    "Switch light, dark or system theme on the theme page; colors and card styles apply globally.",
+    "Language settings support Simplified Chinese, Traditional Chinese, English, Japanese and Korean.",
+    "Notification settings manage sale reminders, monthly card expiry and character birthdays.",
+    "Set a monthly or yearly collecting budget on the My page with automatic over-budget alerts."
+  ],
+  "guide.s.theme.tip": "Theme preference applies at startup, so light/dark switching never flashes.",
+  "guide.s.faq.title": "FAQ",
+  "guide.s.faq.desc": "High-frequency questions about data safety, sync troubleshooting and storage.",
+  "guide.s.faq.items": [
+    {
+      "q": "Where is my data stored? Can it be lost?",
+      "a": "Everything lives in on-device SQLite, with optional cloud sync and periodic JSON exports — three layers of safety."
+    },
+    {
+      "q": "What if sync fails?",
+      "a": "Check your login and network, then retry from the cloud sync page. If it still fails, submit logs via My → Feedback and we'll investigate."
+    },
+    {
+      "q": "Many images — do they bloat storage?",
+      "a": "Cloud images use a display cache with a size cap; least-recently-viewed cache entries are evicted automatically. Originals are unaffected and can be re-downloaded."
+    },
+    {
+      "q": "How do I migrate to a new phone?",
+      "a": "Sign into the same account with cloud sync on to restore automatically; or export a JSON backup on the old device and import it on the new one."
+    },
+    {
+      "q": "How do I report ideas or bugs?",
+      "a": "Use My → Feedback with logs attached; you can also tell us via announcements and surveys."
+    }
+  ],
+  "guide.s.faq.tip": "The guide evolves with releases — type keywords into the top search box to jump to a section."
+}
