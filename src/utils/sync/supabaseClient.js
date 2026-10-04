@@ -62,11 +62,8 @@ const PROBE_TIMEOUT_MS = 1500
 const BACKUP_PROBE_TIMEOUT_MS = 3000
 // 数据面请求超时（storage 上传除外）
 const DATA_FETCH_TIMEOUT_MS = 12_000
-// 探测节流：同步/启动连续触发时不反复打两端。
-// 不要调小：每轮自动同步都会调一次 reconnectSupabase，10s 的窗口在连续编辑时
-// 会变成「每 10s 一次探测请求」；5 分钟已足够发现端点长期不可用，
-// 真正的网络错误仍由 reconnectOnNetworkError 走 force 立即探测。
-const PROBE_THROTTLE_MS = 5 * 60 * 1000
+// 探测节流：同步/启动连续触发时不反复打两端
+const PROBE_THROTTLE_MS = 10_000
 let _dataEndpoint = PRIMARY_ENDPOINT
 // 自建实例（同步设置手动填写）时锁定 URL，不参与主备切换
 let _customLocked = false
