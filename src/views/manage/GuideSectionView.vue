@@ -25,42 +25,38 @@
           </li>
         </ol>
 
-        <figure
-          v-for="shot in section.shots"
-          :key="shot.key"
-          class="guide-shot"
-        >
-          <div
-            class="guide-shot__frame"
-            :class="{ 'guide-shot__frame--failed': shot.failed }"
-            :style="{ aspectRatio: `${shot.meta.w} / ${shot.meta.h}` }"
+        <div v-if="section.shots.length" class="guide-shots">
+          <figure
+            v-for="shot in section.shots"
+            :key="shot.key"
+            class="guide-shot"
           >
-            <img
-              v-if="!shot.failed"
-              class="guide-shot__img"
-              :src="shot.url"
-              :alt="section.title"
-              loading="lazy"
-              decoding="async"
-              @error="markShotFailed(shot.key)"
-            />
-            <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
-            <span
-              v-for="anno in shot.meta.annos"
-              :key="anno.n"
-              class="guide-anno"
-              :style="annoStyle(anno)"
+            <div
+              class="guide-shot__frame"
+              :class="{ 'guide-shot__frame--failed': shot.failed }"
+              :style="{ aspectRatio: `${shot.meta.w} / ${shot.meta.h}` }"
             >
-              <i class="guide-anno__dot">{{ anno.n }}</i>
-            </span>
-          </div>
-          <ul v-if="shot.meta.annos.length" class="guide-shot__legend">
-            <li v-for="anno in shot.meta.annos" :key="anno.n" class="guide-shot__legend-item">
-              <b class="guide-shot__legend-num">{{ anno.n }}</b>
-              <span>{{ shotLabel(shot, anno) }}</span>
-            </li>
-          </ul>
-        </figure>
+              <img
+                v-if="!shot.failed"
+                class="guide-shot__img"
+                :src="shot.url"
+                :alt="section.title"
+                loading="lazy"
+                decoding="async"
+                @error="markShotFailed(shot.key)"
+              />
+              <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
+              <template v-for="anno in shot.meta.annos" :key="anno.n">
+                <span class="guide-anno" :style="annoStyle(anno)">
+                  <i class="guide-anno__dot">{{ anno.n }}</i>
+                </span>
+                <span class="guide-anno-label" :style="annoLabelStyle(anno)">
+                  {{ shotLabel(shot, anno) }}
+                </span>
+              </template>
+            </div>
+          </figure>
+        </div>
 
         <aside v-if="section.faq.length" class="guide-faq">
           <div v-for="(item, fIdx) in section.faq" :key="fIdx" class="guide-faq__item">
@@ -235,6 +231,28 @@ function annoStyle(anno) {
     width: `${anno.w}%`,
     height: `${anno.h}%`
   }
+}
+
+/**
+ * 框旁文字提示的定位（与框同级、以截图为定位上下文）：
+ * - 垂直：框下方有 ≥6% 余量则贴下方，否则贴上方；
+ * - 水平：框偏右则右缘对齐，否则左缘对齐；
+ * - maxWidth 按可用余量收紧，保证提示不会被 frame 的 overflow 裁掉。
+ */
+function annoLabelStyle(anno) {
+  const below = 100 - (anno.y + anno.h) >= 6 || anno.y < 6
+  const rightSide = anno.x + anno.w / 2 > 50
+  const style = below
+    ? { top: `${anno.y + anno.h + 1}%` }
+    : { bottom: `${100 - anno.y + 1}%` }
+  if (rightSide) {
+    style.right = `${100 - (anno.x + anno.w)}%`
+    style.maxWidth = `${Math.max(anno.x + anno.w - 2, 14)}%`
+  } else {
+    style.left = `${anno.x}%`
+    style.maxWidth = `${Math.max(100 - anno.x - 2, 14)}%`
+  }
+  return style
 }
 
 function openSection(id) {

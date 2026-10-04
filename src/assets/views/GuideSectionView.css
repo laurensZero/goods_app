@@ -18,6 +18,14 @@
   padding-bottom: 48px;
 }
 
+/* 平板/桌面宽屏：整页内容居中收窄，正文行宽不再拉满全屏 */
+@media (min-width: 900px) {
+  .guide-section-page .page-body {
+    width: min(100%, 880px);
+    margin-inline: auto;
+  }
+}
+
 /* ── 章节卡 ───────────────────────────────────── */
 
 .guide-section {
@@ -126,8 +134,26 @@
 
 /* ── 截图 + 标注 ─────────────────────────────── */
 
+.guide-shots {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
 .guide-shot {
-  margin: 18px 0 0;
+  /* 单张截图不铺满整栏：手机比例小窗居中，避免“又大又长” */
+  max-width: 460px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* 平板起截图横排并列：一行多张，页面不再一路竖着拉长 */
+@media (min-width: 768px) {
+  .guide-shots {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+    align-items: start;
+    gap: 16px;
+  }
 }
 
 .guide-shot__frame {
@@ -190,37 +216,23 @@
   border: 2px solid #fff;
 }
 
-.guide-shot__legend {
-  list-style: none;
-  padding: 12px 14px;
-  margin: 10px 0 0;
-  border-radius: var(--radius-small);
-  background: var(--app-surface-soft);
-  display: grid;
-  gap: 8px;
-}
-
-.guide-shot__legend-item {
-  display: grid;
-  grid-template-columns: 20px 1fr;
-  gap: 8px;
-  align-items: start;
-  color: var(--app-text);
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.guide-shot__legend-num {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+/* 框旁文字提示：HTML 覆盖在截图上，坐标来自 manifest（百分比） */
+.guide-anno-label {
+  position: absolute;
+  z-index: 2;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
   background: var(--guide-accent);
   color: #fff;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 
 /* ── 提示 / FAQ ─────────────────────────────── */
