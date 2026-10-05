@@ -72,6 +72,5 @@
   "search.matchCaseDesc": "开启后英文关键词按大小写精确匹配",
   "search.includeNote": "搜索备注",
   "search.includeNoteDesc": "关闭后关键词不匹配备注内容",
-  "search.starred": "星标",
-  "search.starredOnly": "仅看星标"
+  "search.starred": "星标"
 }

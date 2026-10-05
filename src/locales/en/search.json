@@ -72,6 +72,5 @@
   "search.matchCaseDesc": "When on, English keywords match case-sensitively",
   "search.includeNote": "Search notes",
   "search.includeNoteDesc": "When off, keywords do not match note content",
-  "search.starred": "Starred",
-  "search.starredOnly": "Starred only"
+  "search.starred": "Starred"
 }
