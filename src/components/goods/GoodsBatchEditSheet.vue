@@ -32,6 +32,37 @@
             </span>
           </button>
 
+          <div class="field">
+            <div class="field-head">
+              <span class="field-label">{{ t('goods.batch.starField') }}</span>
+            </div>
+            <div class="star-toggle-group">
+              <button
+                type="button"
+                class="star-toggle-btn"
+                :class="{ 'star-toggle-btn--active': form.starred === 'yes' }"
+                @click="form.starred = form.starred === 'yes' ? '' : 'yes'"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+                </svg>
+                {{ t('goods.star.add') }}
+              </button>
+              <button
+                type="button"
+                class="star-toggle-btn"
+                :class="{ 'star-toggle-btn--active': form.starred === 'no' }"
+                @click="form.starred = form.starred === 'no' ? '' : 'no'"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+                </svg>
+                {{ t('goods.star.remove') }}
+              </button>
+            </div>
+            <p class="star-toggle-hint">{{ t('goods.batch.starDesc') }}</p>
+          </div>
+
           <label class="field">
             <div class="field-head">
               <span class="field-label">{{ t('common.category') }}</span>
@@ -290,6 +321,8 @@ const quickCharacterIp = ref(NO_IP_OPTION)
 const priceError = ref('')
 const form = reactive({
   markAsOwned: false,
+  // 星标三态：'' 不修改 / 'yes' 加星标 / 'no' 取消星标
+  starred: '',
   category: '',
   ip: '',
   price: '',
@@ -354,6 +387,7 @@ function sanitizeShippingFeeInput(event) {
 const canSubmit = computed(() =>
   Boolean(
     form.markAsOwned ||
+    form.starred !== '' ||
     form.category ||
     form.ip ||
     hasPriceInput(form.price) ||
@@ -422,6 +456,7 @@ watch(
 
 function resetForm() {
   form.markAsOwned = false
+  form.starred = ''
   form.category = ''
   form.ip = ''
   form.price = ''
@@ -551,6 +586,7 @@ async function apply() {
     payload.saleReminderEnabled = false
     payload.saleReminderOffsets = []
   }
+  if (form.starred) payload.starred = form.starred === 'yes'
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
   if (hasPriceInput(form.price)) payload.price = `${Math.round(Number(form.price) * 100) / 100}`
@@ -739,6 +775,55 @@ defineExpose({
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* 星标批量操作：加星 / 取消星标 二选一，都不选 = 不修改 */
+.star-toggle-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.star-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1.5px solid rgba(245, 166, 35, 0.35);
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.star-toggle-btn svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.star-toggle-btn--active {
+  background: rgba(245, 166, 35, 0.16);
+  border-color: #f5a623;
+  color: #b87700;
+}
+
+.star-toggle-btn--active svg {
+  fill: #f5a623;
+  stroke: #f5a623;
+}
+
+:global(html.theme-dark) .star-toggle-btn--active {
+  color: #f5a623;
+}
+
+.star-toggle-hint {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
 }
 
 .field {

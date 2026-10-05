@@ -22,7 +22,7 @@ import i18n from '@/locales'
 // goods：业务字段。手动序统一放在 manualOrders JSON：
 // { custom, createdAt, acquiredAt, name, price } —— custom=自定义完整序，其余=各模式同键次级序
 // 自定义字段值统一放在 customFields JSON：{ <defId>: string }（键 = sync_presets.custom_field_defs 的 id）
-export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'manualOrders', 'customFields']
+export const GOODS_BUSINESS_KEYS = ['id', 'name', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags', 'storageLocation', 'variant', 'size', 'price', 'actualPrice', 'acquiredAt', 'saleAt', 'saleReminderEnabled', 'saleReminderOffsets', 'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList', 'images', 'tracks', 'note', 'quantity', 'points', 'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents', 'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline', 'manualOrders', 'customFields', 'starred']
 export const GOODS_COLS = [...GOODS_BUSINESS_KEYS, 'syncedBy', 'userId']
 export const GOODS_JSON_OBJECT_KEYS = ['manualOrders', 'customFields']
 export const GOODS_SELECT_COLS = [...GOODS_BUSINESS_KEYS.map(camelToSnake), 'trashed', 'updated_at', 'user_id'].join(', ')
@@ -283,6 +283,7 @@ export function toGoodsRows(items, deviceIdRef, isTrash = false, userId) {
       : {},
     isWishlist: item.isWishlist ? 1 : 0,
     saleReminderEnabled: item.saleReminderEnabled ? 1 : 0,
+    starred: item.starred ? 1 : 0,
     saleReminderOffsets: Array.isArray(item.saleReminderOffsets) ? item.saleReminderOffsets : [],
     trashed: isTrash ? 1 : 0,
     quantity: Number(item.quantity) || 1,
@@ -383,6 +384,9 @@ export async function computeDiffRows(localRows = [], remoteRows = []) {
     if (out.isWishlist === undefined || out.isWishlist === null) out.isWishlist = 0
     else if (typeof out.isWishlist === 'string') out.isWishlist = (out.isWishlist === '1' || out.isWishlist.toLowerCase() === 'true') ? 1 : 0
     else out.isWishlist = out.isWishlist ? 1 : 0
+    if (out.starred === undefined || out.starred === null) out.starred = 0
+    else if (typeof out.starred === 'string') out.starred = (out.starred === '1' || out.starred.toLowerCase() === 'true') ? 1 : 0
+    else out.starred = out.starred ? 1 : 0
     if (out.points === undefined) out.points = null
     if (out.updatedAt !== undefined && out.updatedAt !== null) out.updatedAt = Number(out.updatedAt) || 0
     if (Array.isArray(out.photos)) {

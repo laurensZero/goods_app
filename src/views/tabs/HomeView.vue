@@ -73,6 +73,8 @@
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"
+        :show-starred-toggle="true"
+        :starred-only="searchFilters.starred === 'yes'"
         @open-daily-rec="showDailyRec = true"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortModeWithSeed"
@@ -81,6 +83,7 @@
         @toggle-timeline="toggleTimelineMode"
         @set-density="setDisplayDensityWithFlip"
         @set-group-display-mode="setGroupDisplayMode"
+        @toggle-starred="toggleStarredFilter"
       />
 
       <Transition name="goods-view-switch" mode="out-in">
@@ -687,6 +690,10 @@ function handleHeroSearch() {
 
 function handleSearchUpdateKeyword(value) { searchFilters.keyword = value }
 function handleSearchUpdateField({ key, value }) { searchFilters[key] = value }
+// 一键筛选：工具栏星标按钮在「只看星标」与「不限」间切换
+function toggleStarredFilter() {
+  searchFilters.starred = searchFilters.starred === 'yes' ? 'any' : 'yes'
+}
 function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key, value) }
 function handleSearchToggleCustomFieldFilter({ defId, value }) { searchToggleCustomFieldFilter(defId, value) }
 function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }

@@ -442,5 +442,11 @@
   "goods.editor.customFieldQuickName": "項目名",
   "goods.editor.customFieldQuickOptions": "選択肢（カンマ区切り、空でも可）",
   "goods.editor.customFieldQuickSubmit": "作成して追加",
-  "goods.editor.customFieldSelectPlaceholder": "選択してください"
+  "goods.editor.customFieldSelectPlaceholder": "選択してください",
+  "goods.batch.starField": "スター",
+  "goods.batch.starDesc": "選択しない場合は変更しません",
+  "goods.star.add": "スターを付ける",
+  "goods.star.remove": "スターを外す",
+  "goods.star.added": "スターを付けました",
+  "goods.star.removed": "スターを外しました"
 }

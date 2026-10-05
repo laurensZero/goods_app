@@ -71,5 +71,7 @@
   "search.matchCase": "大文字小文字を区別",
   "search.matchCaseDesc": "オンにすると英語キーワードを大文字小文字を区別して検索します",
   "search.includeNote": "メモを検索",
-  "search.includeNoteDesc": "オフにするとキーワードがメモ内容に一致しません"
+  "search.includeNoteDesc": "オフにするとキーワードがメモ内容に一致しません",
+  "search.starred": "スター",
+  "search.starredOnly": "スター付きのみ"
 }

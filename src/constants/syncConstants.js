@@ -35,7 +35,10 @@ export const MANIFEST_VERSION = 1
 //      定义列表随 sync_presets.custom_field_defs 同步。发布前执行
 //      supabase/supabase-migration-goods-custom-fields.sql；presets 推送链路
 //      见 docs/goods-custom-fields-plan.md（前置验证）。
-export const SYNC_SCHEMA_VERSION = 14
+// v15: goods.starred BOOLEAN —— 星标谷子（0/1），支持一键筛选与批量加星。
+//      旧版本归一化会丢弃该字段并越过水位线，升级后需全量回填。
+//      发布前执行 supabase/supabase-migration-goods-starred.sql（先迁库再发版）。
+export const SYNC_SCHEMA_VERSION = 15
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

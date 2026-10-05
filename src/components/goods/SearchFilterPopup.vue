@@ -224,6 +224,21 @@
                       </button>
                     </div>
                   </div>
+
+                  <div class="field-block">
+                    <label class="field-label">{{ t('search.starred') }}</label>
+                    <div class="chip-wrap">
+                      <button
+                        v-for="option in GOODS_FILTER_BOOLEAN_OPTIONS"
+                        :key="option.value"
+                        type="button"
+                        :class="['chip', { 'chip--active': filters.starred === option.value }]"
+                        @click="$emit('update-field', { key: 'starred', value: option.value })"
+                      >
+                        {{ option.label }}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <!-- Collect Status (collection scope only) -->
@@ -1043,6 +1058,13 @@ function onDateConfirm({ selectedValues }) {
 
 /* ── Filter card ── */
 .filter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* 价格 / 备注 / 星标同组区块：内部等距，与 filter-card 节奏一致 */
+.field-grid {
   display: flex;
   flex-direction: column;
   gap: 18px;

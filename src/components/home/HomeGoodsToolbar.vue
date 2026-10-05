@@ -8,6 +8,19 @@
 
       <div class="goods-header-btns">
         <button
+          v-if="showStarredToggle"
+          type="button"
+          :class="['sort-toggle', 'starred-toggle', { 'starred-toggle--active': starredOnly }]"
+          :aria-label="t('search.starredOnly')"
+          :aria-pressed="starredOnly ? 'true' : 'false'"
+          @click="$emit('toggle-starred')"
+        >
+          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+          </svg>
+        </button>
+
+        <button
           v-if="showNewArrivalsButton"
           type="button"
           class="sort-toggle arrivals-toggle"
@@ -252,12 +265,14 @@ const props = defineProps({
   showTimelineToggle: { type: Boolean, default: true },
   showDailyRecButton: { type: Boolean, default: true },
   showNewArrivalsButton: { type: Boolean, default: false },
+  showStarredToggle: { type: Boolean, default: false },
+  starredOnly: { type: Boolean, default: false },
   activeFilterCount: { type: Number, default: 0 },
   groupDisplayMode: { type: String, default: 'pinned' },
   groupDisplayOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort', 'toggle-starred'])
 
 const showSortSheet = ref(false)
 const showRegenerateSheet = ref(false)
@@ -753,6 +768,24 @@ onBeforeUnmount(() => {
   color: #ffffff;
 }
 
+/* 星标筛选：激活态金色实心星，一键只看星标谷子 */
+.starred-toggle svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.starred-toggle--active {
+  background: #141416;
+  color: #f5a623;
+}
+
+.starred-toggle--active svg {
+  fill: #f5a623;
+}
+
 .timeline-toggle--active svg {
   transform: rotate(18deg) scale(1.04);
 }
@@ -968,6 +1001,10 @@ onBeforeUnmount(() => {
 :global(html.theme-dark) .timeline-toggle--active {
   background: #f5f5f7;
   color: #141416;
+}
+
+:global(html.theme-dark) .starred-toggle--active {
+  background: #f5f5f7;
 }
 
 :global(html.theme-dark) .sort-toggle--asc {

@@ -491,6 +491,7 @@ function normalizeGoodsInput(data, fallbackId = '') {
     statusTimeline: normalizeStatusTimeline(data.statusTimeline),
     manualOrders: normalizeManualOrders(data.manualOrders),
     customFields: normalizeCustomFields(data.customFields),
+    starred: normalizeBooleanFlag(data.starred),
     trashed: normalizeBooleanFlag(data.trashed)
   }
 }

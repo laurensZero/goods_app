@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS goods (
   unit_sale_info_list JSONB DEFAULT '[]',
   manual_orders JSONB DEFAULT '{}',
   custom_fields JSONB DEFAULT '{}',
+  starred INTEGER DEFAULT 0,
   synced_by TEXT DEFAULT NULL,
   updated_at TIMESTAMPTZ DEFAULT now()
 );
@@ -206,6 +207,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS sell_date TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS unit_sale_info_list JSONB DEFAULT '[]';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS manual_orders JSONB DEFAULT '{}';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '{}';
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS starred INTEGER DEFAULT 0;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS size TEXT DEFAULT '';
 -- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
 ALTER TABLE goods DROP COLUMN IF EXISTS image;
@@ -332,6 +334,7 @@ BEGIN
     OR NEW.unit_sale_info_list IS DISTINCT FROM OLD.unit_sale_info_list
     OR NEW.manual_orders IS DISTINCT FROM OLD.manual_orders
     OR NEW.custom_fields IS DISTINCT FROM OLD.custom_fields
+    OR NEW.starred IS DISTINCT FROM OLD.starred
   THEN NEW.updated_at = now();
   ELSE NEW.updated_at = OLD.updated_at;
   END IF;

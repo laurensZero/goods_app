@@ -442,5 +442,11 @@
   "goods.editor.customFieldQuickName": "字段名称",
   "goods.editor.customFieldQuickOptions": "选项（用逗号分隔，可留空）",
   "goods.editor.customFieldQuickSubmit": "创建并添加",
-  "goods.editor.customFieldSelectPlaceholder": "请选择"
+  "goods.editor.customFieldSelectPlaceholder": "请选择",
+  "goods.batch.starField": "星标",
+  "goods.batch.starDesc": "不选择则不修改星标",
+  "goods.star.add": "加星标",
+  "goods.star.remove": "取消星标",
+  "goods.star.added": "已加星标",
+  "goods.star.removed": "已取消星标"
 }

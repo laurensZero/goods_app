@@ -442,5 +442,11 @@
   "goods.editor.customFieldQuickName": "필드 이름",
   "goods.editor.customFieldQuickOptions": "선택 항목(쉼표로 구분, 비워둘 수 있음)",
   "goods.editor.customFieldQuickSubmit": "만들고 추가",
-  "goods.editor.customFieldSelectPlaceholder": "선택하세요"
+  "goods.editor.customFieldSelectPlaceholder": "선택하세요",
+  "goods.batch.starField": "별표",
+  "goods.batch.starDesc": "선택하지 않으면 별표는 변경되지 않습니다",
+  "goods.star.add": "별표 추가",
+  "goods.star.remove": "별표 해제",
+  "goods.star.added": "별표를 추가했습니다",
+  "goods.star.removed": "별표를 해제했습니다"
 }

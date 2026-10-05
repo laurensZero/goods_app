@@ -272,6 +272,12 @@
     <Teleport to="body">
       <div v-if="showMoreSheet" class="more-popover-overlay" @click="showMoreSheet = false" />
       <div v-if="showMoreSheet" class="more-popover" :style="morePopoverStyle">
+        <button class="more-popover__item" type="button" @click="showMoreSheet = false; toggleStarred()">
+          <svg class="star-popover-icon" :class="{ 'star-popover-icon--active': item?.starred }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+          </svg>
+          <span>{{ item?.starred ? t('goods.star.remove') : t('goods.star.add') }}</span>
+        </button>
         <button v-if="item?.goodsId && mihoyoFeaturesStore.enabled" class="more-popover__item" type="button" :disabled="cartLoading" @click="showMoreSheet = false; handleAddToCart()">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="9" cy="21" r="1" />
@@ -1071,6 +1077,14 @@ async function markAsOwned() {
   })
 
   runWithRouteTransition(() => router.replace(targetPath), { direction: 'back' })
+}
+
+/** 星标/取消星标：菜单项点击后切换，成功后 toast 反馈 */
+async function toggleStarred() {
+  if (!item.value) return
+  const next = !item.value.starred
+  await store.updateGoods(props.id, { starred: next })
+  showToast(next ? t('goods.star.added') : t('goods.star.removed'))
 }
 
 async function markAsReceived() {
@@ -2006,4 +2020,5 @@ html.theme-dark .more-popover { box-shadow: 0 4px 24px rgba(0,0,0,0.36), 0 0 0 0
 .more-popover__item:active { background: var(--app-surface-muted, rgba(0,0,0,0.08)); }
 .more-popover__item:disabled { opacity: 0.4; }
 .more-popover__item svg { width: 20px; height: 20px; flex-shrink: 0; stroke: currentColor; stroke-width: 1.8; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.more-popover__item .star-popover-icon--active { color: #f5a623; fill: #f5a623; stroke: #f5a623; }
 </style>

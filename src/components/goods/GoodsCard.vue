@@ -76,6 +76,11 @@
       >
         {{ pendingBadgeText }}
       </div>
+      <div v-if="item.starred" :class="['star-badge', { 'star-badge--compact': density === 'compact' }]" :aria-label="t('search.starred')">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
+        </svg>
+      </div>
       <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
     </div>
 
@@ -601,6 +606,41 @@ const priceCNYHint = computed(() => {
   padding: 2px 7px;
   font-size: 10px;
   line-height: 1.2;
+}
+
+/* 星标角标：封面右上角金色五角星 */
+.star-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(20, 20, 22, 0.55);
+  color: #f5a623;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+}
+
+.star-badge svg {
+  width: 13px;
+  height: 13px;
+}
+
+.star-badge--compact {
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+}
+
+.star-badge--compact svg {
+  width: 11px;
+  height: 11px;
 }
 
 .qty-badge {

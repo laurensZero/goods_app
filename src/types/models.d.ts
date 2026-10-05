@@ -125,6 +125,8 @@ export interface GoodsItem {
    * 键存在 = 这件谷子「添加了」该字段（空串 = 已添加未填）；定义见 utils/goods/customFields.js
    */
   customFields: Record<string, string>
+  /** 星标标记：一键筛选/批量加星用，随同步走 */
+  starred: boolean
   /** 本地软删除标记：trashed=1 的行 getItems 不返回，回收站通过 Preferences 单独管理 */
   trashed: boolean
 }

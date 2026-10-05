@@ -138,6 +138,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
         const item = toCamelCase(row)
         item.isWishlist = Number(item.isWishlist) === 1
         item.saleReminderEnabled = Number(item.saleReminderEnabled) === 1
+        item.starred = Number(item.starred) === 1
         item.quantity = Number(item.quantity) || 1
         item.updatedAt = normalizeTimestamp(item.updatedAt)
         return item
@@ -243,6 +244,7 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       const item = toCamelCase(row)
       item.isWishlist = Number(item.isWishlist) === 1
       item.saleReminderEnabled = Number(item.saleReminderEnabled) === 1
+      item.starred = Number(item.starred) === 1
       item.quantity = Number(item.quantity) || 1
       item.updatedAt = normalizeTimestamp(item.updatedAt)
       item.images = safeParseJsonArray(item.images)

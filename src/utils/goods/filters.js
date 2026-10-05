@@ -339,6 +339,7 @@ export function createDefaultGoodsFilters(overrides = {}) {
     acquiredTo: '',
     hasImage: DEFAULT_TOGGLE,
     hasNote: DEFAULT_TOGGLE,
+    starred: DEFAULT_TOGGLE,
     collectStatuses: [],
     customFields: {},
     sortBy: DEFAULT_SORT,
@@ -364,6 +365,7 @@ export function normalizeGoodsFilterConditions(input = {}) {
   normalized.acquiredTo = String(input.acquiredTo || '').trim()
   normalized.hasImage = normalizeToggleValue(input.hasImage)
   normalized.hasNote = normalizeToggleValue(input.hasNote)
+  normalized.starred = normalizeToggleValue(input.starred)
   normalized.collectStatuses = normalizeStringList(input.collectStatuses)
   normalized.customFields = normalizeCustomFieldFilters(input.customFields)
   normalized.sortBy = normalizeSortValue(input.sortBy)
@@ -396,6 +398,7 @@ export function countActiveGoodsFilters(input, options = {}) {
   if (filters.acquiredPreset !== DEFAULT_DATE_PRESET) count += 1
   if (filters.hasImage !== DEFAULT_TOGGLE) count += 1
   if (filters.hasNote !== DEFAULT_TOGGLE) count += 1
+  if (filters.starred !== DEFAULT_TOGGLE) count += 1
   if (filters.collectStatuses.length) count += 1
   count += Object.keys(filters.customFields).length
   if (filters.sortBy !== DEFAULT_SORT) count += 1
@@ -443,6 +446,10 @@ export function applyGoodsFilters(list, input) {
     const hasNote = Boolean(String(item.note || '').trim())
     if (filters.hasNote === 'yes' && !hasNote) return false
     if (filters.hasNote === 'no' && hasNote) return false
+
+    const starred = Boolean(item.starred)
+    if (filters.starred === 'yes' && !starred) return false
+    if (filters.starred === 'no' && starred) return false
 
     if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
     if (!matchesCustomFieldFilters(filters.customFields, item)) return false
@@ -492,6 +499,10 @@ export function filterGoodsList(list, input) {
     const hasNote = Boolean(String(item.note || '').trim())
     if (filters.hasNote === 'yes' && !hasNote) return false
     if (filters.hasNote === 'no' && hasNote) return false
+
+    const starred = Boolean(item.starred)
+    if (filters.starred === 'yes' && !starred) return false
+    if (filters.starred === 'no' && starred) return false
 
     if (!matchesCollectStatusFilter(filters.collectStatuses, item)) return false
     if (!matchesCustomFieldFilters(filters.customFields, item)) return false

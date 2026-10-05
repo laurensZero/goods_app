@@ -444,4 +444,16 @@ export const MIGRATIONS = [
       }
     }
   },
+  {
+    version: 26,
+    description: 'Add goods.starred (starred flag for quick filtering)',
+    up: async (db) => {
+      // 星标：一键筛选/批量加星用的行级布尔标记，随同步走（云端 starred 列）。
+      // 单行文本/JSON 无关，纯 0/1；老库缺列由 _ensureTableColumns 也兜底补齐
+      const cols = await db.getTableColumns('goods')
+      if (!cols.has('starred')) {
+        await db.run('ALTER TABLE goods ADD COLUMN starred INTEGER DEFAULT 0')
+      }
+    }
+  },
 ]

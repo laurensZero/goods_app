@@ -71,5 +71,7 @@
   "search.matchCase": "대소문자 구분",
   "search.matchCaseDesc": "켜면 영문 키워드를 대소문자 구분하여 검색합니다",
   "search.includeNote": "메모 검색",
-  "search.includeNoteDesc": "끄면 키워드가 메모 내용과 일치하지 않습니다"
+  "search.includeNoteDesc": "끄면 키워드가 메모 내용과 일치하지 않습니다",
+  "search.starred": "별표",
+  "search.starredOnly": "별표만 보기"
 }

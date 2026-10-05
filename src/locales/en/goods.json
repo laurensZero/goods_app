@@ -442,5 +442,11 @@
   "goods.editor.customFieldQuickName": "Field name",
   "goods.editor.customFieldQuickOptions": "Options (comma separated, can be empty)",
   "goods.editor.customFieldQuickSubmit": "Create and add",
-  "goods.editor.customFieldSelectPlaceholder": "Select"
+  "goods.editor.customFieldSelectPlaceholder": "Select",
+  "goods.batch.starField": "Star",
+  "goods.batch.starDesc": "Nothing selected = star unchanged",
+  "goods.star.add": "Add star",
+  "goods.star.remove": "Remove star",
+  "goods.star.added": "Starred",
+  "goods.star.removed": "Star removed"
 }

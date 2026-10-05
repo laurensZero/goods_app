@@ -96,6 +96,7 @@ const CREATE_TABLE_SQL = `
     unitSaleInfoList TEXT DEFAULT '[]',
     manualOrders TEXT DEFAULT '{}',
     customFields TEXT DEFAULT '{}',
+    starred  INTEGER DEFAULT 0,
     updatedAt  INTEGER DEFAULT 0,
     trashed    INTEGER DEFAULT 0,
     deletedAt TEXT DEFAULT ''
@@ -204,7 +205,9 @@ const CREATE_VERSION_TABLE_SQL = 'CREATE TABLE IF NOT EXISTS _schema_version (ve
 // 取最后一项的 version 字段而非数组长度，避免两者脱钩时误判
 const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version
 // 历史遗留数据库曾写入 version 26；重置阈值精确锁定该值，
-// 避免 capgo OTA 回滚（新版本号略大于 LATEST_VERSION）时误触发全库迁移重跑
+// 避免 capgo OTA 回滚（新版本号略大于 LATEST_VERSION）时误触发全库迁移重跑。
+// 注意：迁移 26 落地后该值与 LATEST_VERSION 重合，遗留库不再触发重置——
+// 其 schema 本就领先于 25，缺列由上方 _ensureTableColumns 幂等补齐，无需重跑迁移
 const LEGACY_VERSION_RESET_THRESHOLD = 26
 
 if (import.meta.env.DEV) {
@@ -255,6 +258,7 @@ const GOODS_REQUIRED_COLUMNS = [
   ['unitSaleInfoList', "TEXT DEFAULT '[]'"],
   ['manualOrders', "TEXT DEFAULT '{}'"],
   ['customFields', "TEXT DEFAULT '{}'"],
+  ['starred', 'INTEGER DEFAULT 0'],
   ['updatedAt', 'INTEGER DEFAULT 0'],
   ['trashed', 'INTEGER DEFAULT 0'],
   ['deletedAt', "TEXT DEFAULT ''"]
@@ -381,6 +385,7 @@ function prepareGoodsRecord(item) {
     statusTimeline = [],
     manualOrders = {},
     customFields = {},
+    starred = false,
     trashed = false,
     deletedAt = ''
   } = item
@@ -426,6 +431,7 @@ function prepareGoodsRecord(item) {
     statusTimelineStr: JSON.stringify(Array.isArray(statusTimeline) ? statusTimeline : []),
     manualOrdersStr: stringifyJsonObject(manualOrders, '{}'),
     customFieldsStr: stringifyJsonObject(customFields, '{}'),
+    starred: normalizeWishlistFlag(starred) ? 1 : 0,
     trashed: trashed ? 1 : 0,
     deletedAt: String(deletedAt || '')
   }
@@ -439,13 +445,13 @@ function stringifyJsonObject(value, fallback = '{}') {
   }
 }
 
-const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const GOODS_INSERT_SQL = 'INSERT OR REPLACE INTO goods (id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,starred,trashed,deletedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 // SELECT 列清单须与 GOODS_INSERT_SQL 列保持一致，避免增列时漏改其中一边
-const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,trashed,deletedAt'
+const GOODS_SELECT_COLUMNS = 'id,name,category,ip,goodsId,isWishlist,characters,tags,storageLocation,variant,size,price,actualPrice,acquiredAt,saleAt,saleReminderEnabled,saleReminderOffsets,currency,actualPriceCurrency,unitAcquiredAtList,unitActualPriceList,unitCharacterList,unitCollectStatusList,images,tracks,note,quantity,points,updatedAt,collectStatus,shippingFee,shippingEvents,sellPrice,sellPlatform,sellFee,sellDate,unitSaleInfoList,statusTimeline,manualOrders,customFields,starred,trashed,deletedAt'
 
 function goodsRecordToValues(record) {
-  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.size, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.customFieldsStr, record.trashed, record.deletedAt]
+  return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.size, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.customFieldsStr, record.starred, record.trashed, record.deletedAt]
 }
 
 const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,dates,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,dayTicketList,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
@@ -678,6 +684,7 @@ function mapGoodsRow(r) {
     trashed: Boolean(r.trashed),
     deletedAt: String(r.deletedAt || ''),
     isWishlist: normalizeWishlistFlag(r.isWishlist),
+    starred: normalizeWishlistFlag(r.starred),
     goodsId: String(r.goodsId || '').trim(),
     characters: parseJsonArray(r.characters),
     tags: parseJsonArray(r.tags),
