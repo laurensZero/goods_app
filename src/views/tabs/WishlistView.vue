@@ -277,6 +277,7 @@ import ShareSheet from '@/components/goods/ShareSheet.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import { sortHomeGoodsList, isHomeSortReorderable, getHomeSortGroupKey, createHomeSortOptions } from '@/utils/goods/homeSort'
+import { resolveGoodsShare } from '@/utils/goods/characterShare'
 import { buildCustomSortRegenerateIds, getCustomSortRegenerateBaseMode } from '@/utils/goods/customSortRegenerate'
 import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -397,6 +398,7 @@ const {
 
 const {
   filters: searchFilters,
+  debouncedKeyword: searchDebouncedKeyword,
   activeFilterCount: searchActiveFilterCount,
   isFiltering: searchIsFiltering,
   filteredItems: searchFilteredList,
@@ -489,9 +491,10 @@ const _wishlistTotals = computed(() => {
   }
 
   for (const item of searchFilteredList.value) {
-    qty += item.quantityNumber
+    const share = resolveGoodsShare(item, { characters: searchFilters.characters, keyword: searchDebouncedKeyword.value })
+    qty += share.units
     if (!manualGroupMemberIds.has(item.id)) {
-      val += item.totalValueNumber
+      val += share.value
     }
   }
 

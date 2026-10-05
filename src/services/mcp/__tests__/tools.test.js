@@ -572,6 +572,30 @@ describe('mcp tool handlers', () => {
     expect(result.characters.at(-1).character).toBe('（未标注角色）')
   })
 
+  it('character_leaderboard 逐份角色按份归属花费与数量（空份数均摊、无逐份价回退均摊）', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      // 逐份价齐全：甲 40 / 乙 10
+      { id: 'a', name: 'x', isWishlist: false, characters: ['甲', '乙'], quantity: 2, unitCharacterList: ['甲', '乙'], unitActualPriceList: ['40', '10'], unitAcquiredAtList: ['2025-07-01', '2025-07-02'], actualPrice: '50', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 1 },
+      // 无逐份价：30 按份均摊 10；空份数在 甲/丙 间均摊
+      { id: 'b', name: 'y', isWishlist: false, characters: ['甲', '丙'], quantity: 3, unitCharacterList: ['丙', '', ''], unitActualPriceList: [], unitAcquiredAtList: ['2025-08-01', '2025-08-02', '2025-08-03'], actualPrice: '30', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 2 },
+      // 无逐份角色：整件归 乙
+      { id: 'c', name: 'z', isWishlist: false, characters: ['乙'], quantity: 1, unitActualPriceList: [], actualPrice: '20', acquiredAt: '2025-09-01', actualPriceCurrency: 'CNY', currency: 'CNY', collectStatus: '已拥有', updatedAt: 3 }
+    ])
+
+    const result = await createMcpToolHandlers(db).character_leaderboard({})
+    const byName = (/** @type {string} */ name) => result.characters.find((/** @type {any} */ c) => c.character === name)
+    // 甲：40（a 的份）+ 10（b 的空份均摊），数量 1+1
+    expect(byName('甲')).toMatchObject({ count: 2, quantity: 2, spend: [{ currency: 'CNY', amount: 50 }] })
+    // 乙：10（a 的份）+ 20（c 整件）
+    expect(byName('乙')).toMatchObject({ count: 2, quantity: 2, spend: [{ currency: 'CNY', amount: 30 }] })
+    // 丙：b 的整份 10 + 两个空份各 5 = 20，数量 1+0.5+0.5=2
+    expect(byName('丙')).toMatchObject({ count: 1, quantity: 2, spend: [{ currency: 'CNY', amount: 20 }] })
+    // 花费守恒：50 + 30 + 20 = 100（a 50 + b 30 + c 20）
+    const totalSpend = result.characters.reduce((sum, c) => sum + c.spend.reduce((s, e) => s + e.amount, 0), 0)
+    expect(totalSpend).toBe(100)
+  })
+
   it('storage_locations 按位置聚合并排除愿望单，空位置归「未收纳」', async () => {
     const db = createFakeDb()
     db.getItems = vi.fn(async () => [

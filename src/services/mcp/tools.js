@@ -1343,7 +1343,9 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
 
   /**
    * 角色维度统计：条目数/数量/估算花费/已出件数/愿望单件数。
-   * 一条目关联多个角色时按件计入每个角色（与收藏页角色筛选口径一致）。
+   * 逐份角色（unitCharacterList）存在时按份归属花费与数量：每份记给它的角色，
+   * 逐份价精确算（无逐份价按整条 spend/份数均摊），空份数在商品级角色间均摊；
+   * 无逐份角色时整件计入每个角色（与收藏页角色筛选 / 统计页排行口径一致）。
    * @param {Record<string, any>} args
    */
   async function characterLeaderboard(args) {
@@ -1362,25 +1364,62 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     }
 
     for (const item of items) {
-      const characters = Array.isArray(item.characters) && item.characters.length > 0
-        ? item.characters
-        : ['（未标注角色）']
+      const itemCharacters = Array.isArray(item.characters)
+        ? item.characters.map((character) => asText(character).trim()).filter(Boolean)
+        : []
+      const characters = itemCharacters.length > 0 ? itemCharacters : ['（未标注角色）']
       const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
       // 花费=官方消费趋势口径（逐件带日期，愿望单/已出等不计）；愿望单单列 wishlistCount
       const spend = item.isWishlist ? 0 : itemSpendCNY(item)
       const soldUnits = item.isWishlist ? 0 : extractSaleEntries(item).sold.reduce((sum, record) => sum + record.count, 0)
+      const quantityNumber = Math.max(1, Number(item.quantity) || 1)
+      const unitCharacters = !item.isWishlist && Array.isArray(item.unitCharacterList)
+        ? item.unitCharacterList.slice(0, quantityNumber).map((character) => asText(character).trim())
+        : []
+      const hasUnitCharacters = !item.isWishlist
+        && itemCharacters.length > 0
+        && quantityNumber > 1
+        && unitCharacters.some(Boolean)
+        && unitCharacters.every((label) => !label || itemCharacters.includes(label))
 
-      for (const character of characters) {
+      /** @type {Set<string>} */
+      const touched = new Set()
+      const applyShare = (/** @type {string} */ character, /** @type {number} */ quantityShare, /** @type {number} */ spendShare) => {
         const key = asText(character).trim() || '（未标注角色）'
         const entry = ensure(key)
-        if (!item.isWishlist) {
-          entry.count += 1
-          entry.quantity += Number(item.quantity) || 1
-        } else {
-          entry.wishlistCount += 1
+        entry.quantity += quantityShare
+        entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spendShare)
+        touched.add(key)
+      }
+
+      if (hasUnitCharacters) {
+        const spendEntries = getItemSpendEntries(item)
+        const spendTotal = spendEntries.reduce((sum, entry) => sum + entry.price, 0)
+        const unitSpendShare = spendTotal / quantityNumber
+        const emptyUnitShare = 1 / characters.length
+        for (let unitIndex = 0; unitIndex < quantityNumber; unitIndex++) {
+          const label = unitCharacters[unitIndex] || ''
+          const unitSpend = spendEntries.length === quantityNumber
+            ? (spendEntries[unitIndex]?.price ?? unitSpendShare)
+            : unitSpendShare
+          if (label) {
+            applyShare(label, 1, unitSpend)
+            continue
+          }
+          for (const fallback of characters) applyShare(fallback, emptyUnitShare, unitSpend * emptyUnitShare)
         }
-        entry.soldCount += soldUnits
-        entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spend)
+      } else if (!item.isWishlist) {
+        for (const character of characters) applyShare(character, quantityNumber, spend)
+      }
+
+      if (item.isWishlist) {
+        for (const character of characters) ensure(asText(character).trim() || '（未标注角色）').wishlistCount += 1
+      } else {
+        for (const key of touched) {
+          const entry = ensure(key)
+          entry.count += 1
+          entry.soldCount += soldUnits
+        }
       }
     }
 

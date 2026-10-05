@@ -99,5 +99,78 @@ describe('buildLeaderboardEntries 价格口径', () => {
     expect(raiden.actualTotalValue).toBeCloseTo(110)
     expect(zhongli.actualTotalValue).toBeCloseTo(110)
     expect(raiden.officialTotalValue).toBeCloseTo(90)
+    expect(raiden.totalValue).toBeCloseTo(110)
+    expect(zhongli.totalValue).toBeCloseTo(110)
+  })
+
+  it('逐份角色部分填写：已填份数精确归属，空份数按商品级角色均摊', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({
+        quantityNumber: 2,
+        quantity: 2,
+        characters: ['雷电将军', '钟离'],
+        unitCharacterList: ['雷电将军', ''],
+        actualPrice: '200',
+        actualPriceCNYNumber: 200,
+        shippingFee: '20',
+        shippingFeeCNYNumber: 20,
+        officialPriceCNYNumber: 90,
+        unitActualPriceCNYList: [140, 60],
+        totalValueNumber: 220
+      })
+    ], 'character')
+
+    const raiden = entryOf(result, '雷电将军')
+    const zhongli = entryOf(result, '钟离')
+    // 逐份值 [150, 70]：第 1 份归雷电将军，第 2 份未标角色 → 70 均摊成各 35
+    expect(raiden.totalValue).toBeCloseTo(185)
+    expect(zhongli.totalValue).toBeCloseTo(35)
+    expect(raiden.quantity).toBeCloseTo(1.5)
+    expect(zhongli.quantity).toBeCloseTo(0.5)
+    // 金额守恒：合计仍为整件总值
+    expect(raiden.totalValue + zhongli.totalValue).toBeCloseTo(220)
+  })
+
+  it('逐份角色只填了 1 项（长度不足份数）时同样按份归属', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({
+        quantityNumber: 2,
+        quantity: 2,
+        characters: ['雷电将军', '钟离'],
+        unitCharacterList: ['雷电将军'],
+        actualPrice: '200',
+        actualPriceCNYNumber: 200,
+        officialPriceCNYNumber: 90,
+        totalValueNumber: 200
+      })
+    ], 'character')
+
+    const raiden = entryOf(result, '雷电将军')
+    const zhongli = entryOf(result, '钟离')
+    expect(raiden.totalValue).toBeCloseTo(150)
+    expect(zhongli.totalValue).toBeCloseTo(50)
+    expect(raiden.quantity).toBeCloseTo(1.5)
+    expect(zhongli.quantity).toBeCloseTo(0.5)
+  })
+
+  it('逐份角色含商品级以外的角色时回退整件均摊', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({
+        quantityNumber: 2,
+        quantity: 2,
+        characters: ['雷电将军', '钟离'],
+        unitCharacterList: ['温迪', '钟离'],
+        actualPrice: '200',
+        actualPriceCNYNumber: 200,
+        totalValueNumber: 200
+      })
+    ], 'character')
+
+    const raiden = entryOf(result, '雷电将军')
+    const zhongli = entryOf(result, '钟离')
+    expect(raiden.totalValue).toBeCloseTo(100)
+    expect(zhongli.totalValue).toBeCloseTo(100)
+    expect(raiden.quantity).toBeCloseTo(1)
+    expect(zhongli.quantity).toBeCloseTo(1)
   })
 })

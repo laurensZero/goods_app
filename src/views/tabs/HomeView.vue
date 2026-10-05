@@ -542,6 +542,7 @@ const {
 
 const {
   filters: searchFilters,
+  debouncedKeyword: searchDebouncedKeyword,
   activeFilterCount: searchActiveFilterCount,
   isFiltering: searchIsFiltering,
   filteredItems: searchFilteredList,
@@ -1471,7 +1472,13 @@ onBeforeRouteLeave(() => {
   unbindPageScroll()
 })
 
-const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection, goodsGroupStore, exchangeRate, searchFilteredList, searchIsFiltering)
+// 汇总折算上下文：角色筛选优先；关键词与列表同步（防抖后），精确等于角色名时按份折算
+const shareFilterContext = {
+  get characters() { return searchFilters.characters },
+  get keyword() { return searchDebouncedKeyword.value }
+}
+
+const { goodsList, totalValue, totalQuantity, goodsById } = useHomeGoodsList(store, sortMode, sortDirection, goodsGroupStore, exchangeRate, searchFilteredList, searchIsFiltering, shareFilterContext)
 
 // Goods groups — merged into displayList with goods
 const groupViewItems = computed(() => {

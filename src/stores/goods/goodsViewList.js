@@ -33,6 +33,7 @@ export function computePriceFields(item, exchangeRate) {
   const actualPriceCNYNumber = exchangeRate.convertToCNY(actualPriceNumber, item.currency)
   const collectionTotalNumber = parseNumericPrice(resolveCollectionTotalValue(item))
   const collectionTotalCNYNumber = exchangeRate.convertToCNY(collectionTotalNumber, item.currency)
+  const shippingFeeCNYNumber = exchangeRate.convertToCNY(Number(item.shippingFee) || 0, item.currency)
   // 逐件价同样折算成 CNY,消费端(出谷成本/消费趋势/预算)与聚合字段口径一致
   const unitActualPriceCNYList = Array.isArray(item.unitActualPriceList)
     ? item.unitActualPriceList.map((price) => exchangeRate.convertToCNY(parseNumericPrice(price), item.currency))
@@ -47,6 +48,7 @@ export function computePriceFields(item, exchangeRate) {
     actualPriceCNYNumber,
     unitActualPriceCNYList,
     quantityNumber,
+    shippingFeeCNYNumber,
     totalValueNumber: collectionTotalCNYNumber
   }
 }

@@ -1,4 +1,5 @@
 import { getItemSpendEntries } from './statistics'
+import { resolveUnitValuesCNY } from './characterShare'
 
 export const LEADERBOARD_DIMENSION_OPTIONS = [
   { label: '角色', value: 'character' },
@@ -113,51 +114,72 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
           .map((value) => String(value || '').trim())
       : []
     const allowedCharacterSet = values.length > 0 ? new Set(values) : null
-    const hasExactUnitCharacters = dimension === 'character'
+    const hasUnitCharacters = dimension === 'character'
       && quantityNumber > 0
-      && unitCharacters.length === quantityNumber
-      && unitCharacters.every((label) => label && (!allowedCharacterSet || allowedCharacterSet.has(label)))
+      && values.length > 0
+      && unitCharacters.some((label) => Boolean(label))
+      && unitCharacters.every((label) => !label || allowedCharacterSet.has(label))
 
-    if (hasExactUnitCharacters) {
-      const unitValueShare = quantityNumber > 0 ? totalValueNumber / quantityNumber : 0
+    if (hasUnitCharacters) {
+      const unitValues = resolveUnitValuesCNY(item)
       const officialPrice = Number(item.officialPriceCNYNumber || item.officialPriceNumber || 0)
-      const seenLabels = new Set()
+      const emptyUnitShare = 1 / values.length
+      const touchedLabels = new Set()
 
-      for (let unitIndex = 0; unitIndex < unitCharacters.length; unitIndex++) {
-        const label = unitCharacters[unitIndex]
-        const current = map.get(label) || {
-          key: label,
-          label,
-          meta: '',
-          quantity: 0,
-          totalValue: 0,
-          officialTotalValue: 0,
-          actualTotalValue: 0,
-          itemCount: 0,
-          averageUnitPrice: 0,
-          latestAcquiredTime: 0,
-          isEmpty: false
+      const upsert = (label) => {
+        let current = map.get(label)
+        if (!current) {
+          current = {
+            key: label,
+            label,
+            meta: '',
+            quantity: 0,
+            totalValue: 0,
+            officialTotalValue: 0,
+            actualTotalValue: 0,
+            itemCount: 0,
+            averageUnitPrice: 0,
+            latestAcquiredTime: 0,
+            isEmpty: false
+          }
+          map.set(label, current)
         }
+        touchedLabels.add(label)
+        return current
+      }
 
-        current.quantity += 1
-        current.totalValue += unitValueShare
-        current.officialTotalValue += officialPrice
+      for (let unitIndex = 0; unitIndex < quantityNumber; unitIndex++) {
+        const label = unitCharacters[unitIndex] || ''
+        const unitValue = unitValues[unitIndex] ?? 0
         // 入手价：官方花费明细与份数对齐时按份取价，否则均摊
-        const unitSpend = spendEntries.length === quantityNumber
-          ? spendEntries[unitIndex]?.price
-          : undefined
-        current.actualTotalValue += unitSpend ?? spendUnitShare
-        if (!seenLabels.has(label)) {
-          current.itemCount += 1
-          seenLabels.add(label)
-        }
-        current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
+        const unitSpend = spendEntries.length === quantityNumber ? spendEntries[unitIndex]?.price : undefined
+        const unitActual = unitSpend ?? spendUnitShare
 
-        if (!current.meta && dimension === 'character') {
+        if (label) {
+          const current = upsert(label)
+          current.quantity += 1
+          current.totalValue += unitValue
+          current.officialTotalValue += officialPrice
+          current.actualTotalValue += unitActual
+        } else {
+          for (const fallbackLabel of values) {
+            const current = upsert(fallbackLabel)
+            current.quantity += emptyUnitShare
+            current.totalValue += unitValue * emptyUnitShare
+            current.officialTotalValue += officialPrice * emptyUnitShare
+            current.actualTotalValue += unitActual * emptyUnitShare
+          }
+        }
+      }
+
+      for (const label of touchedLabels) {
+        const current = map.get(label)
+        if (!current) continue
+        current.itemCount += 1
+        if (!current.meta) {
           current.meta = String(item.ip || '').trim() || presetCharacterIpMap.get(label) || ''
         }
-
-        map.set(label, current)
+        current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
       }
 
       continue

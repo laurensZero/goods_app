@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { sortHomeGoodsList } from '@/utils/goods/homeSort'
+import { resolveGoodsShare } from '@/utils/goods/characterShare'
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
@@ -9,8 +10,11 @@ const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
  * @param {import('vue').Ref} sortDirection
  * @param {object} [groupStore] - goodsGroup store (optional)
  * @param {object} [exchangeRate] - exchangeRate store (optional)
+ * @param {import('vue').Ref} [externalList] - pre-filtered list (optional)
+ * @param {import('vue').Ref} [isFiltering] - whether any filter is active (optional)
+ * @param {{ characters?: string[], keyword?: string }} [filters] - active goods filters (optional)
  */
-export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate, externalList, isFiltering) {
+export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exchangeRate, externalList, isFiltering, filters) {
   const listData = computed(() => {
     const sourceItems = externalList?.value ?? store.collectionViewList
     const items = sortHomeGoodsList(sourceItems, sortMode.value, sortDirection.value)
@@ -40,11 +44,12 @@ export function useHomeGoodsList(store, sortMode, sortDirection, groupStore, exc
         const item = items[i]
         byId.set(item.id, item)
         if (!EXCLUDED_VALUE_STATUSES.has(item.collectStatus)) {
+          const share = resolveGoodsShare(item, filters)
           // Skip items that belong to manual-price groups (their group total will be added below)
           if (!manualGroupMemberIds.has(item.id)) {
-            totalVal += item.totalValueNumber
+            totalVal += share.value
           }
-          totalQty += item.quantityNumber
+          totalQty += share.units
         }
     }
 
