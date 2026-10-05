@@ -889,6 +889,14 @@ export const useSyncStore = defineStore('sync', () => {
       } else if (result?.pulledFirst && domains?.has('batchDrafts')) {
         clearDirtyDomains(new Set(['batchDrafts']))
       }
+      // presets 专项清理：「已推送」或「比对确认与云端逐字节一致」都必须落标记。
+      // 滞留的 presets 脏标记是双向毒药：每次 pull 都 preserveLocalPresets → 本机永远
+      // 收不到别机的预设改动；叠加启动补推还会每次冷启动多跑一次空同步。
+      // 依据：no_changes 只可能发生在 hasPresetsDiff === false（远端无行时已被判为有差异），
+      // 此时本地 presets 与云端 JSON 完全相等，清除是安全的。
+      if (domains?.has('presets') && (result?.action === 'pushed' || result?.action === 'no_changes')) {
+        clearDirtyDomains(new Set(['presets']))
+      }
       remarkFailedImageItems(result)
       return result
     } catch (error) {

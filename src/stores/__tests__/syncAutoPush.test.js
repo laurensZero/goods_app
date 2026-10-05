@@ -128,7 +128,10 @@ describe('autoPush 调度（丢唤醒回归）', () => {
     await vi.advanceTimersByTimeAsync(500)
     expect(orchestratorSync).toHaveBeenCalledTimes(1)
 
-    first.resolve({ action: 'no_changes' })
+    // 在途同步以 conflict 收尾：本地改动没上云，脏标记必须保留。
+    // 这里不能用 pushed/no_changes —— 那两个终态本身就代表 presets 已上云/已一致，
+    // doSync 会正确地清掉标记，那就测不到「补推还带不带脏标记」了。
+    first.resolve({ action: 'conflict' })
     await inflight
     await vi.advanceTimersByTimeAsync(10)
 
@@ -197,5 +200,58 @@ describe('autoPush 调度（丢唤醒回归）', () => {
     await vi.advanceTimersByTimeAsync(10)
 
     expect(orchestratorSync).not.toHaveBeenCalled()
+  })
+})
+
+describe('presets 脏标记必须能落地清除', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    storageState.clear()
+    authState.isLoggedIn = true
+    goodsState.loadFailed = false
+    vi.useFakeTimers()
+    backendStub.readManifest = async () => ({ lastSyncAt: null })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('no_changes（本地与云端一致）时清掉 presets 标记，否则每次冷启动多跑一次空同步', async () => {
+    orchestratorSync.mockResolvedValue({ action: 'no_changes' })
+
+    const store = useSyncStore()
+    store.autoPushGoods('presets')
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(orchestratorSync).toHaveBeenCalledTimes(1)
+    expect(storageState.get('sync_dirty_domains') || '').not.toContain('presets')
+
+    // 标记若滞留，启动补推会每次再跑一轮
+    store.resumePendingAutoPush()
+    await vi.advanceTimersByTimeAsync(10)
+    expect(orchestratorSync).toHaveBeenCalledTimes(1)
+  })
+
+  it('拉取后补推（pulledFirst）同样清掉 presets 标记，否则本机永远收不到别机的预设改动', async () => {
+    orchestratorSync.mockResolvedValue({ action: 'pushed', pulledFirst: true })
+
+    const store = useSyncStore()
+    store.autoPushGoods('presets')
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(orchestratorSync).toHaveBeenCalledTimes(1)
+    expect(storageState.get('sync_dirty_domains') || '').not.toContain('presets')
+  })
+
+  it('冲突时不清理：本地改动还没上云，标记必须留着重试', async () => {
+    orchestratorSync.mockResolvedValue({ action: 'conflict' })
+
+    const store = useSyncStore()
+    store.autoPushGoods('presets')
+    await vi.advanceTimersByTimeAsync(600)
+
+    expect(storageState.get('sync_dirty_domains') || '').toContain('presets')
   })
 })
