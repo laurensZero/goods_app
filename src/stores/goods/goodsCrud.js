@@ -20,6 +20,7 @@ import {
   maintainTimelineOnGoodsUpdate
 } from '@/utils/goods/statusTimeline'
 import { nextGoodsSortOrder } from '@/stores/goods/goodsOrder'
+import { nextGoodsId } from '@/utils/goods/id'
 
 /** 新建/翻转心愿时：只给自定义序 append；其它模式次级序留空，让日期/名称/价格主序决定位置 */
 function appendManualOrders(items, isWishlist, excludeId = '') {
@@ -36,7 +37,7 @@ function appendManualOrders(items, isWishlist, excludeId = '') {
 export async function addGoods(data, list, onMutate) {
   const imagesExplicit = Array.isArray(data?.images)
   const now = Date.now()
-  const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, String(now))
+  const incoming = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: now }, nextGoodsId(now))
   const key = buildGoodsIdentityKey(incoming)
   const existingIndex = list.value.findIndex((item) =>
     item.isWishlist === incoming.isWishlist && buildGoodsIdentityKey(item) === key
@@ -88,7 +89,7 @@ export async function addGoodsBatch(itemsData, list, onMutate) {
     const data = itemsData[i]
     const imagesExplicit = Array.isArray(data?.images)
     const itemNow = now + i
-    const normalized = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: itemNow }, String(itemNow))
+    const normalized = normalizeGoodsInput({ ...data, __imagesExplicit: imagesExplicit, updatedAt: itemNow }, nextGoodsId(itemNow))
     if (data?.manualOrders == null) {
       normalized.manualOrders = appendManualOrders(list.value, normalized.isWishlist)
     }
@@ -319,7 +320,7 @@ export async function restoreTrashItem(id, list, trashList, onMutate) {
   // deletedAt 一并清空（normalizeGoodsInput 白名单不含该字段，落库时写空串）
   const restored = normalizeGoodsInput({ ...item, trashed: false, deletedAt: '', updatedAt: Date.now() }, item.id)
   if (list.value.some((entry) => entry.id === restored.id)) {
-    restored.id = String(Date.now())
+    restored.id = nextGoodsId()
   }
 
   list.value.unshift(restored)
@@ -331,7 +332,8 @@ export async function restoreTrashItem(id, list, trashList, onMutate) {
     console.error('[goods] restoreTrashItem DB write failed:', e)
     throw e
   }
-  onMutate?.([id])
+  // 换过 id 时必须标新 id：标旧 id 会让 quickPush 两边都查不到、静默跳过并被清脏
+  onMutate?.([restored.id])
   void scheduleSaleReminderForItem(restored)
   return restored
 }

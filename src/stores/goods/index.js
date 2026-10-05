@@ -319,7 +319,7 @@ export const useGoodsStore = defineStore('goods', () => {
   }
 
   function addMultipleGoods(items) {
-    return _addMultipleGoods(items, list)
+    return _addMultipleGoods(items, list, autoPushGoods)
   }
 
   async function refreshList() {

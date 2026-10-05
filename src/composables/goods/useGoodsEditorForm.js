@@ -18,6 +18,7 @@ import { validateName as validateTextName, validatePrice as validateNumericPrice
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries } from '@/utils/goods/statusTimeline'
+import { nextGoodsId } from '@/utils/goods/id'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   allowsCollectSaleReminder,
@@ -610,7 +611,7 @@ export function useGoodsEditorForm(options = {}) {
         unitSaleInfoList: form.unitSaleInfoList
       })
 
-      const motionId = String(Date.now())
+      const motionId = nextGoodsId()
       const addPromise = store.addGoods({ ...form, id: motionId })
       // 保存已发起：会话内新图片归商品所有，移出待清理集合
       sessionNewLocalImagePaths.clear()

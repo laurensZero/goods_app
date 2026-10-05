@@ -103,6 +103,8 @@ export function useAppStartup() {
       } catch {
         // silent fail on startup pull
       }
+      // 上一会话没推成功的脏标记不会自己排定时器，拉取结束后补一次自动推送
+      syncStore.resumePendingAutoPush()
     }
   })
 }

@@ -20,7 +20,7 @@ export function createByIdLookup(listRef) {
 
 /**
  * Create a sync trigger function for a domain.
- * Uses 2-second debounce via the sync store's autoPushGoods.
+ * Uses a 500ms debounce via the sync store's autoPushGoods.
  *
  * @param {string} domain - Domain name (e.g. 'goods', 'recharge', 'events')
  * @returns {Function} trigger(ids?) — optional IDs for goods fast path

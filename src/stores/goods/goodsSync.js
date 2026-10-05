@@ -16,8 +16,9 @@ import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
 import { aliasCachedImage } from '@/utils/image/cache'
+import { nextGoodsId } from '@/utils/goods/id'
 
-async function addMultipleGoods(items, list) {
+async function addMultipleGoods(items, list, onMutate) {
   const now = Date.now()
   const existingItems = [...list.value]
   const buildScopedKey = (item) => `${item.isWishlist ? 1 : 0}::${buildGoodsIdentityKey(item)}`
@@ -32,7 +33,9 @@ async function addMultipleGoods(items, list) {
     const clean = Object.fromEntries(
       Object.entries(rawItem).filter(([key]) => !key.startsWith('_'))
     )
-    const normalized = normalizeGoodsInput(clean, String(now + index))
+    // 必须写 updatedAt：同步侧的「本地有新改动」判定只看它，为 0 的行永远不会被推上去
+    const updatedAt = Number(clean.updatedAt) > 0 ? clean.updatedAt : now + index
+    const normalized = normalizeGoodsInput({ ...clean, updatedAt }, nextGoodsId(now + index))
     const key = buildScopedKey(normalized)
 
     // 合并进已有商品时不做时间线兜底——避免重复导入给既有时间线拼入「已拥有@今天」,
@@ -59,6 +62,10 @@ async function addMultipleGoods(items, list) {
     ...newItems,
     ...existingItems.filter((item) => changedExistingIds.has(item.id))
   ])
+  // 标脏 + 触发自动推送：没有这一步这批记录既不进 dirtyGoodsIds 也不 arm 防抖定时器，
+  // 结构性地不会被同步
+  const mutatedIds = [...newItems.map((item) => item.id), ...changedExistingIds]
+  if (mutatedIds.length > 0) onMutate?.(mutatedIds)
 }
 
 async function refreshList(list) {

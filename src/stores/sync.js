@@ -530,6 +530,11 @@ export const useSyncStore = defineStore('sync', () => {
     return new Set(dirtyDomains)
   }
 
+  /** 只读副本：供 pull 侧判断本地是否有未推送的 presets 改动（不清除标记） */
+  function peekDirtyDomains() {
+    return dirtyDomains.size > 0 ? new Set(dirtyDomains) : null
+  }
+
   function clearDirtyDomains(consumed) {
     if (consumed) {
       for (const d of consumed) dirtyDomains.delete(d)
@@ -560,10 +565,26 @@ export const useSyncStore = defineStore('sync', () => {
 
     autoPushTimer = setTimeout(() => {
       autoPushTimer = null
-      if (!isPulling.value && !isSyncing.value) {
-        void doSync({ source: 'auto' })
+      // 此刻又被别的同步占位：回填 pending 标记，由那一轮的 finally 再次 flush。
+      // 直接丢弃会让「变更已标脏但没有任何调度器会再触发」——脏标记留着也永远不推。
+      if (isPulling.value || isSyncing.value) {
+        pendingAutoPush = true
+        return
       }
+      void doSync({ source: 'auto' })
     }, 0)
+  }
+
+  /**
+   * 补发上一会话遗留的自动推送。
+   * 脏标记跨重启恢复（init 里读 sync_dirty_domains），但恢复动作本身不排定时器 ——
+   * 若上次没推成功就退出了，启动后没有任何调度器会再触发，脏数据会一直滞留本地。
+   * 启动拉取结束后调用一次；若此刻仍被别的同步占位，pending 标记会由那一轮的 finally 接手。
+   */
+  function resumePendingAutoPush() {
+    if (dirtyDomains.size === 0 && dirtyGoodsIds.size === 0) return
+    pendingAutoPush = true
+    flushPendingAutoPush()
   }
 
   function autoPushGoods(domain) {
@@ -661,7 +682,7 @@ export const useSyncStore = defineStore('sync', () => {
   async function runSchemaResync(runGen) {
     console.warn('[sync] schema format upgrade detected, running full re-sync to backfill fields')
     const result = await withRetry(
-      () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+      () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true, dirtyDomains: peekDirtyDomains() }),
       { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
     )
     schemaResyncPending.value = false
@@ -733,7 +754,7 @@ export const useSyncStore = defineStore('sync', () => {
       }
       console.warn('[sync] admin-triggered device force resync detected, running full re-pull')
       const result = await withRetry(
-        () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true }),
+        () => orchestrator.pull(buildSyncContext(runGen), { silent: true, schemaResync: true, dirtyDomains: peekDirtyDomains() }),
         { maxRetries: 1, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       await writeSyncKey(DEVICE_FORCE_RESYNC_KEY, serverTs)
@@ -764,7 +785,13 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'paused' }
     }
     
-    if (isSyncing.value) return { action: 'skipped', reason: 'syncing' }
+    if (isSyncing.value) {
+      // 被在途同步占位：必须回填 pending 标记，否则防抖到点的这次触发会被永久吞掉
+      // （pendingAutoPush 只在 autoPushGoods 调用时置位，定时器回调路径不会置位）。
+      // 在途同步的 finally 会调用 flushPendingAutoPush 完成补推。
+      pendingAutoPush = true
+      return { action: 'skipped', reason: 'syncing' }
+    }
     const authStore = useAuthStore()
     if (!authStore.isLoggedIn) {
       applySyncError(new Error(i18n.global.t('sync.error.loginRequired')), i18n.global.t('sync.error.loginRequiredStatus'))
@@ -968,6 +995,8 @@ export const useSyncStore = defineStore('sync', () => {
       // 用户主动触发的强制全量同步（长按拉取）：强制对齐云端——
       // 远端行无条件覆盖本地（含本地较新的未推送改动），不弹冲突。本地独有行不会被删除。
       if (forceFull) {
+        // 不传 dirtyDomains：强制对齐云端要求远端整块覆盖本地（含未推送的 presets），
+        // 这里传了会让长按拉取无法真正对齐
         const result = await withRetry(
           () => orchestrator.pull(buildSyncContext(runGen), { silent: true, forceAlign: true }),
           { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
@@ -995,7 +1024,7 @@ export const useSyncStore = defineStore('sync', () => {
 
       if (isIncremental) {
         try {
-          const result = await orchestrator.pull(buildSyncContext(runGen), { tables, since })
+          const result = await orchestrator.pull(buildSyncContext(runGen), { tables, since, dirtyDomains: peekDirtyDomains() })
           // 代际过期（超时重置已接管 UI）：跳过状态更新
           if (runGen !== syncGeneration) return result
           syncStatus.value = translateStatusMessage(result)
@@ -1007,7 +1036,7 @@ export const useSyncStore = defineStore('sync', () => {
           console.warn('[sync] incremental pull failed, falling back to full pull:', error.message)
           try {
             const result = await withRetry(
-              () => orchestrator.pull(buildSyncContext(runGen), { silent: true }),
+              () => orchestrator.pull(buildSyncContext(runGen), { silent: true, dirtyDomains: peekDirtyDomains() }),
               { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
             )
             syncStatus.value = translateStatusMessage(result)
@@ -1021,7 +1050,7 @@ export const useSyncStore = defineStore('sync', () => {
 
       // Full pull
       const result = await withRetry(
-        () => orchestrator.pull(buildSyncContext(runGen), { silent, forceRecharge }),
+        () => orchestrator.pull(buildSyncContext(runGen), { silent, forceRecharge, dirtyDomains: peekDirtyDomains() }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       // 代际过期（超时重置已接管 UI）：跳过状态更新，避免与新一轮同步互相覆盖
@@ -1171,7 +1200,7 @@ export const useSyncStore = defineStore('sync', () => {
     schemaResyncPending,
     isConfigured, init,
     getLocalChangesSinceLastSync, sync, pull, resolveConflict, resolvePullConflict,
-    autoPushGoods, markGoodsIdsDirty,
+    autoPushGoods, markGoodsIdsDirty, resumePendingAutoPush,
     clearConflict, resetConfig,
     syncBackend, supabaseUrl, supabaseAnonKey,
     saveSupabaseConfig, setSyncBackend, testSupabaseConnection, isSupabaseMode,

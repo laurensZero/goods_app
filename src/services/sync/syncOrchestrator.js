@@ -112,6 +112,11 @@ export function createSyncOrchestrator({
     const { tables, since = 0, silent = false, schemaResync = false, forceAlign = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
+    // 本地 presets 有未推送改动时，pull 不能用远端整块快照覆盖（否则刚新增的角色会被抹掉，
+    // 且之后 local == remote → hasPresetsDiff 恒 false，脏标记也永远推不走）。
+    // 语义与 fullSync 的 isPresetsDirty 不同：此处 dirtyDomains 为空表示「没有未推送改动」，
+    // 必须应用远端，否则跨设备新增的预设永远拉不下来。
+    const preserveLocalPresets = !!opts.dirtyDomains?.has('presets')
     let localBatchDrafts = []
     try { localBatchDrafts = await getAllBatchDrafts() } catch { localBatchDrafts = [] }
     const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
@@ -151,7 +156,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, preserveLocalPresets, resolveRechargeImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
           },
@@ -236,6 +241,7 @@ export function createSyncOrchestrator({
             forceAlign,
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
+            preserveLocalPresets,
             resolveRechargeImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
@@ -513,10 +519,14 @@ export function createSyncOrchestrator({
       || normalizeBudgetValue(localBudgetSettings.yearly) !== normalizeBudgetValue(remoteManifest?.budgetYearly)
     )
     let hasPresetsDiff = false
-    if (isPresetsDirty && remoteData.presets) {
+    if (isPresetsDirty) {
       try {
         const localPresets = await ctx.buildPresetsData()
-        hasPresetsDiff = JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
+        // 远端还没有 sync_presets 行（reader 返回 presets: null）时必须视为有差异：
+        // 否则「只加角色、不动商品」的用户恒被判 no_changes，云端行永远建不出来 ——
+        // 叠加 canQuickPush 要求 dirtyGoodsIds 非空，纯预设改动会彻底死锁。
+        hasPresetsDiff = !remoteData.presets
+          || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
       } catch { hasPresetsDiff = true }
     }
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBatchDraftDataDiff || hasBudgetDiff || hasPresetsDiff
