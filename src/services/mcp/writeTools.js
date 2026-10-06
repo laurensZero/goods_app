@@ -1301,6 +1301,10 @@ export function createMcpWriteToolHandlers({
              neteaseSongId: String(raw?.neteaseSongId || '').trim(),
              qqSongId: String(raw?.qqSongId || '').trim(),
              bilibiliVideoId: String(raw?.bilibiliVideoId || '').trim(),
+             bilibiliPage: Math.max(0, Math.floor(Number(raw?.bilibiliPage) || 0)),
+             bilibiliPageList: Array.isArray(raw?.bilibiliPageList)
+               ? Array.from(new Set(raw.bilibiliPageList.map((page) => Math.floor(Number(page) || 0)).filter((page) => page > 0))).sort((a, b) => a - b)
+               : [],
              lyricSource: String(raw?.lyricSource || '').trim(),
              lyricSongId: String(raw?.lyricSongId || '').trim()
            }

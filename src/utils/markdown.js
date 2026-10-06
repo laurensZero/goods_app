@@ -1,13 +1,16 @@
 import { JUMP_HREF_PREFIX } from './ai/jumpLinks'
 import { getCachedImageThumb } from './image/thumb'
 
-const BILI_TOKEN_RE = /<video>\s*(BV[0-9A-Za-z]+(?:\?[^\n<]*)?)\s*<\/video>/gi
+// 同时接受裸 BV 号和完整 bilibili 视频链接（含分享参数）
+const BILI_TOKEN_RE = /<video>\s*([^\n<]*BV[0-9A-Za-z]{10}[^\n<]*)\s*<\/video>/gi
 const BILI_TOKEN_PREFIX = '@@BILIEMBED'
 const BILI_TOKEN_SUFFIX = '@@'
 
 function extractBiliTokens(src) {
   const ids = []
   const replaced = src.replace(BILI_TOKEN_RE, (match, id) => {
+    // 提取不到 BV 号的内容原样保留，不渲染成空 iframe
+    if (!/BV[0-9A-Za-z]{10}/i.test(id)) return match
     const token = `${BILI_TOKEN_PREFIX}${ids.length}${BILI_TOKEN_SUFFIX}`
     ids.push(id)
     return token
@@ -16,25 +19,17 @@ function extractBiliTokens(src) {
 }
 
 function buildBiliEmbed(id) {
-  let bvid = id
-  let query = ''
+  const bvidMatch = id.match(/BV[0-9A-Za-z]{10}/i)
+  if (!bvidMatch) return ''
+  const bvid = bvidMatch[0]
   const qIdx = id.indexOf('?')
-  if (qIdx !== -1) {
-    bvid = id.slice(0, qIdx)
-    query = id.slice(qIdx + 1)
-  }
-  const params = new URLSearchParams()
-  query.split('&').forEach((pair) => {
-    if (!pair) return
-    const eq = pair.indexOf('=')
-    if (eq === -1) {
-      params.append(pair, '')
-    } else {
-      params.append(pair.slice(0, eq), pair.slice(eq + 1))
-    }
-  })
+  const params = new URLSearchParams(qIdx === -1 ? '' : id.slice(qIdx + 1))
+  // p / page 统一成同一个页码，只输出同值的一组，避免两参数冲突后播放器取错
+  const page = Math.max(1, Math.round(Number(params.get('p') || params.get('page')) || 1))
+  params.delete('p')
+  params.delete('page')
   const extra = params.toString() ? `&${params.toString()}` : ''
-  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=1&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
+  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=${page}&p=${page}&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
   return `<div class="bili-embed"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="0" framespacing="0" allowfullscreen="true"></iframe></div>`
 }
 
@@ -79,7 +74,7 @@ export function detectMarkdownContent(value) {
     /(^|[^_])__[^_\n]+__(?!_)/,
     /(^|[^~])~~[^~\n]+~~/,
     /(^|[^`])`[^`\n]+`(?!`)/,
-    /<video>\s*BV[0-9A-Za-z]+/i,
+    /<video>\s*(?:https?:\/\/)?[^\n<]*?BV[0-9A-Za-z]+/i,
     // Markdown 表格：竖线单元格行 + 随后的分隔行（|---|:---:| 等）
     /^\s*\|.+\|?\s*\r?\n\s*\|?[\s:|-]+-[\s:|-]*/
   ].some((pattern) => pattern.test(text))

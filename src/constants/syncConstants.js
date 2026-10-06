@@ -38,7 +38,10 @@ export const MANIFEST_VERSION = 1
 // v15: goods.starred BOOLEAN —— 星标谷子（0/1），支持一键筛选与批量加星。
 //      旧版本归一化会丢弃该字段并越过水位线，升级后需全量回填。
 //      发布前执行 supabase/supabase-migration-goods-starred.sql（先迁库再发版）。
-export const SYNC_SCHEMA_VERSION = 15
+// v16: events.tracks[].bilibiliPage / bilibiliPageList —— B 站分P页码与合并连播列表
+//      （tracks 是 JSONB 列，无需云端迁移）。
+//      旧版本 normalizeTracks 会剥掉该子字段并整行写回云端，必须强制一次全量重拉。
+export const SYNC_SCHEMA_VERSION = 16
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

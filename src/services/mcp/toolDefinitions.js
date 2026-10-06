@@ -246,6 +246,8 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
               neteaseSongId: { type: 'string', description: '网易云歌曲 id（source=netease 时提供，可在线播放）' },
               qqSongId: { type: 'string', description: 'QQ 音乐歌曲 id（source=qq 时提供）' },
               bilibiliVideoId: { type: 'string', description: 'B 站视频 id（source=bilibili 时提供）' },
+              bilibiliPage: { type: 'number', description: 'B 站分P页码（多P视频的第几P，1 起；缺省播第1P）' },
+              bilibiliPageList: { type: 'array', items: { type: 'number' }, description: 'B 站多P合并连播的页码列表（如 [2,3,4]，一条曲目内按顺序连续播放）；与 bilibiliPage 二选一' },
               durationMs: { type: 'number', description: '时长（毫秒）' }
             },
             required: ['title']

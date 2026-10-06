@@ -20,7 +20,8 @@ import { extractQQSongMid } from '@/utils/music/qqMusic'
  *
  * @param {string} input
  * @param {{ allowBareId?: boolean }} [options]
- * @returns {{ source: 'netease' | 'qq' | 'bilibili', id: string } | null}
+ * @returns {{ source: 'netease' | 'qq' | 'bilibili', id: string, page?: number } | null}
+ *   B 站链接带 ?p=N 时返回 page（仅 >1 时携带）
  */
 export function parseTrackSourceInput(input, options = {}) {
   const allowBareId = options?.allowBareId === true
@@ -33,7 +34,11 @@ export function parseTrackSourceInput(input, options = {}) {
 
   // 2) B 站：BV 号是全局唯一的强特征，裸号 / 链接 / 分享文案都能命中
   const bvid = parseBilibiliVideoId(raw)
-  if (bvid) return { source: 'bilibili', id: bvid }
+  if (bvid) {
+    const pMatch = raw.match(/[?&]p=(\d+)/)
+    const page = pMatch ? Math.max(0, parseInt(pMatch[1], 10)) : 0
+    return page > 1 ? { source: 'bilibili', id: bvid, page } : { source: 'bilibili', id: bvid }
+  }
 
   // 3) 网易云：先按域名收窄，避免把别的站点的 ?id= 当成歌曲 id
   if (/music\.163\.com|163cn\.tv/i.test(raw)) {

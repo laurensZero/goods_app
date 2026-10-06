@@ -2,7 +2,7 @@ import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { fetchNeteaseLyrics, fetchNeteasePlayableUrl } from '@/utils/music/neteaseMusic'
 import { fetchQQPlayableUrl, fetchQQLyrics } from '@/utils/music/qqMusic'
-import { fetchBilibiliPlayableUrl } from '@/utils/music/bilibiliMusic'
+import { fetchBilibiliPlayableUrl, fetchBilibiliVideoMeta } from '@/utils/music/bilibiliMusic'
 import { buildTrackCoverCacheKey, fetchTrackCoverUrl } from '@/utils/music/trackCover'
 import { matchLyricsByTitle } from '@/utils/music/musicLyricMatch'
 import { useEventsStore } from '@/stores/events'
@@ -127,6 +127,13 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   let autoAdvanceRecoveryTimer = 0
   let autoAdvanceRecoveryAttempts = 0
   let backgroundAudioListenerAdded = false
+  // 合并连播曲目（bilibiliPageList>1）的当前分段状态：
+  // segmentDurationsSec 撑起连续进度条（先取 meta 各P时长，缺失时用实测时长兜底）
+  let segmentPages = []
+  let segmentIndex = 0
+  let segmentDurationsSec = []
+  // 跨段 seek 加载期间锁定的显示位置（连续时间轴秒数）；null=无锁定
+  let segmentSeekTargetSec = null
   let lyricsResumeRetryBound = false
   let lastLyricsRequestAt = 0
 
@@ -143,8 +150,16 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     if (nativeListenerPromise) return nativeListenerPromise
     nativeListenerPromise = Promise.all([
       addBilibiliPlayerListener('state', (event = {}) => {
-        currentTime.value = Math.max(0, Number(event.positionMs || 0) / 1000)
-        duration.value = Math.max(0, Number(event.durationMs || 0) / 1000)
+        const positionSec = Math.max(0, Number(event.positionMs || 0) / 1000)
+        const nativeDuration = Math.max(0, Number(event.durationMs || 0) / 1000)
+        if (isMergedSegmentTrack()) {
+          duration.value = mergedTotalDurationSec() || segmentStartSec() + nativeDuration
+          // 跨段 seek 加载期间显示锁生效：原生 position 事件不回写，避免拉回段首
+          if (segmentSeekTargetSec == null) currentTime.value = segmentStartSec() + positionSec
+        } else {
+          currentTime.value = positionSec
+          duration.value = nativeDuration
+        }
         if (event.state === 'buffering') isLoading.value = true
         if (event.state === 'playing') {
           isLoading.value = false
@@ -153,7 +168,9 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         if (event.state === 'paused' || event.state === 'ended') isPlaying.value = false
         if (event.state === 'ended') {
           isPlaying.value = false
-          if (hasNext.value) {
+          if (hasNextSegment()) {
+            void playNextSegment()
+          } else if (hasNext.value) {
             void handleAutoAdvance()
           } else {
             void stopBackgroundAudio()
@@ -277,6 +294,18 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   function syncMediaSessionPositionState() {
     if (!supportsMediaSession() || !audio || typeof navigator.mediaSession.setPositionState !== 'function') return
 
+    // 合并连播：通知栏也用连续时间轴（总时长/跨段累计位置）
+    if (isMergedSegmentTrack()) {
+      const total = duration.value
+      if (total <= 0) return
+      navigator.mediaSession.setPositionState({
+        duration: total,
+        playbackRate: Number(audio.playbackRate) > 0 ? Number(audio.playbackRate) : 1,
+        position: Math.min(total, Math.max(0, currentTime.value))
+      })
+      return
+    }
+
     const playbackDuration = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0
     if (playbackDuration <= 0) return
 
@@ -395,7 +424,14 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     })
 
     audio.addEventListener('loadedmetadata', () => {
-      duration.value = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0
+      if (isMergedSegmentTrack()) {
+        // meta 缺失的分段用实测时长兜底；总时长由 syncCurrentTime 统一维护
+        if (Number.isFinite(audio.duration) && !segmentDurationsSec[segmentIndex]) {
+          segmentDurationsSec[segmentIndex] = Math.max(0, audio.duration)
+        }
+      } else {
+        duration.value = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0
+      }
       syncCurrentTime()
       syncMediaSessionPositionState()
     })
@@ -409,6 +445,11 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       syncCurrentTime()
       syncMediaSessionPlaybackState()
       syncMediaSessionPositionState()
+      // 合并连播的分P还没播完：继续播下一段而不是切下一首
+      if (hasNextSegment()) {
+        void playNextSegment()
+        return
+      }
       if (hasNext.value) {
         void handleAutoAdvance()
         return
@@ -445,8 +486,39 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     return audio
   }
 
+  // 跨段 seek 显示锁：换 src / seek 生效前，timeupdate、loadedmetadata 等事件会读到
+  // audio.currentTime≈0，把连续进度显示拉回段首；加载期间把显示钉在目标位置上
+  function lockSegmentSeekDisplay(targetSec) {
+    segmentSeekTargetSec = Math.max(0, Number(targetSec) || 0)
+    currentTime.value = segmentSeekTargetSec
+  }
+
+  function unlockSegmentSeekDisplay() {
+    segmentSeekTargetSec = null
+  }
+
+  // 锁定期间用户再次拖动进度条：更新锁目标而不是绕过锁回写，避免显示被 syncCurrentTime 拉回旧目标
+  function retargetSegmentSeekLock(nextSec) {
+    if (segmentSeekTargetSec != null) {
+      segmentSeekTargetSec = Math.max(0, Number(nextSec) || 0)
+    }
+  }
+
   function syncCurrentTime() {
     if (!audio) return
+    // 合并连播：进度跨段累计，总时长用各段之和（或曲目总时长），视觉上一条连续进度条
+    if (isMergedSegmentTrack()) {
+      const total = mergedTotalDurationSec() || segmentStartSec() + (Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : 0)
+      if (total > 0) duration.value = total
+      // 跨段 seek 加载期间锁定显示在目标位置，避免换 src 时进度条被拉回段首
+      if (segmentSeekTargetSec != null) {
+        currentTime.value = segmentSeekTargetSec
+        return
+      }
+      const positionSec = Number.isFinite(audio.currentTime) ? Math.max(0, audio.currentTime) : 0
+      currentTime.value = segmentStartSec() + positionSec
+      return
+    }
     currentTime.value = Number.isFinite(audio.currentTime) ? Math.max(0, audio.currentTime) : 0
     duration.value = Number.isFinite(audio.duration) ? Math.max(0, audio.duration) : duration.value
   }
@@ -488,16 +560,83 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     )
   }
 
-  async function resolvePlayableUrlWithRetry(track) {
+  // 合并连播曲目 → 有序去重的分P页码数组；其余曲目 → [页码]
+  function getBilibiliPageList(track = {}) {
+    const list = Array.isArray(track?.bilibiliPageList)
+      ? track.bilibiliPageList.map((page) => Math.floor(Number(page) || 0)).filter((page) => page > 0)
+      : []
+    if (list.length > 1) return Array.from(new Set(list)).sort((left, right) => left - right)
+    const single = Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))
+    return [single > 1 ? single : 1]
+  }
+
+  function hasNextSegment() {
+    return segmentPages.length > 1 && segmentIndex < segmentPages.length - 1
+  }
+
+  function isMergedSegmentTrack(track = currentTrack.value) {
+    return segmentPages.length > 1 && Boolean(String(track?.bilibiliVideoId || '').trim())
+  }
+
+  // 当前分段在整条连续时间轴上的起点
+  function segmentStartSec() {
+    let acc = 0
+    for (let i = 0; i < segmentIndex && i < segmentDurationsSec.length; i += 1) acc += segmentDurationsSec[i] || 0
+    return acc
+  }
+
+  // 连续总时长：各P时长齐全用求和，否则用曲目元数据里的总时长兜底
+  function mergedTotalDurationSec(track = currentTrack.value) {
+    if (segmentDurationsSec.length && segmentDurationsSec.every((d) => d > 0)) {
+      return segmentDurationsSec.reduce((sum, d) => sum + d, 0)
+    }
+    return Math.max(0, Number(track?.durationMs) || 0) / 1000
+  }
+
+  // 拉一次分P明细填充各段时长，支撑连续进度与跨段 seek
+  async function fillSegmentDurations(track) {
+    const bvid = String(track?.bilibiliVideoId || '').trim()
+    if (!bvid || segmentPages.length <= 1) return
+    try {
+      const meta = await fetchBilibiliVideoMeta(bvid)
+      const pages = Array.isArray(meta?.pages) ? meta.pages : []
+      if (!pages.length || segmentPages.length <= 1) return
+      segmentDurationsSec = segmentPages.map((page) => {
+        const found = pages.find((item) => item.page === page)
+        return found?.durationMs ? found.durationMs / 1000 : 0
+      })
+      syncCurrentTime()
+    } catch {
+      // 拉不到明细就用实测时长/曲目总时长兜底
+    }
+  }
+
+  // 预热下一段：提前解析地址并（web 代理路径）发一个小 range 请求把链路建起来
+  function preloadNextSegmentUrl() {
+    if (!hasNextSegment()) return
+    const track = currentTrack.value
+    const pageNumber = segmentPages[segmentIndex + 1]
+    void resolvePlayableUrlWithRetry(track, pageNumber)
+      .then((playable) => {
+        const url = typeof playable === 'string' ? playable : playable?.url
+        if (url && !isNativeBilibiliTrack(track) && url.startsWith('/bilibili-media')) {
+          fetch(url, { headers: { Range: 'bytes=0-1023' } }).catch(() => {})
+        }
+      })
+      .catch(() => {})
+  }
+
+  async function resolvePlayableUrlWithRetry(track, pageNumber = 0) {
     const trackId = getTrackIdentity(track)
-    if (playableUrlCache.has(trackId)) {
-      return playableUrlCache.get(trackId)
+    const cacheKey = `${trackId}#p${Math.max(1, Math.floor(Number(pageNumber) || 1))}`
+    if (playableUrlCache.has(cacheKey)) {
+      return playableUrlCache.get(cacheKey)
     }
 
     const maxRetries = 2
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       try {
-        return await resolvePlayableUrl(track)
+        return await resolvePlayableUrl(track, pageNumber)
       } catch (error) {
         if (!isTransientNetworkError(error) || attempt >= maxRetries) throw error
         const jitter = Math.random() * 200 + 300
@@ -508,14 +647,10 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     }
   }
 
-  async function resolvePlayableUrl(track) {
+  async function resolvePlayableUrl(track, pageNumber = 0) {
     const trackId = getTrackIdentity(track)
     if (!trackId) {
       throw new Error('缺少可播放曲目')
-    }
-
-    if (playableUrlCache.has(trackId)) {
-      return playableUrlCache.get(trackId)
     }
 
     const source = String(track?.source || '').trim()
@@ -523,9 +658,17 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
     const bilibiliVideoId = String(track?.bilibiliVideoId || '').trim()
     const neteaseSongId = String(track?.neteaseSongId || '').trim()
 
+    // B 站按页码缓存（合并连播的各分段各自解析）
+    const cacheKey = bilibiliVideoId
+      ? `${trackId}#p${Math.max(1, Math.floor(Number(pageNumber) || 1))}`
+      : trackId
+    if (playableUrlCache.has(cacheKey)) {
+      return playableUrlCache.get(cacheKey)
+    }
+
     let playable = ''
     if (bilibiliVideoId && (source === 'bilibili' || (!neteaseSongId && !qqSongId))) {
-      const result = await fetchBilibiliPlayableUrl(bilibiliVideoId)
+      const result = await fetchBilibiliPlayableUrl(bilibiliVideoId, Math.max(0, Math.floor(Number(pageNumber) || 0)))
       playable = result
     } else if (source === 'qq' && qqSongId) {
       const result = await fetchQQPlayableUrl(qqSongId)
@@ -540,7 +683,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       throw new Error('缺少歌曲 ID，无法播放')
     }
 
-    lruSet(playableUrlCache, trackId, playable)
+    lruSet(playableUrlCache, cacheKey, playable)
     return playable
   }
 
@@ -747,7 +890,13 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         audio.load()
       }
       if (nativeBilibili) await ensureNativeListeners()
-      const playable = await resolvePlayableUrlWithRetry(track)
+      const pages = getBilibiliPageList(track)
+      segmentPages = pages
+      segmentIndex = 0
+      segmentDurationsSec = []
+      segmentSeekTargetSec = null
+      if (pages.length > 1) void fillSegmentDurations(track)
+      const playable = await resolvePlayableUrlWithRetry(track, pages[0])
       const url = typeof playable === 'string' ? playable : playable.url
       if (requestToken !== playRequestToken || getTrackIdentity(queue.value[index]) !== trackId) return
       if (nativeBilibili) {
@@ -761,6 +910,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
         activatePlaybackKeepAlive()
         void resolveLyrics(track)
         void preloadNextTrackUrl()
+        preloadNextSegmentUrl()
         return
       }
       if (targetAudio.src !== url) {
@@ -774,6 +924,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       activatePlaybackKeepAlive()
       void resolveLyrics(track)
       void preloadNextTrackUrl()
+      preloadNextSegmentUrl()
     } catch (error) {
       if (requestToken !== playRequestToken) return
       lastError.value = error?.message || '内嵌播放失败'
@@ -782,6 +933,73 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
       if (requestToken === playRequestToken) {
         isLoading.value = false
       }
+    }
+  }
+
+  // 合并连播曲目：一段播完后解析并播放下一段（同一首曲目内）
+  async function playNextSegment() {
+    if (!hasNextSegment()) return false
+    const jumped = await jumpToSegment(segmentIndex + 1, 0)
+    if (jumped) preloadNextSegmentUrl()
+    return jumped
+  }
+
+  // 跳到指定分段的指定位置（自动切段与跨段 seek 共用）
+  async function jumpToSegment(index, offsetSec) {
+    const track = currentTrack.value
+    const trackId = getTrackIdentity(track)
+    if (!track || index < 0 || index >= segmentPages.length) return false
+    const pageNumber = segmentPages[index]
+    segmentIndex = index
+    // 跨段 seek 显示锁：整个加载/seek 过程把显示钉在目标位置（段起点+段内偏移）
+    lockSegmentSeekDisplay(segmentStartSec() + Math.max(0, offsetSec))
+    isLoading.value = true
+    try {
+      const playable = await resolvePlayableUrlWithRetry(track, pageNumber)
+      const url = typeof playable === 'string' ? playable : playable.url
+      if (getTrackIdentity(currentTrack.value) !== trackId) return false
+      if (isNativeBilibiliTrack(track)) {
+        await playBilibiliNative({
+          url,
+          fallbackUrls: playable?.fallbackUrls,
+          title: track.title,
+          artist: track.artist
+        })
+        if (offsetSec > 0.2) {
+          currentTime.value = segmentStartSec() + offsetSec
+          void bilibiliPlayer.seekTo(Math.round(offsetSec * 1000))
+        }
+      } else if (audio) {
+        audio.src = url
+        // 先等元数据就绪、把段内偏移落好再开播，避免先从段首播一下再跳
+        if (offsetSec > 0 && audio.readyState < 1) {
+          await new Promise((resolve) => {
+            audio.addEventListener('loadedmetadata', resolve, { once: true })
+            audio.addEventListener('error', resolve, { once: true })
+          })
+        }
+        if (offsetSec > 0 && Number.isFinite(audio.duration)) {
+          try {
+            audio.currentTime = Math.min(offsetSec, Math.max(0, audio.duration - 0.2))
+          } catch {
+            // 个别 WebView 元数据未就绪时会抛错，忽略后由 ended 兜底
+          }
+        }
+        await audio.play().catch(() => {})
+        // 锁未释放时不回写，防止 seek 尚未生效时读到旧位置
+        if (segmentSeekTargetSec == null) {
+          currentTime.value = segmentStartSec() + audio.currentTime
+        }
+        syncMediaSessionPositionState()
+      }
+      return true
+    } catch (error) {
+      console.warn(`[mediaPlayer] 分段 P${pageNumber} 播放失败:`, error.message)
+      lastError.value = error?.message || '分段播放失败'
+      return false
+    } finally {
+      unlockSegmentSeekDisplay()
+      isLoading.value = false
     }
   }
 
@@ -949,8 +1167,15 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   }
 
   function seekTo(nextTime) {
+    const targetTime = Math.max(0, Number(nextTime) || 0)
+    // 合并连播：跨段 seek —— 先定位目标分段，再落到段内偏移
+    if (isMergedSegmentTrack() && segmentDurationsSec[segmentIndex]) {
+      void seekMerged(targetTime)
+      return
+    }
     if (isNativeBilibiliTrack()) {
       const bounded = Math.min(Math.max(0, Number(nextTime) || 0), duration.value || 0)
+      retargetSegmentSeekLock(bounded)
       currentTime.value = bounded
       void bilibiliPlayer.seekTo(Math.round(bounded * 1000))
       syncMediaSessionPositionState()
@@ -962,9 +1187,41 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
 
     const bounded = Math.min(Math.max(0, Number(nextTime) || 0), duration.value || 0)
     targetAudio.currentTime = bounded
+    retargetSegmentSeekLock(bounded)
     currentTime.value = bounded
     syncMediaSessionPositionState()
     syncBackgroundAudioState()
+  }
+
+  // 连续时间轴上的 seek：定位到目标分段并设置段内偏移
+  async function seekMerged(timeSec) {
+    const track = currentTrack.value
+    const total = mergedTotalDurationSec(track)
+    const bounded = Math.min(timeSec, total || timeSec)
+    let acc = 0
+    for (let i = 0; i < segmentPages.length; i += 1) {
+      const segmentDuration = segmentDurationsSec[i] || 0
+      const isLast = i === segmentPages.length - 1
+      if (bounded < acc + segmentDuration || (isLast && segmentDuration > 0)) {
+        const offset = Math.max(0, bounded - acc)
+        if (i === segmentIndex) {
+          if (isNativeBilibiliTrack(track)) {
+            retargetSegmentSeekLock(bounded)
+            currentTime.value = bounded
+            void bilibiliPlayer.seekTo(Math.round(offset * 1000))
+          } else if (audio) {
+            audio.currentTime = offset
+            retargetSegmentSeekLock(bounded)
+            currentTime.value = bounded
+          }
+        } else {
+          await jumpToSegment(i, offset)
+        }
+        syncBackgroundAudioState()
+        return
+      }
+      acc += segmentDuration
+    }
   }
 
   function setVolume(nextVolume) {
@@ -1009,6 +1266,7 @@ export const useMediaPlayerStore = defineStore('mediaPlayer', () => {
   function stopPlayback() {
     cancelAutoAdvanceRecovery()
     void stopBackgroundAudio()
+    segmentSeekTargetSec = null
     if (isNativeBilibiliTrack()) {
       playRequestToken += 1
       void bilibiliPlayer.stop()

@@ -6,6 +6,21 @@ function buildTrackId(index = 0) {
 }
 
 /**
+ * 归一分P列表：仅保留 >1 的整数、去重升序；不足两个视为未合并（空数组）。
+ * @param {unknown} value
+ * @returns {number[]}
+ */
+export function normalizeBilibiliPageList(value) {
+  if (!Array.isArray(value)) return []
+  const pages = Array.from(new Set(
+    value
+      .map((page) => Math.floor(Number(page) || 0))
+      .filter((page) => page > 0)
+  )).sort((left, right) => left - right)
+  return pages.length > 1 ? pages : []
+}
+
+/**
  * @param {unknown} tracks
  * @returns {import('@/types/models').TrackItem[]}
  */
@@ -24,6 +39,10 @@ export function normalizeTracks(tracks) {
       neteaseSongId: String(item?.neteaseSongId || '').trim(),
       qqSongId: String(item?.qqSongId || '').trim(),
       bilibiliVideoId: String(item?.bilibiliVideoId || '').trim(),
+      // B 站分P页码（1 起，0=未指定按第1P）。归一必须透传，否则整表重发会抹掉
+      bilibiliPage: Math.max(0, Math.floor(Number(item?.bilibiliPage) || 0)),
+      // 合并连播的分P列表（多P合成一条曲目时使用）；归一去重升序
+      bilibiliPageList: normalizeBilibiliPageList(item?.bilibiliPageList),
       lyricSource: String(item?.lyricSource || '').trim(),
       lyricSongId: String(item?.lyricSongId || '').trim(),
       note: String(item?.note || '').trim()
@@ -62,6 +81,8 @@ export function buildTrackSourcePatch(source, id, meta = {}) {
     neteaseSongId: src === 'netease' ? sourceId : '',
     qqSongId: src === 'qq' ? sourceId : '',
     bilibiliVideoId: src === 'bilibili' ? sourceId : '',
+    bilibiliPage: src === 'bilibili' ? Math.max(0, Math.floor(Number(meta?.bilibiliPage) || 0)) : 0,
+    bilibiliPageList: src === 'bilibili' ? normalizeBilibiliPageList(meta?.bilibiliPageList) : [],
     title: String(meta?.title || '').trim(),
     artist: String(meta?.artist || '').trim(),
     // B 站没有专辑字段，沿用搜索结果里的占位值，保持展示一致
@@ -97,6 +118,9 @@ export function mergeTrackSourcePatch(track = {}, patch = null) {
   merged.neteaseSongId = String(patch.neteaseSongId || '').trim()
   merged.qqSongId = String(patch.qqSongId || '').trim()
   merged.bilibiliVideoId = String(patch.bilibiliVideoId || '').trim()
+  // 换绑非 B 站源时补丁带 0/空数组，把残留的页码一起清掉
+  merged.bilibiliPage = Math.max(0, Math.floor(Number(patch.bilibiliPage) || 0))
+  merged.bilibiliPageList = normalizeBilibiliPageList(patch.bilibiliPageList)
 
   return merged
 }

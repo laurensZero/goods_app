@@ -18,7 +18,8 @@ import {
   pickBilibiliMediaUrl,
   selectBilibiliAudioStream,
   isTransientNetworkError,
-  fetchBilibiliPlayableUrl
+  fetchBilibiliPlayableUrl,
+  fetchBilibiliVideoMeta
 } from '@/utils/music/bilibiliMusic'
 
 const DETAIL_RESPONSE = { status: 200, data: JSON.stringify({ code: 0, data: { cid: '123456' } }) }
@@ -56,6 +57,49 @@ describe('Bilibili music helpers', () => {
 
   it('builds a Bilibili video URL', () => {
     expect(buildBilibiliWebUrl('BV1xx411c7mD')).toBe('https://www.bilibili.com/video/BV1xx411c7mD')
+    expect(buildBilibiliWebUrl('BV1xx411c7mD', 0)).toBe('https://www.bilibili.com/video/BV1xx411c7mD')
+    expect(buildBilibiliWebUrl('BV1xx411c7mD', 1)).toBe('https://www.bilibili.com/video/BV1xx411c7mD')
+    expect(buildBilibiliWebUrl('BV1xx411c7mD', 2)).toBe('https://www.bilibili.com/video/BV1xx411c7mD?p=2')
+  })
+
+  it('returns page-aware meta with pages list', async () => {
+    CapacitorHttp.get.mockResolvedValueOnce({
+      status: 200,
+      data: JSON.stringify({
+        code: 0,
+        data: {
+          cid: '111',
+          title: '演唱会全场',
+          owner: { name: 'UP主' },
+          pic: 'http://i0.hdslb.com/cover.jpg',
+          duration: 600,
+          pages: [
+            { page: 1, part: '开场', duration: 300 },
+            { page: 2, part: '压轴', duration: 300 }
+          ]
+        }
+      })
+    })
+    const meta = await fetchBilibiliVideoMeta('BV1xx411c7mD', 2)
+    expect(meta.title).toBe('演唱会全场')
+    expect(meta.coverUrl).toBe('https://i0.hdslb.com/cover.jpg')
+    expect(meta.durationMs).toBe(300000)
+    expect(meta.pages).toEqual([
+      { page: 1, part: '开场', durationMs: 300000 },
+      { page: 2, part: '压轴', durationMs: 300000 }
+    ])
+  })
+
+  it('uses the top-level duration when the requested page is missing', async () => {
+    CapacitorHttp.get.mockResolvedValueOnce({
+      status: 200,
+      data: JSON.stringify({
+        code: 0,
+        data: { cid: '111', duration: 600, pages: [{ page: 1, part: '开场', duration: 300 }] }
+      })
+    })
+    const meta = await fetchBilibiliVideoMeta('BV1xx411c7mD', 9)
+    expect(meta.durationMs).toBe(600000)
   })
 
   it('calculates the MD5 used by Bilibili WBI signing', () => {
@@ -164,5 +208,46 @@ describe('fetchBilibiliPlayableUrl retry', () => {
 
     await expect(fetchBilibiliPlayableUrl('BV1xx411c7mD')).rejects.toThrow(/403/)
     expect(CapacitorHttp.get).toHaveBeenCalledTimes(1)
+  })
+
+  it('resolves the cid of the requested page for multi-part videos', async () => {
+    CapacitorHttp.get
+      .mockResolvedValueOnce({
+        status: 200,
+        data: JSON.stringify({
+          code: 0,
+          data: {
+            cid: '111',
+            pages: [
+              { page: 1, cid: '111', duration: 300 },
+              { page: 2, cid: '222', duration: 300 }
+            ]
+          }
+        })
+      })
+      .mockResolvedValueOnce(PLAYURL_RESPONSE)
+
+    await fetchBilibiliPlayableUrl('BV1xx411c7mD', 2)
+
+    expect(CapacitorHttp.get).toHaveBeenCalledTimes(2)
+    const playurlUrl = String(CapacitorHttp.get.mock.calls[1][0].url)
+    expect(playurlUrl).toContain('cid=222')
+  })
+
+  it('falls back to the top-level cid for out-of-range pages', async () => {
+    CapacitorHttp.get
+      .mockResolvedValueOnce({
+        status: 200,
+        data: JSON.stringify({
+          code: 0,
+          data: { cid: '111', pages: [{ page: 1, cid: '111' }] }
+        })
+      })
+      .mockResolvedValueOnce(PLAYURL_RESPONSE)
+
+    await fetchBilibiliPlayableUrl('BV1xx411c7mD', 5)
+
+    const playurlUrl = String(CapacitorHttp.get.mock.calls[1][0].url)
+    expect(playurlUrl).toContain('cid=111')
   })
 })

@@ -62,7 +62,7 @@ export const CSV_SCHEMAS = {
   ],
   event_tracks: [
     'eventId', 'id', 'title', 'artist', 'album', 'coverUrl', 'durationMs',
-    'source', 'neteaseSongId', 'qqSongId', 'bilibiliVideoId', 'lyricSource', 'lyricSongId', 'note'
+    'source', 'neteaseSongId', 'qqSongId', 'bilibiliVideoId', 'bilibiliPage', 'bilibiliPageList', 'lyricSource', 'lyricSongId', 'note'
   ],
   recharge: [
     'id', 'game', 'itemName', 'amount', 'chargedAt', 'note', 'image', 'deleted', 'updatedAt'
@@ -182,7 +182,14 @@ function coerceCell(field, raw) {
     return normalizeDateValue(value)
   }
 
-  if (field === 'quantity' || field === 'sortOrder' || field === 'points' || field === 'durationMs') {
+  if (field === 'bilibiliPageList') {
+    const cleaned = String(value || '').trim()
+    if (!cleaned) return []
+    const pages = cleaned.split(/[|,，、\s]+/).map((part) => Math.floor(Number(part) || 0)).filter((page) => page > 0)
+    return pages.length > 1 ? Array.from(new Set(pages)).sort((left, right) => left - right) : []
+  }
+
+  if (field === 'quantity' || field === 'sortOrder' || field === 'points' || field === 'durationMs' || field === 'bilibiliPage') {
     const n = Number(value.replace(/[^\d.-]/g, ''))
     if (!Number.isFinite(n)) throw new Error(`${field} 无效：「${value}」`)
     if (field === 'quantity' && n < 1) throw new Error(`quantity 必须 ≥ 1：「${value}」`)
@@ -404,7 +411,12 @@ export function buildAppCsvFiles(payload) {
     for (const event of events) {
       const tracks = Array.isArray(event?.tracks) ? event.tracks : []
       for (const track of tracks) {
-        trackRows.push({ eventId: event.id, ...track })
+        trackRows.push({
+          eventId: event.id,
+          ...track,
+          // 列表序列化成 2|3|4，避免 rowsToCsv 把数组当普通值乱转
+          bilibiliPageList: Array.isArray(track?.bilibiliPageList) ? track.bilibiliPageList.join('|') : ''
+        })
       }
     }
     if (trackRows.length > 0) {

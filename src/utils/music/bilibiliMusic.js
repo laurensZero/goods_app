@@ -278,32 +278,49 @@ export async function fetchBilibiliCoverMap(bvids) {
 }
 
 /**
- * 按 bvid 拉取视频元数据（UP 主/标题/封面等）。
+ * 按 bvid 拉取视频元数据（UP 主/标题/封面等），附带分P明细 pages。
  * AI 试听链接文案可能只有歌名，播放器缺歌手时用它补全。
  * @param {string} bvid
- * @returns {Promise<{ title: string, artist: string, coverUrl: string, durationMs: number } | null>}
+ * @param {number} [page] 指定分P时按该分P的时长返回 durationMs
+ * @returns {Promise<{ title: string, artist: string, coverUrl: string, durationMs: number, pages: Array<{ page: number, part: string, durationMs: number }> } | null>}
  */
-export async function fetchBilibiliVideoMeta(bvid) {
+export async function fetchBilibiliVideoMeta(bvid, page = 0) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) return null
   const detail = await biliJson('/x/web-interface/view', { bvid: normalizedBvid })
   if (!detail) return null
+  const pages = (Array.isArray(detail?.pages) ? detail.pages : [])
+    .map((item) => ({
+      page: Math.max(0, Math.floor(Number(item?.page) || 0)),
+      part: String(item?.part || '').trim(),
+      durationMs: Number(item?.duration) > 0 ? Number(item.duration) * 1000 : 0
+    }))
+    .filter((item) => item.page > 0)
+  const requestedPage = Math.max(0, Math.floor(Number(page) || 0))
+  const pageMeta = requestedPage > 1 ? pages.find((item) => item.page === requestedPage) : null
+  const topDurationMs = Number(detail?.duration) > 0 ? Number(detail.duration) * 1000 : 0
   return {
     title: String(detail?.title || '').replace(/<[^>]+>/g, '').trim(),
     artist: String(detail?.owner?.name || detail?.author || '').trim(),
     coverUrl: toHttpsUrl(detail?.pic),
-    durationMs: Number(detail?.duration) > 0 ? Number(detail.duration) * 1000 : 0
+    durationMs: pageMeta?.durationMs || topDurationMs,
+    pages
   }
 }
 
-export async function fetchBilibiliPlayableUrl(bvid) {
+export async function fetchBilibiliPlayableUrl(bvid, page = 0) {
   const normalizedBvid = String(bvid || '').trim()
   if (!normalizedBvid) throw new Error('缺少 Bilibili 视频 BV 号')
   const detail = await biliJson('/x/web-interface/view', { bvid: normalizedBvid })
+  // 多P视频第1P用顶层 cid；page>1 用 pages 里的对应 cid，越界/缺失回落顶层
+  const pages = Array.isArray(detail?.pages) ? detail.pages : []
+  const requestedPage = Math.max(0, Math.floor(Number(page) || 0))
+  const pageEntry = requestedPage > 1 ? pages.find((item) => Number(item?.page) === requestedPage) : null
+  const cid = pageEntry?.cid ?? detail?.cid
   if (!Capacitor.isNativePlatform()) {
     const webPlayData = await biliJson('/x/player/playurl', {
       bvid: normalizedBvid,
-      cid: detail?.cid,
+      cid,
       qn: 0,
       fnver: 0,
       fnval: 0,
@@ -320,7 +337,7 @@ export async function fetchBilibiliPlayableUrl(bvid) {
   }
   const playData = await biliJson('/x/player/playurl', {
     bvid: normalizedBvid,
-    cid: detail?.cid,
+    cid,
     qn: 0,
     fnver: 0,
     fnval: 16,
@@ -360,9 +377,13 @@ export function selectBilibiliAudioStream(audioStreams = []) {
     .sort((left, right) => Number(right?.bandwidth || 0) - Number(left?.bandwidth || 0))[0] || null
 }
 
-export function buildBilibiliWebUrl(bvid) {
+export function buildBilibiliWebUrl(bvid, page = 0) {
   const normalizedBvid = String(bvid || '').trim()
-  return normalizedBvid ? `https://www.bilibili.com/video/${normalizedBvid}` : ''
+  if (!normalizedBvid) return ''
+  const pageNumber = Math.max(0, Math.floor(Number(page) || 0))
+  return pageNumber > 1
+    ? `https://www.bilibili.com/video/${normalizedBvid}?p=${pageNumber}`
+    : `https://www.bilibili.com/video/${normalizedBvid}`
 }
 
 export function parseBilibiliVideoId(input) {

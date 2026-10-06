@@ -35,6 +35,20 @@ describe('parseTrackSourceInput - B 站', () => {
       .toEqual({ source: 'bilibili', id: 'BV1xx411c7mD' })
   })
 
+  it('识别分P链接的页码', () => {
+    expect(parseTrackSourceInput('https://www.bilibili.com/video/BV1xx411c7mD?p=2'))
+      .toEqual({ source: 'bilibili', id: 'BV1xx411c7mD', page: 2 })
+    expect(parseTrackSourceInput('BV1xx411c7mD?p=3&t=30'))
+      .toEqual({ source: 'bilibili', id: 'BV1xx411c7mD', page: 3 })
+  })
+
+  it('p=1 或缺 p 时不带 page 字段', () => {
+    expect(parseTrackSourceInput('https://www.bilibili.com/video/BV1xx411c7mD?p=1'))
+      .toEqual({ source: 'bilibili', id: 'BV1xx411c7mD' })
+    expect(parseTrackSourceInput('BV1xx411c7mD'))
+      .toEqual({ source: 'bilibili', id: 'BV1xx411c7mD' })
+  })
+
   it('BV 号不完整时不当作音源（回落到普通搜索）', () => {
     expect(parseTrackSourceInput('BVx')).toBeNull()
     expect(parseTrackSourceInput('BV 号怎么用')).toBeNull()

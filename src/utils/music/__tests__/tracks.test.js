@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildTrackSourcePatch, mergeNeteaseTrackCovers, mergeTrackSourcePatch, normalizeTracks } from '../tracks'
+import { buildTrackSourcePatch, mergeNeteaseTrackCovers, mergeTrackSourcePatch, normalizeBilibiliPageList, normalizeTracks } from '../tracks'
 
 describe('normalizeTracks', () => {
   it('returns [] for null', () => {
@@ -126,12 +126,26 @@ describe('buildTrackSourcePatch', () => {
       neteaseSongId: '',
       qqSongId: '',
       bilibiliVideoId: 'BV1xx411c7mD',
+      bilibiliPage: 0,
+      bilibiliPageList: [],
       title: 'Never Gonna Give You Up',
       artist: '索尼音乐中国',
       album: 'Bilibili',
       coverUrl: 'https://i0.hdslb.com/bfs/archive/x.jpg',
       durationMs: 213000
     })
+  })
+
+  it('bilibili 补丁带分P页码', () => {
+    expect(buildTrackSourcePatch('bilibili', 'BV1xx411c7mD', { bilibiliPage: 2 }).bilibiliPage).toBe(2)
+    expect(buildTrackSourcePatch('bilibili', 'BV1xx411c7mD', {}).bilibiliPage).toBe(0)
+    expect(buildTrackSourcePatch('netease', '186016', { bilibiliPage: 2 }).bilibiliPage).toBe(0)
+  })
+
+  it('normalizeBilibiliPageList 去重升序，单P视为未合并', () => {
+    expect(normalizeBilibiliPageList([3, 2, 2, 1])).toEqual([1, 2, 3])
+    expect(normalizeBilibiliPageList([2])).toEqual([])
+    expect(normalizeBilibiliPageList('x')).toEqual([])
   })
 
   it('缺少 source 或 id 时返回 null', () => {

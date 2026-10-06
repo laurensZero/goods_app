@@ -33,6 +33,7 @@
           <span v-if="track.source === 'netease'" class="track-list__badge">{{ t('events.tracks.netease') }}</span>
           <span v-if="track.source === 'qq'" class="track-list__badge track-list__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
           <span v-if="track.source === 'bilibili'" class="track-list__badge track-list__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
+          <span v-if="track.source === 'bilibili' && pageBadgeText(track)" class="track-list__badge track-list__badge--bilibili">{{ pageBadgeText(track) }}</span>
           <span v-if="track.durationText" class="track-list__duration">{{ track.durationText }}</span>
         </div>
         <strong class="track-list__title">{{ track.title || t('events.tracks.unnamedTrack') }}</strong>
@@ -215,6 +216,14 @@ watch(
   { immediate: true, deep: true }
 )
 
+/** 徽标文案：合并连播显示 P首-尾，单分P显示 P{n} */
+function pageBadgeText(track) {
+  const list = Array.isArray(track?.bilibiliPageList) ? track.bilibiliPageList : []
+  if (list.length > 1) return `P${list[0]}-${list[list.length - 1]}`
+  const page = Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))
+  return page > 1 ? `P${page}` : ''
+}
+
 async function handleOpen(track) {
   const neteaseSongId = String(track?.neteaseSongId || '').trim()
   const qqSongId = String(track?.qqSongId || '').trim()
@@ -227,7 +236,7 @@ async function handleOpen(track) {
   errorMessage.value = ''
   try {
     if (source === 'bilibili' && bilibiliVideoId) {
-      window.open(buildBilibiliWebUrl(bilibiliVideoId), '_blank', 'noopener,noreferrer')
+      window.open(buildBilibiliWebUrl(bilibiliVideoId, Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))), '_blank', 'noopener,noreferrer')
     } else if (source === 'qq' && qqSongId) {
       await openQQSong(qqSongId)
     } else if (neteaseSongId) {

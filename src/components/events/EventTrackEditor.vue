@@ -60,7 +60,9 @@
                 <span>{{ item.artist || t('events.tracks.unknownArtist') }}</span>
                 <span v-if="item.album">{{ item.album }}</span>
               </div>
-              <button type="button" class="track-editor__result-btn" @click="appendTracks([item])">{{ t('events.tracks.importBtn') }}</button>
+              <button type="button" class="track-editor__result-btn" :disabled="searchImportingKey === resultKey(item, idx)" @click="importSearchResult(item, idx)">
+                {{ searchImportingKey === resultKey(item, idx) ? t('events.tracks.searching') : t('events.tracks.importBtn') }}
+              </button>
             </article>
             <p v-if="searchLoadingMore" class="track-editor__hint">{{ t('events.tracks.searching') }}...</p>
             <p v-else-if="searchHasMore" class="track-editor__load-more" @click="loadMoreSearch">{{ t('events.tracks.loadMore') }}</p>
@@ -130,9 +132,21 @@
               <span v-if="track.source === 'netease'" class="track-editor__badge track-editor__badge--netease">{{ t('events.tracks.netease') }}</span>
               <span v-if="track.source === 'qq'" class="track-editor__badge track-editor__badge--qq">{{ t('events.tracks.qqMusic') }}</span>
               <span v-if="track.source === 'bilibili'" class="track-editor__badge track-editor__badge--bilibili">{{ t('events.tracks.bilibili') }}</span>
+              <span v-if="track.source === 'bilibili' && pageBadgeText(track)" class="track-editor__badge track-editor__badge--bilibili">{{ pageBadgeText(track) }}</span>
               <span v-if="track.durationMs" class="track-editor__badge track-editor__badge--muted">{{ formatTrackDuration(track.durationMs) }}</span>
             </div>
-            <button type="button" class="track-editor__remove" @click="removeTrack(sourceIndex)">{{ t('events.tracks.delete') }}</button>
+            <span class="track-editor__head-actions">
+              <!-- B 站多P曲目：改分P小按钮（显示当前选中的分P） -->
+              <button
+                v-if="track.source === 'bilibili' && track.bilibiliVideoId && bilibiliPageCount(track) > 1"
+                type="button"
+                class="track-editor__page-btn"
+                :disabled="pageStatusFor(track).busy"
+                :title="t('events.tracks.changePage')"
+                @click="changeTrackPage(sourceIndex)"
+              >{{ pageStatusFor(track).busy ? '…' : selectionLabel(track) }}</button>
+              <button type="button" class="track-editor__remove" @click="removeTrack(sourceIndex)">{{ t('events.tracks.delete') }}</button>
+            </span>
           </div>
 
           <div class="track-editor__field-grid">
@@ -201,6 +215,10 @@
               {{ bindStatusFor(track).message }}
             </p>
           </template>
+          <!-- 改分P状态提示（错误信息等） -->
+          <p v-if="hasBoundSource(track) && pageStatusFor(track).message" class="track-editor__hint" :class="{ 'track-editor__hint--error': pageStatusFor(track).error }">
+            {{ pageStatusFor(track).message }}
+          </p>
         </article>
       </div>
 
@@ -208,6 +226,15 @@
         <p>{{ t('events.tracks.noTracks') }}</p>
       </div>
     </div>
+
+    <TrackPagePickerSheet
+      v-model="pagePicker.visible"
+      :pages="pagePicker.pages"
+      :preselected="pagePicker.preselected"
+      :error="pagePicker.error"
+      @confirm="onPagePickerConfirm"
+      @cancel="onPagePickerCancel"
+    />
   </div>
 </template>
 
@@ -216,11 +243,12 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchNeteaseCollectionTracks, fetchNeteaseSongCoverMap, formatTrackDuration, searchNeteaseSongs } from '@/utils/music/neteaseMusic'
 import { searchQQSongs, fetchQQCollectionTracks, extractQQAlbumMid } from '@/utils/music/qqMusic'
-import { searchBilibiliVideos } from '@/utils/music/bilibiliMusic'
-import { buildTrackSourcePatch, mergeNeteaseTrackCovers, mergeTrackSourcePatch } from '@/utils/music/tracks'
+import { searchBilibiliVideos, fetchBilibiliVideoMeta } from '@/utils/music/bilibiliMusic'
+import { buildTrackSourcePatch, mergeNeteaseTrackCovers, mergeTrackSourcePatch, normalizeBilibiliPageList } from '@/utils/music/tracks'
 import { parseTrackSourceInput } from '@/utils/music/trackSourceInput'
 import { fetchTrackMetaBySource } from '@/utils/music/trackMeta'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import TrackPagePickerSheet from '@/components/events/TrackPagePickerSheet.vue'
 
 const { t } = useI18n()
 
@@ -260,6 +288,13 @@ const searchNoticeError = ref(false)
 // 手动曲目「绑定音源」：输入与状态都按曲目 id 存，避免拖拽排序/整表重发后错位
 const bindInputs = reactive({})
 const bindStatus = reactive({})
+// 已绑定 B 站音源曲目的「改分P」状态，同样按曲目 id 存
+const pageStatus = reactive({})
+// B 站分P选择器（promise 化：openPagePicker 在 confirm/cancel 时 resolve）
+const pagePicker = reactive({ visible: false, pages: [], preselected: [], error: false, resolve: null })
+const searchImportingKey = ref('')
+// B 站视频分P数缓存（bvid → 分P数）：单P视频不显示「改分P」入口
+const bilibiliPageCounts = ref({})
 
 const tracks = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []))
 const displayTracks = computed(() => tracks.value
@@ -468,6 +503,31 @@ watch(tracks, async (value) => {
   }
 }, { immediate: true })
 
+function bilibiliPageCount(track) {
+  return bilibiliPageCounts.value[String(track?.bilibiliVideoId || '')] || 0
+}
+
+// 拉一次 B 站分P数（按 bvid 缓存）：只有确认是多P的曲目才显示「改分P」入口
+watch(tracks, async (value) => {
+  const missingBvids = Array.from(new Set(
+    value
+      .filter((track) => track?.source === 'bilibili' && track?.bilibiliVideoId)
+      .map((track) => String(track.bilibiliVideoId).trim())
+      .filter((bvid) => bvid && bilibiliPageCounts.value[bvid] === undefined)
+  ))
+  if (!missingBvids.length) return
+  const entries = await Promise.all(missingBvids.map(async (bvid) => {
+    try {
+      const meta = await fetchBilibiliVideoMeta(bvid)
+      return [bvid, Array.isArray(meta?.pages) ? Math.max(1, meta.pages.length) : 1]
+    } catch {
+      // 读取失败按单P处理（按钮点击 changeTrackPage 时还会再拉一次明细）
+      return [bvid, 1]
+    }
+  }))
+  bilibiliPageCounts.value = { ...bilibiliPageCounts.value, ...Object.fromEntries(entries) }
+}, { immediate: true })
+
 function buildManualTrack() {
   return {
     id: `manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
@@ -502,6 +562,10 @@ function normalizeTrack(track = {}) {
     neteaseSongId: String(track.neteaseSongId || '').trim(),
     qqSongId: String(track.qqSongId || '').trim(),
     bilibiliVideoId,
+    // B 站分P页码（1 起，0=未指定按第1P）：必须透传，否则整表重发会抹掉
+    bilibiliPage: Math.max(0, Math.floor(Number(track.bilibiliPage) || 0)),
+    // 合并连播的分P列表（多P合成一条曲目时使用）
+    bilibiliPageList: normalizeBilibiliPageList(track.bilibiliPageList),
     // 歌词匹配结果（媒体播放器写入）：这里必须透传，否则任何一次整表重发
     // （加一首歌、改一个字段）都会把它们静默抹掉
     lyricSource: String(track.lyricSource || '').trim(),
@@ -517,7 +581,11 @@ function updateTracks(nextTracks) {
 function buildTrackDedupKey(track = {}) {
   if (track.neteaseSongId) return `netease:${track.neteaseSongId}`
   if (track.qqSongId) return `qq:${track.qqSongId}`
-  if (track.bilibiliVideoId) return `bilibili:${track.bilibiliVideoId}`
+  if (track.bilibiliVideoId) {
+    const list = Array.isArray(track.bilibiliPageList) ? track.bilibiliPageList : []
+    const key = list.length > 1 ? `m${list.join('-')}` : String(Math.max(1, Math.floor(Number(track.bilibiliPage) || 0)))
+    return `bilibili:${track.bilibiliVideoId}:${key}`
+  }
   return `manual:${String(track.title || '').trim().toLowerCase()}::${String(track.artist || '').trim().toLowerCase()}`
 }
 
@@ -546,43 +614,182 @@ function sourceLabel(source) {
   return t('events.tracks.netease')
 }
 
+function buildBiliTrackId(bvid, page, pageList) {
+  if (Array.isArray(pageList) && pageList.length > 1) return `bili_${bvid}_p${pageList.join('_')}`
+  return page > 1 ? `bili_${bvid}_p${page}` : `bili_${bvid}`
+}
+
 function buildTrackFromSource(source, id, meta) {
   const patch = buildTrackSourcePatch(source, id, meta)
   if (!patch) return null
+  const page = Math.max(0, Math.floor(Number(patch.bilibiliPage) || 0))
   return normalizeTrack({
-    // B 站沿用搜索结果里的稳定 id，绑定/去重行为与搜索添加一致
-    id: source === 'bilibili' ? `bili_${id}` : `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    // B 站沿用搜索结果里的稳定 id（分P加 _p{page/_p1_p2} 后缀），缓存/identity 自动按P区分
+    id: source === 'bilibili' ? buildBiliTrackId(id, page, patch.bilibiliPageList) : `track_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     ...patch,
     note: ''
   })
 }
 
+// ── B 站分P选择 ──
+
+function openPagePicker(pages, preselected = []) {
+  return new Promise((resolve) => {
+    pagePicker.pages = pages
+    pagePicker.preselected = Array.isArray(preselected) ? preselected : []
+    pagePicker.error = false
+    pagePicker.resolve = resolve
+    pagePicker.visible = true
+  })
+}
+
+function settlePagePicker(result) {
+  const resolve = pagePicker.resolve
+  pagePicker.resolve = null
+  pagePicker.visible = false
+  resolve?.(result)
+}
+
+function onPagePickerConfirm(selectedPages, mode) {
+  settlePagePicker({ pages: Array.isArray(selectedPages) ? selectedPages : [], mode: mode === 'merge' ? 'merge' : 'split' })
+}
+
+function onPagePickerCancel() {
+  settlePagePicker(null)
+}
+
 /**
- * 粘贴 BV 号 / 单曲链接后直接拉元数据添加，不走关键词搜索。
+ * B 站分P统一入口（粘贴/绑定/改分P共用）：
+ * 输入带 p 直接用；否则用 meta 请求带回的 pages，
+ * 多P视频弹选择器让用户选「合并连播」（多P合成一条曲目，播放器内连续播）
+ * 或「拆成多条」（每P一条曲目，按顺序连播），单P直接落。
+ * @returns {{ source, id, meta, selected: number[], mode: 'merge' | 'split' } | null}
+ *   非 B 站返回 selected=[0]；用户取消返回 null。
  */
-async function addTrackFromSourceInput({ source, id }) {
+async function pickBilibiliPages({ source, id, page, preselected }) {
+  if (source !== 'bilibili') {
+    return { source, id, meta: await fetchTrackMetaBySource(source, id), selected: [0], mode: 'split' }
+  }
+  const meta = await fetchTrackMetaBySource('bilibili', id, { page })
+  const pages = Array.isArray(meta?.pages) ? meta.pages : []
+  if (page > 1 || pages.length <= 1) {
+    return { source, id, meta, selected: [page > 1 ? page : 1], mode: 'split' }
+  }
+  const selection = await openPagePicker(pages, preselected)
+  if (!selection?.pages?.length) return null
+  return { source, id, meta, selected: selection.pages, mode: selection.mode }
+}
+
+function pageMetaFor(meta, page) {
+  return Array.isArray(meta?.pages) ? meta.pages.find((item) => item.page === page) : null
+}
+
+/**
+ * 按选择结果生成曲目：
+ * - merge 且选中多P：一条曲目（bilibiliPageList=所选页码，时长为各P之和，标题用视频标题）
+ * - split：每P一条（标题用分P名），按页码顺序排列
+ */
+function buildSelectionTracks({ source, id, meta, selected, mode }) {
+  if (!meta) return []
+  if (mode === 'merge' && selected.length > 1) {
+    const totalMs = selected.reduce((sum, page) => sum + (pageMetaFor(meta, page)?.durationMs || 0), 0)
+    const merged = buildTrackFromSource(source, id, {
+      ...meta,
+      bilibiliPage: selected[0],
+      bilibiliPageList: selected,
+      durationMs: totalMs || meta.durationMs
+    })
+    return merged ? [merged] : []
+  }
+  return selected
+    .map((page) => {
+      const pageMeta = pageMetaFor(meta, page)
+      return buildTrackFromSource(source, id, {
+        ...meta,
+        title: pageMeta?.part || meta.title,
+        durationMs: pageMeta?.durationMs || meta.durationMs,
+        bilibiliPage: page,
+        bilibiliPageList: []
+      })
+    })
+    .filter(Boolean)
+}
+
+/** 曲目对象 → mergeTrackSourcePatch 可用的音源补丁 */
+function trackToPatch(track = {}) {
+  return {
+    source: track.source,
+    neteaseSongId: track.neteaseSongId,
+    qqSongId: track.qqSongId,
+    bilibiliVideoId: track.bilibiliVideoId,
+    bilibiliPage: track.bilibiliPage,
+    bilibiliPageList: track.bilibiliPageList,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    coverUrl: track.coverUrl,
+    durationMs: track.durationMs
+  }
+}
+
+/**
+ * 把一次选择结果应用到曲目列表：
+ * 第一条原地替换该曲目（保留用户手写字段），其余（拆分模式）按顺序插到它后面。
+ * @returns {'ok' | 'duplicate'}
+ */
+function applySourceSelection(index, selection) {
+  const track = tracks.value[index]
+  if (!track) return 'ok'
+  const built = buildSelectionTracks(selection)
+  if (!built.length) throw new Error(t('events.tracks.bindSourceInvalid'))
+
+  const nextTrack = normalizeTrack({
+    ...mergeTrackSourcePatch(track, trackToPatch(built[0])),
+    ...(built[0].source === 'bilibili' ? { id: built[0].id } : {})
+  })
+  const existingKeys = new Set(
+    tracks.value
+      .filter((_, itemIndex) => itemIndex !== index)
+      .map(buildTrackDedupKey)
+  )
+  if (existingKeys.has(buildTrackDedupKey(nextTrack))) return 'duplicate'
+  const extras = built
+    .slice(1)
+    .map(normalizeTrack)
+    .filter((item) => !existingKeys.has(buildTrackDedupKey(item)))
+
+  const next = [...tracks.value]
+  next[index] = nextTrack
+  if (extras.length) next.splice(index + 1, 0, ...extras)
+  updateTracks(next)
+  return 'ok'
+}
+
+async function addTrackFromSourceInput({ source, id, page }) {
   searchLoading.value = true
   searchError.value = ''
   searchNotice.value = ''
   searchNoticeError.value = false
   try {
-    const meta = await fetchTrackMetaBySource(source, id)
-    if (!meta) throw new Error(t('events.tracks.bindSourceFailed'))
-    const track = buildTrackFromSource(source, id, meta)
-    if (!track) throw new Error(t('events.tracks.bindSourceInvalid'))
+    const selection = await pickBilibiliPages({ source, id, page })
+    if (!selection) return
+    if (!selection.meta) throw new Error(t('events.tracks.bindSourceFailed'))
+    const tracksToAdd = buildSelectionTracks(selection)
+    if (!tracksToAdd.length) throw new Error(t('events.tracks.bindSourceInvalid'))
 
-    if (tracks.value.some((item) => buildTrackDedupKey(item) === buildTrackDedupKey(track))) {
+    const fresh = tracksToAdd.filter((track) => !tracks.value.some((item) => buildTrackDedupKey(item) === buildTrackDedupKey(track)))
+    if (!fresh.length) {
       searchNoticeError.value = true
       searchNotice.value = t('events.tracks.bindSourceDuplicate')
       return
     }
 
-    appendTracks([track])
+    appendTracks(fresh)
     searchKeyword.value = ''
     searchResults.value = []
     searchNotice.value = t('events.tracks.directAddSuccess', {
       source: sourceLabel(source),
-      title: track.title || t('events.tracks.unnamedTrack')
+      title: fresh[0].title || t('events.tracks.unnamedTrack')
     })
   } catch (error) {
     searchNoticeError.value = true
@@ -590,6 +797,25 @@ async function addTrackFromSourceInput({ source, id }) {
   } finally {
     searchLoading.value = false
   }
+}
+
+/** 搜索结果导入：B 站结果补一次 view 拉分P明细，其余音源直接落。 */
+async function importSearchResult(item, idx) {
+  const key = resultKey(item, idx)
+  if (String(item?.source || '') !== 'bilibili' || !String(item?.bilibiliVideoId || '').trim()) {
+    appendTracks([item])
+    return
+  }
+  searchImportingKey.value = key
+  try {
+    await addTrackFromSourceInput({ source: 'bilibili', id: String(item.bilibiliVideoId).trim() })
+  } finally {
+    searchImportingKey.value = ''
+  }
+}
+
+function resultKey(item, idx) {
+  return `${item?.bilibiliVideoId || item?.neteaseSongId || item?.qqSongId || 'manual'}_${idx}`
 }
 
 function hasBoundSource(track) {
@@ -621,6 +847,8 @@ function setBindInput(track, value) {
 /**
  * 把手动添加的曲目升级为在线音源：粘贴链接 / 歌曲 id / BV 号 → 拉元数据 → 填音源字段。
  * 曲目原本写好的曲名、歌手、专辑、备注不会被覆盖（只在为空时补全）。
+ * B 站多P视频会先弹分P选择器：第一条选中项原地替换该曲目，
+ * 其余选中项按页码顺序插到它后面，播放列表里自然连播。
  */
 async function bindTrackSource(index) {
   const track = tracks.value[index]
@@ -634,22 +862,71 @@ async function bindTrackSource(index) {
 
   bindStatus[key] = { busy: true, message: '', error: false }
   try {
-    const meta = await fetchTrackMetaBySource(parsed.source, parsed.id)
-    if (!meta) throw new Error(t('events.tracks.bindSourceFailed'))
-
-    const patch = buildTrackSourcePatch(parsed.source, parsed.id, meta)
-    const nextTrack = normalizeTrack(mergeTrackSourcePatch(tracks.value[index] || {}, patch))
-
-    if (tracks.value.some((item, itemIndex) => itemIndex !== index && buildTrackDedupKey(item) === buildTrackDedupKey(nextTrack))) {
+    const selection = await pickBilibiliPages(parsed)
+    // 用户取消分P选择：留在原地
+    if (!selection) {
+      bindStatus[key] = { busy: false, message: '', error: false }
+      return
+    }
+    const status = applySourceSelection(index, selection)
+    if (status === 'duplicate') {
       bindStatus[key] = { busy: false, message: t('events.tracks.bindSourceDuplicate'), error: true }
       return
     }
-
-    updateTracks(tracks.value.map((item, itemIndex) => (itemIndex === index ? nextTrack : item)))
     delete bindInputs[key]
     bindStatus[key] = { busy: false, message: '', error: false }
   } catch (error) {
     bindStatus[key] = { busy: false, message: error?.message || t('events.tracks.bindSourceFailed'), error: true }
+  }
+}
+
+function pageStatusFor(track) {
+  return pageStatus[String(track?.id || '')] || {}
+}
+
+/** 改分P按钮文案：显示当前选中的分P（合并 P2-4 / 单P P2 / 默认 P1） */
+function selectionLabel(track) {
+  const list = Array.isArray(track?.bilibiliPageList) ? track.bilibiliPageList : []
+  if (list.length > 1) return `P${list[0]}-${list[list.length - 1]}`
+  const page = Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))
+  return `P${page > 1 ? page : 1}`
+}
+
+/** 徽标文案：合并连播显示 P首-尾，单分P显示 P{n} */
+function pageBadgeText(track) {
+  const list = Array.isArray(track?.bilibiliPageList) ? track.bilibiliPageList : []
+  if (list.length > 1) return `P${list[0]}-${list[list.length - 1]}`
+  const page = Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))
+  return page > 1 ? `P${page}` : ''
+}
+
+/**
+ * 已绑定 B 站音源的曲目二次改分P：拉分P明细 → 选择器（可多选）→
+ * 第一条选中项原地替换该曲目，其余按页码顺序插到它后面连播。
+ */
+async function changeTrackPage(index) {
+  const track = tracks.value[index]
+  if (!track?.bilibiliVideoId) return
+  const key = String(track.id || '')
+  pageStatus[key] = { busy: true, message: '', error: false }
+  try {
+    // 回显当前选中的分P（合并列表或当前单P）
+    const preselected = Array.isArray(track.bilibiliPageList) && track.bilibiliPageList.length > 1
+      ? track.bilibiliPageList
+      : [Math.max(1, Math.floor(Number(track.bilibiliPage) || 1))]
+    const selection = await pickBilibiliPages({ source: 'bilibili', id: track.bilibiliVideoId, preselected })
+    if (!selection) {
+      pageStatus[key] = { busy: false, message: '', error: false }
+      return
+    }
+    const status = applySourceSelection(index, selection)
+    if (status === 'duplicate') {
+      pageStatus[key] = { busy: false, message: t('events.tracks.bindSourceDuplicate'), error: true }
+      return
+    }
+    pageStatus[key] = { busy: false, message: '', error: false }
+  } catch (error) {
+    pageStatus[key] = { busy: false, message: error?.message || t('events.tracks.loadPagesFailed'), error: true }
   }
 }
 
@@ -1155,8 +1432,31 @@ async function importPlaylist() {
   color: #1a9c54;
 }
 
-.track-editor__remove {
+.track-editor__head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
   margin-left: auto;
+}
+
+.track-editor__page-btn {
+  height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(251, 114, 153, 0.14);
+  color: #e85c86;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.track-editor__page-btn:disabled {
+  opacity: 0.5;
+}
+
+.track-editor__remove {
   height: 34px;
   padding: 0 12px;
   background: color-mix(in srgb, #d15353 12%, var(--app-surface));
@@ -1242,14 +1542,28 @@ async function importPlaylist() {
 }
 
 @media (max-width: 720px) {
-  .track-editor__hero,
-  .track-editor__item-head {
+  .track-editor__hero {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .track-editor__add,
+  /* 曲目行头保持单行：徽标区自己换行收缩，分P/删除按钮留在原位（行尾），不单独占一行 */
+  .track-editor__item-head {
+    gap: 8px;
+  }
+
+  .track-editor__head-actions {
+    gap: 6px;
+  }
+
+  .track-editor__page-btn,
   .track-editor__remove {
+    flex-shrink: 0;
+    padding: 0 10px;
+    white-space: nowrap;
+  }
+
+  .track-editor__add {
     width: 100%;
   }
 

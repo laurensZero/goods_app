@@ -78,7 +78,8 @@ export function parseMusicPreviewHref(href) {
   const page = decodeURIComponent(String(pageRaw || '').trim())
   if (page !== 'play_music') return null
   const source = decodeURIComponent(String(sourceRaw || '').trim()).toLowerCase()
-  const id = decodeURIComponent(String(idRaw || '').trim())
+  // AI 生成的 id 可能混入 ?p=N 之类的查询串，剥掉防脏数据写进音源字段
+  const id = decodeURIComponent(String(idRaw || '').trim()).split(/[?#]/)[0].trim()
   if (!MUSIC_PREVIEW_SOURCES.has(source) || !id) return null
   return /** @type {{ source: 'netease' | 'qq' | 'bilibili', id: string }} */ ({ source, id })
 }

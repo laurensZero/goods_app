@@ -259,6 +259,10 @@ function trackView(track) {
   const playable = Boolean(neteaseSongId || qqSongId || bilibiliVideoId)
   const album = asText(track?.album).trim()
   const durationMs = Math.max(0, Number(track?.durationMs) || 0)
+  const bilibiliPage = Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0))
+  const bilibiliPageList = Array.isArray(track?.bilibiliPageList)
+    ? Array.from(new Set(track.bilibiliPageList.map((page) => Math.floor(Number(page) || 0)).filter((page) => page > 0))).sort((a, b) => a - b)
+    : []
   return {
     id: asText(track?.id).trim(),
     title: asText(track?.title).trim(),
@@ -266,6 +270,8 @@ function trackView(track) {
     ...(album ? { album } : {}),
     ...(durationMs ? { durationMs } : {}),
     source: asText(track?.source).trim() || 'manual',
+    ...(bilibiliPage > 1 ? { bilibiliPage } : {}),
+    ...(bilibiliPageList.length > 1 ? { bilibiliPageList } : {}),
     playable,
     ...(playable ? {} : { note: '仅手动录入、未关联在线音源，无法直接播放' })
   }
@@ -1134,7 +1140,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       ...(asText(track?.coverUrl).trim() ? { coverUrl: asText(track?.coverUrl).trim() } : {}),
       ...(asText(track?.neteaseSongId).trim() ? { neteaseSongId: asText(track?.neteaseSongId).trim() } : {}),
       ...(asText(track?.qqSongId).trim() ? { qqSongId: asText(track?.qqSongId).trim() } : {}),
-      ...(asText(track?.bilibiliVideoId).trim() ? { bilibiliVideoId: asText(track?.bilibiliVideoId).trim() } : {})
+      ...(asText(track?.bilibiliVideoId).trim() ? { bilibiliVideoId: asText(track?.bilibiliVideoId).trim() } : {}),
+      ...(Number(track?.bilibiliPage) > 1 ? { bilibiliPage: Math.max(0, Math.floor(Number(track?.bilibiliPage) || 0)) } : {})
     }
   }
 
