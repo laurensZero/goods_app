@@ -30,7 +30,110 @@ function buildBiliEmbed(id) {
   params.delete('page')
   const extra = params.toString() ? `&${params.toString()}` : ''
   const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=${page}&p=${page}&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
-  return `<div class="bili-embed"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="0" framespacing="0" allowfullscreen="true"></iframe></div>`
+  // data-bvid / data-page 供挂载后的分P切换条读取（多P 识别与切页都基于这两个属性）
+  return `<div class="bili-embed" data-bvid="${encodeURIComponent(bvid)}" data-page="${page}"><div class="bili-embed__stage"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="0" framespacing="0" allowfullscreen="true"></iframe></div></div>`
+}
+
+// ---- 备注 <video> 嵌入的分P切换条 ----
+// iframe 是 B 站官方播放器，app 控制不到它内部；方案是渲染后在 iframe 外挂一条
+// 分P按钮（拉 meta 识别多P），点按钮只改 iframe 的 page/p 参数重载。
+const biliPagesCache = new Map()
+let biliEmbedObserver = null
+
+function fetchBiliPagesCached(bvid) {
+  if (!biliPagesCache.has(bvid)) {
+    biliPagesCache.set(
+      bvid,
+      import('./music/bilibiliMusic')
+        .then(({ fetchBilibiliVideoMeta }) => fetchBilibiliVideoMeta(bvid))
+        .then((meta) => (Array.isArray(meta?.pages) ? meta.pages : []))
+        .catch(() => [])
+    )
+  }
+  return biliPagesCache.get(bvid)
+}
+
+function switchBiliEmbedPage(container, page) {
+  const iframe = container.querySelector('.bili-embed__frame')
+  if (!iframe) return
+  const current = Math.max(1, Math.floor(Number(container.getAttribute('data-page')) || 1))
+  if (page === current) return
+  try {
+    const url = new URL(iframe.getAttribute('src') || '', window.location.href)
+    url.searchParams.set('page', String(page))
+    url.searchParams.set('p', String(page))
+    url.searchParams.delete('t')
+    iframe.setAttribute('src', url.toString())
+  } catch {
+    return
+  }
+  container.setAttribute('data-page', String(page))
+  container.querySelectorAll('.bili-embed__page').forEach((button) => {
+    const active = Math.max(1, Math.floor(Number(button.getAttribute('data-page')) || 1)) === page
+    button.classList.toggle('is-active', active)
+    if (active) button.setAttribute('aria-current', 'true')
+    else button.removeAttribute('aria-current')
+  })
+}
+
+function enhanceBiliEmbed(container) {
+  if (!container || container.getAttribute('data-bili-enhanced')) return
+  const bvid = String(container.getAttribute('data-bvid') || '')
+  if (!bvid) return
+  container.setAttribute('data-bili-enhanced', '1')
+  void fetchBiliPagesCached(decodeURIComponent(bvid)).then((pages) => {
+    // 单P / 拉取失败：保持现状，只播链接里指定的分P
+    if (!Array.isArray(pages) || pages.length <= 1) return
+    const currentPage = Math.max(1, Math.floor(Number(container.getAttribute('data-page')) || 1))
+    const bar = document.createElement('div')
+    bar.className = 'bili-embed__pages'
+    pages.forEach(({ page }) => {
+      const pageNumber = Math.max(1, Math.floor(Number(page) || 1))
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'bili-embed__page'
+      button.textContent = `P${pageNumber}`
+      button.setAttribute('data-page', String(pageNumber))
+      button.setAttribute('title', `P${pageNumber}`)
+      if (pageNumber === currentPage) {
+        button.classList.add('is-active')
+        button.setAttribute('aria-current', 'true')
+      }
+      button.addEventListener('click', () => switchBiliEmbedPage(container, pageNumber))
+      bar.appendChild(button)
+    })
+    container.appendChild(bar)
+  })
+}
+
+/**
+ * 扫描 root 下的 .bili-embed 并挂载分P切换条（幂等）。
+ * renderMarkdown 渲染后调用；导出便于单测直接驱动。
+ * @param {ParentNode | Element | Document} root
+ */
+export function mountBiliEmbedEnhancers(root) {
+  if (!root || typeof root.querySelectorAll !== 'function') return
+  if (root.nodeType === 1 && typeof root.matches === 'function' && root.matches('.bili-embed')) {
+    enhanceBiliEmbed(root)
+  }
+  root.querySelectorAll('.bili-embed').forEach(enhanceBiliEmbed)
+}
+
+function ensureBiliEmbedEnhancer() {
+  if (typeof document === 'undefined') return
+  // v-html 重新插入的节点由 MutationObserver 兜住（含 AI 聊天缓存 HTML 复挂）
+  if (!biliEmbedObserver && typeof MutationObserver !== 'undefined' && document.body) {
+    biliEmbedObserver = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes?.forEach((node) => {
+          if (node.nodeType !== 1) return
+          mountBiliEmbedEnhancers(node)
+        })
+      })
+    })
+    biliEmbedObserver.observe(document.body, { childList: true, subtree: true })
+  }
+  mountBiliEmbedEnhancers(document)
 }
 
 // DOMPurify 与 markdown-it 一样按需加载，避免法律弹窗/详情页把净化器打进首包
@@ -134,12 +237,15 @@ export async function renderMarkdown(value) {
   ids.forEach((id, i) => {
     rendered = rendered.split(`${BILI_TOKEN_PREFIX}${i}${BILI_TOKEN_SUFFIX}`).join(buildBiliEmbed(id))
   })
-  return DOMPurify.sanitize(rendered, {
+  const sanitized = DOMPurify.sanitize(rendered, {
     ADD_TAGS: ['iframe'],
     ADD_ATTR: ['allowfullscreen', 'frameborder', 'scrolling', 'framespacing', 'border', 'sandbox', 'data-jump'],
     // 默认白名单只放行 http/https/mailto 等，这里加上 app:// 跳转协议
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|app):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
   })
+  // 净化完成后启动分P切换条挂载（返回的 HTML 稍后才由 v-html 插入，observer 兜住）
+  ensureBiliEmbedEnhancer()
+  return sanitized
 }
 /**
  * 渲染 markdown 并把正文里的图片（AI 贴的活动照片/谷子图等）换成本地缩略图，
