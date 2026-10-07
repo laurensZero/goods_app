@@ -1122,7 +1122,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       total,
       sources: results,
       ...(errors.length ? { partialErrors: errors } : {}),
-      hint: '可播候选给试听链接 [▶歌名 · 歌手](app://play_music/<source>/<id>)；要加演出再 ask_user 选一。'
+      hint: '可播候选给试听链接 [▶歌名 · 歌手](app://play_music/<source>/<id>)；用户要看视频/MV 就在回复里写 <video>BV号</video> 内嵌直接播；要加演出再 ask_user 选一。'
     }
   }
 

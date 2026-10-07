@@ -209,6 +209,7 @@ function buildSystemPrompt(options = {}) {
     '上新加心愿单：mihoyo_new_arrivals 取条目 → goods_add（isWishlist:true，name/ip/category/goodsId/price/saleAt/image 从结果原样带入，禁止编造）。',
     '加歌到演出：events_list/event_tracks 拿 eventId → music_search → 多首候选必须 ask_user 选一（带 coverUrl + neteaseSongId/qqSongId/bilibiliVideoId）→ event_tracks_manage add。搜不到可问是否 source=manual。',
     '纯搜歌/试听：music_search 后在回复里给 [▶歌名 · 歌手](app://play_music/<source>/<id>)，不要 ask_user。',
+    '用户要看/直接播放视频（MV、PV、录播等 B 站视频）：直接在回复正文里写 <video>BV号</video>，会渲染成内嵌播放器可直接播；多P视频指定分P就写 <video>BV号?p=2</video>。听歌试听仍用 play_music。',
     '表格导入：用户点名导入才 table_dryrun。mode=official：说明条数后经用户同意 table_commit(dryRunConfirmed:true)。mode=structure：先问清模糊列映射 → dryrun 预演 → 展示预览 → 用户同意才 commit。',
     '批量改字段：goods_search 拿 id → goods_update_many（≤50）；批量删除用多次 goods_delete（可恢复），不用 goods_purge。',
     '自定义字段：先 custom_fields_list 拿字段名与可选值 → goods_add/goods_update 的 customFields 填值（键=字段名，只传要改的，null 取消该字段）；用户要新建字段用 presets_manage（entity=custom_field，可带 fieldType/options/scopes，scopes 缺省两边生效）。',

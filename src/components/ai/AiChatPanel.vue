@@ -66,7 +66,12 @@
             <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
           </svg>
         </div>
-        <div :class="['chat-bubble', { 'chat-bubble--error': Boolean(msg.error) }]">
+        <div
+          :class="[
+            'chat-bubble',
+            { 'chat-bubble--error': Boolean(msg.error), 'chat-bubble--video': hasVideoEmbed(msg) }
+          ]"
+        >
           <div
             v-if="msg.role === 'user' && msg.attachments?.length"
             class="chat-attach-list"
@@ -941,6 +946,16 @@ watch(() => aiChat.messages, async (list) => {
 /** @param {any} msg */
 function getRenderedMarkdown(msg) {
   return markdownCache[`${msg.id}:html`] || ''
+}
+
+/**
+ * 助手消息渲染出了 B 站内嵌播放器。
+ * 气泡默认按内容收缩，iframe 是百分比宽度没有固有宽度，会把 16:9 播放器压成一条；
+ * 命中后给气泡一个保底宽度（见 .chat-bubble--video）。
+ * @param {any} msg
+ */
+function hasVideoEmbed(msg) {
+  return Boolean(msg.content) && getRenderedMarkdown(msg).includes('bili-embed')
 }
 
 /**
@@ -1908,6 +1923,11 @@ function removeSession(id) {
 .chat-bubble--error {
   background: rgba(255, 59, 48, 0.08);
   border-color: rgba(255, 59, 48, 0.25);
+}
+
+/* 内嵌视频气泡：定宽，不随思维链是否展开/正文长短收缩或撑大 */
+.chat-bubble--video {
+  width: min(82%, 640px);
 }
 
 .chat-text {

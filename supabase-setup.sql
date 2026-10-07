@@ -9,7 +9,7 @@
 -- goods 表（包含 trash，通过 trashed 列区分）
 CREATE TABLE IF NOT EXISTS goods (
   id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT DEFAULT '',
   category TEXT DEFAULT '',
   ip TEXT DEFAULT '',
@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS goods (
 -- events 表
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT DEFAULT '',
   type TEXT DEFAULT '',
   dates JSONB DEFAULT '[]',
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS events (
 -- recharge_records 表
 CREATE TABLE IF NOT EXISTS recharge_records (
   id TEXT PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   game TEXT DEFAULT '',
   item_name TEXT DEFAULT '',
   amount REAL DEFAULT 0,
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS recharge_records (
 -- 历史版本以 id='default' 为主键导致全体用户共享一行互相覆盖，
 -- 存量库由下方「存量列补充」节的迁移块删除 id 列转换）
 CREATE TABLE IF NOT EXISTS sync_manifest (
-  user_id UUID UNIQUE REFERENCES auth.users(id),
+  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   device_id TEXT DEFAULT '',
   synced_at TIMESTAMPTZ DEFAULT now(),
   collection_count INTEGER DEFAULT 0,
@@ -121,7 +121,7 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
 
 -- sync_presets 表（存储分类、IP、角色、存储位置；每个用户一行，user_id 唯一）
 CREATE TABLE IF NOT EXISTS sync_presets (
-  user_id UUID UNIQUE REFERENCES auth.users(id),
+  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   categories JSONB DEFAULT '[]',
   ips JSONB DEFAULT '[]',
   characters JSONB DEFAULT '[]',
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS sync_presets (
 -- goods_groups 表（谷子组）
 CREATE TABLE IF NOT EXISTS goods_groups (
   id           TEXT PRIMARY KEY NOT NULL,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name         TEXT NOT NULL DEFAULT '',
   type         TEXT NOT NULL DEFAULT 'collection',
   summary_mode TEXT DEFAULT 'auto',
@@ -151,7 +151,7 @@ CREATE TABLE IF NOT EXISTS goods_groups (
 -- goods_group_items 表（谷子组成员关系）
 CREATE TABLE IF NOT EXISTS goods_group_items (
   id         TEXT PRIMARY KEY NOT NULL,
-  user_id UUID REFERENCES auth.users(id),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   group_id   TEXT NOT NULL REFERENCES goods_groups(id) ON DELETE CASCADE,
   goods_id   TEXT NOT NULL,
   sort_order INTEGER DEFAULT 0,
@@ -164,7 +164,7 @@ CREATE TABLE IF NOT EXISTS goods_group_items (
 -- batch_drafts 表（批量添加草稿，collection / wishlist 两槽）
 CREATE TABLE IF NOT EXISTS batch_drafts (
   id          TEXT PRIMARY KEY NOT NULL,
-  user_id     UUID REFERENCES auth.users(id),
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   slot        TEXT NOT NULL,
   batch_id    TEXT DEFAULT '',
   is_wishlist INTEGER DEFAULT 0,
@@ -193,7 +193,7 @@ CREATE TABLE IF NOT EXISTS announcements (
 -- ============================================================
 -- 2. 存量列补充（向前兼容）
 -- ============================================================
-ALTER TABLE goods ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE goods ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_at TEXT DEFAULT '';
 ALTER TABLE goods ADD COLUMN IF NOT EXISTS sale_reminder_enabled INTEGER DEFAULT 0;
@@ -212,7 +212,7 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS size TEXT DEFAULT '';
 -- 遗留单图列已全部迁入 images 数组，云端一并删除（新库建表已不含该列，IF EXISTS 幂等）
 ALTER TABLE goods DROP COLUMN IF EXISTS image;
 
-ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE events ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude TEXT DEFAULT '';
@@ -221,12 +221,12 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS day_ticket_list JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS dates JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
 
-ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE recharge_records ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 
-ALTER TABLE sync_manifest ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE sync_manifest ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 
-ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 -- event_types / custom_field_defs：都是随 presets 同步的 JSONB 数组列。
 -- 缺列时客户端 sync_push 的 presets 分支不会 SET 该列（旧客户端 payload 不含该键），
 -- 因此补列不需要重发数据。
@@ -235,11 +235,11 @@ ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS custom_field_defs JSONB DEFAUL
 -- 预设块的服务器时间时钟：sync_push 每次写 presets 都会刷新它（客户端据此识别过期响应）
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
-ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 ALTER TABLE goods_groups ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'CNY';
 
-ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id);
+ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE;
 ALTER TABLE goods_group_items ADD COLUMN IF NOT EXISTS synced_by TEXT DEFAULT NULL;
 
 -- ── 迁移：sync_manifest / sync_presets 改为每用户一行 ──

@@ -671,7 +671,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'music_search',
-    description: '在线搜歌（网易云/QQ/B站）。返回歌名/歌手/封面/音源 id。纯搜歌给试听链接 [▶…](app://play_music/<source>/<id>)；要加演出再 ask_user 选一首。',
+    description: '在线搜歌（网易云/QQ/B站）。返回歌名/歌手/封面/音源 id。纯搜歌给试听链接 [▶…](app://play_music/<source>/<id>)；用户要看视频/MV → 回复正文写 <video>BV号</video> 内嵌直接播；要加演出再 ask_user 选一首。',
     inputSchema: {
       type: 'object',
       properties: {
