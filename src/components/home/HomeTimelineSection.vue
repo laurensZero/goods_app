@@ -44,7 +44,7 @@
               :class="{ 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
               @click="$emit('tap-item', item)"
             >
-              <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
+              <span v-if="qtyBadgeText(item)" class="tl-thumb-qty-badge">{{ qtyBadgeText(item) }}</span>
               <div class="tl-thumb-img-wrap">
                 <LazyCachedImage
                   v-if="item.coverImage"
@@ -85,7 +85,7 @@
             :class="{ 'tl-thumb-btn--disabled': item.isExcludedFromValue }"
             @click="$emit('tap-item', item)"
           >
-            <span v-if="Number(item.quantity) > 1" class="tl-thumb-qty-badge">×{{ item.quantity }}</span>
+            <span v-if="qtyBadgeText(item)" class="tl-thumb-qty-badge">{{ qtyBadgeText(item) }}</span>
             <div class="tl-thumb-img-wrap">
               <LazyCachedImage
                 v-if="item.coverImage"
@@ -114,6 +114,7 @@
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatMonthLabel, formatPrice } from '@/utils/format'
+import { resolveQtyBadgeText } from '@/utils/goods/status'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
 const { t } = useI18n()
@@ -122,16 +123,22 @@ const sectionEl = ref(null)
 
 defineExpose({ sectionEl })
 
-defineProps({
+const props = defineProps({
   yearGroups: { type: Array, required: true },
   unknownItems: { type: Array, required: true },
   showUnknown: { type: Boolean, default: false },
   headSpacerHeight: { type: Number, default: 0 },
   tailSpacerHeight: { type: Number, default: 0 },
-  itemIndexById: { type: Map, required: true }
+  itemIndexById: { type: Map, required: true },
+  // 当前生效的收藏状态筛选；份数角标跟随筛选显示命中份数
+  statusFilter: { type: Array, default: null }
 })
 
 defineEmits(['tap-item'])
+
+function qtyBadgeText(item) {
+  return resolveQtyBadgeText(item, props.statusFilter)
+}
 </script>
 
 <style scoped>

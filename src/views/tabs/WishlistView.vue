@@ -107,6 +107,7 @@
         :selected-ids="selectedIds"
         :window-width="windowWidth"
         :reorder-enabled="reorderEnabled"
+        :status-filter="searchFilters.collectStatuses"
         @long-press="enterSelectionMode"
         @toggle-select="toggleSelect"
         @open-detail="openDetail"

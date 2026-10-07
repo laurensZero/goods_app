@@ -49,7 +49,8 @@
             selectionMode,
             selectedIds?.has?.(item.id) ?? false,
             cardMotionStyles[item.id],
-            reorderEnabled
+            reorderEnabled,
+            statusFilter
           ]"
           :ref="(instance) => setCardRef(item.id, instance)"
           :class="{ 'goods-card-enter': filterTransitionActive }"
@@ -64,6 +65,7 @@
           :selected="selectedIds?.has?.(item.id) ?? false"
           :selection-mode="selectionMode"
           :reorder-enabled="reorderEnabled && item._type !== 'group'"
+          :status-filter="statusFilter"
           @long-press="emit('long-press', item.id)"
           @toggle-select="emit('toggle-select', item.id)"
           @open-detail="(payload) => emit('open-detail', payload || item.id)"
@@ -156,6 +158,11 @@ const props = defineProps({
   reorderEnabled: {
     type: Boolean,
     default: false
+  },
+  // 当前生效的收藏状态筛选，透传给卡片做份数角标
+  statusFilter: {
+    type: Array,
+    default: null
   }
 })
 

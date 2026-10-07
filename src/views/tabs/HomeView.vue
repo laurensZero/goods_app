@@ -107,6 +107,7 @@
           :window-width="windowWidth"
           :filter-transition-active="filterTransitionActive"
           :reorder-enabled="reorderEnabled"
+          :status-filter="searchFilters.collectStatuses"
           @long-press="enterSelectionMode"
           @toggle-select="toggleSelect"
           @open-detail="openDetail"
@@ -126,6 +127,7 @@
             :head-spacer-height="prunedTimelineHeadHeight"
             :tail-spacer-height="timelineTailSpacerHeight"
             :item-index-by-id="timelineItemIndexById"
+            :status-filter="searchFilters.collectStatuses"
             @tap-item="handleTimelineTap"
           />
         </section>

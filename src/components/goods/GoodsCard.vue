@@ -81,7 +81,7 @@
           <path d="M12 2.8l2.7 5.47 6.04.88-4.37 4.26 1.03 6.02L12 16.61l-5.4 2.82 1.03-6.02L3.26 9.15l6.04-.88L12 2.8z" />
         </svg>
       </div>
-      <div v-if="item.quantity > 1" class="qty-badge">×{{ item.quantity }}</div>
+      <div v-if="qtyBadgeText" class="qty-badge">{{ qtyBadgeText }}</div>
     </div>
 
     <div class="card-body">
@@ -139,7 +139,8 @@ import { CURRENCY_MAP } from '@/constants/currencies'
 import {
   hasCollectStatusMatch,
   areAllCopiesExited,
-  formatPendingStatusSummary
+  formatPendingStatusSummary,
+  resolveQtyBadgeText
 } from '@/utils/goods/status'
 import { getCoverTone } from '@/utils/goods/coverTone'
 
@@ -155,7 +156,9 @@ const props = defineProps({
   windowWidth: { type: Number, default: 0 },
   reorderEnabled: { type: Boolean, default: false },
   isReorderDragging: { type: Boolean, default: false },
-  reorderStyle: { type: Object, default: null }
+  reorderStyle: { type: Object, default: null },
+  // 当前生效的收藏状态筛选；角标份数跟随筛选显示命中份数
+  statusFilter: { type: Array, default: null }
 })
 
 // Module-level low-perf detection (shared across all card instances)
@@ -311,6 +314,9 @@ const holdingDays = computed(() => props.item._holdingDays ?? null)
 const pendingBadgeText = computed(() => formatPendingStatusSummary(props.item))
 const isPending = computed(() => props.item._isPending ?? (!props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮'])))
 const isExited = computed(() => props.item._isExited ?? areAllCopiesExited(props.item))
+
+// 份数角标：无状态筛选时显示总份数；命中状态筛选时显示命中份数，只有 1 份命中不显示
+const qtyBadgeText = computed(() => resolveQtyBadgeText(props.item, props.statusFilter))
 
 const statusDaysText = computed(() => {
   if (props.item.isWishlist) return ''

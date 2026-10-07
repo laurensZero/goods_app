@@ -108,6 +108,38 @@ function hasCollectStatusMatch(item, statuses) {
   return getCollectStatusEntries(item).some(({ status }) => statusSet.has(status))
 }
 
+// 筛选态下角标要显示的份数：命中被选状态的份数；没有逐份列表时整条按商品级状态计
+function countCollectStatusCopies(item, statuses) {
+  const statusSet = statuses instanceof Set ? statuses : new Set(statuses || [])
+  if (statusSet.size === 0) return 0
+
+  const unitList = Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList : []
+  const quantity = Math.max(1, Number(item?.quantity) || 1)
+
+  if (unitList.length === 0) {
+    return statusSet.has(normalizeCollectStatus(item?.collectStatus)) ? quantity : 0
+  }
+
+  const matched = unitList.reduce(
+    (count, value) => count + (statusSet.has(normalizeCollectStatus(value)) ? 1 : 0),
+    0
+  )
+
+  return Math.min(matched, quantity)
+}
+
+// 份数角标文案：无状态筛选时显示总份数；有筛选时只在命中 ≥2 份时显示命中份数
+function resolveQtyBadgeText(item, statuses) {
+  const quantity = Math.max(1, Number(item?.quantity) || 1)
+  if (quantity < 2) return ''
+
+  const statusList = Array.isArray(statuses) ? statuses : []
+  if (statusList.length === 0) return `×${quantity}`
+
+  const matched = countCollectStatusCopies(item, statusList)
+  return matched >= 2 ? `×${matched}` : ''
+}
+
 const PENDING_COLLECT_STATUSES = new Set(['待发货', '待补款', '待补邮'])
 
 const EXITED_COLLECT_STATUSES = new Set(['已出', '已赠出', '丢失'])
@@ -126,6 +158,8 @@ export {
   formatCollectStatusSummary,
   formatPendingStatusSummary,
   hasCollectStatusMatch,
+  countCollectStatusCopies,
+  resolveQtyBadgeText,
   PENDING_COLLECT_STATUSES,
   EXITED_COLLECT_STATUSES,
   areAllCopiesExited

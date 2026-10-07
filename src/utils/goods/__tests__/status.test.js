@@ -3,7 +3,9 @@ import i18n from '@/locales'
 import {
   formatPendingStatusSummary,
   formatCollectStatusSummary,
-  resolvePrimaryCollectStatus
+  resolvePrimaryCollectStatus,
+  countCollectStatusCopies,
+  resolveQtyBadgeText
 } from '../status'
 
 beforeAll(() => {
@@ -52,5 +54,56 @@ describe('partial pending vs primary status', () => {
     expect(resolvePrimaryCollectStatus(item)).toBe('已拥有')
     expect(formatCollectStatusSummary(item)).toBe('已拥有×11 / 待发货×3')
     expect(formatPendingStatusSummary(item)).toBe('待发货×3')
+  })
+})
+
+describe('countCollectStatusCopies', () => {
+  it('counts only the units matching the selected statuses', () => {
+    const item = { quantity: 2, unitCollectStatusList: ['已拥有', '待发货'] }
+    expect(countCollectStatusCopies(item, ['待发货'])).toBe(1)
+    expect(countCollectStatusCopies(item, ['已拥有'])).toBe(1)
+    expect(countCollectStatusCopies(item, ['待补款'])).toBe(0)
+    expect(countCollectStatusCopies(item, ['待发货', '已拥有'])).toBe(2)
+  })
+
+  it('counts every copy when the item relies on its item-level status', () => {
+    expect(countCollectStatusCopies({ quantity: 3, collectStatus: '待发货' }, ['待发货'])).toBe(3)
+    expect(countCollectStatusCopies({ quantity: 3, collectStatus: '已拥有' }, ['待发货'])).toBe(0)
+  })
+
+  it('never exceeds the item quantity even with a stale unit list', () => {
+    expect(countCollectStatusCopies({ quantity: 2, unitCollectStatusList: ['待发货', '待发货', '待发货'] }, ['待发货'])).toBe(2)
+  })
+
+  it('returns 0 for an empty status selection', () => {
+    expect(countCollectStatusCopies({ quantity: 2, unitCollectStatusList: ['待发货', '待发货'] }, [])).toBe(0)
+  })
+})
+
+describe('resolveQtyBadgeText', () => {
+  const item = { quantity: 2, collectStatus: '已拥有', unitCollectStatusList: ['已拥有', '待发货'] }
+
+  it('shows total quantity when no status filter is active', () => {
+    expect(resolveQtyBadgeText(item, [])).toBe('×2')
+    expect(resolveQtyBadgeText(item, null)).toBe('×2')
+  })
+
+  it('shows the matched copy count under a status filter', () => {
+    const busy = { quantity: 3, collectStatus: '待发货', unitCollectStatusList: ['待发货', '待发货', '已拥有'] }
+    expect(resolveQtyBadgeText(busy, ['待发货'])).toBe('×2')
+  })
+
+  it('hides the badge when only one copy matches the filter', () => {
+    expect(resolveQtyBadgeText(item, ['待发货'])).toBe('')
+    expect(resolveQtyBadgeText(item, ['已拥有'])).toBe('')
+  })
+
+  it('hides the badge for single-copy items', () => {
+    expect(resolveQtyBadgeText({ quantity: 1, collectStatus: '待发货' }, ['待发货'])).toBe('')
+    expect(resolveQtyBadgeText({ quantity: 1, collectStatus: '待发货' }, [])).toBe('')
+  })
+
+  it('hides the badge when no copy matches the filter', () => {
+    expect(resolveQtyBadgeText(item, ['待补款'])).toBe('')
   })
 })
