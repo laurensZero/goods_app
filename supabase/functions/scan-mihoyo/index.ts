@@ -25,6 +25,13 @@
 //       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息，条数超限则分多条发送。
 //       事件键 mihoyo:<catalog>:<批次哈希>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
 //
+// 请求预算（本函数每天上千次调用，逐商品读写 seen 是 Supabase 日志摄取的大头）：
+// - seen 的读/写全部按目录批量：一次 insert + ignoreDuplicates 认领（返回的就是本轮
+//   真正插入成功的行 = 原子认领，并发语义与原来逐条 insert 完全一致）、
+//   一次按店铺分片的 update 刷新 last_seen_at，不再「每个商品 1 GET + 1 PATCH」。
+// - enqueueBatch 把所有 group × message 的任务合成一次 upsert（原来每个 group × message 一次）。
+// - 每目录从 ~2N 条请求（N = 当轮商品数，数百）降到 ~5 条。
+//
 // 依赖表：mihoyo_monitor_seen（去重）、notification_jobs（队列）、user_qq_bindings（广播对象）
 // 依赖 secrets：无（service_role 由平台注入）
 
@@ -57,6 +64,8 @@ const POINT_SEEN_TTL_DAYS = 90 // 积分目录：售罄摘下→补货放回很�
 const GIFT_SEEN_TTL_DAYS = 30 // 满赠目录：按 activity_id 去重，活动周期通常数周
 // 满赠复核：每店最多查多少条商品的 gift_activities（上新列表本就几十条）
 const GIFT_PROBE_LIMIT = 50
+// seen 批量刷新时 .in() 的分片大小（150 个 goods_id ≈ 3.5KB URL，避开网关 URL 上限）
+const SEEN_REFRESH_CHUNK = 150
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -305,8 +314,11 @@ async function enqueueBatch(
     g.userIds.push(u.user_id)
   }
 
+  // 所有 group × message 的行先攒起来，最后只发一次 upsert ——
+  // 原来每个 (group, message) 一次请求，distinct 的 mihoyo_shops 集合一多就是几十上百条日志。
   let jobs = 0
   let notifiedUsers = 0
+  const allRows: Record<string, string>[] = []
   for (const { shops, userIds } of groups.values()) {
     const filtered = newItems.filter((it) => shops.has(String(it.shop_code)))
     if (!filtered.length) continue
@@ -314,25 +326,93 @@ async function enqueueBatch(
     const messages = buildMessages(catalog, filtered)
     for (let mi = 0; mi < messages.length; mi++) {
       const content = messages[mi]
-      const rows = userIds.map((uid) => ({
-        user_id: uid,
-        channel: "qq",
-        source: "mihoyo",
-        event_key: `mihoyo:${catalog}:${batchKey}:${mi}`,
-        title: "米游铺上新",
-        content,
-        due_at: new Date().toISOString(),
-        status: "pending",
-      }))
-      const { error } = await admin
-        .from("notification_jobs")
-        .upsert(rows, { onConflict: "user_id,channel,event_key", ignoreDuplicates: true })
-      if (error) throw new Error(`enqueue_failed:${error.message}`)
-      jobs += rows.length
+      const dueAt = new Date().toISOString()
+      for (const uid of userIds) {
+        allRows.push({
+          user_id: uid,
+          channel: "qq",
+          source: "mihoyo",
+          event_key: `mihoyo:${catalog}:${batchKey}:${mi}`,
+          title: "米游铺上新",
+          content,
+          due_at: dueAt,
+          status: "pending",
+        })
+      }
+      jobs += userIds.length
       notifiedUsers += userIds.length
     }
   }
+  if (allRows.length) {
+    const { error } = await admin
+      .from("notification_jobs")
+      .upsert(allRows, { onConflict: "user_id,channel,event_key", ignoreDuplicates: true })
+    if (error) throw new Error(`enqueue_failed:${error.message}`)
+  }
   return { users: users.length, notified_users: notifiedUsers, jobs }
+}
+
+// ---------- seen 批量读写（替代「每商品 1 GET + 1 PATCH」） ----------
+
+// 批量认领：一次 insert + ignoreDuplicates。PostgREST 用 ON CONFLICT DO NOTHING，
+// 冲突行不产生 RETURNING，所以返回的就是「本轮真正插入成功」的行 = 新商品集合。
+// 并发扫描时同样只有插入成功的调用能认领（cron 已错峰，这里是兜底防丢/防重），
+// 语义与原来逐条 insert + select 完全一致，但只有 1 次请求。
+async function claimSeen(
+  admin: ReturnType<typeof createClient>,
+  catalog: string,
+  pairs: { shop_code: string; goods_id: string }[],
+  nowIso: string,
+): Promise<Set<string>> {
+  if (!pairs.length) return new Set<string>()
+  const { data, error } = await admin
+    .from("mihoyo_monitor_seen")
+    .insert(
+      pairs.map((p) => ({
+        catalog,
+        shop_code: p.shop_code,
+        goods_id: p.goods_id,
+        first_seen_at: nowIso,
+        last_seen_at: nowIso,
+      })),
+      { onConflict: "catalog,shop_code,goods_id", ignoreDuplicates: true },
+    )
+    .select("shop_code,goods_id")
+  if (error) throw error
+  return new Set((data ?? []).map((r) => `${r.shop_code}|${r.goods_id}`))
+}
+
+// 刷新「仍出现在本轮列表、但没被本次插入命中」的行的 last_seen_at。
+// TTL 全靠它续命 —— 漏刷会让行过期被删，同一商品下轮又被当成新品重复通知，
+// 所以失败必须以错误串返回给调用方（不能像原来那样静默丢掉）。
+// 按店铺分组 + .in() 分片（SEEN_REFRESH_CHUNK），URL 控制在网关上限内。
+async function refreshSeen(
+  admin: ReturnType<typeof createClient>,
+  catalog: string,
+  pairs: { shop_code: string; goods_id: string }[],
+  claimed: Set<string>,
+  nowIso: string,
+): Promise<string[]> {
+  const problems: string[] = []
+  const byShop = new Map<string, string[]>()
+  for (const p of pairs) {
+    if (claimed.has(`${p.shop_code}|${p.goods_id}`)) continue
+    const ids = byShop.get(p.shop_code)
+    if (ids) ids.push(p.goods_id)
+    else byShop.set(p.shop_code, [p.goods_id])
+  }
+  for (const [shopCode, ids] of byShop) {
+    for (let i = 0; i < ids.length; i += SEEN_REFRESH_CHUNK) {
+      const { error } = await admin
+        .from("mihoyo_monitor_seen")
+        .update({ last_seen_at: nowIso })
+        .eq("catalog", catalog)
+        .eq("shop_code", shopCode)
+        .in("goods_id", ids.slice(i, i + SEEN_REFRESH_CHUNK))
+      if (error) problems.push(`${shopCode}:refresh_failed`)
+    }
+  }
+  return problems
 }
 
 // ---------- 单个目录扫描 ----------
@@ -346,6 +426,9 @@ async function scanCatalog(
   const newItems: Record<string, any>[] = []
   const errors: string[] = []
   let scanned = 0
+  // 本轮各店列表里出现的 (shop_code, goods_id) —— 认领与刷新都基于它
+  const present: { shop_code: string; goods_id: string }[] = []
+  const presentItem = new Map<string, Record<string, any>>()
 
   for (const shopCode of shopCodes) {
     let items: Record<string, any>[]
@@ -361,58 +444,29 @@ async function scanCatalog(
     for (const it of items) {
       const goodsId = String(it.goods_id || "")
       if (!goodsId) continue
+      const key = `${shopCode}|${goodsId}`
+      if (presentItem.has(key)) continue
+      presentItem.set(key, it)
+      present.push({ shop_code: shopCode, goods_id: goodsId })
+    }
+  }
 
-      const { data: existing } = await admin
-        .from("mihoyo_monitor_seen")
-        .select("goods_id")
-        .eq("catalog", catalog)
-        .eq("shop_code", shopCode)
-        .eq("goods_id", goodsId)
-        .maybeSingle()
+  // 一次认领（新商品）+ 按店铺分片刷新（老商品），替代原来的逐商品读写
+  const claimed = await claimSeen(admin, catalog, present, nowIso)
+  errors.push(...(await refreshSeen(admin, catalog, present, claimed, nowIso)))
 
-      if (existing) {
-        await admin
-          .from("mihoyo_monitor_seen")
-          .update({ last_seen_at: nowIso })
-          .eq("catalog", catalog)
-          .eq("shop_code", shopCode)
-          .eq("goods_id", goodsId)
-      } else {
-        // 并发扫描时只让成功插入 seen 的调用认领该商品；冲突行不能再进入通知。
-        // cron 已错峰（补扫从 1 分起）降低并发概率，这里兜底防丢/防重。
-        const { data: claimed, error: insertError } = await admin
-          .from("mihoyo_monitor_seen")
-          .insert(
-            {
-              catalog,
-              shop_code: shopCode,
-              goods_id: goodsId,
-              first_seen_at: nowIso,
-              last_seen_at: nowIso,
-            },
-            { onConflict: "catalog,shop_code,goods_id", ignoreDuplicates: true },
-          )
-          .select("goods_id")
-          .maybeSingle()
-        if (insertError && insertError.code !== "23505") throw insertError
-
-        if (claimed) {
-          // 附上 shop_code，后续按用户自选店铺过滤用
-          newItems.push({ ...it, shop_code: shopCode })
-        } else {
-          await admin
-            .from("mihoyo_monitor_seen")
-            .update({ last_seen_at: nowIso })
-            .eq("catalog", catalog)
-            .eq("shop_code", shopCode)
-            .eq("goods_id", goodsId)
-        }
-      }
+  for (const p of present) {
+    if (!claimed.has(`${p.shop_code}|${p.goods_id}`)) continue
+    const it = presentItem.get(`${p.shop_code}|${p.goods_id}`)
+    if (it) {
+      // 附上 shop_code，后续按用户自选店铺过滤用
+      newItems.push({ ...it, shop_code: p.shop_code })
     }
   }
 
   // 清理：商店目录开售后/下架商品从「即将上架」消失，>7 天未再出现即删去重记录；
   // 积分目录放宽到 90 天。两目录各清各的（cutoff 不同，不能跨目录删）。
+  // 必须排在 refreshSeen 之后：先刷后删才不会误删仍在列表里的行。
   const ttlDays = catalog === "point" ? POINT_SEEN_TTL_DAYS : SEEN_TTL_DAYS
   const cutoff = new Date(Date.now() - ttlDays * 86_400_000).toISOString()
   await admin
@@ -447,6 +501,9 @@ async function scanGiftCatalog(
   let probed = 0
   // 跨活动 A/B 去重：镭射卡A / 镭射卡B 只出一行
   const giftKeySeen = new Set<string>()
+  // 本轮各店探到的活动（同店本地去重，原来靠 seen 表天然去重）
+  const present: { shop_code: string; goods_id: string }[] = []
+  const actByKey = new Map<string, { shop_code: string; act: { activity_id: string; promotion_text: string } }>()
 
   for (const shopCode of shopCodes) {
     // 只看「即将上架」——上新商品的主列表；开售后再补的满赠
@@ -478,84 +535,56 @@ async function scanGiftCatalog(
       for (const act of acts) {
         const actId = act.activity_id
         if (!actId) continue
-
-        // 按 activity_id 去重：已见活动只刷 last_seen，不重复通知
-        const { data: existing } = await admin
-          .from("mihoyo_monitor_seen")
-          .select("goods_id")
-          .eq("catalog", "gift")
-          .eq("shop_code", shopCode)
-          .eq("goods_id", actId)
-          .maybeSingle()
-
-        if (existing) {
-          await admin
-            .from("mihoyo_monitor_seen")
-            .update({ last_seen_at: nowIso })
-            .eq("catalog", "gift")
-            .eq("shop_code", shopCode)
-            .eq("goods_id", actId)
-          continue
-        }
-
-        const { data: claimed, error: insertError } = await admin
-          .from("mihoyo_monitor_seen")
-          .insert(
-            {
-              catalog: "gift",
-              shop_code: shopCode,
-              goods_id: actId,
-              first_seen_at: nowIso,
-              last_seen_at: nowIso,
-            },
-            { onConflict: "catalog,shop_code,goods_id", ignoreDuplicates: true },
-          )
-          .select("goods_id")
-          .maybeSingle()
-        if (insertError && insertError.code !== "23505") throw insertError
-        if (!claimed) {
-          await admin
-            .from("mihoyo_monitor_seen")
-            .update({ last_seen_at: nowIso })
-            .eq("catalog", "gift")
-            .eq("shop_code", shopCode)
-            .eq("goods_id", actId)
-          continue
-        }
-
-        // 新活动：拆成一行一个赠品（A/B 去重），与商品通知形态一致
-        const detail = await fetchGiftActivityDetail(actId)
-        const shop = detail.shopCode || shopCode
-        for (const g of detail.gifts) {
-          const rawName = String(g.name || "").trim()
-          if (!rawName) continue
-          const gKey = giftDedupeKey(rawName) || rawName
-          if (giftKeySeen.has(gKey)) continue
-          giftKeySeen.add(gKey)
-          newActivities.push({
-            goods_id: g.goods_id || `${actId}:${gKey}`,
-            name: gKey,
-            shop_code: shop,
-          })
-        }
-        // 活动详情异常时兜底一行，避免整条通知丢失
-        if (!detail.gifts.length) {
-          const fallbackName = detail.name || act.promotion_text || "满赠活动"
-          const fallbackKey = giftDedupeKey(fallbackName) || fallbackName
-          if (!giftKeySeen.has(fallbackKey)) {
-            giftKeySeen.add(fallbackKey)
-            newActivities.push({
-              goods_id: actId,
-              name: fallbackKey,
-              shop_code: shop,
-            })
-          }
-        }
+        const key = `${shopCode}|${actId}`
+        if (actByKey.has(key)) continue
+        actByKey.set(key, { shop_code: shopCode, act })
+        present.push({ shop_code: shopCode, goods_id: actId })
       }
     }
   }
 
-  // TTL：满赠活动 30 天未再出现即清理
+  // 一次认领（新活动）+ 按店铺分片刷新（老活动），替代原来的逐活动 GET/PATCH
+  const claimed = await claimSeen(admin, "gift", present, nowIso)
+  errors.push(...(await refreshSeen(admin, "gift", present, claimed, nowIso)))
+
+  // 只对本轮认领成功的新活动拉详情 —— 已见活动不再重复请求 detail，
+  // 并发时同样只有插入成功的调用能进到这里，防重复通知。
+  for (const [key, entry] of actByKey) {
+    if (!claimed.has(key)) continue
+    const { shop_code: shopCode, act } = entry
+    const actId = act.activity_id
+
+    // 新活动：拆成一行一个赠品（A/B 去重），与商品通知形态一致
+    const detail = await fetchGiftActivityDetail(actId)
+    const shop = detail.shopCode || shopCode
+    for (const g of detail.gifts) {
+      const rawName = String(g.name || "").trim()
+      if (!rawName) continue
+      const gKey = giftDedupeKey(rawName) || rawName
+      if (giftKeySeen.has(gKey)) continue
+      giftKeySeen.add(gKey)
+      newActivities.push({
+        goods_id: g.goods_id || `${actId}:${gKey}`,
+        name: gKey,
+        shop_code: shop,
+      })
+    }
+    // 活动详情异常时兜底一行，避免整条通知丢失
+    if (!detail.gifts.length) {
+      const fallbackName = detail.name || act.promotion_text || "满赠活动"
+      const fallbackKey = giftDedupeKey(fallbackName) || fallbackName
+      if (!giftKeySeen.has(fallbackKey)) {
+        giftKeySeen.add(fallbackKey)
+        newActivities.push({
+          goods_id: actId,
+          name: fallbackKey,
+          shop_code: shop,
+        })
+      }
+    }
+  }
+
+  // TTL：满赠活动 30 天未再出现即清理（必须排在 refreshSeen 之后）
   const cutoff = new Date(Date.now() - GIFT_SEEN_TTL_DAYS * 86_400_000).toISOString()
   await admin
     .from("mihoyo_monitor_seen")

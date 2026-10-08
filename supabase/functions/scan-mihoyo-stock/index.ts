@@ -30,10 +30,14 @@
 //   保证同商品同 SKU 缺货→补货的每一轮只提醒一次。
 // - 用户未绑定/关闭 QQ 时不置 in_stock=true：5 分钟后复查，绑定后尽快补发。
 //
-// 请求预算（本函数每分钟跑一次，要压住 Supabase REST 请求数）：
-// - 「用户 QQ 是否活跃」按批一次查出并缓存（createQqActiveChecker），不再每个有货商品
-//   查一次 user_qq_bindings；且只在真的遇到「有货」商品时才查 —— 整批全缺货的分钟
-//   不产生这次请求。
+// 请求预算（本函数每分钟跑一次，要压住 Supabase REST 请求数 / Log Ingestion）：
+// - 一轮固定开销只有：2 次 GET（待检行 + 有货行复查）+ 最多 1 次 QQ 绑定查询
+//   + 最多 1 次写入 RPC。**循环体内不发任何数据库请求**，全部先在内存里攒下来。
+// - 写入经 mihoyo_stock_apply（supabase/supabase-migration-mihoyo-stock-batch-apply.sql）：
+//   一次调用完成「清旧任务 + 入队 + 回写监控行」，三步同事务原子。
+//   典型一轮 19 条请求（峰值 44）→ 3 条；整批无需写入时空闲轮只有 2 条。
+// - 「用户 QQ 是否活跃」按批一次查出并缓存（createQqActiveChecker），且只在真的遇到
+//   「有货」商品时才查 —— 整批全缺货的分钟不产生这次请求。
 // - 不再统计「还剩多少待检行」：那是一次多余的 count 请求；需要看追赶进度时直接查
 //   mihoyo_monitor_goods（in_stock=false 且 next_check_at <= now()）即可。
 
@@ -304,10 +308,34 @@ serve(async () => {
     errors: 0,
   }
 
+  // ---------- 本轮待批量写入的内容（循环体内零数据库请求） ----------
+  // 按 id / (user_id, event_key) 去重：RPC 里同一 id 出现两次会触发
+  // 「cannot affect row a second time」，用 Map 保证唯一。
+  const pendingUpdates = new Map<string, Record<string, unknown>>()
+  const pendingDels = new Map<string, { user_id: string; event_key: string }>()
+  const pendingIns = new Map<string, Record<string, string>>()
+
+  const addUpdate = (id: unknown, patch: Record<string, unknown>) => {
+    const key = String(id)
+    const prev = pendingUpdates.get(key)
+    pendingUpdates.set(key, prev ? { ...prev, ...patch } : { id: key, ...patch })
+  }
+  const addJobDel = (userId: unknown, eventKey: string) => {
+    pendingDels.set(`${String(userId)}|${eventKey}`, {
+      user_id: String(userId),
+      event_key: eventKey,
+    })
+  }
+  const addJobIns = (job: Record<string, string>) => {
+    pendingIns.set(`${job.user_id}|${job.event_key}`, job)
+  }
+
   // ---------- 批次 1：缺货/未检测行（in_stock=false），按 next_check_at 升序 ----------
+  // 只取实际用到的列：select * 里的 cover_url / added_at / last_checked_at /
+  // notified_at / in_stock / next_check_at 从未被读到，GET 体积约 -40%。
   const { data: rows, error: rowsErr } = await admin
     .from("mihoyo_monitor_goods")
-    .select("*")
+    .select("id,user_id,goods_id,name,price_cents,sku_key,sku_name,check_streak")
     .eq("in_stock", false)
     .lte("next_check_at", new Date().toISOString())
     .order("next_check_at", { ascending: true })
@@ -325,10 +353,7 @@ serve(async () => {
     if (!result) {
       // 拉取失败：2 分钟后重试，不参与爬坡
       stats.skipped++
-      await admin
-        .from("mihoyo_monitor_goods")
-        .update({ next_check_at: nextAfterMin(RETRY_MIN) })
-        .eq("id", row.id)
+      addUpdate(row.id, { next_check_at: nextAfterMin(RETRY_MIN) })
       continue
     }
     stats.scanned++
@@ -338,16 +363,13 @@ serve(async () => {
       stats.sold_out++
       const streak = Math.min(Number(row.check_streak || 0) + 1, RAMP_INTERVALS_MIN.length - 1)
       const intervalMin = RAMP_INTERVALS_MIN[streak]
-      await admin
-        .from("mihoyo_monitor_goods")
-        .update({
-          last_checked_at: new Date().toISOString(),
-          check_streak: streak,
-          stock_count: 0,
-          next_check_at: nextAfterMin(intervalMin),
-          ...skuNamePatch(row.sku_name, result.skuName),
-        })
-        .eq("id", row.id)
+      addUpdate(row.id, {
+        last_checked_at: new Date().toISOString(),
+        check_streak: streak,
+        stock_count: 0,
+        next_check_at: nextAfterMin(intervalMin),
+        ...skuNamePatch(row.sku_name, result.skuName),
+      })
       continue
     }
 
@@ -358,27 +380,19 @@ serve(async () => {
     stats.available++
     if (!qqActive) {
       // 未绑定/关闭：保持 in_stock=false，5 分钟后复查，绑定后补发
-      await admin
-        .from("mihoyo_monitor_goods")
-        .update({
-          last_checked_at: new Date().toISOString(),
-          check_streak: 0,
-          stock_count: Number(result.stock) || 0,
-          next_check_at: nextAfterMin(UNBOUND_AVAILABLE_MIN),
-          ...skuNamePatch(row.sku_name, result.skuName),
-        })
-        .eq("id", row.id)
+      addUpdate(row.id, {
+        last_checked_at: new Date().toISOString(),
+        check_streak: 0,
+        stock_count: Number(result.stock) || 0,
+        next_check_at: nextAfterMin(UNBOUND_AVAILABLE_MIN),
+        ...skuNamePatch(row.sku_name, result.skuName),
+      })
       continue
     }
 
     // 入队前先清掉该行旧的 mihoyo_stock 任务（含已发送），保证每轮补货只提醒一次
     const eventKey = monitorEventKey(String(row.goods_id || ""), skuKey)
-    await admin
-      .from("notification_jobs")
-      .delete()
-      .eq("user_id", row.user_id)
-      .eq("source", "mihoyo_stock")
-      .eq("event_key", eventKey)
+    addJobDel(row.user_id, eventKey)
 
     const priceText = formatPrice(Number(result.priceCents) > 0 ? Number(result.priceCents) : Number(row.price_cents || 0))
     const priceLine = priceText ? `价格：${priceText}\n` : ""
@@ -387,8 +401,10 @@ serve(async () => {
     const displayName = monitorDisplayName(row.name, result.skuName || row.sku_name, skuKey)
     const content = `【米游铺有货提醒】\n「${displayName}」已补货有货！\n${stockLine}${priceLine}https://www.mihoyogift.com/goods/${row.goods_id}`
 
-    const { error: insErr } = await admin.from("notification_jobs").insert({
-      user_id: row.user_id,
+    // 入队改由 RPC 里的 ON CONFLICT DO NOTHING 兜底（先删后插，能冲突说明同键任务
+    // 已在队列里），失败时整个 RPC 回滚、下一轮整批重扫，不再是单行原地重试。
+    addJobIns({
+      user_id: String(row.user_id),
       channel: "qq",
       source: "mihoyo_stock",
       event_key: eventKey,
@@ -397,30 +413,23 @@ serve(async () => {
       due_at: new Date().toISOString(),
       status: "pending",
     })
-    if (insErr) {
-      stats.errors++
-      continue
-    }
 
-    await admin
-      .from("mihoyo_monitor_goods")
-      .update({
-        in_stock: true,
-        notified_at: new Date().toISOString(),
-        last_checked_at: new Date().toISOString(),
-        check_streak: 0,
-        stock_count: Number(result.stock) || 0,
-        next_check_at: nextAfterMin(AVAILABLE_RECHECK_MIN),
-        ...skuNamePatch(row.sku_name, result.skuName),
-      })
-      .eq("id", row.id)
+    addUpdate(row.id, {
+      in_stock: true,
+      notified_at: new Date().toISOString(),
+      last_checked_at: new Date().toISOString(),
+      check_streak: 0,
+      stock_count: Number(result.stock) || 0,
+      next_check_at: nextAfterMin(AVAILABLE_RECHECK_MIN),
+      ...skuNamePatch(row.sku_name, result.skuName),
+    })
     stats.notified++
   }
 
   // ---------- 批次 2：有货行低频复查（捕捉重新售罄 → 翻回 in_stock=false 并立即检） ----------
   const { data: stockedRows, error: stockedErr } = await admin
     .from("mihoyo_monitor_goods")
-    .select("id, goods_id, user_id, sku_key, sku_name")
+    .select("id,goods_id,sku_key,sku_name")
     .eq("in_stock", true)
     .lte("next_check_at", new Date().toISOString())
     .order("next_check_at", { ascending: true })
@@ -435,10 +444,7 @@ serve(async () => {
     if (!result) {
       // 拉取失败：2 分钟后重试
       stats.skipped++
-      await admin
-        .from("mihoyo_monitor_goods")
-        .update({ next_check_at: nextAfterMin(RETRY_MIN) })
-        .eq("id", row.id)
+      addUpdate(row.id, { next_check_at: nextAfterMin(RETRY_MIN) })
       continue
     }
     stats.scanned++
@@ -446,30 +452,39 @@ serve(async () => {
     if (!result.available) {
       // 重新售罄：翻回缺货并立即检，补货时第一时间提醒
       stats.rearmed++
-      await admin
-        .from("mihoyo_monitor_goods")
-        .update({
-          in_stock: false,
-          last_checked_at: new Date().toISOString(),
-          check_streak: 0,
-          stock_count: 0,
-          next_check_at: new Date().toISOString(),
-          ...skuNamePatch(row.sku_name, result.skuName),
-        })
-        .eq("id", row.id)
+      addUpdate(row.id, {
+        in_stock: false,
+        last_checked_at: new Date().toISOString(),
+        check_streak: 0,
+        stock_count: 0,
+        next_check_at: new Date().toISOString(),
+        ...skuNamePatch(row.sku_name, result.skuName),
+      })
       continue
     }
 
     // 仍是有货：60 分钟后复查
-    await admin
-      .from("mihoyo_monitor_goods")
-      .update({
-        last_checked_at: new Date().toISOString(),
-        stock_count: Number(result.stock) || 0,
-        next_check_at: nextAfterMin(AVAILABLE_RECHECK_MIN),
-        ...skuNamePatch(row.sku_name, result.skuName),
-      })
-      .eq("id", row.id)
+    addUpdate(row.id, {
+      last_checked_at: new Date().toISOString(),
+      stock_count: Number(result.stock) || 0,
+      next_check_at: nextAfterMin(AVAILABLE_RECHECK_MIN),
+      ...skuNamePatch(row.sku_name, result.skuName),
+    })
+  }
+
+  // ---------- 落库：一轮只发这一次写入请求（空闲轮直接跳过，省掉它） ----------
+  if (pendingUpdates.size || pendingDels.size || pendingIns.size) {
+    const { error: applyErr } = await admin.rpc("mihoyo_stock_apply", {
+      p_updates: [...pendingUpdates.values()],
+      p_job_dels: [...pendingDels.values()],
+      p_job_ins: [...pendingIns.values()],
+    })
+    if (applyErr) {
+      // 整个 RPC 同事务回滚：监控行时间戳没推进 → 下一轮整批重扫，不会丢提醒
+      stats.errors++
+      console.error("stock_apply_failed", applyErr.message)
+      return json({ error: applyErr.message, stats }, 500)
+    }
   }
 
   // 不再统计 remaining（要多一次 count 请求换一个观察值，不划算）
