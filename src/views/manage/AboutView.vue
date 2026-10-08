@@ -124,7 +124,8 @@
             <p class="info-kicker">Web Bundle</p>
             <h3 class="info-value">{{ t('about.currentResourceLabel', { version: webBundleVersionLabel }) }}</h3>
             <p class="info-desc">{{ t('about.webUpdateDesc') }}</p>
-            <div class="update-channel-row">
+            <!-- 无 beta 白名单（含未登录）不显示频道切换器；store 侧已把这类用户退回 stable -->
+            <div v-if="betaChannelChecked && betaChannelAllowed" class="update-channel-row">
               <span class="update-channel-label">{{ t('about.updateChannel') }}</span>
               <div class="update-channel-actions">
                 <button
@@ -375,6 +376,7 @@ import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
+import { useFeaturePermission } from '@/composables/permission/useFeaturePermission'
 import {
   DEFAULT_NATIVE_CACHE_LIMIT_MB,
   IMAGE_CACHE_LIMIT_OPTIONS_MB,
@@ -402,6 +404,12 @@ const syncStore = useSyncStore()
 const updateStore = useAppUpdateStore()
 const legalStore = useLegalStore()
 const webUpdateStore = useWebUpdateStore()
+// beta 频道切换器按白名单显隐：等真实校验结果再显示（避免先亮后灭闪烁）
+const {
+  allowed: betaChannelAllowed,
+  checked: betaChannelChecked,
+  check: checkBetaChannelPermission
+} = useFeaturePermission('beta')
 const pageBodyRef = ref(null)
 const showWebUpdateRestartDialog = ref(false)
 const showWebUpdateResetDialog = ref(false)
@@ -632,6 +640,11 @@ async function handleManualCheckWebUpdate() {
       showToast(t('about.resourceUpdateFound', { version: webUpdateStore.latestVersion }), 3200)
       return
     }
+    if (result?.status === 'pending') {
+      // 已下载待生效（silent 链路常态）：提示就绪，不重复报「发现更新」
+      showToast(t('about.resourceReady', { version: webUpdateStore.pendingVersion || webUpdateStore.latestVersion }), 3200)
+      return
+    }
     if (result?.status === 'incompatible-native') {
       showToast(
         webUpdateStore.latestMinNativeVersion
@@ -724,6 +737,8 @@ onMounted(async () => {
   syncStore.init()
   void updateStore.init()
   void webUpdateStore.init()
+  // beta 频道切换器权限（内部自带缓存/降级，每会话至多一次真实请求）
+  void checkBetaChannelPermission()
 })
 
 onBeforeUnmount(() => {

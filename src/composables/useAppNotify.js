@@ -489,20 +489,24 @@ export function useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateSto
       (curr) => {
         const isReady = !curr.downloading && !!curr.pendingId
         if (isReady && !lastWebUpdateReady) {
-          // 下载完成，自动应用更新
-          webUpdateStore.applyPendingUpdateNow()
+          // silent：只留 next()，等下次自然启动/回前台生效，绝不立即 reload 打断用户
+          if (!webUpdateStore.isSilentUpdate) {
+            // 下载完成，自动应用更新
+            webUpdateStore.applyPendingUpdateNow()
+          }
         }
         lastWebUpdateReady = isReady
       },
       { immediate: true }
     )
 
-    // 更新可用 → 弹 toast（覆盖静默/自动下载场景）
+    // 更新可用 → 弹 toast（silent 级别不打扰：静默链路自己后台下载）
     watch(
       () => webUpdateStore.lastStatus,
       (status) => {
         if (status === 'available' && !lastWebUpdateAvailableNotified) {
           lastWebUpdateAvailableNotified = true
+          if (webUpdateStore.isSilentUpdate) return
           push({
             iconType: 'update',
             text: '发现新版本',

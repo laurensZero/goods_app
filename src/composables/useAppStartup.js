@@ -1,5 +1,8 @@
-import { onMounted, watch } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
+import { Capacitor } from '@capacitor/core'
+import { App as CapacitorApp } from '@capacitor/app'
 import { loadEndpointPreference, reconnectSupabase } from '@/utils/sync/supabaseClient'
+import { shouldCheckOnForeground } from '@/utils/updateHelpers'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAppUpdateStore } from '@/stores/appUpdate'
@@ -21,6 +24,44 @@ export function useAppStartup() {
   const syncStore = useSyncStore()
   const authStore = useAuthStore()
   const legalStore = useLegalStore()
+
+  // ---- 前台恢复 → 检查 web 资源更新（冷却窗口内不重复查） ----
+  // silent 链路的补检时机：冷启动之外，回前台超过冷却时长也静默查一次，
+  // 命中 silent 更新则由 store 自动后台下载 + next()，下次自然启动生效。
+  function checkWebUpdateOnForeground() {
+    if (isCaptureMode()) return
+    if (!shouldCheckOnForeground(webUpdateStore.lastCheckedAt)) return
+    void webUpdateStore.checkForUpdates().catch(() => {
+      // silent fail on foreground web bundle update check
+    })
+  }
+
+  function onVisibilityChangeForUpdate() {
+    if (document.visibilityState === 'visible') checkWebUpdateOnForeground()
+  }
+
+  document.addEventListener('visibilitychange', onVisibilityChangeForUpdate)
+  let appStateHandle = null
+  let appStateHandleReleased = false
+  if (Capacitor.isNativePlatform()) {
+    CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) checkWebUpdateOnForeground()
+    }).then((handle) => {
+      if (appStateHandleReleased) {
+        handle?.remove?.()
+        return
+      }
+      appStateHandle = handle
+    }).catch(() => {
+      // listener registration failed; visibilitychange still covers foreground checks
+    })
+  }
+
+  onUnmounted(() => {
+    document.removeEventListener('visibilitychange', onVisibilityChangeForUpdate)
+    appStateHandleReleased = true
+    appStateHandle?.remove?.()
+  })
 
   onMounted(async () => {
     const captureMode = isCaptureMode()

@@ -12,7 +12,8 @@ const { confirm } = useConfirm()
 const FEATURE_OPTIONS = [
   { value: 'checkout', label: 'checkout（扩展功能）', hint: '我的页「扩展功能」入口与路由守卫' },
   { value: 'remove_bg', label: 'remove_bg（云端抠图）', hint: '图片抠图调用 remove-bg Edge Function' },
-  { value: 'admin', label: 'admin（管理台登录）', hint: 'admin-login Edge Function 校验的管理员白名单' }
+  { value: 'admin', label: 'admin（管理台登录）', hint: 'admin-login Edge Function 校验的管理员白名单' },
+  { value: 'beta', label: 'beta（Beta 更新通道）', hint: 'web 资源包 beta 频道更新门限（无权限用户静默收不到 beta 更新）' }
 ]
 
 const featureOptions = ref([])

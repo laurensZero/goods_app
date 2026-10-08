@@ -14,12 +14,15 @@ import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersio
 import { verifyBundleZipAuth } from '@/utils/bundleAuth'
 import { sha256Hex } from '@/utils/platform/fileHash'
 import { startLocalFileServer, stopLocalFileServer } from '@/utils/platform/localFileServer'
+import { checkFeaturePermission } from '@/composables/permission/useFeaturePermission'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 
 const log = createLogger('web-update')
 
 const UPDATE_CHANNEL_STORAGE_KEY = 'goods_web_update_channel'
 const AVAILABLE_UPDATE_CHANNELS = Object.freeze(['stable', 'beta'])
+// beta 频道门限对应的 feature_whitelist feature 名
+const BETA_UPDATE_FEATURE = 'beta'
 
 let activeCheckPromise = null
 
@@ -238,8 +241,24 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
       lastError.value = ''
 
       try {
-        const client = getSupabaseClient()
         const channel = selectedChannel.value
+
+        // beta 频道门限：仅 feature_whitelist 拥有 'beta' 的登录用户可收到 beta 资源包。
+        // 无权限（含未登录）静默降级为「已是最新」——不查询 ota_releases、不提示。
+        // 同时退回 stable 频道：切换器对无权限用户隐藏，留在 beta 会永远收不到任何更新。
+        if (channel === 'beta') {
+          const allowed = await checkFeaturePermission(BETA_UPDATE_FEATURE)
+          if (!allowed) {
+            if (selectedChannel.value === 'beta') setUpdateChannel('stable')
+            lastCheckedAt.value = new Date().toISOString()
+            lastStatus.value = 'latest'
+            dialogVisible.value = false
+            log.info('check:gated', { channel })
+            return { status: 'gated' }
+          }
+        }
+
+        const client = getSupabaseClient()
 
         // 查询最新 bundle
         const { data, error } = await client
@@ -314,9 +333,21 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         }
 
         if (compareVersions(latestVersion.value, currentVersion.value) > 0) {
+          // 已下载且待生效（silent 链路的常态）：保持 pending 展示，不重复弹窗/下载
+          const alreadyPending = !!pendingBundleId.value
+            && pendingVersion.value === latestVersion.value
+          if (alreadyPending) {
+            lastStatus.value = 'pending'
+            return { status: 'pending', bundle }
+          }
+
           lastStatus.value = 'available'
           dialogVisible.value = !isSilentUpdate.value
           log.info('check:update-available', { current: currentVersion.value, latest: latestVersion.value, channel, level: updateLevel.value })
+          if (isSilentUpdate.value) {
+            // silent：不弹任何 UI，后台静默下载 + next()，等下次自然启动/回前台生效
+            void triggerSilentDownload()
+          }
           return { status: 'available', bundle }
         }
 
@@ -342,6 +373,28 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     })()
 
     return activeCheckPromise
+  }
+
+  /**
+   * silent 更新专用：后台静默下载并 next()，全程不打扰用户。
+   * 失败仅记日志并把状态还原为 available（清空错误文案），留待下一次启动/前台检查重试。
+   */
+  async function triggerSilentDownload() {
+    if (!supported.value || isDownloading.value) return
+    // 同版本已待生效：短路（旧版本 pending 则继续下载新版本顶替）
+    if (pendingBundleId.value && pendingVersion.value === latestVersion.value) return
+
+    try {
+      const ok = await downloadAndPrepareUpdate()
+      if (ok) return
+      lastStatus.value = 'available'
+      lastError.value = ''
+      log.warn('silent-download:restored', { version: latestVersion.value })
+    } catch (error) {
+      lastStatus.value = 'available'
+      lastError.value = ''
+      log.warn('silent-download:failed', { version: latestVersion.value }, error)
+    }
   }
 
   /** 列出当前频道历史资源包（供长按手动选择）。 */
@@ -539,6 +592,12 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
     if (!supported.value) {
       lastError.value = '仅原生环境支持资源增量更新。'
       return false
+    }
+
+    // 已有同版本待生效包：直接复用，避免重复下载（silent 前台检查会反复走到这里）
+    if (pendingBundleId.value && pendingVersion.value === latestVersion.value) {
+      log.info('download:skip-pending', { bundleId: pendingBundleId.value, version: pendingVersion.value })
+      return true
     }
 
     if (!latestZipUrl.value || !latestVersion.value) {

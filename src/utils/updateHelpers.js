@@ -15,6 +15,23 @@ export function resolveSourceCandidates(source) {
   return [source]
 }
 
+/** 前台恢复时自动检查 web 资源更新的冷却窗口（冷启动检查也会写入 lastCheckedAt，故启动后来回切前台不会重复查） */
+export const UPDATE_FOREGROUND_CHECK_COOLDOWN_MS = 30 * 60 * 1000
+
+/**
+ * 前台恢复时是否该再次自动检查 web 资源更新。
+ * 无记录 / 时间戳解析失败视为可查；冷却窗口内不重复查。
+ */
+export function shouldCheckOnForeground(
+  lastCheckedAt,
+  now = Date.now(),
+  cooldownMs = UPDATE_FOREGROUND_CHECK_COOLDOWN_MS
+) {
+  const last = Date.parse(String(lastCheckedAt || ''))
+  if (!Number.isFinite(last)) return true
+  return now - last >= cooldownMs
+}
+
 // 从 release body 文本解析 apk_sha256 元数据行，返回小写 64 位十六进制或空串
 export function parseApkSha256FromText(text) {
   const match = String(text || '').match(/apk[_-]?sha256\s*[:=]\s*(?:sha256:)?([a-fA-F0-9]{64})\b/i)
