@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
-import { LEGAL_ACCEPTED_KEY, LEGAL_DOCS_VERSION } from '@/constants/legalConstants'
+import { LEGAL_ACCEPTED_KEY } from '@/constants/legalConstants'
+import { LEGAL_UPDATED_DATE } from '@/content/legal/legalDates'
 import { isCaptureMode } from '@/utils/captureMode'
 
 export const useLegalStore = defineStore('legal', () => {
@@ -29,7 +30,8 @@ export const useLegalStore = defineStore('legal', () => {
     }
     try {
       const accepted = await readPersisted(LEGAL_ACCEPTED_KEY)
-      if (accepted !== LEGAL_DOCS_VERSION) {
+      // 更新日期变化即视为正文变更，重新弹窗确认
+      if (accepted !== LEGAL_UPDATED_DATE) {
         gateVisible.value = true
         activeDocType.value = 'terms'
       } else {
@@ -43,7 +45,7 @@ export const useLegalStore = defineStore('legal', () => {
   }
 
   async function acceptDocs() {
-    await writePersisted(LEGAL_ACCEPTED_KEY, LEGAL_DOCS_VERSION)
+    await writePersisted(LEGAL_ACCEPTED_KEY, LEGAL_UPDATED_DATE)
     gateVisible.value = false
     gateBlocked.value = false
     resolveGate()

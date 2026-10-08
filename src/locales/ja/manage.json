@@ -102,7 +102,6 @@
   "manage.legalViewerKicker": "Legal",
   "manage.legalTabTerms": "ユーザー契約",
   "manage.legalTabPrivacy": "プライバシーポリシー",
-  "manage.legalVersionLabel": "現在のバージョン {version}",
   "manage.legalDecline": "同意せず終了",
   "manage.legalAccept": "同意して続行",
   "manage.legalBlockedTitle": "契約への同意が必要です",

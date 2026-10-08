@@ -102,7 +102,6 @@
   "manage.legalViewerKicker": "Legal",
   "manage.legalTabTerms": "用户协议",
   "manage.legalTabPrivacy": "隐私政策",
-  "manage.legalVersionLabel": "当前版本 {version}",
   "manage.legalDecline": "不同意并退出",
   "manage.legalAccept": "同意并继续",
   "manage.legalBlockedTitle": "需要同意协议",

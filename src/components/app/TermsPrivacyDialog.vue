@@ -55,10 +55,6 @@
 
     <div class="legal-body markdown-body" v-html="contentHtml" />
 
-    <div class="legal-meta">
-      <span>{{ t('manage.legalVersionLabel', { version: LEGAL_DOCS_VERSION }) }}</span>
-    </div>
-
     <div v-if="legalStore.isGateMode" class="legal-actions">
       <button type="button" class="legal-btn legal-btn--secondary" @click="legalStore.disagree()">
         {{ t('manage.legalDecline') }}
@@ -83,7 +79,6 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useLegalStore } from '@/stores/legal'
 import { renderMarkdown } from '@/utils/markdown'
 import { getLegalDoc } from '@/content/legal'
-import { LEGAL_DOCS_VERSION } from '@/constants/legalConstants'
 
 const { t, locale } = useI18n()
 const legalStore = useLegalStore()
@@ -259,15 +254,15 @@ useDialogBackButton(
   text-align: left;
 }
 
+.legal-body :deep(th:first-child),
+.legal-body :deep(td:first-child) {
+  width: 1%;
+  white-space: nowrap;
+}
+
 .legal-body :deep(th) {
   background: var(--app-surface-soft);
   font-weight: 600;
-}
-
-.legal-meta {
-  margin-top: 10px;
-  color: var(--app-text-tertiary);
-  font-size: 12px;
 }
 
 .legal-actions {

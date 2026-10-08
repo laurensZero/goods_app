@@ -1,9 +1,11 @@
-/** 隐私政策正文（Markdown）。与 termsContent 共用 LEGAL_DOCS_VERSION。 */
+/** 隐私政策正文（Markdown）。与 termsContent 共用 legalDates 的日期。 */
+
+import { legalDateBlock } from './legalDates'
 
 export const privacyContent = {
   'zh-CN': `# 谷子收纳隐私政策
 
-**生效日期：2026年3月8日**
+${legalDateBlock('zh-CN')}
 
 「谷子收纳」（以下简称「本应用」）尊重并保护您的个人信息。本政策说明我们如何收集、使用、存储、共享与保护您的信息，以及您享有的相关权利。请您在使用本应用前仔细阅读；**云同步等联网功能默认关闭**，不启用时数据主要保存在本机。
 
@@ -133,14 +135,14 @@ Web 端清除浏览器存储、或卸载原生应用并清理数据，可清除�
 
 ## 九、隐私政策的更新
 
-我们可能适时更新本政策。更新后将在应用内重新展示并需要您确认；若您不同意，请停止使用相关联网功能或卸载本应用。版本号见弹窗与「设置 → 关于应用」。
+我们可能适时更新本政策。更新后将在应用内重新展示并需要您确认；若您不同意，请停止使用相关联网功能或卸载本应用。本政策的生效日期与更新日期见正文顶部标注。
 
 ## 十、联系我们
 
 如对本政策有任何疑问、意见或投诉，可通过应用内「反馈」功能联系我们。`,
   'zh-TW': `# 谷子收納隱私政策
 
-**生效日期：2026年3月8日**
+${legalDateBlock('zh-TW')}
 
 「谷子收納」（以下簡稱「本應用」）尊重並保護您的個人資訊。本政策說明我們如何收集、使用、儲存、共享與保護您的資訊，以及您享有的相關權利。請您在使用本應用前仔細閱讀；**雲端同步等聯網功能預設關閉**，不啟用時資料主要保存在本機。
 
@@ -277,7 +279,7 @@ Web 端清除瀏覽器儲存，或解除安裝原生應用並清理資料，可�
 如對本政策有任何疑問、意見或投訴，可透過應用內「回饋」功能聯繫我們。`,
   en: `# Privacy Policy of Goods Collection Manager
 
-**Effective date: March 8, 2026**
+${legalDateBlock('en')}
 
 "Goods Collection Manager" (the "App") respects and protects your personal information. This Policy explains how we collect, use, store, share, and protect information, and the rights available to you. Please read it carefully before use. **Online features such as cloud sync are off by default**; without them, data stays primarily on your device.
 
@@ -414,7 +416,7 @@ We may update this Policy from time to time. Updates will be presented in the Ap
 For questions, comments, or complaints about this Policy, please use the in-app Feedback feature.`,
   ja: `# ゴズ収納プライバシーポリシー
 
-**発効日：2026年3月8日**
+${legalDateBlock('ja')}
 
 「ゴズ収納」（以下「本アプリ」）はお客様の個人情報を尊重し保護します。本ポリシーは、情報の収集・利用・保存・共有・保護およびお客様の権利について説明します。ご利用前に必ずお読みください。**クラウド同期などのオンライン機能は既定でオフ**であり、有効にしない限りデータは主に端末内に保存されます。
 
@@ -551,7 +553,7 @@ Web ではブラウザストレージの消去、ネイティブではアンイ�
 本ポリシーに関する質問・意見・苦情は、アプリ内フィードバック機能をご利用ください。`,
   ko: `# 고츠 수납 개인정보 처리방침
 
-**시행일: 2026년 3월 8일**
+${legalDateBlock('ko')}
 
 「고츠 수납」(이하 "본 앱")은 귀하의 개인정보를 존중하고 보호합니다. 본 방침은 정보의 수집·이용·저장·공유·보호 및 귀하의 권리를 설명합니다. 이용 전 반드시 읽어 주세요. **클라우드 동기화 등 온라인 기능은 기본값으로 꺼져 있으며**, 사용하지 않으면 데이터는 주로 기기에 저장됩니다.
 

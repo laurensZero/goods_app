@@ -1,9 +1,11 @@
-/** 用户协议正文（Markdown）。与 privacyContent 共用 LEGAL_DOCS_VERSION。 */
+/** 用户协议正文（Markdown）。与 privacyContent 共用 legalDates 的日期。 */
+
+import { legalDateBlock } from './legalDates'
 
 export const termsContent = {
   'zh-CN': `# 谷子收纳用户协议
 
-**生效日期：2026年3月8日**
+${legalDateBlock('zh-CN')}
 
 欢迎使用「谷子收纳」（以下简称「本应用」）。本应用是一款用于管理动漫/游戏周边收藏的工具类软件。请您在使用前仔细阅读本协议的全部条款。一旦您安装、打开或使用本应用，即表示您已阅读、理解并同意接受本协议的约束。
 
@@ -75,7 +77,7 @@ AI 助手由**您自行配置**的第三方模型服务提供能力：您在设�
 
 ## 七、协议的修改
 
-我们可能根据功能调整、法律变化或运营需要更新本协议。更新后的协议将在应用内重新展示并需要您确认；若您不同意更新内容，应停止使用本应用。协议正文版本号见弹窗与「设置 → 应用信息」中的标注。
+我们可能根据功能调整、法律变化或运营需要更新本协议。更新后的协议将在应用内重新展示并需要您确认；若您不同意更新内容，应停止使用本应用。本协议的生效日期与更新日期见正文顶部标注。
 
 ## 八、适用法律与争议解决
 
@@ -86,7 +88,7 @@ AI 助手由**您自行配置**的第三方模型服务提供能力：您在设�
 若您对本协议或本应用有任何疑问，可通过应用内「反馈」功能与我们联系。`,
   'zh-TW': `# 谷子收納用戶協議
 
-**生效日期：2026年3月8日**
+${legalDateBlock('zh-TW')}
 
 歡迎使用「谷子收納」（以下簡稱「本應用」）。本應用是一款用於管理動漫/遊戲周邊收藏的工具型軟體。請您在使用前仔細閱讀本協議的全部條款。一旦您安裝、開啟或使用本應用，即表示您已閱讀、理解並同意接受本協議的約束。
 
@@ -158,7 +160,7 @@ AI 助手由**您自行配置**的第三方模型服務提供能力：您在設�
 
 ## 七、協議的修改
 
-我們可能根據功能調整、法律變化或運營需要更新本協議。更新後的協議將在應用內重新展示並需要您確認；若您不同意更新內容，應停止使用本應用。協議正文版本號見彈窗與「設定 → 應用資訊」中的標註。
+我們可能根據功能調整、法律變化或運營需要更新本協議。更新後的協議將在應用內重新展示並需要您確認；若您不同意更新內容，應停止使用本應用。本協議的生效日期與更新日期見正文頂部標註。
 
 ## 八、適用法律與爭議解決
 
@@ -169,7 +171,7 @@ AI 助手由**您自行配置**的第三方模型服務提供能力：您在設�
 若您對本協議或本應用有任何疑問，可透過應用內「回饋」功能與我們聯繫。`,
   en: `# User Agreement of Goods Collection Manager
 
-**Effective date: March 8, 2026**
+${legalDateBlock('en')}
 
 Welcome to "Goods Collection Manager" (the "App"). This App is a personal tool for organizing anime/game merchandise collections. Please read this Agreement carefully before use. By installing, opening, or using the App, you acknowledge that you have read, understood, and agree to be bound by this Agreement.
 
@@ -241,7 +243,7 @@ The AI assistant is powered by a third-party model service **you configure yours
 
 ## 7. Amendments
 
-We may update this Agreement due to product changes, legal requirements, or operational needs. Updated terms will be presented in the App for your confirmation. If you do not agree, please stop using the App. The document version is shown in the dialog and under Settings → App info.
+We may update this Agreement due to product changes, legal requirements, or operational needs. Updated terms will be presented in the App for your confirmation. If you do not agree, please stop using the App. The effective date and last-updated date are shown at the top of this Agreement.
 
 ## 8. Governing Law and Disputes
 
@@ -252,7 +254,7 @@ This Agreement is governed by the laws of the People's Republic of China (exclud
 For questions about this Agreement or the App, please contact us via the in-app Feedback feature.`,
   ja: `# ゴズ収納ユーザー契約
 
-**発効日：2026年3月8日**
+${legalDateBlock('ja')}
 
 「ゴズ収納」（以下「本アプリ」）をご利用いただきありがとうございます。本アプリはアニメ・ゲーム関連のグッズコレクションを管理する個人向けツールです。ご利用の前に本契約の全条項をよくお読みください。本アプリのインストール、起動または利用をもって、您は本契約を読み、理解し、同意したものとみなされます。
 
@@ -324,7 +326,7 @@ AI アシスタントは**お客様ご自身が設定した**第三者モデル�
 
 ## 7. 契約の変更
 
-製品変更・法令対応・運営上必要な場合、本契約を更新することがあります。更新後はアプリ内で再提示し同意を求めます。同意できない場合は利用を停止してください。文書のバージョンはダイアログおよび「設定 → アプリ情報」に表示されます。
+製品変更・法令対応・運営上必要な場合、本契約を更新することがあります。更新後はアプリ内で再提示し同意を求めます。同意できない場合は利用を停止してください。本契約の発効日・更新日は本文冒頭に表示されます。
 
 ## 8. 準準拠法と紛争解決
 
@@ -335,7 +337,7 @@ AI アシスタントは**お客様ご自身が設定した**第三者モデル�
 本契約または本アプリに関するお問い合わせは、アプリ内フィードバック機能をご利用ください。`,
   ko: `# 고츠 수납 사용자 계약
 
-**시행일: 2026년 3월 8일**
+${legalDateBlock('ko')}
 
 「고츠 수납」(이하 "본 앱")을 이용해 주셔서 감사합니다. 본 앱은 애니메이션·게임 굿즈 컬렉션을 관리하는 개인용 도구입니다. 이용 전 본 계약의 모든 조항을 주의 깊게 읽어 주세요. 본 앱을 설치, 실행 또는 이용함으로써 귀하는 본 계약을 읽고 이해했으며 이에 동의하는 것으로 봅니다.
 
@@ -407,7 +409,7 @@ AI 어시스턴트는 **본인이 직접 구성한** 제3자 모델 서비스가
 
 ## 7. 계약 변경
 
-제품 변경, 법률 요구, 운영상 필요로 본 계약을 갱신할 수 있습니다. 갱신된 내용은 앱 내에서 다시 제시되며 동의가 필요합니다. 동의하지 않으면 이용을 중단하세요. 문서 버전은 다이얼로그와 설정 → 앱 정보에 표시됩니다.
+제품 변경, 법률 요구, 운영상 필요로 본 계약을 갱신할 수 있습니다. 갱신된 내용은 앱 내에서 다시 제시되며 동의가 필요합니다. 동의하지 않으면 이용을 중단하세요. 본 계약의 시행일·갱신일은 문서 상단에 표시됩니다.
 
 ## 8. 준거법 및 분쟁 해결
 
