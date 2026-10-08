@@ -53,7 +53,7 @@
       </button>
     </div>
 
-    <div class="legal-body markdown-body" v-html="contentHtml" />
+    <div ref="bodyRef" class="legal-body markdown-body" v-html="contentHtml" />
 
     <div v-if="legalStore.isGateMode" class="legal-actions">
       <button type="button" class="legal-btn legal-btn--secondary" @click="legalStore.disagree()">
@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -84,6 +84,7 @@ const { t, locale } = useI18n()
 const legalStore = useLegalStore()
 
 const contentHtml = ref('')
+const bodyRef = ref(null)
 
 const viewerTitle = computed(() =>
   legalStore.activeDocType === 'privacy'
@@ -91,11 +92,21 @@ const viewerTitle = computed(() =>
     : t('manage.legalTabTerms')
 )
 
+/** 两个 tab 复用同一个滚动容器，各自记住阅读位置，避免互相串位 */
+const scrollMemory = { terms: 0, privacy: 0 }
+
 watch(
   () => [legalStore.activeDocType, locale.value],
-  async () => {
-    const md = getLegalDoc(legalStore.activeDocType, locale.value)
+  async ([type], [prevType] = []) => {
+    if (prevType && bodyRef.value) {
+      scrollMemory[prevType] = bodyRef.value.scrollTop
+      const sheetScroll = bodyRef.value.closest('.app-sheet__scroll')
+      if (sheetScroll) sheetScroll.scrollTop = 0
+    }
+    const md = getLegalDoc(type, locale.value)
     contentHtml.value = await renderMarkdown(md)
+    await nextTick()
+    if (bodyRef.value) bodyRef.value.scrollTop = scrollMemory[type] || 0
   },
   { immediate: true }
 )
