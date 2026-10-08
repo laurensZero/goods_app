@@ -138,8 +138,11 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { CURRENCY_MAP } from '@/constants/currencies'
 import {
   hasCollectStatusMatch,
+  resolvePrimaryCollectStatus,
   areAllCopiesExited,
+  formatCollectStatusSummary,
   formatPendingStatusSummary,
+  getStatusShortLabel,
   resolveQtyBadgeText
 } from '@/utils/goods/status'
 import { getCoverTone } from '@/utils/goods/coverTone'
@@ -310,6 +313,7 @@ const coverInitial = computed(() => (props.item.name ?? '?').trim().charAt(0).to
 const unitHoldingDaysList = computed(() => props.item._unitHoldingDaysList ?? [])
 const hasUnitHoldingDays = computed(() => props.item._hasUnitHoldingDays ?? false)
 const holdingDays = computed(() => props.item._holdingDays ?? null)
+const pendingDays = computed(() => props.item._pendingDays ?? null)
 
 const pendingBadgeText = computed(() => formatPendingStatusSummary(props.item))
 const isPending = computed(() => props.item._isPending ?? (!props.item.isWishlist && hasCollectStatusMatch(props.item, ['待发货', '待补款', '待补邮'])))
@@ -329,13 +333,27 @@ const statusDaysText = computed(() => {
     const maxDays = Math.max(...daysList)
     const daysUnit = t('common.daysUnit')
     const daysStr = minDays === maxDays ? `${minDays} ${daysUnit}` : `${minDays}~${maxDays} ${daysUnit}`
+
+    // 含在途件(待发货/待补款/待补邮)时按状态显示「待发 x 天」
+    if (list.some((e) => e.pending)) {
+      const statusSet = new Set(list.map((e) => e.status))
+      if (statusSet.size === 1) return `${getStatusShortLabel(list[0].status)} ${daysStr}`
+      return `${formatCollectStatusSummary(props.item, { compact: true })} · ${daysStr}`
+    }
     return `${t('goods.card.holding')} ${daysStr}`
   }
 
   const days = holdingDays.value
-  if (days === null) return ''
+  if (days !== null) return `${t('goods.card.holding')} ${days} ${t('common.daysUnit')}`
 
-  return `${t('goods.card.holding')} ${days} ${t('common.daysUnit')}`
+  // 在途未入手：不算持有，但显示进入在途状态至今的天数
+  const pending = pendingDays.value
+  if (pending !== null) {
+    const primary = props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item)
+    return `${getStatusShortLabel(primary)} ${pending} ${t('common.daysUnit')}`
+  }
+
+  return ''
 })
 
 const showCategory = computed(() => props.density !== 'compact' && !!props.item.category)
@@ -355,7 +373,7 @@ const showTags = computed(() => showCategory.value || showIp.value || showCharac
 const isTablet = computed(() => props.windowWidth >= 900)
 // 自适应 root-margin：低性能设备用更小的预加载距离，减少滚动时唤醒图片数量
 const imageRootMargin = computed(() => _isLowPerf ? '120px 0px' : (isTablet.value ? '360px 0px' : '240px 0px'))
-const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && (holdingDays.value !== null || hasUnitHoldingDays.value))
+const showHoldingDays = computed(() => !props.item.isWishlist && props.density !== 'compact' && (holdingDays.value !== null || pendingDays.value !== null || hasUnitHoldingDays.value))
 const showPoints = computed(() => !props.item.isWishlist && props.item.points && (props.density === 'comfortable' || isTablet.value))
 const unitActualPriceText = computed(() => {
   const quantity = Math.max(1, Number(props.item.quantity) || 1)

@@ -614,14 +614,13 @@ function daysBetweenYmd(startYmd, endYmd) {
 }
 
 /**
- * 持有区间：从时间线「已拥有」起算，到退出日；未退出则到今天。
- * 多件时传 unitIndex 取该件区间；整件传 null 只认整批条目。
- * 时间线从未进入「已拥有」且仍在途(待*)时返回 null(尚未持有)。
+ * 按 unitIndex 过滤并按日期升序排序的时间线条目。
+ * 传 unitIndex 时整批条目(scope 为 null)对所有件生效；传 null 时只认整批条目。
  * @param {object} item
  * @param {number|null} [unitIndex]
- * @returns {{ start: string, end: string, days: number }|null}
+ * @returns {Array<{status: string, at: string}>}
  */
-export function getHoldingPeriod(item, unitIndex = null) {
+function collectScopedTimeline(item, unitIndex = null) {
   const timeline = Array.isArray(item?.statusTimeline) ? item.statusTimeline : []
   const hasUnitIndex = Number.isInteger(unitIndex)
 
@@ -643,6 +642,20 @@ export function getHoldingPeriod(item, unitIndex = null) {
     scoped.push({ status, at: date })
   }
   scoped.sort((a, b) => a.at.localeCompare(b.at))
+  return scoped
+}
+
+/**
+ * 持有区间：从时间线「已拥有」起算，到退出日；未退出则到今天。
+ * 多件时传 unitIndex 取该件区间；整件传 null 只认整批条目。
+ * 时间线从未进入「已拥有」且仍在途(待*)时返回 null(尚未持有)。
+ * @param {object} item
+ * @param {number|null} [unitIndex]
+ * @returns {{ start: string, end: string, days: number }|null}
+ */
+export function getHoldingPeriod(item, unitIndex = null) {
+  const hasUnitIndex = Number.isInteger(unitIndex)
+  const scoped = collectScopedTimeline(item, unitIndex)
 
   // 当前这段连续持有：每次重新进入「已拥有」重置起点；退出状态封口
   let holdStart = ''
@@ -693,6 +706,44 @@ export function getHoldingPeriod(item, unitIndex = null) {
  */
 export function getHoldingDays(item, unitIndex = null) {
   return getHoldingPeriod(item, unitIndex)?.days ?? null
+}
+
+/**
+ * 在途区间：当前状态为待发货/待补款/待补邮 时，从最近一次进入该状态起算到今天。
+ * 无对应时间线条目时用购入日(acquiredAt / unitAcquiredAtList)兜底；非在途状态返回 null。
+ * 持有区间见 {@link getHoldingPeriod}——两者互斥：在途未入手不算持有，但要显示「待发 x 天」。
+ * @param {object} item
+ * @param {number|null} [unitIndex]
+ * @returns {{ start: string, end: string, days: number }|null}
+ */
+export function getPendingPeriod(item, unitIndex = null) {
+  const hasUnitIndex = Number.isInteger(unitIndex)
+  const currentStatus = String(
+    hasUnitIndex
+      ? (Array.isArray(item?.unitCollectStatusList) ? item.unitCollectStatusList[unitIndex] : '') || item?.collectStatus
+      : item?.collectStatus
+  ).trim()
+  if (!HOLDING_PENDING_STATUSES.has(currentStatus)) return null
+
+  const scoped = collectScopedTimeline(item, unitIndex)
+  let start = ''
+  for (const e of scoped) {
+    if (e.status === currentStatus) start = e.at
+  }
+
+  if (!start) {
+    start = normalizeTimelineDate(
+      hasUnitIndex
+        ? (Array.isArray(item?.unitAcquiredAtList) ? item.unitAcquiredAtList[unitIndex] : '') || item?.acquiredAt
+        : item?.acquiredAt
+    )
+  }
+  if (!start) return null
+
+  const end = formatDate(new Date(), 'YYYY-MM-DD')
+  const days = daysBetweenYmd(start, end)
+  if (days === null) return null
+  return { start, end, days }
 }
 
 /**

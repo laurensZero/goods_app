@@ -17,7 +17,7 @@ import {
   hasCollectStatusMatch,
   areAllCopiesExited
 } from '@/utils/goods/status'
-import { getHoldingPeriod } from '@/utils/goods/statusTimeline'
+import { getHoldingPeriod, getPendingPeriod } from '@/utils/goods/statusTimeline'
 
 /**
  * @param {object} item
@@ -58,21 +58,24 @@ export function computePriceFields(item, exchangeRate) {
  */
 function computeHoldingFields(item) {
   // --- unitHoldingDaysList ---
-  // 多件按逐件时间线「已拥有」起算(整批条目对所有件生效)
+  // 多件按逐件时间线「已拥有」起算(整批条目对所有件生效)；在途未入手的件退化为「待发 x 天」
   const quantity = Math.max(1, Number(item.quantity) || 1)
   let unitHoldingDaysList = []
   if (quantity >= 2) {
     const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
     const entries = Array.from({ length: quantity }, (_, i) => {
-      const period = getHoldingPeriod(item, i)
+      const holding = getHoldingPeriod(item, i)
+      const pending = holding ? null : getPendingPeriod(item, i)
+      const period = holding || pending
       if (!period) return null
       const status = String(unitStatuses[i] || item.collectStatus || '已拥有').trim()
-      return { days: period.days, status, date: period.start }
+      return { days: period.days, status, date: period.start, pending: !holding }
     }).filter(Boolean)
-    const seenDays = new Set()
+    const seen = new Set()
     unitHoldingDaysList = entries.filter((entry) => {
-      if (seenDays.has(entry.days)) return false
-      seenDays.add(entry.days)
+      const key = `${entry.days}|${entry.status}|${entry.pending ? 1 : 0}`
+      if (seen.has(key)) return false
+      seen.add(key)
       return true
     })
   }
@@ -80,14 +83,18 @@ function computeHoldingFields(item) {
   // --- holdingDays (only when no per-unit holding days) ---
   const hasUnitHoldingDays = unitHoldingDaysList.length > 0
   let holdingDays = null
+  let pendingDays = null
   if (!hasUnitHoldingDays) {
-    holdingDays = getHoldingPeriod(item)?.days ?? null
+    const period = getHoldingPeriod(item)
+    if (period) holdingDays = period.days
+    else pendingDays = getPendingPeriod(item)?.days ?? null
   }
 
   return {
     _unitHoldingDaysList: unitHoldingDaysList,
     _hasUnitHoldingDays: hasUnitHoldingDays,
-    _holdingDays: holdingDays
+    _holdingDays: holdingDays,
+    _pendingDays: pendingDays
   }
 }
 

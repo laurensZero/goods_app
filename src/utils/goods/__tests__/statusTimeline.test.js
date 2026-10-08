@@ -9,6 +9,7 @@ import {
   getEntryUnitIndexes,
   getTimelineStartDate,
   getHoldingPeriod,
+  getPendingPeriod,
   buildAcquisitionTimelineEntries,
   ensureInitialTimeline,
   maintainTimelineOnGoodsUpdate,
@@ -432,5 +433,57 @@ describe('getHoldingPeriod 从时间线「已拥有」起算', () => {
       statusTimeline: []
     }
     expect(getHoldingPeriod(item)?.start).toBe('2026-01-01')
+  })
+})
+
+describe('getPendingPeriod 在途从进入待*状态起算', () => {
+  const ymd = (offsetDays) => {
+    const d = new Date()
+    d.setDate(d.getDate() - offsetDays)
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }
+
+  it('待发货按最近一次进入该状态起算到今天', () => {
+    const item = {
+      collectStatus: '待发货',
+      acquiredAt: ymd(40),
+      statusTimeline: [
+        { status: '待发货', at: ymd(40) },
+        { status: '待补款', at: ymd(20) },
+        { status: '待发货', at: ymd(10) }
+      ]
+    }
+    expect(getPendingPeriod(item)).toEqual({ start: ymd(10), end: ymd(0), days: 10 })
+  })
+
+  it('非在途状态返回 null', () => {
+    expect(getPendingPeriod({ collectStatus: '已拥有', acquiredAt: ymd(3) })).toBeNull()
+    expect(getPendingPeriod({ collectStatus: '已出', acquiredAt: ymd(3) })).toBeNull()
+  })
+
+  it('时间线缺失时用购入日期兜底', () => {
+    const item = { collectStatus: '待补款', acquiredAt: ymd(5), statusTimeline: [] }
+    expect(getPendingPeriod(item)).toEqual({ start: ymd(5), end: ymd(0), days: 5 })
+  })
+
+  it('既无时间线也无购入日期时返回 null', () => {
+    expect(getPendingPeriod({ collectStatus: '待发货', statusTimeline: [] })).toBeNull()
+  })
+
+  it('多件按逐件状态与归属计算，在途件与已拥有件互不干扰', () => {
+    const item = {
+      quantity: 2,
+      collectStatus: '待发货',
+      acquiredAt: ymd(30),
+      unitCollectStatusList: ['已拥有', '待发货'],
+      statusTimeline: [
+        { status: '待发货', at: ymd(30), unitIndexes: [0, 1] },
+        { status: '已拥有', at: ymd(25), unitIndex: 0 },
+        { status: '待发货', at: ymd(3), unitIndex: 1 }
+      ]
+    }
+    expect(getPendingPeriod(item, 0)).toBeNull()
+    expect(getPendingPeriod(item, 1)).toEqual({ start: ymd(3), end: ymd(0), days: 3 })
   })
 })
