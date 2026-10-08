@@ -233,6 +233,7 @@
             :data-queue-index="index"
             @click="playQueueItem(track)"
           >
+            <span class="floating-player__queue-index">{{ index + 1 }}</span>
             <span class="floating-player__queue-cover" :class="{ 'floating-player__queue-cover--empty': !trackCoverUrl(track) }">
               <LazyCachedImage
                 v-if="trackCoverUrl(track)"
@@ -249,7 +250,6 @@
                 <circle cx="17.5" cy="15" r="2.5" />
               </svg>
             </span>
-            <span class="floating-player__queue-index">{{ index + 1 }}</span>
             <span class="floating-player__queue-copy">
               <strong>{{ track.title || t('common.unnamed') }}</strong>
               <span>{{ track.artist || t('common.unnamedTrack') }}</span>
@@ -1136,6 +1136,12 @@ onBeforeUnmount(() => {
   border-radius: 10px;
   background: color-mix(in srgb, var(--app-surface-soft) 88%, var(--app-surface));
   color: var(--app-text-tertiary);
+}
+
+.floating-player__queue-cover--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .floating-player__queue-cover svg {
