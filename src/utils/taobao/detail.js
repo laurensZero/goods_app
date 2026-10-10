@@ -176,6 +176,16 @@ function resolvePropValue(prop, vid) {
 }
 
 /**
+ * propPath 的属性对分隔符：单规格没有分隔符；多规格实测为 `;`
+ * （如 `20509:3234322;0:-11`），兼容 `,` 口径。
+ * @param {string} path
+ * @returns {string[]} 形如 `pid:vid` 的属性对列表
+ */
+export function splitSkuPath(path) {
+  return String(path || '').split(/[,;]/).filter(Boolean)
+}
+
+/**
  * 解析 SKU 列表（规格名 / 价格 / 规格图 / 库存）
  * @param {any} res
  * @returns {Array<{id:string,name:string,price:string,image:string,quantity:number,logistics:string}>}
@@ -190,8 +200,7 @@ export function extractSkus(res) {
 
   return skus.map((sku) => {
     const path = String(sku?.propPath || '')
-    const parts = path.split(',').filter(Boolean)
-    const values = parts.map((part) => {
+    const values = splitSkuPath(path).map((part) => {
       const [pid, vid] = part.split(':')
       return resolvePropValue(propByPid.get(String(pid)), vid)
     }).filter(Boolean)
@@ -209,6 +218,24 @@ export function extractSkus(res) {
       logistics: String(info?.logisticsTime || ''),
     }
   }).filter((sku) => sku.name || sku.price || sku.image)
+}
+
+/**
+ * 解析 SKU 属性树（多级规格选择的分组依据，如 颜色 / 尺寸 各一级）
+ * @param {any} res
+ * @returns {Array<{pid:string,name:string,values:Array<{vid:string,name:string,image:string}>}>}
+ */
+export function extractSkuProps(res) {
+  const props = Array.isArray(res?.skuBase?.props) ? res.skuBase.props : []
+  return props.map((prop) => ({
+    pid: String(prop?.pid || ''),
+    name: String(prop?.name || '').trim(),
+    values: (Array.isArray(prop?.values) ? prop.values : []).map((value) => ({
+      vid: String(value?.vid || ''),
+      name: String(value?.name || '').trim(),
+      image: normalizeCdnUrl(value?.image || ''),
+    })).filter((value) => value.vid || value.name),
+  })).filter((prop) => prop.pid && prop.values.length > 0)
 }
 
 /** 页面展示价：priceVO.priceText（多规格时带「起」或区间） */
@@ -242,6 +269,7 @@ export function buildTaobaoDraft(res, context = {}) {
 
   const price = extractPrice(res)
   const skus = extractSkus(res)
+  const skuProps = extractSkuProps(res)
   const seller = res.seller || {}
   const store = res.componentsVO?.storeCardVO || {}
 
@@ -261,6 +289,7 @@ export function buildTaobaoDraft(res, context = {}) {
     images: images.length > 0 ? images : (skuWithImage ? [skuWithImage.image] : []),
     detailImages,
     skus,
+    skuProps,
     shopName: String(store.shopName || seller.shopName || seller.sellerNick || ''),
     shopUrl: normalizeCdnUrl(store.shopUrl || seller.pcShopUrl || ''),
     sellCount: String(res?.item?.vagueSellCount || res?.componentsVO?.titleVO?.salesDesc || ''),

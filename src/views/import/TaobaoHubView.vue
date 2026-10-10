@@ -107,21 +107,29 @@
                   <AppSelect v-model="form.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
                 </label>
 
-                <!-- 规格（淘宝 SKU） -->
+                <!-- 规格（淘宝 SKU，按属性分组多级选择） -->
                 <div v-if="draft.skus.length > 0" class="field">
                   <span class="field-label">{{ t('import.taobaoSkuLabel') }}</span>
-                  <div class="sku-row">
-                    <button
-                      v-for="sku in draft.skus"
-                      :key="sku.id || sku.path"
-                      class="sku-chip"
-                      type="button"
-                      :class="{ 'sku-chip--active': form.skuPath === sku.path }"
-                      @click="selectSku(sku)"
-                    >
-                      <span class="sku-name">{{ sku.name }}</span>
-                      <span v-if="sku.price" class="sku-price">¥{{ sku.price }}</span>
-                    </button>
+                  <div v-for="group in skuGroups" :key="group.pid" class="sku-group">
+                    <span v-if="group.name" class="sku-group-name">{{ group.name }}</span>
+                    <div class="sku-row">
+                      <button
+                        v-for="value in group.values"
+                        :key="value.vid"
+                        class="sku-chip"
+                        type="button"
+                        :class="{
+                          'sku-chip--active': form.skuSelection[group.pid] === value.vid,
+                          'sku-chip--disabled': !isSkuValueAvailable(group, value),
+                        }"
+                        :disabled="!isSkuValueAvailable(group, value)"
+                        @click="toggleSkuValue(group, value)"
+                      >
+                        <img v-if="value.image" class="sku-chip-img" :src="value.image" loading="lazy" alt="" />
+                        <span class="sku-name">{{ value.name }}</span>
+                        <span v-if="skuValuePrice(group, value)" class="sku-price">¥{{ skuValuePrice(group, value) }}</span>
+                      </button>
+                    </div>
                   </div>
                   <p v-if="priceRangeHint" class="field-hint">{{ priceRangeHint }}</p>
                 </div>
@@ -272,7 +280,7 @@ import {
   setTaobaoCookie,
 } from '@/utils/taobao/cookie'
 import { TaobaoImportError, fetchTaobaoDraft, searchTaobaoItems, validateTaobaoCookie, TAOBAO_SEARCH_PAGE_SIZE } from '@/utils/taobao/service'
-import { normalizeCdnUrl } from '@/utils/taobao/detail'
+import { normalizeCdnUrl, splitSkuPath } from '@/utils/taobao/detail'
 
 defineOptions({ name: 'TaobaoHubView' })
 
@@ -378,9 +386,9 @@ const form = reactive({
   characters: [],
   source: '',
   price: '',
-  skuPath: '',
+  // 多级规格选择：pid → vid（属性树缺失时用 FALLBACK_SKU_PID → sku.path）
+  skuSelection: {},
   images: [],
-  includeDetail: false,
   isWishlist: entryIsWishlist,
 })
 
@@ -431,9 +439,8 @@ function resetDraft() {
   form.characters = []
   form.source = ''
   form.price = ''
-  form.skuPath = ''
+  form.skuSelection = {}
   form.images = []
-  form.includeDetail = false
 }
 
 function errorCode(error) {
@@ -468,11 +475,11 @@ function applyDraft(result) {
   form.ip = ''
   form.characters = []
   form.source = result.shopName || ''
-  form.skuPath = ''
-  form.includeDetail = false
+  form.skuSelection = {}
   // 默认只带第一张主图；选中 SKU 后默认只保留该 SKU 图，其余均可手动加选
   const firstImage = normalizeCdnUrl(result.images?.[0] || '')
   form.images = firstImage ? [firstImage] : []
+  autoSelectSkuDefaults()
   cookieStatus.value = 'ok'
   cookieReady.value = true
 }
@@ -578,23 +585,107 @@ const heroDesc = computed(() => (form.isWishlist ? t('import.wishlistDesc') : t(
 
 const priceRangeHint = computed(() => {
   if (!draft.value?.priceRange) return ''
-  return form.skuPath ? '' : t('import.taobaoPriceRange')
+  return selectedSku.value ? '' : t('import.taobaoPriceRange')
 })
 
 const saveButtonText = computed(() =>
   form.isWishlist ? t('import.taobaoImportWishlistBtn') : t('import.taobaoImportBtn')
 )
 
-function selectSku(sku) {
+// ── 多级规格选择（skuBase.props 属性树 × skus.propPath 组合） ──
+
+/** 属性树缺失时的兜底组 pid（vid 直接对应整条 sku.path，沿用旧平铺口径） */
+const FALLBACK_SKU_PID = '_path'
+
+const skuGroups = computed(() => {
+  const props = draft.value?.skuProps
+  if (Array.isArray(props) && props.length > 0) return props
+  const skus = draft.value?.skus || []
+  if (skus.length === 0) return []
+  return [{
+    pid: FALLBACK_SKU_PID,
+    name: '',
+    values: skus.map((sku) => ({ vid: sku.path, name: sku.name, image: sku.image })),
+  }]
+})
+
+/** sku.path 是否覆盖给定的 pid → vid 选择（兜底组按整条 path 比对） */
+function pathHasSelection(path, pid, vid) {
+  if (pid === FALLBACK_SKU_PID) return path === vid
+  return splitSkuPath(path).includes(`${pid}:${vid}`)
+}
+
+/** 当前选中组合恰好命中某个 SKU（各级都有选择且组合存在） */
+const selectedSku = computed(() => {
+  const skus = draft.value?.skus || []
+  const entries = Object.entries(form.skuSelection)
+  if (skus.length === 0 || entries.length === 0) return null
+  return skus.find((sku) => entries.every(([pid, vid]) => pathHasSelection(sku.path, pid, vid))) || null
+})
+
+/** 变体名：组合命中时用 SKU 名；部分选择时用已选值名拼接 */
+const selectedSkuName = computed(() => {
+  if (selectedSku.value) return selectedSku.value.name
+  const names = []
+  for (const group of skuGroups.value) {
+    const vid = form.skuSelection[group.pid]
+    if (!vid) continue
+    const value = group.values.find((entry) => entry.vid === vid)
+    if (value?.name) names.push(value.name)
+  }
+  return names.join(' / ')
+})
+
+/**
+ * 某级的某个值在当前选择下是否可选：
+ * 至少存在一个 SKU 同时含有该值与其它各级已选值（与淘宝详情页口径一致）
+ */
+function isSkuValueAvailable(group, value) {
+  const skus = draft.value?.skus || []
+  if (skus.length === 0) return true
+  return skus.some((sku) => {
+    if (!pathHasSelection(sku.path, group.pid, value.vid)) return false
+    return Object.entries(form.skuSelection).every(
+      ([pid, vid]) => pid === group.pid || pathHasSelection(sku.path, pid, vid),
+    )
+  })
+}
+
+/** 单级商品（该值唯一确定 SKU）在值上直接标价；多级时价格随完整组合回填 */
+function skuValuePrice(group, value) {
+  if (skuGroups.value.length !== 1) return ''
+  const skus = draft.value?.skus || []
+  return skus.find((sku) => pathHasSelection(sku.path, group.pid, value.vid))?.price || ''
+}
+
+function toggleSkuValue(group, value) {
   if (!draft.value) return
-  form.skuPath = sku.path
+  if (form.skuSelection[group.pid] === value.vid) delete form.skuSelection[group.pid]
+  else form.skuSelection[group.pid] = value.vid
+  syncSkuSelection()
+}
+
+/** 只有唯一可选值的规格自动选中（单规格商品无需再点），并回填命中组合的价格/图片 */
+function autoSelectSkuDefaults() {
+  for (const group of skuGroups.value) {
+    if (group.values.length !== 1) continue
+    if (isSkuValueAvailable(group, group.values[0])) {
+      form.skuSelection[group.pid] = group.values[0].vid
+    }
+  }
+  syncSkuSelection()
+}
+
+/** 选中组合命中 SKU 时：回填价格，并默认只保留该 SKU 图（用户可再手动加选其他图） */
+function syncSkuSelection() {
+  const sku = selectedSku.value
+  if (!sku) return
   if (sku.price) form.price = sku.price
-  // 切换 SKU 时默认只保留该 SKU 图（用户可再手动加选其他图）
   const skuImage = normalizeCdnUrl(sku.image || '')
   form.images = skuImage ? [skuImage] : form.images.filter((img) => availableImages.value.includes(img))
 }
 
-// 可选图片池：SKU 图优先，随后主图，勾选「详情图」后追加详情图（去重）
+// 可选图片池：命中 SKU 图优先，随后主图（去重）
 const availableImages = computed(() => {
   if (!draft.value) return []
   const pool = []
@@ -602,22 +693,10 @@ const availableImages = computed(() => {
     const normalized = normalizeCdnUrl(url || '')
     if (normalized && !pool.includes(normalized)) pool.push(normalized)
   }
-  const selected = draft.value.skus.find((sku) => sku.path === form.skuPath)
-  if (selected?.image) push(selected.image)
+  if (selectedSku.value?.image) push(selectedSku.value.image)
   for (const image of draft.value.images) push(image)
-  if (form.includeDetail) {
-    for (const image of draft.value.detailImages) push(image)
-  }
   return pool
 })
-
-function handleIncludeDetailChange() {
-  if (!form.includeDetail || !draft.value) {
-    // 取消勾选详情图时，从已选中剔除详情图；SKU 图与主图不受影响
-    const pool = new Set(availableImages.value)
-    form.images = form.images.filter((img) => pool.has(img))
-  }
-}
 
 async function handleSave() {
   nameError.value = ''
@@ -639,7 +718,7 @@ async function handleSave() {
     return
   }
 
-  const selectedSku = draft.value?.skus.find((sku) => sku.path === form.skuPath)
+  const selectedSkuNameValue = selectedSkuName.value
 
   // 把用户选中的角色/分类/IP 加入预设（与米游铺导入一致）
   for (const charName of form.characters) {
@@ -656,7 +735,7 @@ async function handleSave() {
       category: form.category,
       ip: form.ip,
       goodsId: '',
-      variant: selectedSku?.name || '',
+      variant: selectedSkuNameValue,
       image: form.images[0] || '',
       images: [...form.images],
       price: form.price === '' ? null : Number(form.price),

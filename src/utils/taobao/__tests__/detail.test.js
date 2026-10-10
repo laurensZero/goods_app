@@ -6,6 +6,7 @@ import {
   extractSsrRes,
   buildTaobaoDraft,
   buildTaobaoItemUrl,
+  extractSkuProps,
 } from '../detail'
 
 /** 构造一段结构与线上一致的 SSR HTML */
@@ -171,6 +172,17 @@ describe('buildTaobaoDraft', () => {
     expect(draft.skus).toHaveLength(2)
     expect(draft.skus[0]).toMatchObject({ name: '大版', price: '155', image: 'https://gw.alicdn.com/bao/uploaded/i4/big.png' })
     expect(draft.skus[1]).toMatchObject({ name: '小版', price: '125' })
+
+    expect(draft.skuProps).toEqual([
+      {
+        pid: '-1',
+        name: '商品规格',
+        values: [
+          { vid: '-1', name: '大版', image: 'https://gw.alicdn.com/bao/uploaded/i4/big.png' },
+          { vid: '-2', name: '小版', image: 'https://gw.alicdn.com/bao/uploaded/i4/small.png' },
+        ],
+      },
+    ])
   })
 
   it('单一价格商品不做区间标记', () => {
@@ -195,5 +207,87 @@ describe('buildTaobaoDraft', () => {
   it('标题缺失返回 null', () => {
     expect(buildTaobaoDraft({ item: {} })).toBeNull()
     expect(buildTaobaoDraft(null)).toBeNull()
+  })
+})
+
+describe('extractSkuProps', () => {
+  it('解析属性树并归一化图片域', () => {
+    const res = {
+      skuBase: {
+        props: [
+          {
+            pid: '20509',
+            name: '颜色分类',
+            values: [
+              { vid: '3233321', name: '白色', image: '//img.alicdn.com/imgextra/white.png' },
+              { vid: '3233322', name: '黑色', image: 'http://img.alicdn.com/imgextra/black.png' },
+              { vid: '3233323', name: '', image: '' },
+            ],
+          },
+          { pid: '-2', name: '尺寸', values: [{ vid: '-11', name: 'S 码' }] },
+        ],
+      },
+    }
+    expect(extractSkuProps(res)).toEqual([
+      {
+        pid: '20509',
+        name: '颜色分类',
+        values: [
+          { vid: '3233321', name: '白色', image: 'https://img.alicdn.com/imgextra/white.png' },
+          { vid: '3233322', name: '黑色', image: 'https://img.alicdn.com/imgextra/black.png' },
+          { vid: '3233323', name: '', image: '' },
+        ],
+      },
+      { pid: '-2', name: '尺寸', values: [{ vid: '-11', name: 'S 码', image: '' }] },
+    ])
+  })
+
+  it('无属性树或缺值时返回空数组', () => {
+    expect(extractSkuProps({})).toEqual([])
+    expect(extractSkuProps({ skuBase: { props: [{ pid: '-1', name: '规格', values: [] }] } })).toEqual([])
+    expect(extractSkuProps({ skuBase: { props: [{ name: '规格', values: [{ vid: '1', name: 'x' }] }] } })).toEqual([])
+  })
+})
+
+describe('extractSkus 多规格', () => {
+  /** 多规格（颜色 × 尺寸）res，propPath 用真实口径的 `;` 分隔 */
+  const multiPropRes = {
+    item: { itemId: '1', title: '多规格测试商品' },
+    componentsVO: { headImageVO: { images: [] }, priceVO: { price: { priceText: '39', priceDesc: '起' } } },
+    skuBase: {
+      skus: [
+        { skuId: 's1', propPath: '20509:3233321;0:-11' },
+        { skuId: 's2', propPath: '20509:3233322;0:-11' },
+        { skuId: 's3', propPath: '20509:3233321;0:-12' },
+      ],
+      props: [
+        { pid: '20509', name: '颜色分类', values: [
+          { vid: '3233321', name: '白色' },
+          { vid: '3233322', name: '黑色' },
+        ] },
+        { pid: '0', name: '尺码', values: [
+          { vid: '-11', name: 'S 码' },
+          { vid: '-12', name: 'M 码' },
+        ] },
+      ],
+    },
+    skuCore: {
+      sku2info: {
+        s1: { price: { priceText: '39' }, quantity: 10 },
+        s2: { price: { priceText: '41' }, quantity: 10 },
+        s3: { price: { priceText: '45' }, quantity: 0 },
+      },
+    },
+  }
+
+  it('propPath 用 `;` 分隔时同样解析出组合名', () => {
+    const draft = buildTaobaoDraft(multiPropRes)
+    expect(draft.skus.map((sku) => sku.name)).toEqual([
+      '白色 / S 码',
+      '黑色 / S 码',
+      '白色 / M 码',
+    ])
+    expect(draft.skuProps.map((prop) => prop.name)).toEqual(['颜色分类', '尺码'])
+    expect(draft.skuProps[0].values.map((value) => value.name)).toEqual(['白色', '黑色'])
   })
 })
