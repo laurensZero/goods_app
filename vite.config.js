@@ -9,6 +9,7 @@ import { Agent } from 'node:https'
 import { fileURLToPath, URL } from 'node:url'
 import { mcpDevServerPlugin } from './scripts/vite-plugin-mcp.mjs'
 import { aiProxyPlugin } from './scripts/vite-plugin-ai-proxy.mjs'
+import { taobaoPagePlugin } from './scripts/vite-plugin-taobao-page.mjs'
 import { ntpBridgePlugin } from './scripts/vite-plugin-ntp-bridge.mjs'
 import {
   isAllowedBilibiliMediaHost,
@@ -71,6 +72,9 @@ export default defineConfig({
     mcpDevServerPlugin(process.env.GOODS_MCP_TOKEN, process.env.GOODS_MCP_ALLOW_WRITES === '1'),
     // AI 聊天开发代理：浏览器经 /ai-proxy 转发到用户配置的 OpenAI 兼容端点，绕开 CORS
     aiProxyPlugin(),
+    // 淘宝 PC 详情页 dev 代理：服务端跟随 item.taobao.com→detail.tmall.com 的 302
+    // （http-proxy 透传跳转会触发浏览器跨域预检失败），并补齐 UA/Referer/Cookie
+    taobaoPagePlugin(),
     // Dev 本地 SNTP 桥：浏览器请求 /dev-ntp 时才去打阿里云 UDP NTP（按需，不常驻探测）
     ntpBridgePlugin(),
     VueI18nPlugin({

@@ -798,3 +798,14 @@
     color: #141416;
     box-shadow: none;
   }
+
+/* 内嵌在淘宝导入聚合页时：不自建页面壳与滚动容器，交给宿主 page-body */
+.taobao-import-page--embedded {
+  display: contents;
+}
+
+.taobao-import-page--embedded .page-body {
+  flex: none;
+  overflow: visible;
+  padding-bottom: 0;
+}

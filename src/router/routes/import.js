@@ -46,10 +46,17 @@ export default [
     }
   },
   {
+    // 淘宝导入聚合页：链接导入 / 订单导入 / 搜索（占位）
     path: '/taobao-import',
     name: 'taobao-import',
-    component: () => import('@/views/import/TaobaoImportView.vue'),
+    component: () => import('@/views/import/TaobaoHubView.vue'),
     meta: { titleKey: 'nav.taobaoImport' }
+  },
+  {
+    path: '/taobao-import/order',
+    name: 'taobao-order-import',
+    component: () => import('@/views/import/TaobaoImportView.vue'),
+    meta: { titleKey: 'nav.taobaoOrderImport' }
   },
   {
     path: '/share/:shareId?',

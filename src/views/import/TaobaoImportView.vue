@@ -1,6 +1,6 @@
 <template>
-  <div class="page taobao-import-page">
-    <NavBar :title="t('import.taobao')" show-back />
+  <div class="page taobao-import-page" :class="{ 'taobao-import-page--embedded': embedded }">
+    <NavBar v-if="!embedded" :title="t('import.taobao')" show-back />
 
     <main class="page-body">
       <Transition name="step-fade" mode="out-in">
@@ -270,6 +270,11 @@ import MihoyoImagePicker from '@/components/image/MihoyoImagePicker.vue'
 import { validatePrice } from '@/utils/validate'
 
 defineOptions({ name: 'TaobaoImportView' })
+
+// 内嵌在淘宝导入聚合页里时隐藏自身 NavBar，布局随宿主流动
+defineProps({
+  embedded: { type: Boolean, default: false },
+})
 
 const { t } = useI18n()
 const store = useGoodsStore()

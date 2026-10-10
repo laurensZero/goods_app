@@ -1,0 +1,162 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+vi.mock('../request', () => {
+  class TaobaoRequestError extends Error {
+    constructor(code, message) {
+      super(message || code)
+      this.name = 'TaobaoRequestError'
+      this.code = code
+    }
+  }
+  return { taobaoPageGet: vi.fn(), TaobaoRequestError }
+})
+vi.mock('../cookie', () => ({
+  getTaobaoCookie: vi.fn(),
+  setTaobaoCookie: vi.fn(async (cookie) => cookie),
+}))
+
+import { taobaoPageGet } from '../request'
+import { setTaobaoCookie } from '../cookie'
+import { buildMtopUrl, mergeMtopTokenCookie, mtopCall, tokenFromCookie, unwrapMtopJsonp } from '../mtop'
+import { md5 } from '@/utils/md5'
+
+const BASE_COOKIE = 'cookie2=xyz; unb=1; _m_h5_tk=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_1700000000; _m_h5_tk_enc=encval'
+
+function jsonResponse(ret, data = {}) {
+  return {
+    status: 200,
+    body: `mtopjsonp1(${JSON.stringify({ ret: [ret], data })})`,
+    headers: {},
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('tokenFromCookie', () => {
+  it('取最后一个 _m_h5_tk（重复出现时最新的在后）', () => {
+    expect(tokenFromCookie('_m_h5_tk=old_1; a=1; _m_h5_tk=new_2')).toBe('new_2')
+    expect(tokenFromCookie(BASE_COOKIE)).toBe('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_1700000000')
+  })
+
+  it('缺失时返回空串', () => {
+    expect(tokenFromCookie('cookie2=xyz')).toBe('')
+    expect(tokenFromCookie('')).toBe('')
+  })
+})
+
+describe('buildMtopUrl', () => {
+  it('拼出 /h5/{api}/{v}/ 路径与完整参数，data 可原样解码', () => {
+    const payload = '{"appId":"34385","params":"{\\"q\\":\\"测试\\"}"}'
+    const url = buildMtopUrl('mtop.demo.api', '1.0', payload, '1700000000000', 'deadbeef')
+    const parsed = new URL(url)
+    expect(parsed.origin).toBe('https://h5api.m.taobao.com')
+    expect(parsed.pathname).toBe('/h5/mtop.demo.api/1.0/')
+    expect(parsed.searchParams.get('appKey')).toBe('12574478')
+    expect(parsed.searchParams.get('t')).toBe('1700000000000')
+    expect(parsed.searchParams.get('sign')).toBe('deadbeef')
+    expect(parsed.searchParams.get('api')).toBe('mtop.demo.api')
+    expect(parsed.searchParams.get('v')).toBe('1.0')
+    expect(parsed.searchParams.get('type')).toBe('jsonp')
+    expect(parsed.searchParams.get('callback')).toBe('mtopjsonp1')
+    expect(parsed.searchParams.get('data')).toBe(payload)
+  })
+
+  it('无 sign（领 token）时省略 sign 参数', () => {
+    const url = buildMtopUrl('mtop.demo.api', '1.0', '{}', '1', '')
+    expect(new URL(url).searchParams.has('sign')).toBe(false)
+  })
+})
+
+describe('unwrapMtopJsonp', () => {
+  it('剥掉 JSONP 包装', () => {
+    expect(unwrapMtopJsonp('mtopjsonp1({"ret":["SUCCESS"]});')).toEqual({ ret: ['SUCCESS'] })
+    expect(unwrapMtopJsonp('mtopjsonp1({"a":1})')).toEqual({ a: 1 })
+  })
+
+  it('裸 JSON 也可解析；非法输入抛错', () => {
+    expect(unwrapMtopJsonp('{"ret":["SUCCESS"]}')).toEqual({ ret: ['SUCCESS'] })
+    expect(() => unwrapMtopJsonp('<html>bad</html>')).toThrow()
+  })
+})
+
+describe('mergeMtopTokenCookie', () => {
+  it('替换旧 _m_h5_tk/_m_h5_tk_enc，保留其余键', () => {
+    const merged = mergeMtopTokenCookie(
+      'a=1; _m_h5_tk=old_1; b=2; _m_h5_tk_enc=oldenc',
+      '_m_h5_tk=new_2; Path=/; _m_h5_tk_enc=newenc; Domain=.taobao.com',
+    )
+    expect(merged).toBe('a=1; b=2; _m_h5_tk=new_2; _m_h5_tk_enc=newenc')
+  })
+
+  it('多条 set-cookie 拼接（含 Expires 逗号）也能提取', () => {
+    const merged = mergeMtopTokenCookie(
+      'a=1; _m_h5_tk=old_1',
+      '_m_h5_tk=new_9; Path=/; Expires=Wed, 21 Oct 2026 07:28:00 GMT, other=1; _m_h5_tk_enc=e9',
+    )
+    expect(merged).toBe('a=1; _m_h5_tk=new_9; _m_h5_tk_enc=e9')
+  })
+
+  it('没拿到新 token 时返回空串', () => {
+    expect(mergeMtopTokenCookie('a=1', 'other=x; Path=/')).toBe('')
+  })
+})
+
+describe('mtopCall', () => {
+  it('带签名请求成功返回，并核对 sign = md5(token&t&appKey&payload)', async () => {
+    const data = { appId: '34385', params: '{"q":"测试"}' }
+    taobaoPageGet.mockResolvedValue(jsonResponse('SUCCESS', { itemsArray: [] }))
+
+    const body = await mtopCall({ api: 'mtop.demo.api', v: '1.0', data, referer: 'https://s.taobao.com/', cookie: BASE_COOKIE })
+
+    expect(body.ret).toEqual(['SUCCESS'])
+    expect(taobaoPageGet).toHaveBeenCalledTimes(1)
+    const [url, options] = taobaoPageGet.mock.calls[0]
+    expect(options.cookie).toBe(BASE_COOKIE)
+    expect(options.referer).toBe('https://s.taobao.com/')
+    const parsed = new URL(url)
+    const payload = JSON.stringify(data)
+    const expected = md5('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa&' + parsed.searchParams.get('t') + '&12574478&' + payload)
+    expect(parsed.searchParams.get('sign')).toBe(expected)
+    expect(parsed.searchParams.get('data')).toBe(payload)
+  })
+
+  it('FAIL_SYS_TOKEN* → 免签换 token 合并 Cookie 后重签重试', async () => {
+    const data = { appId: '34385', params: '{"q":"x"}' }
+    taobaoPageGet
+      .mockResolvedValueOnce(jsonResponse('FAIL_SYS_TOKEN_EXPIRED'))
+      .mockResolvedValueOnce({
+        status: 200,
+        body: 'mtopjsonp1({"ret":["FAIL_SYS_TOKEN_EXPIRED"]})',
+        headers: { 'x-upstream-set-cookie': '_m_h5_tk=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_777; _m_h5_tk_enc=enc777; Path=/' },
+      })
+      .mockResolvedValueOnce(jsonResponse('SUCCESS', { itemsArray: [] }))
+
+    const body = await mtopCall({ api: 'mtop.demo.api', v: '1.0', data, cookie: BASE_COOKIE })
+
+    expect(body.ret).toEqual(['SUCCESS'])
+    expect(taobaoPageGet).toHaveBeenCalledTimes(3)
+    // 第 2 次为免签领 token，第 3 次用新 token 重签
+    const secondUrl = new URL(taobaoPageGet.mock.calls[1][0])
+    expect(secondUrl.searchParams.has('sign')).toBe(false)
+    const thirdUrl = new URL(taobaoPageGet.mock.calls[2][0])
+    expect(taobaoPageGet.mock.calls[2][1].cookie).toBe('cookie2=xyz; unb=1; _m_h5_tk=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_777; _m_h5_tk_enc=enc777')
+    expect(thirdUrl.searchParams.get('sign')).toBe(
+      md5('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb&' + thirdUrl.searchParams.get('t') + '&12574478&' + JSON.stringify(data)),
+    )
+    expect(setTaobaoCookie).toHaveBeenCalledWith(
+      'cookie2=xyz; unb=1; _m_h5_tk=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb_777; _m_h5_tk_enc=enc777',
+    )
+  })
+
+  it('_____tmd_____ 风控挑战 → BLOCKED', async () => {
+    taobaoPageGet.mockResolvedValue({ status: 200, body: '<html>_____tmd_____challenge</html>', headers: {} })
+    await expect(mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE })).rejects.toMatchObject({ name: 'TaobaoRequestError', code: 'BLOCKED' })
+  })
+
+  it('非 token 业务失败 → FAIL 并携带 ret', async () => {
+    taobaoPageGet.mockResolvedValue(jsonResponse('FAIL_SYS_ILLEGAL_ACCESS:禁止访问'))
+    await expect(mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE })).rejects.toMatchObject({ code: 'FAIL', message: 'FAIL_SYS_ILLEGAL_ACCESS:禁止访问' })
+  })
+})

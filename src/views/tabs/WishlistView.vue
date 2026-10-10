@@ -138,11 +138,11 @@
 
     <AddMethodSheet
       v-model="showAddSheet"
-      :show-taobao-import="false"
       default-import-target="wishlist"
       @manual="goToManualAdd"
       @batch-add="handleBatchAdd"
       @import="goToImport"
+      @taobao-import="handleTaobaoImport"
     />
 
     <BatchDraftResumeSheet
@@ -1153,19 +1153,24 @@ function goToAdd() {
 
 let shouldScrollToTopOnActivated = false
 
-async function navigateFromAddSheet(path, reason) {
+function navigateFromAddSheet(path, reason) {
   saveScrollPosition(true, reason)
+  wishlistDisplayReady.value = false
   showAddSheet.value = false
-  try {
-    await router.push(path)
-  }
-  catch {
-    wishlistDisplayReady.value = true
-  }
+  runWithRouteTransition(
+    () => router.push(path).catch(() => {
+      wishlistDisplayReady.value = true
+    }),
+    { direction: 'forward', fallbackTransitionKind: 'detail-fade' }
+  )
 }
 
 function goToManualAdd() {
   navigateFromAddSheet('/add?mode=wishlist', 'wishlist:goToManualAdd')
+}
+
+function handleTaobaoImport() {
+  navigateFromAddSheet('/taobao-import?target=wishlist', 'wishlist:handleTaobaoImport')
 }
 
 async function handleBatchAdd() {
