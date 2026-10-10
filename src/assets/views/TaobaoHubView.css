@@ -178,14 +178,6 @@
   color: var(--app-text-tertiary);
 }
 
-.detail-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--app-text-secondary);
-}
-
 /* ── 按钮 ─────────────────────────────────────────────── */
 .hub-actions {
   display: flex;

@@ -98,6 +98,18 @@ describe('normalizeCdnUrl', () => {
     expect(normalizeCdnUrl('')).toBe('')
     expect(normalizeCdnUrl('data:image/png;base64,xxx')).toBe('')
   })
+
+  it('搜索 CDN 域证书不匹配时换到 g-search1.alicdn.com', () => {
+    expect(normalizeCdnUrl('//g.search.alicdn.com/img/a.jpg')).toBe('https://g-search1.alicdn.com/img/a.jpg')
+    expect(normalizeCdnUrl('http://g.search.alicdn.com/img/a.jpg')).toBe('https://g-search1.alicdn.com/img/a.jpg')
+    expect(normalizeCdnUrl('g.search.alicdn.com/img/a.jpg')).toBe('https://g-search1.alicdn.com/img/a.jpg')
+    expect(normalizeCdnUrl('https://g.search.alicdn.com/img/a.jpg?x-oss-process=image/resize,w_200')).toBe(
+      'https://g-search1.alicdn.com/img/a.jpg?x-oss-process=image/resize,w_200',
+    )
+    // 路径里出现该域名、或其他 alicdn 子域时不改写
+    expect(normalizeCdnUrl('//img.alicdn.com/g.search.alicdn.com/a.png')).toBe('https://img.alicdn.com/g.search.alicdn.com/a.png')
+    expect(normalizeCdnUrl('//gw.alicdn.com/x.jpg')).toBe('https://gw.alicdn.com/x.jpg')
+  })
 })
 
 describe('extractSsrRes', () => {

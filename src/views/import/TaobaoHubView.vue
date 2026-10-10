@@ -165,10 +165,6 @@
                       {{ t('import.selectImages') }}
                       <span v-if="form.images.length > 1" class="img-picker-count">{{ form.images.length }}</span>
                     </span>
-                    <label class="detail-toggle">
-                      <input v-model="form.includeDetail" type="checkbox" @change="handleIncludeDetailChange" />
-                      <span>{{ t('import.taobaoIncludeDetailImages') }}</span>
-                    </label>
                   </div>
                   <div class="img-picker-scroll">
                     <button

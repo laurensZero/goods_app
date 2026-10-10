@@ -116,14 +116,26 @@ export function extractSsrRes(html) {
   return null
 }
 
+/**
+ * 搜索结果图片域 `*.search.alicdn.com` 的服务端证书只覆盖 `*.alicdn.com`（SAN 无二级搜索域），
+ * 浏览器直连会报 ERR_CERT_COMMON_NAME_INVALID 图片裂开；同一路径在 g-search1.alicdn.com 上可正常取到。
+ */
+const SEARCH_CDN_HOST = 'g-search1.alicdn.com'
+
+/** 换掉证书不被信任的搜索 CDN 域（只替换 host，路径与查询串原样保留） */
+function rewriteSearchCdnHost(url) {
+  if (!/^https?:\/\/[^/?#]*\.search\.alicdn\.com(?=[/:?#]|$)/i.test(url)) return url
+  return url.replace(/^(https?:\/\/)[^/?#]+/i, `$1${SEARCH_CDN_HOST}`)
+}
+
 /** 统一图片地址：协议相对/裸路径补全为 https，去掉明显的缩略参数 */
 export function normalizeCdnUrl(raw) {
   const value = String(raw || '').trim()
   if (!value) return ''
-  if (value.startsWith('//')) return `https:${value}`
-  if (/^http:\/\//i.test(value)) return `https://${value.slice(7)}`
-  if (/^https:\/\//i.test(value)) return value
-  if (value.includes('/') && !value.startsWith('data:')) return `https://${value}`
+  if (value.startsWith('//')) return rewriteSearchCdnHost(`https:${value}`)
+  if (/^http:\/\//i.test(value)) return rewriteSearchCdnHost(`https://${value.slice(7)}`)
+  if (/^https:\/\//i.test(value)) return rewriteSearchCdnHost(value)
+  if (value.includes('/') && !value.startsWith('data:')) return rewriteSearchCdnHost(`https://${value}`)
   return ''
 }
 
