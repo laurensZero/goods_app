@@ -65,11 +65,13 @@ describe('searchTaobaoItems', () => {
   it('搜索 CDN 裂图域 g.search.alicdn.com 改写为 g-search1.alicdn.com', async () => {
     mtopCall.mockResolvedValue(mtopItems([
       { item_id: 789, title: '谷子', pic_path: '//g.search.alicdn.com/img/O1CN01-0-item_pic.jpg' },
+      { item_id: 790, title: '徽章', pic_path: '//g.search3.alicdn.com/img/i3/O1CN01-1-item_pic.jpg' },
     ]))
 
     const { items } = await searchTaobaoItems('谷子')
 
     expect(items[0].pic).toBe('https://g-search1.alicdn.com/img/O1CN01-0-item_pic.jpg')
+    expect(items[1].pic).toBe('https://g-search1.alicdn.com/img/i3/O1CN01-1-item_pic.jpg')
   })
 
   it('透传关键词与分页到 mtop 外层 params（appId 34385）', async () => {

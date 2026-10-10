@@ -110,6 +110,17 @@ describe('normalizeCdnUrl', () => {
     expect(normalizeCdnUrl('//img.alicdn.com/g.search.alicdn.com/a.png')).toBe('https://img.alicdn.com/g.search.alicdn.com/a.png')
     expect(normalizeCdnUrl('//gw.alicdn.com/x.jpg')).toBe('https://gw.alicdn.com/x.jpg')
   })
+
+  it('search3 等多级搜索 CDN 域同样改写（证书 SAN 不覆盖）', () => {
+    expect(normalizeCdnUrl('//g.search3.alicdn.com/img/i3/a.jpg')).toBe('https://g-search1.alicdn.com/img/i3/a.jpg')
+    expect(normalizeCdnUrl('https://g.search3.alicdn.com/img/i3/a.jpg?x-oss-process=image/resize,w_200')).toBe(
+      'https://g-search1.alicdn.com/img/i3/a.jpg?x-oss-process=image/resize,w_200',
+    )
+    expect(normalizeCdnUrl('https://search5.alicdn.com/b.jpg')).toBe('https://g-search1.alicdn.com/b.jpg')
+    // 已改写域与普通域不受影响
+    expect(normalizeCdnUrl('https://g-search1.alicdn.com/a.jpg')).toBe('https://g-search1.alicdn.com/a.jpg')
+    expect(normalizeCdnUrl('https://img.alicdn.com/img/i3/a.jpg')).toBe('https://img.alicdn.com/img/i3/a.jpg')
+  })
 })
 
 describe('extractSsrRes', () => {

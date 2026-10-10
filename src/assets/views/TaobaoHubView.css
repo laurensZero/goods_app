@@ -158,13 +158,6 @@
   padding-inline: 16px;
 }
 
-.field-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
 .field-error {
   margin: 0;
   font-size: 12px;
@@ -229,8 +222,9 @@
 }
 
 /* ── 解析结果 ─────────────────────────────────────────── */
-/* 分区表单（预览卡 manage-hero / form-section / field-card / img-picker）
-   复用 ImportView.css；这里只补枢纽页需要的间距。 */
+/* 分区表单（预览卡 ImportHeroPreview / 分区 ImportFormSection /
+   图片多选 ImportImagePicker）已抽为组件；field-card 等间距仍由
+   ImportView.css 提供。 */
 .result-area {
   display: flex;
   flex-direction: column;
@@ -266,13 +260,15 @@
   font-size: 12px;
 }
 
-/* 图片多选器 .img-picker-* 由 ImportView.css 提供（同款），不再重复定义 */
+/* 图片多选器 .img-picker-* 由 ImportImagePicker 组件自带（米游铺同款），不再重复定义 */
 
 /* ── 搜索 ─────────────────────────────────────────────── */
-/* .search-section / .search-card / .search-row / .search-result-card 等
-   由 ImportView.css（米游铺导入页同款）提供；这里只补枢纽页的结果卡扩展。 */
-.search-btn {
-  background: var(--app-primary, #ff5000);
+/* 搜索卡外壳（.search-section/.search-card/.search-row 等）由
+   ImportSearchCard 组件自带；结果卡扩展仍在下方（ImportView.css 提供
+   结果列表基础样式）。搜索按钮走 --import-search-btn 变量，这里把
+   淘宝枢纽的主题色注入进去。 */
+.taobao-hub-page {
+  --import-search-btn: var(--app-primary, #ff5000);
 }
 
 .search-result-card:disabled {

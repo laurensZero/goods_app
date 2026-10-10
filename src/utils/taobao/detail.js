@@ -117,14 +117,15 @@ export function extractSsrRes(html) {
 }
 
 /**
- * 搜索结果图片域 `*.search.alicdn.com` 的服务端证书只覆盖 `*.alicdn.com`（SAN 无二级搜索域），
- * 浏览器直连会报 ERR_CERT_COMMON_NAME_INVALID 图片裂开；同一路径在 g-search1.alicdn.com 上可正常取到。
+ * 搜索结果图片域 `*.search.alicdn.com` / `*.search3.alicdn.com` 的服务端证书只覆盖
+ * `*.alicdn.com`（SAN 不含多级搜索域），浏览器直连会报 ERR_CERT_COMMON_NAME_INVALID
+ * 图片裂开；同一路径在 g-search1.alicdn.com 上可正常取到。
  */
 const SEARCH_CDN_HOST = 'g-search1.alicdn.com'
 
 /** 换掉证书不被信任的搜索 CDN 域（只替换 host，路径与查询串原样保留） */
 function rewriteSearchCdnHost(url) {
-  if (!/^https?:\/\/[^/?#]*\.search\.alicdn\.com(?=[/:?#]|$)/i.test(url)) return url
+  if (!/^https?:\/\/(?:[^/?#]*\.)?search\d*\.alicdn\.com(?=[/:?#]|$)/i.test(url)) return url
   return url.replace(/^(https?:\/\/)[^/?#]+/i, `$1${SEARCH_CDN_HOST}`)
 }
 

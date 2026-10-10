@@ -1,7 +1,5 @@
 <template>
-  <div class="page taobao-hub-page">
-    <NavBar :title="t('nav.taobaoImport')" show-back />
-
+  <ImportPage class="taobao-hub-page" :title="t('nav.taobaoImport')">
     <main class="page-body taobao-hub-body">
       <div class="hub-tabs" role="tablist" :aria-label="t('nav.taobaoImport')">
         <button
@@ -84,32 +82,16 @@
         <transition name="result-fade">
           <div v-if="draft" class="result-area">
             <!-- 预览卡 -->
-            <section class="manage-hero">
-              <div class="preview-stage">
-                <div class="preview-glow" />
-                <div
-                  class="preview-media"
-                  :class="{ 'preview-media--empty': !coverImage }"
-                  :data-cover-tone="previewCoverTone"
-                >
-                  <img v-if="coverImage" :src="coverImage" :alt="form.name" class="preview-image" />
-                  <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || t('goods.heroFallbackGoods') }}</span>
-                </div>
-              </div>
-
-              <article class="hero-card">
-                <p class="hero-label">{{ heroLabel }}</p>
-                <h1 class="hero-title">{{ form.name || t('import.goodsName') }}</h1>
-                <p class="hero-desc">{{ heroDesc }}</p>
-              </article>
-            </section>
+            <ImportHeroPreview
+              :image="coverImage"
+              :name="form.name"
+              :label="heroLabel"
+              :desc="heroDesc"
+              :cover-tone="previewCoverTone"
+            />
 
             <!-- 基础信息 -->
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">{{ t('import.recognizedInfo') }}</p>
-                <h2 class="section-title">{{ t('import.goodsInfo') }}</h2>
-              </div>
+            <ImportFormSection :label="t('import.recognizedInfo')" :title="t('import.goodsInfo')">
               <div class="field-card">
                 <label class="field">
                   <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
@@ -159,37 +141,16 @@
                 />
 
                 <!-- 图片多选器 -->
-                <div class="field">
-                  <div class="field-row">
-                    <span class="field-label">
-                      {{ t('import.selectImages') }}
-                      <span v-if="form.images.length > 1" class="img-picker-count">{{ form.images.length }}</span>
-                    </span>
-                  </div>
-                  <div class="img-picker-scroll">
-                    <button
-                      v-for="(img, idx) in availableImages"
-                      :key="img"
-                      type="button"
-                      class="img-picker-item"
-                      :class="{ 'img-picker-item--active': form.images.includes(img) }"
-                      @click="toggleImage(img)"
-                    >
-                      <img :src="img" :alt="t('import.imageAlt', { index: idx + 1 })" loading="lazy" />
-                      <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                      <div v-if="form.images.includes(img)" class="img-picker-check">✓</div>
-                    </button>
-                  </div>
-                </div>
+                <ImportImagePicker
+                  :model-value="form.images"
+                  :images="availableImages"
+                  @update:model-value="(v) => { form.images = v }"
+                />
               </div>
-            </section>
+            </ImportFormSection>
 
             <!-- 购入信息 -->
-            <section class="form-section">
-              <div class="section-head">
-                <p class="section-label">{{ t('import.purchaseRecord') }}</p>
-                <h2 class="section-title">{{ t('import.priceAndSource') }}</h2>
-              </div>
+            <ImportFormSection :label="t('import.purchaseRecord')" :title="t('import.priceAndSource')">
               <div class="field-card">
                 <label class="field">
                   <span class="field-label">{{ form.isWishlist ? t('import.targetPrice') : t('import.price') }}</span>
@@ -201,7 +162,7 @@
                   <input v-model="form.source" type="text" :placeholder="draft.shopName || t('import.fromTaobao')" />
                 </label>
               </div>
-            </section>
+            </ImportFormSection>
 
             <!-- 保存 -->
             <div class="field-card">
@@ -226,32 +187,16 @@
 
       <!-- ============ 搜索 ============ -->
       <section v-show="activeTab === 'search'" class="hub-panel" role="tabpanel">
-        <div class="search-section">
-          <div class="search-card">
-            <div class="search-head">
-              <p class="search-label">{{ t('nav.taobaoImport') }}</p>
-              <h2 class="search-title">{{ t('import.taobaoSearchTitle') }}</h2>
-            </div>
-
-            <div class="search-row">
-              <input
-                v-model="searchKeyword"
-                type="text"
-                class="search-input"
-                :placeholder="t('import.taobaoSearchPlaceholder')"
-                autocapitalize="off"
-                autocorrect="off"
-                spellcheck="false"
-                @keydown.enter.prevent="handleSearch"
-              />
-              <button class="search-btn" type="button" :disabled="searching" @click="handleSearch">
-                {{ searching ? t('import.searching') : t('common.search') }}
-              </button>
-            </div>
-
-            <p v-if="searchError" class="search-error">{{ searchError }}</p>
-
-            <div v-if="searchResults.length > 0" class="search-results">
+        <ImportSearchCard
+          v-model="searchKeyword"
+          :label="t('nav.taobaoImport')"
+          :title="t('import.taobaoSearchTitle')"
+          :placeholder="t('import.taobaoSearchPlaceholder')"
+          :searching="searching"
+          :error="searchError"
+          @search="handleSearch"
+        >
+          <div v-if="searchResults.length > 0" class="search-results">
               <button
                 v-for="item in searchResults"
                 :key="item.itemId"
@@ -293,18 +238,21 @@
                 </button>
               </template>
             </div>
-          </div>
-        </div>
+        </ImportSearchCard>
       </section>
     </main>
-  </div>
+  </ImportPage>
 </template>
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import NavBar from '@/components/common/NavBar.vue'
+import ImportPage from '@/components/import/ImportPage.vue'
+import ImportSearchCard from '@/components/import/ImportSearchCard.vue'
+import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
+import ImportFormSection from '@/components/import/ImportFormSection.vue'
+import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TaobaoImportView from '@/views/import/TaobaoImportView.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
@@ -662,17 +610,6 @@ const availableImages = computed(() => {
   }
   return pool
 })
-
-function toggleImage(img) {
-  const images = [...form.images]
-  const idx = images.indexOf(img)
-  if (idx >= 0) {
-    images.splice(idx, 1)
-  } else {
-    images.push(img)
-  }
-  form.images = images
-}
 
 function handleIncludeDetailChange() {
   if (!form.includeDetail || !draft.value) {

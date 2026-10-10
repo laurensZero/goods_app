@@ -1,31 +1,16 @@
 <template>
-  <div class="page import-page">
-    <NavBar :title="pageTitle" show-back @back="handleBack" />
-
+  <ImportPage class="import-page" :title="pageTitle">
     <main class="page-body">
-      <section class="search-section">
-        <div class="search-card">
-          <div class="search-head">
-            <p class="search-label">{{ quickSearchLabel }}</p>
-            <h2 class="search-title">{{ quickSearchTitle }}</h2>
-          </div>
-
-          <div class="search-row">
-            <input
-              v-model="searchKeyword"
-              type="text"
-              class="search-input"
-              :placeholder="quickSearchPlaceholder"
-              @keydown.enter.prevent="handleGoodsSearch"
-            />
-            <button class="search-btn" type="button" :disabled="searching" @click="handleGoodsSearch">
-              {{ searching ? t('import.searching') : t('common.search') }}
-            </button>
-          </div>
-
-          <p v-if="searchError" class="search-error">{{ searchError }}</p>
-
-          <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
+      <ImportSearchCard
+        v-model="searchKeyword"
+        :label="quickSearchLabel"
+        :title="quickSearchTitle"
+        :placeholder="quickSearchPlaceholder"
+        :searching="searching"
+        :error="searchError"
+        @search="handleGoodsSearch"
+      >
+        <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
             <span class="search-results-toolbar__hint">{{ t('import.searchAddHint') }}</span>
             <span v-if="queue.length > 0" class="search-results-toolbar__actions">
               <span class="search-results-toolbar__count">{{ t('import.queueSelectedCount', { count: queue.length }) }}</span>
@@ -86,8 +71,7 @@
               </button>
             </template>
           </div>
-        </div>
-      </section>
+      </ImportSearchCard>
 
       <!-- ① URL 输入区 -->
       <section class="url-section">
@@ -285,26 +269,13 @@
                       <input v-model.number="entry.info.price" type="number" placeholder="0.00" min="0" step="1" />
                     </label>
                     <!-- 图片选择（支持多选） -->
-                    <div v-if="entry.parsedImages.length > 1" class="field">
-                      <span class="field-label">
-                        {{ t('import.selectImages') }}
-                        <span v-if="entry.info.images.length > 1" class="img-picker-count">{{ entry.info.images.length }}</span>
-                      </span>
-                      <div class="img-picker-scroll">
-                        <button
-                          v-for="(imgUrl, idx) in entry.parsedImages"
-                          :key="idx"
-                          type="button"
-                          class="img-picker-item"
-                          :class="{ 'img-picker-item--active': entry.info.images.includes(imgUrl) }"
-                          @click="toggleQueueImage(entry, imgUrl)"
-                        >
-                          <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
-                          <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                          <div v-if="entry.info.images.includes(imgUrl)" class="img-picker-check">✓</div>
-                        </button>
-                      </div>
-                    </div>
+                    <ImportImagePicker
+                      v-if="entry.parsedImages.length > 1"
+                      :model-value="entry.info.images"
+                      :images="entry.parsedImages"
+                      thumb-query="?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp"
+                      @update:model-value="(v) => setQueueImages(entry, v)"
+                    />
                     <label class="field">
                       <span class="field-label">{{ t('import.imageUrl') }}</span>
                       <input v-model="entry.info.image" type="text" inputmode="url"
@@ -416,32 +387,16 @@
       <transition name="result-fade">
         <div v-if="parsed && !batchMode" class="result-area">
           <!-- 预览卡 -->
-          <section class="manage-hero">
-            <div class="preview-stage">
-              <div class="preview-glow" />
-              <div
-                class="preview-media"
-                :class="{ 'preview-media--empty': !form.image }"
-                :data-cover-tone="previewCoverTone"
-              >
-                <img v-if="form.image" :src="form.image" :alt="form.name" class="preview-image" />
-                <span v-else class="preview-fallback">{{ form.name?.trim().charAt(0).toUpperCase() || t('goods.heroFallbackGoods') }}</span>
-              </div>
-            </div>
-
-            <article class="hero-card">
-              <p class="hero-label">{{ isWishlistMode ? t('import.fromMihoyoWishlist') : t('import.fromMihoyo') }}</p>
-              <h1 class="hero-title">{{ form.name || t('import.goodsName') }}</h1>
-              <p class="hero-desc">{{ isWishlistMode ? t('import.wishlistDesc') : t('import.collectionDesc') }}</p>
-            </article>
-          </section>
+          <ImportHeroPreview
+            :image="form.image"
+            :name="form.name"
+            :label="isWishlistMode ? t('import.fromMihoyoWishlist') : t('import.fromMihoyo')"
+            :desc="isWishlistMode ? t('import.wishlistDesc') : t('import.collectionDesc')"
+            :cover-tone="previewCoverTone"
+          />
 
           <!-- 基础信息 -->
-          <section class="form-section">
-            <div class="section-head">
-              <p class="section-label">{{ t('import.recognizedInfo') }}</p>
-              <h2 class="section-title">{{ t('import.goodsInfo') }}</h2>
-            </div>
+          <ImportFormSection :label="t('import.recognizedInfo')" :title="t('import.goodsInfo')">
             <div class="field-card">
               <label class="field">
                 <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
@@ -523,32 +478,21 @@
                   placeholder="https://..." />
               </label>
               <!-- 图片选择器：横向滚动所有可用图（支持多选） -->
-              <div v-if="parsedImages.length > 1" class="field">
-                <span class="field-label">{{ t('import.selectImages') }} <span v-if="form.images.length > 1" class="img-picker-count">{{ form.images.length }}</span></span>
-                <div class="img-picker-scroll">
-                  <button
-                    v-for="(imgUrl, idx) in parsedImages"
-                    :key="idx"
-                    type="button"
-                    class="img-picker-item"
-                    :class="{ 'img-picker-item--active': form.images.includes(imgUrl) }"
-                    @click="toggleFormImage(imgUrl)"
-                  >
-                    <img :src="imgUrl + '?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp'" :alt="t('import.imageAlt', { index: idx + 1 })" />
-                    <span v-if="idx === 0" class="img-picker-badge">{{ t('import.cover') }}</span>
-                    <div v-if="form.images.includes(imgUrl)" class="img-picker-check">✓</div>
-                  </button>
-                </div>
-              </div>
+              <ImportImagePicker
+                v-if="parsedImages.length > 1"
+                :model-value="form.images"
+                :images="parsedImages"
+                thumb-query="?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp"
+                @update:model-value="onFormImagesChange"
+              />
             </div>
-          </section>
+          </ImportFormSection>
 
           <!-- 购入信息 -->
-          <section class="form-section">
-            <div class="section-head">
-              <p class="section-label">{{ isWishlistMode ? t('import.targetInfo') : t('import.purchaseRecord') }}</p>
-              <h2 class="section-title">{{ isWishlistMode ? t('import.budgetAndSource') : t('import.priceAndSource') }}</h2>
-            </div>
+          <ImportFormSection
+            :label="isWishlistMode ? t('import.targetInfo') : t('import.purchaseRecord')"
+            :title="isWishlistMode ? t('import.budgetAndSource') : t('import.priceAndSource')"
+          >
             <div class="field-card">
               <label class="field">
                 <span class="field-label">{{ isWishlistMode ? t('import.targetPrice') : t('import.price') }}</span>
@@ -574,14 +518,10 @@
                 </button>
               </label>
             </div>
-          </section>
+          </ImportFormSection>
 
           <!-- 备注 -->
-          <section class="form-section">
-            <div class="section-head">
-              <p class="section-label">{{ t('import.extraInfo') }}</p>
-              <h2 class="section-title">{{ t('common.note') }}</h2>
-            </div>
+          <ImportFormSection :label="t('import.extraInfo')" :title="t('common.note')">
             <div class="field-card">
               <label class="field">
                 <span class="field-label">{{ t('common.note') }}</span>
@@ -595,7 +535,7 @@
               </label>
               <MarkdownPreviewCard :content="form.notes" :title="t('import.livePreview')" />
             </div>
-          </section>
+          </ImportFormSection>
         </div>
       </transition>
 
@@ -635,7 +575,7 @@
       :max-date="maxDate"
       @confirm="onQueueDateConfirm"
     />
-  </div>
+  </ImportPage>
 </template>
 
 <script setup>
@@ -645,7 +585,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
 import { getCoverTone } from '@/utils/goods/coverTone'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
-import NavBar from '@/components/common/NavBar.vue'
+import ImportPage from '@/components/import/ImportPage.vue'
+import ImportSearchCard from '@/components/import/ImportSearchCard.vue'
+import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
+import ImportFormSection from '@/components/import/ImportFormSection.vue'
+import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -738,9 +682,6 @@ const quickSearchPlaceholder = computed(() => (
     : t('import.searchPlaceholder')
 ))
 
-function handleBack() {
-  runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
-}
 const urlHintText = computed(() =>
   isWishlistMode.value
     ? t('import.wishlistUrlHint')
@@ -788,7 +729,7 @@ const {
   selectWholeGoods, expandSkuPicker, collapseSkuPicker, retryLoadVariants,
   batchMode, batchParseButtonText, parsingLinks, linkProgress,
   savingAll, queueImportCount, isQueueItemOwned, queueSummary,
-  handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue, toggleQueueImage,
+  handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue,
   selectSingleSku,
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
@@ -930,16 +871,17 @@ function onSearchResultClick(item) {
   parsed.value = false
 }
 
-// ── 图片多选切换 ──
-function toggleFormImage(imgUrl) {
-  const idx = form.images.indexOf(imgUrl)
-  if (idx >= 0) {
-    form.images.splice(idx, 1)
-  } else {
-    form.images.push(imgUrl)
-  }
+// ── 图片多选变更（ImportImagePicker v-model） ──
+function onFormImagesChange(images) {
+  form.images = images
   // 同步主图：始终以第一张选中的图为主图
-  form.image = form.images[0] || ''
+  form.image = images[0] || ''
+}
+
+function setQueueImages(entry, images) {
+  if (!entry?.info) return
+  entry.info.images = images
+  entry.info.image = images[0] || ''
 }
 
 function applySelectedVariantMedia(variant) {
