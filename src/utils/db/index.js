@@ -496,7 +496,8 @@ function prepareEventValues(event) {
 
 async function _getSchemaVersion() {
   try {
-    const rows = await db.query('SELECT version FROM _schema_version LIMIT 1')
+    // 历史异常路径可能残留多行（建表无唯一约束）：按最大版本号取值，保证确定性
+    const rows = await db.query('SELECT version FROM _schema_version ORDER BY version DESC LIMIT 1')
     return rows.length ? rows[0].version : 0
   } catch {
     return 0
@@ -605,9 +606,14 @@ async function _doInitDB() {
 
   // Always check version and run migrations
   const t3 = performance.now()
+  // 收敛历史多行残留（无唯一约束 + 异常路径重复插入的产物）：保留最大版本号单行
+  await db.run('DELETE FROM _schema_version WHERE version != (SELECT MAX(version) FROM _schema_version)')
+  await db.run('DELETE FROM _schema_version WHERE version IS NULL')
+
   const currentVersion = await _getSchemaVersion()
   if (currentVersion === 0) {
-    await db.run('INSERT OR IGNORE INTO _schema_version (version) VALUES (0)')
+    // INSERT OR IGNORE 在无唯一约束下永不 IGNORE，改用 NOT EXISTS 防重复插入
+    await db.run('INSERT INTO _schema_version (version) SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM _schema_version)')
   } else if (currentVersion > LATEST_VERSION && currentVersion >= LEGACY_VERSION_RESET_THRESHOLD) {
     // 历史遗留数据库 (version 26) → 重置到 0 让新迁移跑；
     // 仅锁定遗留值，OTA 回滚产生的略高版本号（新 schema 为超集）不重置

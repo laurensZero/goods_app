@@ -266,6 +266,7 @@
   "sync.error.supabaseWriteFailed": "{table} 쓰기 실패: {error}",
   "sync.error.supabaseDeleteFailed": "{table}의 이전 레코드 삭제 실패: {error}",
   "sync.error.supabaseClearFailed": "{label} 초기화 실패: {error}",
+  "sync.error.supabasePushFailed": "데이터 푸시 실패: {error}",
   "sync.error.supabaseWriteManifestFailed": "매니페스트 쓰기 실패: {error}",
   "sync.error.supabaseTableMissing": "테이블이 존재하지 않습니다. 먼저 테이블 생성 스크립트를 실행하세요",
   "sync.error.supabaseKeyInvalid": "Anon Key가 유효하지 않습니다",

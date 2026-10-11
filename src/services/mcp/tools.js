@@ -13,7 +13,7 @@ import { buildSaleLedger, extractSaleEntries, SOLD_STATUS } from '../../utils/go
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
-import { normalizeCustomFieldDefs } from '../../utils/goods/customFields'
+import { normalizeCustomFieldDefs, isCustomFieldInScope } from '../../utils/goods/customFields'
 import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/music/neteaseMusic'
 import { searchQQSongs } from '../../utils/music/qqMusic'
 import { searchBilibiliVideos } from '../../utils/music/bilibiliMusic'
@@ -364,6 +364,8 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       throw new Error('customFields 筛选需为对象：{ 字段名: 值 }')
     }
+    // 空对象 = 没有筛选条件：静默按无筛选处理，与「没传该参数」语义一致
+    if (Object.keys(raw).length === 0) return null
     if (defs.length === 0) {
       throw new Error('当前还没有自定义字段，无法按自定义字段筛选；可用 custom_fields_list 确认')
     }
@@ -711,18 +713,25 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
 
   /**
    * 自定义字段定义清单（名称/类型/选项/生效范围/已填件数）：写值前先拿字段名。
+   * @param {{ scope?: string }} [args] scope: 'collection' | 'wishlist'，按生效范围过滤字段并
+   *   只统计该范围内的已填件数（与 UI 口径一致）；缺省 = 两侧全部（旧行为）
    */
-  async function customFieldsList() {
-    const defs = listCustomFieldDefs()
+  async function customFieldsList(args = {}) {
+    const scope = args?.scope === 'collection' || args?.scope === 'wishlist' ? args.scope : ''
+    let defs = listCustomFieldDefs()
+    if (scope) defs = defs.filter((def) => isCustomFieldInScope(def, scope))
     if (defs.length === 0) {
       return {
         total: 0,
         fields: [],
-        note: '用户还没有自定义字段；如用户要求新增，可用 presets_manage（entity=custom_field, action=add）创建'
+        note: scope
+          ? `该生效范围（${scope === 'wishlist' ? '愿望单' : '收藏'}）内没有自定义字段`
+          : '用户还没有自定义字段；如用户要求新增，可用 presets_manage（entity=custom_field, action=add）创建'
       }
     }
 
-    const items = await getItems()
+    let items = await getItems()
+    if (scope) items = items.filter((item) => Boolean(item.isWishlist) === (scope === 'wishlist'))
     /** @type {Map<string, number>} */
     const filled = new Map()
     for (const item of items) {
@@ -735,6 +744,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
 
     return {
       total: defs.length,
+      scope: scope || undefined,
       fields: defs.map((def) => ({
         name: def.name,
         type: def.type,
@@ -873,8 +883,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
           location: event.location,
           latitude,
           longitude,
-          // 应用内活动地图：[打开活动地图](app://event_map)；外跳高德用 amapLink
-          mapButtonLink: 'app://event_map',
+          // 应用内活动地图入口已在结果顶层声明（mapButtonLink）；行内只给外跳高德链接
           amapLink,
           ticketPrice: event.ticketPrice,
           ticketType: event.ticketType,

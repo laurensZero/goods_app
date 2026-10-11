@@ -115,7 +115,8 @@ async function evictNativeCacheIfNeeded() {
     const res = await Filesystem.readdir({ path: CAP_FOLDER, directory: CAP_DIR })
     files = (res?.files || []).filter((entry) => entry?.type !== 'directory')
   } catch {
-    writeNativeCacheMeta({})
+    // 瞬时 IO 错误不清空 LRU 元数据：一次 readdir 失败就重置 lastAccess
+    // 会让 LRU 退化成随机驱逐，保留旧 meta 等下次成功再校准
     return
   }
 
@@ -551,7 +552,10 @@ function urlToFilename(url) {
   // 旧版仅取前 180 字符，长 URL（如 Supabase Storage 带 userId 前缀）会导致
   // 不同图片的缓存文件名碰撞。现在用 hash 确保唯一性：前缀保留 b64 前 100 字符
   // 便于调试，后缀追加 32-bit hash 防碰撞。
-  const b64 = btoa(unescape(encodeURIComponent(url))).replace(/[+/=]/g, '_')
+  // TextEncoder + 逐字节 String.fromCharCode 等价于废弃的 unescape(encodeURIComponent(url))
+  let binary = ''
+  for (const byte of new TextEncoder().encode(url)) binary += String.fromCharCode(byte)
+  const b64 = btoa(binary).replace(/[+/=]/g, '_')
   let hash = 0
   for (let i = 0; i < url.length; i++) {
     hash = ((hash << 5) - hash + url.charCodeAt(i)) | 0
@@ -1073,16 +1077,6 @@ export function getImageLoadState() {
     preloadPaused,
     lanes
   }
-}
-
-export function clearImageLoadQueues() {
-  for (const lane of Object.values(imageLoadLanes)) {
-    lane.viewport.length = 0
-    lane.preload.length = 0
-    lane.active = 0
-  }
-  queuedLoadKeys.clear()
-  queuedLoadMeta.clear()
 }
 
 export function clearMemoryCache() {

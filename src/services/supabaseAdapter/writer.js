@@ -299,7 +299,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       }
     }))
 
-    if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+    // pushAll 是整包数据+清单的 RPC，与单独写 manifest 的失败要区分文案，否则数据行失败被误报成清单问题
+    if (error) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: error.message }))
 
     // 新版 sync_push RPC 返回 { synced_at: <服务器时间> } 作为本地水位线，
     // 消除设备时钟偏移；旧版 RPC 返回 void（data 为 null）→ 调用方回退客户端时间

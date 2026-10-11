@@ -266,6 +266,7 @@
   "sync.error.supabaseWriteFailed": "写入 {table} 失败: {error}",
   "sync.error.supabaseDeleteFailed": "删除 {table} 旧记录失败: {error}",
   "sync.error.supabaseClearFailed": "清空 {label} 失败: {error}",
+  "sync.error.supabasePushFailed": "推送数据失败: {error}",
   "sync.error.supabaseWriteManifestFailed": "写入 manifest 失败: {error}",
   "sync.error.supabaseTableMissing": "表不存在，请先执行建表脚本",
   "sync.error.supabaseKeyInvalid": "Anon Key 无效",

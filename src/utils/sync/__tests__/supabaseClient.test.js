@@ -137,28 +137,6 @@ describe('supabaseClient failover', () => {
     expect(writeSyncKeyMock).not.toHaveBeenCalledWith('sync_data_endpoint', 'backup')
   })
 
-  it('stays on preferred when preferred down (no auto switch)', async () => {
-    const mod = await freshClient()
-    createClientMock.mockImplementation((url) => mockClient(url))
-    mod.initSupabaseClient(PRIMARY, KEY)
-
-    mockProbeReachable([BACKUP])
-    const ok = await mod.reconnectSupabase({ force: true })
-    expect(ok).toBe(false)
-    expect(mod.getDataEndpointId()).toBe('primary')
-  })
-
-  it('does not auto-switch even with parallelProbe flag', async () => {
-    const mod = await freshClient()
-    createClientMock.mockImplementation((url) => mockClient(url))
-    mod.initSupabaseClient(PRIMARY, KEY)
-
-    mockProbeReachable([BACKUP])
-    const ok = await mod.reconnectSupabase({ force: true, parallelProbe: true })
-    expect(ok).toBe(false)
-    expect(mod.getDataEndpointId()).toBe('primary')
-  })
-
   it('returns false when both endpoints unreachable', async () => {
     const mod = await freshClient()
     createClientMock.mockImplementation((url) => mockClient(url))

@@ -266,6 +266,7 @@
   "sync.error.supabaseWriteFailed": "Failed to write {table}: {error}",
   "sync.error.supabaseDeleteFailed": "Failed to delete old records from {table}: {error}",
   "sync.error.supabaseClearFailed": "Failed to clear {label}: {error}",
+  "sync.error.supabasePushFailed": "Failed to push data: {error}",
   "sync.error.supabaseWriteManifestFailed": "Failed to write manifest: {error}",
   "sync.error.supabaseTableMissing": "Table does not exist, please run the table creation script first",
   "sync.error.supabaseKeyInvalid": "Invalid Anon Key",

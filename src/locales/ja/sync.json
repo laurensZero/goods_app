@@ -266,6 +266,7 @@
   "sync.error.supabaseWriteFailed": "{table} の書き込みに失敗しました: {error}",
   "sync.error.supabaseDeleteFailed": "{table} の古いレコードの削除に失敗しました: {error}",
   "sync.error.supabaseClearFailed": "{label} のクリアに失敗しました: {error}",
+  "sync.error.supabasePushFailed": "データの送信に失敗しました: {error}",
   "sync.error.supabaseWriteManifestFailed": "マニフェストの書き込みに失敗しました: {error}",
   "sync.error.supabaseTableMissing": "テーブルが存在しません。先にテーブル作成スクリプトを実行してください",
   "sync.error.supabaseKeyInvalid": "Anon Key が無効です",

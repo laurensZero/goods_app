@@ -527,7 +527,8 @@ export const useSyncStore = defineStore('sync', () => {
     writeSyncKey(DIRTY_GOODS_IDS_KEY, [...dirtyGoodsIds].join(','))
   }
 
-  function consumeDirtyDomains() {
+  /** 取脏域快照（不清除；清除由 clearDirtyDomains 在推送真正成功后做） */
+  function snapshotDirtyDomains() {
     if (dirtyDomains.size === 0) return null
     return new Set(dirtyDomains)
   }
@@ -874,7 +875,7 @@ export const useSyncStore = defineStore('sync', () => {
         return forcedResync
       }
 
-      const domains = consumeDirtyDomains()
+      const domains = snapshotDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
         () => orchestrator.sync(buildSyncContext(runGen, { preReadManifest }), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),

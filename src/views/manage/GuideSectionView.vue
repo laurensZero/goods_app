@@ -261,10 +261,6 @@ function labelStyle(shotKey, n) {
   return { left: `${pos.left}px`, top: `${pos.top}px` }
 }
 
-const rectsOverlap = (a, b, pad = 2) =>
-  Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > pad &&
-  Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > pad
-
 function layoutLabels() {
   const root = pageBodyRef.value
   if (!root) return
@@ -292,7 +288,6 @@ function layoutLabels() {
       const h = el.offsetHeight
       if (!w || !h) continue
       // 阻挡物：只有已放置的文字互相不能压（框是半透明描边，压住框可接受）
-      const placedHit = (c) => placed.some((p) => rectsOverlap({ ...c, width: w, height: h }, p))
       // 锚点始终贴着自己的框：上/下两档高度 × 右对齐/左对齐/居中三档水平位。
       // 上方锚点留 16px 让开编号点（框左上 22px 圆 + 2px 边）；
       // 撞到已放文字时沿框边滑到下一档，不做远距离逃逸。

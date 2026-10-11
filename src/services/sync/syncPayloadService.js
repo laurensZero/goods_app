@@ -699,7 +699,7 @@ export function createSyncPayloadService({
     // large data URL and must never be persisted in the remote draft JSON.
     const withoutLocalImageUri = (item) => {
       if (!item || typeof item !== 'object') return item
-      const { localImageUri, ...remoteItem } = item
+      const { localImageUri: _omittedLocalImageUri, ...remoteItem } = item
       return remoteItem
     }
     const imageUri = String(entry.imageUri || '').trim()

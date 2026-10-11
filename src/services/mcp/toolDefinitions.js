@@ -581,7 +581,7 @@ export const MCP_TOOL_DEFINITIONS = [
   {
     name: 'custom_fields_list',
     description: '列出用户自定义字段：名称/类型/可选值/生效范围/已填件数。给谷子填自定义字段前先调用它拿字段名与选项。',
-    inputSchema: { type: 'object', properties: {} }
+    inputSchema: { type: 'object', properties: { scope: { type: 'string', enum: ['collection', 'wishlist'], description: '按生效范围过滤字段与已填件数；缺省返回两侧全部' } } }
   },
   {
     name: 'collection_overview',

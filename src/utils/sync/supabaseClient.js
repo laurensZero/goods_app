@@ -51,8 +51,6 @@ export function onSupabaseClientChange(listener) {
 // 持久化上次可用端点，弱网下次启动可直接走备用，省去首连超时
 const DATA_ENDPOINT_KEY = 'sync_data_endpoint'
 const DATA_ENDPOINT_MANUAL_KEY = 'sync_data_endpoint_manual'
-// 手动选定后粘住该端点：仅当持续不通超过此时长才允许自动切走
-const MANUAL_FAILOVER_AFTER_MS = 30_000
 const PRIMARY_ENDPOINT = 'primary'
 const BACKUP_ENDPOINT = 'backup'
 const CF_ENDPOINT = 'cf'
@@ -68,7 +66,6 @@ let _dataEndpoint = PRIMARY_ENDPOINT
 // 自建实例（同步设置手动填写）时锁定 URL，不参与主备切换
 let _customLocked = false
 let _manualEndpoint = false
-let _manualFailSince = 0
 let _lastProbeOk = false
 let _lastProbeAt = 0
 let _lastProbedUrl = ''
@@ -154,7 +151,6 @@ export async function loadEndpointPreference() {
   } catch {
     _manualEndpoint = false
   }
-  _manualFailSince = 0
 }
 
 async function persistManualEndpointFlag(manual) {
@@ -304,15 +300,6 @@ function buildClient(url, anonKey) {
 let _initUrl = ''
 let _initKey = ''
 
-function isSpaWebHost(url) {
-  try {
-    const host = new URL(url).hostname
-    return host === 'goodsapp.de5.net' || host.endsWith('.pages.dev')
-  } catch {
-    return false
-  }
-}
-
 function isBuiltinDataUrl(url) {
   return url === SUPABASE_URL
     || (hasBackup() && url === SUPABASE_BACKUP_URL)
@@ -452,10 +439,13 @@ export async function switchDataEndpoint(target) {
   setSupabaseClient(buildClient(url, key))
   await persistDataEndpoint(url)
   await persistManualEndpointFlag(true)
-  _manualFailSince = 0
-  _lastProbeOk = true
+  // 切换后立即做一次真实探测再标记：未探先报通会让后续 10s 内
+  // 的 reconnectSupabase 短路返回 true，掩盖新端点不可达
+  const reachable = await probeEndpoint(url, BACKUP_PROBE_TIMEOUT_MS)
+  _lastProbeOk = reachable
   _lastProbedUrl = url
   _lastProbeAt = Date.now()
+  if (!reachable) console.warn('[supabase] manually switched endpoint unreachable:', url)
   return true
 }
 
@@ -512,12 +502,11 @@ export function isSupabaseConfigured() {
  * 替换它 —— 每次替换都会新建一个 GoTrue 客户端（30s 自动刷新定时器 + visibilitychange
  * 监听，旧实例无法回收）并让 Realtime 通道重建；而探测失败只说明网络不通，
  * 销毁实例会连 Realtime 通道一起打断。只有端点/密钥变化或手动切换才真正重建。
- * @param {{ force?: boolean, parallelProbe?: boolean }} [options]
+ * @param {{ force?: boolean }} [options]
  *   - force: 跳过探测节流（网络错误回调里用）
- *   - parallelProbe: 主备同时探测（仅冷启动）
  * @returns {Promise<boolean>} 当前端点是否可用
  */
-export async function reconnectSupabase({ force = false, parallelProbe = false } = {}) {
+export async function reconnectSupabase({ force = false } = {}) {
   const key = _initKey || SUPABASE_ANON_KEY
   if (!key) return false
 
@@ -547,8 +536,7 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
   }
 
   const markPreferredOk = async () => {
-    _manualFailSince = 0
-    _lastProbeAt = Date.now()
+      _lastProbeAt = Date.now()
     _lastProbeOk = true
     _lastProbedUrl = preferred
     return apply(preferred)
@@ -575,18 +563,10 @@ export async function reconnectSupabase({ force = false, parallelProbe = false }
       // 本可自行重连；数据面请求失败由 withRetry + reconnectOnNetworkError 负责重试。
       return false
     }
-    _manualFailSince = 0
-    return apply(preferred)
+      return apply(preferred)
   }
 
-  if (parallelProbe) {
-    // 已废弃自动并行切换：只探 preferred，不切备用
-    const preferredOk = await probeEndpoint(preferred, PROBE_TIMEOUT_MS)
-    if (preferredOk) return markPreferredOk()
-    return failoverToAlternate()
-  }
-
-  // 非启动：只探当前端点；通了不碰备用，挂了再探备用
+  // 只探当前端点；通了不碰备用，挂了再探备用
   const preferredOk = await probeEndpoint(preferred, PROBE_TIMEOUT_MS)
   if (preferredOk) return markPreferredOk()
   return failoverToAlternate()
