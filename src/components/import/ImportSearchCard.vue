@@ -121,7 +121,8 @@ const { t } = useI18n()
   outline: none;
 }
 
-/* 品牌色可由页面通过 --import-search-btn 定制（默认米游铺红） */
+/* 品牌色可由页面通过 --import-search-btn 定制（默认米游铺红）；
+   深色下主色变近白时，页面需配套 --import-search-btn-text 反转文字色 */
 .search-btn {
   flex-shrink: 0;
   min-width: 80px;
@@ -129,7 +130,7 @@ const { t } = useI18n()
   border: none;
   border-radius: var(--radius-small);
   background: var(--import-search-btn, #c7375d);
-  color: #ffffff;
+  color: var(--import-search-btn-text, #ffffff);
   font-size: 14px;
   font-weight: 600;
 }
@@ -137,6 +138,10 @@ const { t } = useI18n()
 .search-error {
   color: #c74444;
   font-size: 13px;
+}
+
+:global(html.theme-dark) .search-error {
+  color: #ff8080;
 }
 
 :global(html.theme-dark) .search-input {

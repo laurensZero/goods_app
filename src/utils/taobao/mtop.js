@@ -13,8 +13,11 @@
  * x-upstream-set-cookie 回传以便换 token）。
  */
 import { md5 } from '@/utils/md5'
+import { createLogger } from '@/utils/logger'
 import { getTaobaoCookie, setTaobaoCookie } from './cookie'
 import { TaobaoRequestError, taobaoPageGet } from './request'
+
+const logger = createLogger('taobao:mtop')
 
 const MTOP_ORIGIN = 'https://h5api.m.taobao.com'
 const APP_KEY = '12574478'
@@ -130,13 +133,30 @@ function isRateLimited(ret) {
 }
 
 /**
- * 调一次 mtop 接口并返回解析后的 JSON
+ * 调一次 mtop 接口并返回解析后的 JSON（带诊断日志：结果 ret / 耗时进反馈日志缓冲）
  *
  * @param {{api:string, v:string, data:Record<string, any>, referer?:string, cookie?:string}} options
  * @returns {Promise<Record<string, any>>} 含 ret / data 的响应体（ret 以 SUCCESS 开头）
  * @throws {TaobaoRequestError} BLOCKED 风控 / TOKEN 领取失败 / HTTP / PARSE / FAIL 业务失败 / NETWORK
  */
-export async function mtopCall({ api, v, data, referer, cookie }) {
+export async function mtopCall(options) {
+  const startedAt = Date.now()
+  try {
+    const result = await mtopCallInner(options)
+    logger.info('ok', { api: options.api, ms: Date.now() - startedAt })
+    return result
+  } catch (error) {
+    logger.warn('fail', {
+      api: options?.api,
+      ms: Date.now() - startedAt,
+      code: error?.code || '',
+      message: error?.message || '',
+    })
+    throw error
+  }
+}
+
+async function mtopCallInner({ api, v, data, referer, cookie }) {
   const payload = JSON.stringify(data)
   let attemptCookie = cookie ?? (await getTaobaoCookie())
   if (!attemptCookie) throw new TaobaoRequestError('NETWORK', 'cookie missing')

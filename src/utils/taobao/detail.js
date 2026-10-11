@@ -238,6 +238,67 @@ export function extractSkuProps(res) {
   })).filter((prop) => prop.pid && prop.values.length > 0)
 }
 
+/**
+ * mtop getdetail 响应 → 导入草稿（原生端 / 无 SSR 代理环境的风控绕行通道）
+ *
+ * mtop 与 SSR 的差异（docs/taobao-mtop-api.md §3.2/§4）：
+ *   - item.images 是主图（与 SSR headImageVO.images 一致），没有详情长图
+ *   - 页面价格在 apiStack[0].value（JSON 字符串 {"price":{"price":{"priceText":…}}}）
+ *   - skuBase / skuCore / seller 键位与 SSR 同名，缺失时降级为无 SKU 草稿
+ * @param {any} data mtop 响应的 data 字段
+ * @param {{itemId?:string}} [context]
+ * @returns {any|null}
+ */
+export function buildTaobaoDraftFromMtop(data, context = {}) {
+  if (!data || typeof data !== 'object') return null
+  const item = data.item && typeof data.item === 'object' ? data.item : {}
+  const title = String(item.title || '').trim()
+  if (!title) return null
+
+  let priceText = ''
+  const apiStack = Array.isArray(data.apiStack) ? data.apiStack : []
+  for (const stack of apiStack) {
+    try {
+      const value = typeof stack?.value === 'string' ? JSON.parse(stack.value) : stack?.value
+      const text = String(value?.price?.price?.priceText || '').trim()
+      if (text) {
+        priceText = text
+        break
+      }
+    } catch {
+      // 单个价格栈解析失败继续尝试下一个
+    }
+  }
+  if (!priceText) {
+    priceText = String(data.skuCore?.sku2info?.['0']?.price?.priceText || '').trim()
+  }
+  const priceRange = /[-~～]/.test(priceText)
+  const numeric = priceText.replace(/[^\d.]/g, '')
+
+  const pseudoRes = { item, skuBase: data.skuBase, skuCore: data.skuCore, seller: data.seller }
+  const skus = extractSkus(pseudoRes)
+  const skuProps = extractSkuProps(pseudoRes)
+  const skuWithImage = skus.find((sku) => sku.image)
+  const images = uniq((Array.isArray(item.images) ? item.images : []).map(normalizeCdnUrl).filter(Boolean))
+
+  return {
+    itemId: String(item.itemId || context.itemId || ''),
+    url: context.url || buildTaobaoItemUrl(item.itemId || context.itemId || ''),
+    title,
+    price: priceRange ? '' : numeric,
+    priceText,
+    priceRange,
+    priceDesc: '',
+    images: images.length > 0 ? images : (skuWithImage ? [skuWithImage.image] : []),
+    detailImages: [],
+    skus,
+    skuProps,
+    shopName: String(data.seller?.shopName || data.seller?.sellerNick || ''),
+    shopUrl: '',
+    sellCount: String(item.vagueSellCount || ''),
+  }
+}
+
 /** 页面展示价：priceVO.priceText（多规格时带「起」或区间） */
 export function extractPrice(res) {
   const price = res?.componentsVO?.priceVO?.price || {}

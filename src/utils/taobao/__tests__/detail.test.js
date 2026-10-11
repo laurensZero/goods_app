@@ -5,6 +5,7 @@ import {
   normalizeCdnUrl,
   extractSsrRes,
   buildTaobaoDraft,
+  buildTaobaoDraftFromMtop,
   buildTaobaoItemUrl,
   extractSkuProps,
 } from '../detail'
@@ -289,5 +290,50 @@ describe('extractSkus 多规格', () => {
     ])
     expect(draft.skuProps.map((prop) => prop.name)).toEqual(['颜色分类', '尺码'])
     expect(draft.skuProps[0].values.map((value) => value.name)).toEqual(['白色', '黑色'])
+  })
+})
+
+describe('buildTaobaoDraftFromMtop', () => {
+  const mtopDetail = {
+    item: { itemId: '1026022602471', title: 'hanser EP', vagueSellCount: '1000+', images: ['https://img.alicdn.com/main1.png'] },
+    seller: { shopName: '卖碟开店', sellerNick: '卖碟开店7615' },
+    skuBase: {
+      skus: [{ skuId: 's1', propPath: '-1:-1' }],
+      props: [{ pid: '-1', name: '商品规格', values: [{ vid: '-1', name: '大版' }] }],
+    },
+    skuCore: { sku2info: { s1: { price: { priceText: '155' }, quantity: 10 } } },
+    apiStack: [{ value: JSON.stringify({ price: { price: { priceText: '125-155' } } }) }],
+  }
+
+  it('解析标题/价格栈/主图/店铺/SKU', () => {
+    const draft = buildTaobaoDraftFromMtop(mtopDetail, { itemId: '1026022602471' })
+    expect(draft.title).toBe('hanser EP')
+    expect(draft.price).toBe('')
+    expect(draft.priceText).toBe('125-155')
+    expect(draft.priceRange).toBe(true)
+    expect(draft.images).toEqual(['https://img.alicdn.com/main1.png'])
+    expect(draft.shopName).toBe('卖碟开店')
+    expect(draft.sellCount).toBe('1000+')
+    expect(draft.skus).toHaveLength(1)
+    expect(draft.skus[0]).toMatchObject({ name: '大版', price: '155' })
+    expect(draft.skuProps).toHaveLength(1)
+    expect(draft.detailImages).toEqual([])
+    expect(draft.url).toBe('https://item.taobao.com/item.htm?id=1026022602471')
+  })
+
+  it('apiStack 缺失时回落 sku2info["0"] 的展示价；无 skuBase 降级为无 SKU 草稿', () => {
+    const draft = buildTaobaoDraftFromMtop({
+      item: { title: 'x', itemId: '1' },
+      skuCore: { sku2info: { 0: { price: { priceText: '39.9' } } } },
+    })
+    expect(draft.price).toBe('39.9')
+    expect(draft.priceRange).toBe(false)
+    expect(draft.skus).toEqual([])
+    expect(draft.skuProps).toEqual([])
+  })
+
+  it('标题缺失返回 null', () => {
+    expect(buildTaobaoDraftFromMtop({ item: {} })).toBeNull()
+    expect(buildTaobaoDraftFromMtop(null)).toBeNull()
   })
 })
