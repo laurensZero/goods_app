@@ -30,7 +30,7 @@ scripts/mihoyo-checkout.mjs
 .profile/
 .bench/
 
-# 私有扩展（本机/私有仓库维护，不入公开仓库）
+# 私有扩展（gitignored overlay，独立仓库 goods-app-private，手动 clone 到 private/）
 private/
 
 # 本地架构图 / 项目目录树（仅本机使用，不入库）
