@@ -9,6 +9,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  /* 长列表：屏外条目跳过布局/绘制，减轻切回搜索 Tab 时的重排 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
 }
 
 .search-results-toggle-wrap {

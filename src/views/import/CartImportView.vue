@@ -10,6 +10,15 @@
         />
       </template>
     </NavBar>
+    <!-- 内嵌 tab：切号胶囊挂到宿主导入页 NavBar 右上角 -->
+    <Teleport v-if="embedded && embeddedActive" to="#import-nav-account-slot">
+      <MihoyoAccountNavBtn
+        :label="activeAccountLabel"
+        :avatar="activeAccountAvatar"
+        :accounts-count="accounts.length"
+        @click="openAccountSheet"
+      />
+    </Teleport>
     <!-- 普通提示对话框 -->
     <AppSheet :model-value="showErrorDialog" placement="center" @update:model-value="(v) => { if (!v) closeErrorDialog() }">
       <p class="dialog-label">Import Notice</p>
@@ -252,6 +261,8 @@ defineOptions({ name: 'CartImportView' })
 // 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
 defineProps({
   embedded: { type: Boolean, default: false },
+  /** 当前是否为宿主激活的 tab（内嵌时切号胶囊只在激活 tab 挂到 NavBar） */
+  embeddedActive: { type: Boolean, default: false },
 })
 
 const { t } = useI18n()
@@ -278,6 +289,7 @@ const {
   clearSavedCookie,
   switchAccount,
   removeAccount,
+  refreshAccounts,
   refreshAccountProfiles,
   loginNewAccountNative,
   submitNewAccountCookie,
@@ -443,8 +455,17 @@ function isShopPartiallySelected(group) {
   return selectable.length > 0 && !isShopFullySelected(group) && selectable.some((item) => selectedSet.value.has(item._itemKey))
 }
 
-onMounted(async () => {
+onMounted(() => {
+  // 先让 Tab 挂载完成首帧绘制，再读本地状态/拉数据，避免首点 Tab 时 INP 被同步初始化拖长
+  requestAnimationFrame(() => {
+    void bootstrapCookieState()
+  })
+})
+
+async function bootstrapCookieState() {
   if (canUseNativeImport) {
+    // 原生会话由插件管理；仍需拉账号列表，内嵌横幅/切号面板才可用
+    await refreshAccounts()
     await startFetch({ silentCookieExpired: true })
     return
   }
@@ -456,7 +477,7 @@ onMounted(async () => {
 
   applySavedCookieToInput()
   await startFetch({ silentCookieExpired: true })
-})
+}
 
 async function handleLogout() {
   await clearSavedCookie(true)

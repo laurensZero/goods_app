@@ -10,6 +10,15 @@
         />
       </template>
     </NavBar>
+    <!-- 内嵌 tab：切号胶囊挂到宿主导入页 NavBar 右上角 -->
+    <Teleport v-if="embedded && embeddedActive" to="#import-nav-account-slot">
+      <MihoyoAccountNavBtn
+        :label="activeAccountLabel"
+        :avatar="activeAccountAvatar"
+        :accounts-count="accounts.length"
+        @click="openAccountSheet"
+      />
+    </Teleport>
     <!-- 普通提示对话框 -->
     <AppSheet :model-value="showErrorDialog" placement="center" @update:model-value="(v) => { if (!v) closeErrorDialog() }">
       <p class="dialog-label">Import Notice</p>
@@ -36,7 +45,6 @@
     />
 
     <main class="page-body">
-
       <!-- ========== Step: cookie ========== -->
       <Transition name="step-fade" mode="out-in">
         <section v-if="step === 'cookie'" key="cookie" class="step-section">
@@ -333,6 +341,8 @@ defineOptions({ name: 'AccountImportView' })
 // 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
 defineProps({
   embedded: { type: Boolean, default: false },
+  /** 当前是否为宿主激活的 tab（内嵌时切号胶囊只在激活 tab 挂到 NavBar） */
+  embeddedActive: { type: Boolean, default: false },
 })
 
 const { t } = useI18n()
@@ -358,6 +368,7 @@ const {
   clearSavedCookie,
   switchAccount,
   removeAccount,
+  refreshAccounts,
   refreshAccountProfiles,
   loginNewAccountNative,
   submitNewAccountCookie,
@@ -691,11 +702,17 @@ async function onLoginNewCookie({ cookie, remember } = {}) {
   await refreshAfterMihoyoLogin(result.cookie)
 }
 
-onMounted(async () => {
+onMounted(() => {
+  // 先让 Tab 挂载完成首帧绘制，再读本地状态/拉数据，避免首点 Tab 时 INP 被同步初始化拖长
+  requestAnimationFrame(() => {
+    void bootstrapCookieState()
+  })
+})
+
+async function bootstrapCookieState() {
   if (canUseNativeImport) {
-    // Plugin 内部自动管理 cookie 持久化：
-    // - 有已保存的 cookie → 直接 HTTP 调 API，不打开 WebView
-    // - cookie 过期或没有 → 打开 WebView 让用户登录
+    // 原生会话由插件管理；仍需拉账号列表，内嵌横幅/切号面板才可用
+    await refreshAccounts()
     await startFetch({ silentCookieExpired: true })
     return
   }
@@ -707,7 +724,7 @@ onMounted(async () => {
 
   applySavedCookieToInput()
   await startFetch({ silentCookieExpired: true })
-})
+}
 
 const startFetch = async (options = {}) => {
   if (ordersFetchRunning.value) return

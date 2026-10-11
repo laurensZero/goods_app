@@ -1,5 +1,9 @@
 <template>
   <ImportPage class="import-page" :title="pageTitle">
+    <template #right>
+      <!-- 内嵌购物车/账号 Tab 的切号胶囊 Teleport 目标（同 NavBar 右上角） -->
+      <div id="import-nav-account-slot" />
+    </template>
     <main class="page-body">
       <ImportTabs v-model="activeTab" :tabs="importTabs" :aria-label="pageTitle" />
 
@@ -343,8 +347,18 @@
       </section>
 
       <!-- 购物车 / 账号导入：独立视图内嵌为 tab，首次切到时才挂载（避免进页就拉账号状态） -->
-      <CartImportView v-if="tabMounted.cart" v-show="activeTab === 'cart'" embedded />
-      <AccountImportView v-if="!isWishlistMode && tabMounted.account" v-show="activeTab === 'account'" embedded />
+      <CartImportView
+        v-if="tabMounted.cart"
+        v-show="activeTab === 'cart'"
+        embedded
+        :embedded-active="activeTab === 'cart'"
+      />
+      <AccountImportView
+        v-if="!isWishlistMode && tabMounted.account"
+        v-show="activeTab === 'account'"
+        embedded
+        :embedded-active="activeTab === 'account'"
+      />
 
       <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
       <transition name="result-fade">
@@ -542,7 +556,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, watch, nextTick, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
@@ -554,8 +568,6 @@ import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
 import ImportFormSection from '@/components/import/ImportFormSection.vue'
 import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import ImportTabs from '@/components/import/ImportTabs.vue'
-import CartImportView from '@/views/import/CartImportView.vue'
-import AccountImportView from '@/views/import/AccountImportView.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -594,6 +606,16 @@ import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard
 import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
+
+// 购物车/账号是独立重视图：拆异步 chunk，首点 Tab 时不把同步挂载算进 INP
+const CartImportView = defineAsyncComponent({
+  loader: () => import('@/views/import/CartImportView.vue'),
+  delay: 0,
+})
+const AccountImportView = defineAsyncComponent({
+  loader: () => import('@/views/import/AccountImportView.vue'),
+  delay: 0,
+})
 
 const { t } = useI18n()
 const router = useRouter()
@@ -714,7 +736,15 @@ const importTabs = computed(() => [
 ])
 // 购物车/账号是独立视图，首次切到时才挂载（避免进页就拉账号/Cookie 状态）
 const tabMounted = reactive({ search: true, link: true, cart: false, account: false })
-watch(activeTab, (tab) => { tabMounted[tab] = true })
+let tabMountRaf = 0
+watch(activeTab, (tab) => {
+  if (tabMounted[tab]) return
+  // 先让 Tab 切换本身完成绘制，再挂载重型子视图；同步首挂会把 button.import-tab 的 INP 拉到秒级
+  cancelAnimationFrame(tabMountRaf)
+  tabMountRaf = requestAnimationFrame(() => {
+    tabMounted[tab] = true
+  })
+})
 // 批量链接解析的结果落在队列（搜索 tab），进度结束自动切过去
 watch(parsingLinks, (now, was) => {
   if (was && !now) activeTab.value = 'search'

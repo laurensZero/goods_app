@@ -6,7 +6,11 @@
 -->
 <template>
   <div class="page">
-    <NavBar :title="title" show-back />
+    <NavBar :title="title" show-back>
+      <template #right>
+        <slot name="right" />
+      </template>
+    </NavBar>
     <slot />
   </div>
 </template>
