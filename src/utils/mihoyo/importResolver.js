@@ -199,6 +199,7 @@ export function buildMihoyoImportContext({
   presetCharacters = [],
   categories = [],
   ips = [],
+  learnedCategories = null,
 } = {}) {
   const context = {
     categories: Array.isArray(categories) ? [...categories] : [],
@@ -207,11 +208,14 @@ export function buildMihoyoImportContext({
     tags: new Set(),
   }
 
-  // 先学习「名称关键词 → 分类」，学到的关键词用于角色过滤：分类词不应再当作角色
-  context.learnedCategories = learnCategoryKeywords(goodsList, {
-    categories,
-    characters: presetCharacters,
-  })
+  // 先学习「名称关键词 → 分类」，学到的关键词用于角色过滤：分类词不应再当作角色。
+  // 传入外部共享缓存（learnedCategories）时直接复用，避免重复全量扫描
+  context.learnedCategories = Array.isArray(learnedCategories)
+    ? learnedCategories
+    : learnCategoryKeywords(goodsList, {
+        categories,
+        characters: presetCharacters,
+      })
   const learnedKeywords = learnedKeywordList(context)
   const baseCategoryBlocklist = createCategoryBlocklist(context.categories, learnedKeywords)
 

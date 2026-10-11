@@ -1,8 +1,8 @@
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, watch, onBeforeUnmount } from 'vue'
 import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
-import { learnCategoryKeywords } from '@/utils/tagging/learnCategoryKeywords'
+import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
 import staticDictionaries from '@/constants/tagging-dictionaries.json'
 
 export function useSmartTagging(form) {
@@ -22,45 +22,9 @@ export function useSmartTagging(form) {
     characters: false
   })
 
-  // Cache extracted tags and characters from goods list - only recompute when list changes
-  const cachedGoodsDerivedPresets = computed(() => {
-    const charMap = {}
-    const extractedTags = new Set()
-
-    if (presetsStore.characters?.length) {
-      presetsStore.characters.forEach(c => {
-        if (!c.name) return
-        const ip = c.ip || 'unknown'
-        if (!charMap[ip]) charMap[ip] = []
-        charMap[ip].push(c.name)
-      })
-    }
-
-    if (goodsStore?.list?.length) {
-      goodsStore.list.forEach(item => {
-        if (item.tags && item.tags.length) {
-          item.tags.forEach(t => extractedTags.add(t))
-        }
-        if (item.characters && item.characters.length) {
-          const ip = item.ip || 'unknown'
-          if (!charMap[ip]) charMap[ip] = []
-          item.characters.forEach(c => {
-            if (!charMap[ip].includes(c)) charMap[ip].push(c)
-          })
-        }
-      })
-    }
-
-    return { charMap, extractedTags }
-  })
-
-  // 从已入库商品学习「名称关键词 → 分类」映射（>= 2 条且分类一致才学）
-  const cachedLearnedCategoryKeywords = computed(() =>
-    learnCategoryKeywords(goodsStore?.list || [], {
-      categories: presetsStore.categories || [],
-      characters: presetsStore.characters || []
-    })
-  )
+  // 共享缓存：全应用只扫一次商品列表（角色/标签 + n-gram 关键词学习）。
+  // 频繁变更节流后静默重建；脏期间读旧值不阻塞。见 taggingContextCache
+  const sharedTagContext = getSharedTaggingContext(presetsStore, goodsStore)
 
   // 延时计算，防抖
   let timeoutId = null
@@ -94,13 +58,13 @@ export function useSmartTagging(form) {
       return
     }
 
-    // 拼装 dynamicPresets — use cached goods-derived data
-    const { charMap, extractedTags } = cachedGoodsDerivedPresets.value
+    // 拼装 dynamicPresets — use shared goods-derived cache（脏时读旧值，不阻塞）
+    const { charMap, extractedTags } = sharedTagContext.getGoodsDerived() || { charMap: {}, extractedTags: new Set() }
 
     const dynamicPresets = {
       categories: [
         ...(presetsStore.categories || []),
-        ...cachedLearnedCategoryKeywords.value
+        ...(sharedTagContext.getLearnedKeywords() || [])
       ],
       ips: presetsStore.ips || [],
       characters: charMap,

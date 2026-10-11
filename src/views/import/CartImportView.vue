@@ -246,6 +246,7 @@ import {
   buildMihoyoImportContext,
   resolveMihoyoImportDraft,
 } from '@/utils/mihoyo/importResolver'
+import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { showGlobalToast } from '@/utils/globalToast'
@@ -259,9 +260,9 @@ import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 defineOptions({ name: 'CartImportView' })
 
 // 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
-defineProps({
+const props = defineProps({
   embedded: { type: Boolean, default: false },
-  /** 当前是否为宿主激活的 tab（内嵌时切号胶囊只在激活 tab 挂到 NavBar） */
+  /** 当前是否为宿主激活的 tab（预挂载时不拉数据，激活后才 bootstrap） */
   embeddedActive: { type: Boolean, default: false },
 })
 
@@ -385,6 +386,8 @@ function createMihoyoImportContext() {
     presetCharacters: presets.characters || [],
     categories: presets.categories || [],
     ips: presets.ips || [],
+    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
+    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
   })
 }
 
@@ -455,12 +458,29 @@ function isShopPartiallySelected(group) {
   return selectable.length > 0 && !isShopFullySelected(group) && selectable.some((item) => selectedSet.value.has(item._itemKey))
 }
 
-onMounted(() => {
-  // 先让 Tab 挂载完成首帧绘制，再读本地状态/拉数据，避免首点 Tab 时 INP 被同步初始化拖长
+let didBootstrap = false
+
+function scheduleBootstrap() {
+  if (didBootstrap) return
+  didBootstrap = true
+  // 先让 Tab 显示切换完成首帧绘制，再读本地状态/拉数据
   requestAnimationFrame(() => {
     void bootstrapCookieState()
   })
+}
+
+onMounted(() => {
+  // 独立页面：挂载即拉；内嵌预挂载：等宿主把 Tab 激活后再拉，避免进导入页就打接口
+  if (!props.embedded) scheduleBootstrap()
 })
+
+watch(
+  () => props.embeddedActive,
+  (active) => {
+    if (active && props.embedded) scheduleBootstrap()
+  },
+  { immediate: true },
+)
 
 async function bootstrapCookieState() {
   if (canUseNativeImport) {

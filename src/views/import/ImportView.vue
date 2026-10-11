@@ -17,6 +17,17 @@
         :error="searchError"
         @search="handleGoodsSearch"
       >
+        <!-- v-memo：deps 不含 activeTab，切 Tab 时父组件重渲染会整段跳过，避免大列表重建拖垮 INP -->
+        <div
+          v-memo="[
+            visibleSearchResults,
+            queue.length,
+            searchExpanded,
+            showSearchToggle,
+            showSearchLoadMoreStatus,
+            searchLoadingMore,
+          ]"
+        >
         <div v-if="visibleSearchResults.length > 0" class="search-results-toolbar">
             <span class="search-results-toolbar__hint">{{ t('import.searchAddHint') }}</span>
             <span v-if="queue.length > 0" class="search-results-toolbar__actions">
@@ -78,10 +89,12 @@
               </button>
             </template>
           </div>
+        </div>
       </ImportSearchCard>
 
-      <!-- ① URL 输入区（Tab 2：链接导入） -->
-      <section v-show="activeTab === 'link'" class="url-section">
+      <!-- ① URL 输入区（Tab 2：链接导入）；外层管显示，内层 v-memo 切 Tab 时跳过重建 -->
+      <div v-show="activeTab === 'link'" class="url-section-wrap">
+      <section class="url-section" v-memo="[urlInput, parsing, parsingLinks, parseError, batchMode, batchParseButtonText, parseButtonText, urlHintText, urlPlaceholder]">
         <div class="url-card">
           <div class="url-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -122,6 +135,7 @@
           </div>
         </div>
       </section>
+      </div>
 
       <!-- 批量链接解析进度（多链接 / 带数量入队解析时显示） -->
       <transition name="result-fade">
@@ -146,7 +160,9 @@
 
       <!-- 待导入队列：手机端左右滑动、平板端右侧条切换；选择款式 + 填入/修改信息 -->
       <!-- 与有货监控共用同一套队列面板（MihoyoGoodsQueuePanel + useMihoyoGoodsQueue） -->
+      <!-- v-memo 锁在外层 div：切购物车/账号等无关重渲染时跳过整块面板；activeUid/布局变化仍放行 -->
       <section v-if="queue.length > 0" v-show="activeTab === 'search'" class="queue-section">
+        <div v-memo="[activeUid, isTabletViewport]">
         <MihoyoGoodsQueuePanel
           ref="queuePanelRef"
           :queue="queue"
@@ -344,25 +360,42 @@
             </button>
           </template>
         </MihoyoGoodsQueuePanel>
+        </div>
       </section>
 
       <!-- 购物车 / 账号导入：独立视图内嵌为 tab，首次切到时才挂载（避免进页就拉账号状态） -->
-      <CartImportView
-        v-if="tabMounted.cart"
-        v-show="activeTab === 'cart'"
-        embedded
-        :embedded-active="activeTab === 'cart'"
-      />
-      <AccountImportView
-        v-if="!isWishlistMode && tabMounted.account"
-        v-show="activeTab === 'account'"
-        embedded
-        :embedded-active="activeTab === 'account'"
-      />
+      <!-- v-show 挪到 display:contents 包装层：组件节点上的 v-show 会在父级任何重渲染时强制子组件重渲染，切 Tab 变卡 -->
+      <div v-show="activeTab === 'cart'" style="display: contents">
+        <CartImportView
+          v-if="tabMounted.cart"
+          embedded
+          :embedded-active="activeTab === 'cart'"
+        />
+      </div>
+      <div v-show="activeTab === 'account'" style="display: contents">
+        <AccountImportView
+          v-if="!isWishlistMode && tabMounted.account"
+          embedded
+          :embedded-active="activeTab === 'account'"
+        />
+      </div>
 
       <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
+      <!-- v-memo：切 tab 等无关重渲染跳过整块表单；deps 覆盖表单全部字段，
+           tagSuggestions 兜底 applySuggestion 就地改 characters 的场景（建议同时清空） -->
       <transition name="result-fade">
-        <div v-if="parsed && !batchMode" class="result-area">
+        <div
+          v-if="parsed && !batchMode"
+          v-memo="[
+            form.name, form.category, form.ip, form.characters, form.images, form.image,
+            form.price, form.source, form.purchaseDate, form.notes,
+            formPriceError, tagSuggestions, parsedImages, parsedVariants,
+            sortedParsedVariants, selectedVariantKey, selectedVariantName,
+            variantSectionCollapsed, topCharactersPerIp, isWishlistMode,
+            presets.categories, presets.ips, locale
+          ]"
+          class="result-area"
+        >
           <!-- 预览卡 -->
           <ImportHeroPreview
             :image="form.image"
@@ -601,23 +634,29 @@ import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/imp
 import { useBatchImport } from '@/composables/import/useBatchImport'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
+import { getSharedTaggingContext, warmTaggingContext } from '@/utils/tagging/taggingContextCache'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
 import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
 
-// 购物车/账号是独立重视图：拆异步 chunk，首点 Tab 时不把同步挂载算进 INP
+// 购物车/账号是独立重视图：拆异步 chunk；进页首帧后立刻预下载 + 预挂载（见下）
+const loadCartImportView = () => import('@/views/import/CartImportView.vue')
+const loadAccountImportView = () => import('@/views/import/AccountImportView.vue')
+// setup 阶段就发起下载，首帧后挂载时 chunk 多半已在缓存
+const cartChunkWarm = loadCartImportView().catch(() => {})
+const accountChunkWarm = loadAccountImportView().catch(() => {})
 const CartImportView = defineAsyncComponent({
-  loader: () => import('@/views/import/CartImportView.vue'),
+  loader: loadCartImportView,
   delay: 0,
 })
 const AccountImportView = defineAsyncComponent({
-  loader: () => import('@/views/import/AccountImportView.vue'),
+  loader: loadAccountImportView,
   delay: 0,
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
@@ -829,6 +868,8 @@ function seedHistoricalTagContextFromGoods() {
     presetCharacters: presets.characters || [],
     categories: presets.categories || [],
     ips: presets.ips || [],
+    // n-gram 关键词学习走共享缓存，避免再做一次全量扫描
+    learnedCategories: getSharedTaggingContext(presets, goodsStore).getLearnedKeywords(),
   })
   return historicalTagContextCache
 }
@@ -1165,21 +1206,29 @@ async function handleSave() {
 
 onMounted(() => {
   updateViewport()
-  // 预热标签上下文：首次点选搜索结果时会同步 resolve 标签，
-  // 若此时才扫全库商品建上下文，点选会卡到「好久才加入选择」。
-  // 放到下一空闲帧，避免卡住页面打开。
-  const warm = () => {
-    try {
-      seedHistoricalTagContextFromGoods()
-    } catch {
-      // 预热失败不影响后续懒建
-    }
+  // 预挂载购物车/账号：双 rAF 等首帧画完 → 等 chunk 下载完 → 立刻隐藏挂载。
+  // 不再用 idle timeout:2500（进页头几秒点购物车/账号仍走首挂，会卡死）。
+  // 历史标签上下文预热再往后推，避开用户连点 Tab 的窗口。
+  const preMount = async () => {
+    await Promise.allSettled([cartChunkWarm, accountChunkWarm])
+    tabMounted.cart = true
+    if (!isWishlistMode.value) tabMounted.account = true
+    setTimeout(() => {
+      try {
+        seedHistoricalTagContextFromGoods()
+      } catch {
+        // 预热失败不影响后续懒建
+      }
+    }, 4000)
   }
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(warm, { timeout: 500 })
-  } else {
-    setTimeout(warm, 0)
-  }
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      void preMount()
+    })
+  })
+  // 标签共享缓存只在进入本页时算（不随 App 启动算）：空闲期静默预热，
+  // timeout 250 抢在首个建议读取（~300ms 防抖）前完成；期间读旧值也不会重复全扫
+  warmTaggingContext(presets, goodsStore, { timeout: 250 })
 })
 </script>
 
