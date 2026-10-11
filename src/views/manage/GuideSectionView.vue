@@ -44,23 +44,27 @@
                 :alt="section.title"
                 loading="lazy"
                 decoding="async"
-                @load="scheduleLayout"
                 @error="markShotFailed(shot.key)"
               />
               <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
-              <template v-for="anno in shot.meta.annos" :key="anno.n">
+              <template v-if="!shot.failed" v-for="anno in shot.meta.annos" :key="anno.n">
                 <span class="guide-anno" :style="annoStyle(anno)">
-                  <i class="guide-anno__dot">{{ shot.numOffset + anno.n }}</i>
-                </span>
-                <span
-                  class="guide-anno-label"
-                  :data-n="anno.n"
-                  :style="labelStyle(shot.key, anno.n)"
-                >
-                  {{ shotLabel(shot, anno) }}
+                  <i class="guide-anno__dot" :class="anno.dot ? `guide-anno__dot--${anno.dot}` : null">
+                    {{ shot.numOffset + anno.n }}
+                  </i>
                 </span>
               </template>
             </div>
+            <figcaption class="guide-shot__legend">
+              <span
+                v-for="anno in shot.meta.annos"
+                :key="anno.n"
+                class="guide-shot__legend-item"
+              >
+                <i class="guide-shot__legend-num">{{ shot.numOffset + anno.n }}</i>
+                {{ shotLabel(shot, anno) }}
+              </span>
+            </figcaption>
           </figure>
         </div>
 
@@ -114,7 +118,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
@@ -248,88 +252,6 @@ function annoStyle(anno) {
   }
 }
 
-/**
- * 标注文字统一锚在红框右上角，放不下时按 右上 → 右下 → 左上 → 左下 回退。
- * 每个候选位校验：不出图、不压编号点、不压其它红框、不压已放置的文字。
- * 位置以 px 存储（依赖实测的 pill 尺寸），视口/语言变化时由 layoutLabels() 重算。
- */
-const labelPos = ref({})
-
-function labelStyle(shotKey, n) {
-  const pos = labelPos.value[`${shotKey}:${n}`]
-  if (!pos) return { visibility: 'hidden' }
-  return { left: `${pos.left}px`, top: `${pos.top}px` }
-}
-
-function layoutLabels() {
-  const root = pageBodyRef.value
-  if (!root) return
-  const next = {}
-  for (const figure of root.querySelectorAll('.guide-shot')) {
-    const shotKey = figure.dataset.shot
-    const meta = shotManifest[shotKey]
-    const frame = figure.querySelector('.guide-shot__frame')
-    if (!frame || !meta?.annos?.length) continue
-    const fw = frame.clientWidth
-    const fh = frame.clientHeight
-    if (!fw || !fh) continue
-    const boxes = meta.annos.map((a) => ({
-      n: a.n,
-      left: (a.x / 100) * fw,
-      top: (a.y / 100) * fh,
-      width: (a.w / 100) * fw,
-      height: (a.h / 100) * fh
-    }))
-    const placed = []
-    for (const box of boxes) {
-      const el = frame.querySelector(`.guide-anno-label[data-n="${box.n}"]`)
-      if (!el) continue
-      const w = el.offsetWidth
-      const h = el.offsetHeight
-      if (!w || !h) continue
-      // 阻挡物：只有已放置的文字互相不能压（框是半透明描边，压住框可接受）
-      // 锚点始终贴着自己的框：上/下两档高度 × 右对齐/左对齐/居中三档水平位。
-      // 上方锚点留 16px 让开编号点（框左上 22px 圆 + 2px 边）；
-      // 撞到已放文字时沿框边滑到下一档，不做远距离逃逸。
-      const tops = [box.top - h - 16, box.top + box.height + 4]
-      const lefts = [
-        box.left + box.width - w,
-        box.left,
-        box.left + box.width / 2 - w / 2
-      ]
-      const candidates = tops.flatMap((top) => lefts.map((left) => ({ left, top })))
-      const inB = (c) => c.left >= 0 && c.top >= 0 && c.left + w <= fw && c.top + h <= fh
-      const area = (c) =>
-        placed.reduce((sum, p) => {
-          const x = Math.min(c.left + w, p.left + p.width) - Math.max(c.left, p.left)
-          const y = Math.min(c.top + h, p.top + p.height) - Math.max(c.top, p.top)
-          return sum + Math.max(0, x) * Math.max(0, y)
-        }, 0)
-      const legal = candidates.filter(inB)
-      const pick =
-        legal.find((c) => area(c) === 0) ||
-        legal.sort((a, b) => area(a) - area(b))[0] ||
-        candidates[0]
-      // 兜底：夹回图内，避免被 frame 的 overflow 裁掉
-      const left = Math.min(Math.max(pick.left, 0), Math.max(fw - w, 0))
-      const top = Math.min(Math.max(pick.top, 0), Math.max(fh - h, 0))
-      placed.push({ left, top, width: w, height: h })
-      next[`${shotKey}:${box.n}`] = { left, top }
-    }
-  }
-  labelPos.value = next
-}
-
-let layoutRaf = 0
-function scheduleLayout() {
-  if (layoutRaf) return
-  layoutRaf = window.requestAnimationFrame(() => {
-    layoutRaf = 0
-    layoutLabels()
-  })
-}
-
-
 function openSection(id) {
   runWithRouteTransition(() => router.replace(`/manage/guide/${id}`), { direction: 'forward' })
 }
@@ -338,6 +260,7 @@ function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
 }
 
+// 章节切换时若参数非法则回退列表页
 watch(
   () => route.params.section,
   (id) => {
@@ -350,47 +273,16 @@ watch(
   }
 )
 
-// pill 尺寸依赖渲染结果：章节/语言切换、图片尺寸就绪、容器宽度变化都要重排
-watch([() => route.params.section, locale], async () => {
-  labelPos.value = {}
-  await nextTick()
-  scheduleLayout()
-})
-
-let shotsObserver = null
-
-function observeShots() {
-  shotsObserver?.disconnect()
-  const root = pageBodyRef.value
-  if (!root || typeof ResizeObserver === 'undefined') return
-  shotsObserver = new ResizeObserver(() => scheduleLayout())
-  root.querySelectorAll('.guide-shot__frame').forEach((el) => shotsObserver.observe(el))
-  shotsObserver.observe(root)
-}
-
-onMounted(async () => {
+onMounted(() => {
   if (sectionIndex.value < 0) {
     router.replace('/manage/guide')
     return
   }
   resetPageScrollTop()
   window.requestAnimationFrame(resetPageScrollTop)
-  await nextTick()
-  scheduleLayout()
-  observeShots()
 })
 
-onActivated(async () => {
-  resetPageScrollTop()
-  await nextTick()
-  scheduleLayout()
-  observeShots()
-})
-
-onBeforeUnmount(() => {
-  shotsObserver?.disconnect()
-  if (layoutRaf) window.cancelAnimationFrame(layoutRaf)
-})
+onActivated(resetPageScrollTop)
 </script>
 
 <style scoped src="@/assets/views/GuideSectionView.css"></style>

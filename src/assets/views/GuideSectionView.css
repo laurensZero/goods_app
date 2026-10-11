@@ -216,26 +216,38 @@
   border: 2px solid #fff;
 }
 
-/* 标注文字 pill：位置由 GuideSectionView.layoutLabels() 实测后写入（锚在红框右上角，越界自动回退） */
-.guide-anno-label {
-  position: absolute;
-  z-index: 2;
-  padding: 3px 9px;
-  border-radius: 999px;
-  border: 1.5px solid rgba(255, 255, 255, 0.92);
+/* 标注文字图例：编号与截图上的圆点一一对应，常规文档流排版，不与红框/圆点抢位置 */
+.guide-shot__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 10px;
+  padding-inline: 2px;
+}
+
+.guide-shot__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.guide-shot__legend-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
   background: var(--guide-accent);
   color: #fff;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
-  pointer-events: none;
-  white-space: nowrap;
-  max-width: 100%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
-  transition:
-    left 0.18s ease,
-    top 0.18s ease;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-style: normal;
 }
 
 /* ── 提示 / FAQ ─────────────────────────────── */
