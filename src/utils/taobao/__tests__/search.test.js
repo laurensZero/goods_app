@@ -74,7 +74,7 @@ describe('searchTaobaoItems', () => {
     expect(items[1].pic).toBe('https://g-search1.alicdn.com/img/i3/O1CN01-1-item_pic.jpg')
   })
 
-  it('透传关键词与分页到 mtop 外层 params（appId 34385）', async () => {
+  it('透传关键词与分页到 mtop 外层 params（appId 34385），并走 lean+bx-ua 精简通道', async () => {
     mtopCall.mockResolvedValue(mtopItems([]))
     await searchTaobaoItems('  谷子  ', { page: 3 })
 
@@ -84,12 +84,24 @@ describe('searchTaobaoItems', () => {
     expect(call.referer).toBe('https://s.taobao.com/')
     expect(call.cookie).toBe(READY_COOKIE)
     expect(call.data.appId).toBe('34385')
+    // 搜索网关对 AntiCreep 请求软拒 → 真实 s.taobao.com recommend 请求走精简 URL + bx-ua
+    expect(call.lean).toBe(true)
+    expect(call.extraQuery).toEqual({ 'bx-ua': 'fast-load' })
     const params = JSON.parse(call.data.params)
     expect(params.q).toBe('谷子')
     expect(params.page).toBe(3)
     expect(params.pageSize).toBe(TAOBAO_SEARCH_PAGE_SIZE)
     expect(params.n).toBe(TAOBAO_SEARCH_PAGE_SIZE)
     expect(params.sort).toBe('_coefp')
+    expect(params.clientType).toBe('h5')
+  })
+
+  it('Cookie 含 cna 时填入 params.myCNA', async () => {
+    getTaobaoCookie.mockResolvedValue('cna=abc123; cookie2=xyz; _m_h5_tk=aaaa_1')
+    mtopCall.mockResolvedValue(mtopItems([]))
+    await searchTaobaoItems('原神')
+    const params = JSON.parse(mtopCall.mock.calls[0][0].data.params)
+    expect(params.myCNA).toBe('abc123')
   })
 
   it('空关键词抛 INVALID_QUERY', async () => {

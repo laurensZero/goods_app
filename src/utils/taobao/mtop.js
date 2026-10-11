@@ -57,30 +57,46 @@ export function tokenFromCookie(cookie) {
 
 /**
  * 拼 mtop 请求 URL（参数顺序与官方 H5 调用一致）
+ *
+ * lean=true 用于搜索接口：真实 s.taobao.com 的 recommend 请求
+ * 不带 _bx-login / AntiFlood / AntiCreep / ttid，却带 bx-ua=fast-load；
+ * 搜索网关对 AntiCreep 开启的请求会软拒（token 在手仍 FAIL_SYS_TOKEN*）。
+ *
  * @param {string} api
  * @param {string} v
  * @param {string} payload 紧凑 JSON（未编码）
  * @param {string} t 毫秒时间戳
  * @param {string} sign 无 token 领取时传 ''（免签）
+ * @param {{callback?:string, lean?:boolean, extraQuery?:Record<string,string>}} [options]
  * @returns {string}
  */
-export function buildMtopUrl(api, v, payload, t, sign, callback = CALLBACK) {
+export function buildMtopUrl(api, v, payload, t, sign, options = {}) {
+  const { callback = CALLBACK, lean = false, extraQuery } = options
   const params = new URLSearchParams()
-  params.set('jsv', '2.7.5')
+  params.set('jsv', lean ? '2.7.4' : '2.7.5')
   params.set('appKey', APP_KEY)
   params.set('t', t)
   if (sign) params.set('sign', sign)
-  params.set('_bx-login', 'new')
-  params.set('dangerouslySetWindvaneParams', '[object Object]')
+  if (!lean) {
+    params.set('_bx-login', 'new')
+    params.set('dangerouslySetWindvaneParams', '[object Object]')
+  }
   params.set('api', api)
   params.set('v', v)
-  params.set('AntiFlood', 'true')
-  params.set('AntiCreep', 'true')
+  if (!lean) {
+    params.set('AntiFlood', 'true')
+    params.set('AntiCreep', 'true')
+  }
   params.set('timeout', '10000')
-  params.set('ttid', '2022@tmall_litepc_9.17.0')
+  if (!lean) params.set('ttid', '2022@tmall_litepc_9.17.0')
   params.set('type', 'jsonp')
   params.set('dataType', 'jsonp')
   params.set('callback', callback)
+  if (extraQuery) {
+    for (const [key, value] of Object.entries(extraQuery)) {
+      params.set(key, value)
+    }
+  }
   params.set('data', payload)
   return `${MTOP_ORIGIN}/h5/${api}/${v}/?${params.toString()}`
 }
@@ -135,7 +151,8 @@ function isRateLimited(ret) {
 /**
  * 调一次 mtop 接口并返回解析后的 JSON（带诊断日志：结果 ret / 耗时进反馈日志缓冲）
  *
- * @param {{api:string, v:string, data:Record<string, any>, referer?:string, cookie?:string}} options
+ * @param {{api:string, v:string, data:Record<string, any>, referer?:string, cookie?:string, lean?:boolean, extraQuery?:Record<string,string>}} options
+ *   lean：精简 URL（搜索等严风控接口用，见 buildMtopUrl 注释）
  * @returns {Promise<Record<string, any>>} 含 ret / data 的响应体（ret 以 SUCCESS 开头）
  * @throws {TaobaoRequestError} BLOCKED 风控 / TOKEN 领取失败 / HTTP / PARSE / FAIL 业务失败 / NETWORK
  */
@@ -156,8 +173,9 @@ export async function mtopCall(options) {
   }
 }
 
-async function mtopCallInner({ api, v, data, referer, cookie }) {
+async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extraQuery }) {
   const payload = JSON.stringify(data)
+  const urlOptions = { lean, extraQuery }
   let attemptCookie = cookie ?? (await getTaobaoCookie())
   if (!attemptCookie) throw new TaobaoRequestError('NETWORK', 'cookie missing')
 
@@ -167,7 +185,7 @@ async function mtopCallInner({ api, v, data, referer, cookie }) {
     const t = String(Date.now())
     const token = tokenFromCookie(attemptCookie)
     const sign = token ? md5(`${token.split('_')[0]}&${t}&${APP_KEY}&${payload}`) : ''
-    const url = buildMtopUrl(api, v, payload, t, sign)
+    const url = buildMtopUrl(api, v, payload, t, sign, urlOptions)
     const response = await taobaoPageGet(url, { cookie: attemptCookie, referer })
 
     const body = String(response.body || '')
@@ -194,7 +212,7 @@ async function mtopCallInner({ api, v, data, referer, cookie }) {
       if (tries >= 1) throw new TaobaoRequestError('TOKEN', ret)
       // 免签请求重领 token：读 Set-Cookie 合并后重签再试
       await pace()
-      const refreshUrl = buildMtopUrl(api, v, payload, String(Date.now()), '')
+      const refreshUrl = buildMtopUrl(api, v, payload, String(Date.now()), '', urlOptions)
       const refreshRes = await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer })
       const merged = mergeMtopTokenCookie(attemptCookie, readUpstreamSetCookie(refreshRes.headers))
       if (!merged) {

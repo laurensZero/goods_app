@@ -67,6 +67,31 @@ describe('buildMtopUrl', () => {
     const url = buildMtopUrl('mtop.demo.api', '1.0', '{}', '1', '')
     expect(new URL(url).searchParams.has('sign')).toBe(false)
   })
+
+  it('默认（非 lean）带 AntiFlood/AntiCreep/ttid/_bx-login', () => {
+    const url = buildMtopUrl('mtop.demo.api', '1.0', '{}', '1', 'sig')
+    const parsed = new URL(url)
+    expect(parsed.searchParams.get('AntiFlood')).toBe('true')
+    expect(parsed.searchParams.get('AntiCreep')).toBe('true')
+    expect(parsed.searchParams.get('ttid')).toBe('2022@tmall_litepc_9.17.0')
+    expect(parsed.searchParams.get('_bx-login')).toBe('new')
+    expect(parsed.searchParams.get('jsv')).toBe('2.7.5')
+  })
+
+  it('lean 模式去掉 AntiFlood/AntiCreep/ttid/_bx-login，可附带 extraQuery（bx-ua）', () => {
+    const url = buildMtopUrl('mtop.demo.api', '1.0', '{}', '1', 'sig', {
+      lean: true,
+      extraQuery: { 'bx-ua': 'fast-load' },
+    })
+    const parsed = new URL(url)
+    expect(parsed.searchParams.has('AntiFlood')).toBe(false)
+    expect(parsed.searchParams.has('AntiCreep')).toBe(false)
+    expect(parsed.searchParams.has('ttid')).toBe(false)
+    expect(parsed.searchParams.has('_bx-login')).toBe(false)
+    expect(parsed.searchParams.get('bx-ua')).toBe('fast-load')
+    expect(parsed.searchParams.get('jsv')).toBe('2.7.4')
+    expect(parsed.searchParams.get('type')).toBe('jsonp')
+  })
 })
 
 describe('unwrapMtopJsonp', () => {

@@ -192,8 +192,11 @@ const SEARCH_APP_ID = '34385'
 const SEARCH_REFERER = 'https://s.taobao.com/'
 /** 每页条数（与官方 H5 搜索页一致） */
 export const TAOBAO_SEARCH_PAGE_SIZE = 48
+/** 搜索请求带 bx-ua=fast-load（真实 s.taobao.com 首屏 recommend 请求同款，见 mtop.js lean 模式） */
+const SEARCH_BX_UA = 'fast-load'
 
-// 搜索内层 params 模板（见 docs/taobao_mtop_client.py SEARCH_PARAMS_TMPL）
+// 搜索内层 params 模板（对齐真实 s.taobao.com recommend 请求，docs/taobao_mtop_client.py SEARCH_PARAMS_TMPL）
+// 真实请求带 clientType/myCNA/userAgent 等设备与会话字段；缺字段时网关风控分数更低。
 const SEARCH_PARAMS_TMPL = {
   device: 'HMA-AL00', brand: 'HUAWEI', client_os: 'Android',
   from: 'nt_history', index: '4', schemaType: 'auction',
@@ -203,6 +206,26 @@ const SEARCH_PARAMS_TMPL = {
   needTabs: 'true', areaCode: 'CN', vm: 'nw', countryNum: '156',
   m: 'pc', n: 48, pageSize: 48, totalPage: 100, totalResults: 4800,
   sourceS: '0', sort: '_coefp', qSource: 'url', tab: 'all',
+  // 真实请求附带的设备/会话字段（缺省值与 s.taobao.com 首屏一致）
+  isBeta: 'false', grayHair: 'false', info: 'wifi', rainbow: '',
+  elderHome: 'false', newSearch: 'false', network: 'wifi', subtype: '',
+  hasPreposeFilter: 'false', prepositionVersion: 'v2', gpsEnabled: 'false',
+  searchDoorFrom: 'srp', debug_rerankNewOpenCard: 'false', searchElderHomeOpen: 'false',
+  pageSource: '', channelSrp: '', bcoffset: '', ntoffset: '', filterTag: '',
+  service: '', prop: '', loc: '',
+  start_price: null, end_price: null, startPrice: null, endPrice: null,
+  itemIds: null, p4pIds: null, p4pS: null, categoryp: '', ha3Kvpairs: null,
+  couponUnikey: '', subTabId: '', np: '',
+  clientType: 'h5', isNewDomainAb: 'false', forceOldDomain: 'false',
+  screenResolution: '1707x1067', viewResolution: '1021x1516',
+  userAgent:
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36',
+}
+
+/** 从 Cookie 提取 cna 值填入 params.myCNA（真实请求会带当前会话的 cna） */
+function myCnaFromCookie(cookie) {
+  const match = String(cookie || '').match(/(?:^|;\s*)cna=([^;]+)/)
+  return match ? match[1].trim() : ''
 }
 
 /** mtop 请求错误 → 领域错误（服务层统一出口） */
@@ -248,11 +271,22 @@ export async function searchTaobaoItems(query, options = {}) {
   if (!isTaobaoCookieReady(cookie)) throw new TaobaoImportError('NO_COOKIE')
 
   const params = { ...SEARCH_PARAMS_TMPL, q: keyword, page, pageSize, n: pageSize }
+  const myCna = myCnaFromCookie(cookie)
+  if (myCna) params.myCNA = myCna
   const data = { appId: SEARCH_APP_ID, params: JSON.stringify(params) }
 
   let body
   try {
-    body = await mtopCall({ api: SEARCH_API, v: SEARCH_API_VERSION, data, referer: SEARCH_REFERER, cookie })
+    // lean + bx-ua：对齐真实 s.taobao.com recommend 请求，避开搜索网关对 AntiCreep 请求的软拒
+    body = await mtopCall({
+      api: SEARCH_API,
+      v: SEARCH_API_VERSION,
+      data,
+      referer: SEARCH_REFERER,
+      cookie,
+      lean: true,
+      extraQuery: { 'bx-ua': SEARCH_BX_UA },
+    })
   } catch (error) {
     throw translateMtopError(error)
   }
