@@ -1,7 +1,7 @@
 <template>
   <TagSuggestionPanel
     :suggestions="tagSuggestions"
-    @apply="applySuggestion"
+    @apply="handleApply"
     @ignore="handleIgnore"
     @apply-all="applyAllSuggestions"
   />
@@ -23,6 +23,9 @@ const props = defineProps({
 })
 
 const entry = props.entry
+
+// apply 转发给父级（如把建议值写入预设）；不监听时行为与原来完全一致
+const emit = defineEmits(['apply'])
 
 const form = reactive({
   get name() {
@@ -64,6 +67,11 @@ const form = reactive({
 })
 
 const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
+
+function handleApply(payload) {
+  applySuggestion(payload)
+  emit('apply', payload)
+}
 
 function handleIgnore({ field }) {
   if (field === 'characters' && entry.info) {

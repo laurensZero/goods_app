@@ -247,6 +247,226 @@
 
 /* 图片多选器 .img-picker-* 由 ImportImagePicker 组件自带（米游铺同款），不再重复定义 */
 
+/* ── 暂存队列（搜索页卡片列表 + 链接页缩略图条） ─────── */
+.tbq-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tbq-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tbq-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.tbq-clear {
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  color: var(--app-text-tertiary);
+}
+
+.tbq-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
+  background: var(--app-surface, #fff);
+  cursor: pointer;
+  text-align: left;
+}
+
+.tbq-card--active {
+  border-color: var(--app-primary, #ff5000);
+}
+
+.tbq-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--app-surface-soft, rgba(120, 120, 128, 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tbq-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tbq-thumb-fallback {
+  font-size: 16px;
+  color: var(--app-text-tertiary);
+}
+
+.tbq-thumb-spinner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+}
+
+.tbq-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.tbq-name {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--app-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tbq-meta {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  min-width: 0;
+}
+
+.tbq-error {
+  color: var(--app-danger, #eb445a);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbq-retry {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--app-primary, #ff5000);
+  font-weight: 600;
+}
+
+.tbq-shop {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tbq-remove {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--app-text-tertiary);
+}
+
+.tbq-remove svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tbq-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tbq-strip-item {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid var(--app-border, rgba(142, 142, 147, 0.28));
+  background: var(--app-surface, #fff);
+  overflow: visible;
+  padding: 0;
+  cursor: pointer;
+}
+
+.tbq-strip-item--active {
+  border-color: var(--app-primary, #ff5000);
+}
+
+.tbq-strip-item--failed {
+  border-color: var(--app-danger, #eb445a);
+}
+
+.tbq-strip-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.tbq-strip-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: var(--app-text-tertiary);
+}
+
+.tbq-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--app-surface, #fff);
+}
+
+.tbq-dot--parsing {
+  background: var(--app-primary, #ff5000);
+  animation: tbq-pulse 1s ease-in-out infinite;
+}
+
+.tbq-dot--failed {
+  background: var(--app-danger, #eb445a);
+}
+
+@keyframes tbq-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.tbq-parsing-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 16px;
+  border-radius: 16px;
+  background: var(--app-surface, #fff);
+  color: var(--app-text-secondary);
+  font-size: 13px;
+}
+
 /* ── 搜索 ─────────────────────────────────────────────── */
 /* 搜索卡外壳（.search-section/.search-card/.search-row 等）由
    ImportSearchCard 组件自带；结果卡扩展仍在下方（ImportView.css 提供

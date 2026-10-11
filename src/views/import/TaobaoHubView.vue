@@ -64,6 +64,35 @@
           <p v-if="parseError" class="field-error">{{ parseError }}</p>
         </div>
 
+        <!-- 暂存队列缩略图条（点击切换编辑目标） -->
+        <div v-if="queueEntries.length > 0" class="tbq-strip">
+          <button
+            v-for="entry in queueEntries"
+            :key="entry.uid"
+            type="button"
+            :class="[
+              'tbq-strip-item',
+              entry.uid === activeUid && 'tbq-strip-item--active',
+              entry.status === 'failed' && 'tbq-strip-item--failed',
+            ]"
+            :title="entry.draft?.title || entry.itemId || entry.input"
+            @click="activateEntry(entry)"
+          >
+            <img v-if="entry.draft?.images?.[0]" :src="entry.draft.images[0]" loading="lazy" alt="" />
+            <span v-else class="tbq-strip-fallback">{{ (entry.draft?.title || entry.itemId || '?').charAt(0) }}</span>
+            <span v-if="entry.status === 'parsing'" class="tbq-dot tbq-dot--parsing" />
+            <span v-else-if="entry.status === 'failed'" class="tbq-dot tbq-dot--failed" />
+          </button>
+        </div>
+
+        <!-- 激活项解析中占位 -->
+        <transition name="result-fade">
+          <div v-if="!draft && parsing" class="tbq-parsing-card">
+            <span class="hub-spinner" />
+            <span>{{ t('import.taobaoQueueParsing') }}</span>
+          </div>
+        </transition>
+
         <!-- 解析结果（与米游铺导入页同款：预览卡 + 分区表单） -->
         <transition name="result-fade">
           <div v-if="draft" class="result-area">
@@ -126,12 +155,11 @@
                   <ImportCharacterPicker v-model="form.characters" :ip="form.ip" />
                 </div>
 
-                <!-- 智能建议：分类 / IP / 角色预测与填入 -->
-                <TagSuggestionPanel
-                  :suggestions="tagSuggestions"
+                <!-- 智能建议：分类 / IP / 角色预测（逐条目实例，与米游铺队列一致） -->
+                <ImportQueueTagSuggestions
+                  :key="activeUid"
+                  :entry="activeTagEntry"
                   @apply="handleApplySuggestion"
-                  @ignore="handleIgnoreSuggestion"
-                  @apply-all="applyAllSuggestions"
                 />
 
                 <!-- 图片多选器 -->
@@ -190,13 +218,51 @@
           :error="searchError"
           @search="handleSearch"
         >
+          <!-- 暂存队列：搜索/链接解析出的待处理草稿，逐件编辑保存 -->
+          <div v-if="queueEntries.length > 0" class="tbq-list">
+            <div class="tbq-head">
+              <p class="tbq-title">{{ t('import.taobaoQueueTitle') }}</p>
+              <button type="button" class="tbq-clear" @click="clearQueue">{{ t('import.clearQueue') }}</button>
+            </div>
+            <div
+              v-for="entry in queueEntries"
+              :key="entry.uid"
+              :class="['tbq-card', entry.uid === activeUid && 'tbq-card--active']"
+              @click="activateEntry(entry)"
+            >
+              <div class="tbq-thumb">
+                <img v-if="entry.draft?.images?.[0]" :src="entry.draft.images[0]" loading="lazy" alt="" />
+                <span v-else class="tbq-thumb-fallback">{{ (entry.draft?.title || entry.itemId || '?').charAt(0) }}</span>
+                <span v-if="entry.status === 'parsing'" class="hub-spinner tbq-thumb-spinner" />
+              </div>
+              <div class="tbq-body">
+                <p class="tbq-name">{{ entry.draft?.title || entry.itemId || entry.input }}</p>
+                <p class="tbq-meta">
+                  <template v-if="entry.status === 'parsing'">{{ t('import.taobaoQueueParsing') }}</template>
+                  <template v-else-if="entry.status === 'failed'">
+                    <span class="tbq-error">{{ parseMessage(entry.error) }}</span>
+                    <button type="button" class="tbq-retry" @click.stop="retryQueueEntry(entry.uid)">{{ t('import.retryParse') }}</button>
+                  </template>
+                  <template v-else>
+                    <span v-if="entry.draft?.priceText" class="tbq-price">¥{{ entry.draft.priceText }}</span>
+                    <span v-if="entry.draft?.shopName" class="tbq-shop">{{ entry.draft.shopName }}</span>
+                  </template>
+                </p>
+              </div>
+              <button class="tbq-remove" type="button" :aria-label="t('common.remove')" @click.stop="removeQueueEntry(entry.uid)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
           <div v-if="searchResults.length > 0" class="search-results">
               <button
                 v-for="item in searchResults"
                 :key="item.itemId"
                 type="button"
                 class="search-result-card"
-                :disabled="!!pickingItemId"
                 @click="handlePickSearchResult(item)"
               >
                 <div class="search-result-thumb">
@@ -211,8 +277,7 @@
                     <span v-if="item.sales" class="search-result-sales">{{ item.sales }}</span>
                   </span>
                 </span>
-                <span v-if="pickingItemId === item.itemId" class="hub-spinner search-result-spinner" />
-                <span v-else class="search-result-go" aria-hidden="true">›</span>
+                <span class="search-result-go" aria-hidden="true">›</span>
               </button>
             </div>
 
@@ -239,7 +304,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ImportPage from '@/components/import/ImportPage.vue'
@@ -251,10 +316,9 @@ import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TaobaoImportView from '@/views/import/TaobaoImportView.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
-import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
+import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import { getCoverTone } from '@/utils/goods/coverTone'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { showGlobalToast } from '@/utils/globalToast'
@@ -266,8 +330,9 @@ import {
   normalizeTaobaoCookie,
   setTaobaoCookie,
 } from '@/utils/taobao/cookie'
-import { TaobaoImportError, fetchTaobaoDraft, searchTaobaoItems, validateTaobaoCookie, TAOBAO_SEARCH_PAGE_SIZE } from '@/utils/taobao/service'
+import { TaobaoImportError, searchTaobaoItems, validateTaobaoCookie, TAOBAO_SEARCH_PAGE_SIZE } from '@/utils/taobao/service'
 import { normalizeCdnUrl, splitSkuPath } from '@/utils/taobao/detail'
+import { useTaobaoQueue } from '@/composables/import/useTaobaoQueue'
 
 defineOptions({ name: 'TaobaoHubView' })
 
@@ -282,7 +347,7 @@ const entryIsWishlist = route.query.target === 'wishlist'
 const tabs = computed(() => [
   { key: 'link', label: t('import.taobaoTabLink') },
   ...(entryIsWishlist ? [] : [{ key: 'order', label: t('import.taobaoTabOrder') }]),
-  { key: 'search', label: t('import.taobaoTabSearch') },
+  { key: 'search', label: t('import.taobaoTabSearch'), badge: queueEntries.value.length > 0 ? String(queueEntries.value.length) : '' },
 ])
 const activeTab = ref('link')
 
@@ -360,11 +425,38 @@ async function handleClearCookie() {
   showGlobalToast(t('import.taobaoCookieCleared'))
 }
 
-// ── 链接解析 ───────────────────────────────────────────
+// ── 暂存队列 + 链接解析（队列 = 待处理草稿列表，表单 = 激活项的视图） ──
 const linkInput = ref('')
-const parsing = ref(false)
 const parseError = ref('')
-const draft = ref(null)
+const activeUid = ref('')
+
+const queue = useTaobaoQueue({
+  // 任一条目解析成功都视为 Cookie 有效（解析走登录态详情页）
+  onReady: () => {
+    cookieStatus.value = 'ok'
+    cookieReady.value = true
+  },
+  onFailed: (entry) => {
+    const code = errorCode(entry.error)
+    // 后台失败只更新 Cookie 徽标，不打断当前操作；激活项失败才就地报错
+    if (entry.uid !== activeUid.value) {
+      if (code === 'LOGIN_REQUIRED' || code === 'BLOCKED' || code === 'NO_COOKIE') {
+        cookieReady.value = false
+        cookieStatus.value = code === 'BLOCKED' ? 'blocked' : 'expired'
+      }
+      return
+    }
+    parseError.value = parseMessage(entry.error)
+    applyCookieErrorState(code)
+  },
+})
+const queueEntries = queue.entries
+
+const activeEntry = computed(() => queue.entries.value.find((entry) => entry.uid === activeUid.value) || null)
+/** 表单当前编辑的草稿（激活项解析完成后才有值） */
+const draft = computed(() => (activeEntry.value?.status === 'ready' ? activeEntry.value.draft : null))
+/** 激活项解析中（解析按钮的转圈/禁用口径） */
+const parsing = computed(() => activeEntry.value?.status === 'parsing')
 
 const form = reactive({
   name: '',
@@ -379,18 +471,52 @@ const form = reactive({
   isWishlist: entryIsWishlist,
 })
 
-// 智能建议：根据名称/角色预测分类、IP、角色（与米游铺导入同款）
-const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
-
-function handleIgnoreSuggestion({ field }) {
-  if (field === 'characters') {
-    form.characters = []
+// 智能建议：与米游铺队列一致，每个条目独立实例化（建议与「忽略」记忆都逐条目独立）。
+// 通过 getter/setter 门面把激活条目的表单字段映射成 ImportQueueTagSuggestions 期望的 entry 形态。
+const activeTagEntry = computed(() => {
+  if (!activeUid.value) return null
+  return {
+    get name() {
+      return form.name
+    },
+    set name(value) {
+      form.name = value
+    },
+    get info() {
+      return {
+        get category() {
+          return form.category
+        },
+        set category(value) {
+          form.category = value
+        },
+        get ip() {
+          return form.ip
+        },
+        set ip(value) {
+          form.ip = value
+        },
+        get characters() {
+          return form.characters
+        },
+        set characters(value) {
+          form.characters = value
+        },
+        // 淘宝导入表单没有备注 / 自定义标签字段，保持空实现
+        get notes() {
+          return ''
+        },
+        set notes(value) {},
+        get tags() {
+          return []
+        },
+        set tags(value) {},
+      }
+    },
   }
-  ignoreSuggestion({ field })
-}
+})
 
 function handleApplySuggestion({ field, value }) {
-  applySuggestion({ field, value })
   // 建议值可能来自字典而非预设：立即入预设，AppSelect 才能显示它
   if (field === 'category' && value && !presets.categories.includes(value)) {
     presets.addCategory(value)
@@ -414,8 +540,7 @@ const ERROR_KEYS = {
   NETWORK: 'import.taobaoNetworkError',
 }
 
-function resetDraft() {
-  draft.value = null
+function clearForm() {
   parseError.value = ''
   nameError.value = ''
   priceError.value = ''
@@ -428,6 +553,42 @@ function resetDraft() {
   form.price = ''
   form.skuSelection = {}
   form.images = []
+}
+
+// 表单快照：切换队列条目时保留各自的编辑进度
+const FORM_SNAPSHOT_KEYS = ['name', 'category', 'ip', 'characters', 'source', 'price', 'skuSelection', 'images']
+
+function snapshotForm() {
+  const snap = {}
+  for (const key of FORM_SNAPSHOT_KEYS) {
+    const value = form[key]
+    snap[key] = Array.isArray(value) ? [...value] : (value && typeof value === 'object' ? { ...value } : value)
+  }
+  return snap
+}
+
+function restoreForm(snap) {
+  clearForm()
+  for (const key of FORM_SNAPSHOT_KEYS) {
+    if (snap[key] !== undefined) form[key] = snap[key]
+  }
+}
+
+/** 激活某条队列条目（载入编辑表单并切到链接导入 tab） */
+function activateEntry(entry) {
+  activeUid.value = entry.uid
+  activeTab.value = 'link'
+}
+
+/** 重置按钮：丢弃当前条目，自动接上队列里的下一件 */
+function resetDraft() {
+  if (activeUid.value) queue.remove(activeUid.value)
+  const next = queue.entries.value.find((entry) => entry.status !== 'failed')
+  if (next) activateEntry(next)
+  else {
+    activeUid.value = ''
+    clearForm()
+  }
 }
 
 function errorCode(error) {
@@ -453,9 +614,8 @@ function applyCookieErrorState(code) {
   activeTab.value = 'link'
 }
 
-/** 解析结果填入表单（链接导入与搜索选中共用） */
-function applyDraft(result) {
-  draft.value = result
+/** 草稿填入表单（激活项解析完成或无快照时） */
+function fillFormFromDraft(result) {
   form.name = result.title
   form.price = result.price
   form.category = ''
@@ -467,24 +627,38 @@ function applyDraft(result) {
   const firstImage = normalizeCdnUrl(result.images?.[0] || '')
   form.images = firstImage ? [firstImage] : []
   autoSelectSkuDefaults()
-  cookieStatus.value = 'ok'
-  cookieReady.value = true
 }
 
-async function handleParse() {
+// 切换激活项：离场条目存快照，进场条目恢复快照或从草稿填充
+watch(activeUid, (uid, oldUid) => {
+  const prev = queue.entries.value.find((entry) => entry.uid === oldUid)
+  if (prev?.status === 'ready') prev.snapshot = snapshotForm()
+  const next = queue.entries.value.find((entry) => entry.uid === uid)
+  if (next?.status === 'ready') {
+    if (next.snapshot) restoreForm(next.snapshot)
+    else fillFormFromDraft(next.draft)
+  } else {
+    clearForm()
+    if (next?.status === 'failed') parseError.value = parseMessage(next.error)
+  }
+})
+
+// 激活项解析完成 → 填表（已有快照则恢复编辑进度）
+watch(() => activeEntry.value?.status, (status) => {
+  if (status !== 'ready') return
+  const entry = activeEntry.value
+  if (entry.snapshot) restoreForm(entry.snapshot)
+  else fillFormFromDraft(entry.draft)
+})
+
+/** 链接导入：入队并立即激活（保持"解析完即编辑"的体验） */
+function handleParse() {
   const input = linkInput.value.trim()
   if (!input) return
-  resetDraft()
-  parsing.value = true
-  try {
-    const result = await fetchTaobaoDraft(input)
-    applyDraft(result)
-  } catch (error) {
-    parseError.value = parseMessage(error)
-    applyCookieErrorState(errorCode(error))
-  } finally {
-    parsing.value = false
-  }
+  parseError.value = ''
+  const { entry, duplicated } = queue.enqueue(input)
+  if (duplicated) showGlobalToast(t('import.taobaoQueueDuplicate'))
+  activateEntry(entry)
 }
 
 // ── 搜索 ─────────────────────────────────────────────
@@ -495,7 +669,6 @@ const searchError = ref('')
 const searchResults = ref([])
 const searchPage = ref(0)
 const searchDone = ref(false)
-const pickingItemId = ref('')
 
 async function handleSearch() {
   const keyword = searchKeyword.value.trim()
@@ -539,22 +712,29 @@ async function loadMoreSearchResults() {
   }
 }
 
-/** 点搜索结果 → 抓详情页 → 填入表单 → 切回链接导入页编辑保存 */
-async function handlePickSearchResult(item) {
-  if (pickingItemId.value) return
-  searchError.value = ''
-  resetDraft()
-  pickingItemId.value = item.itemId
-  try {
-    const result = await fetchTaobaoDraft(item.itemId)
-    applyDraft(result)
-    activeTab.value = 'link'
-  } catch (error) {
-    searchError.value = parseMessage(error)
-    applyCookieErrorState(errorCode(error))
-  } finally {
-    pickingItemId.value = ''
-  }
+/** 点搜索结果 → 入队后台解析（不跳 tab），队列卡片与 tab 徽标可见进度 */
+function handlePickSearchResult(item) {
+  const { duplicated } = queue.enqueue(item.itemId, item.itemId)
+  showGlobalToast(t(duplicated ? 'import.taobaoQueueDuplicate' : 'import.taobaoQueued'))
+}
+
+function retryQueueEntry(uid) {
+  queue.retry(uid)
+}
+
+function removeQueueEntry(uid) {
+  queue.remove(uid)
+  if (uid !== activeUid.value) return
+  const next = queue.entries.value.find((entry) => entry.status !== 'failed')
+  activeUid.value = ''
+  clearForm()
+  if (next) activateEntry(next)
+}
+
+function clearQueue() {
+  queue.clear()
+  activeUid.value = ''
+  clearForm()
 }
 
 const coverImage = computed(() => form.images[0] || '')
@@ -732,8 +912,16 @@ async function handleSave() {
       isWishlist: form.isWishlist,
     })
     showGlobalToast(t('import.taobaoImported'))
-    resetDraft()
+    queue.remove(activeUid.value)
     linkInput.value = ''
+    // 自动接上队列里的下一件；全部处理完则回搜索页继续挑
+    const next = queue.entries.value.find((entry) => entry.status !== 'failed')
+    if (next) activateEntry(next)
+    else {
+      activeUid.value = ''
+      clearForm()
+      activeTab.value = 'search'
+    }
   } catch (error) {
     saveError.value = t('import.errorSaveFailed', { message: error?.message || '' })
   } finally {
