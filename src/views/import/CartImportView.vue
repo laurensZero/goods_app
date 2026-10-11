@@ -124,6 +124,8 @@
         </section>
 
         <section v-else-if="step === 'list'" key="list" class="step-section step-section--list">
+          <!-- 内嵌隐藏时跳过整棵列表渲染/重算：拉取结果在后台到达也不拖累其它 Tab -->
+          <template v-if="!embedded || embeddedActive">
           <div class="list-header">
             <p class="list-count">{{ t('import.cartCount', { shops: processedGroups.length, items: selectableGoods.length }) }}</p>
             <div class="list-header-actions">
@@ -204,6 +206,7 @@
               </ul>
             </li>
           </ul>
+          </template>
 
         </section>
 
@@ -223,7 +226,7 @@
       </Transition>
     </main>
 
-    <div v-if="step === 'list' && processedGroups.length > 0" class="bottom-bar">
+    <div v-if="step === 'list' && (!embedded || embeddedActive) && processedGroups.length > 0" class="bottom-bar">
       <button class="primary-btn" type="button" :disabled="selectedSet.size === 0 || importing" @click="doImport">
         {{ t('import.confirmImport') }}
       </button>
@@ -474,9 +477,16 @@ onMounted(() => {
   if (!props.embedded) scheduleBootstrap()
 })
 
+let pendingSelectionInit = false
+
 watch(
   () => props.embeddedActive,
   (active) => {
+    if (active && pendingSelectionInit) {
+      pendingSelectionInit = false
+      // 仅列表就绪时补做初始化；其他状态（登出/失败回退）无需全选
+      if (step.value === 'list') initSelectionFromFetch()
+    }
     if (active && props.embedded) scheduleBootstrap()
   },
   { immediate: true },
@@ -565,6 +575,20 @@ async function syncNativeCookieToWeb() {
   await persistNativeCookieAfterSuccess()
 }
 
+/** 数据到达后初始化全选状态（会触发 processedGroups 重算，可能较贵） */
+function initSelectionFromFetch() {
+  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+}
+
+/** 内嵌隐藏时推迟初始化，切回该 Tab 再执行，避免后台重算拖累当前可见 Tab */
+function initSelectionAfterFetch() {
+  if (props.embedded && !props.embeddedActive) {
+    pendingSelectionInit = true
+    return
+  }
+  initSelectionFromFetch()
+}
+
 const startFetch = async (options = {}) => {
   if (cartFetchRunning.value) return
   cartFetchRunning.value = true
@@ -574,7 +598,7 @@ const startFetch = async (options = {}) => {
     try {
       const { list = [] } = await importMihoyoCartWithSession()
       rawGroups.value = Array.isArray(list) ? list : []
-      selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+      initSelectionAfterFetch()
       step.value = 'list'
       // 同步 Cookie 到 Web 端存储
       await syncNativeCookieToWeb()
@@ -594,7 +618,7 @@ const startFetch = async (options = {}) => {
     const nextGroups = await fetchCartList(cookieInput.value.trim())
     rawGroups.value = Array.isArray(nextGroups) ? nextGroups : []
     await persistCookieAfterSuccess()
-    selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+    initSelectionAfterFetch()
     step.value = 'list'
   } catch (error) {
     const cookieExpired = await handleCookieFailure(error)
@@ -1056,6 +1080,9 @@ async function doImport() {
   border-radius: 18px;
   overflow: hidden;
   background: rgba(0, 0, 0, 0.05);
+  /* 长列表：屏外店铺分组跳过布局/绘制，减轻首屏与切回时的重排 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
 }
 
 .shop-row,

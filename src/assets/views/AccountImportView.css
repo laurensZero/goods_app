@@ -446,6 +446,9 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  /* 长列表：屏外订单分组跳过布局/绘制，减轻首屏与切回时的重排 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
 }
 
 /* 订单摘要行 */

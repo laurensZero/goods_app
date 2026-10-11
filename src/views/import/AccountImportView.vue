@@ -132,6 +132,8 @@
 
         <!-- ========== Step: orders ========== -->
         <section v-else-if="step === 'orders'" key="orders" class="step-section step-section--list">
+          <!-- 内嵌隐藏时跳过整棵列表渲染/重算：拉取结果在后台到达也不拖累其它 Tab -->
+          <template v-if="!embedded || embeddedActive">
           <div class="list-header">
             <p class="list-count">{{ t('import.orderCount', { orders: processedOrders.length, types: mergedAllGoods.length, total: allGoods.length }) }}</p>
             <div class="list-header-actions">
@@ -273,6 +275,7 @@
 
             </li>
           </ul>
+          </template>
 
         </section>
 
@@ -757,6 +760,8 @@ const startFetch = async (options = {}) => {
     let progressHandle = null
     if (Capacitor.isNativePlatform()) {
       progressHandle = await Capacitor.addListener('MihoyoSessionImport', 'importProgress', (event) => {
+        // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
+        if (props.embedded && !props.embeddedActive) return
         loadedCount.value = event.loaded ?? loadedCount.value
         totalCount.value = event.total ?? totalCount.value
       })
@@ -790,6 +795,8 @@ const startFetch = async (options = {}) => {
     const { list, capped } = await fetchAllOrders(
       cookieInput.value.trim(),
       (loaded, total_) => {
+        // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
+        if (props.embedded && !props.embeddedActive) return
         loadedCount.value = loaded
         totalCount.value = total_
       }
