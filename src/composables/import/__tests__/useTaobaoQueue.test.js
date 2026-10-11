@@ -91,7 +91,8 @@ describe('useTaobaoQueue', () => {
   it('remove / clear 移除条目；清空后未入场的请求不再发出', async () => {
     const pending = deferred()
     fetchTaobaoDraft.mockReturnValue(pending.promise)
-    const queue = useTaobaoQueue()
+    const onReady = vi.fn()
+    const queue = useTaobaoQueue({ onReady })
 
     const { entry: a } = queue.enqueue('111111')
     const { entry: b } = queue.enqueue('222222')
@@ -105,9 +106,12 @@ describe('useTaobaoQueue', () => {
     queue.clear()
     expect(queue.entries.value).toHaveLength(0)
     pending.resolve(DRAFT_A)
-    await vi.waitFor(() => expect(a.status).toBe('ready'))
+    // 已移除的条目是幽灵：在途结果不得写回、不得触发 onReady
+    // （否则清空队列后仍会被一条「幽灵完成」改写视图的 Cookie 状态）
     await Promise.resolve()
     await Promise.resolve()
+    expect(a.status).toBe('parsing')
+    expect(onReady).not.toHaveBeenCalled()
     expect(fetchTaobaoDraft).toHaveBeenCalledTimes(1)
     expect(queue.entries.value).toHaveLength(0)
   })

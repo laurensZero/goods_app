@@ -49,7 +49,6 @@ export function useRealtimeSync({ syncStore }) {
   const channel = ref(null)
   const isConnected = ref(false)
   let pullDebounceTimer = null
-  let pendingPullTables = new Set()
   let retryTimer = null
 
   let rebuildTimer = null
@@ -60,45 +59,49 @@ export function useRealtimeSync({ syncStore }) {
   let subscribeWatchdogTimer = null
   let isSubscribing = false
 
-  function doPull(tables) {
+  function doPull() {
     if (syncStore.syncPaused) return
     if (syncStore.isSyncing || syncStore.isPulling) {
-      if (!retryTimer) {
-        retryTimer = setTimeout(async () => {
-          retryTimer = null
-          if (syncStore.syncPaused) return
-          if (!syncStore.isSyncing && !syncStore.isPulling) {
-            const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-            try { await syncStore.pull({ tables, since, source: 'realtime' }) } catch { /* ignore */ }
-          }
-        }, 2000)
-      }
+      scheduleRetryPull()
       return
     }
     const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
     try {
-      void syncStore.pull({ tables, since, source: 'realtime' })
+      // tables 只作为增量模式开关传给 pull（sync_pull 本身就是全域增量），不做数据过滤
+      void syncStore.pull({ tables: REALTIME_TABLES, since, source: 'realtime' })
     } catch {
       // silent fail
     }
   }
 
+  // 到点仍被在途同步占位时重新排队，而不是丢弃这次远端变更——
+  // 否则只能等下一次编辑/切前台/手动同步，跨设备表现为「对方改了我这边迟迟不来」
+  function scheduleRetryPull() {
+    if (retryTimer) return
+    retryTimer = setTimeout(async () => {
+      retryTimer = null
+      if (syncStore.syncPaused) return
+      if (syncStore.isSyncing || syncStore.isPulling) {
+        scheduleRetryPull()
+        return
+      }
+      doPull()
+    }, 2000)
+  }
+
   function handleRemoteChange(payload) {
     const row = payload.new || payload.old
     if (!row) return
-    const table = String(payload?.table || '')
     // 安全兜底：服务端已通过 filter=user_id 过滤，这里再检查一次
     const authStore = useAuthStore()
     const currentUserId = authStore.user?.id || ''
     if (currentUserId && row.user_id && row.user_id !== currentUserId) return
     // 过滤掉自己设备的写入（自己改的不需要再拉取）
     if (row.synced_by && row.synced_by === syncStore.deviceId) return
-    pendingPullTables.add(table)
     if (pullDebounceTimer) clearTimeout(pullDebounceTimer)
     pullDebounceTimer = setTimeout(() => {
-      const tables = [...pendingPullTables]
-      pendingPullTables.clear()
-      doPull(tables)
+      pullDebounceTimer = null
+      doPull()
     }, 500)
   }
 
@@ -360,9 +363,8 @@ export function useRealtimeSync({ syncStore }) {
         unsubscribe()
         await reconnectSupabase()
         await subscribe()
-        const tables = [...REALTIME_TABLES]
         const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-        try { await syncStore.pull({ tables, since, source: 'visibility' }) } catch { /* ignore */ }
+        try { await syncStore.pull({ tables: [...REALTIME_TABLES], since, source: 'visibility' }) } catch { /* ignore */ }
         startHealthCheck()
         publishState()
       }

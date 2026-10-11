@@ -13,7 +13,7 @@
 
 import { getItemCostEntries, getTotalShippingFee } from './statistics'
 
-const SOLD_STATUS = '已出'
+export const SOLD_STATUS = '已出'
 const LISTING_STATUS = '在售'
 
 function toNumber(value) {

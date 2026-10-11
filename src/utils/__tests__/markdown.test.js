@@ -44,13 +44,14 @@ describe('renderMarkdown bilibili embed', () => {
     expect(pageParamHtml).toContain('page=3&amp;p=3')
   })
 
-  it('accepts full bilibili video URLs', async () => {
+  it('accepts full bilibili video URLs and drops non-whitelisted share params', async () => {
     const html = await renderMarkdown(
       '<video>https://www.bilibili.com/video/BV1GJ411x7h7/?p=2&spm_id_from=333.999</video>'
     )
     expect(html).toContain('bvid=BV1GJ411x7h7')
     expect(html).toContain('page=2&amp;p=2')
-    expect(html).toContain('spm_id_from=333.999')
+    // 模型/分享链接带来的杂参数不再透传（autoplay 等可能覆盖 app 的固定播放策略）
+    expect(html).not.toContain('spm_id_from')
     expect(detectMarkdownContent('<video>https://www.bilibili.com/video/BV1GJ411x7h7?p=2</video>')).toBe(true)
   })
 

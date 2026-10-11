@@ -280,12 +280,13 @@ export function createSyncOrchestrator({
       dirtyGoodsCount: dirtyGoodsIds ? dirtyGoodsIds.size : 0
     })
 
-    // 读取 manifest 缓存维护模式（覆盖 quickPush 路径不经过 fullSync 的情况）
-    // 无条件写入：null = 管理员已解除，需清掉本地缓存，否则自动同步会静默停摆
-    if (be.readManifest) {
+    // 维护模式检查：优先复用入口（doSync/pull）预读的 manifest，消掉同轮同步的重复请求。
+    // 无条件写入（null = 管理员已解除，需清掉本地缓存，否则自动同步会静默停摆）；
+    // 入口读失败时重读一次，仍拿不到（无 readManifest 能力）则保留原缓存不动
+    if (ctx.saveMaintenanceMode) {
       try {
-        const preManifest = await be.readManifest()
-        if (ctx.saveMaintenanceMode) {
+        const preManifest = ctx.preReadManifest ?? (be.readManifest ? await be.readManifest() : undefined)
+        if (preManifest !== undefined) {
           await ctx.saveMaintenanceMode(preManifest?.maintenanceMode || null)
         }
       } catch (_) {}

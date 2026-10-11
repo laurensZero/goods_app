@@ -19,6 +19,7 @@
 
     <div
       v-if="isMarkdown"
+      ref="bodyRef"
       class="announcement-body markdown-body"
       v-html="contentHtml"
     />
@@ -49,10 +50,10 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, onBeforeUnmount } from 'vue'
+import { computed, nextTick, ref, watch, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAnnouncementStore } from '@/stores/announcement'
-import { renderMarkdown, detectMarkdownContent } from '@/utils/markdown'
+import { renderMarkdown, detectMarkdownContent, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import AppSheet from '@/components/common/AppSheet.vue'
 
@@ -70,6 +71,7 @@ const activeAnnouncement = computed(() => announcementStore.activeAnnouncement)
 
 const contentHtml = ref('')
 const isMarkdown = computed(() => detectMarkdownContent(activeAnnouncement.value?.message))
+const bodyRef = ref(null)
 
 let customStyleElement = null
 
@@ -105,6 +107,8 @@ watch(
     }
     if (detectMarkdownContent(announcement.message)) {
       contentHtml.value = await renderMarkdown(announcement.message || '')
+      await nextTick()
+      mountBiliEmbedEnhancers(bodyRef.value)
     } else {
       contentHtml.value = ''
     }

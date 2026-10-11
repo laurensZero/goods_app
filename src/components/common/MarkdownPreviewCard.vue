@@ -6,14 +6,14 @@
         {{ copied ? t('common.copiedMarkdown') : t('common.copyMarkdown') }}
       </button>
     </div>
-    <div class="markdown-preview-card__body" v-html="previewHtml" />
+    <div ref="bodyRef" class="markdown-preview-card__body" v-html="previewHtml" />
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
+import { detectMarkdownContent, renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 
 const { t } = useI18n()
 
@@ -31,9 +31,12 @@ const props = defineProps({
 const normalizedContent = computed(() => String(props.content || '').trim())
 const showPreview = computed(() => detectMarkdownContent(normalizedContent.value))
 const previewHtml = ref('')
+const bodyRef = ref(null)
 
 watch(() => ({ show: showPreview.value, content: normalizedContent.value }), async ({ show, content }) => {
   previewHtml.value = show ? await renderMarkdown(content) : ''
+  await nextTick()
+  mountBiliEmbedEnhancers(bodyRef.value)
 }, { immediate: true })
 const copied = ref(false)
 

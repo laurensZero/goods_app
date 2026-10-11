@@ -93,7 +93,7 @@ export function normalizeAskUserOption(raw) {
   let qqSongId = pick(['qqSongId', 'qqId', 'mid', 'songMid'])
   let source = String(item.source || item.platform || '').trim().toLowerCase()
   if (source === '网易云' || source === '网易' || source === '163') source = 'netease'
-  if (source === 'qq音乐' || source === 'qq音乐' || source === 'qq-music') source = 'qq'
+  if (source === 'qq音乐' || source === 'qq music' || source === 'qq-music' || source === 'qqmusic') source = 'qq'
   if (source === 'b站' || source === '哔哩哔哩') source = 'bilibili'
 
   // 通用 songId/id：按 source 归类；无 source 时数字 id 视为网易云，BV 视为 B 站

@@ -400,7 +400,7 @@ export const useSyncStore = defineStore('sync', () => {
     return conflictService.getLocalChangesSince(localSyncTime)
   }
 
-  function buildSyncContext(runGen = syncGeneration) {
+  function buildSyncContext(runGen = syncGeneration, { preReadManifest = null } = {}) {
     activeBackend = getCurrentBackend()
     // 代际守卫：本轮同步开始后若发生超时重置 / 新一轮同步，代际号已变化，
     // 旧管道的关键落盘拒绝写入并抛错，尽早终止其后续阶段
@@ -413,6 +413,8 @@ export const useSyncStore = defineStore('sync', () => {
       backend: activeBackend,
       deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, lastServerSyncedAt: lastServerSyncedAt.value, conflictData: conflictData.value,
+      // 入口预读的 manifest：orchestrator 复用它做维护模式检查，消掉同轮同步的重复请求
+      preReadManifest,
       // reconcile 删除保护：脏标记中的条目是未推送的本地改动，拉取合并时不得物理删除；
       // 传 getter 让 reconcile 执行时刻读到实时集合（拉取在途期间新增的商品同样受保护）
       getDirtyGoodsIds: () => dirtyGoodsIds,
@@ -571,7 +573,9 @@ export const useSyncStore = defineStore('sync', () => {
         pendingAutoPush = true
         return
       }
-      void doSync({ source: 'auto' })
+      void doSync({ source: 'auto' }).catch(() => {
+        // 失败详情已由 doSync 内部 applySyncError/notice 落地；这里只兜住 unhandled rejection
+      })
     }, 0)
   }
 
@@ -618,7 +622,8 @@ export const useSyncStore = defineStore('sync', () => {
     syncPaused.value = !!paused
     await writeSyncKey(SYNC_PAUSED_KEY, paused ? '1' : '')
     if (wasPaused && !paused) {
-      void doSync({ source: 'manual' })
+      // 手动源不发 notice；失败状态由 doSync 内部 applySyncError 更新到 UI，这里兜住 rejection
+      void doSync({ source: 'manual' }).catch(() => {})
     }
   }
 
@@ -826,9 +831,10 @@ export const useSyncStore = defineStore('sync', () => {
       // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）。
       // 必须无条件赋值：管理员解除维护后 manifest 返回 null，若只在为真时写入，
       // 缓存会永远停留在维护态，自动同步将静默停摆（只能手动刷新或重启恢复）
+      let preReadManifest = null
       try {
-        const manifest = await activeBackend.readManifest()
-        maintenanceMode.value = manifest?.maintenanceMode || null
+        preReadManifest = await activeBackend.readManifest()
+        maintenanceMode.value = preReadManifest?.maintenanceMode || null
       } catch (_) {}
 
       // 检查维护模式
@@ -871,7 +877,7 @@ export const useSyncStore = defineStore('sync', () => {
       const domains = consumeDirtyDomains()
       const goodsIds = dirtyGoodsIds.size > 0 ? new Set(dirtyGoodsIds) : null
       const result = await withRetry(
-        () => orchestrator.sync(buildSyncContext(runGen), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
+        () => orchestrator.sync(buildSyncContext(runGen, { preReadManifest }), { dirtyDomains: domains, dirtyGoodsIds: goodsIds }),
         { maxRetries, baseDelay: 1200, onRetry: reconnectOnNetworkError }
       )
       // 代际过期（超时重置已接管 UI）：跳过状态更新与脏标记清理，避免与新一轮同步互相覆盖
@@ -933,6 +939,8 @@ export const useSyncStore = defineStore('sync', () => {
       return { action: 'skipped', reason: 'paused' }
     }
 
+    // tables 不是数据过滤器（sync_pull 只吃 since，全域增量）：
+    // 它与 since>0 一起构成「增量模式」开关，决定走增量合并还是完整对比 + 冲突确认
     const isIncremental = !!(tables && since > 0)
 
     if (isIncremental) {
@@ -982,12 +990,10 @@ export const useSyncStore = defineStore('sync', () => {
       // 设备心跳上报（fire-and-forget）
       void heartbeatDevice()
 
-      // 预读 manifest 缓存维护模式
+      // 预读 manifest 缓存维护模式（无条件写入，理由同 doSync：null = 已解除，必须清缓存）
       try {
         const manifest = await activeBackend.readManifest()
-        if (manifest?.maintenanceMode) {
-          maintenanceMode.value = manifest.maintenanceMode
-        }
+        maintenanceMode.value = manifest?.maintenanceMode || null
       } catch (_) {}
 
       // 检查维护模式
@@ -1096,6 +1102,14 @@ export const useSyncStore = defineStore('sync', () => {
     const runGen = ++syncGeneration
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
+    // 与 doSync 相同的 3 分钟安全网：冲突解决会走 forcePush → storage 上传，
+    // 该路径被排除在 fetch 硬超时外，弱网挂死会让 isSyncing 永久为 true 堵死后续同步
+    clearSyncTimeout()
+    syncTimeoutId = setTimeout(() => {
+      console.warn('[sync] conflict resolve timeout (3 min), force reset isSyncing')
+      resetSyncingState()
+      applySyncError(new Error(i18n.global.t('sync.error.syncTimeout')), i18n.global.t('sync.error.syncTimeoutStatus'))
+    }, SYNC_TIMEOUT_MS)
     try {
       // "保留本地"会强制推送，读库失败时同样拒绝，避免覆盖云端备份
       if (!useRemote && useGoodsStore().loadFailed) {
@@ -1140,6 +1154,13 @@ export const useSyncStore = defineStore('sync', () => {
     const runGen = ++syncGeneration
     isSyncing.value = true; syncStatus.value = i18n.global.t('sync.syncing')
     syncPhase.value = null; syncCause.value = null; syncSuggestion.value = null
+    // 与 resolveConflict 相同的 3 分钟安全网，理由一致
+    clearSyncTimeout()
+    syncTimeoutId = setTimeout(() => {
+      console.warn('[sync] pull-conflict resolve timeout (3 min), force reset isSyncing')
+      resetSyncingState()
+      applySyncError(new Error(i18n.global.t('sync.error.syncTimeout')), i18n.global.t('sync.error.syncTimeoutStatus'))
+    }, SYNC_TIMEOUT_MS)
     try {
       if (!confirm) { syncStatus.value = i18n.global.t('toast.cancelled'); conflictData.value = null; return { action: 'cancelled' } }
       const ctx = { ...buildSyncContext(runGen), conflictData: conflictData.value }

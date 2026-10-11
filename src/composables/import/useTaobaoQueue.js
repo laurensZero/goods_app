@@ -53,10 +53,15 @@ export function useTaobaoQueue({ onReady, onFailed } = {}) {
         const entry = entries.value.find((e) => e.status === 'parsing')
         if (!entry) break
         try {
-          entry.draft = await fetchTaobaoDraft(entry.input)
+          const draft = await fetchTaobaoDraft(entry.input)
+          // await 期间条目可能已被 remove/clear：不得把结果写回幽灵条目并触发回调，
+          // 否则清空队列后仍会被一条「幽灵完成」改写 Cookie 状态等视图副作用
+          if (!entries.value.includes(entry)) continue
+          entry.draft = draft
           entry.status = 'ready'
           onReady?.(entry)
         } catch (error) {
+          if (!entries.value.includes(entry)) continue
           entry.error = error instanceof Error ? error : new Error(String(error))
           entry.status = 'failed'
           onFailed?.(entry)

@@ -1,8 +1,9 @@
 import { JUMP_HREF_PREFIX } from './ai/jumpLinks'
 import { getCachedImageThumb } from './image/thumb'
 
-// 同时接受裸 BV 号和完整 bilibili 视频链接（含分享参数）
-const BILI_TOKEN_RE = /<video>\s*([^\n<]*BV[0-9A-Za-z]{10}[^\n<]*)\s*<\/video>/gi
+// 同时接受裸 BV 号和完整 bilibili 视频链接（含分享参数）。
+// BV 号区分大小写（恒以大写 BV 开头），正则不加 i，避免把普通文本误认成视频
+const BILI_TOKEN_RE = /<video>\s*([^\n<]*BV[0-9A-Za-z]{10}[^\n<]*)\s*<\/video>/g
 const BILI_TOKEN_PREFIX = '@@BILIEMBED'
 const BILI_TOKEN_SUFFIX = '@@'
 
@@ -10,7 +11,7 @@ function extractBiliTokens(src) {
   const ids = []
   const replaced = src.replace(BILI_TOKEN_RE, (match, id) => {
     // 提取不到 BV 号的内容原样保留，不渲染成空 iframe
-    if (!/BV[0-9A-Za-z]{10}/i.test(id)) return match
+    if (!/BV[0-9A-Za-z]{10}/.test(id)) return match
     const token = `${BILI_TOKEN_PREFIX}${ids.length}${BILI_TOKEN_SUFFIX}`
     ids.push(id)
     return token
@@ -19,17 +20,23 @@ function extractBiliTokens(src) {
 }
 
 function buildBiliEmbed(id) {
-  const bvidMatch = id.match(/BV[0-9A-Za-z]{10}/i)
+  // BV 号区分大小写：B 站 BVid 恒以大写 BV 开头，小写视为普通文本不渲染
+  const bvidMatch = id.match(/BV[0-9A-Za-z]{10}/)
   if (!bvidMatch) return ''
   const bvid = bvidMatch[0]
   const qIdx = id.indexOf('?')
   const params = new URLSearchParams(qIdx === -1 ? '' : id.slice(qIdx + 1))
   // p / page 统一成同一个页码，只输出同值的一组，避免两参数冲突后播放器取错
   const page = Math.max(1, Math.round(Number(params.get('p') || params.get('page')) || 1))
-  params.delete('p')
-  params.delete('page')
-  const extra = params.toString() ? `&${params.toString()}` : ''
-  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=${page}&p=${page}&autoplay=0&danmaku=0&isOutside=true&poster=1${extra}`
+  // 模型给的查询参数不透传：只保留已知的播放参数（t=起始秒 / aid），
+  // 其余丢弃——避免 autoplay=1 之类覆盖 app 的固定策略或注入垃圾参数
+  const extra = new URLSearchParams()
+  for (const key of ['t', 'aid']) {
+    const value = params.get(key)
+    if (value) extra.set(key, value)
+  }
+  const extraQuery = extra.toString() ? `&${extra.toString()}` : ''
+  const src = `https://player.bilibili.com/player.html?bvid=${encodeURIComponent(bvid)}&page=${page}&p=${page}&autoplay=0&danmaku=0&isOutside=true&poster=1${extraQuery}`
   // data-bvid / data-page 供挂载后的分P切换条读取（多P 识别与切页都基于这两个属性）
   return `<div class="bili-embed" data-bvid="${encodeURIComponent(bvid)}" data-page="${page}"><div class="bili-embed__stage"><iframe class="bili-embed__frame" src="${src}" sandbox="allow-scripts allow-same-origin allow-presentation" scrolling="no" border="0" frameborder="0" framespacing="0" allowfullscreen="true"></iframe></div></div>`
 }
@@ -37,8 +44,9 @@ function buildBiliEmbed(id) {
 // ---- 备注 <video> 嵌入的分P切换条 ----
 // iframe 是 B 站官方播放器，app 控制不到它内部；方案是渲染后在 iframe 外挂一条
 // 分P按钮（拉 meta 识别多P），点按钮只改 iframe 的 page/p 参数重载。
+// 挂载由渲染方在 v-html 插入 DOM 后显式调用 mountBiliEmbedEnhancers(root) 触发
+// （此前是常驻全文档的 MutationObserver，任何 DOM 插入都要扫一遍，代价远超收益）。
 const biliPagesCache = new Map()
-let biliEmbedObserver = null
 
 function fetchBiliPagesCached(bvid) {
   if (!biliPagesCache.has(bvid)) {
@@ -108,7 +116,7 @@ function enhanceBiliEmbed(container) {
 
 /**
  * 扫描 root 下的 .bili-embed 并挂载分P切换条（幂等）。
- * renderMarkdown 渲染后调用；导出便于单测直接驱动。
+ * 渲染方在 v-html 插入 DOM 后调用（nextTick 内）；导出便于单测直接驱动。
  * @param {ParentNode | Element | Document} root
  */
 export function mountBiliEmbedEnhancers(root) {
@@ -117,23 +125,6 @@ export function mountBiliEmbedEnhancers(root) {
     enhanceBiliEmbed(root)
   }
   root.querySelectorAll('.bili-embed').forEach(enhanceBiliEmbed)
-}
-
-function ensureBiliEmbedEnhancer() {
-  if (typeof document === 'undefined') return
-  // v-html 重新插入的节点由 MutationObserver 兜住（含 AI 聊天缓存 HTML 复挂）
-  if (!biliEmbedObserver && typeof MutationObserver !== 'undefined' && document.body) {
-    biliEmbedObserver = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        mutation.addedNodes?.forEach((node) => {
-          if (node.nodeType !== 1) return
-          mountBiliEmbedEnhancers(node)
-        })
-      })
-    })
-    biliEmbedObserver.observe(document.body, { childList: true, subtree: true })
-  }
-  mountBiliEmbedEnhancers(document)
 }
 
 // DOMPurify 与 markdown-it 一样按需加载，避免法律弹窗/详情页把净化器打进首包
@@ -177,7 +168,7 @@ export function detectMarkdownContent(value) {
     /(^|[^_])__[^_\n]+__(?!_)/,
     /(^|[^~])~~[^~\n]+~~/,
     /(^|[^`])`[^`\n]+`(?!`)/,
-    /<video>\s*(?:https?:\/\/)?[^\n<]*?BV[0-9A-Za-z]+/i,
+    /<video>\s*(?:https?:\/\/)?[^\n<]*?BV[0-9A-Za-z]+/,
     // Markdown 表格：竖线单元格行 + 随后的分隔行（|---|:---:| 等）
     /^\s*\|.+\|?\s*\r?\n\s*\|?[\s:|-]+-[\s:|-]*/
   ].some((pattern) => pattern.test(text))
@@ -243,8 +234,7 @@ export async function renderMarkdown(value) {
     // 默认白名单只放行 http/https/mailto 等，这里加上 app:// 跳转协议
     ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|app):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
   })
-  // 净化完成后启动分P切换条挂载（返回的 HTML 稍后才由 v-html 插入，observer 兜住）
-  ensureBiliEmbedEnhancer()
+  // 分P切换条由渲染方在 v-html 插入 DOM 后显式调用 mountBiliEmbedEnhancers(root) 挂载
   return sanitized
 }
 /**

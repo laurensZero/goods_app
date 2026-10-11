@@ -9,7 +9,7 @@
 
 import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, getToolDefinitions } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
-import { buildSaleLedger, extractSaleEntries } from '../../utils/goods/saleStats'
+import { buildSaleLedger, extractSaleEntries, SOLD_STATUS } from '../../utils/goods/saleStats'
 import { getItemSpendEntries } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
@@ -1413,11 +1413,12 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
 
       /** @type {Set<string>} */
       const touched = new Set()
-      const applyShare = (/** @type {string} */ character, /** @type {number} */ quantityShare, /** @type {number} */ spendShare) => {
+      const applyShare = (/** @type {string} */ character, /** @type {number} */ quantityShare, /** @type {number} */ spendShare, /** @type {number} */ soldShare = 0) => {
         const key = asText(character).trim() || '（未标注角色）'
         const entry = ensure(key)
         entry.quantity += quantityShare
         entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spendShare)
+        entry.soldCount += soldShare
         touched.add(key)
       }
 
@@ -1426,19 +1427,23 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         const spendTotal = spendEntries.reduce((sum, entry) => sum + entry.price, 0)
         const unitSpendShare = spendTotal / quantityNumber
         const emptyUnitShare = 1 / characters.length
+        // 逐件模式下 soldCount 与 quantity 同口径：按 unitCollectStatusList 把已出件数归属到每份的角色，
+        // 否则 soldCount 是整条口径、quantity 是分数，跨角色合计会大于实际卖出数
+        const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
         for (let unitIndex = 0; unitIndex < quantityNumber; unitIndex++) {
           const label = unitCharacters[unitIndex] || ''
+          const unitSold = unitStatuses[unitIndex] === SOLD_STATUS ? 1 : 0
           const unitSpend = spendEntries.length === quantityNumber
             ? (spendEntries[unitIndex]?.price ?? unitSpendShare)
             : unitSpendShare
           if (label) {
-            applyShare(label, 1, unitSpend)
+            applyShare(label, 1, unitSpend, unitSold)
             continue
           }
-          for (const fallback of characters) applyShare(fallback, emptyUnitShare, unitSpend * emptyUnitShare)
+          for (const fallback of characters) applyShare(fallback, emptyUnitShare, unitSpend * emptyUnitShare, unitSold * emptyUnitShare)
         }
       } else if (!item.isWishlist) {
-        for (const character of characters) applyShare(character, quantityNumber, spend)
+        for (const character of characters) applyShare(character, quantityNumber, spend, soldUnits)
       }
 
       if (item.isWishlist) {
@@ -1447,7 +1452,6 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         for (const key of touched) {
           const entry = ensure(key)
           entry.count += 1
-          entry.soldCount += soldUnits
         }
       }
     }
@@ -1473,15 +1477,18 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
    */
   async function storageLocations(_args) {
     const items = await getItems()
-    /** @type {Map<string, { count: number, quantity: number, spend: number, samples: string[] }>} */
+    /** @type {Map<string, { count: number, quantity: number, spendByCurrency: Map<string, number>, samples: string[] }>} */
     const stats = new Map()
     for (const item of items) {
       if (item.isWishlist) continue
       const location = asText(item.storageLocation).trim() || '（未收纳）'
-      const entry = stats.get(location) || { count: 0, quantity: 0, spend: 0, samples: [] }
+      const entry = stats.get(location) || { count: 0, quantity: 0, spendByCurrency: new Map(), samples: [] }
       entry.count += 1
       entry.quantity += Number(item.quantity) || 1
-      entry.spend += estimateItemSpend(item)
+      // 金额按币种分组：JPY 标价与 CNY 实付直接相加是口径错误（其余工具均禁止跨币种相加）
+      const currency = asText(item.actualPriceCurrency || item.currency || 'CNY').trim() || 'CNY'
+      const spend = estimateItemSpend(item)
+      entry.spendByCurrency.set(currency, (entry.spendByCurrency.get(currency) || 0) + spend)
       if (entry.samples.length < 5 && item.name) entry.samples.push(item.name)
       stats.set(location, entry)
     }
@@ -1492,7 +1499,9 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         location,
         count: entry.count,
         quantity: entry.quantity,
-        spend: Math.round(entry.spend * 100) / 100,
+        // spendByCurrency 按币种分列，未折算；不要跨币种相加
+        spendByCurrency: [...entry.spendByCurrency.entries()]
+          .map(([currency, amount]) => ({ currency, amount: Math.round(amount * 100) / 100 })),
         samples: entry.samples
       }))
     return { total: locations.length, locations }

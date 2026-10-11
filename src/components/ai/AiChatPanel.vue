@@ -33,28 +33,28 @@
       :class="['chat-area', { 'chat-area--filled': aiChat.messages.length > 0 }]"
       @scroll.passive="onChatScroll"
     >
-      <TransitionGroup name="chat-msg" tag="div" class="chat-messages">
+      <TransitionGroup name="chat-msg" tag="div" class="chat-messages" ref="chatMessagesRef">
         <div v-if="aiChat.messages.length === 0" key="empty" class="chat-empty">
-        <div class="chat-empty__icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
-            <path d="M19 15l.9 2.4L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.6L19 15z" />
-          </svg>
+          <div class="chat-empty__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9L12 3z" />
+              <path d="M19 15l.9 2.4L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.6L19 15z" />
+            </svg>
+          </div>
+          <p class="chat-empty__title">{{ t('aiChat.emptyTitle') }}</p>
+          <p class="chat-empty__hint">{{ t('aiChat.emptyHint') }}</p>
+          <div class="chat-empty__examples">
+            <button
+              v-for="example in examples"
+              :key="example"
+              type="button"
+              class="chat-example"
+              @click="useExample(example)"
+            >
+              {{ example }}
+            </button>
+          </div>
         </div>
-        <p class="chat-empty__title">{{ t('aiChat.emptyTitle') }}</p>
-        <p class="chat-empty__hint">{{ t('aiChat.emptyHint') }}</p>
-        <div class="chat-empty__examples">
-          <button
-            v-for="example in examples"
-            :key="example"
-            type="button"
-            class="chat-example"
-            @click="useExample(example)"
-          >
-            {{ example }}
-          </button>
-        </div>
-      </div>
 
       <div
         v-for="msg in aiChat.messages"
@@ -642,7 +642,7 @@ import { useMediaPlayerStore } from '@/stores/mediaPlayer'
 
 import { normalizeBaseUrl, fetchModelContextLimit, guessModelContextFromName } from '@/services/ai/chatClient'
 import { transcribeAudio } from '@/services/ai/asrClient'
-import { detectMarkdownContent, renderMarkdownWithThumbs } from '@/utils/markdown'
+import { detectMarkdownContent, renderMarkdownWithThumbs, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { parseJumpHref, parseMusicPreviewHref } from '@/utils/ai/jumpLinks'
 import { fetchTrackMetaBySource } from '@/utils/music/trackMeta'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
@@ -928,6 +928,14 @@ const markdownCache = reactive({})
 const STREAM_RENDER_DEBOUNCE_MS = 120
 /** @type {Record<string, number>} 每条流式消息的防抖定时器 */
 const streamRenderTimers = {}
+const chatMessagesRef = ref(null)
+
+/** 渲染结果经 v-html 插入 DOM 后挂 B 站分P切换条（取代全局 MutationObserver） */
+function mountChatBiliEnhancers() {
+  const instance = chatMessagesRef.value
+  const el = instance?.$el || instance
+  if (el) mountBiliEmbedEnhancers(el)
+}
 
 /** 渲染单条助手消息的 Markdown（含缩略图管线）。 */
 async function renderMessageMarkdown(msg) {
@@ -945,6 +953,7 @@ async function renderMessageMarkdown(msg) {
       const html = await renderMarkdownWithThumbs(contentAtStart, { maxSize: AI_CHAT_THUMB_SIZE })
       if (msg.content !== contentAtStart) return
       markdownCache[cacheKey] = html
+      nextTick(mountChatBiliEnhancers)
     } catch {
       if (msg.content === contentAtStart) markdownCache[cacheKey] = ''
     }
@@ -1771,7 +1780,10 @@ function removeSession(id) {
   height: 40px;
   border: 1px solid var(--app-border);
   border-radius: 50%;
-  background: var(--app-surface);
+  /* 毛玻璃：悬浮在消息上方，半透明 + 背景模糊 */
+  background: color-mix(in srgb, var(--app-surface) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   color: var(--app-text);
   cursor: pointer;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
@@ -2514,11 +2526,12 @@ function removeSession(id) {
   box-shadow: 0 0 0 3px rgba(52, 199, 89, 0.1);
 }
 
+/* 附件缩略行从「+」按钮上方开始左对齐（+ 按钮自带 2px 左边距） */
 .chat-compose__attachments {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 6px 6px 8px 40px;
+  padding: 6px 6px 8px 2px;
 }
 
 .chat-compose__thumb {
@@ -2625,8 +2638,8 @@ function removeSession(id) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   margin: 0 0 0 2px;
   border: none;
   border-radius: 50%;
@@ -2647,8 +2660,8 @@ function removeSession(id) {
 }
 
 .chat-compose__attach svg {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   stroke: currentColor;
   stroke-width: 2;
   stroke-linecap: round;
@@ -2668,7 +2681,10 @@ function removeSession(id) {
   min-width: 148px;
   padding: 4px;
   border-radius: 12px;
-  background: var(--app-surface, #fff);
+  /* 毛玻璃菜单：与 AppSheet/NavBar 同一套 blur + saturate 惯例 */
+  background: color-mix(in srgb, var(--app-surface, #fff) 86%, transparent);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
   border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
 }
@@ -2706,7 +2722,8 @@ function removeSession(id) {
   width: 100%;
   height: 100%;
   padding: 0 8px;
-  border-radius: 10px;
+  /* 与 .chat-compose__thumb-img 同款 12px 圆角，两种附件并排时轮廓一致 */
+  border-radius: 12px;
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
   overflow: hidden;
@@ -2736,7 +2753,8 @@ function removeSession(id) {
   gap: 6px;
   max-width: 180px;
   padding: 6px 10px;
-  border-radius: 8px;
+  /* 与并排的 .chat-attach-thumb 同款 10px 圆角 */
+  border-radius: 10px;
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   color: var(--app-text-secondary);
   font-size: 12px;
@@ -2936,7 +2954,8 @@ function removeSession(id) {
   align-items: baseline;
   gap: 6px;
   padding: 10px 14px;
-  border-radius: 18px 18px 4px 18px;
+  /* 与用户消息气泡同款尾角 6px，保持同一视觉语言 */
+  border-radius: 18px 18px 6px 18px;
   background: color-mix(in srgb, var(--app-text) 10%, transparent);
   color: var(--app-text);
   font-size: 14px;
@@ -3003,7 +3022,6 @@ function removeSession(id) {
 .chat-queue__send svg {
   width: 16px;
   height: 16px;
-  height: 14px;
 }
 
 /* ── Settings sheet（AppSheet 承载，内容区透明继承 sheet 表面） ── */
@@ -3031,32 +3049,6 @@ function removeSession(id) {
   color: var(--app-text-secondary);
   font-size: 13px;
   font-weight: 600;
-}
-
-.settings-field__row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.settings-field__row input {
-  flex: 1;
-  min-width: 0;
-}
-
-.settings-field__detect {
-  flex-shrink: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--app-border, #d0d0d0);
-  border-radius: 8px;
-  background: var(--app-bg-secondary, #f5f5f5);
-  color: var(--app-text, #222);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-.settings-field__detect:active {
-  opacity: 0.75;
 }
 
 .settings-field__row {
@@ -3321,6 +3313,8 @@ function removeSession(id) {
   color: var(--app-text);
   font-size: 14px;
   font-weight: 600;
+  /* 固定行高：与重命名输入框同高，进入编辑态不跳动 */
+  line-height: 22px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3368,7 +3362,8 @@ function removeSession(id) {
 
 .history-item__rename-input {
   width: 100%;
-  padding: 4px 8px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid rgba(52, 199, 89, 0.5);
   border-radius: 8px;
   background: var(--app-surface);
@@ -3376,6 +3371,7 @@ function removeSession(id) {
   font-size: 14px;
   font-weight: 600;
   font-family: inherit;
+  line-height: 20px;
   outline: none;
 }
 

@@ -609,9 +609,25 @@ describe('mcp tool handlers', () => {
     const result = await createMcpToolHandlers(db).storage_locations({})
     expect(result.total).toBe(2)
     const cab = result.locations.find((/** @type {any} */ l) => l.location === 'A 柜')
-    expect(cab).toMatchObject({ count: 2, quantity: 3, spend: 50 })
+    expect(cab).toMatchObject({ count: 2, quantity: 3 })
+    // 金额按币种分列，不跨币种相加
+    expect(cab.spendByCurrency).toEqual([{ currency: 'CNY', amount: 50 }])
     expect(cab.samples).toEqual(['A1', 'A2'])
     expect(result.locations.at(-1).location).toBe('（未收纳）')
+  })
+
+  it('storage_locations 跨币种金额分列输出，不做折算相加', async () => {
+    const db = createFakeDb()
+    db.getItems = vi.fn(async () => [
+      { id: 'a', name: 'CNY 件', isWishlist: false, storageLocation: 'A 柜', quantity: 1, unitActualPriceList: [], actualPrice: '20', actualPriceCurrency: 'CNY', currency: 'CNY', updatedAt: 1 },
+      { id: 'b', name: 'JPY 件', isWishlist: false, storageLocation: 'A 柜', quantity: 1, unitActualPriceList: [], actualPrice: '3000', actualPriceCurrency: 'JPY', currency: 'JPY', updatedAt: 2 }
+    ])
+
+    const result = await createMcpToolHandlers(db).storage_locations({})
+    expect(result.locations[0].spendByCurrency).toEqual([
+      { currency: 'CNY', amount: 20 },
+      { currency: 'JPY', amount: 3000 }
+    ])
   })
 
   it('wishlist_overview 汇总期望花费与最近条目', async () => {

@@ -600,7 +600,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'character_leaderboard',
-    description: '角色排行/花费。count=已收藏（不含愿望单），wishlistCount 单独列，禁止相加。',
+    description: '角色排行/花费。count=已收藏（不含愿望单），wishlistCount 单独列，禁止相加；逐件商品 soldCount 与 quantity 同为按份口径，跨角色合计即总卖出件数。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -610,7 +610,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'storage_locations',
-    description: '收纳位置分布（条目数/花费/示例）。问「放在哪」用它。',
+    description: '收纳位置分布（条目数/花费/示例）。花费按币种分列（spendByCurrency），不要跨币种相加。问「放在哪」用它。',
     inputSchema: { type: 'object', properties: {} }
   },
   {

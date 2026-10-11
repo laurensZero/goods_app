@@ -692,7 +692,7 @@ async function handleSearch() {
 }
 
 async function loadMoreSearchResults() {
-  if (searchLoadingMore.value || searchDone.value) return
+  if (searchLoadingMore.value || searchDone.value || searching.value) return
   const keyword = searchKeyword.value.trim()
   if (!keyword) return
   searchLoadingMore.value = true
@@ -700,6 +700,9 @@ async function loadMoreSearchResults() {
   try {
     const nextPage = searchPage.value + 1
     const { items } = await searchTaobaoItems(keyword, { page: nextPage })
+    // 关键词快照校验：loadMore 在途时用户重新搜索会整体替换结果集，
+    // 旧关键词的续页若直接追加会把两批结果混在一起
+    if (searchKeyword.value.trim() !== keyword) return
     const seen = new Set(searchResults.value.map((entry) => entry.itemId))
     searchResults.value = [...searchResults.value, ...items.filter((entry) => !seen.has(entry.itemId))]
     searchPage.value = nextPage

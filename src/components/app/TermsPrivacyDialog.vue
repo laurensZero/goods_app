@@ -77,7 +77,7 @@ import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useLegalStore } from '@/stores/legal'
-import { renderMarkdown } from '@/utils/markdown'
+import { renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { getLegalDoc } from '@/content/legal'
 
 const { t, locale } = useI18n()
@@ -98,14 +98,12 @@ const scrollMemory = { terms: 0, privacy: 0 }
 watch(
   () => [legalStore.activeDocType, locale.value],
   async ([type], [prevType] = []) => {
-    if (prevType && bodyRef.value) {
-      scrollMemory[prevType] = bodyRef.value.scrollTop
-      const sheetScroll = bodyRef.value.closest('.app-sheet__scroll')
-      if (sheetScroll) sheetScroll.scrollTop = 0
-    }
+    // 阅读位置直接记在 .legal-body（唯一滚动容器）上，不再触碰 AppSheet 内部滚动层
+    if (prevType && bodyRef.value) scrollMemory[prevType] = bodyRef.value.scrollTop
     const md = getLegalDoc(type, locale.value)
     contentHtml.value = await renderMarkdown(md)
     await nextTick()
+    mountBiliEmbedEnhancers(bodyRef.value)
     if (bodyRef.value) bodyRef.value.scrollTop = scrollMemory[type] || 0
   },
   { immediate: true }
@@ -196,6 +194,12 @@ useDialogBackButton(
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--app-text) 22%, transparent) transparent;
+}
+
+/* 根因修复：外层 AppSheet 滚动层不再滚动，.legal-body 是唯一滚动容器。
+   此前两层都滚动，切 tab 时外层 scrollTop 残留导致内容顶到视野外 */
+:global(.legal-sheet .app-sheet__scroll) {
+  overflow: visible;
 }
 
 .legal-body::-webkit-scrollbar {

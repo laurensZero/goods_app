@@ -310,7 +310,9 @@ export const MIGRATIONS = [
       if (!cols.has('manualOrders')) {
         await db.run("ALTER TABLE goods ADD COLUMN manualOrders TEXT DEFAULT '{}'")
       }
-      // 旧内测包可能只有 sortOrder / customSortOrder：尽量回填到 manualOrders.custom
+      // 旧内测包可能只有 sortOrder / customSortOrder：尽量回填到 manualOrders.custom。
+      // 回填同时清零遗留排序列，让本迁移成为真正的一次性：否则「迁移版本意外回落触发重跑」
+      // 会把用户主动清空过的自定义排序（manualOrders='{}'）从残留 sortOrder 复活
       if (cols.has('customSortOrder') || cols.has('sortOrder')) {
         await db.run(`
           UPDATE goods
@@ -326,6 +328,13 @@ export const MIGRATIONS = [
         `).catch(async () => {
           // json_object 不可用时忽略回填，业务会重新播种
         })
+        // 清零尽力而为：老库可能没有其中某一列
+        if (cols.has('customSortOrder')) {
+          await db.run('UPDATE goods SET customSortOrder = 0 WHERE customSortOrder IS NOT NULL AND customSortOrder > 0').catch(() => {})
+        }
+        if (cols.has('sortOrder')) {
+          await db.run('UPDATE goods SET sortOrder = 0 WHERE sortOrder IS NOT NULL AND sortOrder > 0').catch(() => {})
+        }
       }
     }
   },
