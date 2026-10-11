@@ -7,14 +7,14 @@ import {
   compareVersions,
   normalizeVersionTag
 } from '@/utils/github/release'
-import { normalizeUpdateLevel, toDirectStorageUrls } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, otaAbortSignal, toDirectStorageUrls } from '@/utils/updateHelpers'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import { createLogger } from '@/utils/logger'
 import { isDevVersionMockEnabled, resolveMockAppVersion, resolveMockBundleVersion } from '@/utils/dev/mockVersion'
 import { verifyBundleZipAuth } from '@/utils/bundleAuth'
 import { sha256Hex } from '@/utils/platform/fileHash'
 import { startLocalFileServer, stopLocalFileServer } from '@/utils/platform/localFileServer'
-import { checkFeaturePermission } from '@/composables/permission/useFeaturePermission'
+import { checkFeaturePermissionState } from '@/composables/permission/useFeaturePermission'
 import { Filesystem, Directory } from '@capacitor/filesystem'
 
 const log = createLogger('web-update')
@@ -244,11 +244,13 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         const channel = selectedChannel.value
 
         // beta 频道门限：仅 feature_whitelist 拥有 'beta' 的登录用户可收到 beta 资源包。
-        // 无权限（含未登录）静默降级为「已是最新」——不查询 ota_releases、不提示。
-        // 同时退回 stable 频道：切换器对无权限用户隐藏，留在 beta 会永远收不到任何更新。
+        // denied（未登录 / 服务端明确拒绝）→ 静默降级为「已是最新」并退回 stable：
+        //   切换器对无权限用户隐藏，留在 beta 会永远收不到任何更新。
+        // unverified（网络/服务端异常，本轮结果未知）→ 跳过检查并报错：
+        //   不查询 ota_releases、不退频道、不误报「已是最新」，等下次检查网络恢复再判定。
         if (channel === 'beta') {
-          const allowed = await checkFeaturePermission(BETA_UPDATE_FEATURE)
-          if (!allowed) {
+          const gateState = await checkFeaturePermissionState(BETA_UPDATE_FEATURE)
+          if (gateState === 'denied') {
             if (selectedChannel.value === 'beta') setUpdateChannel('stable')
             lastCheckedAt.value = new Date().toISOString()
             lastStatus.value = 'latest'
@@ -256,22 +258,45 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
             log.info('check:gated', { channel })
             return { status: 'gated' }
           }
+          if (gateState === 'unverified') {
+            // 推进检查时间戳（前台冷却照常生效），但不改频道、不装「已是最新」
+            lastCheckedAt.value = new Date().toISOString()
+            lastStatus.value = 'error'
+            lastError.value = '权限校验暂不可用（网络异常），本轮跳过更新检查，请稍后重试。'
+            log.warn('check:gated-unverified', { channel })
+            throw new Error(lastError.value)
+          }
         }
 
         const client = getSupabaseClient()
 
-        // 查询最新 bundle
-        const { data, error } = await client
-          .from('ota_releases')
-          .select('*')
-          .eq('channel', channel)
-          .eq('type', 'web_bundle')
-          .order('published_at', { ascending: false })
-          .limit(1)
+        // 最新 bundle 与历史版本（累积 release notes）并行查询，弱网下少等一个来回
+        const [{ data, error }, historyResult] = await Promise.all([
+          client
+            .from('ota_releases')
+            .select('*')
+            .eq('channel', channel)
+            .eq('type', 'web_bundle')
+            .order('published_at', { ascending: false })
+            .limit(1)
+            .abortSignal(otaAbortSignal()),
+          // 历史列表失败不阻塞主流程（release notes 缺了只是少展示）
+          client
+            .from('ota_releases')
+            .select('version, notes, published_at')
+            .eq('channel', channel)
+            .eq('type', 'web_bundle')
+            .order('published_at', { ascending: false })
+            .limit(3)
+            .abortSignal(otaAbortSignal())
+            .then((result) => result, () => null)
+        ])
 
         if (error) {
           throw new Error(`查询更新信息失败: ${error.message}`)
         }
+
+        latestVersions.value = historyResult?.data || []
 
         if (!data || data.length === 0) {
           throw new Error(`${channel} 频道暂无可用资源包。`)
@@ -288,16 +313,6 @@ export const useWebUpdateStore = defineStore('webUpdate', () => {
         latestMinNativeVersion.value = normalizeVersionTag(bundle.min_native_version || '')
         updateLevel.value = normalizeUpdateLevel(bundle.update_level)
         lastCheckedAt.value = new Date().toISOString()
-
-        // 获取历史版本用于累积 release notes
-        const { data: history } = await client
-          .from('ota_releases')
-          .select('version, notes, published_at')
-          .eq('channel', channel)
-          .eq('type', 'web_bundle')
-          .order('published_at', { ascending: false })
-          .limit(3)
-        latestVersions.value = history || []
 
         if (!latestVersion.value || !latestZipUrl.value) {
           latestVersion.value = ''

@@ -12,7 +12,7 @@ import {
   resolveReleaseAsset,
   resolveReleaseTargetUrl
 } from '@/utils/github/release'
-import { normalizeUpdateLevel, parseApkSha256FromText, toDirectStorageUrls } from '@/utils/updateHelpers'
+import { normalizeUpdateLevel, otaAbortSignal, parseApkSha256FromText, toDirectStorageUrls } from '@/utils/updateHelpers'
 import { computeFileSha256 } from '@/utils/platform/fileHash'
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
@@ -110,6 +110,7 @@ async function fetchLatestApkFromSupabase() {
     .eq('type', 'apk')
     .order('published_at', { ascending: false })
     .limit(1)
+    .abortSignal(otaAbortSignal())
 
   if (error) throw error
 

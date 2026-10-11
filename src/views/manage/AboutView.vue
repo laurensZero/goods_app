@@ -124,7 +124,8 @@
             <p class="info-kicker">Web Bundle</p>
             <h3 class="info-value">{{ t('about.currentResourceLabel', { version: webBundleVersionLabel }) }}</h3>
             <p class="info-desc">{{ t('about.webUpdateDesc') }}</p>
-            <!-- 无 beta 白名单（含未登录）不显示频道切换器；store 侧已把这类用户退回 stable -->
+            <!-- 无 beta 白名单（含未登录）不显示频道切换器；store 侧对「确认无权限」用户退回 stable，
+                 网络/服务端异常（结果未知）则保持频道不动，只在检查时报错 -->
             <div v-if="betaChannelChecked && betaChannelAllowed" class="update-channel-row">
               <span class="update-channel-label">{{ t('about.updateChannel') }}</span>
               <div class="update-channel-actions">

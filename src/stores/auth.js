@@ -119,8 +119,16 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const currentUser = await getUser()
       setUser(currentUser)
-    } catch {
-      setUser(null)
+    } catch (e) {
+      // 弱网/服务端抖动（AuthRetryableFetchError、5xx）不破坏缓存的登录态：
+      // 只有服务端明确拒绝（401/403）或本地本就无缓存用户时才置为未登录，
+      // 否则地铁/电梯里打开 App 会被误判登出，连带 beta 白名单等权限判定一起失效
+      const status = Number(e?.status ?? 0)
+      if (status === 401 || status === 403 || !user.value) {
+        setUser(null)
+      } else {
+        log.warn('init:getUser:kept-cached-user', { status, message: e?.message })
+      }
     }
 
     authSubscription = onAuthStateChange((event, newSession) => {

@@ -12,7 +12,9 @@
 //
 // 安全说明：
 //   - 白名单表默认 RLS 全拒，客户端无法直接读写，只能经本函数用 service_role 查询
-//   - 未登录 / 无 token / 查询异常 → 一律返回 allowed:false
+//   - 未登录 / 无 token → 返回 allowed:false（确定性无权限）
+//   - 服务端内部错误（查询异常/未知异常）→ 返回 5xx：客户端据此走「结果未知」降级，
+//     与确定性无权限区分开（200 + allowed:false 会被当作确定性拒绝并持久化）
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -68,12 +70,13 @@ serve(async (req) => {
 
     if (error) {
       console.error("check-feature-permission:query-error", error)
-      return json({ allowed: false, reason: "query_error" })
+      // 503：让客户端按「本轮结果未知」处理，而不是确定性拒绝
+      return json({ allowed: false, reason: "query_error" }, 503)
     }
 
     return json({ allowed: !!data })
   } catch (e) {
     console.error("check-feature-permission:error", e)
-    return json({ allowed: false, reason: "server_error" })
+    return json({ allowed: false, reason: "server_error" }, 500)
   }
 })

@@ -17,6 +17,7 @@ const h = vi.hoisted(() => {
     state,
     cu,
     featurePerm: vi.fn(),
+    featurePermState: vi.fn(),
     from: vi.fn()
   }
 })
@@ -41,7 +42,8 @@ vi.mock('@/utils/platform/localFileServer', () => ({
 }))
 vi.mock('@/utils/platform/fileHash', () => ({ sha256Hex: vi.fn() }))
 vi.mock('@/composables/permission/useFeaturePermission', () => ({
-  checkFeaturePermission: (...args) => h.featurePerm(...args)
+  checkFeaturePermission: (...args) => h.featurePerm(...args),
+  checkFeaturePermissionState: (...args) => h.featurePermState(...args)
 }))
 vi.mock('@/utils/sync/supabaseClient', () => ({
   getSupabaseClient: () => ({ from: (...args) => h.from(...args) }),
@@ -78,7 +80,8 @@ function makeChain(result) {
     select: vi.fn(() => chain),
     eq: vi.fn(() => chain),
     order: vi.fn(() => chain),
-    limit: vi.fn(async () => result)
+    limit: vi.fn(() => chain),
+    abortSignal: vi.fn(async () => result)
   }
   return chain
 }
@@ -96,6 +99,7 @@ describe('webUpdate：silent 静默链路 + beta 白名单门限', () => {
     h.state.bundleRow = makeRow()
     h.from.mockImplementation(() => makeChain({ data: [h.state.bundleRow], error: null }))
     h.featurePerm.mockResolvedValue(true)
+    h.featurePermState.mockResolvedValue('allowed')
 
     h.cu.current.mockResolvedValue({ bundle: { id: 'live-1', version: '1.0.0' }, native: '1.0.0' })
     h.cu.download.mockResolvedValue({ id: 'dl-1', version: '1.1.0' })
@@ -186,19 +190,19 @@ describe('webUpdate：silent 静默链路 + beta 白名单门限', () => {
 
       const result = await store.checkForUpdates()
 
-      expect(h.featurePerm).not.toHaveBeenCalled()
+      expect(h.featurePermState).not.toHaveBeenCalled()
       expect(h.from).toHaveBeenCalled()
       expect(result.status).toBe('available')
     })
 
-    it('beta + 无权限：静默降级为「已是最新」，不查询 ota_releases 并退回 stable', async () => {
+    it('beta + 确认无权限：静默降级为「已是最新」，不查询 ota_releases 并退回 stable', async () => {
       setChannel('beta')
-      h.featurePerm.mockResolvedValue(false)
+      h.featurePermState.mockResolvedValue('denied')
       const store = useWebUpdateStore()
 
       const result = await store.checkForUpdates()
 
-      expect(h.featurePerm).toHaveBeenCalledWith('beta')
+      expect(h.featurePermState).toHaveBeenCalledWith('beta')
       expect(result.status).toBe('gated')
       expect(store.lastStatus).toBe('latest')
       expect(store.dialogVisible).toBe(false)
@@ -211,6 +215,25 @@ describe('webUpdate：silent 静默链路 + beta 白名单门限', () => {
       expect(localStorage.getItem(CHANNEL_KEY)).toBe('stable')
     })
 
+    it('beta + 权限校验结果未知（网络异常）：不退回 stable、不误报「已是最新」，本轮报错跳过', async () => {
+      setChannel('beta')
+      h.featurePermState.mockResolvedValue('unverified')
+      const store = useWebUpdateStore()
+
+      await expect(store.checkForUpdates()).rejects.toThrow(/权限校验/)
+
+      expect(h.featurePermState).toHaveBeenCalledWith('beta')
+      // 结果未知时保持用户选择的频道，绝不写 localStorage 降级
+      expect(store.selectedChannel).toBe('beta')
+      expect(localStorage.getItem(CHANNEL_KEY)).toBe('beta')
+      expect(h.from).not.toHaveBeenCalled()
+      expect(h.cu.download).not.toHaveBeenCalled()
+      expect(store.lastStatus).toBe('error')
+      expect(store.lastError).toContain('权限校验')
+      // 推进检查时间戳（前台冷却照常生效），避免弱网下连环轰炸
+      expect(store.lastCheckedAt).toBeTruthy()
+    })
+
     it('beta + 有权限：正常拿到可用更新', async () => {
       setChannel('beta')
       h.state.bundleRow = makeRow({ update_level: 'prompt', channel: 'beta' })
@@ -218,7 +241,7 @@ describe('webUpdate：silent 静默链路 + beta 白名单门限', () => {
 
       const result = await store.checkForUpdates()
 
-      expect(h.featurePerm).toHaveBeenCalledWith('beta')
+      expect(h.featurePermState).toHaveBeenCalledWith('beta')
       expect(h.from).toHaveBeenCalled()
       expect(result.status).toBe('available')
       expect(store.latestVersion).toBe('1.1.0')
@@ -232,6 +255,7 @@ describe('webUpdate：silent 静默链路 + beta 白名单门限', () => {
 
       await store.checkForUpdates()
 
+      expect(h.featurePermState).toHaveBeenCalledWith('beta')
       await vi.waitFor(() => expect(h.cu.next).toHaveBeenCalledWith({ id: 'dl-1' }))
       expect(h.cu.set).not.toHaveBeenCalled()
       expect(store.dialogVisible).toBe(false)
