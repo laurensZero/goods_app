@@ -101,7 +101,7 @@ export default [
 
   // ---------- Node 环境文件（构建配置与脚本） ----------
   {
-    files: ['vite.config.js', 'vitest.config.js', 'scripts/**/*.mjs'],
+    files: ['vite.config.js', 'vitest.config.js', 'scripts/**/*.mjs', 'private/tools/**/*.mjs'],
     languageOptions: {
       globals: { ...globals.node }
     }
