@@ -1,3 +1,4 @@
+import { ensureStickerImages } from '@/config/frames/stickerAssets'
 import { renderFrameComposition } from '@/utils/image/frameRenderer'
 
 async function loadPica() {
@@ -271,6 +272,8 @@ export function useImageExport() {
    * 因此预览里看到的构图就是导出的构图。
    */
   async function composeFramed(inputBlob, options = {}) {
+    // 意境外框的贴纸图是异步解码的，导出前必须确保就绪
+    await ensureStickerImages()
     const sourceCanvas = await decodeBlobToCanvas(inputBlob)
     const outputWidth = Math.max(1, Number(options.outputWidth) || 1200)
     const outputHeight = Math.max(1, Number(options.outputHeight) || 1200)

@@ -92,6 +92,24 @@
       </div>
     </div>
 
+    <div v-if="activeFrame && activeFrame.dateLabel" class="editor-group">
+      <label class="editor-toggle">
+        <div class="editor-toggle__info">
+          <strong>{{ t('imageEditor.showDate') }}</strong>
+        </div>
+        <input
+          :checked="showDate"
+          type="checkbox"
+          class="editor-toggle__input"
+          :disabled="saving"
+          @change="emit('update:showDate', $event.target.checked)"
+        />
+        <span class="editor-toggle__track" aria-hidden="true">
+          <span class="editor-toggle__thumb" />
+        </span>
+      </label>
+    </div>
+
     <div class="editor-group">
       <p class="editor-group-title">{{ t('imageEditor.composition') }}</p>
       <label class="editor-slider">
@@ -133,6 +151,7 @@ const props = defineProps({
   source: { type: Object, default: null },
   bgColor: { type: String, default: '#ffffff' },
   fitRatioPercent: { type: Number, default: 100 },
+  showDate: { type: Boolean, default: true },
   saving: { type: Boolean, default: false }
 })
 
@@ -140,7 +159,8 @@ const emit = defineEmits([
   'update:modelValue',
   'update:colorwayId',
   'update:colorOverrides',
-  'update:fitRatioPercent'
+  'update:fitRatioPercent',
+  'update:showDate'
 ])
 
 const { t } = useI18n()

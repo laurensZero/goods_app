@@ -193,6 +193,7 @@ function sakura(ctx, cx, cy, size, color, rotation) {
 }
 
 export const waFrame = {
+  dateLabel: true,
   id: 'wa',
   nameKey: 'imageEditor.frameWa',
   category: 'oriental',

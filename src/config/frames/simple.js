@@ -9,6 +9,7 @@ import { drawText, shadowedRoundRect } from './shared'
 const DESIGN = 1200
 
 export const minimalFrame = {
+  dateLabel: true,
   id: 'minimal',
   nameKey: 'imageEditor.frameMinimal',
   category: 'simple',
@@ -75,6 +76,7 @@ export const minimalFrame = {
 }
 
 export const photocardFrame = {
+  dateLabel: true,
   id: 'photocard',
   nameKey: 'imageEditor.framePhotocard',
   category: 'simple',

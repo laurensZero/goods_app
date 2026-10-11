@@ -6,34 +6,36 @@ import {
   drawWatercolorBlob,
   roundRectPath,
   traceRoughRect,
-  traceWavyRect,
-  withAlpha
+  traceWavyRect
 } from '@/utils/image/frameRenderer'
 import { drawText, radialBlob, withShadow } from './shared'
 
 const DESIGN = 1200
 
-const WAVE_OUTER = [[30, 165, 0], [10, 62, 1]]
-const WAVE_INNER = [[16, 118, 0.6], [6, 46, 1.8]]
+const WAVE_OUTER = [[22, 240, 0.3], [7, 96, 1.2]]
+const WAVE_INNER = [[12, 190, 0.8], [4, 80, 2.0]]
 const WAVE_CARD = { x: 86, y: 86, w: 1028, h: 1028 }
 const WAVE_RECESS = { x: 154, y: 154, w: 892, h: 892 }
 const WAVE_WINDOW = { x: 252, y: 252, w: 696, h: 696, radius: 40 }
 
+// 水彩晕染贴着画布四边铺开，中间留浅底，让白色波纹卡纸浮出来
 const waveStains = [
-  { cx: 150, cy: 176, radius: 420, key: 'stain1', seed: 301, alpha: 0.5 },
-  { cx: 1058, cy: 176, radius: 380, key: 'stain2', seed: 311, alpha: 0.55 },
-  { cx: 158, cy: 1052, radius: 400, key: 'stain2', seed: 321, alpha: 0.55 },
-  { cx: 1050, cy: 1046, radius: 430, key: 'stain1', seed: 331, alpha: 0.5 },
-  { cx: 588, cy: 70, radius: 380, key: 'stain1', seed: 341, alpha: 0.68 },
-  { cx: 612, cy: 1130, radius: 380, key: 'stain2', seed: 351, alpha: 0.68 }
+  { cx: 55, cy: 85, radius: 340, key: 'stain1', seed: 301, alpha: 0.66 },
+  { cx: 1150, cy: 70, radius: 310, key: 'stain2', seed: 311, alpha: 0.6 },
+  { cx: 40, cy: 630, radius: 270, key: 'stain2', seed: 321, alpha: 0.5 },
+  { cx: 1165, cy: 640, radius: 280, key: 'stain1', seed: 331, alpha: 0.54 },
+  { cx: 130, cy: 1155, radius: 340, key: 'stain1', seed: 341, alpha: 0.62 },
+  { cx: 1075, cy: 1160, radius: 320, key: 'stain2', seed: 351, alpha: 0.58 },
+  { cx: 600, cy: 25, radius: 250, key: 'stain1', seed: 361, alpha: 0.4 },
+  { cx: 600, cy: 1190, radius: 250, key: 'stain2', seed: 371, alpha: 0.42 }
 ]
 
 const waveEdgeStains = [
-  { cx: 150, cy: 300, radius: 300, key: 'stain1', seed: 401, alpha: 0.62 },
-  { cx: 236, cy: 966, radius: 280, key: 'stain1', seed: 411, alpha: 0.62 },
-  { cx: 1000, cy: 176, radius: 260, key: 'stain2', seed: 421, alpha: 0.62 },
-  { cx: 1086, cy: 726, radius: 250, key: 'stain2', seed: 431, alpha: 0.62 },
-  { cx: 520, cy: 120, radius: 240, key: 'stain2', seed: 441, alpha: 0.62 }
+  { cx: 150, cy: 300, radius: 300, key: 'stain1', seed: 401, alpha: 0.52 },
+  { cx: 236, cy: 966, radius: 280, key: 'stain1', seed: 411, alpha: 0.52 },
+  { cx: 1000, cy: 176, radius: 260, key: 'stain2', seed: 421, alpha: 0.52 },
+  { cx: 1086, cy: 726, radius: 250, key: 'stain2', seed: 431, alpha: 0.52 },
+  { cx: 520, cy: 120, radius: 240, key: 'stain2', seed: 441, alpha: 0.52 }
 ]
 
 export const waveFrame = {
@@ -127,25 +129,22 @@ export const waveFrame = {
     const recess = { x: WAVE_RECESS.x * k, y: WAVE_RECESS.y * k, width: WAVE_RECESS.w * k, height: WAVE_RECESS.h * k }
     const inner = WAVE_INNER.map(([a, p, ph]) => [a * k, p * k, ph])
 
-    // 框内背板
+    // 内层衬纸：第二道波浪边，与卡片之间露出一圈细缝，「双衬纸」的层次感
+    withShadow(ctx, k, { color: 'rgba(40, 34, 30, 0.12)', blur: 14, offsetY: 5 }, () => {
+      ctx.fillStyle = '#FFFFFF'
+      traceWavyRect(ctx, {
+        x: (WAVE_CARD.x + 32) * k,
+        y: (WAVE_CARD.y + 32) * k,
+        width: (WAVE_CARD.w - 64) * k,
+        height: (WAVE_CARD.h - 64) * k
+      }, 88 * k, inner)
+      ctx.fill()
+    })
+
+    // 框内背板：干净地接在卡纸里，不再压描边（水彩和波纹已经给了层次）
     ctx.fillStyle = backgroundColor || palette.recess
     traceWavyRect(ctx, recess, 74 * k, inner)
     ctx.fill()
-
-    ctx.strokeStyle = withAlpha(palette.shade, 0.18)
-    ctx.lineWidth = 20 * k
-    traceWavyRect(ctx, recess, 74 * k, inner)
-    ctx.stroke()
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)'
-    ctx.lineWidth = 8 * k
-    traceWavyRect(ctx, {
-      x: recess.x + 12 * k,
-      y: recess.y + 12 * k,
-      width: recess.width - 24 * k,
-      height: recess.height - 24 * k
-    }, 64 * k, inner)
-    ctx.stroke()
 
     withShadow(ctx, k, { color: 'rgba(40, 34, 30, 0.24)', blur: 18, offsetY: 8 }, () => {
       ctx.fillStyle = 'rgba(255, 255, 255, 0.01)'
@@ -177,6 +176,7 @@ const COLLAGE_CARD = { x: 108, y: 96, w: 984, h: 1008 }
 const COLLAGE_WINDOW = { x: 182, y: 168, w: 836, h: 704, radius: 26 }
 
 export const collageFrame = {
+  dateLabel: true,
   id: 'collage',
   nameKey: 'imageEditor.frameCollage',
   category: 'collage',

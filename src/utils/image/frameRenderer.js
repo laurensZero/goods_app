@@ -332,7 +332,7 @@ const noiseTileCache = new Map()
 const tintedTileCache = new Map()
 
 /** 生成一张带径向衰减的分形噪点遮罩（白色 + alpha），按 seed 缓存。 */
-export function noiseMaskTile(seed, size = 128) {
+export function noiseMaskTile(seed, size = 224) {
   if (typeof document === 'undefined') return null
   const key = `${seed}:${size}`
   const cached = noiseTileCache.get(key)
@@ -396,6 +396,7 @@ function tintedTile(seed, color) {
 
 /**
  * 画一摊水彩：位置/半径走设计空间坐标，内部按 k 缩放。
+ * 贴图按种子旋转，同一纹理在不同晕染里朝向不同，避免出现可察觉的「图案感」。
  * 调用方如需裁切（例如只允许落在卡纸边缘那圈）自行 ctx.clip()。
  */
 export function drawWatercolorBlob(ctx, { cx, cy, radius, color, alpha = 0.7, seed = 1, k = 1 }) {
@@ -405,7 +406,9 @@ export function drawWatercolorBlob(ctx, { cx, cy, radius, color, alpha = 0.7, se
   const size = radius * 2 * k
   ctx.save()
   ctx.globalAlpha = alpha
-  ctx.drawImage(tile, (cx - radius) * k, (cy - radius) * k, size, size)
+  ctx.translate(cx * k, cy * k)
+  ctx.rotate((seed % 8) * 0.785)
+  ctx.drawImage(tile, -size / 2, -size / 2, size, size)
   ctx.restore()
 }
 

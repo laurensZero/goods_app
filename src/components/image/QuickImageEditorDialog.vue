@@ -147,11 +147,13 @@
                 :source="compositionSource"
                 :bg-color="previewBgColor"
                 :fit-ratio-percent="whiteBgScalePercent"
+                :show-date="showFrameDate"
                 :saving="saving"
                 @update:model-value="setFrameId"
                 @update:colorway-id="setFrameColorway"
                 @update:color-overrides="setFrameColorOverrides"
                 @update:fit-ratio-percent="whiteBgScalePercent = $event"
+                @update:show-date="showFrameDate = $event"
               />
 
               <EditorExportPanel
@@ -285,6 +287,8 @@ const cutoutModel = ref('falcon')
 const cloudCutoutAvailable = ref(false)
 // 二次编辑：外框上的日期标签要沿用上次保存的那天，不能因为今天再打开就跳日期
 const labelDateOverride = ref('')
+// 带日期的外框可以关掉日期（关掉后配方里存空串，渲染层自然不画）
+const showFrameDate = ref(true)
 const {
   applyCutoutMask,
   applyCloudCutoutMask,
@@ -340,7 +344,7 @@ function formatTodayLabel() {
 const frameLabels = computed(() => ({
   title: '',
   code: '',
-  date: formatTodayLabel()
+  date: showFrameDate.value ? formatTodayLabel() : ''
 }))
 
 async function refreshCloudCutoutAvailability() {
@@ -782,6 +786,7 @@ function openFromFile(file) {
   frameColorwayId.value = recipe ? recipe.colorwayId : ''
   frameColorOverrides.value = recipe ? { ...recipe.colorOverrides } : {}
   labelDateOverride.value = recipe?.labelsDate || ''
+  showFrameDate.value = recipe ? Boolean(recipe.labelsDate) : true
   resetCompositionSource()
   cutoutLoading.value = false
   cutoutApplyingMask.value = false

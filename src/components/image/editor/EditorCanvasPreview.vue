@@ -15,6 +15,7 @@
  * 组件本体只管尺寸与重绘节流，合成内容全部交给渲染器。
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ensureStickerImages } from '@/config/frames/stickerAssets'
 import { renderFrameComposition } from '@/utils/image/frameRenderer'
 
 const props = defineProps({
@@ -39,6 +40,7 @@ const boxSize = ref(0)
 
 let observer = null
 let rafId = 0
+let stickersKickStarted = false
 
 const canvasStyle = computed(() => (boxSize.value ? { width: `${boxSize.value}px`, height: `${boxSize.value}px` } : {}))
 
@@ -87,6 +89,11 @@ function render() {
     },
     labels: props.labels
   })
+  // 贴纸图首次需要异步解码：先出一版没有贴纸的底，就绪后再补绘一次
+  if (!stickersKickStarted) {
+    stickersKickStarted = true
+    ensureStickerImages().then(schedule)
+  }
   emit('rendered')
 }
 

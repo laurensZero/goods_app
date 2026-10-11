@@ -173,6 +173,7 @@ export const acrylicFrame = {
 const FILM_WINDOW = { x: 124, y: 142, w: 952, h: 858, radius: 4 }
 
 export const filmFrame = {
+  dateLabel: true,
   id: 'film',
   nameKey: 'imageEditor.frameFilm',
   category: 'texture',

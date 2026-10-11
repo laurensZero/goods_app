@@ -410,7 +410,7 @@ describe('renderFrameComposition · 底色归属与顺序', () => {
     expect(colors.indexOf('#123456')).toBeGreaterThan(0)
   })
 
-  it('8 个真实模板在无画布环境下都能画完，且真的画了东西', () => {
+  it('全部真实模板在无画布环境下都能画完，且真的画了东西', () => {
     for (const frame of ALL_FRAMES) {
       const ctx = createRecordingContext()
       expect(() => renderFrameComposition(ctx, {
