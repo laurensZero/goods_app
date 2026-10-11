@@ -6,46 +6,7 @@
     calc(24px + max(env(safe-area-inset-bottom), 12px));
 }
 
-/* ── Tab 切换 ─────────────────────────────────────────── */
-.hub-tabs {
-  display: flex;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 14px;
-  background: var(--app-surface-soft, rgba(120, 120, 128, 0.1));
-}
-
-.hub-tab {
-  flex: 1;
-  min-height: 36px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--app-text-secondary);
-  font-size: 13px;
-  font-weight: 500;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  padding: 0 6px;
-}
-
-.hub-tab--active {
-  background: var(--app-surface, #fff);
-  color: var(--app-text);
-  font-weight: 600;
-  box-shadow: var(--app-shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.08));
-}
-
-.hub-tab-badge {
-  font-size: 10px;
-  line-height: 1;
-  padding: 3px 5px;
-  border-radius: 6px;
-  background: var(--app-chip-accent-bg, rgba(255, 80, 0, 0.12));
-  color: var(--app-chip-accent-text, #ff5000);
-}
+/* ── Tab 切换（ImportTabs 组件自带样式，不再重复定义） ── */
 
 /* ── 卡片 ─────────────────────────────────────────────── */
 .hub-panel {

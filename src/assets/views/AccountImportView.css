@@ -51,6 +51,17 @@
   padding: var(--section-gap) var(--page-padding) calc(80px + max(env(safe-area-inset-bottom), 12px));
 }
 
+/* 内嵌在导入页 tab：去掉自身页面壳与滚动容器，间距交给宿主 */
+.account-import-page--embedded {
+  display: contents;
+}
+
+.account-import-page--embedded .page-body {
+  flex: none;
+  overflow: visible;
+  padding: 0;
+}
+
 /* ── Step containers ───────────────────────────────────────── */
 .step-section {
   display: flex;

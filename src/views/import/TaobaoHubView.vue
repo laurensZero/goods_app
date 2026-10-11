@@ -1,21 +1,7 @@
 <template>
   <ImportPage class="taobao-hub-page" :title="t('nav.taobaoImport')">
     <main class="page-body taobao-hub-body">
-      <div class="hub-tabs" role="tablist" :aria-label="t('nav.taobaoImport')">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="hub-tab"
-          type="button"
-          role="tab"
-          :class="{ 'hub-tab--active': activeTab === tab.key }"
-          :aria-selected="activeTab === tab.key"
-          @click="activeTab = tab.key"
-        >
-          {{ tab.label }}
-          <span v-if="tab.badge" class="hub-tab-badge">{{ tab.badge }}</span>
-        </button>
-      </div>
+      <ImportTabs v-model="activeTab" :tabs="tabs" :aria-label="t('nav.taobaoImport')" />
 
       <!-- ============ 链接导入 ============ -->
       <section v-show="activeTab === 'link'" class="hub-panel" role="tabpanel">
@@ -257,6 +243,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ImportPage from '@/components/import/ImportPage.vue'
+import ImportTabs from '@/components/import/ImportTabs.vue'
 import ImportSearchCard from '@/components/import/ImportSearchCard.vue'
 import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
 import ImportFormSection from '@/components/import/ImportFormSection.vue'

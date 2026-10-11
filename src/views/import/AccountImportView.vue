@@ -1,6 +1,6 @@
 <template>
-  <div class="page account-import-page">
-    <NavBar :title="t('import.account')" show-back>
+  <div class="page account-import-page" :class="{ 'account-import-page--embedded': embedded }">
+    <NavBar v-if="!embedded" :title="t('import.account')" show-back>
       <template #right>
         <MihoyoAccountNavBtn
           :label="activeAccountLabel"
@@ -329,6 +329,11 @@ import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
 import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 
 defineOptions({ name: 'AccountImportView' })
+
+// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
+defineProps({
+  embedded: { type: Boolean, default: false },
+})
 
 const { t } = useI18n()
 const router = useRouter()

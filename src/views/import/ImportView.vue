@@ -1,8 +1,11 @@
 <template>
   <ImportPage class="import-page" :title="pageTitle">
     <main class="page-body">
+      <ImportTabs v-model="activeTab" :tabs="importTabs" :aria-label="pageTitle" />
+
       <ImportSearchCard
         v-model="searchKeyword"
+        v-show="activeTab === 'search'"
         :label="quickSearchLabel"
         :title="quickSearchTitle"
         :placeholder="quickSearchPlaceholder"
@@ -73,8 +76,8 @@
           </div>
       </ImportSearchCard>
 
-      <!-- ① URL 输入区 -->
-      <section class="url-section">
+      <!-- ① URL 输入区（Tab 2：链接导入） -->
+      <section v-show="activeTab === 'link'" class="url-section">
         <div class="url-card">
           <div class="url-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -139,7 +142,7 @@
 
       <!-- 待导入队列：手机端左右滑动、平板端右侧条切换；选择款式 + 填入/修改信息 -->
       <!-- 与有货监控共用同一套队列面板（MihoyoGoodsQueuePanel + useMihoyoGoodsQueue） -->
-      <section v-if="queue.length > 0" class="queue-section">
+      <section v-if="queue.length > 0" v-show="activeTab === 'search'" class="queue-section">
         <MihoyoGoodsQueuePanel
           ref="queuePanelRef"
           :queue="queue"
@@ -339,49 +342,9 @@
         </MihoyoGoodsQueuePanel>
       </section>
 
-      <div class="import-entry-list">
-        <button
-          class="import-entry import-entry--cart"
-          type="button"
-          @click="runWithRouteTransition(() => $router.push(isWishlistMode ? '/cart-import?mode=wishlist' : '/cart-import'), { direction: 'forward' })"
-        >
-          <div class="ie-icon ie-icon--cart">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="9" cy="20" r="1.5" />
-              <circle cx="18" cy="20" r="1.5" />
-              <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h9.9a1 1 0 0 0 1-.77L21 7H7.4" />
-            </svg>
-          </div>
-          <div class="ie-body">
-            <p class="ie-title">{{ isWishlistMode ? t('import.cartImportWishlist') : t('import.cartImport') }}</p>
-            <p class="ie-sub">{{ isWishlistMode ? t('import.cartImportWishlistDesc') : t('import.cartImportDesc') }}</p>
-          </div>
-          <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
-
-        <button v-if="!isWishlistMode" class="import-entry" type="button" @click="runWithRouteTransition(() => $router.push('/account-import'), { direction: 'forward' })">
-          <div class="ie-icon ie-icon--account">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-            stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/>
-            <path d="M16 11h6M19 8v6"/>
-          </svg>
-          </div>
-          <div class="ie-body">
-            <p class="ie-title">{{ t('import.account') }}</p>
-            <p class="ie-sub">{{ t('import.accountDesc') }}</p>
-          </div>
-          <svg class="ie-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </button>
-      </div>
+      <!-- 购物车 / 账号导入：独立视图内嵌为 tab，首次切到时才挂载（避免进页就拉账号状态） -->
+      <CartImportView v-if="tabMounted.cart" v-show="activeTab === 'cart'" embedded />
+      <AccountImportView v-if="!isWishlistMode && tabMounted.account" v-show="activeTab === 'account'" embedded />
 
       <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
       <transition name="result-fade">
@@ -546,8 +509,8 @@
 
     <!-- 浮动保存按钮（Teleport 到 body，避免 will-change 影响 fixed 定位） -->
     <Teleport to="body">
-      <!-- 单条模式保存 -->
-      <div v-if="parsed && !batchMode" class="float-footer">
+      <!-- 单条模式保存（仅链接导入 tab 展示，避免盖住队列） -->
+      <div v-if="parsed && !batchMode && activeTab === 'link'" class="float-footer">
         <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? t('import.addToWishlist') : t('import.saveGoods') }}</button>
       </div>
     </Teleport>
@@ -590,6 +553,9 @@ import ImportSearchCard from '@/components/import/ImportSearchCard.vue'
 import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
 import ImportFormSection from '@/components/import/ImportFormSection.vue'
 import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
+import ImportTabs from '@/components/import/ImportTabs.vue'
+import CartImportView from '@/views/import/CartImportView.vue'
+import AccountImportView from '@/views/import/AccountImportView.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -736,6 +702,22 @@ const {
   ensureHistoricalTagContext, updateHistoricalTagContextFromItem,
   getSearchContext,
   getDeckEl: () => queuePanelRef.value?.deckEl || null,
+})
+
+// ── 页内 Tab：搜索/队列 与 链接导入（搜索加购与队列是同一闭环，不拆开） ──
+const activeTab = ref('search')
+const importTabs = computed(() => [
+  { key: 'search', label: t('import.mihoyoTabSearch'), badge: queue.value.length > 0 ? String(queue.value.length) : '' },
+  { key: 'link', label: t('import.mihoyoTabLink') },
+  { key: 'cart', label: t('import.mihoyoTabCart') },
+  ...(isWishlistMode.value ? [] : [{ key: 'account', label: t('import.mihoyoTabAccount') }]),
+])
+// 购物车/账号是独立视图，首次切到时才挂载（避免进页就拉账号/Cookie 状态）
+const tabMounted = reactive({ search: true, link: true, cart: false, account: false })
+watch(activeTab, (tab) => { tabMounted[tab] = true })
+// 批量链接解析的结果落在队列（搜索 tab），进度结束自动切过去
+watch(parsingLinks, (now, was) => {
+  if (was && !now) activeTab.value = 'search'
 })
 
 

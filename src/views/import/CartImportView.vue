@@ -1,6 +1,6 @@
 <template>
-  <div class="page cart-import-page">
-    <NavBar :title="pageTitle" show-back>
+  <div class="page cart-import-page" :class="{ 'cart-import-page--embedded': embedded }">
+    <NavBar v-if="!embedded" :title="pageTitle" show-back>
       <template #right>
         <MihoyoAccountNavBtn
           :label="activeAccountLabel"
@@ -247,6 +247,11 @@ import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
 import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
 
 defineOptions({ name: 'CartImportView' })
+
+// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
+defineProps({
+  embedded: { type: Boolean, default: false },
+})
 
 const { t } = useI18n()
 const route = useRoute()
@@ -697,6 +702,17 @@ async function doImport() {
 
 .page-body {
   padding: var(--section-gap) var(--page-padding) calc(80px + max(env(safe-area-inset-bottom), 12px));
+}
+
+/* 内嵌在导入页 tab：去掉自身页面壳与滚动容器，间距交给宿主 */
+.cart-import-page--embedded {
+  display: contents;
+}
+
+.cart-import-page--embedded .page-body {
+  flex: none;
+  overflow: visible;
+  padding: 0;
 }
 
 .step-section {
