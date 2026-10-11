@@ -37,16 +37,18 @@
               :class="{ 'guide-shot__frame--failed': shot.failed }"
               :style="{ aspectRatio: `${shot.meta.w} / ${shot.meta.h}` }"
             >
-              <img
-                v-if="!shot.failed"
-                class="guide-shot__img"
-                :src="shot.url"
-                :alt="section.title"
-                loading="lazy"
-                decoding="async"
-                @error="markShotFailed(shot.key)"
-              />
-              <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
+              <span class="guide-shot__img-wrap">
+                <img
+                  v-if="!shot.failed"
+                  class="guide-shot__img"
+                  :src="shot.url"
+                  :alt="section.title"
+                  loading="lazy"
+                  decoding="async"
+                  @error="markShotFailed(shot.key)"
+                />
+                <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
+              </span>
               <template v-if="!shot.failed" v-for="anno in shot.meta.annos" :key="anno.n">
                 <span class="guide-anno" :style="annoStyle(anno)">
                   <i class="guide-anno__dot" :class="anno.dot ? `guide-anno__dot--${anno.dot}` : null">
