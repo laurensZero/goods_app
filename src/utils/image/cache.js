@@ -272,6 +272,27 @@ function evictSharedBlobEntry(targetUrl) {
   URL.revokeObjectURL(blob)
 }
 
+/**
+ * 容量驱逐：只摘除本 key。同一 blob 若仍被其它 key 引用（normalized/raw 双写），
+ * 保留 objectURL 不 revoke——它可能正挂在屏幕上的 <img> 里，revoke 会让重新挂载即裂图。
+ * 与 TTL 撤销路径的引用检查保持同一语义。
+ */
+function evictCacheKeyForCapacity(url) {
+  const blob = removeFromMemoryCache(url)
+  if (!blob || !blob.startsWith('blob:')) return
+  if (![...memoryCache.values()].includes(blob)) {
+    URL.revokeObjectURL(blob)
+  }
+}
+
+/** 读命中时重插到 Map 尾部：没有这一步 Map 顺序=写入顺序，容量驱逐退化成 FIFO */
+function touchMemoryCache(key) {
+  const value = memoryCache.get(key)
+  if (value === undefined) return
+  memoryCache.delete(key)
+  memoryCache.set(key, value)
+}
+
 function setMemoryCache(url, objectUrl) {
   const existingTimer = memoryCacheTimers.get(url)
   if (existingTimer) {
@@ -281,7 +302,7 @@ function setMemoryCache(url, objectUrl) {
 
   if (memoryCache.size >= MAX_MEMORY_CACHE_SIZE) {
     const firstKey = memoryCache.keys().next().value
-    evictSharedBlobEntry(firstKey)
+    evictCacheKeyForCapacity(firstKey)
   }
   memoryCache.set(url, objectUrl)
 
@@ -685,9 +706,12 @@ export async function getCachedImage(url, options = {}) {
     fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
   }
 
-  // 1: 内存（用原始 URL 作为 key）
+  // 1: 内存（用原始 URL 作为 key）；命中重插保持 LRU 语义
   for (const key of cacheKeys) {
-    if (memoryCache.has(key)) return memoryCache.get(key)
+    if (memoryCache.has(key)) {
+      touchMemoryCache(key)
+      return memoryCache.get(key)
+    }
   }
 
   let viewportDistance = options?.viewportDistance
@@ -799,18 +823,12 @@ export async function refreshCachedImage(url) {
   const cacheKeys = getCacheKeyCandidates(normalizedUrl || url)
   const cacheKey = cacheKeys[0] || normalizedUrl || url
 
-  // revoke and delete any existing memory cache entry for this key
+  // revoke and delete any existing memory cache entry for this key.
+  // 必须走共享感知驱逐：同一 objectURL 双写在 normalized/raw 两个 key 上，
+  // 只清 normalized key 会留下指向已 revoke blob 的死引用（用原始 URL 的组件裂图）
   try {
-    const existing = memoryCache.get(cacheKey)
-    if (existing && existing.startsWith('blob:')) {
-      memoryCache.delete(cacheKey)
-      const timer = memoryCacheTimers.get(cacheKey)
-      if (timer) {
-        clearTimeout(timer)
-        memoryCacheTimers.delete(cacheKey)
-      }
-      try { URL.revokeObjectURL(existing) } catch {}
-    }
+    evictSharedBlobEntry(cacheKey)
+    if (url && url !== cacheKey) evictSharedBlobEntry(url)
   } catch {}
 
   // delegate to getCachedImage which will rehydrate from Cache API / FS / network
@@ -832,7 +850,10 @@ export function peekCachedImage(url) {
   if (!url) return ''
   for (const key of getCacheKeyCandidates(url)) {
     const cached = memoryCache.get(key)
-    if (cached) return cached
+    if (cached) {
+      touchMemoryCache(key)
+      return cached
+    }
   }
   return ''
 }

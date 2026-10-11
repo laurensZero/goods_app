@@ -533,7 +533,10 @@ export const useAiChatStore = defineStore('aiChat', () => {
   activateSession(sessions.value.find((s) => s.id === activeSessionId.value) || sessions.value[0])
 
   let persistTimer = null
+  /** 流式期间被跳过的持久化（deep watch 每 delta 触发一次）；轮次结束后统一 flush */
+  let persistSkippedWhileSending = false
   function persistSessionsNow() {
+    persistSkippedWhileSending = false
     const session = activeSession()
     if (session) session.updatedAt = Date.now()
     try {
@@ -556,11 +559,22 @@ export const useAiChatStore = defineStore('aiChat', () => {
   }
 
   function schedulePersist() {
+    // 流式期间每个 delta 都会触发 deep watch，全量序列化所有会话在低端机上会拖垮主线程；
+    // 只记脏标记，轮次结束（正常/中止/抢占/异常）后由 flushPersistAfterTurn 落盘
+    if (sending.value) {
+      persistSkippedWhileSending = true
+      return
+    }
     if (persistTimer !== null) clearTimeout(persistTimer)
     persistTimer = setTimeout(() => {
       persistTimer = null
       persistSessionsNow()
     }, HISTORY_PERSIST_DELAY_MS)
+  }
+
+  function flushPersistAfterTurn() {
+    if (!persistSkippedWhileSending) return
+    persistSessionsNow()
   }
 
   watch(messages, schedulePersist, { deep: true })
@@ -1018,6 +1032,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
     }
     activeAssistant = null
     sending.value = false
+    flushPersistAfterTurn()
     activeSendAttachments = []
     drainQueue()
   }
@@ -1193,6 +1208,7 @@ export const useAiChatStore = defineStore('aiChat', () => {
       // 旧轮被抢占时，sending/队列由 supersedeCurrentTurn 负责，这里不能再动
       if (token === turnToken) {
         sending.value = false
+        flushPersistAfterTurn()
         activeSendAttachments = []
         currentAbort = null
         activeAssistant = null

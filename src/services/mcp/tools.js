@@ -18,6 +18,7 @@ import { searchNeteaseSongs, fetchNeteaseSongCoverMap } from '../../utils/music/
 import { searchQQSongs } from '../../utils/music/qqMusic'
 import { searchBilibiliVideos } from '../../utils/music/bilibiliMusic'
 import { buildAmapWebLink } from '../../utils/ai/jumpLinks'
+import { resolveEventDates } from '../../utils/events/eventDates'
 import {
   fetchMihoyoNewArrivals,
   fetchMihoyoGiftArrivals,
@@ -249,6 +250,21 @@ function roundMoney(value) {
 /** @param {unknown} value */
 function trackListOf(value) {
   return Array.isArray(value) ? value : []
+}
+
+/**
+ * 演出日期列表（YYYY-MM-DD 字符串数组）。dates 重构（6a1f6472）后的唯一日期字段；
+ * 兼容旧行残留的 startDate/endDate/selectedDates，经 resolveEventDates 统一回填。
+ * @param {{ dates?: unknown, selectedDates?: unknown, startDate?: unknown, endDate?: unknown }} event
+ */
+function eventDateList(event) {
+  if (!event) return []
+  return resolveEventDates({
+    dates: event.dates,
+    selectedDates: event.selectedDates,
+    startDate: event.startDate,
+    endDate: event.endDate,
+  })
 }
 
 /** 曲目 → MCP 输出（含在线音源可播状态）。空 album / 0 时长省略，减少完整歌单体积 */
@@ -830,9 +846,11 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       hasMore: offset + page.length < active.length,
       mapButtonLink: 'app://event_map',
       events: page.map((event) => {
-        const dayTickets = Array.isArray(event.dayTicketList) ? event.dayTicketList : []
-        const otherExpenses = Array.isArray(event.otherExpenses) ? event.otherExpenses : []
-        const dayTicketsTotal = dayTickets.reduce((sum, d) => sum + parseMoney(d?.price), 0)
+      const dayTickets = Array.isArray(event.dayTicketList) ? event.dayTicketList : []
+      const otherExpenses = Array.isArray(event.otherExpenses) ? event.otherExpenses : []
+      // dates 是归一化后的唯一日期字段（YYYY-MM-DD 数组，已排序）
+      const dates = eventDateList(event)
+      const dayTicketsTotal = dayTickets.reduce((sum, d) => sum + parseMoney(d?.price), 0)
         const otherTotal = otherExpenses.reduce((sum, e) => sum + parseMoney(e?.amount), 0)
         const latitude = asText(event.latitude).trim()
         const longitude = asText(event.longitude).trim()
@@ -847,8 +865,10 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
           id: event.id,
           name: event.name,
           type: event.type,
-          startDate: event.startDate,
-          endDate: event.endDate,
+          // dates 是唯一日期数据源（YYYY-MM-DD 数组）；startDate/endDate 为派生的首/末日
+          dates,
+          startDate: dates[0] || '',
+          endDate: dates[dates.length - 1] || '',
           city: event.city,
           location: event.location,
           latitude,
@@ -925,12 +945,14 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
         : null
       const latitude = asText(event.latitude).trim()
       const longitude = asText(event.longitude).trim()
+      const dates = eventDateList(event)
       matched.push({
         id: event.id,
         name: event.name,
         type: event.type,
-        startDate: event.startDate,
-        endDate: event.endDate,
+        dates,
+        startDate: dates[0] || '',
+        endDate: dates[dates.length - 1] || '',
         city: event.city,
         location: event.location,
         latitude,

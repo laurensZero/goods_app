@@ -215,7 +215,7 @@
     </main>
 
     <div v-if="step === 'list' && processedGroups.length > 0" class="bottom-bar">
-      <button class="primary-btn" type="button" :disabled="selectedSet.size === 0" @click="doImport">
+      <button class="primary-btn" type="button" :disabled="selectedSet.size === 0 || importing" @click="doImport">
         {{ t('import.confirmImport') }}
       </button>
     </div>
@@ -239,6 +239,7 @@ import {
 } from '@/utils/mihoyo/importResolver'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { showGlobalToast } from '@/utils/globalToast'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -603,7 +604,10 @@ function toggleItem(itemKey) {
   selectedSet.value = next
 }
 
+const importing = ref(false)
+
 async function doImport() {
+  if (importing.value) return
   const selectedItems = processedGroups.value
     .flatMap((group) => group.goods)
     .filter((item) => selectedSet.value.has(item._itemKey) && isItemSelectable(item))
@@ -611,18 +615,34 @@ async function doImport() {
 
   if (!selectedItems.length) return
 
-  await store.addMultipleGoods(selectedItems)
+  importing.value = true
+  try {
+    await store.addMultipleGoods(selectedItems)
 
-  for (const item of selectedItems) {
-    if (item.ip) await presets.addIp(item.ip)
-    for (const character of (item.characters || [])) {
-      if (character) await presets.addCharacter(character, item.ip || '')
+    // 预设去重后并行写入：逐条 await 串行持久化会把 done 页无谓拖慢（大批量时明显）
+    const ipSet = new Set()
+    const characterPairs = new Map()
+    for (const item of selectedItems) {
+      if (item.ip) ipSet.add(item.ip)
+      for (const character of (item.characters || [])) {
+        if (!character) continue
+        characterPairs.set(JSON.stringify([item.ip || '', character]), { ip: item.ip || '', character })
+      }
     }
-  }
+    await Promise.all([
+      ...[...ipSet].map((ip) => presets.addIp(ip)),
+      ...[...characterPairs.values()].map(({ ip, character }) => presets.addCharacter(character, ip)),
+    ])
 
-  importedCount.value = selectedItems.length
-  importedTotalQty.value = selectedItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
-  step.value = 'done'
+    importedCount.value = selectedItems.length
+    importedTotalQty.value = selectedItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
+    step.value = 'done'
+  } catch (err) {
+    console.warn('[cart-import] save failed', err)
+    showGlobalToast(err?.message || t('import.importFailed'))
+  } finally {
+    importing.value = false
+  }
 }
 </script>
 

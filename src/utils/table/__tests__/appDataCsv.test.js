@@ -106,7 +106,7 @@ describe('appDataCsv', () => {
       goods: [{ name: '谷子A', isWishlist: false }],
       groups: [{ id: 'g1', name: '组1', type: 'collection' }],
       groupItems: [{ id: 'gi1', groupId: 'g1', goodsId: 'a', sortOrder: 1 }],
-      events: [{ id: 'e1', name: '漫展', startDate: '2026-01-01', endDate: '2026-01-02', tracks: [{ title: '歌1' }] }],
+      events: [{ id: 'e1', name: '漫展', dates: ['2026-01-01', '2026-01-02'], tracks: [{ title: '歌1' }] }],
       recharge: [{ id: 'r1', game: '原神', amount: 30, chargedAt: '2026-01-03' }],
       categories: [{ name: '吧唧' }],
       ips: [{ name: '原神' }],
@@ -133,11 +133,23 @@ describe('appDataCsv', () => {
     expect(bySchema.goods_groups.items[0].name).toBe('组1')
     expect(bySchema.goods_group_items.items[0].goodsId).toBe('a')
     expect(bySchema.events.items[0].name).toBe('漫展')
+    // dates 是唯一日期字段：导出→回导必须无损（此前 schema 停留在 startDate/endDate，导出丢日期、回导清空）
+    expect(bySchema.events.items[0].dates).toEqual(['2026-01-01', '2026-01-02'])
     expect(bySchema.events.items[0].tracks?.[0]?.title).toBe('歌1')
     expect(bySchema.recharge.items[0].amount).toBe(30)
     expect(bySchema.categories.items[0].name).toBe('吧唧')
     expect(bySchema.characters.items[0].name).toBe('雷电将军')
     expect(bySchema.storage_locations.items[0].path).toBe('柜子/抽屉1')
+  })
+
+  it('events 旧版文件（startDate/endDate 列）导入时展开为 dates', () => {
+    const legacyCsv = 'id,name,type,startDate,endDate,location,city,ticketPrice\n' +
+      'e1,旧漫展,漫展,2026-01-01,2026-01-03,展馆,上海,80\n'
+    const { schemaKey, items } = parseAppCsv(legacyCsv, 'events')
+    expect(schemaKey).toBe('events')
+    expect(items[0].dates).toEqual(['2026-01-01', '2026-01-02', '2026-01-03'])
+    expect(items[0].startDate).toBeUndefined()
+    expect(items[0].endDate).toBeUndefined()
   })
 
   it('parses single recharge csv by header sniffing', () => {

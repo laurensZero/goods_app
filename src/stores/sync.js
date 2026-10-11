@@ -823,12 +823,12 @@ export const useSyncStore = defineStore('sync', () => {
       // 设备心跳上报（fire-and-forget）
       void heartbeatDevice()
 
-      // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）
+      // 预读 manifest 缓存维护模式，确保后续检查有效（覆盖首次同步缓存为空的情况）。
+      // 必须无条件赋值：管理员解除维护后 manifest 返回 null，若只在为真时写入，
+      // 缓存会永远停留在维护态，自动同步将静默停摆（只能手动刷新或重启恢复）
       try {
         const manifest = await activeBackend.readManifest()
-        if (manifest?.maintenanceMode) {
-          maintenanceMode.value = manifest.maintenanceMode
-        }
+        maintenanceMode.value = manifest?.maintenanceMode || null
       } catch (_) {}
 
       // 检查维护模式

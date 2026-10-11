@@ -883,6 +883,7 @@ onBeforeUnmount(() => {
     clearTimeout(bottomFallbackTimer)
     bottomFallbackTimer = 0
   }
+  for (const timerId of Object.values(streamRenderTimers)) clearTimeout(timerId)
   stopVoiceSession()
 })
 
@@ -923,23 +924,50 @@ const examples = computed(() => {
 const AI_CHAT_THUMB_SIZE = 480
 /** @type {Record<string, string>} */
 const markdownCache = reactive({})
+/** 流式输出时的渲染合并窗口：delta 到达频率远高于可感知帧率，全量渲染徒耗主线程 */
+const STREAM_RENDER_DEBOUNCE_MS = 120
+/** @type {Record<string, number>} 每条流式消息的防抖定时器 */
+const streamRenderTimers = {}
+
+/** 渲染单条助手消息的 Markdown（含缩略图管线）。 */
+async function renderMessageMarkdown(msg) {
+  const cacheKey = `${msg.id}:html`
+  const srcKey = `${msg.id}:src`
+  if (markdownCache[srcKey] === msg.content) return
+  // 版本守卫：异步渲染期间内容又变了（流式 delta），丢弃本次结果，交给下一次触发重渲。
+  // 否则旧内容可能在新内容之后 resolve，把过期 HTML 写进缓存且 src 被回写成新值，
+  // 气泡会一直停留在旧渲染直到下一条消息。
+  const contentAtStart = msg.content
+  if (!detectMarkdownContent(contentAtStart)) {
+    markdownCache[cacheKey] = ''
+  } else {
+    try {
+      const html = await renderMarkdownWithThumbs(contentAtStart, { maxSize: AI_CHAT_THUMB_SIZE })
+      if (msg.content !== contentAtStart) return
+      markdownCache[cacheKey] = html
+    } catch {
+      if (msg.content === contentAtStart) markdownCache[cacheKey] = ''
+    }
+  }
+  markdownCache[srcKey] = contentAtStart
+  if (import.meta.env.DEV) console.debug(`[ai-chat:view] markdown ready: ${msg.id}`)
+}
 
 watch(() => aiChat.messages, async (list) => {
   for (const msg of list) {
     if (msg.role !== 'assistant' || !msg.content) continue
-    const cacheKey = `${msg.id}:html`
     if (markdownCache[`${msg.id}:src`] === msg.content) continue
-    if (!detectMarkdownContent(msg.content)) {
-      markdownCache[cacheKey] = ''
-    } else {
-      try {
-        markdownCache[cacheKey] = await renderMarkdownWithThumbs(msg.content, { maxSize: AI_CHAT_THUMB_SIZE })
-      } catch {
-        markdownCache[cacheKey] = ''
-      }
+    // 流式中的最后一条消息：防抖合并 delta 再渲染；历史消息/已完成消息立即渲染
+    const isStreamingTail = aiChat.sending && msg === list[list.length - 1]
+    if (isStreamingTail) {
+      if (streamRenderTimers[msg.id]) continue
+      streamRenderTimers[msg.id] = window.setTimeout(() => {
+        delete streamRenderTimers[msg.id]
+        void renderMessageMarkdown(msg)
+      }, STREAM_RENDER_DEBOUNCE_MS)
+      continue
     }
-    markdownCache[`${msg.id}:src`] = msg.content
-    if (import.meta.env.DEV) console.debug(`[ai-chat:view] markdown ready: ${msg.id}`)
+    await renderMessageMarkdown(msg)
   }
 }, { deep: true, immediate: true })
 

@@ -172,7 +172,7 @@
               {{ t('import.taobaoRepick') }}
             </button>
             <button class="primary-btn" type="button"
-              :disabled="selectedSet.size === 0" @click="doImport">
+              :disabled="selectedSet.size === 0 || importing" @click="doImport">
               {{ t('import.importGoods', { count: selectedSet.size || '' }) }}
             </button>
           </div>
@@ -261,6 +261,7 @@ import { ref, computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { showGlobalToast } from '@/utils/globalToast'
 import { parseTaobaoXlsx } from '@/utils/import/taobao'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
@@ -498,13 +499,25 @@ function selectAll() {
 }
 function deselectAll() { selectedSet.value = new Set() }
 
+const importing = ref(false)
+
 async function doImport() {
+  if (importing.value) return
   const toImport = allGoods.value.filter(g => selectedSet.value.has(g._itemKey))
   if (!toImport.length) return
-  await store.addMultipleGoods(toImport)
-  importedCount.value = toImport.length
-  importedTotalQty.value = toImport.reduce((s, g) => s + (g.quantity || 1), 0)
-  step.value = 'done'
+  importing.value = true
+  try {
+    await store.addMultipleGoods(toImport)
+    importedCount.value = toImport.length
+    importedTotalQty.value = toImport.reduce((s, g) => s + (g.quantity || 1), 0)
+    step.value = 'done'
+  } catch (err) {
+    // 与米游铺导入入口对齐：失败必须给反馈，不能静默吞掉
+    console.warn('[taobao-import] save failed', err)
+    showGlobalToast(err?.message || t('import.importFailed'))
+  } finally {
+    importing.value = false
+  }
 }
 
 // ── 编辑商品 ──────────────────────────────────────────────────

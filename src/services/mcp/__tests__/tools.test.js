@@ -71,7 +71,8 @@ function createFakeDb() {
   ]
   const events = [
     {
-      id: 'e1', name: 'CP 春季展', type: '漫展', startDate: '2025-05-01', endDate: '2025-05-02',
+      // 6a1f6472 起 dates 是唯一日期字段；startDate/endDate 为兼容派生的首/末日
+      id: 'e1', name: 'CP 春季展', type: '漫展', dates: ['2025-05-01', '2025-05-02'],
       city: '上海', location: '世博展览馆', ticketPrice: '80', ticketType: '单日票', seatInfo: '',
       tags: ['线下'], linkedGoodsIds: ['g1'], photos: ['p1', { uri: 'https://img.example/stage.jpg', caption: '舞台' }], description: '两天都去了',
       deleted: false,
@@ -80,7 +81,7 @@ function createFakeDb() {
         { id: 't2', title: '手写曲', artist: '', album: '', durationMs: 0, source: 'manual', neteaseSongId: '', qqSongId: '', bilibiliVideoId: '' }
       ]
     },
-    { id: 'e2', name: '已删活动', type: '', startDate: '', endDate: '', city: '', location: '', ticketPrice: '', ticketType: '', seatInfo: '', tags: [], linkedGoodsIds: [], photos: [], description: '', deleted: true }
+    { id: 'e2', name: '已删活动', type: '', dates: [], city: '', location: '', ticketPrice: '', ticketType: '', seatInfo: '', tags: [], linkedGoodsIds: [], photos: [], description: '', deleted: true }
   ]
   const recharge = [
     { id: 'r1', game: '明日方舟', itemName: '648 源石', amount: 648, chargedAt: '2025-01-15', note: '', deleted: false },
@@ -854,11 +855,11 @@ describe('mcp tool handlers', () => {
     expect(byLatest.items.map((/** @type {any} */ i) => i.id)).toEqual(['x1', 'x3', 'x2'])
   })
 
-  it('events_list 输出活动花费汇总（票价+逐日票+其他开支）', async () => {
+  it('events_list 输出活动花费汇总（票价+逐日票+其他开支）与 dates 日期', async () => {
     const db = createFakeDb()
     db.getEvents = vi.fn(async () => [
       {
-        id: 'e1', name: 'CP 展', type: '漫展', startDate: '2026-08-01', endDate: '2026-08-02',
+        id: 'e1', name: 'CP 展', type: '漫展', dates: ['2026-08-01', '2026-08-02'],
         city: '上海', location: '展馆', ticketPrice: '80', ticketType: '单日票', seatInfo: '',
         dayTicketList: [{ price: '80', ticketType: '单日票' }, { price: '100', ticketType: '内场票' }],
         otherExpenses: [{ id: 'o1', name: '来回高铁', amount: '300' }, { id: 'o2', name: '住宿', amount: '250' }],
@@ -867,6 +868,10 @@ describe('mcp tool handlers', () => {
     ])
 
     const result = await createMcpToolHandlers(db).events_list({})
+    // dates 是唯一数据源；startDate/endDate 为派生首/末日（旧行为依赖已废弃字段会输出空/陈值）
+    expect(result.events[0].dates).toEqual(['2026-08-01', '2026-08-02'])
+    expect(result.events[0].startDate).toBe('2026-08-01')
+    expect(result.events[0].endDate).toBe('2026-08-02')
     expect(result.events[0].expenseSummary).toEqual({
       ticket: 80,
       dayTicketsTotal: 180,

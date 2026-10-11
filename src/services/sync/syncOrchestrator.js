@@ -139,9 +139,9 @@ export function createSyncOrchestrator({
         await ctx.saveImageCloudId(remoteData.manifest.imageCloudId)
       }
 
-      // 缓存维护模式状态
-      if (remoteData.manifest?.maintenanceMode && ctx.saveMaintenanceMode) {
-        await ctx.saveMaintenanceMode(remoteData.manifest.maintenanceMode)
+      // 缓存维护模式状态（无条件写入：null = 管理员已解除，需清掉本地缓存）
+      if (ctx.saveMaintenanceMode && remoteData.manifest) {
+        await ctx.saveMaintenanceMode(remoteData.manifest.maintenanceMode || null)
       }
 
       // 中断推送恢复：上次推送若已写入远端但本地水位线未保存，先快进水位线避免误报冲突
@@ -281,11 +281,12 @@ export function createSyncOrchestrator({
     })
 
     // 读取 manifest 缓存维护模式（覆盖 quickPush 路径不经过 fullSync 的情况）
+    // 无条件写入：null = 管理员已解除，需清掉本地缓存，否则自动同步会静默停摆
     if (be.readManifest) {
       try {
         const preManifest = await be.readManifest()
-        if (preManifest?.maintenanceMode && ctx.saveMaintenanceMode) {
-          await ctx.saveMaintenanceMode(preManifest.maintenanceMode)
+        if (ctx.saveMaintenanceMode) {
+          await ctx.saveMaintenanceMode(preManifest?.maintenanceMode || null)
         }
       } catch (_) {}
     }
@@ -441,8 +442,9 @@ export function createSyncOrchestrator({
     if (remoteManifest?.imageCloudId) await ctx.saveImageCloudId(remoteManifest.imageCloudId)
 
     // 缓存维护模式状态（从 manifest 中提取，零额外请求）
-    if (remoteManifest?.maintenanceMode && ctx.saveMaintenanceMode) {
-      await ctx.saveMaintenanceMode(remoteManifest.maintenanceMode)
+    // 无条件写入：null = 管理员已解除，需清掉本地缓存
+    if (ctx.saveMaintenanceMode && remoteManifest) {
+      await ctx.saveMaintenanceMode(remoteManifest.maintenanceMode || null)
     }
 
     // 中断推送恢复（crash-safe push）

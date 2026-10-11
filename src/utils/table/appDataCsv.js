@@ -5,6 +5,7 @@
  * 非标准表格仍走 AI 助手 table_dryrun / table_commit。
  */
 import { parseCsv } from '@/utils/table/parseTable'
+import { resolveEventDates } from '@/utils/events/eventDates'
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 /** 单元格内嵌 JSON 的列（数组/对象） */
@@ -12,7 +13,7 @@ const JSON_COLUMNS = new Set([
   'characters', 'tags', 'tracks', 'photos', 'dayTicketList', 'otherExpenses',
   'linkedGoodsIds', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
   'unitAcquiredAtList', 'unitSaleInfoList', 'statusTimeline', 'saleReminderOffsets',
-  'images', 'customFields'
+  'images', 'customFields', 'dates'
 ])
 
 const ARRAY_SPLIT_COLUMNS = new Set(['characters', 'tags'])
@@ -54,7 +55,9 @@ export const CSV_SCHEMAS = {
     'statusTimeline', 'manualOrders', 'customFields', 'deletedAt', 'updatedAt'
   ],
   events: [
-    'id', 'name', 'type', 'startDate', 'endDate', 'location', 'city',
+    // dates 是唯一日期字段（YYYY-MM-DD 数组，6a1f6472 起）；
+    // 旧文件的 startDate/endDate 列由 parseAppCsv 的兼容层展开回填
+    'id', 'name', 'type', 'dates', 'location', 'city',
     'latitude', 'longitude', 'description', 'coverImage',
     'ticketPrice', 'ticketType', 'seatInfo',
     'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags',
@@ -220,7 +223,7 @@ function coerceCell(field, raw) {
  * @param {string[]} columns
  * @param {string[]} headers
  * @param {string[][]} rows
- * @param {{ requireName?: boolean, nameField?: string }} [options]
+ * @param {{ requireName?: boolean, nameField?: string, extraColumns?: string[] }} [options]
  */
 function rowsToObjects(columns, headers, rows, options = {}) {
   const nameField = options.nameField || 'name'
@@ -229,9 +232,11 @@ function rowsToObjects(columns, headers, rows, options = {}) {
     const key = String(h || '').trim().toLowerCase()
     if (key && !lowerToIndex.has(key)) lowerToIndex.set(key, i)
   })
-  // 列映射：schema 列优先；未知列忽略；schema 中缺失的列跳过
+  // 列映射：schema 列优先；未知列忽略；schema 中缺失的列跳过。
+  // extraColumns 用于兼容旧版本文件的遗留列（如 events 的 startDate/endDate）
   const colIndex = new Map()
-  for (const col of columns) {
+  const columnList = [...columns, ...(options.extraColumns || [])]
+  for (const col of columnList) {
     const idx = lowerToIndex.get(col.toLowerCase())
     if (idx != null) colIndex.set(col, idx)
   }
@@ -290,7 +295,18 @@ export function parseAppCsv(text, schemaKey, filename) {
     requireName: REQUIRED_NAME_SCHEMAS.has(resolved) || resolved === 'goods_group_items',
     nameField
   }
+  // events 兼容旧版文件的 startDate/endDate/selectedDates 列：读入后统一展开为 dates
+  if (resolved === 'events') options.extraColumns = ['startDate', 'endDate', 'selectedDates']
   const parsed = rowsToObjects(columns, headers, rows, options)
+  if (resolved === 'events') {
+    for (const item of parsed.items) {
+      const dates = resolveEventDates(item)
+      if (dates.length > 0) item.dates = dates
+      delete item.startDate
+      delete item.endDate
+      delete item.selectedDates
+    }
+  }
   return { schemaKey: resolved, ...parsed }
 }
 
