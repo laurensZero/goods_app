@@ -3,7 +3,7 @@
     v-if="label || accountsCount > 0"
     type="button"
     class="nav-account-btn"
-    :aria-label="label || $t('checkout.pickAccount')"
+    :aria-label="label || $t('import.pickAccount')"
     @click="$emit('click')"
   >
     <img

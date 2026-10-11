@@ -385,7 +385,7 @@
   "manage.mihoyoFeatures": "米游铺功能",
   "manage.mihoyoFeaturesDesc": "一键开关米游铺相关功能入口",
   "manage.mihoyoFeaturesMaster": "启用米游铺功能",
-  "manage.mihoyoFeaturesMasterDesc": "关闭后将隐藏导入、上新速览、有货监控、扩展功能等全部米游铺入口",
+  "manage.mihoyoFeaturesMasterDesc": "关闭后将隐藏导入、上新速览、有货监控等全部米游铺入口",
   "manage.mihoyoFeaturesScope": "将隐藏的入口",
   "manage.mihoyoFeaturesScopeImport": "从米游铺导入 / 购物车导入 / 账号导入",
   "manage.mihoyoFeaturesScopeImportDesc": "搜索米游铺商品、订单与购物车批量入库",

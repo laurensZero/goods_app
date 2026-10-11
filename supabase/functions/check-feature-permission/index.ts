@@ -4,10 +4,10 @@
 // 查询 feature_whitelist 表，判断该用户是否有对应 feature 的权限
 //
 // 用法（客户端 supabase.functions.invoke 会自动带上 Authorization: Bearer <access_token>）：
-//   GET https://<project-ref>.supabase.co/functions/v1/check-feature-permission?feature=checkout
+//   GET https://<project-ref>.supabase.co/functions/v1/check-feature-permission?feature=xxx
 //   返回：{ allowed: boolean, reason?: string }
 //
-// 扩展：feature 从 query 参数读取，缺省为 'checkout'。新场景只需在
+// 扩展：feature 从 query 参数读取（必传）。新场景只需在
 //       feature_whitelist 表登记新 feature 行，客户端带 ?feature=xxx 调用即可。
 //
 // 安全说明：
@@ -33,7 +33,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
 
   const url = new URL(req.url)
-  const feature = (url.searchParams.get("feature") || "checkout").slice(0, 64)
+  const feature = (url.searchParams.get("feature") || "").slice(0, 64)
 
   const authHeader = req.headers.get("authorization") || ""
   const token = authHeader.replace(/^Bearer\s+/i, "")

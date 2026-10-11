@@ -10,6 +10,14 @@
  * 页面映射与 navigate 工具共用一份，改这里两边同步生效。
  */
 
+// 私有扩展页面映射：private/src/extensions/jumpPages/*.js 由使用者自行维护，
+// 目录不存在时为空，不影响公开构建。
+const extraPages = Object.assign(
+  {}, ...Object.values(
+    import.meta.glob('/private/src/extensions/jumpPages/*.js', { eager: true, import: 'default' })
+  )
+)
+
 /** navigate 工具与 app:// 跳转按钮支持的页面 → 路由名映射 */
 export const NAVIGATE_PAGES = {
   home: 'home',
@@ -27,8 +35,8 @@ export const NAVIGATE_PAGES = {
   about: 'manage-about',
   ai_service: 'manage-mcp',
   goods_add: 'add',
-  checkout: 'checkout',
-  mihoyo_new_arrivals: 'mihoyo-new-arrivals'
+  mihoyo_new_arrivals: 'mihoyo-new-arrivals',
+  ...extraPages
 }
 
 /** 需要携带 id 的页面 → 路由名 */

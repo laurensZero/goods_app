@@ -300,5 +300,6 @@
   "import.taobaoImported": "导入成功",
   "import.unknownError": "发生未知错误",
   "import.unknownGoods": "未知商品",
-  "import.variantPlaceholder": "选择款式"
+  "import.variantPlaceholder": "选择款式",
+  "import.pickAccount": "选择账号"
 }

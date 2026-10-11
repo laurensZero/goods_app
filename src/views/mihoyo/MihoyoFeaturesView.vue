@@ -126,6 +126,12 @@ const statusDetailText = computed(() =>
     : t('manage.mihoyoFeaturesStatusOffDesc')
 )
 
+// 私有扩展范围条目：private/src/extensions/featureScopes/*.js 由使用者自行维护，
+// 目录不存在时为空，不影响公开构建。
+const extraScopeItems = Object.values(
+  import.meta.glob('/private/src/extensions/featureScopes/*.js', { eager: true, import: 'default' })
+)
+
 const scopeItems = computed(() => [
   {
     key: 'import',
@@ -159,17 +165,6 @@ const scopeItems = computed(() => [
     ]
   },
   {
-    key: 'checkout',
-    title: t('manage.mihoyoFeaturesScopeCheckout'),
-    desc: t('manage.mihoyoFeaturesScopeCheckoutDesc'),
-    iconClass: 'settings-item__icon--token',
-    iconPaths: [
-      'M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z',
-      'M3 6h18',
-      'M16 10a4 4 0 0 1-8 0'
-    ]
-  },
-  {
     key: 'notify',
     title: t('manage.mihoyoFeaturesScopeNotify'),
     desc: t('manage.mihoyoFeaturesScopeNotifyDesc'),
@@ -188,7 +183,8 @@ const scopeItems = computed(() => [
       'M12 2v20',
       'M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'
     ]
-  }
+  },
+  ...extraScopeItems
 ])
 
 function onEnabledChange(e) {

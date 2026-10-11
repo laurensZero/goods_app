@@ -385,7 +385,7 @@
   "manage.mihoyoFeatures": "米遊舗機能",
   "manage.mihoyoFeaturesDesc": "米遊舗関連機能の入口を一括でオン/オフ",
   "manage.mihoyoFeaturesMaster": "米遊舗機能を有効にする",
-  "manage.mihoyoFeaturesMasterDesc": "オフにすると、インポート・新着・在庫モニター・セルフチェックアウトなどの入口を非表示にします",
+  "manage.mihoyoFeaturesMasterDesc": "オフにすると、インポート・新着・在庫モニターなどの入口を非表示にします",
   "manage.mihoyoFeaturesScope": "非表示になる入口",
   "manage.mihoyoFeaturesScopeImport": "米遊舗からインポート / カート / アカウント",
   "manage.mihoyoFeaturesScopeImportDesc": "商品・注文・カートを検索して一括登録",

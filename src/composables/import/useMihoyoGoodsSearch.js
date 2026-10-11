@@ -21,7 +21,7 @@ export function normalizeSearchHintText(value) {
 
 /**
  * 米游铺商品搜索引擎（角色感知 + 关键词兜底 + 分页 + 款式封面增强）。
- * 收藏导入（ImportView）与扩展功能（Checkout）共用同一套搜索逻辑。
+ * 收藏导入（ImportView）等多个消费场景共用同一套搜索逻辑。
  */
 export function useMihoyoGoodsSearch(options = {}) {
   const { t } = useI18n()
@@ -477,7 +477,7 @@ export function useMihoyoGoodsSearch(options = {}) {
 
   /**
    * 标记选中搜索项（设置高亮与款式提示词）。消费者在调用后自行决定如何处理选中项
-   * （收藏导入 → 解析 URL；扩展功能 → 加入订单）。
+   * （收藏导入 → 解析 URL；其他场景 → 按各自业务处理）。
    */
   function selectSearchResult(item) {
     if (!item?.goods_id) return

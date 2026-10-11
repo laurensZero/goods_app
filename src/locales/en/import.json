@@ -300,5 +300,6 @@
   "import.taobaoImported": "Imported successfully",
   "import.unknownError": "An unknown error occurred",
   "import.unknownGoods": "Unknown item",
-  "import.variantPlaceholder": "Select variant"
+  "import.variantPlaceholder": "Select variant",
+  "import.pickAccount": "Select account"
 }

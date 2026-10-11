@@ -38,12 +38,24 @@ jobs:
   build-debug:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.build_type == 'debug'
     runs-on: ubuntu-latest
+    env:
+      # 配置了 PRIVATE_OVERLAY_TOKEN 时，构建前拉取私有扩展仓库到 private/
+      HAS_PRIVATE_OVERLAY: ${{ secrets.PRIVATE_OVERLAY_TOKEN != '' }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           # debug 不需要完整历史 / tag，浅克隆更快
+          fetch-depth: 1
+
+      - name: Fetch private overlay (optional)
+        if: env.HAS_PRIVATE_OVERLAY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: laurensZero/goods-app-private
+          token: ${{ secrets.PRIVATE_OVERLAY_TOKEN }}
+          path: private
           fetch-depth: 1
 
       - name: Setup Node.js
@@ -120,6 +132,9 @@ jobs:
     permissions:
       contents: write
       actions: write
+    env:
+      # 配置了 PRIVATE_OVERLAY_TOKEN 时，构建前拉取私有扩展仓库到 private/
+      HAS_PRIVATE_OVERLAY: ${{ secrets.PRIVATE_OVERLAY_TOKEN != '' }}
 
     steps:
       - name: Checkout code
@@ -127,6 +142,15 @@ jobs:
         with:
           # release notes 需要完整 tag / 提交历史
           fetch-depth: 0
+
+      - name: Fetch private overlay (optional)
+        if: env.HAS_PRIVATE_OVERLAY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: laurensZero/goods-app-private
+          token: ${{ secrets.PRIVATE_OVERLAY_TOKEN }}
+          path: private
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

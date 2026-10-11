@@ -7,6 +7,12 @@ import eventRoutes from './routes/events'
 import manageRoutes from './routes/manage'
 import importRoutes from './routes/import'
 
+// 私有扩展路由：private/ 目录由使用者自行维护（公开仓库不含其内容），
+// 目录不存在时 glob 结果为空，不影响公开构建。
+const extraRoutes = Object.values(
+  import.meta.glob('/private/src/router/*.js', { eager: true, import: 'default' })
+).flat()
+
 const routes = [
   // Auth callback catch-all（OAuth / Magic Link 回调）
   {
@@ -18,6 +24,7 @@ const routes = [
   ...eventRoutes,
   ...manageRoutes,
   ...importRoutes,
+  ...extraRoutes,
   // 404 catch-all：未匹配的 hash 若渲染不出组件，App.vue 的 RouterView 会拿到空 Component
   {
     path: '/:pathMatch(.*)*',

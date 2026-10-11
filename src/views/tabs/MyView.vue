@@ -7,13 +7,11 @@
           <h1 class="hero-title">{{ t('nav.my') }}</h1>
         </div>
         <div class="hero-actions">
-          <button v-if="checkoutAllowed && mihoyoFeaturesStore.enabled" type="button" class="toolbar-checkout" :aria-label="t('checkout.title')" @click="openCheckout">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 0 1-8 0" />
-            </svg>
-          </button>
+          <component
+            :is="ext.HeroAction"
+            v-for="(ext, index) in myExtensions"
+            :key="'hero-ext-' + index"
+          />
           <button type="button" class="toolbar-scan" :aria-label="t('my.scanImport')" :disabled="scanning" @click="openScanner">
             <span v-if="scanning" class="toolbar-scan-spinner" />
             <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -301,15 +299,11 @@
               <span class="detail-row__label">{{ t('my.syncStatus') }}</span>
               <span class="detail-row__value">{{ syncStore.syncStatus || (authStore.isLoggedIn ? t('my.ready') : t('my.unprocessed')) }}</span>
             </div>
-<!-- 扩展功能队列：仅在有待处理/失败订单时展示，点击进入队列管理 -->
-            <div
-              v-if="activeQueueItems.length && mihoyoFeaturesStore.enabled"
-              class="detail-row detail-row--clickable"
-              @click="openCheckoutQueue"
-            >
-              <span class="detail-row__label">{{ t('checkout.queueTitle') }}</span>
-              <span class="detail-row__value">{{ checkoutQueueSummary }}</span>
-            </div>
+            <component
+              :is="ext.DetailRow"
+              v-for="(ext, index) in myExtensions"
+              :key="'row-ext-' + index"
+            />
             <div class="detail-row detail-row--clickable" @click="refreshExchangeRates">
               <span class="detail-row__label">{{ t('my.exchangeRateUpdate') }}</span>
               <span class="detail-row__value" :class="{ 'detail-row__value--error': exchangeRateStore.error }">
@@ -880,9 +874,6 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
-import { useFeaturePermission } from '@/composables/permission/useFeaturePermission'
-import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
-import { useCheckoutOrderQueue } from '@/composables/checkout/useCheckoutOrderQueue'
 
 defineOptions({ name: 'MyView' })
 
@@ -890,13 +881,10 @@ const { t } = useI18n()
 const router = useRouter()
 const syncStore = useSyncStore()
 const authStore = useAuthStore()
-const checkoutPermission = useFeaturePermission('checkout')
-// 模板 v-if 需用顶层 ref（嵌套属性读取到的是 ref 对象，恒为真，无法隐藏）
-const { allowed: checkoutAllowed } = checkoutPermission
-const mihoyoFeaturesStore = useMihoyoFeaturesStore()
-const checkoutQueue = useCheckoutOrderQueue()
-const activeQueueItems = checkoutQueue.activeQueueItems
-const failedQueueItems = checkoutQueue.failedQueueItems
+// 私有扩展：hero 操作按钮与详情行组件（private/ 目录由使用者自行维护，不存在时为空）
+const myExtensions = Object.values(
+  import.meta.glob('/private/src/extensions/my/*.js', { eager: true, import: 'default' })
+)
 const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
@@ -1113,25 +1101,6 @@ async function refreshExchangeRates() {
 
 function resetPageScrollTop() {
   scrollToTopAnimated(() => pageBodyRef.value, 0)
-}
-
-function openCheckout() {
-  runWithRouteTransition(() => router.push('/checkout'), { direction: 'forward' })
-}
-
-// 扩展功能队列：待处理/进行中 + 失败数量（不含已成功的），可点击快速进入队列管理
-const checkoutQueueSummary = computed(() => {
-  const total = activeQueueItems.value.length
-  const failed = failedQueueItems.value.length
-  const pending = Math.max(0, total - failed)
-  const parts = []
-  if (pending > 0) parts.push(t('checkout.queuePending') + ` ${pending}`)
-  if (failed > 0) parts.push(t('checkout.queueFailed') + ` ${failed}`)
-  return parts.join(' · ')
-})
-
-function openCheckoutQueue() {
-  runWithRouteTransition(() => router.push({ path: '/checkout', query: { queue: '1' } }), { direction: 'forward' })
 }
 
 function openSync() {
@@ -1509,17 +1478,6 @@ onMounted(async () => {
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
-  // 白名单权限：决定是否显示扩展功能入口（上次有权限则先乐观显示，后台校验无权限即隐藏）
-  await checkoutPermission.check()
-})
-
-// 登录后重新校验白名单；登出时立即隐藏入口
-watch(() => authStore.isLoggedIn, (loggedIn) => {
-  if (loggedIn) {
-    checkoutPermission.check()
-  } else {
-    checkoutPermission.reset()
-  }
 })
 
 onActivated(() => {
@@ -1612,34 +1570,6 @@ onActivated(() => {
 }
 
 .toolbar-settings:active {
-  transform: scale(0.96);
-}
-
-.toolbar-checkout {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--icon-button-size, 40px);
-  height: var(--icon-button-size, 40px);
-  border: none;
-  border-radius: 50%;
-  background: var(--app-glass);
-  color: var(--app-text);
-  box-shadow: var(--app-shadow);
-  transition: transform 0.16s ease, background 0.16s ease;
-  flex-shrink: 0;
-}
-
-.toolbar-checkout svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.toolbar-checkout:active {
   transform: scale(0.96);
 }
 

@@ -505,7 +505,7 @@ export const MCP_WRITE_TOOL_DEFINITIONS = [
     inputSchema: {
       type: 'object',
       properties: {
-        page: { type: 'string', description: 'home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/checkout/mihoyo_new_arrivals 或带 id 的 group_detail/goods_detail/goods_edit/event_detail/event_edit' },
+        page: { type: 'string', description: 'home/recharge/wishlist/my/events/event_map/statistics/trash/sync/shares/settings/notifications/about/ai_service/goods_add/mihoyo_new_arrivals 或带 id 的 group_detail/goods_detail/goods_edit/event_detail/event_edit' },
         id: { type: 'string', description: '目标 id（goods_detail/goods_edit 传谷子 id，event_detail/event_edit 传活动 id，group_detail 传分组 id）' }
       },
       required: ['page']

@@ -385,7 +385,7 @@
   "manage.mihoyoFeatures": "Mihoyo Shop Features",
   "manage.mihoyoFeaturesDesc": "Turn all Mihoyo Shop feature entries on or off",
   "manage.mihoyoFeaturesMaster": "Enable Mihoyo Shop features",
-  "manage.mihoyoFeaturesMasterDesc": "When off, hides import, new arrivals, stock monitor, checkout, and related notify settings",
+  "manage.mihoyoFeaturesMasterDesc": "When off, hides import, new arrivals, stock monitor, and related notify settings",
   "manage.mihoyoFeaturesScope": "Hidden entries",
   "manage.mihoyoFeaturesScopeImport": "Import from Mihoyo Shop / Cart / Account",
   "manage.mihoyoFeaturesScopeImportDesc": "Search products, orders, and cart for bulk import",

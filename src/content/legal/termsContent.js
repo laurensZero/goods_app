@@ -59,9 +59,9 @@ ${legalDateBlock('zh-CN')}
 
 本应用可能使用开源软件组件，相应组件仍适用其各自的开源许可证。云同步、问卷、公告、汇率查询、音乐信息等能力可能依赖第三方服务（如 Supabase 及其他在应用内注明的服务），使用该等服务时同时适用对应服务方的条款。
 
-若您使用米游铺相关功能（订单/购物车导入、有货监控、购物辅助等），需自行提供米游铺会话 Cookie：可手动粘贴，或在网页版使用官方扫码（须您本人在米游社 App 内扫码确认）；相关请求由米游铺/米哈游服务器处理，并适用其用户协议与隐私政策。本应用不对米游铺侧的库存、价格、订单结果作任何保证。
+若您使用米游铺相关功能（订单/购物车导入、有货监控等），需自行提供米游铺会话 Cookie：可手动粘贴，或在网页版使用官方扫码（须您本人在米游社 App 内扫码确认）；相关请求由米游铺/米哈游服务器处理，并适用其用户协议与隐私政策。本应用不对米游铺侧的库存、价格、订单结果作任何保证。
 
-**非官方声明**：本应用与米哈游、米游铺**无官方关联**，不是米哈游/米游铺官方客户端，不代表其立场。使用米游铺相关功能产生的浏览、加购、下单等行为，均在官方渠道完成；**本应用不是买卖合同当事人**，不对交易能否成立、发货、退款、售后等承担责任。您不得利用本应用及米游铺 Cookie 从事批量爬取、恶意刷单、破坏交易秩序或侵害第三方合法权益的行为。
+**非官方声明**：本应用与米哈游、米游铺**无官方关联**，不是米哈游/米游铺官方客户端，不代表其立场。使用米游铺相关功能产生的浏览、加购等行为，均在官方渠道完成；**本应用不是买卖合同当事人**，不对交易能否成立、发货、退款、售后等承担责任。您不得利用本应用及米游铺 Cookie 从事批量爬取、恶意刷单、破坏交易秩序或侵害第三方合法权益的行为。
 
 AI 助手由**您自行配置**的第三方模型服务提供能力：您在设置中填写 API Key 并选定服务商；本应用不提供、不代管模型服务。使用 AI 助手即表示您理解并同意，对话内容（及助手为回答问题而引用的必要收藏信息）将发送至您所选的服务商，适用其条款与隐私政策。
 
@@ -69,7 +69,7 @@ AI 助手由**您自行配置**的第三方模型服务提供能力：您在设�
 
 - 本应用按「现状」提供。在法律允许的范围内，我们不对因使用或无法使用本应用而导致的任何间接损失、数据丢失或业务中断承担责任。
 - 请您定期通过导出功能自行备份重要数据，并自行校验导出文件是否完整可用。因设备损坏、系统故障、误操作、刷机或卸载等导致的数据丢失，除法律强制规定外，我们不承担责任。
-- 本应用展示的汇率、价格、活动时间等信息可能来自第三方或用户输入，仅供整理参考，不构成购物建议、专业意见或交易承诺；亦不保证抢购/开售相关提醒绝对及时或成功。
+- 本应用展示的汇率、价格、活动时间等信息可能来自第三方或用户输入，仅供整理参考，不构成购物建议、专业意见或交易承诺；亦不保证开售相关提醒绝对及时或成功。
 - AI 助手输出由**您所配置的模型服务商**生成，可能有误或不完整，仅供辅助参考，不构成专业建议。您与该服务商之间的权利义务适用其条款；因您自行填写的 API Key、服务商故障或内容引起的争议，由您与该服务商依法处理。
 - 应用内公告、帮助说明等处可能含有跳转第三方网站/页面的外部链接。跳转后的内容、安全性与隐私实践由对应服务方负责，本应用不控制亦不背书；请您自行判断风险。
 - 我们可能停止维护、更新本应用，或关闭云同步等在线服务。停止后，本机已存数据原则上仍可继续查看与导出，但相关在线能力将不可用；如有可能，我们会尽量通过应用内公告提前告知。
@@ -142,9 +142,9 @@ ${legalDateBlock('zh-TW')}
 
 本應用可能使用開源軟體元件，相應元件仍適用其各自的開源許可證。雲端同步、問卷、公告、匯率查詢、音樂資訊等能力可能依賴第三方服務（如 Supabase 及其他在應用內註明的服務），使用該等服務時同時適用對應服務方的條款。
 
-若您使用米游鋪相關功能（訂單/購物車匯入、有貨監控、購物輔助等），需自行提供米游鋪工作階段 Cookie：可手動貼上，或在網頁版使用官方掃碼（須您本人在米遊社 App 內掃碼確認）；相關請求由米游鋪/米哈遊伺服器處理，並適用其用戶協定與隱私政策。本應用不對米游鋪側的庫存、價格、訂單結果作任何保證。
+若您使用米游鋪相關功能（訂單/購物車匯入、有貨監控等），需自行提供米游鋪工作階段 Cookie：可手動貼上，或在網頁版使用官方掃碼（須您本人在米遊社 App 內掃碼確認）；相關請求由米游鋪/米哈遊伺服器處理，並適用其用戶協定與隱私政策。本應用不對米游鋪側的庫存、價格、訂單結果作任何保證。
 
-**非官方聲明**：本應用與米哈遊、米游鋪**無官方關聯**，不是米哈遊/米游鋪官方客戶端，不代表其立場。使用米游鋪相關功能產生的瀏覽、加購、下單等行為，均在官方管道完成；**本應用不是買賣合同當事人**，不對交易能否成立、發貨、退款、售後等承擔責任。您不得利用本應用及米游鋪 Cookie 從事批量爬取、惡意刷單、破壞交易秩序或侵害第三方合法權益的行為。
+**非官方聲明**：本應用與米哈遊、米游鋪**無官方關聯**，不是米哈遊/米游鋪官方客戶端，不代表其立場。使用米游鋪相關功能產生的瀏覽、加購等行為，均在官方管道完成；**本應用不是買賣合同當事人**，不對交易能否成立、發貨、退款、售後等承擔責任。您不得利用本應用及米游鋪 Cookie 從事批量爬取、惡意刷單、破壞交易秩序或侵害第三方合法權益的行為。
 
 AI 助手由**您自行配置**的第三方模型服務提供能力：您在設定中填寫 API Key 並選定服務商；本應用不提供、不代管模型服務。使用 AI 助手即表示您理解並同意，對話內容（及助手為回答問題而引用的必要收藏資訊）將發送至您所選的服務商，適用其條款與隱私政策。
 
@@ -152,7 +152,7 @@ AI 助手由**您自行配置**的第三方模型服務提供能力：您在設�
 
 - 本應用按「現狀」提供。在法律允許的範圍內，我們不對因使用或無法使用本應用而導致的任何間接損失、資料遺失或業務中斷承擔責任。
 - 請您定期透過匯出功能自行備份重要資料，並自行校驗匯出檔案是否完整可用。因裝置損壞、系統故障、誤操作、刷機或解除安裝等導致的資料遺失，除法律強制規定外，我們不承擔責任。
-- 本應用展示的匯率、價格、活動時間等資訊可能來自第三方或用戶輸入，僅供整理參考，不構成購物建議、專業意見或交易承諾；亦不保證搶購/開售相關提醒絕對及時或成功。
+- 本應用展示的匯率、價格、活動時間等資訊可能來自第三方或用戶輸入，僅供整理參考，不構成購物建議、專業意見或交易承諾；亦不保證開售相關提醒絕對及時或成功。
 - AI 助手輸出由**您所配置的模型服務商**生成，可能有誤或不完整，僅供輔助參考，不構成專業建議。您與該服務商之間的權利義務適用其條款；因您自行填寫的 API Key、服務商故障或內容引起的爭議，由您與該服務商依法處理。
 - 應用內公告、幫助說明等處可能含有跳轉第三方網站/頁面的外部連結。跳轉後的內容、安全性與隱私實踐由對應服務方負責，本應用不控制亦不背書；請您自行判斷風險。
 - 我們可能停止維護、更新本應用，或關閉雲端同步等線上服務。停止後，本機已存資料原則上仍可繼續查看與匯出，但相關線上能力將不可用；如有可能，我們會盡量透過應用內公告提前告知。
@@ -225,7 +225,7 @@ Content published via share links (including item fields and images you choose t
 
 The App may include open-source components under their respective licenses. Cloud sync, surveys, announcements, exchange-rate lookup, music metadata, and similar features may rely on third-party services (including Supabase and other services identified in the App). Your use of those services is also subject to their terms.
 
-If you use miHoYo Shop features (order/cart import, stock monitoring, checkout assistance, etc.), you must provide your own miHoYo Shop session Cookie — either by pasting it, or via official QR sign-in on the Web version (you must scan and confirm yourself in the official HoYoLAB app). Related requests are processed by miHoYo Shop / miHoYo servers under their terms and privacy policy. The App does not guarantee shop-side stock, prices, or order outcomes.
+If you use miHoYo Shop features (order/cart import, stock monitoring, etc.), you must provide your own miHoYo Shop session Cookie — either by pasting it, or via official QR sign-in on the Web version (you must scan and confirm yourself in the official HoYoLAB app). Related requests are processed by miHoYo Shop / miHoYo servers under their terms and privacy policy. The App does not guarantee shop-side stock, prices, or order outcomes.
 
 **Unofficial notice**: The App has **no official affiliation** with miHoYo or miHoYo Shop and is not an official client; it does not represent their positions. Browsing, adding to cart, or placing orders via miHoYo Shop features occurs on official channels; **the App is not a party to any sales contract** and is not liable for whether a transaction is concluded, shipping, refunds, or after-sales. You must not use the App and miHoYo Shop Cookies for mass scraping, malicious order flooding, disruption of trade order, or infringement of third-party rights.
 

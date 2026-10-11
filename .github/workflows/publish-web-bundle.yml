@@ -79,12 +79,24 @@ jobs:
     runs-on: ubuntu-latest
     # 防止在 fork 中运行（fork 没有 secrets）
     if: github.repository == 'laurensZero/goods_app'
+    env:
+      # 配置了 PRIVATE_OVERLAY_TOKEN 时，打包前拉取私有扩展仓库到 private/
+      HAS_PRIVATE_OVERLAY: ${{ secrets.PRIVATE_OVERLAY_TOKEN != '' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Fetch private overlay (optional)
+        if: env.HAS_PRIVATE_OVERLAY == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: laurensZero/goods-app-private
+          token: ${{ secrets.PRIVATE_OVERLAY_TOKEN }}
+          path: private
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -32,7 +32,7 @@ schedule = "*/1 * * * *"
 [functions.backfill-goods-id]
 verify_jwt = false
 
-# 功能白名单校验（扩展功能等）：必须携带登录 JWT（verify_jwt=true），feature 走 query 参数
+# 功能白名单校验（私有扩展等）：必须携带登录 JWT（verify_jwt=true），feature 走 query 参数
 [functions.check-feature-permission]
 verify_jwt = true
 
@@ -41,7 +41,7 @@ verify_jwt = true
 [functions.remove-bg]
 verify_jwt = true
 
-# 毫秒级精确时间源：扩展功能定时校准用，无需登录
+# 毫秒级精确时间源：客户端时钟校准用，无需登录
 [functions.get-server-time]
 verify_jwt = false
 

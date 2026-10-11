@@ -30,6 +30,9 @@ scripts/mihoyo-checkout.mjs
 .profile/
 .bench/
 
+# 私有扩展（本机/私有仓库维护，不入公开仓库）
+private/
+
 # 本地架构图 / 项目目录树（仅本机使用，不入库）
 scripts/build-project-tree.mjs
 scripts/check-arch-graph.mjs

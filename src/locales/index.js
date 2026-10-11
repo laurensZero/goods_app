@@ -119,8 +119,23 @@ function mergeMessages(parts) {
   }
 }
 
+// 私有扩展文案：private/locales/<locale>/*.json 由使用者自行维护（公开仓库不含其内容），
+// 目录不存在时对应 glob 为空对象，不影响公开构建。与公开命名空间同层扁平合并。
+const privateGlobMaps = {
+  'zh-TW': import.meta.glob('../../private/locales/zh-TW/*.json'),
+  'en': import.meta.glob('../../private/locales/en/*.json'),
+  'ja': import.meta.glob('../../private/locales/ja/*.json'),
+  'ko': import.meta.glob('../../private/locales/ko/*.json')
+}
+
+async function loadPrivateMessages(globMap) {
+  const loaded = await Promise.all(Object.values(globMap).map((load) => load()))
+  return Object.assign({}, ...loaded.map((m) => m.default))
+}
+
 // 默认/回退语言同步打进入口；其余语言按需 import，避免 5 份语言包全进首包
-const zhCNMessages = mergeMessages({
+const zhCNMessages = Object.assign(
+  mergeMessages({
   common: zhCommon,
   nav: zhNav,
   goods: zhGoods,
@@ -149,7 +164,12 @@ const zhCNMessages = mergeMessages({
   survey: zhSurvey,
   birthday: zhBirthday,
   guide: zhGuide
-})
+}),
+  // 私有扩展文案（eager：zh-CN 打进入口包）
+  Object.assign({}, ...Object.values(
+    import.meta.glob('../../private/locales/zh-CN/*.json', { eager: true, import: 'default' })
+  ))
+)
 
 const localeLoaders = {
   'zh-TW': async () => {
@@ -428,6 +448,9 @@ async function ensureLocaleMessages(locale) {
     const loader = localeLoaders[locale]
     if (!loader) return
     const promise = loader()
+      .then((messages) => loadPrivateMessages(privateGlobMaps[locale]).then((privateMsgs) =>
+        Object.assign(messages, privateMsgs)
+      ))
       .then((messages) => {
         i18n.global.setLocaleMessage(locale, messages)
         loadedLocales.add(locale)

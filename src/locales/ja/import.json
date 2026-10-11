@@ -300,5 +300,6 @@
   "import.taobaoImported": "インポートしました",
   "import.unknownError": "不明なエラーが発生しました",
   "import.unknownGoods": "不明なアイテム",
-  "import.variantPlaceholder": "バリエーションを選択"
+  "import.variantPlaceholder": "バリエーションを選択",
+  "import.pickAccount": "アカウントを選択"
 }

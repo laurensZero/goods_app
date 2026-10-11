@@ -385,7 +385,7 @@
   "manage.mihoyoFeatures": "미호요 샵 기능",
   "manage.mihoyoFeaturesDesc": "미호요 샵 관련 기능 진입점을 한 번에 켜고 끕니다",
   "manage.mihoyoFeaturesMaster": "미호요 샵 기능 사용",
-  "manage.mihoyoFeaturesMasterDesc": "끄면 가져오기, 신상품, 재고 모니터, 셀프 체크아웃 등 진입점이 모두 숨겨집니다",
+  "manage.mihoyoFeaturesMasterDesc": "끄면 가져오기, 신상품, 재고 모니터 등 진입점이 모두 숨겨집니다",
   "manage.mihoyoFeaturesScope": "숨겨지는 진입점",
   "manage.mihoyoFeaturesScopeImport": "미호요 샵 / 장바구니 / 계정 가져오기",
   "manage.mihoyoFeaturesScopeImportDesc": "상품·주문·장바구니를 검색해 일괄 등록",

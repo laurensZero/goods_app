@@ -58,7 +58,7 @@ function removeBundledCutoutWasm() {
 
 // http-proxy 未配 agent 时会强制 `Connection: close`（见其 setupOutgoing），
 // 每个 API 请求都重建到源站的 TCP+TLS（实测握手 p50 ≈ 180ms，代理开销 +145ms/请求）。
-// 共享 keepAlive 连接池后代理开销降到 ~2ms，抢购 5 并发 burst 快约 2.4 倍。
+// 共享 keepAlive 连接池后代理开销降到 ~2ms，并发 burst 场景快约 2.4 倍。
 // Agent 按 host:port 分池，所有 https 上游可共用一个实例。
 const proxyAgent = new Agent({ keepAlive: true, maxSockets: 64, maxFreeSockets: 16 })
 
@@ -78,7 +78,11 @@ export default defineConfig({
     // Dev 本地 SNTP 桥：浏览器请求 /dev-ntp 时才去打阿里云 UDP NTP（按需，不常驻探测）
     ntpBridgePlugin(),
     VueI18nPlugin({
-      include: fileURLToPath(new URL('./src/locales/**/*.json', import.meta.url))
+      include: [
+        fileURLToPath(new URL('./src/locales/**/*.json', import.meta.url)),
+        // 私有扩展文案（目录不存在时该 glob 不命中，不影响公开构建）
+        fileURLToPath(new URL('./private/locales/**/*.json', import.meta.url))
+      ]
     }),
     Components({
       resolvers: [VantResolver()],
@@ -174,6 +178,11 @@ export default defineConfig({
       {
         find: '@',
         replacement: fileURLToPath(new URL('./src', import.meta.url))
+      },
+      // @private 指向私有扩展目录（private/ 由使用者自行维护，公开仓库不含其内容）
+      {
+        find: '@private',
+        replacement: fileURLToPath(new URL('./private/src', import.meta.url))
       }
     ]
   },

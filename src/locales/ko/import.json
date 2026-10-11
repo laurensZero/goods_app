@@ -300,5 +300,6 @@
   "import.taobaoImported": "가져오기 완료",
   "import.unknownError": "알 수 없는 오류가 발생했습니다",
   "import.unknownGoods": "알 수 없는 항목",
-  "import.variantPlaceholder": "변형 선택"
+  "import.variantPlaceholder": "변형 선택",
+  "import.pickAccount": "계정 선택"
 }
