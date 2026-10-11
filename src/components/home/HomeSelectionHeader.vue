@@ -114,18 +114,18 @@ defineEmits(['back', 'toggle-all'])
   letter-spacing: -0.02em;
 }
 
-:global(html.theme-dark) .selection-header {
+html.theme-dark .selection-header {
     background: var(--app-glass-strong);
     border-color: var(--app-glass-border);
     box-shadow: 0 14px 34px rgba(0, 0, 0, 0.34);
   }
 
-:global(html.theme-dark) .sel-back-btn {
+html.theme-dark .sel-back-btn {
     background: var(--app-glass);
     border-color: var(--app-glass-border);
   }
 
-:global(html.theme-dark) .sel-all-btn {
+html.theme-dark .sel-all-btn {
     background: rgba(255, 255, 255, 0.07);
     color: var(--app-text-secondary);
   }

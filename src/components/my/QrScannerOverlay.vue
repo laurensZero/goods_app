@@ -347,14 +347,14 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   opacity: 0;
 }
 
-:global(html.theme-dark) .scanner-dialog {
+html.theme-dark .scanner-dialog {
   background: color-mix(in srgb, var(--app-glass-strong) 96%, var(--app-surface));
   box-shadow:
     0 24px 56px rgba(0, 0, 0, 0.48),
     0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
-:global(html.theme-dark) .scanner-dialog--native {
+html.theme-dark .scanner-dialog--native {
   background: transparent !important;
   box-shadow: none !important;
 }

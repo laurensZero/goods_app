@@ -944,20 +944,20 @@ watch(() => shareResult.value?.code, (value) => {
   display: none;
 }
 
-:global(html.theme-dark) .share-preview,
-:global(html.theme-dark) .share-card,
-:global(html.theme-dark) .poster-card,
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .share-preview,
+html.theme-dark .share-card,
+html.theme-dark .poster-card,
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .share-field-value {
+html.theme-dark .share-field-value {
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
 }
 
-:global(html.theme-dark) .share-copy-btn,
-:global(html.theme-dark) .sheet-retry-btn,
-:global(html.theme-dark) .sheet-share-btn {
+html.theme-dark .share-copy-btn,
+html.theme-dark .sheet-retry-btn,
+html.theme-dark .sheet-share-btn {
   background: #f5f5f7;
   color: #141416;
 }

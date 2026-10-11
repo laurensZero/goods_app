@@ -152,12 +152,12 @@ const stats = computed(() =>
   }
 }
 
-:global(html.theme-dark) .tree-node__action {
+html.theme-dark .tree-node__action {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .tree-node__children {
+html.theme-dark .tree-node__children {
     border-left-color: rgba(255, 255, 255, 0.08);
   }
 </style>

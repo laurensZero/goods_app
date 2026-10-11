@@ -285,13 +285,13 @@ resolvePick()
   display: none;
 }
 
-:global(html.theme-dark) .rec-card {
+html.theme-dark .rec-card {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
-:global(html.theme-dark) .sheet-action-btn {
+html.theme-dark .sheet-action-btn {
   background: #f5f5f7; color: #141416;
 }
 </style>

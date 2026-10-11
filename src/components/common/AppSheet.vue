@@ -338,7 +338,7 @@ defineExpose({ isWide, isCentered, placement })
   display: none;
 }
 
-:global(html.theme-dark) .app-sheet {
+html.theme-dark .app-sheet {
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
 }
 

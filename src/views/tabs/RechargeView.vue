@@ -328,11 +328,11 @@ onBeforeRouteLeave(() => {
   transform: scale(0.96);
 }
 
-:global(html.theme-dark) .hero-search {
+html.theme-dark .hero-search {
   background: var(--app-glass);
 }
 
-:global(html.theme-dark) .fab {
+html.theme-dark .fab {
   background: var(--app-text);
   color: var(--app-surface);
 }

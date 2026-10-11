@@ -302,7 +302,7 @@ async function submitQuickCreate() {
   color: var(--app-text-secondary);
 }
 
-:global(html.theme-dark) .storage-location-summary {
+html.theme-dark .storage-location-summary {
   background: rgba(255, 255, 255, 0.05);
 }
 </style>

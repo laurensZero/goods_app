@@ -123,7 +123,7 @@ defineEmits(['update:sortMode', 'toggle-direction'])
   transform: rotate(180deg);
 }
 
-:global(html.theme-dark) .sort-tab--active {
+html.theme-dark .sort-tab--active {
   background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
 }

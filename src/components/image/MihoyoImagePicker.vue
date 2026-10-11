@@ -417,7 +417,7 @@ input::placeholder {
   padding: 0 2px;
 }
 
-:global(html.theme-dark) input {
+html.theme-dark input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
@@ -425,7 +425,7 @@ input::placeholder {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-:global(html.theme-dark) .mhpicker-upload-btn {
+html.theme-dark .mhpicker-upload-btn {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     color: var(--app-text-secondary);
@@ -434,16 +434,16 @@ input::placeholder {
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-:global(html.theme-dark) .mhpicker-upload-btn:active {
+html.theme-dark .mhpicker-upload-btn:active {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .mhpicker-item {
+html.theme-dark .mhpicker-item {
     background: rgba(255, 255, 255, 0.05);
   }
 
-:global(html.theme-dark) .mhpicker-item--active {
+html.theme-dark .mhpicker-item--active {
     background: rgba(74, 122, 236, 0.18);
   }
 </style>

@@ -203,20 +203,20 @@ function toggleExpanded() {
   background: rgba(20, 20, 22, 0.08);
 }
 
-:global(html.theme-dark) .location-node__chip--active {
+html.theme-dark .location-node__chip--active {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .location-node__count {
+html.theme-dark .location-node__count {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .location-node__children {
+html.theme-dark .location-node__children {
     border-left-color: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .location-node--child-active > .location-node__row .location-node__chip:not(.location-node__chip--active) {
+html.theme-dark .location-node--child-active > .location-node__row .location-node__chip:not(.location-node__chip--active) {
     background: rgba(255, 255, 255, 0.08);
   }
 </style>

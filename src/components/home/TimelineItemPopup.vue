@@ -191,19 +191,19 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
 }
 .sheet-action-btn:active { opacity: 0.88; transform: scale(0.985); }
 
-:global(html.theme-dark) .sheet-chip--ip {
+html.theme-dark .sheet-chip--ip {
   color: #7da4f5;
   background: rgba(74, 122, 236, 0.18);
 }
-:global(html.theme-dark) .sheet-chip--char {
+html.theme-dark .sheet-chip--char {
   color: #4fd69b;
   background: rgba(93, 226, 160, 0.14);
 }
-:global(html.theme-dark) .sheet-chip--variant {
+html.theme-dark .sheet-chip--variant {
   color: #f5c842;
   background: rgba(255, 180, 0, 0.14);
 }
-:global(html.theme-dark) .sheet-action-btn {
+html.theme-dark .sheet-action-btn {
   background: #f5f5f7; color: #141416;
 }
 </style>

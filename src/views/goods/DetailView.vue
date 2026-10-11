@@ -1917,78 +1917,78 @@ function getImageKindLabel(kind) {
   }
 }
 
-:global(html.theme-dark) .cover-glow {
+html.theme-dark .cover-glow {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .cover-card:not([data-cover-tone]) {
+html.theme-dark .cover-card:not([data-cover-tone]) {
     background: linear-gradient(180deg, #242428, #1a1a1d);
   }
 
-:global(html.theme-dark) .dialog-btn--ghost {
+html.theme-dark .dialog-btn--ghost {
     background: var(--app-surface-soft);
   }
 
-:global(html.theme-dark) .dialog-btn--danger {
+html.theme-dark .dialog-btn--danger {
     background: #f5f5f7;
     color: #d32f2f;
   }
 
-:global(html.theme-dark) .hero-chip {
+html.theme-dark .hero-chip {
     background: rgba(255, 255, 255, 0.12);
   }
 
-:global(html.theme-dark) .hero-chip.ip-chip {
+html.theme-dark .hero-chip.ip-chip {
     background: rgba(74, 122, 236, 0.22);
   }
 
-:global(html.theme-dark) .hero-chip.char-chip {
+html.theme-dark .hero-chip.char-chip {
     background: rgba(93, 226, 160, 0.15);
   }
 
-:global(html.theme-dark) .hero-chip.tag-chip {
+html.theme-dark .hero-chip.tag-chip {
     background: rgba(201, 148, 255, 0.18);
     color: #f1dcff;
   }
 
-:global(html.theme-dark) .hero-chip.collect-status-chip {
+html.theme-dark .hero-chip.collect-status-chip {
     background: rgba(168, 224, 108, 0.18);
     color: #a8e06c;
   }
 
-:global(html.theme-dark) .nav-icon-btn {
+html.theme-dark .nav-icon-btn {
     background: var(--app-glass);
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .nav-icon-btn.danger {
+html.theme-dark .nav-icon-btn.danger {
     color: #ff8a80;
   }
 
-:global(html.theme-dark) .dialog-btn--primary {
+html.theme-dark .dialog-btn--primary {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .sku-option {
+html.theme-dark .sku-option {
     border-color: rgba(255, 255, 255, 0.12);
     background: rgba(255, 255, 255, 0.06);
   }
 
-:global(html.theme-dark) .sku-option--selected {
+html.theme-dark .sku-option--selected {
     border-color: #f5f5f7;
     background: #f5f5f7;
     color: #141416;
   }
 
 /* 强制覆盖，避免已编译样式或外部 scope 覆盖导致不生效 */
-:global(html.theme-dark) .detail-page .nav-icon-btn {
+html.theme-dark .detail-page .nav-icon-btn {
     background: var(--app-glass) !important;
     color: var(--app-text) !important;
     border-color: var(--app-glass-border) !important;
   }
 
-:global(html.theme-dark) .detail-page .nav-icon-btn.danger {
+html.theme-dark .detail-page .nav-icon-btn.danger {
     color: #ff8a80 !important;
   }
 </style>

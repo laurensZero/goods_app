@@ -9,7 +9,6 @@
   "guide.searchHits": "「{query}」命中 {count} 個章節",
   "guide.sectionKicker": "第 {n} 節",
   "guide.tipLabel": "小提示",
-  "guide.shotFallback": "截圖載入失敗，檢查網路後重新進入本頁即可",
   "guide.noResultTitle": "沒有找到相關內容",
   "guide.noResultDesc": "換個關鍵字試試，例如「批次新增」「雲端同步」「願望清單」",
   "guide.footnote": "截圖基於手機版介面，功能以當前版本實際介面為準；有疑問可在「我的 → 反饋」告訴我們。",

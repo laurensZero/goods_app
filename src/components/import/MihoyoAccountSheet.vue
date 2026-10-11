@@ -389,12 +389,12 @@ defineExpose({
   font-weight: 600;
 }
 
-:global(html.theme-dark) .sheet-options,
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-options,
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 70%, var(--app-surface));
 }
 
-:global(html.theme-dark) .sheet-login-new {
+html.theme-dark .sheet-login-new {
   background: #f5f5f7;
   color: #141416;
 }

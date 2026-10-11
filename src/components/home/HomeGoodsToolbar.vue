@@ -952,35 +952,35 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-:global(html.theme-dark) .density-switch__indicator {
+html.theme-dark .density-switch__indicator {
   background: #f5f5f7;
 }
 
-:global(html.theme-dark) .daily-rec-btn {
+html.theme-dark .daily-rec-btn {
   background: var(--app-glass);
   color: var(--app-text-secondary);
 }
 
-:global(html.theme-dark) .density-switch__option--active {
+html.theme-dark .density-switch__option--active {
   color: #141416;
 }
 
-:global(html.theme-dark) .timeline-toggle--active {
+html.theme-dark .timeline-toggle--active {
   background: #f5f5f7;
   color: #141416;
 }
 
-:global(html.theme-dark) .sort-toggle--asc {
+html.theme-dark .sort-toggle--asc {
   background: var(--app-glass);
   color: var(--app-text-secondary);
 }
 
-:global(html.theme-dark) .sort-sheet__dir-btn,
-:global(html.theme-dark) .sort-sheet__option--active {
+html.theme-dark .sort-sheet__dir-btn,
+html.theme-dark .sort-sheet__option--active {
   background: rgba(255, 255, 255, 0.08);
 }
 
-:global(html.theme-dark) .sort-sheet__divider {
+html.theme-dark .sort-sheet__divider {
   background: rgba(255, 255, 255, 0.08);
 }
 

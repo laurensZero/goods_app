@@ -1147,16 +1147,16 @@ defineExpose({
   padding-top: 12px;
 }
 
-:global(html.theme-dark) .view-switch__indicator,
-:global(html.theme-dark) .leaderboard-item__fill {
+html.theme-dark .view-switch__indicator,
+html.theme-dark .leaderboard-item__fill {
   background: linear-gradient(90deg, #f5f5f7 0%, #9ca3af 100%);
 }
 
-:global(html.theme-dark) .timeline-month__line {
+html.theme-dark .timeline-month__line {
   background: color-mix(in srgb, var(--app-text-secondary) 18%, transparent);
 }
 
-:global(html.theme-dark) .view-switch__item--active {
+html.theme-dark .view-switch__item--active {
   color: #141416;
 }
 

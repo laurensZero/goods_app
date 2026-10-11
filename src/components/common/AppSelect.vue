@@ -259,29 +259,29 @@ onBeforeUnmount(() => {
   transform: translateY(-6px);
 }
 
-:global(html.theme-dark) .app-select__trigger {
+html.theme-dark .app-select__trigger {
     border-color: rgba(255, 255, 255, 0.05) !important;
     background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
-:global(html.theme-dark) .app-select__value--placeholder {
+html.theme-dark .app-select__value--placeholder {
     color: rgba(245, 245, 247, 0.72) !important;
   }
 
-:global(html.theme-dark) .app-select__arrow {
+html.theme-dark .app-select__arrow {
     stroke: rgba(245, 245, 247, 0.72) !important;
   }
 
-:global(html.theme-dark) .app-select--open .app-select__trigger,
-  :global(html.theme-dark) .app-select__trigger:focus-visible {
+html.theme-dark .app-select--open .app-select__trigger,
+  html.theme-dark .app-select__trigger:focus-visible {
     border-color: rgba(118, 148, 210, 0.28) !important;
     box-shadow:
       0 0 0 2px rgba(118, 148, 210, 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
-:global(html.theme-dark) .app-select__panel {
+html.theme-dark .app-select__panel {
     border-color: rgba(255, 255, 255, 0.06);
     background: rgba(24, 24, 28, 0.96);
     backdrop-filter: blur(20px) saturate(140%);
@@ -289,22 +289,22 @@ onBeforeUnmount(() => {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
   }
 
-:global(html.theme-dark) .app-select__option {
+html.theme-dark .app-select__option {
     color: #f5f5f7 !important;
   }
 
-:global(html.theme-dark) .app-select__option:hover,
-  :global(html.theme-dark) .app-select__option:active,
-  :global(html.theme-dark) .app-select__option--active {
+html.theme-dark .app-select__option:hover,
+  html.theme-dark .app-select__option:active,
+  html.theme-dark .app-select__option--active {
     background: rgba(255, 255, 255, 0.10) !important;
     color: #f5f5f7 !important;
   }
 
-:global(html.theme-dark) .app-select__check {
+html.theme-dark .app-select__check {
     stroke: #f5f5f7 !important;
   }
 
-:global(html.theme-dark) .app-select__empty {
+html.theme-dark .app-select__empty {
     color: rgba(245, 245, 247, 0.68) !important;
   }
 </style>

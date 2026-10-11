@@ -556,45 +556,45 @@ async function saveEdit() {
   transform: translateY(-8px);
 }
 
-:global(html.theme-dark) .confirm-btn,
-  :global(html.theme-dark) .save-btn {
+html.theme-dark .confirm-btn,
+  html.theme-dark .save-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .row-input:focus {
+html.theme-dark .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
   }
 
-:global(html.theme-dark) .type-exhibition {
+html.theme-dark .type-exhibition {
     background: rgba(90, 120, 250, 0.2);
     color: #9db4ff;
   }
 
-:global(html.theme-dark) .type-concert {
+html.theme-dark .type-concert {
     background: rgba(250, 149, 90, 0.2);
     color: #f2a869;
   }
 
-:global(html.theme-dark) .type-other {
+html.theme-dark .type-other {
     background: rgba(142, 142, 147, 0.2);
     color: #a7acb8;
   }
 
-:global(html.theme-dark) .type-custom {
+html.theme-dark .type-custom {
     background: rgba(150, 100, 250, 0.2);
     color: #c4a1ff;
   }
 
-:global(html.theme-dark) .tracks-toggle__knob {
+html.theme-dark .tracks-toggle__knob {
     background: rgba(142, 142, 147, 0.4);
   }
 
-:global(html.theme-dark) .tracks-toggle--on {
+html.theme-dark .tracks-toggle--on {
     color: #c4a1ff;
   }
 
-:global(html.theme-dark) .tracks-toggle--on .tracks-toggle__knob {
+html.theme-dark .tracks-toggle--on .tracks-toggle__knob {
     background: #9b6fe0;
   }
 </style>

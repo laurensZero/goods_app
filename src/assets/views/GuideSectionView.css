@@ -8,7 +8,7 @@
   --guide-accent-strong: #e8492f;
 }
 
-:global(html.theme-dark) .guide-section-page {
+html.theme-dark .guide-section-page {
   --guide-accent: #ff7a61;
   --guide-accent-soft: rgba(255, 122, 97, 0.16);
   --guide-accent-strong: #ff8f79;
@@ -163,37 +163,14 @@
   border: 1px solid var(--app-border);
 }
 
-/* 图片单独裁圆角；标注点允许悬出 frame 边缘几像素，不做 overflow 裁剪 */
-.guide-shot__img-wrap {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+/* LazyCachedImage 根节点：补圆角，内部元素顶端对齐；
+   标注点允许悬出 frame 边缘几像素，frame 不做 overflow 裁剪 */
+.guide-shot__img {
   border-radius: calc(var(--radius-card) - 1px);
 }
 
-.guide-shot__img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+.guide-shot__img :deep(.lazy-image-element) {
   object-position: top center;
-}
-
-.guide-shot__fallback {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-  color: var(--app-text-tertiary);
-  font-size: 13px;
-  text-align: center;
-}
-
-.guide-shot__frame--failed {
-  border-style: dashed;
 }
 
 .guide-anno {

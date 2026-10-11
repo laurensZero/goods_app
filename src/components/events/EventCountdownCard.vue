@@ -307,28 +307,28 @@ const ariaLabel = computed(() =>
 
 /* ---- 深色模式 ---- */
 
-:global(html.theme-dark) .check-icon--checked {
+html.theme-dark .check-icon--checked {
   background: #f5f5f7;
   border-color: #f5f5f7;
 }
 
-:global(html.theme-dark) .check-icon--checked svg {
+html.theme-dark .check-icon--checked svg {
   stroke: #141416;
 }
 
-:global(html.theme-dark) .cd-card--tone-hot {
+html.theme-dark .cd-card--tone-hot {
   --cd-tone-bg: rgba(250, 140, 100, 0.18);
   --cd-tone-strong: #f2a084;
   --cd-tone-soft: #e8b3a0;
 }
 
-:global(html.theme-dark) .cd-card--tone-cool {
+html.theme-dark .cd-card--tone-cool {
   --cd-tone-bg: rgba(100, 130, 250, 0.2);
   --cd-tone-strong: #9db4ff;
   --cd-tone-soft: #aab9e8;
 }
 
-:global(html.theme-dark) .cd-card--tone-live {
+html.theme-dark .cd-card--tone-live {
   --cd-tone-bg: rgba(60, 190, 140, 0.18);
   --cd-tone-strong: #6fd4a8;
   --cd-tone-soft: #93cbb2;

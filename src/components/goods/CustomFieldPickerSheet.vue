@@ -389,22 +389,22 @@ useDialogBackButton(close, () => props.modelValue)
   font-size: 13px;
 }
 
-:global(html.theme-dark) .sheet-options,
-:global(html.theme-dark) .sheet-empty,
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-options,
+html.theme-dark .sheet-empty,
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .sheet-option:active,
-:global(html.theme-dark) .sheet-cancel:active {
+html.theme-dark .sheet-option:active,
+html.theme-dark .sheet-cancel:active {
   background: rgba(255, 255, 255, 0.06);
 }
 
-:global(html.theme-dark) .sheet-input {
+html.theme-dark .sheet-input {
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
 }
 
-:global(html.theme-dark) .sheet-confirm {
+html.theme-dark .sheet-confirm {
   background: #f5f5f7;
   color: #141416;
 }

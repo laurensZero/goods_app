@@ -9,7 +9,6 @@
   "guide.searchHits": "「{query}」命中 {count} 个章节",
   "guide.sectionKicker": "第 {n} 节",
   "guide.tipLabel": "小提示",
-  "guide.shotFallback": "截图加载失败，检查网络后重新进入本页即可",
   "guide.noResultTitle": "没有找到相关内容",
   "guide.noResultDesc": "换个关键词试试，例如「批量添加」「云同步」「心愿单」",
   "guide.footnote": "截图基于手机版界面，功能以当前版本实际界面为准；有疑问可在「我的 → 反馈」告诉我们。",

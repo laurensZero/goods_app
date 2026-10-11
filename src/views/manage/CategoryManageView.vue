@@ -523,17 +523,17 @@ async function restoreDefaults() {
   transform: translateY(-8px);
 }
 
-:global(html.theme-dark) .confirm-btn,
-  :global(html.theme-dark) .save-btn {
+html.theme-dark .confirm-btn,
+  html.theme-dark .save-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .restore-btn {
+html.theme-dark .restore-btn {
     background: rgba(28, 28, 30, 0.88);
   }
 
-:global(html.theme-dark) .row-input:focus {
+html.theme-dark .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
   }
 </style>

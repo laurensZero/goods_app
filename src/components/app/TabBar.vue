@@ -345,18 +345,18 @@ onBeforeUnmount(() => {
   letter-spacing: 0.01em;
 }
 
-:global(html.theme-dark) .tab-bar {
+html.theme-dark .tab-bar {
   background: var(--app-glass-strong);
   border-color: var(--app-glass-border);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
 }
 
-:global(html.theme-dark) .tab-item--active {
+html.theme-dark .tab-item--active {
   background: transparent;
   color: #141416;
 }
 
-:global(html.theme-dark) .tab-bar__indicator {
+html.theme-dark .tab-bar__indicator {
   background: #f5f5f5;
   color: #141416;
 }

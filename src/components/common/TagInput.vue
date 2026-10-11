@@ -160,18 +160,18 @@ function removeTag(tag) {
   line-height: 1.5;
 }
 
-:global(html.theme-dark) .tag-list {
+html.theme-dark .tag-list {
     border-color: rgba(255, 255, 255, 0.07);
   }
 
-:global(html.theme-dark) .tag-chip {
+html.theme-dark .tag-chip {
     border: none;
     background: rgba(201, 148, 255, 0.14);
     color: #f1dcff;
     box-shadow: none;
   }
 
-:global(html.theme-dark) .tag-chip__remove {
+html.theme-dark .tag-chip__remove {
     background: rgba(201, 148, 255, 0.20);
     color: #f1dcff;
   }

@@ -947,7 +947,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   overflow: hidden;
 }
 
-:global(html.theme-dark) .cal-day--selected {
+html.theme-dark .cal-day--selected {
   background: #f5f5f7;
   color: #141416;
 }
@@ -1141,15 +1141,15 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   border-color: transparent;
 }
 
-:global(html.theme-dark) .cal-card {
+html.theme-dark .cal-card {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .month-picker {
+html.theme-dark .month-picker {
   background: var(--app-surface);
 }
 
-:global(html.theme-dark) .month-picker__cell--active {
+html.theme-dark .month-picker__cell--active {
   background: #f5f5f7;
   color: #141416;
 }
@@ -1180,7 +1180,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   border-color: transparent;
 }
 
-:global(html.theme-dark) .month-picker__today {
+html.theme-dark .month-picker__today {
   background: #f5f5f7;
   color: #141416;
 }
@@ -1247,12 +1247,12 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   background: rgba(142, 142, 147, 0.18);
 }
 
-:global(html.theme-dark) .sheet-apply {
+html.theme-dark .sheet-apply {
   background: #f5f5f7;
   color: #141416;
 }
 
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 </style>

@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
   background: var(--app-selection-bg);
 }
 
-:global(html.theme-dark) .group-detail-header {
+html.theme-dark .group-detail-header {
   background: var(--app-glass-strong);
   border-bottom-color: var(--app-glass-border);
 }

@@ -9,7 +9,6 @@
   "guide.searchHits": "{count} sections match \"{query}\"",
   "guide.sectionKicker": "Section {n}",
   "guide.tipLabel": "Tip",
-  "guide.shotFallback": "Screenshot failed to load — check your network and reopen this page",
   "guide.noResultTitle": "No matching content",
   "guide.noResultDesc": "Try another keyword, e.g. \"batch add\", \"cloud sync\", \"wishlist\"",
   "guide.footnote": "Screenshots reflect the mobile UI; features follow the current release. Questions? Contact us via My → Feedback.",

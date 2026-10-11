@@ -677,26 +677,26 @@ async function confirmDelete() {
   font-weight: 600;
 }
 
-:global(html.theme-dark) .save-btn {
+html.theme-dark .save-btn {
   background: #f5f5f7;
   color: #141416;
 }
 
-:global(html.theme-dark) .row-input:focus {
+html.theme-dark .row-input:focus {
   border-color: rgba(255, 255, 255, 0.15);
 }
 
-:global(html.theme-dark) .type-chip {
+html.theme-dark .type-chip {
   background: rgba(142, 142, 147, 0.2);
   color: #a7acb8;
 }
 
-:global(html.theme-dark) .type-text { background: rgba(90, 120, 250, 0.2); color: #9db4ff; }
-:global(html.theme-dark) .type-select { background: rgba(150, 100, 250, 0.2); color: #c4a1ff; }
-:global(html.theme-dark) .type-number { background: rgba(250, 149, 90, 0.2); color: #f2a869; }
-:global(html.theme-dark) .type-date { background: rgba(52, 168, 130, 0.22); color: #6fd5b2; }
+html.theme-dark .type-text { background: rgba(90, 120, 250, 0.2); color: #9db4ff; }
+html.theme-dark .type-select { background: rgba(150, 100, 250, 0.2); color: #c4a1ff; }
+html.theme-dark .type-number { background: rgba(250, 149, 90, 0.2); color: #f2a869; }
+html.theme-dark .type-date { background: rgba(52, 168, 130, 0.22); color: #6fd5b2; }
 
-:global(html.theme-dark) .scope-option--active {
+html.theme-dark .scope-option--active {
   border-color: rgba(111, 213, 178, 0.45);
   background: rgba(52, 168, 130, 0.22);
   color: #6fd5b2;

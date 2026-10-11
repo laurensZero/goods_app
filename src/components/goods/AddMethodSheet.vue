@@ -860,30 +860,30 @@ function onTaobaoImport() {
   display: none;
 }
 
-:global(html.theme-dark) .sheet-options,
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-options,
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .sheet-option:active {
+html.theme-dark .sheet-option:active {
   background: rgba(255, 255, 255, 0.06);
 }
 
-:global(html.theme-dark) .share-input-card,
-:global(html.theme-dark) .share-goods-card {
+html.theme-dark .share-input-card,
+html.theme-dark .share-goods-card {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .share-back {
+html.theme-dark .share-back {
   background: color-mix(in srgb, var(--app-glass) 62%, var(--app-surface));
 }
 
-:global(html.theme-dark) .share-code-input {
+html.theme-dark .share-code-input {
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
 }
 
-:global(html.theme-dark) .share-fetch-btn,
-:global(html.theme-dark) .share-import-btn {
+html.theme-dark .share-fetch-btn,
+html.theme-dark .share-import-btn {
   background: #f5f5f7;
   color: #141416;
 }

@@ -1221,18 +1221,18 @@ async function doImport() {
   transform: translateY(-8px);
 }
 
-:global(html.theme-dark) .primary-btn,
-  :global(html.theme-dark) .text-btn--active {
+html.theme-dark .primary-btn,
+  html.theme-dark .text-btn--active {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .list-header {
+html.theme-dark .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
   }
 
-:global(html.theme-dark) .list-header-actions {
+html.theme-dark .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
 
@@ -1269,43 +1269,43 @@ async function doImport() {
   }
 }
 
-:global(html.theme-dark) .shop-group {
+html.theme-dark .shop-group {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .shop-row,
-  :global(html.theme-dark) .goods-item {
+html.theme-dark .shop-row,
+  html.theme-dark .goods-item {
     background: rgba(24, 24, 28, 0.82);
   }
 
-:global(html.theme-dark) .goods-item--selected {
+html.theme-dark .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .meta-tag,
-  :global(html.theme-dark) .meta-qty {
+html.theme-dark .meta-tag,
+  html.theme-dark .meta-qty {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .meta-tag--ip {
+html.theme-dark .meta-tag--ip {
     background: rgba(138, 180, 248, 0.12);
     color: #8ab4f8;
   }
 
-:global(html.theme-dark) .goods-thumb {
+html.theme-dark .goods-thumb {
     background: rgba(255, 255, 255, 0.06);
   }
 
-:global(html.theme-dark) .check-dot--on {
+html.theme-dark .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
 
-:global(html.theme-dark) .check-dot--on svg {
+html.theme-dark .check-dot--on svg {
     stroke: #141416;
   }
 
-:global(html.theme-dark) .bottom-bar {
+html.theme-dark .bottom-bar {
     background: none;
   }
 </style>

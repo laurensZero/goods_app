@@ -769,17 +769,17 @@ function onDateConfirm({ selectedValues }) {
   transform: translateX(16px);
 }
 
-:global(html.theme-dark) .match-tile__slider {
+html.theme-dark .match-tile__slider {
   background-color: rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-:global(html.theme-dark) .match-tile__slider::before {
+html.theme-dark .match-tile__slider::before {
   background-color: #f5f5f7;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-:global(html.theme-dark) .match-tile__switch--on .match-tile__slider {
+html.theme-dark .match-tile__switch--on .match-tile__slider {
   background-color: var(--app-chip-accent-text);
 }
 
@@ -1223,7 +1223,7 @@ function onDateConfirm({ selectedValues }) {
   color: #fff;
 }
 
-:global(html.theme-dark) .chip--active {
+html.theme-dark .chip--active {
   background: #f5f5f7;
   color: #141416;
 }
@@ -1237,64 +1237,64 @@ function onDateConfirm({ selectedValues }) {
 }
 
 /* ── Dark mode overrides ── */
-:global(html.theme-dark) .filter-popup__header .icon-btn {
+html.theme-dark .filter-popup__header .icon-btn {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .chip--active {
+html.theme-dark .chip--active {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .primary-btn {
+html.theme-dark .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .secondary-btn {
+html.theme-dark .secondary-btn {
     border-color: rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.06);
     color: #f5f5f7;
   }
 
-:global(html.theme-dark) .field-input {
+html.theme-dark .field-input {
     border-color: rgba(255, 255, 255, 0.05) !important;
     background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
-:global(html.theme-dark) .field-input:focus {
+html.theme-dark .field-input:focus {
     border-color: rgba(118, 148, 210, 0.28) !important;
   }
 
-:global(html.theme-dark) .date-field {
+html.theme-dark .date-field {
     border-color: rgba(255, 255, 255, 0.05) !important;
     background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass)) !important;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02) !important;
   }
 
-:global(html.theme-dark) .date-field__value--placeholder {
+html.theme-dark .date-field__value--placeholder {
     color: rgba(245, 245, 247, 0.72);
   }
 
-:global(html.theme-dark) .date-field__icon {
+html.theme-dark .date-field__icon {
     stroke: rgba(245, 245, 247, 0.72);
   }
 
-:global(html.theme-dark) .preset-card {
+html.theme-dark .preset-card {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .surface-card {
+html.theme-dark .surface-card {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .chip {
+html.theme-dark .chip {
     background: rgba(255, 255, 255, 0.08);
     color: #f5f5f7;
   }
 
-:global(html.theme-dark) .advanced-toggle {
+html.theme-dark .advanced-toggle {
     border-color: rgba(255, 255, 255, 0.1);
     background: color-mix(in srgb, var(--app-surface) 90%, var(--app-glass));
     box-shadow:
@@ -1302,7 +1302,7 @@ function onDateConfirm({ selectedValues }) {
       inset 0 0 0 1px rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .advanced-toggle__count {
+html.theme-dark .advanced-toggle__count {
     border-color: rgba(255, 255, 255, 0.1);
     background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
     color: var(--app-text);

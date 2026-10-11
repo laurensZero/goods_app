@@ -578,12 +578,12 @@ onUnmounted(stopPolling)
   cursor: not-allowed;
 }
 
-:global(html.theme-dark) .toggle-slider {
+html.theme-dark .toggle-slider {
   background-color: rgba(255, 255, 255, 0.12);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-:global(html.theme-dark) .toggle-slider::before {
+html.theme-dark .toggle-slider::before {
   background-color: #f5f5f7;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }

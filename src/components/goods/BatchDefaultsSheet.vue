@@ -183,20 +183,20 @@ function apply() {
 }
 
 /* ---- 暗色模式 ---- */
-:global(html.theme-dark) .sheet-options {
+html.theme-dark .sheet-options {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .field input {
+html.theme-dark .field input {
   background: color-mix(in srgb, var(--app-surface) 96%, var(--app-glass));
 }
 
-:global(html.theme-dark) .sheet-apply {
+html.theme-dark .sheet-apply {
   background: #f5f5f7;
   color: #141416;
 }
 
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-cancel {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 </style>

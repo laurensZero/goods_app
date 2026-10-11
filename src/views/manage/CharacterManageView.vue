@@ -763,28 +763,28 @@ async function saveEdit() {
   transform: translateY(-8px);
 }
 
-:global(html.theme-dark) .confirm-btn,
-  :global(html.theme-dark) .save-btn {
+html.theme-dark .confirm-btn,
+  html.theme-dark .save-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .ip-chip {
+html.theme-dark .ip-chip {
     border-color: rgba(255, 255, 255, 0.15);
     color: rgba(255, 255, 255, 0.6);
   }
 
-:global(html.theme-dark) .ip-chip--active {
+html.theme-dark .ip-chip--active {
     background: #f5f5f7;
     border-color: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .row-input:focus {
+html.theme-dark .row-input:focus {
     border-color: rgba(255, 255, 255, 0.15);
   }
 
-:global(html.theme-dark) .s-clear {
+html.theme-dark .s-clear {
     background: rgba(255, 255, 255, 0.2);
   }
 </style>

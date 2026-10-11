@@ -379,14 +379,14 @@
   transition: width 0.15s ease;
 }
 
-:global(html.theme-dark) .editor-toggle__track {
+html.theme-dark .editor-toggle__track {
   background: rgba(255, 255, 255, 0.12);
 }
 
-:global(html.theme-dark) .editor-bg-color__swatch {
+html.theme-dark .editor-bg-color__swatch {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
-:global(html.theme-dark) .editor-progress__track {
+html.theme-dark .editor-progress__track {
   background: rgba(255, 255, 255, 0.08);
 }

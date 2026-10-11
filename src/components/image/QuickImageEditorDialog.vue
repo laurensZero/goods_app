@@ -1954,7 +1954,7 @@ onBeforeUnmount(() => {
   }
 }
 
-:global(html.theme-dark) .editor-dialog {
+html.theme-dark .editor-dialog {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4);
 }
 </style>

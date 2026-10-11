@@ -1214,29 +1214,29 @@ function compareGameOrder(left, right) {
   padding-top: 24px;
 }
 
-:global(html.theme-dark) .calendar-day__fill {
+html.theme-dark .calendar-day__fill {
   background: linear-gradient(135deg, rgba(244, 114, 182, 0.34) 0%, rgba(167, 139, 250, 0.36) 50%, rgba(96, 165, 250, 0.32) 100%);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.12),
     inset 0 -12px 20px rgba(0, 0, 0, 0.2);
 }
 
-:global(html.theme-dark) .calendar-day--today {
+html.theme-dark .calendar-day--today {
   box-shadow:
     inset 0 0 0 2px rgba(255, 255, 255, 0.22),
     inset 0 0 0 4px rgba(255, 255, 255, 0.12),
     0 12px 22px rgba(0, 0, 0, 0.28);
 }
 
-:global(html.theme-dark) .calendar-card__legend-dot {
+html.theme-dark .calendar-card__legend-dot {
   background: linear-gradient(135deg, #f472b6 0%, #a78bfa 50%, #60a5fa 100%);
 }
 
-:global(html.theme-dark) .record-item__status--active {
+html.theme-dark .record-item__status--active {
   color: #5eead4;
 }
 
-:global(html.theme-dark) .record-item__status--upcoming {
+html.theme-dark .record-item__status--upcoming {
   color: #93c5fd;
 }
 

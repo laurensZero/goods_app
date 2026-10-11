@@ -9,7 +9,6 @@
   "guide.searchHits": "「{query}」に一致するセクション：{count} 件",
   "guide.sectionKicker": "セクション {n}",
   "guide.tipLabel": "ヒント",
-  "guide.shotFallback": "スクリーンショットを読み込めませんでした。ネットワークを確認して再アクセスしてください",
   "guide.noResultTitle": "該当する内容がありません",
   "guide.noResultDesc": "別のキーワードでお試しください。例：「一括追加」「クラウド同期」「ウィッシュリスト」",
   "guide.footnote": "スクリーンショットはスマホ版 UI 基準です。機能は現行バージョンの実際の UI に準じます。ご不明点は「マイ → フィードバック」までお知らせください。",

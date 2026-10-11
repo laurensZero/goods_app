@@ -590,11 +590,11 @@ onActivated(() => {
   letter-spacing: -0.01em;
 }
 
-:global(html.theme-dark) .lazy-image-fallback {
+html.theme-dark .lazy-image-fallback {
   border-color: var(--app-glass-border);
 }
 
-:global(html.theme-dark) .lazy-image-placeholder {
+html.theme-dark .lazy-image-placeholder {
   border-color: var(--app-glass-border);
 }
 

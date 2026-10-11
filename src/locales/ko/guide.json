@@ -9,7 +9,6 @@
   "guide.searchHits": "「{query}」 일치 섹션: {count}개",
   "guide.sectionKicker": "섹션 {n}",
   "guide.tipLabel": "팁",
-  "guide.shotFallback": "스크린샷을 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 접속하세요",
   "guide.noResultTitle": "해당하는 내용이 없습니다",
   "guide.noResultDesc": "다른 키워드로 검색해 보세요. 예: 「일괄 추가」「클라우드 동기화」「위시리스트」",
   "guide.footnote": "스크린샷은 모바일 UI 기준이며, 기능은 현재 버전의 실제 UI를 따릅니다. 문의는 마이 → 피드백으로 알려주세요.",

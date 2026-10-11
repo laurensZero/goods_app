@@ -371,8 +371,8 @@ button.section-head__copy {
   gap: 8px;
 }
 
-:global(html.theme-dark) .section-head__copy,
-:global(html.theme-dark) button.section-head__copy {
+html.theme-dark .section-head__copy,
+html.theme-dark button.section-head__copy {
   color: rgba(255, 255, 255, 0.86);
 }
 

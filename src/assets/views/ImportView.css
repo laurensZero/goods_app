@@ -1031,36 +1031,36 @@
   transform: translateY(100%);
 }
 
-:global(html.theme-dark) .search-result-card {
+html.theme-dark .search-result-card {
     background: rgba(255, 255, 255, 0.05);
   }
 
-:global(html.theme-dark) .search-result-thumb {
+html.theme-dark .search-result-thumb {
     background: var(--app-surface);
   }
 
-:global(html.theme-dark) .search-results-toggle {
+html.theme-dark .search-results-toggle {
     border-color: var(--app-glass-border);
     background: color-mix(in srgb, var(--app-glass-strong) 92%, transparent);
   }
 
-:global(html.theme-dark) .search-results-toggle--expanded {
+html.theme-dark .search-results-toggle--expanded {
     background: var(--app-surface);
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .search-results-status {
+html.theme-dark .search-results-status {
     color: var(--app-text-secondary);
   }
 
-:global(html.theme-dark) .search-results-load-more {
+html.theme-dark .search-results-load-more {
     border-color: rgba(255, 255, 255, 0.08);
     background: rgba(255, 255, 255, 0.06);
   }
 
-:global(html.theme-dark) .field input,
-  :global(html.theme-dark) .field textarea,
-  :global(html.theme-dark) .date-field {
+html.theme-dark .field input,
+  html.theme-dark .field textarea,
+  html.theme-dark .date-field {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
     box-shadow:
@@ -1068,13 +1068,13 @@
       0 0 0 1px rgba(255, 255, 255, 0.02);
   }
 
-:global(html.theme-dark) .field input:focus,
-  :global(html.theme-dark) .field textarea:focus {
+html.theme-dark .field input:focus,
+  html.theme-dark .field textarea:focus {
     border-color: rgba(255, 255, 255, 0.12);
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
   }
 
-:global(html.theme-dark) .variant-btn {
+html.theme-dark .variant-btn {
     border-color: rgba(255, 255, 255, 0.08);
     background: color-mix(in srgb, var(--app-surface) 94%, rgba(255, 255, 255, 0.04));
     box-shadow:
@@ -1082,7 +1082,7 @@
       0 0 0 1px rgba(255, 255, 255, 0.01);
   }
 
-:global(html.theme-dark) .variant-btn--selected {
+html.theme-dark .variant-btn--selected {
     border-color: rgba(109, 157, 255, 0.82);
     background: color-mix(in srgb, #4a7aec 20%, var(--app-surface));
     box-shadow:
@@ -1090,49 +1090,49 @@
       0 14px 28px rgba(35, 71, 140, 0.22);
   }
 
-:global(html.theme-dark) .variant-btn--selected .variant-name {
+html.theme-dark .variant-btn--selected .variant-name {
     color: #a9c5ff;
   }
 
-:global(html.theme-dark) .variant-img-wrap {
+html.theme-dark .variant-img-wrap {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  :global(html.theme-dark) .auto-badge {
+  html.theme-dark .auto-badge {
     background: rgba(109, 157, 255, 0.14);
     color: #bfd4ff;
   }
 
-:global(html.theme-dark) .date-field {
+html.theme-dark .date-field {
     backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
     -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
   }
 
 
-:global(html.theme-dark) .save-char-row {
+html.theme-dark .save-char-row {
     border-color: rgba(109, 157, 255, 0.18);
     background: color-mix(in srgb, #4a7aec 14%, rgba(255, 255, 255, 0.04));
   }
 
-:global(html.theme-dark) .save-char-label {
+html.theme-dark .save-char-label {
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .save-char-toggle {
+html.theme-dark .save-char-toggle {
     background: rgba(255, 255, 255, 0.14);
   }
 
-:global(html.theme-dark) .save-char-knob {
+html.theme-dark .save-char-knob {
     background: rgba(255, 255, 255, 0.94);
   }
 
-:global(html.theme-dark) .batch-edit-backdrop {
+html.theme-dark .batch-edit-backdrop {
     background: var(--app-overlay);
     backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
     -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate-soft));
   }
 
-:global(html.theme-dark) .batch-edit-sheet {
+html.theme-dark .batch-edit-sheet {
     background: rgba(24, 24, 28, 0.82);
     border: 1px solid var(--app-glass-border);
     box-shadow: var(--app-shadow-xl);
@@ -1140,21 +1140,21 @@
     -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
 
-:global(html.theme-dark) .batch-edit-cancel {
+html.theme-dark .batch-edit-cancel {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .batch-edit-save {
+html.theme-dark .batch-edit-save {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .btn-primary {
+html.theme-dark .btn-primary {
     background: #f5f5f7;
     color: #141416;
   }
 
-:global(html.theme-dark) .btn-float {
+html.theme-dark .btn-float {
     box-shadow: var(--app-shadow-lg);
   }
 

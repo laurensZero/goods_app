@@ -172,12 +172,12 @@ async function copyMarkdown() {
   text-underline-offset: 2px;
 }
 
-:global(html.theme-dark) .markdown-preview-card {
+html.theme-dark .markdown-preview-card {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.04);
 }
 
-:global(html.theme-dark) .markdown-preview-card__copy {
+html.theme-dark .markdown-preview-card__copy {
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.86);
 }

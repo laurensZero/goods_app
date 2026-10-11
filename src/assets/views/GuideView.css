@@ -8,7 +8,7 @@
   --guide-accent-strong: #e8492f;
 }
 
-:global(html.theme-dark) .guide-page {
+html.theme-dark .guide-page {
   --guide-accent: #ff7a61;
   --guide-accent-soft: rgba(255, 122, 97, 0.16);
   --guide-accent-strong: #ff8f79;

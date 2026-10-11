@@ -132,25 +132,25 @@ watch(() => props.show, async (visible) => {
   color: #ffffff;
 }
 
-:global(html.theme-dark) .quick-create-card {
+html.theme-dark .quick-create-card {
     background: rgba(255, 255, 255, 0.05);
   }
 
-:global(html.theme-dark) .quick-create-input {
+html.theme-dark .quick-create-input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   }
 
-:global(html.theme-dark) .quick-create-input:focus {
+html.theme-dark .quick-create-input:focus {
     border-color: rgba(255, 255, 255, 0.12);
   }
 
-:global(html.theme-dark) .quick-create-btn--ghost {
+html.theme-dark .quick-create-btn--ghost {
     background: rgba(255, 255, 255, 0.08);
     color: var(--app-text);
   }
 
-:global(html.theme-dark) .quick-create-btn--primary {
+html.theme-dark .quick-create-btn--primary {
     background: #f5f5f7;
     color: #141416;
   }

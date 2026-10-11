@@ -740,26 +740,26 @@ onMounted(() => {
   }
 }
 
-:global(html.theme-dark) .share-hero__copy,
-:global(html.theme-dark) .share-hero__stats,
-:global(html.theme-dark) .share-toolbar,
-:global(html.theme-dark) .share-state-card,
-:global(html.theme-dark) .share-record {
+html.theme-dark .share-hero__copy,
+html.theme-dark .share-hero__stats,
+html.theme-dark .share-toolbar,
+html.theme-dark .share-state-card,
+html.theme-dark .share-record {
   box-shadow:
     0 24px 48px rgba(0, 0, 0, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04);
 }
 
-:global(html.theme-dark) .hero-stat-card,
-:global(html.theme-dark) .share-record__linkbox,
-:global(html.theme-dark) .share-meta-pill,
-:global(html.theme-dark) .share-action-btn,
-:global(html.theme-dark) .share-secondary-btn {
+html.theme-dark .hero-stat-card,
+html.theme-dark .share-record__linkbox,
+html.theme-dark .share-meta-pill,
+html.theme-dark .share-action-btn,
+html.theme-dark .share-secondary-btn {
   background: color-mix(in srgb, var(--app-glass) 56%, var(--app-surface));
 }
 
-:global(html.theme-dark) .share-action-btn--primary,
-:global(html.theme-dark) .share-primary-btn {
+html.theme-dark .share-action-btn--primary,
+html.theme-dark .share-primary-btn {
   background: #f5f5f7;
   color: #141416;
 }

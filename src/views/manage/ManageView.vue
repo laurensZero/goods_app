@@ -1311,9 +1311,9 @@ onBeforeRouteLeave((to) => {
   }
 }
 
-:global(html.theme-dark) .settings-group,
-:global(html.theme-dark) .settings-detail,
-:global(html.theme-dark) .mobile-group {
+html.theme-dark .settings-group,
+html.theme-dark .settings-detail,
+html.theme-dark .mobile-group {
   box-shadow:
     0 24px 48px rgba(0, 0, 0, 0.24),
     inset 0 0 0 1px rgba(255, 255, 255, 0.04);

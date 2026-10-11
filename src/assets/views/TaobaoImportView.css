@@ -739,61 +739,61 @@
   color: #fff;
 }
 
-:global(html.theme-dark) .file-pick-area {
+html.theme-dark .file-pick-area {
     background: rgba(255, 255, 255, 0.04);
     border-color: rgba(255, 255, 255, 0.10);
   }
 
-:global(html.theme-dark) .file-pick-area:active {
+html.theme-dark .file-pick-area:active {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .list-header {
+html.theme-dark .list-header {
     background: rgba(20, 20, 22, 0.90);
   }
 
-:global(html.theme-dark) .bottom-bar {
+html.theme-dark .bottom-bar {
     background: linear-gradient(to top, rgba(15, 15, 16, 0.97) 60%, rgba(15, 15, 16, 0));
   }
 
-:global(html.theme-dark) .primary-btn {
+html.theme-dark .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
-:global(html.theme-dark) .list-header {
+html.theme-dark .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
     backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
     -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
-:global(html.theme-dark) .goods-item {
+html.theme-dark .goods-item {
     background: rgba(255, 255, 255, 0.05);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
-:global(html.theme-dark) .goods-item:active {
+html.theme-dark .goods-item:active {
     background: rgba(255, 255, 255, 0.08);
   }
-:global(html.theme-dark) .goods-item--selected {
+html.theme-dark .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
     border-left-color: rgba(255, 255, 255, 0.16);
   }
-:global(html.theme-dark) .bottom-bar {
+html.theme-dark .bottom-bar {
     background: linear-gradient(to top, rgba(15, 15, 16, 0.82) 60%, rgba(15, 15, 16, 0));
     backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
     -webkit-backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
   }
-:global(html.theme-dark) .edit-field {
+html.theme-dark .edit-field {
     background: rgba(255, 255, 255, 0.05);
   }
-:global(html.theme-dark) .edit-input {
+html.theme-dark .edit-input {
     border-color: rgba(255, 255, 255, 0.07);
     background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   }
-:global(html.theme-dark) .check-dot--on {
+html.theme-dark .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
-:global(html.theme-dark) .text-btn--active {
+html.theme-dark .text-btn--active {
     background: #f5f5f7;
     color: #141416;
     box-shadow: none;

@@ -140,11 +140,11 @@ const { t } = useI18n()
   font-size: 13px;
 }
 
-:global(html.theme-dark) .search-error {
+html.theme-dark .search-error {
   color: #ff8080;
 }
 
-:global(html.theme-dark) .search-input {
+html.theme-dark .search-input {
   border-color: rgba(255, 255, 255, 0.07);
   background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
 }

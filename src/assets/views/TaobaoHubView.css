@@ -546,24 +546,24 @@
   gap: 0;
 }
 
-:global(html.theme-dark) .cookie-badge--ok {
+html.theme-dark .cookie-badge--ok {
   color: #4ade80;
 }
 
-:global(html.theme-dark) .cookie-badge--warn {
+html.theme-dark .cookie-badge--warn {
   color: #fbbf24;
 }
 
-:global(html.theme-dark) .field-error {
+html.theme-dark .field-error {
   color: #ff8080;
 }
 
 /* 主按钮（解析 / 验证并保存）：深色下 --app-primary 变近白，文字反转为深色 */
-:global(html.theme-dark) .hub-btn--primary {
+html.theme-dark .hub-btn--primary {
   color: #141416;
 }
 
-:global(html.theme-dark) .taobao-hub-page {
+html.theme-dark .taobao-hub-page {
   /* 搜索按钮同口径：背景用主色时文字配套反转 */
   --import-search-btn-text: #141416;
 }

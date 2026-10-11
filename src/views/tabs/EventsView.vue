@@ -1782,7 +1782,7 @@ onBeforeRouteLeave(() => {
   }
 }
 
-:global(html.theme-dark) .mode-toggle--active {
+html.theme-dark .mode-toggle--active {
   background: #f5f5f7;
   color: #141416;
 }

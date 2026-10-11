@@ -475,7 +475,7 @@ defineExpose({ close })
   color: var(--app-surface);
 }
 
-:global(html.theme-dark) .coupon-sheet .field-input {
+html.theme-dark .coupon-sheet .field-input {
   border-color: var(--app-input-border) !important;
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass)) !important;
 }

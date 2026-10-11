@@ -817,7 +817,7 @@ defineExpose({
   stroke: #f5a623;
 }
 
-:global(html.theme-dark) .star-toggle-btn--active {
+html.theme-dark .star-toggle-btn--active {
   color: #f5a623;
 }
 
@@ -1181,21 +1181,21 @@ defineExpose({
     color: var(--app-text-tertiary) !important;
   }
 
-:global(html.theme-dark) .mark-owned-card {
+html.theme-dark .mark-owned-card {
     background: rgba(199, 55, 93, 0.14);
   }
 
-:global(html.theme-dark) .mark-owned-card--active {
+html.theme-dark .mark-owned-card--active {
     background: rgba(199, 55, 93, 0.22);
   }
 
-:global(html.theme-dark) .mark-owned-check {
+html.theme-dark .mark-owned-check {
     border-color: rgba(255, 255, 255, 0.16);
   }
 
-:global(html.theme-dark) .date-field,
-  :global(html.theme-dark) .multi-select__trigger,
-  :global(html.theme-dark) .field-input {
+html.theme-dark .date-field,
+  html.theme-dark .multi-select__trigger,
+  html.theme-dark .field-input {
     border-color: var(--app-input-border) !important;
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass)) !important;
     box-shadow: inset 0 1px 0 var(--app-input-focus-ring) !important;

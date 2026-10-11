@@ -445,31 +445,31 @@ onBeforeUnmount(() => {
   line-height: 1.2;
 }
 
-:global(html.theme-dark) .check-icon--checked {
+html.theme-dark .check-icon--checked {
   background: #f5f5f7;
   border-color: #f5f5f7;
 }
 
-:global(html.theme-dark) .check-icon--checked svg {
+html.theme-dark .check-icon--checked svg {
   stroke: #141416;
 }
 
-:global(html.theme-dark) .event-card__tag-pill.type-exhibition {
+html.theme-dark .event-card__tag-pill.type-exhibition {
   background: rgba(90, 120, 250, 0.22);
   color: #9db4ff;
 }
 
-:global(html.theme-dark) .event-card__tag-pill.type-concert {
+html.theme-dark .event-card__tag-pill.type-concert {
   background: rgba(250, 149, 90, 0.2);
   color: #f2a869;
 }
 
-:global(html.theme-dark) .event-card__tag-pill.type-other {
+html.theme-dark .event-card__tag-pill.type-other {
   background: rgba(142, 142, 147, 0.22);
   color: #a7acb8;
 }
 
-:global(html.theme-dark) .event-card__tag-pill.type-custom {
+html.theme-dark .event-card__tag-pill.type-custom {
   background: rgba(150, 100, 250, 0.2);
   color: #c4a1ff;
 }

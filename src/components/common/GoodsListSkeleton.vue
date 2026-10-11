@@ -79,14 +79,14 @@
   }
 }
 
-:global(html.theme-dark) .skeleton-card {
+html.theme-dark .skeleton-card {
   background: var(--app-surface);
   box-shadow: none;
 }
 
-:global(html.theme-dark) .skeleton-title,
-:global(html.theme-dark) .skeleton-cover,
-:global(html.theme-dark) .skeleton-tag {
+html.theme-dark .skeleton-title,
+html.theme-dark .skeleton-cover,
+html.theme-dark .skeleton-tag {
   background: var(--app-surface-muted, #1a202c);
 }
 </style>

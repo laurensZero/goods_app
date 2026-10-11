@@ -200,12 +200,12 @@ function onPreset() {
   background: rgba(142, 142, 147, 0.18);
 }
 
-:global(html.theme-dark) .sheet-options,
-:global(html.theme-dark) .sheet-cancel {
+html.theme-dark .sheet-options,
+html.theme-dark .sheet-cancel {
   background: rgba(255, 255, 255, 0.05);
 }
 
-:global(html.theme-dark) .sheet-option:active {
+html.theme-dark .sheet-option:active {
   background: rgba(255, 255, 255, 0.06);
 }
 </style>

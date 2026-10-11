@@ -309,23 +309,23 @@ function onClick() {
   overflow: hidden;
 }
 
-:global(html.theme-dark) .record-thumb--fallback {
+html.theme-dark .record-thumb--fallback {
   background: linear-gradient(135deg, #f5f5f7 0%, #9ca3af 100%);
   color: #141416;
 }
 
-:global(html.theme-dark) .record-card--selected {
+html.theme-dark .record-card--selected {
   box-shadow:
     inset 0 0 0 2px rgba(255, 255, 255, 0.14),
     0 12px 26px rgba(0, 0, 0, 0.26);
 }
 
-:global(html.theme-dark) .record-select-indicator {
+html.theme-dark .record-select-indicator {
   background: rgba(255, 255, 255, 0.08);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-:global(html.theme-dark) .record-select-indicator__dot--active {
+html.theme-dark .record-select-indicator__dot--active {
   background: #f5f5f7;
 }
 </style>

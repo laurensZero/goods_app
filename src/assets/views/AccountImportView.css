@@ -849,108 +849,108 @@ kbd {
 
 /* 主操作按鈕：深色下用浅色背景 */
 
-:global(html.theme-dark) .primary-btn {
+html.theme-dark .primary-btn {
     background: #f5f5f7;
     color: #141416;
   }
 
 /* 列表头部浮层 */
 
-:global(html.theme-dark) .list-header {
+html.theme-dark .list-header {
     background: rgba(20, 20, 22, 0.90);
   }
 
-:global(html.theme-dark) .list-header-actions {
+html.theme-dark .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .text-btn--active {
+html.theme-dark .text-btn--active {
     background: #f5f5f5;
     color: #141416;
   }
 
 /* 订单组 */
 
-:global(html.theme-dark) .order-group {
+html.theme-dark .order-group {
     background: rgba(255, 255, 255, 0.04);
   }
 
-:global(html.theme-dark) .order-item:active {
+html.theme-dark .order-item:active {
     background: var(--app-surface-soft);
   }
 
 /* 底部操作栏渐变深色 */
 
-:global(html.theme-dark) .bottom-bar {
+html.theme-dark .bottom-bar {
     background: none;
   }
 
 /* 输入框深色边框 */
 
-:global(html.theme-dark) .cookie-textarea {
+html.theme-dark .cookie-textarea {
     border-color: rgba(255, 255, 255, 0.08);
   }
 
-:global(html.theme-dark) .cookie-textarea:focus {
+html.theme-dark .cookie-textarea:focus {
     border-color: rgba(255, 255, 255, 0.18);
   }
-:global(html.theme-dark) .list-header {
+html.theme-dark .list-header {
     background: var(--app-glass-strong);
     border: 1px solid var(--app-glass-border);
     backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
     -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   }
-:global(html.theme-dark) .list-header-actions {
+html.theme-dark .list-header-actions {
     background: rgba(255, 255, 255, 0.08);
   }
-:global(html.theme-dark) .order-group {
+html.theme-dark .order-group {
     background: rgba(255, 255, 255, 0.04);
   }
-:global(html.theme-dark) .order-row {
+html.theme-dark .order-row {
     background: rgba(24, 24, 28, 0.82);
   }
-:global(html.theme-dark) .order-row--selected {
+html.theme-dark .order-row--selected {
     background: rgba(255, 255, 255, 0.05);
   }
-:global(html.theme-dark) .goods-item {
+html.theme-dark .goods-item {
     background: rgba(255, 255, 255, 0.05);
     border-left-color: rgba(255, 255, 255, 0.06);
   }
-:global(html.theme-dark) .goods-item:active,
-  :global(html.theme-dark) .order-item:active {
+html.theme-dark .goods-item:active,
+  html.theme-dark .order-item:active {
     background: rgba(255, 255, 255, 0.08);
   }
-:global(html.theme-dark) .goods-item--selected {
+html.theme-dark .goods-item--selected {
     background: rgba(255, 255, 255, 0.08);
     border-left-color: rgba(255, 255, 255, 0.16);
   }
-:global(html.theme-dark) .expand-btn {
+html.theme-dark .expand-btn {
     color: rgba(255, 255, 255, 0.34);
   }
-:global(html.theme-dark) .expand-btn--open {
+html.theme-dark .expand-btn--open {
     color: rgba(255, 255, 255, 0.68);
   }
-:global(html.theme-dark) .check-dot {
+html.theme-dark .check-dot {
     border-color: rgba(255, 255, 255, 0.22);
   }
-:global(html.theme-dark) .order-thumb {
+html.theme-dark .order-thumb {
     background: rgba(255, 255, 255, 0.06);
   }
-:global(html.theme-dark) .thumb-initial {
+html.theme-dark .thumb-initial {
     color: rgba(255, 255, 255, 0.28);
   }
-:global(html.theme-dark) .meta-ip {
+html.theme-dark .meta-ip {
     background: rgba(138, 180, 248, 0.12);
     color: #8ab4f8;
   }
-:global(html.theme-dark) .meta-qty,
-  :global(html.theme-dark) .status-badge {
+html.theme-dark .meta-qty,
+  html.theme-dark .status-badge {
     background: rgba(255, 255, 255, 0.08);
   }
-:global(html.theme-dark) .bottom-bar {
+html.theme-dark .bottom-bar {
     background: none;
   }
-:global(html.theme-dark) .check-dot--on {
+html.theme-dark .check-dot--on {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }

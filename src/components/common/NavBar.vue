@@ -191,21 +191,21 @@ function handleBackClick() {
   letter-spacing: -0.02em;
 }
 
-:global(html.theme-dark) .nav-bar {
+html.theme-dark .nav-bar {
     background:
       linear-gradient(180deg, rgba(18, 18, 22, 0.82) 0%, rgba(18, 18, 22, 0.56) 72%, rgba(15, 15, 16, 0) 100%);
   }
 
-:global(html.theme-dark) .nav-back,
-  :global(html.theme-dark) :slotted(.add-btn),
-  :global(html.theme-dark) :slotted(.nav-icon-btn) {
+html.theme-dark .nav-back,
+  html.theme-dark :slotted(.add-btn),
+  html.theme-dark :slotted(.nav-icon-btn) {
     background: color-mix(in srgb, var(--app-surface) 18%, transparent);
     border-color: color-mix(in srgb, var(--app-surface) 10%, transparent);
   }
 
-:global(html.theme-dark) .nav-back:active,
-  :global(html.theme-dark) :slotted(.add-btn):active,
-  :global(html.theme-dark) :slotted(.nav-icon-btn):active {
+html.theme-dark .nav-back:active,
+  html.theme-dark :slotted(.add-btn):active,
+  html.theme-dark :slotted(.nav-icon-btn):active {
     background: color-mix(in srgb, var(--app-surface) 26%, transparent);
   }
 </style>

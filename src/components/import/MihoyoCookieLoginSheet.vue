@@ -182,7 +182,7 @@ function submit() {
   font-weight: 500;
 }
 
-:global(html.theme-dark) .sheet-primary {
+html.theme-dark .sheet-primary {
   background: #f5f5f7;
   color: #141416;
 }

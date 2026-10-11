@@ -360,8 +360,8 @@ async function confirmEmptyAll() {
   padding: 0 14px;
 }
 
-:global(html.theme-dark) .action-btn--danger,
-:global(html.theme-dark) .trash-btn--danger {
+html.theme-dark .action-btn--danger,
+html.theme-dark .trash-btn--danger {
   background: #f5f5f7;
   color: #141416;
 }

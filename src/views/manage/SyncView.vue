@@ -1371,7 +1371,7 @@ watch(() => syncStore.isPulling, (cur, prev) => {
   box-shadow: 0 6px 18px rgba(59,130,246,0.12);
   transform: translateY(-2px);
 }
-:global(html.theme-dark) .backend-card--active {
+html.theme-dark .backend-card--active {
   box-shadow: 0 6px 18px rgba(59,130,246,0.22);
 }
 .backend-card .entry-icon {
@@ -1606,9 +1606,9 @@ watch(() => syncStore.isPulling, (cur, prev) => {
 }
 .endpoint-row__status--ok { color: #2f9e64; }
 .endpoint-row__status--bad { color: #d45454; }
-:global(html.theme-dark) .endpoint-row__status--ok { color: #5dcea0; }
-:global(html.theme-dark) .endpoint-row__status--bad { color: #f08d8d; }
-:global(html.theme-dark) .endpoint-row__badge { color: #8ab4ff; }
+html.theme-dark .endpoint-row__status--ok { color: #5dcea0; }
+html.theme-dark .endpoint-row__status--bad { color: #f08d8d; }
+html.theme-dark .endpoint-row__badge { color: #8ab4ff; }
 
 /* Realtime 推送状态 */
 .realtime-block {
@@ -1639,9 +1639,9 @@ watch(() => syncStore.isPulling, (cur, prev) => {
 .realtime-status--reconnecting { color: #d07a0b; }
 .realtime-status--disconnected { color: #d45454; }
 .realtime-status--disabled { color: var(--app-text-tertiary); }
-:global(html.theme-dark) .realtime-status--connected { color: #5dcea0; }
-:global(html.theme-dark) .realtime-status--reconnecting { color: #f0b357; }
-:global(html.theme-dark) .realtime-status--disconnected { color: #f08d8d; }
+html.theme-dark .realtime-status--connected { color: #5dcea0; }
+html.theme-dark .realtime-status--reconnecting { color: #f0b357; }
+html.theme-dark .realtime-status--disconnected { color: #f08d8d; }
 .realtime-meta {
   display: flex;
   align-items: center;

@@ -1040,16 +1040,16 @@ const priceCNYHint = computed(() => {
     color: #f1dcff !important;
   }
 
-:global(html.theme-dark) .card-cover {
+html.theme-dark .card-cover {
     border-color: color-mix(in srgb, var(--app-glass-border) 88%, transparent);
   }
 
-:global(html.theme-dark) .check-icon--checked {
+html.theme-dark .check-icon--checked {
     background: #f5f5f7;
     border-color: #f5f5f7;
   }
 
-:global(html.theme-dark) .check-icon--checked svg {
+html.theme-dark .check-icon--checked svg {
     stroke: #141416;
   }
 </style>

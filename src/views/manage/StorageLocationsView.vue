@@ -502,7 +502,7 @@ function cancelDeleteNode() {
   gap: 12px;
 }
 
-:global(html.theme-dark) .editor-primary-btn {
+html.theme-dark .editor-primary-btn {
     background: #f5f5f7;
     color: #141416;
   }

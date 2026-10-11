@@ -765,30 +765,30 @@ onMounted(async () => {
   }
 }
 
-:global(html.theme-dark) .share-import-page {
+html.theme-dark .share-import-page {
   background: var(--app-bg);
 }
 
-:global(html.theme-dark) .input-card,
-:global(html.theme-dark) .goods-card,
-:global(html.theme-dark) .load-card {
+html.theme-dark .input-card,
+html.theme-dark .goods-card,
+html.theme-dark .load-card {
   background: color-mix(in srgb, var(--app-glass) 58%, var(--app-surface));
 }
 
-:global(html.theme-dark) .float-footer {
+html.theme-dark .float-footer {
   background: rgba(24, 24, 28, 0.82);
 }
 
-:global(html.theme-dark) .code-input {
+html.theme-dark .code-input {
   background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
 }
 
-:global(html.theme-dark) .btn-scan {
+html.theme-dark .btn-scan {
   background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
 }
 
-:global(html.theme-dark) .btn-fetch,
-:global(html.theme-dark) .btn-float {
+html.theme-dark .btn-fetch,
+html.theme-dark .btn-float {
   background: #f5f5f7;
   color: #141416;
 }

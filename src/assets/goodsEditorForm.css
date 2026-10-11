@@ -1086,34 +1086,34 @@
     background: var(--app-surface-soft);
   }
 
-:global(html.theme-dark) :deep(.tab-nav__item--active .tab-nav__badge) {
+html.theme-dark :deep(.tab-nav__item--active .tab-nav__badge) {
     background: #c74444;
     box-shadow: 0 0 0 4px rgba(199, 68, 68, 0.2);
   }
 /* 预览图占位背景（无图片时） */
-:global(html.theme-dark) .preview-media:not([data-cover-tone]) {
+html.theme-dark .preview-media:not([data-cover-tone]) {
     background: linear-gradient(180deg, #1a1a1e, #252528);
   }
-:global(html.theme-dark) .add-page .date-field,
-  :global(html.theme-dark) .add-page .multi-select__trigger {
+html.theme-dark .add-page .date-field,
+  html.theme-dark .add-page .multi-select__trigger {
     border-color: rgba(255, 255, 255, 0.06);
     background: color-mix(in srgb, var(--app-surface) 94%, var(--app-glass));
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
-:global(html.theme-dark) .add-page .date-field:focus-visible,
-  :global(html.theme-dark) .add-page .multi-select--open .multi-select__trigger,
-  :global(html.theme-dark) .add-page .multi-select__trigger:focus-visible {
+html.theme-dark .add-page .date-field:focus-visible,
+  html.theme-dark .add-page .multi-select--open .multi-select__trigger,
+  html.theme-dark .add-page .multi-select__trigger:focus-visible {
     border-color: rgba(118, 148, 210, 0.3);
     box-shadow:
       0 0 0 3px rgba(118, 148, 210, 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.03);
   }
-:global(html.theme-dark) .add-page .multi-select__chip {
+html.theme-dark .add-page .multi-select__chip {
     border: 1px solid rgba(124, 154, 216, 0.24) !important;
     background: rgba(82, 112, 176, 0.34) !important;
     color: #f3f7ff !important;
   }
-:global(html.theme-dark) .add-page .multi-select__chip-remove {
+html.theme-dark .add-page .multi-select__chip-remove {
     background: rgba(255, 255, 255, 0.16) !important;
     color: #f3f7ff !important;
   }
@@ -1133,11 +1133,11 @@
     background: rgba(255, 255, 255, 0.07);
     color: #f5f5f7;
   }
-:global(html.theme-dark) .btn-primary {
+html.theme-dark .btn-primary {
     background: #f5f5f7;
     color: #141416;
   }
-:global(html.theme-dark) .btn-float {
+html.theme-dark .btn-float {
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
   }
 

@@ -34,22 +34,14 @@
           >
             <div
               class="guide-shot__frame"
-              :class="{ 'guide-shot__frame--failed': shot.failed }"
               :style="{ aspectRatio: `${shot.meta.w} / ${shot.meta.h}` }"
             >
-              <span class="guide-shot__img-wrap">
-                <img
-                  v-if="!shot.failed"
-                  class="guide-shot__img"
-                  :src="shot.url"
-                  :alt="section.title"
-                  loading="lazy"
-                  decoding="async"
-                  @error="markShotFailed(shot.key)"
-                />
-                <span v-else class="guide-shot__fallback">{{ t('guide.shotFallback') }}</span>
-              </span>
-              <template v-if="!shot.failed" v-for="anno in shot.meta.annos" :key="anno.n">
+              <LazyCachedImage
+                class="guide-shot__img"
+                :src="shot.url"
+                :alt="section.title"
+              />
+              <template v-for="anno in shot.meta.annos" :key="anno.n">
                 <span class="guide-anno" :style="annoStyle(anno)">
                   <i class="guide-anno__dot" :class="anno.dot ? `guide-anno__dot--${anno.dot}` : null">
                     {{ shot.numOffset + anno.n }}
@@ -124,6 +116,7 @@ import { computed, onActivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
+import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { GUIDE_SECTIONS, GUIDE_SHOT_BASE } from '@/content/guide/guideSections'
 import shotManifest from '@/content/guide/guideShotManifest.json'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -142,7 +135,6 @@ const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const pageBodyRef = ref(null)
-const failedShots = ref(new Set())
 
 const GUIDE_RAW_BY_LOCALE = {
   'zh-CN': guideRawZhCN,
@@ -218,7 +210,6 @@ const section = computed(() => {
               key,
               meta: shotManifest[key],
               url: GUIDE_SHOT_BASE + shotManifest[key].file,
-              failed: failedShots.value.has(key),
               numOffset
             }
             numOffset += shotManifest[key].annos?.length || 0
@@ -239,10 +230,6 @@ function buildPagerItem(index) {
 
 function shotLabel(shot, anno) {
   return t(`guide.shot.${shot.key}.${anno.label}`)
-}
-
-function markShotFailed(key) {
-  failedShots.value = new Set([...failedShots.value, key])
 }
 
 function annoStyle(anno) {

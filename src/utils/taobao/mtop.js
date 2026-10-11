@@ -183,13 +183,24 @@ async function mtopCallInner({ api, v, data, referer, cookie }) {
     const ret = String((parsed?.ret || [''])[0] || '')
 
     if (ret.startsWith('FAIL_SYS_TOKEN')) {
+      // 诊断：token 在手却被判令牌为空 → 多为网关对该接口的风控软拦截（软拒），
+      // 而非签名/令牌缺失；否则是 refresh 未拿到 Set-Cookie（原生端头部大小写等）
+      logger.warn('token-rejected', {
+        api,
+        attempt: tries + 1,
+        tokenLen: token.length,
+        signed: Boolean(sign),
+      })
       if (tries >= 1) throw new TaobaoRequestError('TOKEN', ret)
       // 免签请求重领 token：读 Set-Cookie 合并后重签再试
       await pace()
       const refreshUrl = buildMtopUrl(api, v, payload, String(Date.now()), '')
       const refreshRes = await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer })
       const merged = mergeMtopTokenCookie(attemptCookie, readUpstreamSetCookie(refreshRes.headers))
-      if (!merged) throw new TaobaoRequestError('TOKEN', ret)
+      if (!merged) {
+        logger.warn('token-refresh-empty', { api, headers: Object.keys(refreshRes.headers || {}).join(',') })
+        throw new TaobaoRequestError('TOKEN', ret)
+      }
       attemptCookie = merged
       await setTaobaoCookie(merged)
       continue
