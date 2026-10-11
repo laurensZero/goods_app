@@ -9,7 +9,6 @@
  */
 import { getStickerImage } from './stickerAssets'
 import { shadeColor } from '@/utils/image/frameRenderer'
-import { radialBlob } from './shared'
 
 const DEFAULT_SHADOW = 'rgba(41, 35, 30, 0.30)'
 
