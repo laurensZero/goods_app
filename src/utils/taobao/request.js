@@ -1,16 +1,16 @@
 /**
- * 淘宝请求传输层（PC 详情页 SSR HTML）
+ * 淘宝请求传输层（PC 详情页 SSR HTML / mtop）
  *
  * 与米游铺同构的双路径：
- *   - 原生：CapacitorHttp 直连 item.taobao.com，Cookie/UA/Referer 头原样发送
- *   - Web：走 Vite 代理 /taobao-page，Cookie 转成 x-cookie-forward，
- *     UA/Referer 由代理补齐（浏览器禁止 JS 设置这些头）
- *
- * 注意：原生 OkHttp 的 TLS 指纹与 Chrome 不同，存在被 `_____tmd_____` 风控拦下的风险，
- * 失败时由 service 层识别并给出可读错误（见 docs/taobao-mtop-api.md 第 8 节）。
+ *   - 原生：CapacitorHttp 直连 item.taobao.com，Cookie/UA/Referer 头原样发送；
+ *     被 _____tmd_____ 硬拦时（搜索网关针对 OkHttp TLS 指纹）自动改走
+ *     远程代理兜底（goodsapp.de5.net/taobao-page，Cloudflare Pages Function）
+ *   - Web：走同源 /taobao-page 代理（dev 为 Vite 中间件，生产为 Pages Function），
+ *     Cookie 转成 x-cookie-forward，UA/Referer 由代理补齐（浏览器禁止 JS 设置这些头）
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { createLogger } from '@/utils/logger'
+import { AUTH_WEB_ORIGIN } from '@/config/supabase'
 import { getTaobaoCookie } from './cookie'
 
 const logger = createLogger('taobao:req')
@@ -117,6 +117,12 @@ export async function taobaoPageGet(url, options = {}) {
       const status = Number(response.status || 0)
       const body = typeof response.data === 'string' ? response.data : String(response.data ?? '')
       logPageResponse(transport, url, startedAt, status, body)
+      if (body.includes('_____tmd_____')) {
+        // OkHttp TLS 指纹被搜索网关硬拦（软拒走 mtop.js 的 lean/令牌流程管不到这里）→
+        // 改走自家 Cloudflare 代理重试一次，taobao 侧看到的是 CF 出站连接
+        const fallback = await remoteProxyGet(url, cookie, referer, timeoutMs)
+        if (fallback) return fallback
+      }
       return { status, body, headers: response.headers || {} }
     } catch (error) {
       if (error instanceof TaobaoRequestError) {
@@ -165,6 +171,48 @@ function safeHost(url) {
     return new URL(url).host
   } catch {
     return String(url).slice(0, 60)
+  }
+}
+
+/**
+ * 原生端 tmd 硬拦兜底：把请求转给自家 Cloudflare Pages Function 代理
+ * （goodsapp.de5.net/taobao-page，协议同 Vite 中间件）。
+ * 代理不可用/仍被拦时返回 null，由调用方回落直连响应。
+ */
+async function remoteProxyGet(url, cookie, referer, timeoutMs) {
+  const startedAt = Date.now()
+  const transport = 'native-cf'
+  let timer
+  try {
+    const target = new URL(url)
+    const response = await Promise.race([
+      CapacitorHttp.request({
+        url: `${AUTH_WEB_ORIGIN}/taobao-page${target.pathname}${target.search}`,
+        method: 'GET',
+        headers: toWebHeaders(cookie, referer, target),
+        connectTimeout: timeoutMs,
+        readTimeout: timeoutMs,
+      }),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new TaobaoRequestError('NETWORK', '请求超时')), timeoutMs + 500)
+      }),
+    ])
+    const status = Number(response.status || 0)
+    const body = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+    logPageResponse(transport, url, startedAt, status, body)
+    // 代理自身报错/上游仍硬拦 → 交给调用方回落直连响应
+    if (status >= 400 || body.includes('_____tmd_____')) return null
+    return { status, body, headers: response.headers || {} }
+  } catch (error) {
+    logger.warn('page-error', {
+      transport,
+      host: safeHost(url),
+      code: error?.code || 'NETWORK',
+      message: error?.message || '网络请求失败',
+    })
+    return null
+  } finally {
+    clearTimeout(timer)
   }
 }
 

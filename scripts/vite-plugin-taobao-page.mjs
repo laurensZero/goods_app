@@ -11,7 +11,8 @@
  * request"（CORS 直接失败）。这里手动逐跳重发（Cookie 每跳都带上），
  * 最终把落地页 HTML 原样返回，浏览器全程只与 localhost 同源通信。
  *
- * 生产/原生不走此路径（原生为 CapacitorHttp 直连，见 src/utils/taobao/request.js）。
+ * 生产 Web 直接命中 Cloudflare Pages Function（functions/taobao-page，协议相同）；
+ * 原生直连被 tmd 硬拦时也经该函数兜底，见 src/utils/taobao/request.js。
  */
 
 import https from 'node:https'

@@ -58,7 +58,7 @@ function throwForResponse(response) {
  *
  * 通道策略（docs/taobao-mtop-api.md §8：tmd 风控 = 指纹/IP + 登录态）：
  *   - 原生端传输层是 CapacitorHttp（OkHttp），SSR 详情页会被 tmd 拦 → 直接走 mtop 详情接口
- *   - Web 端 SSR 优先（数据最全），被风控/无代理环境（生产站没有 /taobao-page）时降级 mtop
+ *   - Web 端 SSR 优先（数据最全），/taobao-page 代理不可用或被风控时降级 mtop
  *   - mtop getdetail 没有 SKU 树时降级为无 SKU 草稿（价格栈仍可用）
  * @param {string} input 商品链接或裸 itemId
  * @returns {Promise<ReturnType<typeof buildTaobaoDraft>>}
