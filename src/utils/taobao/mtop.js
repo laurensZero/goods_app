@@ -176,6 +176,9 @@ export async function mtopCall(options) {
 async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extraQuery }) {
   const payload = JSON.stringify(data)
   const urlOptions = { lean, extraQuery }
+  // lean 接口（搜索）在原生端必被 tmd 硬拦（OkHttp 指纹）→ 优先走远程代理，
+  // 不再先付一次直连失败；详情等宽松接口保持直连
+  const transportOptions = lean ? { preferProxy: true } : {}
   let attemptCookie = cookie ?? (await getTaobaoCookie())
   if (!attemptCookie) throw new TaobaoRequestError('NETWORK', 'cookie missing')
 
@@ -186,7 +189,7 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extr
     const token = tokenFromCookie(attemptCookie)
     const sign = token ? md5(`${token.split('_')[0]}&${t}&${APP_KEY}&${payload}`) : ''
     const url = buildMtopUrl(api, v, payload, t, sign, urlOptions)
-    const response = await taobaoPageGet(url, { cookie: attemptCookie, referer })
+    const response = await taobaoPageGet(url, { cookie: attemptCookie, referer, ...transportOptions })
 
     const body = String(response.body || '')
     if (body.includes('_____tmd_____')) throw new TaobaoRequestError('BLOCKED', '风控挑战')
@@ -213,7 +216,7 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extr
       // 免签请求重领 token：读 Set-Cookie 合并后重签再试
       await pace()
       const refreshUrl = buildMtopUrl(api, v, payload, String(Date.now()), '', urlOptions)
-      const refreshRes = await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer })
+      const refreshRes = await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer, ...transportOptions })
       const merged = mergeMtopTokenCookie(attemptCookie, readUpstreamSetCookie(refreshRes.headers))
       if (!merged) {
         logger.warn('token-refresh-empty', { api, headers: Object.keys(refreshRes.headers || {}).join(',') })

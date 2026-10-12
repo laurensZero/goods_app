@@ -87,8 +87,10 @@ function logPageResponse(transport, url, startedAt, status, body) {
 /**
  * GET 一个淘宝地址，返回文本与响应头
  * @param {string} url 绝对地址（item.taobao.com 详情页、h5api.m.taobao.com mtop 接口）
- * @param {{cookie?:string, timeoutMs?:number, referer?:string}} [options]
+ * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean}} [options]
  *   referer 覆盖默认 www.taobao.com（mtop 搜索需 s.taobao.com）
+ *   preferProxy：原生端优先走远程代理（搜索网关必拦 OkHttp，先直连必失败一次）；
+ *   代理失败仍回落直连，不会直接失败
  * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
  *   headers：原生为 CapacitorHttp 响应头；Web 为代理回传的 x-upstream-set-cookie（mtop 换 token 用）
  */
@@ -100,6 +102,11 @@ export async function taobaoPageGet(url, options = {}) {
   const transport = Capacitor.isNativePlatform() ? 'native' : 'proxy'
 
   if (Capacitor.isNativePlatform()) {
+    // 已知必拦的接口（搜索）优先走代理，代理挂了才回落直连
+    if (options.preferProxy) {
+      const viaProxy = await remoteProxyGet(url, cookie, referer, timeoutMs)
+      if (viaProxy) return viaProxy
+    }
     let timer
     try {
       const response = await Promise.race([

@@ -180,6 +180,16 @@ describe('mtopCall', () => {
     await expect(mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE })).rejects.toMatchObject({ name: 'TaobaoRequestError', code: 'BLOCKED' })
   })
 
+  it('lean（搜索）透传 preferProxy：原生端优先代理，详情直连', async () => {
+    taobaoPageGet.mockResolvedValue(jsonResponse('SUCCESS', { itemsArray: [] }))
+
+    await mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE, lean: true, extraQuery: { 'bx-ua': 'fast-load' } })
+    expect(taobaoPageGet.mock.calls[0][1].preferProxy).toBe(true)
+
+    await mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE })
+    expect(taobaoPageGet.mock.calls[1][1].preferProxy).toBeUndefined()
+  })
+
   it('非 token 业务失败 → FAIL 并携带 ret', async () => {
     taobaoPageGet.mockResolvedValue(jsonResponse('FAIL_SYS_ILLEGAL_ACCESS:禁止访问'))
     await expect(mtopCall({ api: 'a', v: '1', data: {}, cookie: BASE_COOKIE })).rejects.toMatchObject({ code: 'FAIL', message: 'FAIL_SYS_ILLEGAL_ACCESS:禁止访问' })

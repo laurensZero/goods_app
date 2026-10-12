@@ -60,6 +60,28 @@ describe('taobaoPageGet 原生直连', () => {
     expect(proxied.headers['x-referer-forward']).toBe(encodeURIComponent('https://s.taobao.com/'))
   })
 
+  it('preferProxy：原生端优先走远程代理，跳过直连首发', async () => {
+    mocks.request.mockResolvedValueOnce(capResponse('mtopjsonp1({"ret":["SUCCESS"]})', 200, { 'x-upstream-set-cookie': '_m_h5_tk=p1' }))
+
+    const result = await taobaoPageGet(MTOP_URL, { cookie: COOKIE, preferProxy: true })
+
+    expect(result.body).toContain('SUCCESS')
+    expect(mocks.request).toHaveBeenCalledTimes(1)
+    expect(mocks.request.mock.calls[0][0].url.startsWith('https://goodsapp.de5.net/taobao-page/')).toBe(true)
+  })
+
+  it('preferProxy 但代理失败 → 回落直连，不直接失败', async () => {
+    mocks.request
+      .mockResolvedValueOnce(capResponse('proxy error', 502))
+      .mockResolvedValueOnce(capResponse('mtopjsonp1({"ret":["SUCCESS"]})'))
+
+    const result = await taobaoPageGet(MTOP_URL, { cookie: COOKIE, preferProxy: true })
+
+    expect(result.body).toContain('SUCCESS')
+    expect(mocks.request).toHaveBeenCalledTimes(2)
+    expect(mocks.request.mock.calls[1][0].url).toBe(MTOP_URL)
+  })
+
   it('直连网络失败（超时/连接失败）→ 也经远程代理兜底', async () => {
     mocks.request
       .mockRejectedValueOnce(new Error('connection reset'))
