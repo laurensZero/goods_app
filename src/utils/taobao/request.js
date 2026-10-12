@@ -118,13 +118,16 @@ export async function taobaoPageGet(url, options = {}) {
       const body = typeof response.data === 'string' ? response.data : String(response.data ?? '')
       logPageResponse(transport, url, startedAt, status, body)
       if (body.includes('_____tmd_____')) {
-        // OkHttp TLS 指纹被搜索网关硬拦（软拒走 mtop.js 的 lean/令牌流程管不到这里）→
-        // 改走自家 Cloudflare 代理重试一次，taobao 侧看到的是 CF 出站连接
+        // OkHttp TLS 指纹可能被搜索网关硬拦（软拒走 mtop.js 的 lean/令牌流程管不到这里）→
+        // 先直连试一次，被拦再改走自家 Cloudflare 代理，taobao 侧看到的是 CF 出站连接
         const fallback = await remoteProxyGet(url, cookie, referer, timeoutMs)
         if (fallback) return fallback
       }
       return { status, body, headers: response.headers || {} }
     } catch (error) {
+      // 直连本身失败（超时/连接被掐，而非拿到 tmd 挑战页）→ 也走 CF 代理兜底
+      const fallback = await remoteProxyGet(url, cookie, referer, timeoutMs)
+      if (fallback) return fallback
       if (error instanceof TaobaoRequestError) {
         logger.warn('page-error', { transport, host: safeHost(url), code: error.code, message: error.message })
         throw error
