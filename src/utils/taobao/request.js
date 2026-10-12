@@ -37,7 +37,7 @@ export class TaobaoRequestError extends Error {
   }
 }
 
-function buildHeaders(cookie, referer, contentType) {
+function buildHeaders(cookie, referer, contentType, extra = {}) {
   const headers = {
     'User-Agent': TAOBAO_DESKTOP_UA,
     'Referer': referer || TAOBAO_REFERER,
@@ -45,18 +45,22 @@ function buildHeaders(cookie, referer, contentType) {
   }
   if (contentType) headers['Content-Type'] = contentType
   if (cookie) headers.Cookie = cookie
+  if (extra.origin) headers.Origin = extra.origin
+  if (extra.accept) headers.Accept = extra.accept
   return headers
 }
 
-function toWebHeaders(cookie, referer, target) {
+function toWebHeaders(cookie, referer, target, extra = {}) {
   const headers = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
     // 目标源（如 h5api.m.taobao.com）：浏览器只能同源请求，由代理回填真实地址
     'x-taobao-origin': target.origin,
   }
-  // 浏览器禁止 JS 设置 Cookie/UA/Referer → 交给 Vite 代理补齐
+  // 浏览器禁止 JS 设置 Cookie/UA/Referer/Origin → 交给 Vite 代理补齐
   if (cookie) headers['x-cookie-forward'] = encodeURIComponent(cookie)
   if (referer) headers['x-referer-forward'] = encodeURIComponent(referer)
+  if (extra.origin) headers['x-origin-forward'] = encodeURIComponent(extra.origin)
+  if (extra.accept) headers['x-accept-forward'] = encodeURIComponent(extra.accept)
   return headers
 }
 
@@ -87,23 +91,24 @@ function logPageResponse(transport, url, startedAt, status, body) {
 
 /**
  * 请求一个淘宝地址，返回文本与响应头（GET 或 POST）
- * @param {string} url 绝对地址（item.taobao.com 详情页、h5api.m.taobao.com mtop 接口）
- * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, method?:'GET'|'POST', body?:string, contentType?:string}} [options]
+ * @param {string} url 绝对地址（item.taobao.com 详情页、h5api.m.taobao.com mtop 接口、qrlogin/login 扫码）
+ * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, method?:'GET'|'POST', body?:string, contentType?:string, origin?:string, accept?:string}} [options]
  *   referer 覆盖默认 www.taobao.com（mtop 搜索需 s.taobao.com）
  *   preferProxy：原生端优先走远程代理（搜索/交易网关必拦 OkHttp，先直连必失败一次）；
  *   代理失败仍回落直连，不会直接失败
- *   method/body：POST 时 body 为请求体原文（mtop 订单接口用 form-urlencoded）
+ *   method/body：POST 时 body 为请求体原文（mtop 订单 / newlogin 扫码登录用 form-urlencoded）
+ *   origin/accept：扫码 newlogin 等接口需要的 Origin / Accept（Web 经代理头补齐）
  * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
- *   headers：原生为 CapacitorHttp 响应头；Web 为代理回传的 x-upstream-set-cookie（mtop 换 token 用）
+ *   headers：原生为 CapacitorHttp 响应头；Web 为代理回传的 x-upstream-set-cookie(-json)（mtop 换 token / 扫码合并罐用）
  */
 export async function taobaoPageGet(url, options = {}) {
   return taobaoPageRequest(url, { ...options, method: 'GET' })
 }
 
 /**
- * POST 一个淘宝地址（mtop 订单等 form 接口），协议与 taobaoPageGet 一致
+ * POST 一个淘宝地址（mtop 订单 / newlogin 扫码登录 form 接口），协议与 taobaoPageGet 一致
  * @param {string} url
- * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, body?:string, contentType?:string}} options
+ * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, body?:string, contentType?:string, origin?:string, accept?:string}} options
  * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
  */
 export async function taobaoPagePost(url, options = {}) {
@@ -122,14 +127,15 @@ async function taobaoPageRequest(url, options = {}) {
   const method = (options.method || 'GET').toUpperCase()
   const body = options.body ?? ''
   const contentType = options.contentType || ''
+  const extra = { origin: options.origin || '', accept: options.accept || '' }
   const startedAt = Date.now()
   const transport = Capacitor.isNativePlatform() ? 'native' : 'proxy'
-  const requestHeaders = buildHeaders(cookie, referer, contentType)
+  const requestHeaders = buildHeaders(cookie, referer, contentType, extra)
 
   if (Capacitor.isNativePlatform()) {
     // 已知必拦的接口（搜索/订单列表）优先走代理，代理挂了才回落直连
     if (options.preferProxy) {
-      const viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
+      const viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
       if (viaProxy) return viaProxy
     }
     let timer
@@ -152,13 +158,13 @@ async function taobaoPageRequest(url, options = {}) {
       logPageResponse(transport, url, startedAt, status, respBody)
       if (respBody.includes('_____tmd_____')) {
         // OkHttp TLS 指纹可能被搜索/交易网关硬拦 → 先直连试一次，被拦再改走自家 CF 代理
-        const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
+        const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
         if (fallback) return fallback
       }
       return { status, body: respBody, headers: response.headers || {} }
     } catch (error) {
       // 直连本身失败（超时/连接被掐）→ 也走 CF 代理兜底
-      const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
+      const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
       if (fallback) return fallback
       if (error instanceof TaobaoRequestError) {
         logger.warn('page-error', { transport, host: safeHost(url), code: error.code, message: error.message })
@@ -177,7 +183,7 @@ async function taobaoPageRequest(url, options = {}) {
   try {
     const target = new URL(url)
     const localUrl = `${PAGE_PROXY_PREFIX}${target.pathname}${target.search}`
-    const webHeaders = toWebHeaders(cookie, referer, target)
+    const webHeaders = toWebHeaders(cookie, referer, target, extra)
     if (contentType) webHeaders['content-type'] = contentType
     const response = await fetch(localUrl, {
       method,
@@ -190,7 +196,10 @@ async function taobaoPageRequest(url, options = {}) {
     return {
       status: response.status,
       body: respBody,
-      headers: { 'x-upstream-set-cookie': response.headers.get('x-upstream-set-cookie') || '' },
+      headers: {
+        'x-upstream-set-cookie': response.headers.get('x-upstream-set-cookie') || '',
+        'x-upstream-set-cookie-json': response.headers.get('x-upstream-set-cookie-json') || '',
+      },
     }
   } catch (error) {
     if (error?.name === 'AbortError') {
@@ -234,13 +243,13 @@ export function responseBodyToText(data) {
  * （goodsapp.de5.net/taobao-page，协议同 Vite 中间件）。
  * 代理不可用/仍被拦时返回 null，由调用方回落直连响应。
  */
-async function remoteProxyRequest(url, cookie, referer, timeoutMs, method = 'GET', body = '', contentType = '') {
+async function remoteProxyRequest(url, cookie, referer, timeoutMs, method = 'GET', body = '', contentType = '', extra = {}) {
   const startedAt = Date.now()
   const transport = 'native-cf'
   let timer
   try {
     const target = new URL(url)
-    const headers = toWebHeaders(cookie, referer, target)
+    const headers = toWebHeaders(cookie, referer, target, extra)
     if (contentType) headers['content-type'] = contentType
     const response = await Promise.race([
       CapacitorHttp.request({

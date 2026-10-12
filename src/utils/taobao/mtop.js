@@ -15,6 +15,7 @@
 import { md5 } from '@/utils/md5'
 import { createLogger } from '@/utils/logger'
 import { getTaobaoCookie, setTaobaoCookie } from './cookie'
+import { readUpstreamSetCookieList } from './setCookie'
 import { TaobaoRequestError, taobaoPageGet, taobaoPagePost } from './request'
 
 const logger = createLogger('taobao:mtop')
@@ -187,11 +188,6 @@ export function mergeMtopTokenCookie(baseCookie, setCookieText) {
   return kept.join('; ')
 }
 
-function readUpstreamSetCookie(headers) {
-  const raw = headers?.['set-cookie'] ?? headers?.['x-upstream-set-cookie'] ?? ''
-  return Array.isArray(raw) ? raw.join('\n') : String(raw)
-}
-
 function isRateLimited(ret) {
   return ret.includes('CALL_TOO_OFTEN') || ret.includes('FREQ') || ret.includes('TRAFFIC_LIMIT')
 }
@@ -300,7 +296,8 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, form
           ...transportOptions,
         })
         : await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer, ...transportOptions })
-      const merged = mergeMtopTokenCookie(attemptCookie, readUpstreamSetCookie(refreshRes.headers))
+      const setCookieLines = readUpstreamSetCookieList(refreshRes.headers)
+      const merged = mergeMtopTokenCookie(attemptCookie, setCookieLines.join('\n'))
       if (!merged) {
         logger.warn('token-refresh-empty', { api, headers: Object.keys(refreshRes.headers || {}).join(',') })
         throw new TaobaoRequestError('TOKEN', ret)

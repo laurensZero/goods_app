@@ -74,6 +74,48 @@
   color: #b25f00;
 }
 
+/* 当前账号胶囊（头像 + 昵称） */
+.tb-account-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tb-account-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(90, 120, 250, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tb-account-avatar__img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tb-account-avatar__fallback {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4c7dff;
+}
+
+.tb-account-name {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--app-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── 表单控件 ─────────────────────────────────────────── */
 /* 说明：.field / .field-label / .field input 等分区表单样式由
    ImportView.css（米游铺导入页同款）提供，这里只留枢纽页特有控件。 */

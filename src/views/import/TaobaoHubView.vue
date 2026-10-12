@@ -1,44 +1,49 @@
 <template>
   <ImportPage class="taobao-hub-page" :title="t('nav.taobaoImport')">
+    <template #right>
+      <MihoyoAccountNavBtn
+        :label="activeAccountLabel"
+        :avatar="activeAccountAvatar"
+        :accounts-count="accounts.length"
+        @click="showAccountSheet = true"
+      />
+    </template>
     <main class="page-body taobao-hub-body">
       <ImportTabs v-model="activeTab" :tabs="tabs" :aria-label="t('nav.taobaoImport')" />
 
       <!-- ============ 链接导入 ============ -->
       <section v-show="activeTab === 'link'" class="hub-panel" role="tabpanel">
-        <!-- Cookie 状态卡 -->
+        <!-- 账号 / Cookie 状态卡 -->
         <div class="hub-card" :class="cookieCardClass">
           <div class="hub-card-head">
             <p class="hub-card-title">{{ t('import.taobaoCookieTitle') }}</p>
             <span class="cookie-badge" :class="cookieBadgeClass">{{ cookieBadgeText }}</span>
           </div>
+
+          <div v-if="activeAccountLabel || activeAccountAvatar" class="tb-account-row">
+            <div class="tb-account-avatar" aria-hidden="true">
+              <img
+                v-if="activeAccountAvatar"
+                :src="activeAccountAvatar"
+                :alt="activeAccountLabel"
+                class="tb-account-avatar__img"
+                referrerpolicy="no-referrer"
+                loading="lazy"
+              />
+              <span v-else class="tb-account-avatar__fallback">{{ activeAccountLabel.charAt(0) || '?' }}</span>
+            </div>
+            <p class="tb-account-name">{{ activeAccountLabel }}</p>
+          </div>
+
           <p class="hub-card-desc">{{ t('import.taobaoCookieHint') }}</p>
 
-          <template v-if="cookieEditing || !cookieReady">
-            <textarea
-              v-model="cookieInput"
-              class="cookie-input"
-              :placeholder="t('import.taobaoCookiePlaceholder')"
-              rows="4"
-              spellcheck="false"
-              autocomplete="off"
-              autocorrect="off"
-              autocapitalize="off"
-            />
-            <p v-if="cookieError" class="field-error">{{ cookieError }}</p>
-            <div class="hub-actions">
-              <button class="hub-btn hub-btn--primary" type="button" :disabled="cookieChecking || !cookieInput.trim()" @click="saveCookie">
-                <span v-if="!cookieChecking">{{ t('import.taobaoCookieSave') }}</span>
-                <span v-else class="hub-spinner" />
-              </button>
-              <button v-if="cookieReady" class="hub-btn hub-btn--ghost" type="button" @click="cookieEditing = false">
-                {{ t('common.cancel') }}
-              </button>
-            </div>
-          </template>
-
-          <div v-else class="hub-actions">
-            <button class="hub-btn hub-btn--ghost" type="button" @click="startEditCookie">{{ t('common.edit') }}</button>
-            <button class="hub-btn hub-btn--ghost" type="button" @click="handleClearCookie">{{ t('import.taobaoCookieClear') }}</button>
+          <div class="hub-actions">
+            <button class="hub-btn hub-btn--primary" type="button" @click="showQrLogin = true">
+              {{ t('import.taobaoQrLoginTitle') }}
+            </button>
+            <button v-if="cookieReady" class="hub-btn hub-btn--ghost" type="button" @click="handleClearCookie">
+              {{ t('import.taobaoCookieClear') }}
+            </button>
           </div>
         </div>
 
@@ -305,6 +310,22 @@
         </ImportSearchCard>
       </section>
     </main>
+
+    <TaobaoAccountSheet
+      ref="accountSheetRef"
+      v-model="showAccountSheet"
+      :accounts="accounts"
+      :active-account-id="activeAccountId"
+      :active-account-label="activeAccountLabel"
+      @switch="handleSwitchAccount"
+      @remove="handleRemoveAccount"
+      @login-cookie="handleLoginCookie"
+    />
+
+    <TaobaoQrLoginSheet
+      v-model="showQrLogin"
+      @success="handleLoginCookie"
+    />
   </ImportPage>
 </template>
 
@@ -323,6 +344,9 @@ import TaobaoImportView from '@/views/import/TaobaoImportView.vue'
 import TaobaoCartImportView from '@/views/import/TaobaoCartImportView.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
+import TaobaoAccountSheet from '@/components/import/TaobaoAccountSheet.vue'
+import TaobaoQrLoginSheet from '@/components/import/TaobaoQrLoginSheet.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { getCoverTone } from '@/utils/goods/coverTone'
@@ -330,15 +354,14 @@ import { commitActiveInput } from '@/utils/commitActiveInput'
 import { showGlobalToast } from '@/utils/globalToast'
 import { validatePrice } from '@/utils/validate'
 import {
-  clearTaobaoCookie,
   getTaobaoCookie,
   isTaobaoCookieReady,
   normalizeTaobaoCookie,
-  setTaobaoCookie,
 } from '@/utils/taobao/cookie'
-import { TaobaoImportError, searchTaobaoItems, validateTaobaoCookie, TAOBAO_SEARCH_PAGE_SIZE } from '@/utils/taobao/service'
+import { TaobaoImportError, searchTaobaoItems, TAOBAO_SEARCH_PAGE_SIZE } from '@/utils/taobao/service'
 import { normalizeCdnUrl, splitSkuPath } from '@/utils/taobao/detail'
 import { useTaobaoQueue } from '@/composables/import/useTaobaoQueue'
+import { useTaobaoCookieState } from '@/composables/import/useTaobaoCookieState'
 
 defineOptions({ name: 'TaobaoHubView' })
 
@@ -361,13 +384,25 @@ const tabs = computed(() => [
 ])
 const activeTab = ref('link')
 
-// ── Cookie ─────────────────────────────────────────────
-const cookieReady = ref(false)
-const cookieEditing = ref(false)
-const cookieChecking = ref(false)
-const cookieInput = ref('')
-const cookieError = ref('')
-const cookieStatus = ref('idle') // idle | ok | expired | blocked
+// ── Cookie / 多账号 ────────────────────────────────────
+const {
+  accounts,
+  activeAccountId,
+  activeAccountLabel,
+  activeAccountAvatar,
+  cookieReady,
+  cookieStatus,
+  initialize: initializeAccountState,
+  saveAccountWithProfile,
+  validateActiveCookie,
+  switchAccount,
+  removeAccount,
+  clearSession,
+} = useTaobaoCookieState()
+
+const showAccountSheet = ref(false)
+const showQrLogin = ref(false)
+const accountSheetRef = ref(null)
 
 const cookieCardClass = computed(() => ({
   'hub-card--warn': !cookieReady.value || cookieStatus.value === 'expired' || cookieStatus.value === 'blocked',
@@ -385,54 +420,41 @@ const cookieBadgeText = computed(() => {
 })
 
 onMounted(async () => {
-  const cookie = await getTaobaoCookie()
-  cookieReady.value = isTaobaoCookieReady(cookie)
-  cookieInput.value = cookie
-  cookieEditing.value = !cookieReady.value
+  await initializeAccountState()
 })
 
-function startEditCookie() {
-  cookieEditing.value = true
-  cookieError.value = ''
+async function handleClearCookie() {
+  await clearSession()
+  showGlobalToast(t('import.taobaoCookieCleared'))
 }
 
-async function saveCookie() {
-  const normalized = normalizeTaobaoCookie(cookieInput.value)
-  if (!isTaobaoCookieReady(normalized)) {
-    cookieError.value = t('import.taobaoCookieInvalid')
+/** 账号面板 / 扫码登录成功：保存新 Cookie 并校验 */
+async function handleLoginCookie(payload) {
+  const cookie = String(payload?.cookie || '').trim()
+  if (!cookie) return
+  try {
+    await saveAccountWithProfile(cookie)
+    accountSheetRef.value?.closeAll?.()
+    showQrLogin.value = false
+    showGlobalToast(t('import.taobaoCookieSaved'))
+    await validateActiveCookie()
+  } catch {
+    showGlobalToast(t('import.taobaoCookieNetwork'))
+  }
+}
+
+async function handleSwitchAccount(account) {
+  const result = await switchAccount(account?.id)
+  if (!result.ok) {
+    accountSheetRef.value?.setNotice?.(t('import.taobaoCookieExpired'))
     return
   }
-  cookieError.value = ''
-  cookieChecking.value = true
-  try {
-    await setTaobaoCookie(normalized)
-    cookieReady.value = true
-    const result = await validateTaobaoCookie()
-    if (result.ok) {
-      cookieStatus.value = 'ok'
-      cookieEditing.value = false
-      showGlobalToast(t('import.taobaoCookieSaved'))
-    } else {
-      cookieStatus.value = result.code === 'BLOCKED' ? 'blocked' : 'expired'
-      cookieError.value = result.code === 'BLOCKED'
-        ? t('import.taobaoCookieBlocked')
-        : t('import.taobaoCookieExpired')
-    }
-  } catch {
-    cookieStatus.value = 'expired'
-    cookieError.value = t('import.taobaoCookieNetwork')
-  } finally {
-    cookieChecking.value = false
-  }
+  showGlobalToast(t('import.currentAccount', { label: account?.label || '' }))
+  await validateActiveCookie()
 }
 
-async function handleClearCookie() {
-  await clearTaobaoCookie()
-  cookieReady.value = false
-  cookieStatus.value = 'idle'
-  cookieInput.value = ''
-  cookieEditing.value = true
-  showGlobalToast(t('import.taobaoCookieCleared'))
+async function handleRemoveAccount(account) {
+  await removeAccount(account?.id)
 }
 
 // ── 暂存队列 + 链接解析（队列 = 待处理草稿列表，表单 = 激活项的视图） ──
@@ -615,12 +637,11 @@ function searchMessage(error) {
   return ERROR_KEYS[code] ? t(ERROR_KEYS[code]) : t('import.taobaoSearchFailed', { message: error?.message || code })
 }
 
-/** Cookie 类错误：回到链接页并把状态卡切到编辑/过期视图 */
+/** Cookie 类错误：回到链接页并把状态卡徽标切到过期/被拦 */
 function applyCookieErrorState(code) {
   if (code !== 'LOGIN_REQUIRED' && code !== 'BLOCKED' && code !== 'NO_COOKIE') return
-  cookieReady.value = isTaobaoCookieReady(cookieInput.value) && code !== 'NO_COOKIE'
+  cookieReady.value = code !== 'NO_COOKIE' && cookieReady.value
   cookieStatus.value = code === 'BLOCKED' ? 'blocked' : 'expired'
-  cookieEditing.value = code === 'NO_COOKIE'
   activeTab.value = 'link'
 }
 

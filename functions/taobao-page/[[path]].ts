@@ -11,7 +11,10 @@
 //   - x-taobao-origin：目标源（默认 https://item.taobao.com，仅允许 .taobao.com/.tmall.com）
 //   - x-cookie-forward：URL 编码的 Cookie（原生兜底也可直发 Cookie 头）
 //   - x-referer-forward：URL 编码的 Referer（仅允许淘宝/天猫域）
-//   - 响应头 x-upstream-set-cookie：上游 Set-Cookie 透传（mtop 换 _m_h5_tk 依赖它）
+//   - x-origin-forward：URL 编码的 Origin（newlogin 扫码登录等接口需要，仅允许淘宝/天猫域）
+//   - x-accept-forward：URL 编码的 Accept（newlogin 返回 JSON 时需要）
+//   - 响应头 x-upstream-set-cookie(-json)：上游 Set-Cookie 透传
+//     （mtop 换 _m_h5_tk / 扫码登录合并 cookie 罐依赖它；json 为权威格式）
 //
 // 关键行为：**服务端跟随跳转**。天猫商品会 302 到 detail.tmall.com，手动逐跳重发
 // （每跳带 Cookie、限制在淘宝/天猫域内），浏览器/客户端全程只与本站同源通信。
@@ -43,7 +46,7 @@ export async function onRequest(context) {
       headers: {
         'access-control-allow-origin': '*',
         'access-control-allow-methods': 'GET, POST, OPTIONS',
-        'access-control-allow-headers': 'content-type, x-cookie-forward, x-taobao-origin, x-referer-forward',
+        'access-control-allow-headers': 'content-type, x-cookie-forward, x-taobao-origin, x-referer-forward, x-origin-forward, x-accept-forward',
         'access-control-max-age': '86400',
       },
     })
@@ -82,6 +85,28 @@ export async function onRequest(context) {
     }
   }
 
+  // Origin（newlogin 扫码登录等接口需要）：仅允许淘宝/天猫域
+  let requestOrigin = ''
+  const originForward = request.headers.get('x-origin-forward')
+  if (originForward) {
+    try {
+      const parsed = new URL(decodeURIComponent(originForward))
+      if (parsed.protocol === 'https:' && isAllowedHost(parsed.hostname)) requestOrigin = parsed.origin
+    } catch {
+      // 非法 Origin 忽略
+    }
+  }
+
+  let accept = 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+  const acceptForward = request.headers.get('x-accept-forward')
+  if (acceptForward) {
+    try {
+      accept = decodeURIComponent(acceptForward)
+    } catch {
+      // 非法 Accept 用默认值
+    }
+  }
+
   // Cookie：优先 x-cookie-forward（Web/原生兜底统一走该头）；也接受直发 Cookie 头
   let cookie = ''
   const cookieFwd = request.headers.get('x-cookie-forward')
@@ -99,9 +124,10 @@ export async function onRequest(context) {
     'User-Agent': DESKTOP_UA,
     'Referer': referer,
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept': accept,
     // 不设 Accept-Encoding：Workers 侧自动解压，读 arrayBuffer 得到明文
   }
+  if (requestOrigin) headers.Origin = requestOrigin
   if (cookie) headers.Cookie = cookie
 
   // POST（mtop 订单 form 接口）：透传 Content-Type 与请求体
@@ -131,11 +157,16 @@ export async function onRequest(context) {
         responseHeaders.set('content-type', String(contentType || 'text/html; charset=utf-8'))
         responseHeaders.set('cache-control', 'no-store')
         responseHeaders.set('access-control-allow-origin', '*')
-        // mtop 换 token 依赖上游 Set-Cookie（客户端拿不到 HttpOnly 头，中转给客户端）
+        // mtop 换 token / 扫码登录合并罐依赖上游 Set-Cookie（客户端拿不到 HttpOnly 头，中转给客户端）
+        // JSON 串为权威格式（Expires 含逗号时旧 join(', ') 会碎）；旧头保留兼容存量客户端
         const setCookie = upstream.headers.getSetCookie ? upstream.headers.getSetCookie() : []
         if (setCookie.length > 0) {
           responseHeaders.set('x-upstream-set-cookie', setCookie.join(', '))
-          responseHeaders.set('access-control-expose-headers', 'x-upstream-set-cookie')
+          responseHeaders.set('x-upstream-set-cookie-json', JSON.stringify(setCookie))
+          responseHeaders.set(
+            'access-control-expose-headers',
+            'x-upstream-set-cookie, x-upstream-set-cookie-json',
+          )
         }
         const body = await upstream.arrayBuffer()
         return new Response(body, {

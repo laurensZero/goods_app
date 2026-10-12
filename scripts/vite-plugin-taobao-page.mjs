@@ -133,6 +133,18 @@ export function taobaoPagePlugin() {
             }
           }
 
+          // Origin（newlogin 扫码登录等接口需要）：仅允许淘宝/天猫域
+          let requestOrigin = ''
+          const originForward = req.headers['x-origin-forward']
+          if (originForward) {
+            try {
+              const parsed = new URL(decodeURIComponent(String(originForward)))
+              if (parsed.protocol === 'https:' && isAllowedHost(parsed.hostname)) requestOrigin = parsed.origin
+            } catch {
+              // 非法 Origin 忽略
+            }
+          }
+
           /** @type {Record<string, string>} */
           const headers = {
             'User-Agent': DESKTOP_UA,
@@ -141,9 +153,18 @@ export function taobaoPagePlugin() {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             // 不设 Accept-Encoding：由 https 模块原样透传/按 content-encoding 解压
           }
+          if (requestOrigin) headers.Origin = requestOrigin
+          const acceptFwd = req.headers['x-accept-forward']
+          if (acceptFwd) {
+            try {
+              headers.Accept = decodeURIComponent(String(acceptFwd))
+            } catch {
+              // 非法 Accept 忽略
+            }
+          }
           if (cookie) headers.Cookie = cookie
           if (method === 'POST') {
-            // mtop form 接口：Content-Type 由客户端透传（缺省 form-urlencoded）
+            // mtop form / newlogin 接口：Content-Type 由客户端透传（缺省 form-urlencoded）
             const ct = req.headers['content-type']
             headers['Content-Type'] = String(ct || 'application/x-www-form-urlencoded')
             if (reqBody) headers['Content-Length'] = String(reqBody.length)
@@ -165,10 +186,12 @@ export function taobaoPagePlugin() {
               const contentType = upstream.headers['content-type']
               res.setHeader('Content-Type', String(contentType || 'text/html; charset=utf-8'))
               res.setHeader('Cache-Control', 'no-store')
-              // mtop 换 token 依赖上游 Set-Cookie（浏览器拿不到 HttpOnly 头，中转给客户端）
+              // mtop 换 token / 扫码登录合并罐依赖上游 Set-Cookie（浏览器拿不到 HttpOnly 头，中转给客户端）
+              // JSON 串为权威格式（Expires 含逗号时旧 join(', ') 会碎）；旧头保留兼容存量客户端
               const setCookie = upstream.headers['set-cookie']
               if (Array.isArray(setCookie) && setCookie.length > 0) {
                 res.setHeader('x-upstream-set-cookie', setCookie.join(', '))
+                res.setHeader('x-upstream-set-cookie-json', JSON.stringify(setCookie))
               }
               res.end(decompress(upstream.body, String(upstream.headers['content-encoding'] || '')))
               return
