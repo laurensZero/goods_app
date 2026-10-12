@@ -57,9 +57,10 @@ function throwForResponse(response) {
  * 抓取并解析单个商品链接
  *
  * 通道策略（docs/taobao-mtop-api.md §8：tmd 风控 = 指纹/IP + 登录态）：
- *   - 原生端传输层是 CapacitorHttp（OkHttp），SSR 详情页会被 tmd 拦 → 直接走 mtop 详情接口
- *   - Web 端 SSR 优先（数据最全），/taobao-page 代理不可用或被风控时降级 mtop
- *   - mtop getdetail 没有 SKU 树时降级为无 SKU 草稿（价格栈仍可用）
+ *   - 全端 SSR 详情页优先（数据最全，含 SKU 树）：Web 走同源代理，
+ *     原生端经 CF 代理抓取（服务端取页面，不受 OkHttp 指纹风控影响）
+ *   - mtop getdetail 只做兜底：SSR 代理不可用或被风控时降级，
+ *     该通道没有 skuBase，降级为无 SKU 草稿（价格栈仍可用）
  * @param {string} input 商品链接或裸 itemId
  * @returns {Promise<ReturnType<typeof buildTaobaoDraft>>}
  */
@@ -73,14 +74,13 @@ export async function fetchTaobaoDraft(input) {
   const cookie = await getTaobaoCookie()
   if (!isTaobaoCookieReady(cookie)) throw new TaobaoImportError('NO_COOKIE')
 
-  if (isNativeTransport()) {
-    logger.info('draft-channel', { itemId, channel: 'mtop-native' })
-    return fetchTaobaoDraftFromMtop(itemId, cookie)
-  }
-
   const url = buildTaobaoItemUrl(itemId)
   try {
-    const response = await taobaoPageGet(url, { cookie })
+    const response = await taobaoPageGet(url, {
+      cookie,
+      // 原生端优先走远程代理（CapacitorHttp 直连 SSR 详情页必被 tmd 拦）
+      ...(isNativeTransport() ? { preferProxy: true } : {}),
+    })
     throwForResponse(response)
     const res = extractSsrRes(response.body)
     const draft = buildTaobaoDraft(res, { url, itemId })

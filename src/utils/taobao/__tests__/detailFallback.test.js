@@ -45,17 +45,47 @@ describe('fetchTaobaoDraft 通道策略', () => {
     getTaobaoCookie.mockResolvedValue(READY_COOKIE)
   })
 
-  it('原生端直接走 mtop，不发 SSR 请求', async () => {
+  it('原生端 SSR 经 CF 代理成功时不走 mtop', async () => {
     isNativeTransport.mockReturnValue(true)
+    taobaoPageGet.mockResolvedValue({ status: 200, body: makeSsrHtml(), headers: {} })
+    classifyPageResponse.mockReturnValue('OK')
+    mtopCall.mockResolvedValue({ data: MTOP_DETAIL })
+
+    const draft = await fetchTaobaoDraft('111111')
+
+    expect(draft.title).toBe('SSR商品')
+    expect(taobaoPageGet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ preferProxy: true }),
+    )
+    expect(mtopCall).not.toHaveBeenCalled()
+  })
+
+  it('原生端 SSR 被风控时降级 mtop', async () => {
+    isNativeTransport.mockReturnValue(true)
+    taobaoPageGet.mockResolvedValue({ status: 200, body: '_____tmd_____挑战页', headers: {} })
+    classifyPageResponse.mockReturnValue('BLOCKED')
     mtopCall.mockResolvedValue({ data: MTOP_DETAIL })
 
     const draft = await fetchTaobaoDraft('111111')
 
     expect(draft.title).toBe('mtop商品')
     expect(draft.priceText).toBe('125-155')
-    expect(taobaoPageGet).not.toHaveBeenCalled()
     expect(mtopCall).toHaveBeenCalledWith(
       expect.objectContaining({ api: 'mtop.taobao.detail.getdetail', data: { itemNumId: '111111' } }),
+    )
+  })
+
+  it('Web 端 SSR 不带 preferProxy', async () => {
+    isNativeTransport.mockReturnValue(false)
+    taobaoPageGet.mockResolvedValue({ status: 200, body: makeSsrHtml(), headers: {} })
+    classifyPageResponse.mockReturnValue('OK')
+
+    await fetchTaobaoDraft('111111')
+
+    expect(taobaoPageGet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.not.objectContaining({ preferProxy: true }),
     )
   })
 
