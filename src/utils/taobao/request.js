@@ -148,7 +148,7 @@ async function taobaoPageRequest(url, options = {}) {
         }),
       ])
       const status = Number(response.status || 0)
-      const respBody = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+      const respBody = responseBodyToText(response.data)
       logPageResponse(transport, url, startedAt, status, respBody)
       if (respBody.includes('_____tmd_____')) {
         // OkHttp TLS 指纹可能被搜索/交易网关硬拦 → 先直连试一次，被拦再改走自家 CF 代理
@@ -213,6 +213,23 @@ function safeHost(url) {
 }
 
 /**
+ * CapacitorHttp 在响应 Content-Type 为 application/json 时会把 body 解析成对象；
+ * 必须再 JSON.stringify 还原原文，否则 `String(obj)` = "[object Object]"，mtop 解析必炸。
+ */
+export function responseBodyToText(data) {
+  if (typeof data === 'string') return data
+  if (data == null) return ''
+  if (typeof data === 'object') {
+    try {
+      return JSON.stringify(data)
+    } catch {
+      return String(data)
+    }
+  }
+  return String(data)
+}
+
+/**
  * 原生端 tmd 硬拦兜底：把请求转给自家 Cloudflare Pages Function 代理
  * （goodsapp.de5.net/taobao-page，协议同 Vite 中间件）。
  * 代理不可用/仍被拦时返回 null，由调用方回落直连响应。
@@ -239,7 +256,7 @@ async function remoteProxyRequest(url, cookie, referer, timeoutMs, method = 'GET
       }),
     ])
     const status = Number(response.status || 0)
-    const respBody = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+    const respBody = responseBodyToText(response.data)
     logPageResponse(transport, url, startedAt, status, respBody)
     // 代理自身报错/上游仍硬拦 → 交给调用方回落直连响应
     if (status >= 400 || respBody.includes('_____tmd_____')) return null

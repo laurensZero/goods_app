@@ -15,7 +15,7 @@ vi.mock('@/utils/logger', () => ({
   createLogger: () => ({ info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() }),
 }))
 
-import { taobaoPageGet, classifyPageResponse } from '../request'
+import { taobaoPageGet, taobaoPagePost, classifyPageResponse, responseBodyToText } from '../request'
 
 const COOKIE = 'cna=abc; cookie2=xyz; _m_h5_tk=aaaa_1'
 const MTOP_URL =
@@ -121,6 +121,45 @@ describe('taobaoPageGet 原生直连', () => {
     const result = await taobaoPageGet(MTOP_URL)
 
     expect(result.body).toContain('_____tmd_____')
+  })
+
+  it('CapacitorHttp 把 JSON 解析成对象时还原为文本（Android 必踩）', async () => {
+    const json = { ret: ['SUCCESS::调用成功'], data: { ok: true } }
+    mocks.request.mockResolvedValueOnce(capResponse(json))
+
+    const result = await taobaoPageGet(MTOP_URL)
+
+    expect(result.body).toBe(JSON.stringify(json))
+  })
+
+  it('taobaoPagePost：原生代理返回 JSON 对象同样还原', async () => {
+    const json = { ret: ['SUCCESS::调用成功'] }
+    mocks.request.mockResolvedValueOnce(capResponse(json))
+
+    const result = await taobaoPagePost('https://h5api.m.taobao.com/h5/mtop.demo/1.0/', {
+      cookie: COOKIE,
+      preferProxy: true,
+      body: 'data=%7B%7D',
+      contentType: 'application/x-www-form-urlencoded',
+    })
+
+    expect(result.body).toBe(JSON.stringify(json))
+    expect(mocks.request.mock.calls[0][0].method).toBe('POST')
+    expect(mocks.request.mock.calls[0][0].data).toBe('data=%7B%7D')
+  })
+})
+
+describe('responseBodyToText', () => {
+  it('string 原样返回', () => {
+    expect(responseBodyToText('a')).toBe('a')
+    expect(responseBodyToText('')).toBe('')
+  })
+  it('object JSON.stringify 还原', () => {
+    expect(responseBodyToText({ a: 1 })).toBe('{"a":1}')
+  })
+  it('null/undefined → 空串', () => {
+    expect(responseBodyToText(null)).toBe('')
+    expect(responseBodyToText(undefined)).toBe('')
   })
 })
 

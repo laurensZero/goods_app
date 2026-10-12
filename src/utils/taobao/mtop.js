@@ -264,6 +264,13 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, form
       // form 通道响应是 originaljson；GET 通道是 JSONP。unwrap 对两者都兼容
       parsed = unwrapMtopJsonp(body)
     } catch {
+      // 常见于 CapacitorHttp 把 JSON 解析成对象后又被字符串化成 [object Object]
+      logger.warn('parse-fail', {
+        api,
+        form,
+        len: body.length,
+        head: body.slice(0, 120),
+      })
       throw new TaobaoRequestError('PARSE', '响应不是合法 JSON')
     }
     const ret = String((parsed?.ret || [''])[0] || '')
