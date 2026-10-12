@@ -262,6 +262,8 @@
   "import.taobaoCartBlocked": "요청 제한 또는 차단이 발생했습니다. 잠시 후 다시 시도해 주세요",
   "import.taobaoCartFailed": "장바구니 가져오기 실패: {message}",
   "import.taobaoCartCount": "장바구니 {items}개 상품",
+  "import.taobaoCartCountTotal": "장바구니 {loaded} / {total}개 불러옴",
+  "import.taobaoOnlineLoaded": "{loaded} / {total}개 상품 불러옴 ({page}페이지)",
   "import.taobaoCartInvalid": "판매 종료",
   "import.taobaoRepick": "파일 다시 선택",
   "import.taobaoStep1": "Taobao 앱을 열고 '我的淘宝'으로 이동",

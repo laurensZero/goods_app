@@ -262,6 +262,8 @@
   "import.taobaoCartBlocked": "觸發風控攔截，請稍後再試",
   "import.taobaoCartFailed": "拉取購物車失敗：{message}",
   "import.taobaoCartCount": "購物車 {items} 件商品",
+  "import.taobaoCartCountTotal": "購物車已載入 {loaded} / {total} 件",
+  "import.taobaoOnlineLoaded": "已載入 {loaded} / {total} 件商品（第 {page} 頁）",
   "import.taobaoCartInvalid": "已失效",
   "import.taobaoRepick": "重新選择文件",
   "import.taobaoStep1": "打開淘宝 App，進入「我的淘宝」",

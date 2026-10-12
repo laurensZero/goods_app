@@ -262,6 +262,8 @@
   "import.taobaoCartBlocked": "レート制限またはブロックされました。しばらくしてから再試行してください",
   "import.taobaoCartFailed": "カート取得に失敗しました：{message}",
   "import.taobaoCartCount": "カート {items} 点の商品",
+  "import.taobaoCartCountTotal": "カート {loaded} / {total} 件を読み込み済み",
+  "import.taobaoOnlineLoaded": "{loaded} / {total} 件を読み込みました（{page} ページ目）",
   "import.taobaoCartInvalid": "利用不可",
   "import.taobaoRepick": "ファイルを再選択",
   "import.taobaoStep1": "Taobaoアプリを開き「我的淘宝」に移動",

@@ -181,6 +181,17 @@
             </li>
           </ul>
 
+          <div v-if="listSource === 'online'" class="load-more-bar">
+            <button v-if="onlineHasMore" class="load-more-btn" type="button"
+              :disabled="loadingMore" @click="handleLoadMore">
+              <span v-if="!loadingMore">{{ t('import.loadMore') }}</span>
+              <span v-else class="hub-spinner" />
+            </button>
+            <p v-if="onlineTotal" class="load-more-progress">
+              {{ t('import.taobaoOnlineLoaded', { loaded: allGoods.length, total: onlineTotal, page: onlinePage }) }}
+            </p>
+          </div>
+
           <!-- 底部按钮（在线拉取来源时不需要「重新选择文件」） -->
           <div class="bottom-bar">
             <button v-if="listSource !== 'online'" class="secondary-btn" type="button" @click="backToPick">
@@ -314,6 +325,10 @@ const listSource   = ref('file')
 const cookieReady = ref(false)
 const fetching    = ref(false)
 const fetchError  = ref('')
+const onlinePage  = ref(1)
+const onlineHasMore = ref(false)
+const onlineTotal = ref(0)
+const loadingMore = ref(false)
 
 async function refreshCookieReady() {
   try {
@@ -330,15 +345,22 @@ onMounted(refreshCookieReady)
 function applyParsedGoods(deduped, source = 'file') {
   rawGoods.value = deduped
   listSource.value = source
-  selectedSet.value = new Set(
-    deduped.filter(g => isItemSelectable(g)).map(g => g._itemKey)
-  )
+  // 默认不选中，由用户自行勾选
+  selectedSet.value = new Set()
   expandedSet.value = new Set()
+  if (source !== 'online') resetOnlinePaging()
   step.value = 'list'
+}
+
+function resetOnlinePaging() {
+  onlinePage.value = 1
+  onlineHasMore.value = false
+  onlineTotal.value = 0
 }
 
 function backToPick() {
   listSource.value = 'file'
+  resetOnlinePaging()
   step.value = 'pick'
 }
 
@@ -369,10 +391,10 @@ async function handleOnlineFetch() {
       fetchError.value = t('import.taobaoOnlineFetchEmpty')
       return
     }
+    onlinePage.value = result.page || 1
+    onlineHasMore.value = Boolean(result.hasMore)
+    onlineTotal.value = result.totalNum || 0
     applyParsedGoods(deduped, 'online')
-    if (result.hasMore) {
-      showGlobalToast(t('import.taobaoOnlineFetchMore', { total: result.totalNum }))
-    }
   } catch (err) {
     const code = err?.code || ''
     if (code === 'NO_COOKIE' || code === 'LOGIN_REQUIRED') {
@@ -387,6 +409,35 @@ async function handleOnlineFetch() {
     }
   } finally {
     fetching.value = false
+  }
+}
+
+/** 在线拉取下一页（按 _itemKey 去重后追加） */
+async function handleLoadMore() {
+  if (loadingMore.value) return
+  loadingMore.value = true
+  fetchError.value = ''
+  try {
+    const nextPage = onlinePage.value + 1
+    const result = await fetchTaobaoOrders({ page: nextPage })
+    const seen = new Set(rawGoods.value.map(g => g._itemKey))
+    const fresh = (result.goods || []).filter(item => {
+      if (seen.has(item._itemKey)) return false
+      seen.add(item._itemKey)
+      return true
+    })
+    if (fresh.length > 0) {
+      // 翻页新增项默认不选中
+      rawGoods.value = [...rawGoods.value, ...fresh]
+    }
+    onlinePage.value = result.page || nextPage
+    onlineHasMore.value = Boolean(result.hasMore) && fresh.length > 0
+    if (result.totalNum) onlineTotal.value = result.totalNum
+  } catch (err) {
+    console.warn('[taobao-import] load more failed', err)
+    showGlobalToast(t('import.loadMoreFailed'))
+  } finally {
+    loadingMore.value = false
   }
 }
 

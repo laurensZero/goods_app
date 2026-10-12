@@ -30,11 +30,15 @@ vi.mock('../service', () => {
 import { isTaobaoCookieReady, getTaobaoCookie } from '../cookie'
 import { mtopCall } from '../mtop'
 import { TaobaoRequestError } from '../request'
+import { gunzipSync, strFromU8 } from 'fflate'
 import {
   parseCartResponse,
   cartItemToGoods,
   fetchTaobaoCart,
   buildCartPayload,
+  mergeCartHierarchy,
+  buildCartPagePayload,
+  encodeCartParams,
   TAOBAO_CART_API,
 } from '../cart'
 
@@ -85,6 +89,22 @@ function makeBodyFixture() {
         },
         group_1: { tag: 'group', id: '1', fields: {} },
         header_1: { tag: 'header', id: '1', fields: {} },
+        global_1: { tag: 'global', id: '1', fields: {} },
+        extendBody_1: {
+          tag: 'extendBody',
+          id: '1',
+          hasMore: true,
+          fields: { attributes: { allItemCnt: 75 } },
+        },
+      },
+      linkage: {
+        input: ['global_1', 'extendBody_1'],
+        common: { desc: '购物车' },
+      },
+      endpoint: 'cartView',
+      hierarchy: {
+        root: 'global_1',
+        structure: { global_1: ['header_1', 'group_1'], group_1: ['item_665', 'item_664'] },
       },
     },
   }
@@ -189,5 +209,137 @@ describe('fetchTaobaoCart', () => {
 
     mtopCall.mockRejectedValueOnce(new TaobaoRequestError('BLOCKED', 'tmd'))
     await expect(fetchTaobaoCart()).rejects.toMatchObject({ code: 'BLOCKED' })
+  })
+})
+
+/** base64 → gunzip → JSON（模拟服务端解 params） */
+function decodeCartParams(base64) {
+  const bin = atob(base64)
+  const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0))
+  return JSON.parse(strFromU8(gunzipSync(bytes)))
+}
+
+describe('购物车翻页协议', () => {
+  it('首页载荷不带 params/feature，翻页载荷带 gzip feature + params', () => {
+    expect(buildCartPayload().params).toBeUndefined()
+    expect(buildCartPayload().feature).toBeUndefined()
+
+    const paging = buildCartPayload({ params: 'abc' })
+    expect(paging.params).toBe('abc')
+    expect(paging.feature).toBe('{"gzip":true}')
+    const ex = JSON.parse(paging.exParams)
+    expect(ex.iCheckedCartIds).toBe('')
+    expect(ex.tabFilterItem).toBe('')
+    expect(ex.filterItem).toBe('')
+    expect(ex.spiPage).toBe('pcTao')
+  })
+
+  it('mergeCartHierarchy：structure 数组去重拼接、标量取新值', () => {
+    const prev = {
+      root: 'global_1',
+      structure: { global_1: ['header_1', 'group_1'], group_1: ['item_1'] },
+    }
+    const next = {
+      root: 'global_1',
+      structure: { global_1: ['header_1', 'group_2'], group_1: ['item_1'], group_2: ['item_2'] },
+    }
+    const merged = mergeCartHierarchy(prev, next)
+    expect(merged.structure.global_1).toEqual(['header_1', 'group_1', 'group_2'])
+    expect(merged.structure.group_1).toEqual(['item_1'])
+    expect(merged.structure.group_2).toEqual(['item_2'])
+    // next 缺失时保留 prev；prev 缺失时用 next
+    expect(mergeCartHierarchy(prev, null)).toBe(prev)
+    expect(mergeCartHierarchy(null, next)).toBe(next)
+  })
+
+  it('encodeCartParams 产物可被 gunzip+JSON 解出 data/linkage/hierarchy', () => {
+    const fixture = makeBodyFixture()
+    const hierarchy = mergeCartHierarchy(null, fixture.data.hierarchy)
+    const payload = buildCartPagePayload(fixture, hierarchy)
+    const decoded = decodeCartParams(encodeCartParams(payload))
+
+    expect(Object.keys(decoded.data).sort()).toEqual(['extendBody_1', 'global_1'])
+    expect(decoded.data.global_1.elementId).toBe('global_1')
+    expect(decoded.linkage.input).toEqual(['global_1', 'extendBody_1'])
+    expect(decoded.endpoint).toBe('cartView')
+    expect(decoded.hierarchy).toEqual(hierarchy)
+  })
+
+  it('parseCartResponse 抽取 extendBody 的 hasMore / allItemCnt', () => {
+    const parsed = parseCartResponse(makeBodyFixture())
+    expect(parsed.hasMore).toBe(true)
+    expect(parsed.allItemCnt).toBe(75)
+
+    const noExtend = makeBodyFixture()
+    delete noExtend.data.data.extendBody_1
+    const parsed2 = parseCartResponse(noExtend)
+    expect(parsed2.hasMore).toBe(false)
+    expect(parsed2.allItemCnt).toBe(0)
+  })
+
+  it('fetchTaobaoCart 首页返回可续翻的 paging；翻页请求走 __customTag__=paging', async () => {
+    isTaobaoCookieReady.mockReturnValue(true)
+    getTaobaoCookie.mockResolvedValue('_m_h5_tk=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa_1')
+    mtopCall.mockResolvedValue(makeBodyFixture())
+
+    const first = await fetchTaobaoCart()
+    expect(first.hasMore).toBe(true)
+    expect(first.allItemCnt).toBe(75)
+    expect(first.paging).toBeTruthy()
+    const firstCall = mtopCall.mock.calls[0][0]
+    expect(firstCall.extraQuery).toEqual({ __customTag__: 'build', timeout: '6000' })
+    expect(firstCall.data.params).toBeUndefined()
+
+    // 第二页响应：只含新增 item，hierarchy 累计，hasMore 翻完
+    const page2 = makeBodyFixture()
+    page2.data.data = {
+      ...page2.data.data,
+      item_700: {
+        tag: 'item',
+        id: '700',
+        fields: {
+          cartId: '700',
+          itemId: '2000000000001',
+          title: '第二页新商品',
+          shopId: '151121773',
+          shopTitle: 'bilibili旗舰店',
+          quantity: 2,
+          pic: '//gw.alicdn.com/zzz.png',
+          pay: { now: 9900, nowTitle: '￥99' },
+          sku: { skuId: '0', title: '', skuMap: {} },
+          isInvalid: false,
+          outerUrl: '',
+        },
+      },
+      extendBody_1: { tag: 'extendBody', id: '1', hasMore: false, fields: { attributes: { allItemCnt: 75 } } },
+    }
+    delete page2.data.data.item_665
+    delete page2.data.data.item_664
+    page2.data.hierarchy = {
+      root: 'global_1',
+      structure: { global_1: ['group_1', 'group_2'], group_2: ['item_700'] },
+    }
+    mtopCall.mockResolvedValueOnce(page2)
+
+    const second = await fetchTaobaoCart({ paging: first.paging })
+    const secondCall = mtopCall.mock.calls[1][0]
+    expect(secondCall.extraQuery).toEqual({ __customTag__: 'paging', timeout: '12000' })
+    expect(secondCall.data.feature).toBe('{"gzip":true}')
+    // 请求里的 hierarchy 是「截至上一页」的累计态（不含本页新增）
+    const decoded = decodeCartParams(secondCall.data.params)
+    expect(decoded.hierarchy.structure.global_1).toEqual(['header_1', 'group_1'])
+    // 本次响应返回的下一页 paging 才包含本页新增后的累计 hierarchy
+    expect(second.paging.hierarchy.structure.global_1).toEqual(['header_1', 'group_1', 'group_2'])
+    expect(second.groups[0].goods).toHaveLength(1)
+    expect(second.groups[0].goods[0].name).toContain('第二页新商品')
+    expect(second.hasMore).toBe(false)
+
+    // 响应缺 hierarchy 时不再续翻
+    const noHierarchy = makeBodyFixture()
+    delete noHierarchy.data.hierarchy
+    mtopCall.mockResolvedValueOnce(noHierarchy)
+    const third = await fetchTaobaoCart({ paging: first.paging })
+    expect(third.paging).toBeNull()
+    expect(third.hasMore).toBe(true)
   })
 })

@@ -217,6 +217,56 @@
   }
 }
 
+/* ── 加载更多（订单翻页 / 购物车翻页） ───────────────────────── */
+.load-more-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* 底部留出固定 bottom-bar 的高度，保证按钮能滚到底栏上方不被盖住 */
+  padding: 16px 0 calc(84px + env(safe-area-inset-bottom));
+}
+
+.load-more-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
+  min-height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--radius-md, 12px);
+  background: var(--app-accent, #141416);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.load-more-btn:active:not(:disabled) {
+  transform: scale(0.985);
+  opacity: 0.9;
+}
+
+.load-more-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.load-more-progress {
+  margin: 0;
+  font-size: 12px;
+  color: var(--app-text-secondary);
+  text-align: center;
+}
+
+html.theme-dark .load-more-btn {
+  background: var(--app-accent, #f5f5f7);
+  color: #141416;
+}
+
 html.theme-dark .online-fetch-card {
   background: rgba(255, 255, 255, 0.06);
 }

@@ -262,6 +262,8 @@
   "import.taobaoCartBlocked": "Rate-limited or blocked. Please try again later",
   "import.taobaoCartFailed": "Cart fetch failed: {message}",
   "import.taobaoCartCount": "Cart · {items} items",
+  "import.taobaoCartCountTotal": "Cart · {loaded} / {total} loaded",
+  "import.taobaoOnlineLoaded": "Loaded {loaded} / {total} items (page {page})",
   "import.taobaoCartInvalid": "Unavailable",
   "import.taobaoRepick": "Re-select File",
   "import.taobaoStep1": "Open Taobao App, go to 'My Taobao'",

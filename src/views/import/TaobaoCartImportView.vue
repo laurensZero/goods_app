@@ -21,7 +21,7 @@
     <!-- 列表 -->
     <section v-else-if="view === 'list'" class="step-section step-section--list">
       <div class="list-header">
-        <p class="list-count">{{ t('import.taobaoCartCount', { items: totalItems }) }}</p>
+        <p class="list-count">{{ countText }}</p>
         <div class="list-header-actions">
           <button :class="['text-btn', isAllSelected && 'text-btn--active']"
             type="button" @click="selectAll">{{ t('common.selectAll') }}</button>
@@ -108,6 +108,13 @@
         </li>
       </ul>
 
+      <div v-if="hasMore && paging" class="load-more-bar">
+        <button class="load-more-btn" type="button" :disabled="loadingMore" @click="loadMoreCart">
+          <span v-if="!loadingMore">{{ t('import.loadMore') }}</span>
+          <span v-else class="hub-spinner" />
+        </button>
+      </div>
+
       <div class="bottom-bar bottom-bar--single">
         <button class="primary-btn" type="button"
           :disabled="selectedSet.size === 0 || importing" @click="doImport">
@@ -164,12 +171,21 @@ const expandedSet = ref(new Set())
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
 const importing = ref(false)
+const paging = ref(null)
+const hasMore = ref(false)
+const allItemCnt = ref(0)
+const loadingMore = ref(false)
 const isWishlistMode = computed(() => props.isWishlist)
 const doneTargetPath = computed(() => (isWishlistMode.value ? '/wishlist' : '/home'))
 const targetList = computed(() => (isWishlistMode.value ? store.wishlistList : store.collectionList))
 
 const totalItems = computed(() => groups.value.reduce((n, g) => n + g.goods.length, 0))
 const allGoods = computed(() => groups.value.flatMap((g) => g.goods))
+const countText = computed(() =>
+  allItemCnt.value > 0
+    ? t('import.taobaoCartCountTotal', { loaded: totalItems.value, total: allItemCnt.value })
+    : t('import.taobaoCartCount', { items: totalItems.value }),
+)
 
 function isSelectable(item) {
   return !isItemImported(item)
@@ -215,9 +231,11 @@ async function loadCart() {
       return
     }
     groups.value = filtered
-    selectedSet.value = new Set(
-      filtered.flatMap((g) => g.goods.filter(isSelectable).map((item) => item._itemKey))
-    )
+    // 默认不选中，由用户自行勾选
+    selectedSet.value = new Set()
+    paging.value = result.paging
+    hasMore.value = Boolean(result.hasMore && result.paging)
+    allItemCnt.value = result.allItemCnt
     // 默认展开第一家店铺，便于确认
     const first = filtered[0]
     expandedSet.value = new Set([first.shopId || first.shopName])
@@ -237,6 +255,50 @@ async function loadCart() {
     }
   } finally {
     fetching.value = false
+  }
+}
+
+async function loadMoreCart() {
+  if (loadingMore.value || !paging.value) return
+  loadingMore.value = true
+  try {
+    const result = await fetchTaobaoCart({ paging: paging.value })
+    const filtered = result.groups
+      .map((g) => ({ ...g, goods: g.goods.filter((item) => item.name) }))
+      .filter((g) => g.goods.length > 0)
+    // 去重合并：同一店铺 append，新店铺 append（分页响应只含新增行）
+    const seen = new Set(allGoods.value.map((g) => g._itemKey))
+    const byKey = new Map(groups.value.map((g) => [g.shopId || g.shopName, g]))
+    const next = groups.value.map((g) => ({ ...g, goods: [...g.goods] }))
+    let added = 0
+    for (const group of filtered) {
+      const key = group.shopId || group.shopName
+      let target = byKey.get(key)
+      if (!target) {
+        target = { shopId: group.shopId, shopName: group.shopName, goods: [] }
+        byKey.set(key, target)
+        next.push(target)
+      }
+      for (const item of group.goods) {
+        if (seen.has(item._itemKey)) continue
+        seen.add(item._itemKey)
+        target.goods.push(item)
+        added += 1
+      }
+    }
+    if (added > 0) {
+      groups.value = next.filter((g) => g.goods.length > 0)
+      // 翻页新增项同样默认不选中
+    }
+    paging.value = result.paging
+    // 无新商品或无下一页分页态时停止，防止空转
+    hasMore.value = Boolean(result.hasMore && result.paging && added > 0)
+    if (result.allItemCnt) allItemCnt.value = result.allItemCnt
+  } catch (err) {
+    console.warn('[taobao-cart-import] load more failed', err)
+    showGlobalToast(t('import.loadMoreFailed'))
+  } finally {
+    loadingMore.value = false
   }
 }
 
