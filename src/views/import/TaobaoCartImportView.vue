@@ -357,8 +357,8 @@ async function doImport() {
     importedTotalQty.value = toImport.reduce((s, g) => s + (g.quantity || 1), 0)
     // 同步角色/IP 预设（与米游铺购物车导入一致）
     await Promise.all([
-      ...new Set(toImport.map((g) => g.ip).filter(Boolean)).map((ip) => presets.addIp(ip)),
-      ...new Set(toImport.flatMap((g) => g.characters || [])).map((c) => presets.addCharacter(c)),
+      ...[...new Set(toImport.map((g) => g.ip).filter(Boolean))].map((ip) => presets.addIp(ip)),
+      ...[...new Set(toImport.flatMap((g) => g.characters || []))].map((c) => presets.addCharacter(c)),
     ])
     view.value = 'done'
   } catch (err) {
