@@ -42,13 +42,13 @@ export async function onRequest(context) {
       status: 204,
       headers: {
         'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET, OPTIONS',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
         'access-control-allow-headers': 'content-type, x-cookie-forward, x-taobao-origin, x-referer-forward',
         'access-control-max-age': '86400',
       },
     })
   }
-  if (request.method !== 'GET') {
+  if (request.method !== 'GET' && request.method !== 'POST') {
     return errorResponse(405, 'method not allowed')
   }
 
@@ -104,13 +104,25 @@ export async function onRequest(context) {
   }
   if (cookie) headers.Cookie = cookie
 
+  // POST（mtop 订单 form 接口）：透传 Content-Type 与请求体
+  let reqBody: ArrayBuffer | undefined
+  if (request.method === 'POST') {
+    headers['Content-Type'] = request.headers.get('content-type') || 'application/x-www-form-urlencoded'
+    reqBody = await request.arrayBuffer()
+  }
+
   let currentUrl = `${baseUrl}${suffix}${url.search}`
   try {
     for (let hop = 0; ; hop += 1) {
       if (hop > MAX_HOPS) {
         return errorResponse(502, 'too many redirects')
       }
-      const upstream = await fetch(currentUrl, { method: 'GET', headers, redirect: 'manual' })
+      const upstream = await fetch(currentUrl, {
+        method: request.method,
+        headers,
+        body: reqBody,
+        redirect: 'manual',
+      })
       const location = upstream.headers.get('location')
       const isRedirect = upstream.status >= 300 && upstream.status < 400 && location
       if (!isRedirect) {

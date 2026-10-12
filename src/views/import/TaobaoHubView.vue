@@ -207,6 +207,11 @@
         <TaobaoImportView embedded />
       </section>
 
+      <!-- ============ 购物车导入 ============ -->
+      <section v-if="activeTab === 'cart'" class="hub-panel hub-panel--order" role="tabpanel">
+        <TaobaoCartImportView :is-wishlist="entryIsWishlist" />
+      </section>
+
       <!-- ============ 搜索 ============ -->
       <section v-show="activeTab === 'search'" class="hub-panel" role="tabpanel">
         <ImportSearchCard
@@ -315,6 +320,7 @@ import ImportFormSection from '@/components/import/ImportFormSection.vue'
 import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
 import TaobaoImportView from '@/views/import/TaobaoImportView.vue'
+import TaobaoCartImportView from '@/views/import/TaobaoCartImportView.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import { useGoodsStore } from '@/stores/goods'
@@ -346,7 +352,11 @@ const entryIsWishlist = route.query.target === 'wishlist'
 
 const tabs = computed(() => [
   { key: 'link', label: t('import.taobaoTabLink') },
-  ...(entryIsWishlist ? [] : [{ key: 'order', label: t('import.taobaoTabOrder') }]),
+  // 订单导入仅收藏入口；购物车两入口都可用（心愿单 target=wishlist）
+  ...(entryIsWishlist ? [] : [
+    { key: 'order', label: t('import.taobaoTabOrder') },
+  ]),
+  { key: 'cart', label: t('import.taobaoTabCart') },
   { key: 'search', label: t('import.taobaoTabSearch'), badge: queueEntries.value.length > 0 ? String(queueEntries.value.length) : '' },
 ])
 const activeTab = ref('link')

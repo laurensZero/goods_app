@@ -37,12 +37,13 @@ export class TaobaoRequestError extends Error {
   }
 }
 
-function buildHeaders(cookie, referer) {
+function buildHeaders(cookie, referer, contentType) {
   const headers = {
     'User-Agent': TAOBAO_DESKTOP_UA,
     'Referer': referer || TAOBAO_REFERER,
     'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
   }
+  if (contentType) headers['Content-Type'] = contentType
   if (cookie) headers.Cookie = cookie
   return headers
 }
@@ -85,26 +86,50 @@ function logPageResponse(transport, url, startedAt, status, body) {
 }
 
 /**
- * GET 一个淘宝地址，返回文本与响应头
+ * 请求一个淘宝地址，返回文本与响应头（GET 或 POST）
  * @param {string} url 绝对地址（item.taobao.com 详情页、h5api.m.taobao.com mtop 接口）
- * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean}} [options]
+ * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, method?:'GET'|'POST', body?:string, contentType?:string}} [options]
  *   referer 覆盖默认 www.taobao.com（mtop 搜索需 s.taobao.com）
- *   preferProxy：原生端优先走远程代理（搜索网关必拦 OkHttp，先直连必失败一次）；
+ *   preferProxy：原生端优先走远程代理（搜索/交易网关必拦 OkHttp，先直连必失败一次）；
  *   代理失败仍回落直连，不会直接失败
+ *   method/body：POST 时 body 为请求体原文（mtop 订单接口用 form-urlencoded）
  * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
  *   headers：原生为 CapacitorHttp 响应头；Web 为代理回传的 x-upstream-set-cookie（mtop 换 token 用）
  */
 export async function taobaoPageGet(url, options = {}) {
+  return taobaoPageRequest(url, { ...options, method: 'GET' })
+}
+
+/**
+ * POST 一个淘宝地址（mtop 订单等 form 接口），协议与 taobaoPageGet 一致
+ * @param {string} url
+ * @param {{cookie?:string, timeoutMs?:number, referer?:string, preferProxy?:boolean, body?:string, contentType?:string}} options
+ * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
+ */
+export async function taobaoPagePost(url, options = {}) {
+  return taobaoPageRequest(url, {
+    ...options,
+    method: 'POST',
+    body: options.body ?? '',
+    contentType: options.contentType || 'application/x-www-form-urlencoded',
+  })
+}
+
+async function taobaoPageRequest(url, options = {}) {
   const cookie = options.cookie ?? (await getTaobaoCookie())
   const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS
   const referer = options.referer || ''
+  const method = (options.method || 'GET').toUpperCase()
+  const body = options.body ?? ''
+  const contentType = options.contentType || ''
   const startedAt = Date.now()
   const transport = Capacitor.isNativePlatform() ? 'native' : 'proxy'
+  const requestHeaders = buildHeaders(cookie, referer, contentType)
 
   if (Capacitor.isNativePlatform()) {
-    // 已知必拦的接口（搜索）优先走代理，代理挂了才回落直连
+    // 已知必拦的接口（搜索/订单列表）优先走代理，代理挂了才回落直连
     if (options.preferProxy) {
-      const viaProxy = await remoteProxyGet(url, cookie, referer, timeoutMs)
+      const viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
       if (viaProxy) return viaProxy
     }
     let timer
@@ -112,8 +137,9 @@ export async function taobaoPageGet(url, options = {}) {
       const response = await Promise.race([
         CapacitorHttp.request({
           url,
-          method: 'GET',
-          headers: buildHeaders(cookie, referer),
+          method,
+          headers: requestHeaders,
+          data: method === 'POST' ? body : undefined,
           connectTimeout: timeoutMs,
           readTimeout: timeoutMs,
         }),
@@ -122,18 +148,17 @@ export async function taobaoPageGet(url, options = {}) {
         }),
       ])
       const status = Number(response.status || 0)
-      const body = typeof response.data === 'string' ? response.data : String(response.data ?? '')
-      logPageResponse(transport, url, startedAt, status, body)
-      if (body.includes('_____tmd_____')) {
-        // OkHttp TLS 指纹可能被搜索网关硬拦（软拒走 mtop.js 的 lean/令牌流程管不到这里）→
-        // 先直连试一次，被拦再改走自家 Cloudflare 代理，taobao 侧看到的是 CF 出站连接
-        const fallback = await remoteProxyGet(url, cookie, referer, timeoutMs)
+      const respBody = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+      logPageResponse(transport, url, startedAt, status, respBody)
+      if (respBody.includes('_____tmd_____')) {
+        // OkHttp TLS 指纹可能被搜索/交易网关硬拦 → 先直连试一次，被拦再改走自家 CF 代理
+        const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
         if (fallback) return fallback
       }
-      return { status, body, headers: response.headers || {} }
+      return { status, body: respBody, headers: response.headers || {} }
     } catch (error) {
-      // 直连本身失败（超时/连接被掐，而非拿到 tmd 挑战页）→ 也走 CF 代理兜底
-      const fallback = await remoteProxyGet(url, cookie, referer, timeoutMs)
+      // 直连本身失败（超时/连接被掐）→ 也走 CF 代理兜底
+      const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType)
       if (fallback) return fallback
       if (error instanceof TaobaoRequestError) {
         logger.warn('page-error', { transport, host: safeHost(url), code: error.code, message: error.message })
@@ -152,16 +177,19 @@ export async function taobaoPageGet(url, options = {}) {
   try {
     const target = new URL(url)
     const localUrl = `${PAGE_PROXY_PREFIX}${target.pathname}${target.search}`
+    const webHeaders = toWebHeaders(cookie, referer, target)
+    if (contentType) webHeaders['content-type'] = contentType
     const response = await fetch(localUrl, {
-      method: 'GET',
-      headers: toWebHeaders(cookie, referer, target),
+      method,
+      headers: webHeaders,
+      body: method === 'POST' ? body : undefined,
       signal: controller.signal,
     })
-    const body = await response.text()
-    logPageResponse(transport, url, startedAt, response.status, body)
+    const respBody = await response.text()
+    logPageResponse(transport, url, startedAt, response.status, respBody)
     return {
       status: response.status,
-      body,
+      body: respBody,
       headers: { 'x-upstream-set-cookie': response.headers.get('x-upstream-set-cookie') || '' },
     }
   } catch (error) {
@@ -189,17 +217,20 @@ function safeHost(url) {
  * （goodsapp.de5.net/taobao-page，协议同 Vite 中间件）。
  * 代理不可用/仍被拦时返回 null，由调用方回落直连响应。
  */
-async function remoteProxyGet(url, cookie, referer, timeoutMs) {
+async function remoteProxyRequest(url, cookie, referer, timeoutMs, method = 'GET', body = '', contentType = '') {
   const startedAt = Date.now()
   const transport = 'native-cf'
   let timer
   try {
     const target = new URL(url)
+    const headers = toWebHeaders(cookie, referer, target)
+    if (contentType) headers['content-type'] = contentType
     const response = await Promise.race([
       CapacitorHttp.request({
         url: `${AUTH_WEB_ORIGIN}/taobao-page${target.pathname}${target.search}`,
-        method: 'GET',
-        headers: toWebHeaders(cookie, referer, target),
+        method,
+        headers,
+        data: method === 'POST' ? body : undefined,
         connectTimeout: timeoutMs,
         readTimeout: timeoutMs,
       }),
@@ -208,11 +239,11 @@ async function remoteProxyGet(url, cookie, referer, timeoutMs) {
       }),
     ])
     const status = Number(response.status || 0)
-    const body = typeof response.data === 'string' ? response.data : String(response.data ?? '')
-    logPageResponse(transport, url, startedAt, status, body)
+    const respBody = typeof response.data === 'string' ? response.data : String(response.data ?? '')
+    logPageResponse(transport, url, startedAt, status, respBody)
     // 代理自身报错/上游仍硬拦 → 交给调用方回落直连响应
-    if (status >= 400 || body.includes('_____tmd_____')) return null
-    return { status, body, headers: response.headers || {} }
+    if (status >= 400 || respBody.includes('_____tmd_____')) return null
+    return { status, body: respBody, headers: response.headers || {} }
   } catch (error) {
     logger.warn('page-error', {
       transport,

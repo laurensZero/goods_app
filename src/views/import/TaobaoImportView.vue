@@ -31,6 +31,22 @@
 
           <p v-if="parseError" class="field-error field-error--block">{{ parseError }}</p>
 
+          <!-- 在线拉取（Cookie 就绪时优先推荐；未就绪也显示入口，点击后提示去粘贴 Cookie） -->
+          <div class="online-fetch-card">
+            <div class="online-fetch-head">
+              <p class="info-title">{{ t('import.taobaoOnlineFetchTitle') }}</p>
+              <p class="online-fetch-desc">
+                {{ cookieReady ? t('import.taobaoOnlineFetchHint') : t('import.taobaoOnlineFetchNeedCookie') }}
+              </p>
+            </div>
+            <p v-if="fetchError" class="field-error">{{ fetchError }}</p>
+            <button class="online-fetch-btn" type="button" :disabled="fetching" @click="handleOnlineFetch">
+              <span v-if="!fetching">{{ t('import.taobaoOnlineFetchBtn') }}</span>
+              <span v-else class="hub-spinner" />
+            </button>
+            <p v-if="fetching" class="online-fetch-status">{{ t('import.taobaoOnlineFetching') }}</p>
+          </div>
+
           <div class="file-pick-area" @click="triggerFilePick" @dragover.prevent @drop.prevent="onDrop">
             <svg class="file-pick-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -85,7 +101,7 @@
 
                 <!-- 首件缩略图 -->
                 <div class="order-thumb" @click="toggleExpand(po.orderNo)">
-                  <img v-if="po.goods[0]?._coverUrl" :src="po.goods[0]._coverUrl" class="thumb-img" loading="lazy" />
+                  <img v-if="orderThumbSrc(po)" :src="orderThumbSrc(po)" class="thumb-img" loading="lazy" />
                   <span v-else class="thumb-initial">{{ (po.goods[0]?.name || '?').charAt(0) }}</span>
                 </div>
 
@@ -133,8 +149,7 @@
                       </div>
                     </div>
                     <div class="order-thumb order-thumb--sm">
-                      <img v-if="item.image" :src="item.image" class="thumb-img" loading="lazy" />
-                      <img v-else-if="item._coverUrl" :src="item._coverUrl" class="thumb-img" loading="lazy" />
+                      <img v-if="itemThumbSrc(item)" :src="itemThumbSrc(item)" class="thumb-img" loading="lazy" />
                       <span v-else class="thumb-initial">{{ (item.name || '?').charAt(0) }}</span>
                     </div>
                     <div class="order-info">
@@ -166,9 +181,9 @@
             </li>
           </ul>
 
-          <!-- 底部按钮 -->
+          <!-- 底部按钮（在线拉取来源时不需要「重新选择文件」） -->
           <div class="bottom-bar">
-            <button class="secondary-btn" type="button" @click="step = 'pick'">
+            <button v-if="listSource !== 'online'" class="secondary-btn" type="button" @click="backToPick">
               {{ t('import.taobaoRepick') }}
             </button>
             <button class="primary-btn" type="button"
@@ -257,12 +272,14 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch } from 'vue'
+import { ref, computed, reactive, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { showGlobalToast } from '@/utils/globalToast'
 import { parseTaobaoXlsx } from '@/utils/import/taobao'
+import { fetchTaobaoOrders } from '@/utils/taobao/orders'
+import { getTaobaoCookie, isTaobaoCookieReady } from '@/utils/taobao/cookie'
 import { buildGoodsIdentityKey } from '@/utils/goods/identity'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -290,6 +307,88 @@ const expandedSet  = ref(new Set())
 const selectedSet  = ref(new Set())
 const importedCount    = ref(0)
 const importedTotalQty = ref(0)
+/** list 步骤来源：file=订单文件，在线拉取时不显示「重新选择文件」 */
+const listSource   = ref('file')
+
+// ── 在线拉取 ───────────────────────────────────────────────────
+const cookieReady = ref(false)
+const fetching    = ref(false)
+const fetchError  = ref('')
+
+async function refreshCookieReady() {
+  try {
+    const cookie = await getTaobaoCookie()
+    cookieReady.value = isTaobaoCookieReady(cookie)
+  } catch {
+    cookieReady.value = false
+  }
+}
+
+onMounted(refreshCookieReady)
+
+/** 把解析结果送入与文件导入相同的 list 步骤 */
+function applyParsedGoods(deduped, source = 'file') {
+  rawGoods.value = deduped
+  listSource.value = source
+  selectedSet.value = new Set(
+    deduped.filter(g => isItemSelectable(g)).map(g => g._itemKey)
+  )
+  expandedSet.value = new Set()
+  step.value = 'list'
+}
+
+function backToPick() {
+  listSource.value = 'file'
+  step.value = 'pick'
+}
+
+function orderThumbSrc(po) {
+  return po.goods.find(g => g.image || g._coverUrl)?.image
+    || po.goods.find(g => g._coverUrl)?._coverUrl
+    || ''
+}
+
+function itemThumbSrc(item) {
+  return item.image || item._coverUrl || ''
+}
+
+async function handleOnlineFetch() {
+  if (fetching.value) return
+  fetching.value = true
+  fetchError.value = ''
+  await refreshCookieReady()
+  try {
+    const result = await fetchTaobaoOrders({ page: 1 })
+    const seenKeys = new Set()
+    const deduped = (result.goods || []).filter(item => {
+      if (seenKeys.has(item._itemKey)) return false
+      seenKeys.add(item._itemKey)
+      return true
+    })
+    if (deduped.length === 0) {
+      fetchError.value = t('import.taobaoOnlineFetchEmpty')
+      return
+    }
+    applyParsedGoods(deduped, 'online')
+    if (result.hasMore) {
+      showGlobalToast(t('import.taobaoOnlineFetchMore', { total: result.totalNum }))
+    }
+  } catch (err) {
+    const code = err?.code || ''
+    if (code === 'NO_COOKIE' || code === 'LOGIN_REQUIRED') {
+      fetchError.value = t('import.taobaoOnlineFetchNeedCookie')
+      cookieReady.value = false
+    } else if (code === 'BLOCKED') {
+      fetchError.value = t('import.taobaoOnlineFetchBlocked')
+    } else {
+      fetchError.value = err?.message
+        ? t('import.taobaoOnlineFetchFailed', { message: err.message })
+        : t('import.taobaoOnlineFetchFailed', { message: code || 'network' })
+    }
+  } finally {
+    fetching.value = false
+  }
+}
 
 // ── 编辑状态 ─────────────────────────────────────────────────
 const showEditSheet = ref(false)
@@ -456,13 +555,7 @@ async function parseFiles(files) {
       parseError.value = t('import.taobaoNoData')
       return
     }
-    rawGoods.value = deduped
-    // 默认全选可导入商品
-    selectedSet.value = new Set(
-      deduped.filter(g => isItemSelectable(g)).map(g => g._itemKey)
-    )
-    expandedSet.value = new Set()
-    step.value = 'list'
+    applyParsedGoods(deduped, 'file')
   } catch (err) {
     parseError.value = err.message || t('import.fileParseFailed')
   }

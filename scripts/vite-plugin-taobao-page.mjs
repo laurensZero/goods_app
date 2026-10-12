@@ -38,11 +38,13 @@ function isAllowedHost(hostname) {
  * @param {string} urlString
  * @param {Record<string, string>} headers
  * @param {import('http').ServerResponse} clientRes
+ * @param {string} [method]
+ * @param {Buffer} [body]
  * @returns {Promise<{status:number, headers:import('http').IncomingHttpHeaders, body:Buffer}>}
  */
-function requestOnce(urlString, headers, clientRes) {
+function requestOnce(urlString, headers, clientRes, method = 'GET', body) {
   return new Promise((resolve, reject) => {
-    const request = https.request(urlString, { method: 'GET', headers, agent }, (upstream) => {
+    const request = https.request(urlString, { method, headers, agent }, (upstream) => {
       /** @type {Buffer[]} */
       const chunks = []
       upstream.on('data', (chunk) => chunks.push(chunk))
@@ -63,7 +65,19 @@ function requestOnce(urlString, headers, clientRes) {
       if (!request.destroyed) request.destroy()
     })
     request.on('error', reject)
+    if (body && body.length > 0) request.write(body)
     request.end()
+  })
+}
+
+/** 读完整请求体（POST mtop form 等） */
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    /** @type {Buffer[]} */
+    const chunks = []
+    req.on('data', (chunk) => chunks.push(chunk))
+    req.on('end', () => resolve(Buffer.concat(chunks)))
+    req.on('error', reject)
   })
 }
 
@@ -74,9 +88,17 @@ export function taobaoPagePlugin() {
     configureServer(server) {
       server.middlewares.use('/taobao-page', async (req, res) => {
         try {
+          const method = (req.method || 'GET').toUpperCase()
+          if (method !== 'GET' && method !== 'POST') {
+            res.statusCode = 405
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.end('taobao page proxy: method not allowed')
+            return
+          }
           const fwd = req.headers['x-cookie-forward']
           const cookie = fwd ? decodeURIComponent(String(fwd)) : ''
           const suffix = req.url || '/'
+          const reqBody = method === 'POST' ? await readRequestBody(req) : undefined
 
           // 目标源：默认 PC 详情页；mtop 接口经 x-taobao-origin 指定 h5api.m.taobao.com
           let baseUrl = 'https://item.taobao.com'
@@ -120,6 +142,12 @@ export function taobaoPagePlugin() {
             // 不设 Accept-Encoding：由 https 模块原样透传/按 content-encoding 解压
           }
           if (cookie) headers.Cookie = cookie
+          if (method === 'POST') {
+            // mtop form 接口：Content-Type 由客户端透传（缺省 form-urlencoded）
+            const ct = req.headers['content-type']
+            headers['Content-Type'] = String(ct || 'application/x-www-form-urlencoded')
+            if (reqBody) headers['Content-Length'] = String(reqBody.length)
+          }
 
           let currentUrl = `${baseUrl}${suffix}`
           for (let hop = 0; ; hop++) {
@@ -129,7 +157,7 @@ export function taobaoPagePlugin() {
               res.end('taobao page proxy: too many redirects')
               return
             }
-            const upstream = await requestOnce(currentUrl, headers, res)
+            const upstream = await requestOnce(currentUrl, headers, res, method, reqBody)
             const location = upstream.headers.location
             const isRedirect = upstream.status >= 300 && upstream.status < 400 && location
             if (!isRedirect) {

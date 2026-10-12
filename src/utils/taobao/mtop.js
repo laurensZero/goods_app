@@ -15,7 +15,7 @@
 import { md5 } from '@/utils/md5'
 import { createLogger } from '@/utils/logger'
 import { getTaobaoCookie, setTaobaoCookie } from './cookie'
-import { TaobaoRequestError, taobaoPageGet } from './request'
+import { TaobaoRequestError, taobaoPageGet, taobaoPagePost } from './request'
 
 const logger = createLogger('taobao:mtop')
 
@@ -53,6 +53,52 @@ export function tokenFromCookie(cookie) {
   if (!matches || matches.length === 0) return ''
   const last = matches[matches.length - 1]
   return last.replace(/^(?:;\s*)_m_h5_tk=/, '').trim()
+}
+
+/**
+ * 拼 mtop POST form 请求 URL（订单列表等交易接口）
+ *
+ * 真实 buyertrade.taobao.com「已买到的宝贝」页请求形态（2026-10-12 抓包）：
+ *   POST h5api.m.taobao.com/h5/{api}/{v}/?jsv&appKey&t&sign&v&ecode=1&timeout
+ *        &dataType=json&valueType=original&ttid=1@tbwang_windows_1.0.0#pc
+ *        &needLogin=true&type=originaljson&isHttps=1&needRetry=true&api&preventFallback=true
+ *   body: data=<紧凑 JSON>（application/x-www-form-urlencoded）
+ *   响应为 originaljson（无 JSONP 包装）
+ *
+ * @param {string} api
+ * @param {string} v
+ * @param {string} payload 紧凑 JSON（未编码），放在 POST body 而非 query
+ * @param {string} t 毫秒时间戳
+ * @param {string} sign 无 token 领取时传 ''（免签）
+ * @param {{ttid?:string, extraQuery?:Record<string,string>}} [options]
+ * @returns {string}
+ */
+export function buildMtopFormUrl(api, v, payload, t, sign, options = {}) {
+  const { ttid = '1@tbwang_windows_1.0.0#pc', extraQuery } = options
+  const params = new URLSearchParams()
+  params.set('jsv', '2.7.2')
+  params.set('appKey', APP_KEY)
+  params.set('t', t)
+  if (sign) params.set('sign', sign)
+  params.set('v', v)
+  params.set('ecode', '1')
+  params.set('timeout', '8000')
+  params.set('dataType', 'json')
+  params.set('valueType', 'original')
+  params.set('ttid', ttid)
+  params.set('needLogin', 'true')
+  params.set('type', 'originaljson')
+  params.set('isHttps', '1')
+  params.set('needRetry', 'true')
+  params.set('api', api)
+  params.set('preventFallback', 'true')
+  if (extraQuery) {
+    for (const [key, value] of Object.entries(extraQuery)) {
+      params.set(key, value)
+    }
+  }
+  // data 只放 body，query 不带（与真实请求一致；sign 仍按 payload 原文计算）
+  return `${MTOP_ORIGIN}/h5/${api}/${v}/?${params.toString()}`
 }
 
 /**
@@ -102,12 +148,14 @@ export function buildMtopUrl(api, v, payload, t, sign, options = {}) {
 }
 
 /**
- * 去掉 JSONP 包装并解析
+ * 去掉 JSONP 包装并解析（兼容 originaljson 纯 JSON 响应）
  * @param {string} text
  * @returns {Record<string, any>}
  */
 export function unwrapMtopJsonp(text) {
-  const raw = String(text || '')
+  const raw = String(text || '').trim()
+  // originaljson（订单 form 接口）：纯 JSON，不能按括号剥（JSON 字符串里可能含 '('）
+  if (raw.startsWith('{') || raw.startsWith('[')) return JSON.parse(raw)
   const start = raw.indexOf('(')
   const end = raw.lastIndexOf(')')
   const json = start >= 0 && end > start ? raw.slice(start + 1, end) : raw
@@ -151,8 +199,10 @@ function isRateLimited(ret) {
 /**
  * 调一次 mtop 接口并返回解析后的 JSON（带诊断日志：结果 ret / 耗时进反馈日志缓冲）
  *
- * @param {{api:string, v:string, data:Record<string, any>, referer?:string, cookie?:string, lean?:boolean, extraQuery?:Record<string,string>}} options
+ * @param {{api:string, v:string, data:Record<string, any>, referer?:string, cookie?:string, lean?:boolean, form?:boolean, preferProxy?:boolean, extraQuery?:Record<string,string>}} options
  *   lean：精简 URL（搜索等严风控接口用，见 buildMtopUrl 注释）
+ *   form：POST form + originaljson（订单列表等交易接口，见 buildMtopFormUrl）
+ *   preferProxy：原生端优先走远程代理（交易网关常拦 OkHttp）
  * @returns {Promise<Record<string, any>>} 含 ret / data 的响应体（ret 以 SUCCESS 开头）
  * @throws {TaobaoRequestError} BLOCKED 风控 / TOKEN 领取失败 / HTTP / PARSE / FAIL 业务失败 / NETWORK
  */
@@ -160,7 +210,7 @@ export async function mtopCall(options) {
   const startedAt = Date.now()
   try {
     const result = await mtopCallInner(options)
-    logger.info('ok', { api: options.api, ms: Date.now() - startedAt })
+    logger.info('ok', { api: options.api, ms: Date.now() - startedAt, form: Boolean(options.form) })
     return result
   } catch (error) {
     logger.warn('fail', {
@@ -168,17 +218,18 @@ export async function mtopCall(options) {
       ms: Date.now() - startedAt,
       code: error?.code || '',
       message: error?.message || '',
+      form: Boolean(options?.form),
     })
     throw error
   }
 }
 
-async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extraQuery }) {
+async function mtopCallInner({ api, v, data, referer, cookie, lean = false, form = false, preferProxy, extraQuery }) {
   const payload = JSON.stringify(data)
-  const urlOptions = { lean, extraQuery }
-  // lean 接口（搜索）在原生端必被 tmd 硬拦（OkHttp 指纹）→ 优先走远程代理，
-  // 不再先付一次直连失败；详情等宽松接口保持直连
-  const transportOptions = lean ? { preferProxy: true } : {}
+  // lean 接口（搜索）与 form 交易接口在原生端常被 tmd 硬拦（OkHttp 指纹）→
+  // 优先走远程代理，不再先付一次直连失败；详情等宽松接口保持直连
+  const useProxy = preferProxy === true || lean || form
+  const transportOptions = useProxy ? { preferProxy: true } : {}
   let attemptCookie = cookie ?? (await getTaobaoCookie())
   if (!attemptCookie) throw new TaobaoRequestError('NETWORK', 'cookie missing')
 
@@ -188,8 +239,21 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extr
     const t = String(Date.now())
     const token = tokenFromCookie(attemptCookie)
     const sign = token ? md5(`${token.split('_')[0]}&${t}&${APP_KEY}&${payload}`) : ''
-    const url = buildMtopUrl(api, v, payload, t, sign, urlOptions)
-    const response = await taobaoPageGet(url, { cookie: attemptCookie, referer, ...transportOptions })
+
+    const url = form
+      ? buildMtopFormUrl(api, v, payload, t, sign, { extraQuery })
+      : buildMtopUrl(api, v, payload, t, sign, { lean, extraQuery })
+    const send = form
+      ? (sendUrl, sendCookie) => taobaoPagePost(sendUrl, {
+        cookie: sendCookie,
+        referer,
+        body: `data=${encodeURIComponent(payload)}`,
+        contentType: 'application/x-www-form-urlencoded',
+        ...transportOptions,
+      })
+      : (sendUrl, sendCookie) => taobaoPageGet(sendUrl, { cookie: sendCookie, referer, ...transportOptions })
+
+    const response = await send(url, attemptCookie)
 
     const body = String(response.body || '')
     if (body.includes('_____tmd_____')) throw new TaobaoRequestError('BLOCKED', '风控挑战')
@@ -197,9 +261,10 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extr
 
     let parsed
     try {
+      // form 通道响应是 originaljson；GET 通道是 JSONP。unwrap 对两者都兼容
       parsed = unwrapMtopJsonp(body)
     } catch {
-      throw new TaobaoRequestError('PARSE', '响应不是合法 JSONP')
+      throw new TaobaoRequestError('PARSE', '响应不是合法 JSON')
     }
     const ret = String((parsed?.ret || [''])[0] || '')
 
@@ -211,12 +276,23 @@ async function mtopCallInner({ api, v, data, referer, cookie, lean = false, extr
         attempt: tries + 1,
         tokenLen: token.length,
         signed: Boolean(sign),
+        form,
       })
       if (tries >= 1) throw new TaobaoRequestError('TOKEN', ret)
       // 免签请求重领 token：读 Set-Cookie 合并后重签再试
       await pace()
-      const refreshUrl = buildMtopUrl(api, v, payload, String(Date.now()), '', urlOptions)
-      const refreshRes = await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer, ...transportOptions })
+      const refreshUrl = form
+        ? buildMtopFormUrl(api, v, payload, String(Date.now()), '', { extraQuery })
+        : buildMtopUrl(api, v, payload, String(Date.now()), '', { lean, extraQuery })
+      const refreshRes = form
+        ? await taobaoPagePost(refreshUrl, {
+          cookie: attemptCookie,
+          referer,
+          body: `data=${encodeURIComponent(payload)}`,
+          contentType: 'application/x-www-form-urlencoded',
+          ...transportOptions,
+        })
+        : await taobaoPageGet(refreshUrl, { cookie: attemptCookie, referer, ...transportOptions })
       const merged = mergeMtopTokenCookie(attemptCookie, readUpstreamSetCookie(refreshRes.headers))
       if (!merged) {
         logger.warn('token-refresh-empty', { api, headers: Object.keys(refreshRes.headers || {}).join(',') })
