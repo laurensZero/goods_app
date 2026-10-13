@@ -13,10 +13,11 @@
  *
  * 会话期间的 Cookie 保存在内存罐里，不写入持久化存储；
  * 成功后调用方把 complete() 返回的 cookie 交给 saveTaobaoCookie。
- * 全程 preferProxy：qrlogin/login 域对 OkHttp 指纹敏感，Web/原生都走 /taobao-page 代理。
+ * 全程 proxyOnly：qrlogin/login 域对 OkHttp 指纹敏感，且登录依赖多条 Set-Cookie
+ * （原生直连会被 OkHttp 折叠丢失），Web/原生都强制走 /taobao-page 代理。
  */
 import { createLogger } from '@/utils/logger'
-import { TaobaoRequestError, taobaoPageGet, taobaoPagePost } from './request'
+import { TaobaoRequestError, isNativeTransport, taobaoPageGet, taobaoPagePost } from './request'
 import { readUpstreamSetCookieList, mergeSetCookieIntoJar } from './setCookie'
 import { buildMtopUrl, mergeMtopTokenCookie } from './mtop'
 
@@ -158,7 +159,7 @@ export function createTaobaoQrLoginSession() {
       cookie: jar,
       referer: LOGIN_JHTML,
       accept: '*/*',
-      preferProxy: true,
+      proxyOnly: true,
     })
     if (response.status >= 400) {
       throw new TaobaoQrLoginError('HTTP', `HTTP ${response.status}`)
@@ -194,7 +195,7 @@ export function createTaobaoQrLoginSession() {
       cookie: jar,
       referer: LOGIN_JHTML,
       accept: '*/*',
-      preferProxy: true,
+      proxyOnly: true,
     })
     if (response.status >= 400) {
       throw new TaobaoQrLoginError('HTTP', `HTTP ${response.status}`)
@@ -229,7 +230,7 @@ export function createTaobaoQrLoginSession() {
       cookie: jar,
       referer: LOGIN_JHTML,
       accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-      preferProxy: true,
+      proxyOnly: true,
     })
     if (shellRes.status >= 400) {
       throw new TaobaoQrLoginError('HTTP', `壳页 HTTP ${shellRes.status}`)
@@ -247,6 +248,10 @@ export function createTaobaoQrLoginSession() {
       params.set(String(key), String(value))
     }
     const apiUrl = `${LOGIN_ORIGIN}${NEWLOGIN_PATH}?_bx-v=2.5.37`
+    // newlogin 从 CF 机房 IP 发会被风控弹 login_unusual（2026-10-13 实测），
+    // 必须走设备自己的网络直连；Android 端 CapacitorHttp 以 ", " 拼接多条
+    // Set-Cookie，setCookie.js 的 legacy 解析器正好能安全切分。
+    // Web 端浏览器无法跨域直连 login.taobao.com，只能继续走同源代理。
     const apiRes = await taobaoPagePost(apiUrl, {
       cookie: jar,
       referer: target,
@@ -254,7 +259,8 @@ export function createTaobaoQrLoginSession() {
       accept: 'application/json, text/plain, */*',
       body: params.toString(),
       contentType: 'application/x-www-form-urlencoded',
-      preferProxy: true,
+      bxv: '2.5.37',
+      ...(isNativeTransport() ? { direct: true } : { proxyOnly: true }),
     })
     if (apiRes.status >= 400) {
       throw new TaobaoQrLoginError('HTTP', `newlogin HTTP ${apiRes.status}`)
@@ -282,7 +288,7 @@ export function createTaobaoQrLoginSession() {
       const primeRes = await taobaoPageGet(primeUrl, {
         cookie: jar,
         referer: `${LOGIN_ORIGIN}/`,
-        preferProxy: true,
+        proxyOnly: true,
       })
       const lines = readUpstreamSetCookieList(primeRes.headers)
       const merged = mergeMtopTokenCookie(jar, lines.join('\n'))

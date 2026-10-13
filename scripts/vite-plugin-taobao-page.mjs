@@ -163,6 +163,9 @@ export function taobaoPagePlugin() {
             }
           }
           if (cookie) headers.Cookie = cookie
+          // newlogin 登录接口的版本头（浏览器实测必带）
+          const bxvFwd = req.headers['x-bxv-forward']
+          if (bxvFwd) headers['bx-v'] = String(bxvFwd)
           if (method === 'POST') {
             // mtop form / newlogin 接口：Content-Type 由客户端透传（缺省 form-urlencoded）
             const ct = req.headers['content-type']

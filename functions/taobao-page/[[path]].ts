@@ -46,7 +46,7 @@ export async function onRequest(context) {
       headers: {
         'access-control-allow-origin': '*',
         'access-control-allow-methods': 'GET, POST, OPTIONS',
-        'access-control-allow-headers': 'content-type, x-cookie-forward, x-taobao-origin, x-referer-forward, x-origin-forward, x-accept-forward',
+        'access-control-allow-headers': 'content-type, x-cookie-forward, x-taobao-origin, x-referer-forward, x-origin-forward, x-accept-forward, x-bxv-forward',
         'access-control-max-age': '86400',
       },
     })
@@ -129,6 +129,9 @@ export async function onRequest(context) {
   }
   if (requestOrigin) headers.Origin = requestOrigin
   if (cookie) headers.Cookie = cookie
+  // newlogin 登录接口的版本头（浏览器实测必带）
+  const bxvFwd = request.headers.get('x-bxv-forward')
+  if (bxvFwd) headers['bx-v'] = bxvFwd
 
   // POST（mtop 订单 form 接口）：透传 Content-Type 与请求体
   let reqBody: ArrayBuffer | undefined

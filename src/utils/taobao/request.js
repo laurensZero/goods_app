@@ -47,6 +47,8 @@ function buildHeaders(cookie, referer, contentType, extra = {}) {
   if (cookie) headers.Cookie = cookie
   if (extra.origin) headers.Origin = extra.origin
   if (extra.accept) headers.Accept = extra.accept
+  // newlogin 登录接口的版本头（浏览器实测必带）
+  if (extra.bxv) headers['bx-v'] = extra.bxv
   return headers
 }
 
@@ -61,6 +63,7 @@ function toWebHeaders(cookie, referer, target, extra = {}) {
   if (referer) headers['x-referer-forward'] = encodeURIComponent(referer)
   if (extra.origin) headers['x-origin-forward'] = encodeURIComponent(extra.origin)
   if (extra.accept) headers['x-accept-forward'] = encodeURIComponent(extra.accept)
+  if (extra.bxv) headers['x-bxv-forward'] = extra.bxv
   return headers
 }
 
@@ -98,6 +101,9 @@ function logPageResponse(transport, url, startedAt, status, body) {
  *   代理失败仍回落直连，不会直接失败
  *   method/body：POST 时 body 为请求体原文（mtop 订单 / newlogin 扫码登录用 form-urlencoded）
  *   origin/accept：扫码 newlogin 等接口需要的 Origin / Accept（Web 经代理头补齐）
+ *   proxyOnly：强制走远程代理不回落直连（扫码登录等多 Set-Cookie 流程；代理失败重试一次后报错）
+ *   direct：原生端强制直连且不走代理兜底（newlogin 登录接口对出口 IP 敏感，机房 IP 必被风控）
+ *   bxv：newlogin 需要的 bx-v 头（如 2.5.37）
  * @returns {Promise<{status:number, body:string, headers:Record<string,string>}>}
  *   headers：原生为 CapacitorHttp 响应头；Web 为代理回传的 x-upstream-set-cookie(-json)（mtop 换 token / 扫码合并罐用）
  */
@@ -127,16 +133,27 @@ async function taobaoPageRequest(url, options = {}) {
   const method = (options.method || 'GET').toUpperCase()
   const body = options.body ?? ''
   const contentType = options.contentType || ''
-  const extra = { origin: options.origin || '', accept: options.accept || '' }
+  const extra = { origin: options.origin || '', accept: options.accept || '', bxv: options.bxv || '' }
   const startedAt = Date.now()
   const transport = Capacitor.isNativePlatform() ? 'native' : 'proxy'
   const requestHeaders = buildHeaders(cookie, referer, contentType, extra)
 
-  if (Capacitor.isNativePlatform()) {
-    // 已知必拦的接口（搜索/订单列表）优先走代理，代理挂了才回落直连
-    if (options.preferProxy) {
-      const viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
+  if (Capacitor.isNativePlatform() && !options.direct) {
+    if (options.preferProxy || options.proxyOnly) {
+      // 已知必拦的接口（搜索/订单列表）优先走代理，代理挂了才回落直连
+      let viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
+      if (!viaProxy && options.proxyOnly) {
+        // proxyOnly：扫码登录等依赖「多条 Set-Cookie 合并」的流程专用。
+        // 原生直连时 OkHttp 会把重复的 Set-Cookie 头折叠成一条，登录 Cookie 必然丢失；
+        // 代理失败重试一次，仍失败直接报错，绝不回落直连。
+        await new Promise((resolve) => setTimeout(resolve, 600))
+        viaProxy = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
+      }
       if (viaProxy) return viaProxy
+      if (options.proxyOnly) {
+        logger.warn('proxy-only-fail', { host: safeHost(url), method })
+        throw new TaobaoRequestError('NETWORK', '代理不可用，请检查网络后重试')
+      }
     }
     let timer
     try {
@@ -156,15 +173,16 @@ async function taobaoPageRequest(url, options = {}) {
       const status = Number(response.status || 0)
       const respBody = responseBodyToText(response.data)
       logPageResponse(transport, url, startedAt, status, respBody)
-      if (respBody.includes('_____tmd_____')) {
+      if (respBody.includes('_____tmd_____') && !options.direct) {
         // OkHttp TLS 指纹可能被搜索/交易网关硬拦 → 先直连试一次，被拦再改走自家 CF 代理
+        // （direct=true 的请求不走代理兜底：newlogin 等风控敏感接口从机房 IP 发必被拦）
         const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
         if (fallback) return fallback
       }
       return { status, body: respBody, headers: response.headers || {} }
     } catch (error) {
-      // 直连本身失败（超时/连接被掐）→ 也走 CF 代理兜底
-      const fallback = await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
+      // 直连本身失败（超时/连接被掐）→ 也走 CF 代理兜底（direct=true 时不兜底）
+      const fallback = options.direct ? null : await remoteProxyRequest(url, cookie, referer, timeoutMs, method, body, contentType, extra)
       if (fallback) return fallback
       if (error instanceof TaobaoRequestError) {
         logger.warn('page-error', { transport, host: safeHost(url), code: error.code, message: error.message })
