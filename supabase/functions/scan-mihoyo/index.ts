@@ -26,7 +26,7 @@
 //       事件键 mihoyo:<catalog>:<批次哈希>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
 //
 // 请求预算（本函数每天上千次调用，逐商品读写 seen 是 Supabase 日志摄取的大头）：
-// - seen 的读/写全部按目录批量：一次 insert + ignoreDuplicates 认领（返回的就是本轮
+// - seen 的读/写全部按目录批量：一次 upsert + ignoreDuplicates 认领（返回的就是本轮
 //   真正插入成功的行 = 原子认领，并发语义与原来逐条 insert 完全一致）、
 //   一次按店铺分片的 update 刷新 last_seen_at，不再「每个商品 1 GET + 1 PATCH」。
 // - enqueueBatch 把所有 group × message 的任务合成一次 upsert（原来每个 group × message 一次）。
@@ -354,10 +354,13 @@ async function enqueueBatch(
 
 // ---------- seen 批量读写（替代「每商品 1 GET + 1 PATCH」） ----------
 
-// 批量认领：一次 insert + ignoreDuplicates。PostgREST 用 ON CONFLICT DO NOTHING，
+// 批量认领：一次 upsert + ignoreDuplicates。PostgREST 用 ON CONFLICT DO NOTHING，
 // 冲突行不产生 RETURNING，所以返回的就是「本轮真正插入成功」的行 = 新商品集合。
 // 并发扫描时同样只有插入成功的调用能认领（cron 已错峰，这里是兜底防丢/防重），
 // 语义与原来逐条 insert + select 完全一致，但只有 1 次请求。
+// 必须用 upsert：postgrest-js 的 insert() 不认 onConflict/ignoreDuplicates
+// （签名只有 count/defaultToNull，多余参数被静默丢弃），会退化成裸 INSERT，
+// 批量行里只要有已存在的 (catalog,shop_code,goods_id) 就 23505 整轮失败。
 async function claimSeen(
   admin: ReturnType<typeof createClient>,
   catalog: string,
@@ -367,7 +370,7 @@ async function claimSeen(
   if (!pairs.length) return new Set<string>()
   const { data, error } = await admin
     .from("mihoyo_monitor_seen")
-    .insert(
+    .upsert(
       pairs.map((p) => ({
         catalog,
         shop_code: p.shop_code,
