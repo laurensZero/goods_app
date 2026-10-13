@@ -815,6 +815,7 @@
 
       <div
         v-if="detailIsMarkdown"
+        ref="detailBodyRef"
         class="announcement-body markdown-body"
         v-html="detailContentHtml"
       />
@@ -848,7 +849,7 @@
 </template>
 
 <script setup>
-import { computed, onActivated, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
@@ -863,7 +864,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useQQBindingStore } from '@/stores/qqBinding'
-import { detectMarkdownContent, renderMarkdown } from '@/utils/markdown'
+import { detectMarkdownContent, renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { useI18n } from 'vue-i18n'
@@ -1138,6 +1139,7 @@ function closeLogoutDialog() {
 // ── 公告列表 ──
 const detailAnnouncement = ref(null)
 const detailContentHtml = ref('')
+const detailBodyRef = ref(null)
 const detailIsMarkdown = computed(() => detectMarkdownContent(detailAnnouncement.value?.message))
 const detailContentText = computed(() => detailAnnouncement.value?.message || '')
 const detailDateLabel = computed(() => formatAnnouncementDate(detailAnnouncement.value?.showRule?.startAt))
@@ -1200,6 +1202,8 @@ async function viewAnnouncementDetail(announcement) {
   } else {
     detailContentHtml.value = ''
   }
+  await nextTick()
+  mountBiliEmbedEnhancers(detailBodyRef.value)
 }
 
 function closeAnnouncementDetail() {

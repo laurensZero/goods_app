@@ -213,7 +213,7 @@
           </div>
 
           <article class="note-card">
-            <div class="note-body note-body--markdown" v-html="noteHtml" />
+            <div ref="noteBodyRef" class="note-body note-body--markdown" v-html="noteHtml" />
           </article>
         </section>
 
@@ -368,7 +368,7 @@ import { extractSaleEntries } from '@/utils/goods/saleStats'
 import { getGoodsVariant, getDisplayGoodsVariant } from '@/utils/goods/identity'
 import { formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
 import { getCoverTone } from '@/utils/goods/coverTone'
-import { renderMarkdown } from '@/utils/markdown'
+import { renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { getPendingDetailReturnPath, getPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import { hasPendingGoodsHeroForward, playGoodsHeroForward, prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -631,8 +631,11 @@ const heroPriceLabel = computed(() => {
 })
 const showHeroPointsInline = computed(() => !unitActualPriceAmountText.value && !hasActualPriceValue(item.value?.actualPrice) && !!item.value?.points)
 const noteHtml = ref('')
+const noteBodyRef = ref(null)
 watch(() => item.value?.note || '', async (note) => {
   noteHtml.value = note ? await renderMarkdown(note) : ''
+  await nextTick()
+  mountBiliEmbedEnhancers(noteBodyRef.value)
 }, { immediate: true })
 const itemCurrency = computed(() => (item.value?.currency || 'CNY'))
 const itemCurrencySymbol = computed(() => CURRENCY_MAP[itemCurrency.value]?.symbol || '¥')

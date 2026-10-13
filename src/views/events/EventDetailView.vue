@@ -97,7 +97,7 @@
             </div>
 
             <article class="note-card">
-              <div class="note-body note-body--markdown" v-html="eventDescriptionHtml" />
+              <div ref="descriptionBodyRef" class="note-body note-body--markdown" v-html="eventDescriptionHtml" />
             </article>
           </section>
 
@@ -242,7 +242,7 @@ import { getCachedImage, preloadImages } from '@/utils/image/cache'
 import { isLocalImageUri } from '@/utils/image/localImage'
 import { getCachedImageThumb, peekImageThumb } from '@/utils/image/thumb'
 import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
-import { renderMarkdown } from '@/utils/markdown'
+import { renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
 import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
 import { getCoverTone } from '@/utils/goods/coverTone'
@@ -325,8 +325,11 @@ async function playEventHeroForwardWhenReady() {
 const eventId = computed(() => props.id || route.params.id)
 const event = computed(() => eventsStore.getById(eventId.value))
 const eventDescriptionHtml = ref('')
+const descriptionBodyRef = ref(null)
 watch(() => event.value?.description || '', async (description) => {
   eventDescriptionHtml.value = description ? await renderMarkdown(description) : ''
+  await nextTick()
+  mountBiliEmbedEnhancers(descriptionBodyRef.value)
 }, { immediate: true })
 const eventStateKey = computed(() => `${EVENT_DETAIL_STATE_PREFIX}:${String(eventId.value || '')}`)
 const eventPendingKey = computed(() => `${EVENT_DETAIL_PENDING_PREFIX}:${String(eventId.value || '')}`)
