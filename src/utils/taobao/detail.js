@@ -129,15 +129,36 @@ function rewriteSearchCdnHost(url) {
   return url.replace(/^(https?:\/\/)[^/?#]+/i, `$1${SEARCH_CDN_HOST}`)
 }
 
+const ALICDN_IMAGE_EXT = 'jpe?g|png|webp|gif|bmp|avif'
+
+/**
+ * 淘宝 CDN 的缩略图 = 原图路径 + 尺寸后缀，例如
+ *   `...O1CN01xxx.jpg_240x240q90.jpg`（订单列表）
+ *   `...xxx.jpg_sum.jpg` / `...xxx.jpg_q90.jpg`
+ * 订单 / 购物车 mtop 返回的 `pic` 就是这种小图，直存会发糊；
+ * 去掉后缀即回到原图。（详情页 headImageVO 的主图本就无后缀，不受影响。）
+ */
+function stripAlicdnThumbSuffix(url) {
+  if (!/^https?:\/\/(?:[^/?#]*\.)?alicdn\.com(?=[/:?#]|$)/i.test(url)) return url
+  return url.replace(
+    new RegExp(`(\\.(?:${ALICDN_IMAGE_EXT}))_[^/?#]+\\.(?:${ALICDN_IMAGE_EXT})(?=$|[?#])`, 'i'),
+    '$1'
+  )
+}
+
 /** 统一图片地址：协议相对/裸路径补全为 https，去掉明显的缩略参数 */
 export function normalizeCdnUrl(raw) {
   const value = String(raw || '').trim()
   if (!value) return ''
-  if (value.startsWith('//')) return rewriteSearchCdnHost(`https:${value}`)
-  if (/^http:\/\//i.test(value)) return rewriteSearchCdnHost(`https://${value.slice(7)}`)
-  if (/^https:\/\//i.test(value)) return rewriteSearchCdnHost(value)
-  if (value.includes('/') && !value.startsWith('data:')) return rewriteSearchCdnHost(`https://${value}`)
-  return ''
+
+  let full = ''
+  if (value.startsWith('//')) full = `https:${value}`
+  else if (/^http:\/\//i.test(value)) full = `https://${value.slice(7)}`
+  else if (/^https:\/\//i.test(value)) full = value
+  else if (value.includes('/') && !value.startsWith('data:')) full = `https://${value}`
+  if (!full) return ''
+
+  return stripAlicdnThumbSuffix(rewriteSearchCdnHost(full))
 }
 
 function uniq(list) {

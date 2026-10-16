@@ -113,6 +113,31 @@ describe('normalizeCdnUrl', () => {
     expect(normalizeCdnUrl('//gw.alicdn.com/x.jpg')).toBe('https://gw.alicdn.com/x.jpg')
   })
 
+  it('去掉淘宝 CDN 缩略图尺寸后缀，回到原图', () => {
+    // 订单列表 mtop item.pic 的典型形态
+    expect(normalizeCdnUrl('//img.alicdn.com/imgextra/i4/abc.jpg_240x240q90.jpg'))
+      .toBe('https://img.alicdn.com/imgextra/i4/abc.jpg')
+    expect(normalizeCdnUrl('https://img.alicdn.com/bao/uploaded/i1/x.png_60x60q90.jpg'))
+      .toBe('https://img.alicdn.com/bao/uploaded/i1/x.png')
+    expect(normalizeCdnUrl('//gw.alicdn.com/bao/uploaded/i1/y.jpg_sum.jpg'))
+      .toBe('https://gw.alicdn.com/bao/uploaded/i1/y.jpg')
+    expect(normalizeCdnUrl('//img.alicdn.com/a.jpg_q90.jpg'))
+      .toBe('https://img.alicdn.com/a.jpg')
+    // 保留查询串
+    expect(normalizeCdnUrl('//img.alicdn.com/a.jpg_240x240q90.jpg?foo=1'))
+      .toBe('https://img.alicdn.com/a.jpg?foo=1')
+  })
+
+  it('无尺寸后缀的原图 / 非 alicdn 域不被裁剪', () => {
+    expect(normalizeCdnUrl('//img.alicdn.com/imgextra/i4/abc.jpg'))
+      .toBe('https://img.alicdn.com/imgextra/i4/abc.jpg')
+    // 文件名里的下划线不是尺寸后缀
+    expect(normalizeCdnUrl('//img.alicdn.com/my_photo.jpg'))
+      .toBe('https://img.alicdn.com/my_photo.jpg')
+    expect(normalizeCdnUrl('//example.com/a.jpg_240x240q90.jpg'))
+      .toBe('https://example.com/a.jpg_240x240q90.jpg')
+  })
+
   it('search3 等多级搜索 CDN 域同样改写（证书 SAN 不覆盖）', () => {
     expect(normalizeCdnUrl('//g.search3.alicdn.com/img/i3/a.jpg')).toBe('https://g-search1.alicdn.com/img/i3/a.jpg')
     expect(normalizeCdnUrl('https://g.search3.alicdn.com/img/i3/a.jpg?x-oss-process=image/resize,w_200')).toBe(
