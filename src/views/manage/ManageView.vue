@@ -151,7 +151,7 @@
               {
                 'settings-embedded--about': activeManageContentKey === 'about',
                 'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'mihoyoFeatures', 'aiChat', 'feedback', 'surveys', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'mihoyoFeatures', 'aiChat', 'feedback', 'surveys', 'payments', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey),
                 'settings-embedded--ai-chat': activeManageContentKey === 'aiChat'
               }
@@ -315,27 +315,7 @@ import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
 
-// Lazy-loaded sub-pages
-const CategoryManageView = defineAsyncComponent(() => import('@/views/manage/CategoryManageView.vue'))
-const EventTypeManageView = defineAsyncComponent(() => import('@/views/events/EventTypeManageView.vue'))
-const IpManageView = defineAsyncComponent(() => import('@/views/manage/IpManageView.vue'))
-const CharacterManageView = defineAsyncComponent(() => import('@/views/manage/CharacterManageView.vue'))
-const StorageLocationsView = defineAsyncComponent(() => import('@/views/manage/StorageLocationsView.vue'))
-const CustomFieldManageView = defineAsyncComponent(() => import('@/views/manage/CustomFieldManageView.vue'))
-const ThemeView = defineAsyncComponent(() => import('@/views/manage/ThemeView.vue'))
-const TrashView = defineAsyncComponent(() => import('@/views/goods/TrashView.vue'))
-const SyncView = defineAsyncComponent(() => import('@/views/manage/SyncView.vue'))
-const AboutView = defineAsyncComponent(() => import('@/views/manage/AboutView.vue'))
-const ShareManageView = defineAsyncComponent(() => import('@/views/manage/ShareManageView.vue'))
-const LanguageView = defineAsyncComponent(() => import('@/views/manage/LanguageView.vue'))
-const NotifySettingsView = defineAsyncComponent(() => import('@/views/manage/NotifySettingsView.vue'))
-const FeedbackView = defineAsyncComponent(() => import('@/views/manage/FeedbackView.vue'))
-const SurveyListView = defineAsyncComponent(() => import('@/views/manage/SurveyListView.vue'))
-const MihoyoStockMonitorView = defineAsyncComponent(() => import('@/views/mihoyo/MihoyoStockMonitorView.vue'))
-const MihoyoNewArrivalsView = defineAsyncComponent(() => import('@/views/mihoyo/MihoyoNewArrivalsView.vue'))
-const McpSettingsView = defineAsyncComponent(() => import('@/views/manage/McpSettingsView.vue'))
-const MihoyoFeaturesView = defineAsyncComponent(() => import('@/views/mihoyo/MihoyoFeaturesView.vue'))
-const AiChatView = defineAsyncComponent(() => import('@/views/ai/AiChatView.vue'))
+// 右面板要嵌入哪些组件不再手写登记：由 entry.path 到路由表解析，见下方 manageComponentMap。
 
 defineOptions({ name: 'ManageView' })
 
@@ -361,6 +341,56 @@ const {
   cleanupUnreferencedLocalImages, formatCompactSize, cleanupExportTimers
 } = useManageExport({ showToast, ensureEventsReady })
 
+// ---- 右面板嵌入组件（自动解析，不再手写登记表）----
+//
+// 以前这里是一张手写的「设置项 key → 组件」表。加了设置项却忘了登记，就会在
+// 平板/桌面分屏（宽度 ≥1200）下渲染出空白 —— 手机端走的是路由跳转，所以
+// 只有平板白屏，特别难发现。
+//
+// 现在直接**从路由表解析**：entry.path 指到哪个路由，就嵌入那个路由的组件。
+// 路由本来就是新增页面时必须改的地方，于是不存在第二份清单要同步。
+//
+// 组件按 path 缓存：computed 重算时必须拿到同一个组件对象，否则 Vue 会当成
+// 换了组件而反复 remount（badge 变化、问卷列表加载都会触发重算）。
+const embeddedComponentCache = new Map()
+
+function resolveEmbeddedComponent(path) {
+  const key = String(path || '')
+  if (!key) return null
+  if (embeddedComponentCache.has(key)) return embeddedComponentCache.get(key)
+
+  const matched = router.resolve(key).matched
+  const loader = matched[matched.length - 1]?.components?.default
+  const component = typeof loader === 'function' ? defineAsyncComponent(loader) : null
+
+  if (!component && import.meta.env.DEV) {
+    console.warn(`[manage] 设置项路径解析不出可嵌入组件：${key}`)
+  }
+  embeddedComponentCache.set(key, component)
+  return component
+}
+
+// 不在设置项列表里、但可以嵌进右面板的子页面（如「通知设置」→「米游铺有货监控」）
+const MANAGE_SUB_PAGE_ROUTES = {
+  mihoyoStockMonitor: '/manage/mihoyo-stock-monitor',
+  mihoyoNewArrivals: '/mihoyo-new-arrivals'
+}
+
+const manageComponentMap = computed(() => {
+  const map = {}
+  for (const entry of manageEntries.value) {
+    // export / import 没有路由，由下方专属面板渲染
+    if (entry.action || !entry.path) continue
+    const component = resolveEmbeddedComponent(entry.path)
+    if (component) map[entry.key] = component
+  }
+  for (const [key, path] of Object.entries(MANAGE_SUB_PAGE_ROUTES)) {
+    const component = resolveEmbeddedComponent(path)
+    if (component) map[key] = component
+  }
+  return map
+})
+
 // ---- viewport ----
 const windowWidth = ref(window.innerWidth)
 const isDesktopSettingsViewport = computed(() => windowWidth.value >= 1200)
@@ -377,7 +407,7 @@ function resolveSectionFromQuery() {
 const initialSection = resolveSectionFromQuery()
 if (initialSection) selectedManageKey.value = initialSection
 const initialSub = String(route.query.sub || '')
-if (initialSub && manageComponentMap[initialSub]) {
+if (initialSub && manageComponentMap.value[initialSub]) {
   manageSubPageKey.value = initialSub
   if (!initialSection) selectedManageKey.value = 'notifications'
 }
@@ -387,7 +417,7 @@ watch(() => route.query.section, (section) => {
 })
 watch(() => route.query.sub, (sub) => {
   const key = String(sub || '')
-  if (key && manageComponentMap[key]) {
+  if (key && manageComponentMap.value[key]) {
     manageSubPageKey.value = key
     if (!String(route.query.section || '')) selectedManageKey.value = 'notifications'
   } else {
@@ -400,15 +430,6 @@ const activeManageEntry = computed(() =>
   manageEntries.value.find((e) => e.key === selectedManageKey.value) || manageEntries.value[0] || null
 )
 
-const manageComponentMap = {
-  categories: CategoryManageView, eventTypes: EventTypeManageView, ips: IpManageView, characters: CharacterManageView,
-  storage: StorageLocationsView, customFields: CustomFieldManageView, theme: ThemeView, trash: TrashView,
-  sync: SyncView, shares: ShareManageView, about: AboutView, language: LanguageView,
-  notifications: NotifySettingsView, mcp: McpSettingsView, mihoyoFeatures: MihoyoFeaturesView, aiChat: AiChatView, feedback: FeedbackView, surveys: SurveyListView,
-  mihoyoStockMonitor: MihoyoStockMonitorView,
-  mihoyoNewArrivals: MihoyoNewArrivalsView
-}
-
 const manageSubPageTitles = {
   mihoyoStockMonitor: () => t('mihoyoStock.title'),
   mihoyoNewArrivals: () => t('mihoyoNew.title')
@@ -416,8 +437,9 @@ const manageSubPageTitles = {
 
 const activeManageContentKey = computed(() => manageSubPageKey.value || activeManageEntry.value?.key || '')
 const activeManageComponent = computed(() => {
-  if (manageSubPageKey.value && manageComponentMap[manageSubPageKey.value]) return manageComponentMap[manageSubPageKey.value]
-  return manageComponentMap[activeManageEntry.value?.key] || null
+  const map = manageComponentMap.value
+  if (manageSubPageKey.value && map[manageSubPageKey.value]) return map[manageSubPageKey.value]
+  return map[activeManageEntry.value?.key] || null
 })
 const activeDetailTitle = computed(() => {
   const subTitle = manageSubPageKey.value ? manageSubPageTitles[manageSubPageKey.value] : null
@@ -445,7 +467,7 @@ function selectManageEntry(key) {
 }
 
 function openManageSubPage(key) {
-  if (!manageComponentMap[key]) return
+  if (!manageComponentMap.value[key]) return
   notificationPanelScrollTop.value = settingsDetailRef.value?.scrollTop || 0
   manageSubPageKey.value = key
   resetSettingsDetailScroll()
@@ -700,6 +722,7 @@ onBeforeRouteLeave((to) => {
 .feedback-icon { background: rgba(90, 120, 250, 0.12); color: #5a78fa; }
 .survey-icon { background: rgba(120, 100, 255, 0.12); color: #7864ff; }
 .custom-field-icon { background: rgba(214, 92, 168, 0.14); color: #c9558f; }
+.payment-icon { background: rgba(50, 200, 140, 0.12); color: #28c880; }
 
 .settings-nav__copy,
 .mobile-entry__copy {
@@ -952,6 +975,7 @@ onBeforeRouteLeave((to) => {
 .settings-embedded :deep(.summary-hero),
 .settings-embedded :deep(.summary-section__header),
 .settings-embedded :deep(.page-hero),
+.settings-embedded :deep(.pay-hero),
 .settings-embedded :deep(.section-head),
 .settings-embedded :deep(.section-title),
 .settings-embedded :deep(.section-label) {

@@ -75,3 +75,27 @@ verify_jwt = false
 # 网页版扫码登录：create/status/consume 无需 JWT；approve 需 App 侧 Bearer token
 [functions.web-login]
 verify_jwt = false
+
+# ── 支付（Mock 网关，学习/演示用途；见 supabase-migration-payments.sql）──
+#
+# 注意：Edge Function **不能**在 *.supabase.co 域名直出 HTML（平台会把
+# text/html 改写成 text/plain），因此模拟收银台是 App 内页面，Edge Function
+# 只提供 JSON API。真实支付宝/微信收银台由网关自己的域名或原生 SDK 渲染，
+# 与本限制无关。详见 docs/payment-mock-gateway.md。
+
+# 下单：必须携带登录 JWT（金额/商品由服务端目录决定，客户端只传商品 key）
+[functions.pay-create-order]
+verify_jwt = true
+
+# 订单查询 + 惰性关单 + 权益列表：必须携带登录 JWT
+[functions.pay-order-status]
+verify_jwt = true
+
+# 模拟第三方网关服务器：由 App 收银台调用，校验订单归属后服务端给 pay-notify 发通知
+[functions.pay-mock-gateway]
+verify_jwt = true
+
+# 异步通知（支付回调）：网关服务器调用，无 JWT，靠 HMAC 验签
+# 部署前需设置 Secret：supabase secrets set MOCK_NOTIFY_SECRET=<随机长字符串>
+[functions.pay-notify]
+verify_jwt = false

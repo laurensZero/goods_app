@@ -1,3 +1,26 @@
+import { isPaymentsVisible } from '@/config/paymentsFeature'
+
+/**
+ * 支付模块「仅自己可见」（开关见 src/config/paymentsFeature.js）。
+ * 关闭时**不注册路由**，直接落到 404 catch-all（redirect '/'）——
+ * 比注册后再拦截更彻底，普通用户即使手输 URL 也进不来。
+ * 注意这只是体验层的门，真正的权限判定在后端 PAY_MOCK_ADMIN_IDS。
+ */
+const paymentRoutes = isPaymentsVisible() ? [
+  {
+    path: '/manage/payments',
+    name: 'manage-payments',
+    component: () => import('@/views/manage/PaymentCenterView.vue'),
+    meta: { titleKey: 'manage.paymentsTitle' }
+  },
+  {
+    path: '/pay/checkout/:outTradeNo',
+    name: 'pay-checkout',
+    component: () => import('@/views/pay/PayCheckoutView.vue'),
+    meta: { titleKey: 'manage.paymentsCashierTitle' }
+  }
+] : []
+
 export default [
   {
     path: '/manage/categories',
@@ -127,6 +150,7 @@ export default [
     component: () => import('@/views/manage/SurveyListView.vue'),
     meta: { titleKey: 'nav.surveys' }
   },
+  ...paymentRoutes,
   {
     path: '/leaderboard/characters',
     name: 'character-leaderboard',

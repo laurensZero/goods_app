@@ -6,6 +6,7 @@ import { useSyncStore } from '@/stores/sync'
 import { useRechargeStore } from '@/stores/recharge'
 import { useSurveyStore } from '@/stores/survey'
 import i18n from '@/locales'
+import { isPaymentsVisible } from '@/config/paymentsFeature'
 
 const t = i18n.global.t
 
@@ -260,6 +261,20 @@ export function useManageEntries() {
       path: '/manage/ai-chat',
       stats: []
     },
+    // 支付模块「仅自己可见」（见 src/config/paymentsFeature.js）：
+    // 关闭时不进入列表，普通用户在设置页看不到入口。
+    ...(isPaymentsVisible() ? [{
+      key: 'payments', group: 'app', title: t('manage.paymentsTitle'), kicker: t('manage.paymentsEntryKicker'),
+      meta: t('manage.paymentsEntryMeta'),
+      detail: t('manage.paymentsEntryDetail'),
+      summary: '',
+      recommendation: '',
+      primaryLabel: t('manage.paymentsEntryPrimaryLabel'), secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'payment-icon',
+      iconPaths: ['M2 5h20v14H2z', 'M2 10h20', 'M6 15h4'],
+      path: '/manage/payments',
+      stats: []
+    }] : []),
     {
       key: 'feedback', group: 'app', title: t('about.feedback'), kicker: 'Feedback',
       meta: t('about.feedbackInAppDesc'),
