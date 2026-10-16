@@ -208,8 +208,10 @@
       </section>
 
       <!-- ============ 订单导入（复用既有页面） ============ -->
-      <section v-if="activeTab === 'order'" class="hub-panel hub-panel--order" role="tabpanel">
-        <TaobaoImportView embedded />
+      <!-- v-show：保持挂载，进入「订单」Tab 时自动拉一次，切走再回来不重复打接口 -->
+      <!-- key=账号：切换/登录淘宝账号后重建视图，回到「订单」Tab 会自动拉新账号的订单 -->
+      <section v-show="activeTab === 'order'" class="hub-panel hub-panel--order" role="tabpanel">
+        <TaobaoImportView :key="activeAccountId" embedded :active="activeTab === 'order'" />
       </section>
 
       <!-- ============ 购物车导入 ============ -->

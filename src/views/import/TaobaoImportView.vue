@@ -283,7 +283,7 @@
 </template>
 
 <script setup>
-import { ref, computed, reactive, watch, onMounted } from 'vue'
+import { ref, computed, reactive, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
@@ -301,8 +301,10 @@ import { validatePrice } from '@/utils/validate'
 defineOptions({ name: 'TaobaoImportView' })
 
 // 内嵌在淘宝导入聚合页里时隐藏自身 NavBar，布局随宿主流动
-defineProps({
+const props = defineProps({
   embedded: { type: Boolean, default: false },
+  /** 宿主 Tab 是否可见（内嵌聚合页用）；独立页面默认 true，挂载即视为进入 */
+  active: { type: Boolean, default: true },
 })
 
 const { t } = useI18n()
@@ -339,7 +341,31 @@ async function refreshCookieReady() {
   }
 }
 
-onMounted(refreshCookieReady)
+/**
+ * 进入即自动拉取一次订单（有可用 Cookie 时）：
+ *   - 独立页面 /taobao-import/order：挂载即触发
+ *   - 内嵌聚合页：等宿主把「订单」Tab 激活后触发
+ * 每个视图实例只自动跑一次，避免来回切 Tab 反复打接口；手动「在线拉取」按钮仍可重拉。
+ */
+let didAutoFetch = false
+
+async function maybeAutoFetchOrders() {
+  if (didAutoFetch) return
+  if (props.embedded && !props.active) return
+  if (step.value !== 'pick') return
+  await refreshCookieReady()
+  if (!cookieReady.value) return
+  didAutoFetch = true
+  await handleOnlineFetch()
+}
+
+watch(
+  () => props.active,
+  (active) => {
+    if (active) void maybeAutoFetchOrders()
+  },
+  { immediate: true },
+)
 
 /** 把解析结果送入与文件导入相同的 list 步骤 */
 function applyParsedGoods(deduped, source = 'file') {
