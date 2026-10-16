@@ -485,6 +485,7 @@
   "manage.paymentsCashierPending": "Order pending",
   "manage.paymentsCashierExpired": "Order expired",
   "manage.paymentsCashierNotFound": "Order not found",
+  "manage.paymentsAdminOnly": "The mock gateway is admin-only: grant yourself the admin whitelist first",
   "manage.paymentsCashierGatewayOrder": "Gateway trade no.",
   "manage.paymentsCashierAck": "Callback ack",
   "manage.paymentsCashierBack": "Back to payment center",

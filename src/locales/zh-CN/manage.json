@@ -485,6 +485,7 @@
   "manage.paymentsCashierPending": "订单待支付",
   "manage.paymentsCashierExpired": "订单已过期",
   "manage.paymentsCashierNotFound": "订单不存在",
+  "manage.paymentsAdminOnly": "模拟网关仅管理员可用：请先给自己授予 admin 白名单",
   "manage.paymentsCashierGatewayOrder": "网关订单号",
   "manage.paymentsCashierAck": "回调应答",
   "manage.paymentsCashierBack": "返回支付中心",

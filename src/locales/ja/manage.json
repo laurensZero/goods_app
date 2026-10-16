@@ -485,6 +485,7 @@
   "manage.paymentsCashierPending": "注文は未払いです",
   "manage.paymentsCashierExpired": "注文は期限切れです",
   "manage.paymentsCashierNotFound": "注文が見つかりません",
+  "manage.paymentsAdminOnly": "モック決済は管理者専用です：まず自分に admin ホワイトリストを付与してください",
   "manage.paymentsCashierGatewayOrder": "ゲートウェイ注文番号",
   "manage.paymentsCashierAck": "コールバック応答",
   "manage.paymentsCashierBack": "支払いセンターに戻る",

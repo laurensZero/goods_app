@@ -141,6 +141,13 @@ function featureLabel(feature) {
   return key ? t(key) : feature
 }
 
+/** 已知的网关错误码 → 用户可读文案；未知返回空串，由调用方决定回落。 */
+function knownGatewayErrorText(reason) {
+  if (reason === 'unauthorized') return t('manage.paymentsLoginRequired')
+  if (reason === 'mock_gateway_disabled') return t('manage.paymentsAdminOnly')
+  return ''
+}
+
 async function load() {
   loading.value = true
   try {
@@ -150,9 +157,7 @@ async function load() {
   } catch (e) {
     const reason = String(e?.message || e)
     order.value = null
-    errorText.value = reason === 'unauthorized'
-      ? t('manage.paymentsLoginRequired')
-      : t('manage.paymentsCashierNotFound')
+    errorText.value = knownGatewayErrorText(reason) || t('manage.paymentsCashierNotFound')
   } finally {
     loading.value = false
   }
@@ -168,7 +173,8 @@ async function runAction(action) {
     if (result?.error) throw new Error(result.error)
     await load()
   } catch (e) {
-    errorText.value = String(e?.message || e)
+    const reason = String(e?.message || e)
+    errorText.value = knownGatewayErrorText(reason) || reason
   } finally {
     busy.value = ''
   }

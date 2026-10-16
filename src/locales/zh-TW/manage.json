@@ -485,6 +485,7 @@
   "manage.paymentsCashierPending": "訂單待支付",
   "manage.paymentsCashierExpired": "訂單已過期",
   "manage.paymentsCashierNotFound": "訂單不存在",
+  "manage.paymentsAdminOnly": "模擬閘道僅管理員可用：請先為自己授予 admin 白名單",
   "manage.paymentsCashierGatewayOrder": "閘道訂單號",
   "manage.paymentsCashierAck": "回呼回應",
   "manage.paymentsCashierBack": "返回支付中心",
