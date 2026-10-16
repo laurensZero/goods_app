@@ -1,12 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+const store = vi.hoisted(() => ({ data: new Map() }))
+
 vi.mock('@/utils/platform/storage', () => ({
-  readSecret: vi.fn(async () => null),
-  writeSecret: vi.fn(async () => {}),
-  removeSecret: vi.fn(async () => {}),
+  readSecret: vi.fn(async (key) => (store.data.has(key) ? store.data.get(key) : null)),
+  writeSecret: vi.fn(async (key, value) => { store.data.set(key, value) }),
+  removeSecret: vi.fn(async (key) => { store.data.delete(key) }),
 }))
 
-import { normalizeTaobaoCookie, isTaobaoCookieReady, setTaobaoCookie, getTaobaoCookie, clearTaobaoCookie } from '../cookie'
+import {
+  normalizeTaobaoCookie,
+  isTaobaoCookieReady,
+  setTaobaoCookie,
+  getTaobaoCookie,
+  clearTaobaoCookie,
+  isAutoTaobaoAccountLabel,
+  isTaobaoLoginName,
+  formatTaobaoAccountLabel,
+  listTaobaoAccounts,
+  upsertTaobaoAccountProfile,
+} from '../cookie'
 
 describe('normalizeTaobaoCookie', () => {
   it('保留单行 Cookie 原样（仅整理分号空格）', () => {
@@ -44,6 +57,7 @@ describe('isTaobaoCookieReady', () => {
 
 describe('cookie 存取', () => {
   beforeEach(async () => {
+    store.data.clear()
     await clearTaobaoCookie()
   })
 
@@ -59,5 +73,51 @@ describe('cookie 存取', () => {
     await setTaobaoCookie('a=1')
     await setTaobaoCookie('   ')
     expect(await getTaobaoCookie()).toBe('')
+  })
+})
+
+describe('账号标签：伪昵称判定与覆盖', () => {
+  const COOKIE = '_m_h5_tk=09ae51fd5718db17e1ae759ee69bcb32_1791551668385; unb=2200123456789; cookie2=x'
+
+  beforeEach(async () => {
+    store.data.clear()
+    await clearTaobaoCookie()
+  })
+
+  it('isTaobaoLoginName 识别 tb+数字 登录名', () => {
+    expect(isTaobaoLoginName('tb168334051115')).toBe(true)
+    expect(isTaobaoLoginName('TB168334051115')).toBe(true)
+    expect(isTaobaoLoginName('小明')).toBe(false)
+    expect(isTaobaoLoginName('')).toBe(false)
+  })
+
+  it('占位标签 / 原始 id / 登录名 都算自动标签，真实昵称不算', () => {
+    expect(isAutoTaobaoAccountLabel('', '', '')).toBe(true)
+    expect(isAutoTaobaoAccountLabel('账号 2200…6789', '2200123456789', '2200123456789')).toBe(true)
+    expect(isAutoTaobaoAccountLabel('ck_abc123', '', 'ck_abc123')).toBe(true)
+    expect(isAutoTaobaoAccountLabel('tb168334051115', '', 'ck_abc123')).toBe(true)
+    expect(isAutoTaobaoAccountLabel('小明', '2200123456789', '2200123456789')).toBe(false)
+  })
+
+  it('formatTaobaoAccountLabel 无 unb 时退化为原始 id', () => {
+    expect(formatTaobaoAccountLabel('2200123456789', '2200123456789')).toBe('账号 2200…6789')
+    expect(formatTaobaoAccountLabel('', 'ck_abc123')).toBe('ck_abc123')
+  })
+
+  it('登录名被当成标签保存后，真实昵称仍能覆盖', async () => {
+    await setTaobaoCookie(COOKIE, { label: 'tb168334051115' })
+    const [account] = await listTaobaoAccounts()
+    expect(account.label).toBe('tb168334051115')
+
+    await upsertTaobaoAccountProfile(account.id, { label: '小明' })
+    expect((await listTaobaoAccounts())[0].label).toBe('小明')
+  })
+
+  it('用户自定义备注不被接口昵称覆盖', async () => {
+    await setTaobaoCookie(COOKIE, { label: '我的小号' })
+    const [account] = await listTaobaoAccounts()
+
+    await upsertTaobaoAccountProfile(account.id, { label: '小明' })
+    expect((await listTaobaoAccounts())[0].label).toBe('我的小号')
   })
 })

@@ -22,12 +22,13 @@
         <button class="account-main" type="button" @click="onSwitch(account)">
           <div class="account-avatar" aria-hidden="true">
             <img
-              v-if="account.avatarUrl"
+              v-if="showAvatar(account)"
               :src="account.avatarUrl"
                 :alt="account.label"
                 class="account-avatar__img"
                 referrerpolicy="no-referrer"
                 loading="lazy"
+                @error="markAvatarBroken(account)"
             />
             <span v-else class="account-avatar__fallback">{{ avatarText(account) }}</span>
           </div>
@@ -85,7 +86,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
@@ -147,6 +148,19 @@ function onLoginNew() {
 function avatarText(account) {
   const label = String(account?.label || account?.accountId || '?').trim()
   return label.charAt(0) || '?'
+}
+
+/** 头像直链加载失败过（某些昵称 getAvatar.do 无图）→ 回退首字母，不显示破图 */
+const brokenAvatars = reactive(new Set())
+
+function showAvatar(account) {
+  const url = String(account?.avatarUrl || '')
+  return Boolean(url) && !brokenAvatars.has(url)
+}
+
+function markAvatarBroken(account) {
+  const url = String(account?.avatarUrl || '')
+  if (url) brokenAvatars.add(url)
 }
 
 function onSwitch(account) {

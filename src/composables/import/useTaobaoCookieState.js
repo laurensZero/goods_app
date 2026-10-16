@@ -19,6 +19,21 @@ import { createLogger } from '@/utils/logger'
 
 const logger = createLogger('taobao:accountState')
 
+/** 解析账号资料：接口（getUserSimple + 个人中心）→ 失败再用 Cookie 兜底 */
+async function resolveTaobaoProfile(cookie) {
+  const fallback = profileFromCookie(cookie)
+  try {
+    const fetched = await fetchTaobaoAccountProfile(cookie)
+    return {
+      nickname: fetched.nickname || fallback.nickname,
+      avatarUrl: fetched.avatarUrl || fallback.avatarUrl,
+    }
+  } catch (error) {
+    logger.warn('profile-api-fail', { code: error?.code || error?.message || '' })
+    return fallback
+  }
+}
+
 /** 淘宝账号状态（Hub / 导入页共用）：账号列表 + 当前会话 + 校验徽标 */
 export function useTaobaoCookieState() {
   const accounts = ref([])
@@ -51,14 +66,14 @@ export function useTaobaoCookieState() {
       && (
         !item.avatarUrl
         || !item.label
-        || isAutoTaobaoAccountLabel(item.label, item.accountId || item.id)
+        || isAutoTaobaoAccountLabel(item.label, item.accountId, item.id)
       )
     )).slice(0, 3)
 
     let changed = false
     for (const account of stale) {
       try {
-        const profile = await fetchTaobaoAccountProfile(account.cookie)
+        const profile = await resolveTaobaoProfile(account.cookie)
         const payload = {
           ...(profile.nickname ? { label: profile.nickname } : {}),
           ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
@@ -78,12 +93,8 @@ export function useTaobaoCookieState() {
     const value = String(cookie || '').trim()
     if (!value) return { ok: false, cookie: '' }
 
-    let profile = { nickname: '', avatarUrl: '' }
-    try {
-      profile = await fetchTaobaoAccountProfile(value)
-    } catch {
-      profile = profileFromCookie(value)
-    }
+    // Cookie 兜底：接口只回昵称或只回头像时，用另一来源补全
+    const profile = await resolveTaobaoProfile(value)
     await setTaobaoCookie(value, {
       ...(profile.nickname ? { label: profile.nickname } : {}),
       ...(profile.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),

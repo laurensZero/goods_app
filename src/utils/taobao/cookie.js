@@ -249,7 +249,7 @@ export async function setTaobaoCookie(raw, options = {}) {
   const existing = accounts.find((item) => item.id === id)
   const incomingLabel = String(options.label || '').trim()
   const label = incomingLabel
-    || (existing && !isAutoTaobaoAccountLabel(existing.label, accountId) ? existing.label : '')
+    || (existing && !isAutoTaobaoAccountLabel(existing.label, accountId, id) ? existing.label : '')
     || formatTaobaoAccountLabel(accountId, id)
   const avatarUrl = String(options.avatarUrl || existing?.avatarUrl || '').trim()
 
@@ -274,11 +274,30 @@ export async function setTaobaoCookie(raw, options = {}) {
   return value
 }
 
-/** 账号备注是否仍是自动标签（便于有昵称时覆盖） */
-export function isAutoTaobaoAccountLabel(label, accountId) {
+/** 淘宝登录名形态（tb+数字），tracknick 常是这种而非展示昵称 */
+export function isTaobaoLoginName(value) {
+  return /^tb\d+$/i.test(String(value || '').trim())
+}
+
+/**
+ * 账号备注是否仍是自动标签（便于有昵称时覆盖）。
+ *
+ * 除了 `账号 xxx` 占位标签，下面这些「伪昵称」同样算自动、可被真实昵称覆盖：
+ *   - 无 unb 时退化成原始 id 的标签（如 ck_xxx）
+ *   - tracknick 带来的登录名（形如 tb+数字）
+ * @param {string} label
+ * @param {string} [accountId]
+ * @param {string} [id] 账号存储 id（无 unb 时为 ck_xxx）
+ */
+export function isAutoTaobaoAccountLabel(label, accountId, id = '') {
   const text = String(label || '').trim()
   if (!text) return true
-  return text === formatTaobaoAccountLabel(accountId, accountId)
+  const account = String(accountId || '').trim()
+  const rawId = String(id || '').trim()
+  if (rawId && text === rawId) return true
+  if (account && text === account) return true
+  if (isTaobaoLoginName(text)) return true
+  return text === formatTaobaoAccountLabel(account, rawId || account)
 }
 
 /** 列出已保存的淘宝账号（保持保存顺序） */
@@ -340,10 +359,9 @@ export async function upsertTaobaoAccountProfile(accountId, { label = '', avatar
     if (item.id !== id) return item
     const incomingLabel = String(label || '').trim()
     const incomingAvatar = String(avatarUrl || '').trim()
-    const canOverwriteLabel = incomingLabel && (
+    const canOverwriteLabel = Boolean(incomingLabel) && (
       !item.label
-      || isAutoTaobaoAccountLabel(item.label, item.accountId || item.id)
-      || item.label === formatTaobaoAccountLabel(item.accountId || item.id, item.id)
+      || isAutoTaobaoAccountLabel(item.label, item.accountId, item.id)
     )
     const nextLabel = canOverwriteLabel ? incomingLabel : item.label
     const nextAvatar = incomingAvatar || item.avatarUrl || ''
