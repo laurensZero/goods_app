@@ -16,7 +16,8 @@ import {
   shouldPullRechargeByManifest,
   collectReferencedImageState,
   buildImageEditSourceFilename,
-  buildImageFilename
+  buildImageFilename,
+  buildProfileBackgroundFilename
 } from '../shared'
 
 describe('getItemTimestamp', () => {
@@ -530,5 +531,36 @@ describe('buildImageEditSourceFilename', () => {
   it('扩展名取自本机底图文件名（抠图保留 png 透明通道）', () => {
     const name = buildImageEditSourceFilename(item, imageEntry, '', 'user-images/edit_source_1.png')
     expect(name.endsWith('.png')).toBe(true)
+  })
+})
+
+describe('buildProfileBackgroundFilename', () => {
+  it('按 itemId 生成确定性文件名（重试上传覆盖同名文件）', () => {
+    expect(buildProfileBackgroundFilename('bg_abc')).toBe('profile-bg__bg_abc__main.jpg')
+    expect(buildProfileBackgroundFilename('bg_abc', 'image/png')).toBe('profile-bg__bg_abc__main.png')
+    expect(buildProfileBackgroundFilename('bg_abc')).toBe(buildProfileBackgroundFilename('bg_abc'))
+  })
+
+  it('文件名首段是条目 id，孤儿回收可据此做归属校验', () => {
+    const name = buildProfileBackgroundFilename('bg_abc')
+    expect(name.slice('profile-bg__'.length).split('__')[0]).toBe('bg_abc')
+  })
+
+  it('collectReferencedImageState 登记背景图文件名与条目 id', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      collectionProfiles: {
+        ipProfiles: {
+          '明日方舟': {
+            items: [{
+              id: 'bg_abc',
+              kind: 'image',
+              cloudFileName: 'profile-bg__bg_abc__main.jpg'
+            }]
+          }
+        }
+      }
+    })
+    expect(referencedFiles.has('profile-bg__bg_abc__main.jpg')).toBe(true)
+    expect(ownedEntityIds.has('bg_abc')).toBe(true)
   })
 })

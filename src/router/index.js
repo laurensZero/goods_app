@@ -3,6 +3,7 @@ import i18n from '@/locales'
 
 import tabRoutes from './routes/tabs'
 import goodsRoutes from './routes/goods'
+import collectionProfileRoutes from './routes/collectionProfiles'
 import eventRoutes from './routes/events'
 import manageRoutes from './routes/manage'
 import importRoutes from './routes/import'
@@ -21,6 +22,7 @@ const routes = [
   },
   ...tabRoutes,
   ...goodsRoutes,
+  ...collectionProfileRoutes,
   ...eventRoutes,
   ...manageRoutes,
   ...importRoutes,

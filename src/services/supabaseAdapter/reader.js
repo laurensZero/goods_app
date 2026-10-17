@@ -3,6 +3,7 @@
 
 import { toCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/sync/syncRetry'
+import { serializeProfileMapForSync } from '@/utils/profile/collectionProfile'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
   GOODS_JSON_OBJECT_KEYS,
@@ -66,6 +67,15 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     return { forceResyncAt: data[0].force_resync_at || '' }
   }
 
+  // 收藏馆背景集：列不存在（未迁移实例）时返回 undefined，调用方据此保留本地数据
+  function parseCollectionProfilesField(value) {
+    const raw = safeParseJsonObject(value)
+    return serializeProfileMapForSync({
+      ipProfiles: raw?.ipProfiles,
+      characterProfiles: raw?.characterProfiles
+    })
+  }
+
   async function readPresets() {
     const db = getDb()
     const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
@@ -84,7 +94,10 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       // 迁移前列不存在时省略该键，replacePresetsSnapshot 据此保留本地自定义类型
       ...(row.eventTypes !== undefined ? { eventTypes: parsePresetsField(row.eventTypes) } : {}),
       // 同上：列不存在时省略，保留本地自定义字段定义（值不丢）
-      ...(row.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(row.customFieldDefs) } : {})
+      ...(row.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(row.customFieldDefs) } : {}),
+      ...(row.collectionProfiles !== undefined
+        ? { collectionProfiles: parseCollectionProfilesField(row.collectionProfiles) }
+        : {})
     }
   }
 
@@ -371,7 +384,10 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
         characters: parsePresetsField(p.characters),
         storageLocations: parsePresetsField(p.storageLocations),
         ...(p.eventTypes !== undefined ? { eventTypes: parsePresetsField(p.eventTypes) } : {}),
-        ...(p.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(p.customFieldDefs) } : {})
+        ...(p.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(p.customFieldDefs) } : {}),
+        ...(p.collectionProfiles !== undefined
+          ? { collectionProfiles: parseCollectionProfilesField(p.collectionProfiles) }
+          : {})
       }
     })() : null
 

@@ -297,6 +297,7 @@
       @save-preset="searchSaveNewPreset"
       @update-preset="searchUpdateActivePreset"
       @remove-preset="searchRemovePreset"
+      @open-profile="handleOpenProfileEntry"
     />
 
     <DailyRecommendation
@@ -696,6 +697,17 @@ function handleSearchUpdateField({ key, value }) { searchFilters[key] = value }
 function handleSearchToggleFilter({ key, value }) { searchToggleFilterValue(key, value) }
 function handleSearchToggleCustomFieldFilter({ defId, value }) { searchToggleCustomFieldFilter(defId, value) }
 function handleSearchToggleCharacterExpand() { searchShowAllCharacterOptions.value = !searchShowAllCharacterOptions.value }
+
+// 搜索弹层里选中单个 IP / 角色时，可直达收藏馆
+function handleOpenProfileEntry(payload) {
+  const name = String(payload?.name || '').trim()
+  if (!name) return
+  showSearchPopup.value = false
+  const target = payload.kind === 'character'
+    ? { name: 'character-profile', params: { charName: name } }
+    : { name: 'ip-profile', params: { ipName: name } }
+  runWithRouteTransition(() => router.push(target), { direction: 'forward' })
+}
 
 function checkNfcStorageFilter() {
   const nfcFilterRaw = localStorage.getItem(STORAGE_FILTER_STORAGE_KEY)

@@ -33,6 +33,7 @@ import zhSale from './zh-CN/sale.json'
 import zhBirthday from './zh-CN/birthday.json'
 import zhCollage from './zh-CN/collage.json'
 import zhGuide from './zh-CN/guide.json'
+import zhProfile from './zh-CN/profile.json'
 
 const STORAGE_KEY = 'goods_locale'
 const SUPPORTED_LOCALES = ['zh-CN', 'zh-TW', 'en', 'ja', 'ko']
@@ -84,7 +85,8 @@ function mergeMessages(parts) {
     collage,
     survey,
     birthday,
-    guide
+    guide,
+    profile
   } = parts
 
   return {
@@ -115,7 +117,8 @@ function mergeMessages(parts) {
     ...collage,
     survey,
     birthday,
-    ...guide
+    ...guide,
+    ...profile
   }
 }
 
@@ -163,7 +166,8 @@ const zhCNMessages = Object.assign(
   collage: zhCollage,
   survey: zhSurvey,
   birthday: zhBirthday,
-  guide: zhGuide
+  guide: zhGuide,
+  profile: zhProfile
 }),
   // 私有扩展文案（eager：zh-CN 打进入口包）
   Object.assign({}, ...Object.values(
@@ -176,7 +180,7 @@ const localeLoaders = {
     const [
       common, nav, goods, home, search, manage, events, recharge, sync, theme,
       importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
-      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide, profile
     ] = await Promise.all([
       import('./zh-TW/common.json'),
       import('./zh-TW/nav.json'),
@@ -205,7 +209,8 @@ const localeLoaders = {
       import('./zh-TW/collage.json'),
       import('./zh-TW/survey.json'),
       import('./zh-TW/birthday.json'),
-      import('./zh-TW/guide.json')
+      import('./zh-TW/guide.json'),
+      import('./zh-TW/profile.json')
     ])
     return mergeMessages({
       common: common.default,
@@ -235,14 +240,15 @@ const localeLoaders = {
       collage: collage.default,
       survey: survey.default,
       birthday: birthday.default,
-      guide: guide.default
+      guide: guide.default,
+      profile: profile.default
     })
   },
   'en': async () => {
     const [
       common, nav, goods, home, search, manage, events, recharge, sync, theme,
       importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
-      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide, profile
     ] = await Promise.all([
       import('./en/common.json'),
       import('./en/nav.json'),
@@ -271,7 +277,8 @@ const localeLoaders = {
       import('./en/collage.json'),
       import('./en/survey.json'),
       import('./en/birthday.json'),
-      import('./en/guide.json')
+      import('./en/guide.json'),
+      import('./en/profile.json')
     ])
     return mergeMessages({
       common: common.default,
@@ -301,14 +308,15 @@ const localeLoaders = {
       collage: collage.default,
       survey: survey.default,
       birthday: birthday.default,
-      guide: guide.default
+      guide: guide.default,
+      profile: profile.default
     })
   },
   'ja': async () => {
     const [
       common, nav, goods, home, search, manage, events, recharge, sync, theme,
       importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
-      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide, profile
     ] = await Promise.all([
       import('./ja/common.json'),
       import('./ja/nav.json'),
@@ -337,7 +345,8 @@ const localeLoaders = {
       import('./ja/collage.json'),
       import('./ja/survey.json'),
       import('./ja/birthday.json'),
-      import('./ja/guide.json')
+      import('./ja/guide.json'),
+      import('./ja/profile.json')
     ])
     return mergeMessages({
       common: common.default,
@@ -367,14 +376,15 @@ const localeLoaders = {
       collage: collage.default,
       survey: survey.default,
       birthday: birthday.default,
-      guide: guide.default
+      guide: guide.default,
+      profile: profile.default
     })
   },
   'ko': async () => {
     const [
       common, nav, goods, home, search, manage, events, recharge, sync, theme,
       importMsgs, about, validation, status, toast, leaderboard, share, trash, my,
-      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide
+      goodsGroup, notify, sale, mcp, aiChat, collage, survey, birthday, guide, profile
     ] = await Promise.all([
       import('./ko/common.json'),
       import('./ko/nav.json'),
@@ -403,7 +413,8 @@ const localeLoaders = {
       import('./ko/collage.json'),
       import('./ko/survey.json'),
       import('./ko/birthday.json'),
-      import('./ko/guide.json')
+      import('./ko/guide.json'),
+      import('./ko/profile.json')
     ])
     return mergeMessages({
       common: common.default,
@@ -433,7 +444,8 @@ const localeLoaders = {
       collage: collage.default,
       survey: survey.default,
       birthday: birthday.default,
-      guide: guide.default
+      guide: guide.default,
+      profile: profile.default
     })
   }
 }

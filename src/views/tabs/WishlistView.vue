@@ -222,6 +222,7 @@
       :has-unassigned-storage-location="false"
       :active-filter-count="searchActiveFilterCount"
       scope="wishlist"
+      :show-profile-entry="false"
       :search-presets="searchPresetsList"
       :active-preset-id="searchActivePresetId"
       :active-preset-name="searchActivePresetName"

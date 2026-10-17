@@ -168,6 +168,8 @@
       v-model:show="showRankingPopup"
       :entries="sortedEntries"
       :metric="selectedMetric"
+      :interactive="profileDimension !== null"
+      @select="openProfileFromRanking"
     />
 
     <Teleport to="body">
@@ -269,6 +271,25 @@ const totalQuantityText = computed(() => formatLeaderboardMetricValue({ quantity
 const selectedDimensionLabel = computed(() =>
   LEADERBOARD_DIMENSION_OPTIONS.value.find((item) => item.value === selectedDimension.value)?.label || ''
 )
+
+// 排行榜只有「角色 / IP」两个维度能落到收藏馆
+const PROFILE_DIMENSIONS = new Set(['character', 'ip'])
+const profileDimension = computed(() => (
+  PROFILE_DIMENSIONS.has(selectedDimension.value) ? selectedDimension.value : null
+))
+
+function openProfileFromRanking(entry) {
+  const name = String(entry?.label || '').trim()
+  if (!name) return
+  showRankingPopup.value = false
+  const target = profileDimension.value === 'character'
+    ? { name: 'character-profile', params: { charName: name } }
+    : profileDimension.value === 'ip'
+      ? { name: 'ip-profile', params: { ipName: name } }
+      : null
+  if (!target) return
+  runWithRouteTransition(() => router.push(target), { direction: 'forward' })
+}
 
 const heatmapData = computed(() => buildHeatmapData(list.value))
 const heatmapYears = computed(() => getHeatmapYears(list.value))

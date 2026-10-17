@@ -394,15 +394,22 @@ export async function readLocalImageAsDataUrl(uri, localPath = '', onWarn) {
   return null
 }
 
-export async function restoreLocalImageFromDataUrl(dataUrl) {
-  if (!dataUrl?.startsWith('data:image/')) return dataUrl
+/**
+ * 把 data URL 写入受管本地图片目录（原生端），Web 端原样返回 data URL。
+ * 用于「生成固定尺寸变体后落盘」这类需要自己决定文件名的场景。
+ * @param {string} dataUrl
+ * @returns {Promise<{ uri: string, localPath: string }>}
+ */
+export async function saveManagedLocalImageDataUrl(dataUrl) {
+  const text = String(dataUrl || '')
+  if (!text.startsWith('data:image/')) return { uri: text, localPath: '' }
 
   if (!Capacitor.isNativePlatform()) {
-    return dataUrl
+    return { uri: text, localPath: '' }
   }
 
-  const match = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
-  if (!match) return dataUrl
+  const match = text.match(/^data:image\/(\w+);base64,(.+)$/)
+  if (!match) return { uri: text, localPath: '' }
 
   const rawExt = match[1]
   const ext = rawExt === 'jpeg' ? 'jpg' : rawExt
@@ -418,11 +425,16 @@ export async function restoreLocalImageFromDataUrl(dataUrl) {
     })
 
     const { uri } = await Filesystem.getUri({ path: filename, directory: Directory.Data })
-    return Capacitor.convertFileSrc(uri)
+    return { uri: Capacitor.convertFileSrc(uri), localPath: filename }
   } catch (error) {
-    console.warn('[localImage] failed to restore image from backup', error)
-    return dataUrl
+    console.warn('[localImage] failed to save image data url', error)
+    return { uri: text, localPath: '' }
   }
+}
+
+export async function restoreLocalImageFromDataUrl(dataUrl) {
+  const saved = await saveManagedLocalImageDataUrl(dataUrl)
+  return saved.uri
 }
 
 function fileToDataUrl(file) {

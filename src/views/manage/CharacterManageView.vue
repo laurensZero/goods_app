@@ -144,6 +144,14 @@
                 </div>
               </button>
 
+              <button class="row-enter" type="button" :aria-label="t('profile.entry.open')" @click="openProfile(item.name)">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="3.5" y="5" width="17" height="14" rx="3" />
+                  <circle cx="9" cy="10" r="1.4" />
+                  <path d="M4.5 16.5l4.2-3.6 3.2 2.6 3.1-2.8 4.5 4" />
+                </svg>
+              </button>
+
               <button class="row-delete" type="button" :aria-label="t('manage.character.delete')" @click="removeCharacter(item.name)">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M18 6L6 18" />
@@ -229,6 +237,7 @@
 <script setup>
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
@@ -237,6 +246,7 @@ import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
 import { sortPresetList } from '@/utils/presets/sort'
 import { pinyinIncludes } from '@/utils/pinyin'
+import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
@@ -245,8 +255,16 @@ import PresetSortBar from '@/components/preset/PresetSortBar.vue'
 const EMPTY_IP_FILTER = '__empty__'
 
 const { t } = useI18n()
+const router = useRouter()
 const presets = usePresetsStore()
 const store = useGoodsStore()
+
+function openProfile(name) {
+  runWithRouteTransition(
+    () => router.push({ name: 'character-profile', params: { charName: name } }),
+    { direction: 'forward' }
+  )
+}
 
 const { sortMode, sortDirection, toggleSortDirection, setSortMode } = usePresetPreferences('characters')
 
@@ -625,6 +643,34 @@ async function saveEdit() {
 .row-ip-badge--empty {
   background: rgba(142, 142, 147, 0.1);
   color: var(--app-text-tertiary);
+}
+
+.row-enter {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(142, 142, 147, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: var(--app-text-tertiary);
+  transition: transform 0.16s ease;
+}
+
+.row-enter svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.row-enter:active {
+  transform: scale(0.9);
 }
 
 .row-delete {

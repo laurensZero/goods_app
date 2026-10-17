@@ -8,6 +8,7 @@ import { useEventsStore } from './events'
 import { usePresetsStore, normalizeCharacterName } from './presets'
 import { useRechargeStore } from '@/stores/recharge'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
+import { useCollectionProfileStore } from '@/stores/collectionProfile'
 import { useAuthStore } from '@/stores/auth'
 import { useSyncLogger } from '@/composables/sync/useSyncLogger'
 import { createSyncConflictService } from '@/services/sync/syncConflictService'
@@ -32,12 +33,14 @@ import {
   EVENT_PHOTO_PREFIX,
   RECHARGE_IMAGE_PREFIX,
   BATCH_DRAFT_IMAGE_PREFIX,
+  PROFILE_BACKGROUND_PREFIX,
   IMAGE_FILE_SIZE_LIMIT,
   SYNC_SCHEMA_VERSION
 } from '@/constants/syncConstants'
 import packageJson from '../../package.json'
 import { normalizeVersionTag } from '@/utils/github/release'
 import { normalizeCustomFieldDefs } from '@/utils/goods/customFields'
+import { isProfileMapFullyUploaded, serializeProfileMapForSync } from '@/utils/profile/collectionProfile'
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
@@ -267,6 +270,7 @@ export const useSyncStore = defineStore('sync', () => {
   const payloadService = createSyncPayloadService({
     deviceIdRef: deviceId, imageCloudIdRef: ref(''), lastSyncedAtRef: lastSyncedAt,
     buildPresetsData, ensureEventsStoreReady, useGoodsStore, useRechargeStore, useEventsStore, useGoodsGroupStore,
+    useCollectionProfileStore,
     readLocalImageAsDataUrl, compressImageToBlob, imageFileSizeLimit: IMAGE_FILE_SIZE_LIMIT
   })
 
@@ -282,7 +286,8 @@ export const useSyncStore = defineStore('sync', () => {
     rechargeImagePrefix: RECHARGE_IMAGE_PREFIX,
     // 新增同步域图片前缀时必须同步挂到这里，否则 collectSupabaseOrphanImageFiles
     // 会直接 skip（matchedPrefix 为空），该域云端图永远无法回收
-    batchDraftImagePrefix: BATCH_DRAFT_IMAGE_PREFIX
+    batchDraftImagePrefix: BATCH_DRAFT_IMAGE_PREFIX,
+    profileBackgroundPrefix: PROFILE_BACKGROUND_PREFIX
   })
 
   const conflictService = createSyncConflictService({
@@ -301,7 +306,9 @@ export const useSyncStore = defineStore('sync', () => {
 
   const orchestrator = createSyncOrchestrator({
     backend: activeBackend, payload: payloadService, image: imageService, conflict: conflictService,
-    useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore, trackSyncStep,
+    useGoodsStore, useRechargeStore, useEventsStore, usePresetsStore, useGoodsGroupStore,
+    useCollectionProfileStore,
+    trackSyncStep,
     userIdRef: () => { const authStore = useAuthStore(); return authStore.user?.id || '' }
   })
 
@@ -349,7 +356,7 @@ export const useSyncStore = defineStore('sync', () => {
     const favCat = presets.favoriteCategorySet
     const favIp = presets.favoriteIpSet
     const favChr = presets.favoriteCharacterSet
-    return {
+    const data = {
       categories: presets.categories.map((name) => ({ name, fav: favCat.has(name) })),
       ips: presets.ips.map((name) => ({ name, fav: favIp.has(name) })),
       characters: presets.characters
@@ -371,6 +378,25 @@ export const useSyncStore = defineStore('sync', () => {
       // 键序/默认值只要有一点不对称就会「永远有差异」→ 每次同步都推送。
       customFieldDefs: normalizeCustomFieldDefs(presets.customFieldDefs)
     }
+
+    // 收藏馆背景集：图片变体还没全部上传时不写这个键（否则会把空 cloudFileName
+    // 覆盖到云端，其他设备打开就是裂图）；真正带 cloudFileName 的快照由
+    // payload 侧 prepareCollectionProfilesForSync 在上传前生成。
+    try {
+      const profileStore = useCollectionProfileStore()
+      const profiles = {
+        ipProfiles: serializeProfileMapForSync(profileStore.ipProfiles),
+        characterProfiles: serializeProfileMapForSync(profileStore.characterProfiles)
+      }
+      const hasProfiles = Object.keys(profiles.ipProfiles).length > 0
+        || Object.keys(profiles.characterProfiles).length > 0
+      const fullyUploaded = isProfileMapFullyUploaded(profiles)
+      if (hasProfiles && fullyUploaded) data.collectionProfiles = profiles
+    } catch (e) {
+      console.warn('[sync] buildPresetsData: collection profiles unavailable', e?.message)
+    }
+
+    return data
   }
 
   function getLatestLocalModifiedAt() {
@@ -903,6 +929,15 @@ export const useSyncStore = defineStore('sync', () => {
       // 此时本地 presets 与云端 JSON 完全相等，清除是安全的。
       if (domains?.has('presets') && (result?.action === 'pushed' || result?.action === 'no_changes')) {
         clearDirtyDomains(new Set(['presets']))
+      }
+      // 收藏馆背景：profiles 域与 presets 一起推，成功后同样要落标记；
+      // 有背景图上传失败时立刻回填脏标记，下次同步重试（否则图永远缺席）
+      if (domains?.has('profiles') && (result?.action === 'pushed' || result?.action === 'no_changes')) {
+        clearDirtyDomains(new Set(['profiles']))
+      }
+      if (Number(result?.failedProfileImages) > 0) {
+        markDomainDirty('presets')
+        markDomainDirty('profiles')
       }
       remarkFailedImageItems(result)
       return result

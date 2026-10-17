@@ -81,7 +81,8 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     // 后加的列：自建/未迁移实例可能没有，报错时逐个摘掉重试，保证其余预设仍可同步
     const optionalCols = {
       event_types: JSON.stringify(presetsData.eventTypes || []),
-      custom_field_defs: JSON.stringify(presetsData.customFieldDefs || [])
+      custom_field_defs: JSON.stringify(presetsData.customFieldDefs || []),
+      ...(presetsData.collectionProfiles ? { collection_profiles: JSON.stringify(presetsData.collectionProfiles) } : {})
     }
     const presetsRow = {
       categories: JSON.stringify(presetsData.categories || []),
@@ -280,7 +281,10 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
           characters: JSON.stringify(presets.characters || []),
           storage_locations: JSON.stringify(presets.storageLocations || []),
           event_types: JSON.stringify(presets.eventTypes || []),
-          custom_field_defs: JSON.stringify(presets.customFieldDefs || [])
+          custom_field_defs: JSON.stringify(presets.customFieldDefs || []),
+          // 收藏馆背景集（含 phone/tablet 变体的 cloudFileName）；键缺失时 sync_push
+          // 动态 SET 不会碰该列，旧客户端 / 无背景用户不会抹掉云端数据
+          ...(presets.collectionProfiles ? { collection_profiles: JSON.stringify(presets.collectionProfiles) } : {})
         } : {},
         delete_goods: deleteGoods || [],
         delete_groups: deleteGroups || [],

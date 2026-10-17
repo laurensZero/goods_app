@@ -13,7 +13,16 @@
     </div>
     <div class="ranking-popup__body">
       <div v-if="entries.length > 0" class="ranking-popup__list">
-        <article v-for="(entry, index) in entries" :key="entry.key" class="ranking-popup__item">
+        <article
+          v-for="(entry, index) in entries"
+          :key="entry.key"
+          class="ranking-popup__item"
+          :class="{ 'ranking-popup__item--tappable': interactive }"
+          :role="interactive ? 'button' : undefined"
+          :tabindex="interactive ? 0 : undefined"
+          @click="interactive && emit('select', entry)"
+          @keydown.enter="interactive && emit('select', entry)"
+        >
           <div class="ranking-popup__index">{{ index + 1 }}</div>
           <div class="ranking-popup__content">
             <div class="ranking-popup__main">
@@ -26,6 +35,7 @@
             <div class="ranking-popup__chips">
               <span class="ranking-popup__chip">{{ t('leaderboard.items', { count: entry.quantity }) }}</span>
               <span class="ranking-popup__chip ranking-popup__chip--actual">{{ t('leaderboard.actualTotalPrice', { price: entry.actualTotalValue.toFixed(2) }) }}</span>
+              <span v-if="interactive" class="ranking-popup__chip ranking-popup__chip--enter">{{ t('profile.entry.open') }}</span>
             </div>
           </div>
         </article>
@@ -62,10 +72,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', onResize))
 const props = defineProps({
   show: { type: Boolean, default: false },
   entries: { type: Array, default: () => [] },
-  metric: { type: String, default: 'quantity' }
+  metric: { type: String, default: 'quantity' },
+  interactive: { type: Boolean, default: false }
 })
 
-const emit = defineEmits(['update:show'])
+const emit = defineEmits(['update:show', 'select'])
 
 useDialogBackButton(() => emit('update:show', false), () => props.show)
 </script>
@@ -171,5 +182,19 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
 .ranking-popup__chip--actual {
   background: color-mix(in srgb, #10b981 10%, transparent);
   color: #0d9668;
+}
+.ranking-popup__item--tappable {
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+.ranking-popup__item--tappable:active {
+  transform: scale(0.98);
+  background: var(--app-surface-muted);
+}
+.ranking-popup__chip--enter {
+  margin-left: auto;
+  background: color-mix(in srgb, var(--app-primary) 12%, transparent);
+  color: var(--app-text);
+  font-weight: 600;
 }
 </style>

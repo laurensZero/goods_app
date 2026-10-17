@@ -218,7 +218,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, forceReapply = false, forceAlign = false, preserveLocalPresets = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false, preserveLocalPresets = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -362,6 +362,14 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
       // 块级时钟（服务器时间）：用于挡掉「pull 在本地推送之前发出」的过期响应
       updatedAt: remoteData.presetsUpdatedAt || 0
     })
+    // 收藏馆背景集同属 presets 块；远端图片只带 cloudFileName，这里换成公开 URL，
+    // 本机已有同名文件的条目保留本地 uri/localPath
+    const collectionProfileStore = stores.collectionProfileStore
+    if (collectionProfileStore && remoteData.presets.collectionProfiles) {
+      await collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
+        resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined
+      })
+    }
   }
 
   // ── Budget settings ──

@@ -16,7 +16,8 @@ export function createSyncImageService({
   eventCoverPrefix,
   eventPhotoPrefix,
   rechargeImagePrefix,
-  batchDraftImagePrefix
+  batchDraftImagePrefix,
+  profileBackgroundPrefix
 }) {
   function resolveBackend() {
     return typeof getBackend === 'function' ? (getBackend() || backend) : backend
@@ -24,7 +25,7 @@ export function createSyncImageService({
 
   // 同步域图片前缀唯一枚举处：新增域必须在此登记，否则孤儿回收不会扫到该前缀的文件
   function listManagedImagePrefixes() {
-    return [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix, rechargeImagePrefix, batchDraftImagePrefix]
+    return [imageFilePrefix, eventCoverPrefix, eventPhotoPrefix, rechargeImagePrefix, batchDraftImagePrefix, profileBackgroundPrefix]
       .filter((p) => !!p)
   }
 

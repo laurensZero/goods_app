@@ -24,6 +24,25 @@
         <span v-if="activeFilterCount > 0" class="filter-popup__badge">{{ activeFilterCount }}</span>
       </header>
 
+      <!-- 关键词直接命中 IP / 角色（含拼音）：直达收藏馆，不必先勾选 chips。
+           心愿页没有「收藏馆」入口语义，由宿主传 show-profile-entry=false 关掉 -->
+      <section v-if="showProfileEntry && keywordProfileEntries.length" class="content-section content-section--compact">
+        <div class="profile-entry-row">
+          <button
+            v-for="entry in keywordProfileEntries"
+            :key="entry.key"
+            class="profile-entry"
+            type="button"
+            @click="$emit('open-profile', { kind: entry.kind, name: entry.name })"
+          >
+            {{ t('profile.entry.openNamed', { name: entry.name }) }}
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" />
+            </svg>
+          </button>
+        </div>
+      </section>
+
       <!-- Keyword matching options: compact square toggles -->
       <section class="content-section content-section--compact">
         <div class="match-tile-grid">
@@ -328,6 +347,17 @@
                       {{ option.label }}
                     </button>
                   </div>
+                  <button
+                    v-if="showProfileEntry && filters.ips.length === 1"
+                    class="profile-entry"
+                    type="button"
+                    @click="$emit('open-profile', { kind: 'ip', name: filters.ips[0] })"
+                  >
+                    {{ t('profile.entry.open') }}
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
                 </div>
 
                 <!-- Character -->
@@ -354,6 +384,17 @@
                       {{ option.label }}
                     </button>
                   </div>
+                  <button
+                    v-if="showProfileEntry && filters.characters.length === 1"
+                    class="profile-entry"
+                    type="button"
+                    @click="$emit('open-profile', { kind: 'character', name: filters.characters[0] })"
+                  >
+                    {{ t('profile.entry.open') }}
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </button>
                 </div>
 
                 <!-- Custom fields (select type only in v1) -->
@@ -442,6 +483,7 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import { formatDate } from '@/utils/format'
+import { toPinyinSearchText, warmPinyinCache } from '@/utils/pinyin'
 import StorageLocationFilterTree from '@/components/storage/StorageLocationFilterTree.vue'
 import {
   GOODS_FILTER_SPECIAL_VALUES,
@@ -464,7 +506,8 @@ const emit = defineEmits([
   'update-preset',
   'remove-preset',
   'toggle-character-expand',
-  'toggle-custom-field'
+  'toggle-custom-field',
+  'open-profile'
 ])
 
 const props = defineProps({
@@ -481,6 +524,8 @@ const props = defineProps({
   hasUnassignedStorageLocation: { type: Boolean, default: false },
   activeFilterCount: { type: Number, default: 0 },
   scope: { type: String, default: 'collection' },
+  /** 是否显示「直达收藏馆」入口（关键词命中 IP/角色、单 IP/角色筛选）。心愿页传 false。 */
+  showProfileEntry: { type: Boolean, default: true },
   searchPresets: { type: Array, default: () => [] },
   activePresetId: { type: String, default: '' },
   activePresetName: { type: String, default: '' },
@@ -513,6 +558,84 @@ const presetDraftName = ref('')
 const advancedExpanded = ref(false)
 
 const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters.keyword && props.filters.keyword.trim()))
+
+/* ── 关键词命中 IP / 角色（含拼音）→ 直达收藏馆 ── */
+
+const PROFILE_ENTRY_LIMIT = 3
+
+/** 可进收藏馆的候选（排除「未归类 IP / 未标角色」这两个特殊值） */
+function buildProfileCandidates() {
+  const candidates = []
+  for (const option of props.ipOptions) {
+    const name = String(option?.value || '').trim()
+    if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noIp) continue
+    candidates.push({ kind: 'ip', name })
+  }
+  for (const option of props.characterOptions) {
+    const name = String(option?.value || '').trim()
+    if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noCharacter) continue
+    candidates.push({ kind: 'character', name })
+  }
+  return candidates
+}
+
+// 拼音缓存是模块级非响应式数据：预热完成必须手动触发一次重算（也借此只在拼音就绪后启用拼音匹配）
+const pinyinVersion = ref(0)
+
+/**
+ * 命中强度：4 = 原文完全相等，3 = 首选读音的全拼/首字母完全相等，
+ * 2 = 其它读音组合完全相等（多音字），1 = 子串（原文或拼音），0 = 不命中
+ */
+function rankProfileCandidate(name, keyword, pinyinReady) {
+  const lowerName = name.toLowerCase()
+  if (lowerName === keyword) return 4
+  if (!pinyinReady) return lowerName.includes(keyword) ? 1 : 0
+
+  const pinyinText = toPinyinSearchText(name)
+  if (pinyinText) {
+    // toPinyinSearchText 每个读音组合先全拼后首字母，第一个组合即各字首选读音，
+    // 所以 lines[0] / lines[1] 是「首选全拼 / 首选首字母」；
+    // 多音字的其它组合排在后面（如「伊甸」的 yisheng/ys 不是首选，不该压过「原神」）
+    const lines = pinyinText.split('\n')
+    if (lines[0] === keyword || lines[1] === keyword) return 3
+    if (lines.includes(keyword)) return 2
+    if (lines.some((line) => line.includes(keyword))) return 1
+  }
+
+  return lowerName.includes(keyword) ? 1 : 0
+}
+
+const keywordProfileEntries = computed(() => {
+  if (!props.showProfileEntry) return []
+  const keyword = String(props.filters?.keyword || '').trim().toLowerCase()
+  if (!keyword) return []
+
+  const pinyinReady = pinyinVersion.value > 0
+  let bestRank = 0
+  const matched = []
+  for (const candidate of buildProfileCandidates()) {
+    const rank = rankProfileCandidate(candidate.name, keyword, pinyinReady)
+    if (!rank) continue
+    if (rank > bestRank) bestRank = rank
+    matched.push({ ...candidate, rank, key: `${candidate.kind}:${candidate.name}` })
+  }
+
+  // 只留命中最强的一档：搜「ys」时给「原神」一个精确入口，
+  // 而不是把拼音里恰好含 ys 的角色一起堆上来
+  return matched
+    .filter((entry) => entry.rank === bestRank)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, PROFILE_ENTRY_LIMIT)
+})
+
+watch(showProxy, async (visible) => {
+  if (!visible) return
+  if (!props.showProfileEntry) return
+  const names = buildProfileCandidates().map((candidate) => candidate.name)
+  if (!names.length) return
+  await warmPinyinCache(names)
+  pinyinVersion.value += 1
+})
 
 // Match option chips: tap toggles + shows short desc
 const matchOptionHint = ref('')
@@ -1095,6 +1218,41 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   color: var(--app-pending);
   font-size: 13px;
   font-weight: 600;
+}
+
+.profile-entry-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 7px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.profile-entry svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.profile-entry:active {
+  transform: scale(0.97);
 }
 
 .field-input {

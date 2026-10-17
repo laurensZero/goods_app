@@ -49,7 +49,12 @@ export const EVENT_COVER_PREFIX = 'event-cover__'
 export const EVENT_PHOTO_PREFIX = 'event-photo__'
 export const RECHARGE_IMAGE_PREFIX = 'recharge-image__'
 export const BATCH_DRAFT_IMAGE_PREFIX = 'batch-draft-image__'
-export const IMAGE_FILE_SIZE_LIMIT = 1024 * 1024
+// 收藏馆背景图：单独一个 storage bucket（profile-backgrounds），每条背景有 phone/tablet
+// 两个尺寸变体，文件名里带条目 id 供孤儿回收做归属校验
+export const PROFILE_BACKGROUND_PREFIX = 'profile-bg__'
+// 所有同步域单图上限：超过才在推送前压缩。4MB 保留更多画质（背景图/谷子大图更清晰），
+// 代价是上传流量与 Web 端 data URL 体积更大。
+export const IMAGE_FILE_SIZE_LIMIT = 4 * 1024 * 1024
 
 // 增量拉取重叠窗口：since 水位回退该时长再查询，吸收设备间时钟偏移
 // （行内 updated_at 是客户端时间戳）；合并为幂等 LWW，多拉无害

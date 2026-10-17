@@ -13,6 +13,7 @@ const EVENT_COVER_PREFIX = 'event-cover__'
 const EVENT_PHOTO_PREFIX = 'event-photo__'
 export const RECHARGE_IMAGE_PREFIX = 'recharge-image__'
 export const BATCH_DRAFT_IMAGE_PREFIX = 'batch-draft-image__'
+const PROFILE_BACKGROUND_PREFIX = 'profile-bg__'
 
 const MIME_EXTENSION_MAP = {
   'image/jpeg': 'jpg',
@@ -397,11 +398,12 @@ function resolveRefName(entry) {
   ).trim()
 }
 
-// 收集全量本地数据（收藏 + 回收站 + 活动 + 充值 + 批量草稿）的云端图片引用状态，
+// 收集全量本地数据（收藏 + 回收站 + 活动 + 充值 + 批量草稿 + 收藏馆背景）的云端图片引用状态，
 // 供孤儿图片回收使用：referencedFiles 为被引用的文件名集合，
 // ownedEntityIds 为当前用户拥有的实体 ID 集合（含原始与 sanitize 后两种形式）
 // batchDrafts 必须计入：未保存草稿的图若不在 referenced 里，会被 GC 误删（48h 宽限不够时）
-export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [], batchDrafts = [] } = {}) {
+// collectionProfiles 为 { ipProfiles, characterProfiles }（同步格式，含 cloudFileName）
+export function collectReferencedImageState({ goods = [], trash = [], events = [], recharge = [], batchDrafts = [], collectionProfiles = null } = {}) {
   const referencedFiles = new Set()
   const ownedEntityIds = new Set()
 
@@ -470,6 +472,19 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
         || parseCloudImageUri(item?.imageUri)
         || parseStoragePublicImageUrl(item?.imageUri)
       )
+    }
+  }
+
+  // 收藏馆背景图（独立 bucket）：每张背景登记一个云端文件；
+  // 条目 id 也加入 ownedEntityIds，供孤儿回收做归属校验
+  if (collectionProfiles && typeof collectionProfiles === 'object') {
+    for (const map of [collectionProfiles.ipProfiles, collectionProfiles.characterProfiles]) {
+      for (const set of Object.values(map || {})) {
+        for (const item of set?.items || []) {
+          addId(item?.id)
+          addRef(item?.cloudFileName || parseCloudImageUri(item?.uri))
+        }
+      }
     }
   }
 
@@ -601,6 +616,17 @@ export function buildBatchDraftImageFilename(draft, entry, mimeType) {
   const updatedAt = String(getItemTimestamp(draft) || 0)
   const extension = resolveImageExtension(mimeType, entry?.imageUri || entry?.uri || '')
   return `${BATCH_DRAFT_IMAGE_PREFIX}${slot}__${imageId}__${updatedAt}.${extension}`
+}
+
+/**
+ * 收藏馆背景图云端文件名：`profile-bg__<itemId>__main.<ext>`。
+ * 一张背景只有一张图（方形图 / 长条图都可能是），名字确定性（无时间戳）保证
+ * 上传失败重试时覆盖同名文件而不是堆垃圾；孤儿回收按 `__` 首段匹配条目 id 做归属校验。
+ */
+export function buildProfileBackgroundFilename(itemId, mimeType = 'image/jpeg') {
+  const id = sanitizeFilenamePart(itemId) || 'unknown'
+  const extension = resolveImageExtension(mimeType)
+  return `${PROFILE_BACKGROUND_PREFIX}${id}__main.${extension}`
 }
 
 export function buildImageSyncStats() {

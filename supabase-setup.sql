@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS sync_presets (
   ips JSONB DEFAULT '[]',
   characters JSONB DEFAULT '[]',
   storage_locations JSONB DEFAULT '[]',
+  collection_profiles JSONB DEFAULT '{}',
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -232,6 +233,8 @@ ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.u
 -- 因此补列不需要重发数据。
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS event_types JSONB DEFAULT '[]';
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS custom_field_defs JSONB DEFAULT '[]';
+-- 收藏馆背景集（IP / 角色）随 presets 整块同步；图片本体在 profile-backgrounds 桶
+ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS collection_profiles JSONB DEFAULT '{}';
 -- 预设块的服务器时间时钟：sync_push 每次写 presets 都会刷新它（客户端据此识别过期响应）
 ALTER TABLE sync_presets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
@@ -781,6 +784,11 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('avatars', 'avatars', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- 收藏馆背景图独立桶（手机 / 平板两档变体）
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('profile-backgrounds', 'profile-backgrounds', true)
+ON CONFLICT (id) DO NOTHING;
+
 -- Storage RLS：写操作按 "<userId>/" 一级目录隔离——新文件一律上传到自己的目录，
 -- 任意登录用户不得写/覆盖/删他人目录的文件（文件名确定性可推，整桶开放写等于可互相覆盖）。
 -- 读按归属收敛：SELECT 仅限「自己目录」+「根级归属自己的旧文件」
@@ -847,6 +855,38 @@ CREATE POLICY "auth_update_event_photos" ON storage.objects
 CREATE POLICY "auth_delete_event_photos" ON storage.objects
   FOR DELETE TO authenticated
   USING (bucket_id = 'event-photos' AND (
+    (storage.foldername(name))[1] = auth.uid()::text
+    OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+  ));
+
+-- profile-backgrounds：收藏馆背景图（与上面两个桶同一套归属策略）
+DROP POLICY IF EXISTS "auth_select_profile_backgrounds" ON storage.objects;
+DROP POLICY IF EXISTS "auth_insert_profile_backgrounds" ON storage.objects;
+DROP POLICY IF EXISTS "auth_update_profile_backgrounds" ON storage.objects;
+DROP POLICY IF EXISTS "auth_delete_profile_backgrounds" ON storage.objects;
+
+CREATE POLICY "auth_select_profile_backgrounds" ON storage.objects
+  FOR SELECT TO authenticated
+  USING (
+    bucket_id = 'profile-backgrounds'
+    AND (
+      (storage.foldername(name))[1] = auth.uid()::text
+      OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
+    )
+  );
+
+CREATE POLICY "auth_insert_profile_backgrounds" ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (bucket_id = 'profile-backgrounds' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_update_profile_backgrounds" ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (bucket_id = 'profile-backgrounds' AND (storage.foldername(name))[1] = auth.uid()::text)
+  WITH CHECK (bucket_id = 'profile-backgrounds' AND (storage.foldername(name))[1] = auth.uid()::text);
+
+CREATE POLICY "auth_delete_profile_backgrounds" ON storage.objects
+  FOR DELETE TO authenticated
+  USING (bucket_id = 'profile-backgrounds' AND (
     (storage.foldername(name))[1] = auth.uid()::text
     OR (position('/' in name) = 0 AND (owner_id = auth.uid()::text OR owner_id IS NULL))
   ));
@@ -978,7 +1018,7 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
+    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos', 'profile-backgrounds')
       AND name NOT LIKE '%.emptyFolderPlaceholder'
       AND (
             (storage.foldername(name))[1] = auth.uid()::text
@@ -1141,7 +1181,7 @@ BEGIN
     (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
     (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos')
+    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos', 'profile-backgrounds')
       AND name NOT LIKE '%.emptyFolderPlaceholder'
       AND (
             (storage.foldername(name))[1] = auth.uid()::text

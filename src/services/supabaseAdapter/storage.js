@@ -1,12 +1,14 @@
 // src/services/supabaseAdapter/storage.js
 // Supabase Storage operations: image upload/download, bucket management
 
-import { EVENT_PHOTO_PREFIX } from '@/constants/syncConstants'
+import { EVENT_PHOTO_PREFIX, PROFILE_BACKGROUND_PREFIX } from '@/constants/syncConstants'
 import { getPublicBaseUrl } from '@/utils/sync/supabaseClient'
 import i18n from '@/locales'
 
 export const GOODS_IMAGE_BUCKET = 'goods-images'
 export const EVENT_PHOTO_BUCKET = 'event-photos'
+// 收藏馆背景图独立桶：图片体积大、使用频率低，和谷子图分开便于单独控制配额 / 清理
+export const PROFILE_BACKGROUND_BUCKET = 'profile-backgrounds'
 
 function isBucketNotFoundError(error) {
   const message = String(error?.message || '').toLowerCase()
@@ -49,6 +51,7 @@ export function normalizeBucketName(bucketLike) {
 export function resolveStorageBucketByPath(filePath, fallbackBucket = GOODS_IMAGE_BUCKET) {
   const normalizedPath = String(filePath || '').trim()
   if (normalizedPath.startsWith(EVENT_PHOTO_PREFIX)) return EVENT_PHOTO_BUCKET
+  if (normalizedPath.startsWith(PROFILE_BACKGROUND_PREFIX)) return PROFILE_BACKGROUND_BUCKET
   return fallbackBucket || GOODS_IMAGE_BUCKET
 }
 
@@ -154,23 +157,20 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
       }
     }
 
-    // 根目录 = 迁移前的平铺旧文件；"<userId>/" 目录 = 迁移后的新文件
-    const listJobs = [
-      listStorageBucketFiles(db, GOODS_IMAGE_BUCKET),
-      listStorageBucketFiles(db, EVENT_PHOTO_BUCKET)
-    ]
+    // 根目录 = 迁移前的平铺旧文件；"<userId>/" 目录 = 迁移后的新文件。
+    // 收藏馆背景图在独立桶，同样需要列举（同步上传确认 / 孤儿回收都依赖完整列表）
+    const bucketNames = [GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET, PROFILE_BACKGROUND_BUCKET]
+    const listJobs = bucketNames.map((bucketName) => listStorageBucketFiles(db, bucketName))
     if (uid) {
-      listJobs.push(
-        listStorageBucketFiles(db, GOODS_IMAGE_BUCKET, uid),
-        listStorageBucketFiles(db, EVENT_PHOTO_BUCKET, uid)
-      )
+      for (const bucketName of bucketNames) {
+        listJobs.push(listStorageBucketFiles(db, bucketName, uid))
+      }
     }
     const results = await Promise.all(listJobs)
-    const [goodsRes, eventRes, goodsScopedRes, eventScopedRes] = results
-    if (goodsScopedRes) record(goodsScopedRes.files, true)
-    if (eventScopedRes) record(eventScopedRes.files, true)
-    record(goodsRes.files, false)
-    record(eventRes.files, false)
+    results.forEach((result, index) => {
+      const scoped = !!uid && index >= bucketNames.length
+      record(result.files, scoped)
+    })
 
     // complete: 全部列表都完整时才为 true，孤儿图片回收依赖此标记
     const result = { id: GOODS_IMAGE_BUCKET, files, complete: results.every((r) => r.complete) }
@@ -315,6 +315,7 @@ export function createStorageOps({ getDb, withRetry, userIdRef }) {
     const db = getDb()
     await ensureStorageBucket(db, GOODS_IMAGE_BUCKET)
     await ensureStorageBucket(db, EVENT_PHOTO_BUCKET)
+    await ensureStorageBucket(db, PROFILE_BACKGROUND_BUCKET)
     return { id: GOODS_IMAGE_BUCKET }
   }
 

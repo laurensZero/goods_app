@@ -7,6 +7,7 @@ import {
   buildImageEditSourceFilename,
   buildRechargeImageFilename,
   buildBatchDraftImageFilename,
+  buildProfileBackgroundFilename,
   buildImageSyncStats,
   getItemTimestamp,
   parseImageDataUrl,
@@ -16,6 +17,7 @@ import {
   readBudgetSettings
 } from '@/utils/sync/shared'
 import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, parseStoragePublicImageUrl, sanitizeGoodsItemForSync } from '@/utils/goods/images'
+import { serializeProfileMapForSync } from '@/utils/profile/collectionProfile'
 import { getAllBatchDrafts, getAllImageEdits } from '@/utils/db'
 import { isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
 import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
@@ -37,6 +39,7 @@ export function createSyncPayloadService({
   useRechargeStore,
   useEventsStore,
   useGoodsGroupStore,
+  useCollectionProfileStore,
   readLocalImageAsDataUrl,
   compressImageToBlob,
   imageFileSizeLimit
@@ -508,6 +511,97 @@ export function createSyncPayloadService({
     return preparedPhotos
   }
 
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+  }
+
+  /**
+   * 收藏馆背景：把每张背景的图片读成 data URL 塞进本次图片上传表，
+   * 并返回「带 cloudFileName 的 presets 快照」。图片过大时按同步上限再压一次
+   * （换端恢复 / 历史文件可能触发）。
+   * 没有背景集时返回 null，payload 里不带 collectionProfiles 键。
+   */
+  async function prepareCollectionProfilesForSync({ imageFiles, imageStats, referencedImageFiles, existingImageFiles }) {
+    if (typeof useCollectionProfileStore !== 'function') return null
+    const store = useCollectionProfileStore()
+    const hasProfiles = Object.keys(store.ipProfiles || {}).length > 0
+      || Object.keys(store.characterProfiles || {}).length > 0
+    if (!hasProfiles) return null
+
+    const result = { ipProfiles: {}, characterProfiles: {} }
+    const compressTargetBytes = Math.max(200 * 1024, Number(imageFileSizeLimit) - 1024)
+
+    for (const mapKey of ['ipProfiles', 'characterProfiles']) {
+      const localMap = store[mapKey] || {}
+      const serializedMap = serializeProfileMapForSync(localMap)
+      for (const [profileKey, serializedSet] of Object.entries(serializedMap)) {
+        const localSet = localMap[profileKey]
+        const items = []
+        for (const serializedItem of serializedSet.items) {
+          if (serializedItem.kind !== 'image') {
+            items.push(serializedItem)
+            continue
+          }
+          const localItem = (localSet?.items || []).find((item) => item.id === serializedItem.id) || null
+          let cloudFileName = String(serializedItem.cloudFileName || '').trim()
+
+          if (cloudFileName && existingImageFiles?.has(cloudFileName)) {
+            referencedImageFiles.add(cloudFileName)
+            imageStats.reusedImages += 1
+            items.push({ ...serializedItem, cloudFileName })
+            continue
+          }
+
+          const localDataUrl = await readLocalImageAsDataUrl(localItem?.uri, localItem?.localPath).catch(() => null)
+          if (!String(localDataUrl || '').startsWith('data:image/')) {
+            // 本地文件丢失且云端也不存在：保留引用，等下次同步重试
+            items.push({ ...serializedItem, cloudFileName })
+            continue
+          }
+
+          let content = localDataUrl
+          let parsed = parseImageDataUrl(content)
+          if (!parsed) {
+            items.push({ ...serializedItem, cloudFileName })
+            continue
+          }
+          if (parsed.fileSize > imageFileSizeLimit) {
+            const compressedBlob = await compressImageToBlob(content, {
+              maxBytes: compressTargetBytes,
+              maxEdge: 2560,
+              format: 'image/jpeg'
+            }).catch(() => null)
+            if (compressedBlob) {
+              content = await blobToDataUrl(compressedBlob)
+              parsed = parseImageDataUrl(content) || parsed
+            }
+          }
+
+          if (!cloudFileName) {
+            cloudFileName = buildProfileBackgroundFilename(serializedItem.id, parsed.mimeType)
+          }
+          referencedImageFiles.add(cloudFileName)
+          if (!existingImageFiles?.has(cloudFileName) && imageFiles) {
+            imageFiles[cloudFileName] = { content }
+            imageStats.uploadedImages += 1
+          } else {
+            imageStats.reusedImages += 1
+          }
+          items.push({ ...serializedItem, cloudFileName })
+        }
+        result[mapKey][profileKey] = { ...serializedSet, items }
+      }
+    }
+
+    if (Object.keys(result.ipProfiles).length === 0 && Object.keys(result.characterProfiles).length === 0) return null
+    return result
+  }
+
   async function buildSyncPayload({ incremental = false, existingImageCloud = null, dirtyIds = null } = {}) {
     const goodsStore = useGoodsStore()
     const lastSyncTime = lastSyncedAtRef.value ? new Date(lastSyncedAtRef.value).getTime() : 0
@@ -540,9 +634,19 @@ export function createSyncPayloadService({
       return sanitizeGoodsItemForSync(item, preparedImages)
     }, 8)
 
-    imageStats.imageFileCount = referencedImageFiles.size
-
     const budgetSettings = await readBudgetSettings()
+
+    const presets = await buildPresetsData()
+    const collectionProfiles = await prepareCollectionProfilesForSync({
+      imageFiles,
+      imageStats,
+      referencedImageFiles,
+      existingImageFiles
+    })
+    if (collectionProfiles) {
+      presets.collectionProfiles = collectionProfiles
+    }
+    imageStats.imageFileCount = referencedImageFiles.size
 
     // Include goods groups (split by deleted for tombstone model)
     const goodsGroupStore = useGoodsGroupStore()
@@ -556,7 +660,7 @@ export function createSyncPayloadService({
         deviceId: deviceIdRef.value,
         goods,
         trash,
-        presets: await buildPresetsData(),
+        presets,
         budgetSettings,
         goodsGroups: allGroups.filter(g => !g.deleted),
         goodsGroupsTrash: allGroups.filter(g => g.deleted),

@@ -5,7 +5,7 @@ vi.mock('@/locales', () => ({
   default: { global: { t: (key) => key } }
 }))
 
-import { createStorageOps, GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET, toStoragePath } from '../storage'
+import { createStorageOps, GOODS_IMAGE_BUCKET, EVENT_PHOTO_BUCKET, PROFILE_BACKGROUND_BUCKET, resolveStorageBucketByPath, toStoragePath } from '../storage'
 
 // 构造最小化的 supabase client mock：list 按桶分发，remove 记录批次
 function makeDb({ listImpl, removeImpl }) {
@@ -30,6 +30,14 @@ function makeGoodsEntries(count, startIndex = 0) {
   }
   return entries
 }
+
+describe('resolveStorageBucketByPath', () => {
+  it('routes profile background files to their dedicated bucket', () => {
+    expect(resolveStorageBucketByPath('profile-bg__bg_1__main.jpg')).toBe(PROFILE_BACKGROUND_BUCKET)
+    expect(resolveStorageBucketByPath('event-photo__e1__p1__1.jpg')).toBe(EVENT_PHOTO_BUCKET)
+    expect(resolveStorageBucketByPath('goods-image__g1__i1__1.jpg')).toBe(GOODS_IMAGE_BUCKET)
+  })
+})
 
 describe('createStorageOps', () => {
   describe('getExistingImageCloud', () => {

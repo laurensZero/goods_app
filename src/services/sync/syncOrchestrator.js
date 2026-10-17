@@ -90,6 +90,7 @@ export function createSyncOrchestrator({
   useRechargeStore,
   useEventsStore,
   usePresetsStore,
+  useCollectionProfileStore,
   useGoodsGroupStore,
   trackSyncStep,
   userIdRef
@@ -102,7 +103,8 @@ export function createSyncOrchestrator({
       rechargeStore: useRechargeStore(),
       eventsStore: useEventsStore(),
       goodsGroupStore: useGoodsGroupStore(),
-      presetsStore: usePresetsStore()
+      presetsStore: usePresetsStore(),
+      collectionProfileStore: typeof useCollectionProfileStore === 'function' ? useCollectionProfileStore() : null
     }
   }
 
@@ -116,7 +118,7 @@ export function createSyncOrchestrator({
     // 且之后 local == remote → hasPresetsDiff 恒 false，脏标记也永远推不走）。
     // 语义与 fullSync 的 isPresetsDirty 不同：此处 dirtyDomains 为空表示「没有未推送改动」，
     // 必须应用远端，否则跨设备新增的预设永远拉不下来。
-    const preserveLocalPresets = !!opts.dirtyDomains?.has('presets')
+    const preserveLocalPresets = !!opts.dirtyDomains?.has('presets') || !!opts.dirtyDomains?.has('profiles')
     let localBatchDrafts = []
     try { localBatchDrafts = await getAllBatchDrafts() } catch { localBatchDrafts = [] }
     const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
@@ -156,7 +158,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, preserveLocalPresets, resolveRechargeImage: be?.getImagePublicUrl || null })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, preserveLocalPresets, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
           },
@@ -242,7 +244,8 @@ export function createSyncOrchestrator({
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             preserveLocalPresets,
-            resolveRechargeImage: be?.getImagePublicUrl || null
+            resolveRechargeImage: be?.getImagePublicUrl || null,
+            resolveProfileImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -417,8 +420,8 @@ export function createSyncOrchestrator({
     const dirty = dirtyDomains
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
-    const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('group')
-    const isPresetsDirty = !dirty || dirty.has('presets')
+    const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('profiles') || dirty.has('group')
+    const isPresetsDirty = !dirty || dirty.has('presets') || dirty.has('profiles')
     const isBudgetDirty = !dirty || dirty.has('budget')
     const isBatchDraftDirty = !dirty || dirty.has('batchDrafts')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
@@ -528,7 +531,10 @@ export function createSyncOrchestrator({
         // 远端还没有 sync_presets 行（reader 返回 presets: null）时必须视为有差异：
         // 否则「只加角色、不动商品」的用户恒被判 no_changes，云端行永远建不出来 ——
         // 叠加 canQuickPush 要求 dirtyGoodsIds 非空，纯预设改动会彻底死锁。
-        hasPresetsDiff = !remoteData.presets
+        // profiles 脏：本地快照在为上传图片算 cloudFileName 前可能刻意省略 collectionProfiles，
+        // 不能只靠 JSON 比对（会误判无差异），必须强制推送一次。
+        hasPresetsDiff = !!dirty?.has?.('profiles')
+          || !remoteData.presets
           || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
       } catch { hasPresetsDiff = true }
     }
@@ -599,7 +605,8 @@ export function createSyncOrchestrator({
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             // 本地 presets 有未推送改动（刚新建/删除自定义字段、改分类…）时不被远端快照覆盖
             preserveLocalPresets: isPresetsDirty,
-            resolveRechargeImage: be?.getImagePublicUrl || null
+            resolveRechargeImage: be?.getImagePublicUrl || null,
+            resolveProfileImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
           if (be.getImagePublicUrl) {
@@ -644,13 +651,14 @@ export function createSyncOrchestrator({
   /**
    * Count all unique cloud-referenced image files across all goods + events + drafts.
    */
-  function countAllReferencedImageFiles(goodsStore, eventsStore, rechargeStore, batchDrafts = []) {
+  function countAllReferencedImageFiles(goodsStore, eventsStore, rechargeStore, batchDrafts = [], collectionProfileStore = null) {
     const { referencedFiles } = collectReferencedImageState({
       goods: goodsStore.list,
       trash: goodsStore.trashList,
       events: eventsStore.list || [],
       recharge: rechargeStore?.records || [],
-      batchDrafts
+      batchDrafts,
+      collectionProfiles: collectionProfileStore?.getProfilesForSync?.() || null
     })
     return referencedFiles.size
   }
@@ -698,7 +706,7 @@ export function createSyncOrchestrator({
     // When only dirty items were processed, imageStats only counts their images.
     // The manifest needs the TOTAL image count across all items.
     if (hasDirtyGoodsIds) {
-      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore, stores.rechargeStore, draftSnapshot)
+      imageStats.imageFileCount = countAllReferencedImageFiles(stores.goodsStore, stores.eventsStore, stores.rechargeStore, draftSnapshot, stores.collectionProfileStore)
     }
 
     // Build manifest
@@ -779,6 +787,12 @@ export function createSyncOrchestrator({
 
     // Update local refs (skip images whose upload failed)
     await updateLocalRefs(stores.goodsStore, stores.eventsStore, stores.rechargeStore, syncData, eventSyncData, rechargeSyncData, be, failedImageFiles, batchDraftSyncData)
+    // 收藏馆背景图上传成功后回填 cloudFileName / 公开 URL，让下次 presets 比较与云端逐字节一致
+    if (stores.collectionProfileStore?.markProfileImagesAsRemote && syncData.presets?.collectionProfiles) {
+      await stores.collectionProfileStore
+        .markProfileImagesAsRemote(syncData.presets.collectionProfiles, be.getImagePublicUrl, failedImageFiles)
+        .catch((e) => log.warn('mark profile background images as remote failed (non-fatal):', e))
+    }
 
     // 孤儿图片回收（Supabase）：删除云端不再被引用、且归属当前用户的图片文件。
     // 必须放在 purgeSyncedDeleted 之前：已删除活动的墓碑引用此时仍在本地，其照片会被保留。
@@ -796,7 +810,8 @@ export function createSyncOrchestrator({
           trash: stores.goodsStore.trashList,
           events: stores.eventsStore.list || [],
           recharge: stores.rechargeStore?.records || [],
-          batchDrafts: [...localDraftsForGc, ...pushedDrafts]
+          batchDrafts: [...localDraftsForGc, ...pushedDrafts],
+          collectionProfiles: stores.collectionProfileStore?.getProfilesForSync?.() || null
         })
         const orphanFiles = image.collectSupabaseOrphanImageFiles(existingImageCloud, { referencedFiles, ownedEntityIds })
         if (orphanFiles.length > 0) {
@@ -846,6 +861,18 @@ export function createSyncOrchestrator({
       }
     }
 
+    // 收藏馆背景图上传失败：同样需要保持 profiles 脏标记，下次同步重试上传
+    let failedProfileImages = 0
+    if (failedImageFiles.size > 0 && syncData.presets?.collectionProfiles) {
+      for (const map of [syncData.presets.collectionProfiles.ipProfiles, syncData.presets.collectionProfiles.characterProfiles]) {
+        for (const set of Object.values(map || {})) {
+          for (const item of set?.items || []) {
+            if (item?.cloudFileName && failedImageFiles.has(item.cloudFileName)) failedProfileImages += 1
+          }
+        }
+      }
+    }
+
     log.info('push:done', {
       totalGoods: (syncData.goods || []).length,
       totalTrash: (syncData.trash || []).length,
@@ -858,6 +885,7 @@ export function createSyncOrchestrator({
       action: 'pushed',
       failedImages: failedImageFiles.size,
       failedImageItemIds,
+      failedProfileImages,
       ...imageStats,
       totalGoods: (syncData.goods || []).length,
       totalTrash: (syncData.trash || []).length,
