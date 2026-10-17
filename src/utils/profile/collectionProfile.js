@@ -1,28 +1,34 @@
 // @ts-check
 /**
- * 收藏馆（IP / 角色）本地个性化资料：自定义背景集 + 轮换策略。
+ * 收藏馆（IP / 角色）本地个性化资料：自定义背景集 + 轮换策略 + 主题色。
  *
  * 这里只放**纯函数**（归一化 / 解析 / 序列化），便于单测；本地持久化与图片文件生命周期
- * 见 `stores/collectionProfile.js`，背景图导入压缩见 `utils/profile/backgroundImage.js`。
+ * 见 `stores/collectionProfile.js`，背景图导入压缩 / 取色见 `utils/profile/backgroundImage.js`。
  *
  * 数据结构刻意保持「将来可直接搬进 sync_presets.ip_profiles」的形态，
  * 上云阶段不需要再做数据迁移。一张背景就是一张图（方形图 / 长条图都可能是），
  * 展示侧按图片宽高自动决定 cover 还是完整居中 + 模糊铺底。
+ * 深浅色永远跟随 App 主题；这里只存每个收藏馆独立的强调色（主题色）来源。
  *
  * @typedef {{ id: string, kind: 'image'|'gradient', uri: string, localPath: string,
  *   cloudFileName: string, width: number, height: number, mimeType: string, fileSize: number,
- *   gradient: [string, string], focalY: number, scale: number, blur: number, overlay: number }} ProfileBackgroundItem
+ *   accent: string, gradient: [string, string], focalY: number, scale: number, blur: number,
+ *   overlay: number }} ProfileBackgroundItem
  * @typedef {{ mode: 'off'|'visit'|'interval', intervalSec: number,
  *   order: 'seq'|'random', transition: 'fade'|'kenburns' }} ProfileRotation
- * @typedef {{ items: ProfileBackgroundItem[], rotation: ProfileRotation }} ProfileBackgroundSet
+ * @typedef {{ source: 'app'|'background'|'custom', customColor: string }} ProfileTheme
+ * @typedef {{ items: ProfileBackgroundItem[], rotation: ProfileRotation, theme: ProfileTheme }} ProfileBackgroundSet
  */
 
-export const PROFILE_SCHEMA_VERSION = 2
+import { hexToHsl, hexToRgb, hslToHex, isHexColor } from '@/utils/color'
+
+export const PROFILE_SCHEMA_VERSION = 3
 
 export const PROFILE_ROTATION_MODES = ['off', 'visit', 'interval']
 export const PROFILE_ROTATION_ORDERS = ['seq', 'random']
 export const PROFILE_TRANSITIONS = ['fade', 'kenburns']
 export const PROFILE_ITEM_KINDS = ['image', 'gradient']
+export const PROFILE_THEME_SOURCES = ['app', 'background', 'custom']
 
 /** 默认「每次进入换一张」，顺序播放、淡入淡出 */
 export const DEFAULT_PROFILE_ROTATION = Object.freeze({
@@ -30,6 +36,12 @@ export const DEFAULT_PROFILE_ROTATION = Object.freeze({
   intervalSec: 8,
   order: 'seq',
   transition: 'fade'
+})
+
+/** 每个收藏馆默认按背景取主题色（没有可用颜色时自动回落到 App 主题） */
+export const DEFAULT_PROFILE_THEME = Object.freeze({
+  source: 'background',
+  customColor: '#8ec5fc'
 })
 
 /** 纯色·渐变卡预设（固定调色，先不给完整取色器） */
@@ -101,6 +113,7 @@ export function normalizeProfileItem(raw = {}) {
     height: Math.max(0, Math.round(Number(raw?.height) || 0)),
     mimeType: String(raw?.mimeType || '').trim(),
     fileSize: Math.max(0, Math.round(Number(raw?.fileSize) || 0)),
+    accent: normalizeAccentHex(raw?.accent),
     gradient: normalizeGradient(raw?.gradient),
     focalY: clampNumber(raw?.focalY ?? 0.5, 0, 1, 0.5),
     scale: clampNumber(raw?.scale ?? 1, 1, 2.2, 1),
@@ -135,6 +148,84 @@ export function normalizeProfileRotation(raw = {}) {
 
 /**
  * @param {any} raw
+ * @returns {ProfileTheme}
+ */
+export function normalizeProfileTheme(raw = {}) {
+  const source = PROFILE_THEME_SOURCES.includes(raw?.source) ? raw.source : DEFAULT_PROFILE_THEME.source
+  const customColor = normalizeAccentHex(raw?.customColor) || DEFAULT_PROFILE_THEME.customColor
+  return { source, customColor }
+}
+
+/** 只保留合法 hex；非法值返回空串 */
+export function normalizeAccentHex(value) {
+  const text = String(value || '').trim()
+  return isHexColor(text) ? text.toLowerCase() : ''
+}
+
+/**
+ * 把背景取色拉进「浅色 / 深色 App 主题下都看得清」的区间：
+ * 灰色没有主题感、太暗太亮在白底/深底上都不好读，统一夹 S 46–82、L 42–60。
+ */
+export function ensureReadableAccent(hex) {
+  const normalized = normalizeAccentHex(hex)
+  if (!normalized) return ''
+  const { h, s, l } = hexToHsl(normalized)
+  if (s < 12) return ''
+  return hslToHex(h, Math.min(82, Math.max(46, s)), Math.min(60, Math.max(42, l)))
+}
+
+/** 主题色上的文字颜色：按相对亮度选白/近黑 */
+export function accentContrastColor(hex) {
+  const normalized = normalizeAccentHex(hex) || DEFAULT_PROFILE_THEME.customColor
+  const { r, g, b } = hexToRgb(normalized)
+  const toLinear = (value) => {
+    const channel = value / 255
+    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4
+  }
+  const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b)
+  return luminance > 0.46 ? '#141416' : '#ffffff'
+}
+
+/** 渐变卡没有存 accent：从两个颜色里挑更「鲜艳」的一档 */
+export function getGradientAccent(gradient) {
+  const colors = Array.isArray(gradient) ? gradient : []
+  let best = ''
+  let bestScore = -1
+  for (const color of colors) {
+    const normalized = normalizeAccentHex(color)
+    if (!normalized) continue
+    const { s, l } = hexToHsl(normalized)
+    const score = s * (1 - Math.abs(l - 50) / 60)
+    if (score > bestScore) {
+      bestScore = score
+      best = normalized
+    }
+  }
+  return ensureReadableAccent(best)
+}
+
+/** 单张背景条目的主题色：图片用导入时提取的 accent，渐变从渐变色里取 */
+export function getItemAccent(item) {
+  if (!item) return ''
+  if (item.kind === 'gradient') return getGradientAccent(item.gradient)
+  return ensureReadableAccent(item.accent) || ''
+}
+
+/**
+ * 收藏馆主题色解析结果：
+ * - app：空串（展示层回落到 App 主题的强调色）
+ * - background：当前这张背景的颜色；没取到也返回空串
+ * - custom：用户自选颜色
+ */
+export function resolveProfileAccent(themeRaw, item) {
+  const theme = normalizeProfileTheme(themeRaw)
+  if (theme.source === 'custom') return theme.customColor
+  if (theme.source === 'background') return getItemAccent(item)
+  return ''
+}
+
+/**
+ * @param {any} raw
  * @returns {ProfileBackgroundSet}
  */
 export function normalizeBackgroundSet(raw = {}) {
@@ -143,7 +234,8 @@ export function normalizeBackgroundSet(raw = {}) {
     : []
   return {
     items,
-    rotation: normalizeProfileRotation(raw?.rotation)
+    rotation: normalizeProfileRotation(raw?.rotation),
+    theme: normalizeProfileTheme(raw?.theme)
   }
 }
 
@@ -221,6 +313,7 @@ export function serializeProfileItemForSync(item) {
     out.height = Math.max(0, Math.round(Number(item?.height) || 0))
     out.mimeType = String(item?.mimeType || '').trim()
     out.fileSize = Math.max(0, Math.round(Number(item?.fileSize) || 0))
+    out.accent = normalizeAccentHex(item?.accent)
   }
   return out
 }
@@ -241,7 +334,7 @@ export function serializeProfileMapForSync(raw) {
     const set = normalizeBackgroundSet(value)
     const items = set.items.map(serializeProfileItemForSync)
     if (items.length === 0) continue
-    out[normalizedKey] = { items, rotation: set.rotation }
+    out[normalizedKey] = { items, rotation: set.rotation, theme: set.theme }
   }
   return out
 }
@@ -302,7 +395,7 @@ export function hydrateProfileMapFromSync(raw, options = {}) {
       })
     })
 
-    out[normalizedKey] = { items: set.items, rotation: set.rotation }
+    out[normalizedKey] = { items: set.items, rotation: set.rotation, theme: set.theme }
   }
   return out
 }

@@ -4,12 +4,17 @@ import {
   PROFILE_GRADIENT_PRESETS,
   buildCharacterProfileKey,
   collectProfileSetLocalPaths,
+  accentContrastColor,
+  ensureReadableAccent,
+  getGradientAccent,
   hydrateProfileMapFromSync,
   isUsableProfileItem,
   normalizeBackgroundSet,
   normalizeProfileItem,
   normalizeProfileMap,
   normalizeProfileRotation,
+  normalizeProfileTheme,
+  resolveProfileAccent,
   resolveProfileBackground,
   serializeProfileMapForSync
 } from '@/utils/profile/collectionProfile'
@@ -262,5 +267,56 @@ describe('同步序列化 / 回填', () => {
     })
     expect(fresh['明日方舟'].items[0].uri).toBe('https://cdn/profile-bg__a__main.jpg')
     expect(fresh['明日方舟'].items[0].localPath).toBe('')
+  })
+})
+
+describe('收藏馆主题色', () => {
+  it('normalizeProfileTheme 对非法值回落默认（按背景取色）', () => {
+    expect(normalizeProfileTheme()).toEqual({ source: 'background', customColor: '#8ec5fc' })
+    expect(normalizeProfileTheme({ source: 'nope', customColor: 'red' }))
+      .toEqual({ source: 'background', customColor: '#8ec5fc' })
+    expect(normalizeProfileTheme({ source: 'custom', customColor: '#ABCDEF' }))
+      .toEqual({ source: 'custom', customColor: '#abcdef' })
+  })
+
+  it('渐变卡从两个颜色里取更鲜艳的一档，并拉进可读区间', () => {
+    const accent = getGradientAccent(['#E0E0E0', '#FF3300'])
+    expect(accent).toMatch(/^#[0-9a-f]{6}$/)
+    expect(accent).not.toBe('')
+    expect(getGradientAccent(['#808080', '#999999'])).toBe('')
+  })
+
+  it('resolveProfileAccent 按来源返回：app 为空、custom 用自选、background 用当前条目', () => {
+    const image = imageItem('a', { width: 1000, height: 1000 })
+    image.accent = '#3366ff'
+    expect(resolveProfileAccent({ source: 'app' }, image)).toBe('')
+    expect(resolveProfileAccent({ source: 'custom', customColor: '#112233' }, image)).toBe('#112233')
+    expect(resolveProfileAccent({ source: 'background' }, image)).toMatch(/^#[0-9a-f]{6}$/)
+
+    const gradient = normalizeProfileItem({ id: 'g', kind: 'gradient', gradient: ['#E0C3FC', '#8EC5FC'] })
+    expect(resolveProfileAccent({ source: 'background' }, gradient)).toMatch(/^#[0-9a-f]{6}$/)
+  })
+
+  it('ensureReadableAccent 丢掉灰色、保留彩色并控制亮度', () => {
+    expect(ensureReadableAccent('#888888')).toBe('')
+    const accent = ensureReadableAccent('#0000ff')
+    expect(accent).toMatch(/^#[0-9a-f]{6}$/)
+  })
+
+  it('accentContrastColor 深色配白字、浅色配近黑字', () => {
+    expect(accentContrastColor('#1a1a1a')).toBe('#ffffff')
+    expect(accentContrastColor('#f0e68c')).toBe('#141416')
+  })
+
+  it('theme 随背景集一起序列化并回填', () => {
+    const set = normalizeBackgroundSet({
+      items: [imageItem('a')],
+      theme: { source: 'custom', customColor: '#123456' }
+    })
+    const serialized = serializeProfileMapForSync({ 明日方舟: set })
+    expect(serialized['明日方舟'].theme).toEqual({ source: 'custom', customColor: '#123456' })
+
+    const hydrated = hydrateProfileMapFromSync(serialized)
+    expect(hydrated['明日方舟'].theme).toEqual({ source: 'custom', customColor: '#123456' })
   })
 })

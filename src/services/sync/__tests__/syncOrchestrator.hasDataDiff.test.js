@@ -31,7 +31,7 @@ vi.mock('../syncPushPipeline', () => ({
 }))
 
 import { createSyncOrchestrator } from '../syncOrchestrator'
-import { readRemoteData, diffLocalRemote } from '../syncPullPipeline'
+import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from '../syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from '../syncPushPipeline'
 
 const LOCAL_SYNC_TIME = '2026-07-01T00:00:00.000Z'
@@ -76,6 +76,7 @@ function makeOrchestrator(backend, stores, conflict) {
     useEventsStore: () => stores.eventsStore,
     usePresetsStore: () => stores.presetsStore,
     useGoodsGroupStore: () => stores.goodsGroupStore,
+    useCollectionProfileStore: () => stores.collectionProfileStore || null,
     trackSyncStep: (title, fn) => fn(),
     userIdRef: () => 'u1'
   })
@@ -263,6 +264,81 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
 
     expect(result.action).toBe('conflict')
     expect(result.action).not.toBe('no_changes')
+    expect(writeRemoteData).not.toHaveBeenCalled()
+  })
+
+  it('只有远端 presets/收藏馆背景变化（数据行无 diff、本机无脏标记）时也要走 pull', async () => {
+    // 远端清单比本机服务器水位线新 = 另一台设备刚推过背景/预设
+    const newerRemote = '2026-07-25T00:00:00.000Z'
+    stubRemote(
+      { lastSyncAt: newerRemote, deviceId: 'dev-b' },
+      { presets: { categories: [{ name: '远端分类' }], collectionProfiles: { ipProfiles: {}, characterProfiles: {} } } }
+    )
+    hydrateRemoteImages.mockResolvedValue({ restoredImages: 0 })
+    mergeToLocal.mockResolvedValue({ counts: { importedGoods: 0, updatedGoods: 0, importedTrash: 0 } })
+    const stores = makeStores()
+    stores.goodsStore.list = []
+    const conflict = makeConflict({})
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: newerRemote, deviceId: 'dev-b' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        getImagePublicUrl: (name) => `https://cdn/${name}`
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({
+      lastServerSyncedAt: REMOTE_SYNC_TIME,
+      buildPresetsData: async () => ({ categories: [], collectionProfiles: null })
+    })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(),
+      dirtyGoodsIds: new Set(),
+      source: 'manual'
+    })
+
+    expect(result.action).not.toBe('no_changes')
+    expect(result.action).toBe('pulled')
+    expect(mergeToLocal).toHaveBeenCalled()
+    expect(mergeToLocal.mock.calls[0][1].presets).toBeTruthy()
+  })
+
+  it('本机无脏标记且水位线已与远端持平时，仍要应用远端 presets/收藏馆背景', async () => {
+    stubRemote(
+      { lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' },
+      { presets: { categories: [{ name: '远端分类' }], collectionProfiles: { ipProfiles: {}, characterProfiles: {} } } }
+    )
+    const stores = makeStores()
+    stores.goodsStore.list = []
+    stores.presetsStore = { replacePresetsSnapshot: vi.fn(async () => {}) }
+    stores.collectionProfileStore = { applyRemoteProfiles: vi.fn(async () => {}) }
+    const conflict = makeConflict({})
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        getImagePublicUrl: (name) => `https://cdn/${name}`
+      },
+      stores,
+      conflict
+    )
+    // 远端清单与服务器水位线持平：正常不会走 pull 分支
+    const ctx = makeCtx({
+      lastServerSyncedAt: REMOTE_SYNC_TIME,
+      buildPresetsData: async () => ({ categories: [], collectionProfiles: null })
+    })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(),
+      dirtyGoodsIds: new Set(),
+      source: 'manual'
+    })
+
+    expect(result.action).toBe('no_changes')
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
+    expect(stores.collectionProfileStore.applyRemoteProfiles).toHaveBeenCalled()
     expect(writeRemoteData).not.toHaveBeenCalled()
   })
 })

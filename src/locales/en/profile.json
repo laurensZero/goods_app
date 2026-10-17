@@ -47,5 +47,12 @@
   "profile.background.followedIp": "Now following the IP",
   "profile.background.movePrev": "Move earlier",
   "profile.background.moveNext": "Move later",
-  "profile.background.nextAria": "Next background"
+  "profile.background.nextAria": "Next background",
+  "profile.background.themeTitle": "Accent color",
+  "profile.background.themeBackground": "From background",
+  "profile.background.themeApp": "Match app",
+  "profile.background.themeCustom": "Custom",
+  "profile.background.themeCustomLabel": "Pick a color",
+  "profile.background.themeHint": "Only changes this collection accent; light/dark still follows the app theme (auto-samples the current background as it rotates).",
+  "profile.background.processing": "Processing image…"
 }

@@ -87,6 +87,16 @@ export async function pickLinkedLocalImage() {
 }
 
 /**
+ * 选一张图，返回原始 File（不落盘、不转 data URL）。
+ * 适合「需要先自己压缩 / 处理」的场景（如收藏馆背景图导入）：
+ * 直接把 File 交给压缩管线，避免大图先转 data URL 的额外时间和内存。
+ * @returns {Promise<File | null>}
+ */
+export async function pickImageFile() {
+  return await pickLocalImageFile()
+}
+
+/**
  * 选一张图片并直接读成 data URL，**不写进 user-images**。
  * 用于「只要图内容、不需要把图存进谷子图片库」的场景（如拍照识别）——
  * 否则用户只是想识别一下，本地却留下一个没人引用的托管文件。
@@ -155,9 +165,11 @@ async function pickNativeGalleryImages(limit) {
 }
 
 async function pickNativeGalleryImage() {
+  // readData: false —— 不把原图 base64 读进 JS 桥（15MB 大图会明显卡顿）。
+  // 下方优先走 blob / path → fetch 成 File，只有插件两个都没给时才回退 data。
   const result = await FilePicker.pickImages({
     limit: 1,
-    readData: true
+    readData: false
   })
   const picked = result?.files?.[0]
   if (!picked) return null

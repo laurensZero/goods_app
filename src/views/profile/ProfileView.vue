@@ -1,5 +1,5 @@
 <template>
-  <div ref="pageRootRef" class="page profile-page" :style="HOME_MOTION_CSS_VARS">
+  <div ref="pageRootRef" class="page profile-page" :style="[HOME_MOTION_CSS_VARS, profileThemeStyle]">
     <main
       ref="pageBodyRef"
       class="page-body profile-body"
@@ -141,11 +141,13 @@
       :title="sheetTitle"
       :items="editableItems"
       :rotation="editableRotation"
+      :theme="editableTheme"
       :show-follow-ip="isCharacter"
       :following-ip="isCharacter && hasCharacterOverride && !!ip"
       :inherit-label="ip"
       @update:items="applyItems"
       @update:rotation="applyRotation"
+      @update:theme="applyTheme"
       @follow-ip="followIp"
     />
 
@@ -199,7 +201,13 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { createHomeSortOptions, isHomeSortDirectionLocked, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { resolveCharacterFilterShare } from '@/utils/goods/characterShare'
-import { collectProfileSetLocalPaths } from '@/utils/profile/collectionProfile'
+import {
+  DEFAULT_PROFILE_THEME,
+  accentContrastColor,
+  collectProfileSetLocalPaths,
+  normalizeProfileTheme,
+  resolveProfileAccent
+} from '@/utils/profile/collectionProfile'
 import { formatCompactNumber } from '@/utils/format'
 import { clearPendingDetailTransitionKind, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
 
@@ -600,6 +608,16 @@ const { currentItem, hasMultiple, next: nextBackground } = useProfileBackground(
 
 const rotationTransition = computed(() => resolved.value?.set?.rotation?.transition || 'fade')
 
+/* ── 主题色：深浅永远跟 App，强调色按各收藏馆自己的设置 ── */
+const profileTheme = computed(() => resolved.value?.set?.theme || DEFAULT_PROFILE_THEME)
+const profileAccent = computed(() => resolveProfileAccent(profileTheme.value, currentItem.value))
+const profileThemeStyle = computed(() => ({
+  '--profile-accent': profileAccent.value || 'var(--app-primary)',
+  '--profile-accent-contrast': profileAccent.value
+    ? accentContrastColor(profileAccent.value)
+    : 'var(--app-surface)'
+}))
+
 const hasCharacterOverride = computed(() => (
   isCharacter.value && profileStore.hasCharacterProfile(ip.value, characterName.value)
 ))
@@ -609,6 +627,7 @@ const hasCharacterOverride = computed(() => (
 const showBackgroundSheet = ref(false)
 const editableItems = ref([])
 const editableRotation = ref({ mode: 'visit', intervalSec: 8, order: 'seq', transition: 'fade' })
+const editableTheme = ref(normalizeProfileTheme())
 
 const sheetTitle = computed(() => (
   isCharacter.value && ip.value
@@ -619,6 +638,7 @@ const sheetTitle = computed(() => (
 function openBackgroundSheet() {
   editableItems.value = (resolved.value?.set?.items || []).map((item) => ({ ...item }))
   editableRotation.value = { ...(resolved.value?.set?.rotation || { mode: 'visit', intervalSec: 8, order: 'seq', transition: 'fade' }) }
+  editableTheme.value = normalizeProfileTheme(resolved.value?.set?.theme)
   showBackgroundSheet.value = true
 }
 
@@ -638,12 +658,18 @@ function applyItems(nextItems) {
   if (removed.length > 0) void profileStore.deleteFiles(removed)
 
   editableItems.value = nextItems
-  writeSet({ items: nextItems, rotation: editableRotation.value })
+  writeSet({ items: nextItems, rotation: editableRotation.value, theme: editableTheme.value })
 }
 
 function applyRotation(nextRotation) {
   editableRotation.value = nextRotation
-  writeSet({ items: editableItems.value, rotation: nextRotation })
+  writeSet({ items: editableItems.value, rotation: nextRotation, theme: editableTheme.value })
+}
+
+function applyTheme(nextTheme) {
+  const normalized = normalizeProfileTheme(nextTheme)
+  editableTheme.value = normalized
+  writeSet({ items: editableItems.value, rotation: editableRotation.value, theme: normalized })
 }
 
 function followIp() {
@@ -759,6 +785,12 @@ onBeforeUnmount(() => {
   /* 宽屏超过这个宽度后不再拉伸，hero 文案 / 统计 / 工具条 / 网格共用同一条中轴线 */
   --profile-content-max: 1120px;
   --profile-gutter: max(var(--page-padding), calc((100% - var(--profile-content-max)) / 2));
+  /* 每个收藏馆独立的主题色（由 ProfileView 绑定覆盖）；深浅色仍由 App 主题决定 */
+  --profile-accent: var(--app-primary);
+  --profile-accent-contrast: var(--app-surface);
+  background:
+    radial-gradient(120% 300px at 50% 0%, color-mix(in srgb, var(--profile-accent) 14%, transparent), transparent 72%),
+    var(--app-bg-gradient);
 }
 
 .profile-body {
@@ -883,7 +915,7 @@ onBeforeUnmount(() => {
 }
 
 .density-switch__option--active {
-  color: #ffffff;
+  color: var(--profile-accent-contrast, #ffffff);
 }
 
 .density-switch__option:active {
@@ -900,7 +932,7 @@ onBeforeUnmount(() => {
     / var(--density-switch-count, 3)
   );
   border-radius: 14px;
-  background: #141416;
+  background: var(--profile-accent, #141416);
   transform: translateX(calc((100% + var(--density-switch-gap, 6px)) * var(--density-switch-index, 0)));
   transition:
     transform var(--density-switch-duration) var(--home-motion-ease-emphasis),
@@ -964,6 +996,7 @@ onBeforeUnmount(() => {
 
 .sort-toggle--asc .sort-toggle__group--up {
   opacity: 1;
+  color: var(--profile-accent, var(--app-text-secondary));
 }
 
 .sort-toggle--asc .sort-toggle__group--down {
@@ -976,6 +1009,7 @@ onBeforeUnmount(() => {
 
 .sort-toggle:not(.sort-toggle--asc) .sort-toggle__group--down {
   opacity: 1;
+  color: var(--profile-accent, var(--app-text-secondary));
 }
 
 .sort-toggle--asc .sort-toggle__group--up path {
@@ -1030,11 +1064,11 @@ onBeforeUnmount(() => {
 }
 
 html.theme-dark .density-switch__indicator {
-  background: #f5f5f7;
+  background: var(--profile-accent, #f5f5f7);
 }
 
 html.theme-dark .density-switch__option--active {
-  color: #141416;
+  color: var(--profile-accent-contrast, #141416);
 }
 
 @media (prefers-reduced-motion: reduce) {

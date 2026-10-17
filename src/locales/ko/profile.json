@@ -47,5 +47,12 @@
   "profile.background.followedIp": "소속 IP를 따릅니다",
   "profile.background.movePrev": "앞으로",
   "profile.background.moveNext": "뒤로",
-  "profile.background.nextAria": "다음 배경"
+  "profile.background.nextAria": "다음 배경",
+  "profile.background.themeTitle": "테마 색상",
+  "profile.background.themeBackground": "배경에서 추출",
+  "profile.background.themeApp": "앱 테마 따르기",
+  "profile.background.themeCustom": "사용자 지정",
+  "profile.background.themeCustomLabel": "색상 선택",
+  "profile.background.themeHint": "이 컬렉션의 강조 색만 바꿉니다. 밝기/어둡기는 앱 테마를 따릅니다(배경 회전 시 현재 이미지에서 자동 추출).",
+  "profile.background.processing": "이미지 처리 중…"
 }

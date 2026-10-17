@@ -189,6 +189,35 @@
         </div>
       </div>
     </div>
+
+    <div v-if="items.length" class="bg-sheet__section">
+      <p class="bg-sheet__section-title">{{ t('profile.background.themeTitle') }}</p>
+
+      <div class="bg-sheet__segmented">
+        <button
+          v-for="option in themeOptions"
+          :key="option.value"
+          type="button"
+          :class="['bg-seg', { 'bg-seg--active': theme.source === option.value }]"
+          @click="patchTheme({ source: option.value })"
+        >
+          {{ option.label }}
+        </button>
+      </div>
+
+      <div v-if="theme.source === 'custom'" class="bg-sheet__sub-row">
+        <span class="bg-sheet__sub-label">{{ t('profile.background.themeCustomLabel') }}</span>
+        <input
+          class="bg-sheet__color"
+          type="color"
+          :value="theme.customColor"
+          :aria-label="t('profile.background.themeCustomLabel')"
+          @input="patchTheme({ customColor: $event.target.value })"
+        >
+      </div>
+
+      <p class="bg-sheet__hint">{{ t('profile.background.themeHint') }}</p>
+    </div>
     </div>
 
     <div class="bg-sheet__footer">
@@ -211,7 +240,7 @@ import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { showGlobalToast } from '@/utils/globalToast'
-import { pickImageForRecognition } from '@/utils/image/localImage'
+import { pickImageFile } from '@/utils/image/localImage'
 import { createProfileBackgroundImageItem } from '@/utils/profile/backgroundImage'
 import {
   PROFILE_GRADIENT_PRESETS,
@@ -226,12 +255,13 @@ const props = defineProps({
   title: { type: String, default: '' },
   items: { type: Array, default: () => [] },
   rotation: { type: Object, required: true },
+  theme: { type: Object, required: true },
   showFollowIp: { type: Boolean, default: false },
   followingIp: { type: Boolean, default: false },
   inheritLabel: { type: String, default: '' }
 })
 
-const emit = defineEmits(['update:modelValue', 'update:items', 'update:rotation', 'follow-ip'])
+const emit = defineEmits(['update:modelValue', 'update:items', 'update:rotation', 'update:theme', 'follow-ip'])
 
 const selectedId = ref('')
 const adding = ref(false)
@@ -253,6 +283,12 @@ const orderOptions = computed(() => [
 const transitionOptions = computed(() => [
   { value: 'fade', label: t('profile.background.transitionFade') },
   { value: 'kenburns', label: t('profile.background.transitionKenburns') }
+])
+
+const themeOptions = computed(() => [
+  { value: 'background', label: t('profile.background.themeBackground') },
+  { value: 'app', label: t('profile.background.themeApp') },
+  { value: 'custom', label: t('profile.background.themeCustom') }
 ])
 
 useDialogBackButton(close, () => props.modelValue)
@@ -294,10 +330,13 @@ function addImage() {
   adding.value = true
   void (async () => {
     try {
-      const picked = await pickImageForRecognition()
-      if (!picked?.uri) return
-      // 单张图入库，超大时先压到同步上限以内；方形图 / 长条图的展示差异交给页头按宽高比处理
-      const item = await createProfileBackgroundImageItem(picked.uri)
+      // 直接拿 File 进压缩管线：避免 15MB 大图先转一遍 base64 再解码
+      const file = await pickImageFile()
+      if (!file) return
+      // 大图解码 / 压缩需要几秒，先给一个明确的处理中反馈
+      showGlobalToast(t('profile.background.processing'))
+      // 单张图入库，最长边 2560；方形图 / 长条图的展示差异交给页头按宽高比处理
+      const item = await createProfileBackgroundImageItem(file)
       emitItems([...props.items, item])
       selectedId.value = item.id
     } catch (e) {
@@ -356,6 +395,10 @@ function applyPreset(preset) {
 
 function patchRotation(patch) {
   emit('update:rotation', { ...props.rotation, ...patch })
+}
+
+function patchTheme(patch) {
+  emit('update:theme', { ...props.theme, ...patch })
 }
 </script>
 
@@ -618,6 +661,22 @@ function patchRotation(patch) {
 .bg-sheet__sub-label {
   font-size: 12.5px;
   color: var(--app-text-secondary);
+}
+
+.bg-sheet__color {
+  width: 44px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-xs);
+  background: none;
+}
+
+.bg-sheet__hint {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--app-text-tertiary);
 }
 
 .bg-sheet__footer {

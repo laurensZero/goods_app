@@ -952,9 +952,10 @@ export const usePresetsStore = defineStore('presets', () => {
     // 过期响应保护：pull 是在本地推送之前发出的（或早于已经应用过的块）时，
     // 它带回的是更旧的预设块。直接应用会让本地预设回退 —— 这是「刚加的字段又没了」
     // 的另一条路径。时间戳由服务器 now() 生成，同一时钟域，可直接比较。
+    // 返回值：true = 已应用，false = 因过期响应跳过（调用方据此决定是否联动应用收藏馆背景）。
     if (remoteUpdatedAt > 0 && lastAppliedRemoteAt > 0 && remoteUpdatedAt < lastAppliedRemoteAt) {
       console.warn('[presets] skip stale remote snapshot', { remoteUpdatedAt, lastAppliedRemoteAt })
-      return
+      return false
     }
 
     // Helper: 兼容三种格式
@@ -1029,6 +1030,7 @@ export const usePresetsStore = defineStore('presets', () => {
         ? [writePersisted(STORAGE_KEY_PRESETS_REMOTE_AT, String(remoteUpdatedAt))]
         : [])
     ])
+    return true
   }
 
   // --- 收藏/置顶 ---

@@ -88,7 +88,7 @@ describe('collectionProfile store — 写入与持久化', () => {
 
     vi.advanceTimersByTime(200)
     const stored = readStored()
-    expect(stored.version).toBe(2)
+    expect(stored.version).toBe(3)
     expect(stored.ipProfiles['明日方舟'].items.map((item) => item.id)).toEqual(['a', 'b'])
   })
 
@@ -238,6 +238,17 @@ describe('collectionProfile store — 云同步', () => {
 
     await store.markProfileImagesAsRemote(synced, (name) => `https://cdn/${name}`, new Set(['profile-bg__bg_1__main.jpg']))
     expect(store.ipProfiles['明日方舟'].items[0].cloudFileName).toBe('')
+  })
+
+  it('主题色随背景集持久化并进入同步快照', async () => {
+    await store.init()
+    store.writeIpProfile('明日方舟', {
+      items: [cloudItem('bg_1')],
+      rotation: {},
+      theme: { source: 'custom', customColor: '#123456' }
+    })
+    expect(store.ipProfiles['明日方舟'].theme).toEqual({ source: 'custom', customColor: '#123456' })
+    expect(store.getProfilesForSync().ipProfiles['明日方舟'].theme).toEqual({ source: 'custom', customColor: '#123456' })
   })
 
   it('applyRemoteProfiles 用公开 URL 回填远端图片，并与同步快照保持一致', async () => {

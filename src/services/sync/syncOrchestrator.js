@@ -205,9 +205,22 @@ export function createSyncOrchestrator({
         diff.changedTrashIds = new Set((remoteData.trash || []).map(t => t.id))
         diff.hasChanges = true
       } else if (!diff.hasChanges) {
-        await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
-        await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
-        return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
+        // 数据行没变化也要看 presets 块：只改收藏馆背景 / 预设时远端会更新，
+        // 直接 no_changes 会让另一台设备永远拉不到这些内容
+        let presetsDiffer = false
+        if (remoteData.presets) {
+          try {
+            const localPresets = typeof ctx.buildPresetsData === 'function' ? await ctx.buildPresetsData() : null
+            presetsDiffer = !localPresets || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
+          } catch {
+            presetsDiffer = true
+          }
+        }
+        if (!presetsDiffer) {
+          await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
+          await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
+          return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
+        }
       }
 
       // 4. Conflict detection (non-silent only; schema resync 直接回填，不弹冲突)
@@ -537,6 +550,43 @@ export function createSyncOrchestrator({
           || !remoteData.presets
           || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
       } catch { hasPresetsDiff = true }
+    }
+    // 本机没有 presets 脏标记、但远端更新（例如另一台设备只改了收藏馆背景 / 预设）时，
+    // 也要走 pull 分支：否则 hasEffectiveDiff 恒 false → 直接 no_changes，
+    // collection_profiles / presets 永远不会拉下来（表现为另一端的背景图不显示）。
+    if (!hasPresetsDiff && remoteData.presets && remoteTime > serverSyncTime) {
+      try {
+        const localPresets = await ctx.buildPresetsData()
+        hasPresetsDiff = JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
+      } catch { hasPresetsDiff = true }
+    }
+    // 本机预设/背景没有未推送改动、且远端清单不比本地新（不会走 pull 分支）时，
+    // 直接以远端 presets 整块为准：replacePresetsSnapshot 内部会用块级 updated_at
+    // 挡掉过期响应，只有真正应用成功才联动回填 collection_profiles。
+    // 典型卡死场景：上次 pull 时本机 profiles 脏 → 跳过了应用，随后 push 把水位线
+    // 推到与远端持平，之后再也不会有 pull 分支 → 永远「另一台设备有、本机没有」。
+    if (!isPresetsDirty && remoteData.presets && remoteTime > 0 && remoteTime <= serverSyncTime) {
+      try {
+        const localPresets = await ctx.buildPresetsData()
+        if (JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)) {
+          let applied = true
+          if (typeof stores.presetsStore?.replacePresetsSnapshot === 'function') {
+            applied = (await stores.presetsStore.replacePresetsSnapshot(remoteData.presets, {
+              updatedAt: remoteData.presetsUpdatedAt || 0
+            })) !== false
+          }
+          if (applied) {
+            if (stores.collectionProfileStore && remoteData.presets.collectionProfiles) {
+              await stores.collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
+                resolveImageUrl: be?.getImagePublicUrl || null
+              })
+            }
+            hasPresetsDiff = false
+          }
+        }
+      } catch (e) {
+        log.warn('apply remote presets while locally clean failed (non-fatal):', e)
+      }
     }
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBatchDraftDataDiff || hasBudgetDiff || hasPresetsDiff
     log.info('sync:compare', {

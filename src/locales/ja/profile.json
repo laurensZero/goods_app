@@ -47,5 +47,12 @@
   "profile.background.followedIp": "所属 IP に合わせました",
   "profile.background.movePrev": "前へ",
   "profile.background.moveNext": "後へ",
-  "profile.background.nextAria": "次の背景"
+  "profile.background.nextAria": "次の背景",
+  "profile.background.themeTitle": "テーマカラー",
+  "profile.background.themeBackground": "背景から抽出",
+  "profile.background.themeApp": "アプリに合わせる",
+  "profile.background.themeCustom": "カスタム",
+  "profile.background.themeCustomLabel": "色を選択",
+  "profile.background.themeHint": "このコレクションのアクセント色だけを変更します。明暗はアプリテーマに従います（背景ローテーション中は現在の画像から自動抽出）。",
+  "profile.background.processing": "画像を処理中…"
 }

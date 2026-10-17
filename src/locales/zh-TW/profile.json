@@ -47,5 +47,12 @@
   "profile.background.followedIp": "已跟隨所屬 IP",
   "profile.background.movePrev": "前移",
   "profile.background.moveNext": "後移",
-  "profile.background.nextAria": "換一張"
+  "profile.background.nextAria": "換一張",
+  "profile.background.themeTitle": "主題色",
+  "profile.background.themeBackground": "跟隨背景",
+  "profile.background.themeApp": "跟隨 App",
+  "profile.background.themeCustom": "自訂",
+  "profile.background.themeCustomLabel": "選一個顏色",
+  "profile.background.themeHint": "只改這個收藏館的強調色；深淺色仍跟隨 App 主題（輪換背景時自動取目前這張的顏色）",
+  "profile.background.processing": "正在處理圖片…"
 }
