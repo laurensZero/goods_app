@@ -185,6 +185,10 @@ describe('pull applies row-level presets', () => {
     })
 
     expect(mergeToLocal).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything())
+    expect(readRemoteData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      since: expect.any(Number),
+      rowSince: 0
+    }))
   })
 
   it('本地干净时照常应用远端行', async () => {

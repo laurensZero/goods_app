@@ -21,7 +21,7 @@ import i18n from '@/locales'
  * @param {number} opts.since - incremental: only rows after this timestamp (ms)
  * @param {string} [opts.source] - 同步触发源，随 sync_pull 透传给服务端审计
  */
-export async function readRemoteData(be, { since = 0, trackSyncStep = null, source = '' } = {}) {
+export async function readRemoteData(be, { since = 0, rowSince = since, trackSyncStep = null, source = '' } = {}) {
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
@@ -41,12 +41,12 @@ export async function readRemoteData(be, { since = 0, trackSyncStep = null, sour
   )
   pullData.isIncremental = isIncremental
   if (typeof be.pullPresetRows === 'function') {
-    const rows = await be.pullPresetRows({ since })
+    const rows = await be.pullPresetRows({ since: rowSince })
     pullData.presetRows = rows.active
     pullData.presetRowsTrash = rows.trash
   }
   if (typeof be.pullCollectionProfiles === 'function') {
-    const rows = await be.pullCollectionProfiles({ since })
+    const rows = await be.pullCollectionProfiles({ since: rowSince })
     pullData.collectionProfileRows = rows.active
     pullData.collectionProfileRowsTrash = rows.trash
   }
@@ -405,11 +405,12 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
         updatedAt: row.updatedAt
       }
     }
-    await stores.collectionProfileStore.applyRemoteProfiles(profiles, {
+    const profileChanges = await stores.collectionProfileStore.applyRemoteProfiles(profiles, {
       resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined,
       forceReapply,
       forceAlign
     })
+    counts.importedProfiles = Number(profileChanges) || 0
   }
 
   // ── Budget settings ──
@@ -496,7 +497,8 @@ function countAppliedChanges(stores, remoteData) {
     importedRecharge: 0, updatedRecharge: 0,
     importedEvents: 0, updatedEvents: 0,
     importedGroups: 0,
-    importedDrafts: 0
+    importedDrafts: 0,
+    importedProfiles: 0
   }
 
   for (const g of (remoteData.goods || [])) {

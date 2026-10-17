@@ -137,6 +137,9 @@ export function createSyncOrchestrator({
       const pullStartMs = Date.now()
       const remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(since),
+        // 行级预设/背景不使用旧的全局 manifest 水位线；每次单点拉取都扫行表，
+        // 这样旧客户端曾经把 sync_manifest 推过行 updated_at 时也能自愈。
+        rowSince: 0,
         trackSyncStep,
         source: pullSource
       })
@@ -990,6 +993,7 @@ export function createSyncOrchestrator({
       + (counts.importedRecharge || 0) + (counts.updatedRecharge || 0)
       + (counts.importedEvents || 0) + (counts.updatedEvents || 0)
       + (counts.importedGroups || 0) + (counts.importedDrafts || 0)
+      + (counts.importedProfiles || 0)
   }
 
   function buildConflictCounts(stores, remoteData, diff) {

@@ -260,6 +260,15 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
       forceAlign: options.forceAlign
     })
     const afterCount = countItems(nextIp) + countItems(nextCharacters)
+    const countChanged = (before, after) => {
+      const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})])
+      let changed = 0
+      for (const key of keys) {
+        if (JSON.stringify(before?.[key] || null) !== JSON.stringify(after?.[key] || null)) changed++
+      }
+      return changed
+    }
+    const changedCount = countChanged(ipProfiles.value, nextIp) + countChanged(characterProfiles.value, nextCharacters)
     // 云端把本机原本存在的背景整块清空属于高风险操作，留一条日志便于排查（不阻断应用）
     if (beforeCount > 0 && afterCount === 0) {
       console.warn('[collectionProfile] remote profiles cleared all local backgrounds', {
@@ -271,6 +280,7 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
     ipProfiles.value = nextIp
     characterProfiles.value = nextCharacters
     await persistNow()
+    return changedCount
   }
 
   /**
