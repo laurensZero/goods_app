@@ -12,8 +12,8 @@ const VISION_TIMEOUT_MS = 120000
 export const DEFAULT_VISION_PROMPT =
   '请客观描述这张图片：主体内容、关键特征（颜色/文字/图案/物品类型），以及任何可识别的细节。如果是谷子/周边商品，请说明可能的角色、IP、品类与成色线索。'
 
-/** @param {AbortSignal} [signal] */
-function throwIfAborted(signal) {
+/** 已中止则立刻抛 AbortError（请求前 / 请求后各调一次，避免白跑） @param {AbortSignal} [signal] */
+export function throwIfAborted(signal) {
   if (signal?.aborted) throw new DOMException('已停止生成', 'AbortError')
 }
 
@@ -24,7 +24,7 @@ function throwIfAborted(signal) {
  * @param {AbortSignal} [signal]
  * @returns {Promise<T>}
  */
-function raceWithAbort(promise, signal) {
+export function raceWithAbort(promise, signal) {
   if (!signal) return promise
   throwIfAborted(signal)
   let onAbort
@@ -40,13 +40,15 @@ function raceWithAbort(promise, signal) {
 }
 
 /**
+ * 发一个 OpenAI 兼容 JSON 请求（原生走 CapacitorHttp，Web 走 fetch）。
+ * 视觉补全与结构化抽取共用，超时 / 中止 / 错误提取只在这一处维护。
  * @param {string} url
  * @param {Record<string, string>} headers
  * @param {unknown} body
  * @param {AbortSignal} [externalSignal]
  * @returns {Promise<any>}
  */
-async function postJson(url, headers, body, externalSignal) {
+export async function postVisionJson(url, headers, body, externalSignal) {
   throwIfAborted(externalSignal)
 
   if (Capacitor.isNativePlatform()) {
@@ -136,44 +138,28 @@ function extractDetail(data) {
 }
 
 /**
- * 执行一次视觉对话补全（非流式，单轮，无工具）。
- * @param {Object} options
- * @param {{ baseUrl: string, model: string, apiKey: string }} options.config
- * @param {string} [options.visionModel] 留空则用 config.model
- * @param {string} options.imageUrl 已是 data:image/...;base64,... 或可公开访问的 http(s) URL
- * @param {string} [options.prompt] 用户想了解的内容；缺省用 DEFAULT_VISION_PROMPT
- * @param {AbortSignal} [options.signal] 用户停止生成时中断等待（抛 AbortError）
- * @returns {Promise<string>} 模型对图片的描述文本
+ * 校验并组装视觉请求端点信息（视觉补全与结构化抽取共用，配置错误文案只在这里维护）。
+ * @param {{ baseUrl?: string, model?: string, apiKey?: string }} config
+ * @param {string} [visionModel] 留空则用 config.model
+ * @returns {{ url: string, model: string, headers: Record<string, string> }}
  */
-export async function runVisionCompletion({ config, visionModel, imageUrl, prompt, signal }) {
-  throwIfAborted(signal)
+export function resolveVisionEndpoint(config, visionModel) {
   const baseUrl = String(config?.baseUrl || '').trim().replace(/\/+$/, '')
   const model = String(visionModel || config?.model || '').trim()
   const apiKey = String(config?.apiKey || '').trim()
   if (!baseUrl) throw new Error('未配置 AI 接口地址')
   if (!model) throw new Error('未配置模型名称')
   if (!apiKey) throw new Error('未配置 API Key')
-  if (!imageUrl) throw new Error('缺少图片数据')
+  return { url: `${baseUrl}/chat/completions`, model, headers: { Authorization: `Bearer ${apiKey}` } }
+}
 
-  const data = await postJson(
-    `${baseUrl}/chat/completions`,
-    { Authorization: `Bearer ${apiKey}` },
-    {
-      model,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: String(prompt || '').trim() || DEFAULT_VISION_PROMPT },
-            { type: 'image_url', image_url: { url: imageUrl } }
-          ]
-        }
-      ]
-      // 刻意不传 max_tokens：部分推理/网关会把 tiny 上限整个烧在思考上返回空 content
-    },
-    signal
-  )
-
+/**
+ * 从 chat completion 响应里取正文；推理模型的正文可能落在 reasoning 字段。
+ * 空回复时给出可操作的中文报错。
+ * @param {any} data
+ * @returns {string}
+ */
+export function extractAssistantText(data) {
   const choice = data?.choices?.[0]
   const message = choice?.message || {}
   const content = String(message.content || '').trim()
@@ -190,4 +176,43 @@ export async function runVisionCompletion({ config, visionModel, imageUrl, promp
   throw new Error(
     '视觉模型返回了空回复。请在设置里把「视觉模型」改成支持图片输入的多模态模型（如 gpt-4o / qwen-vl 等），再重试'
   )
+}
+
+/**
+ * 组装「单张图 + 文本」的用户消息（顺序固定：先文本后图片）。
+ * @param {string} [prompt]
+ * @param {string} imageUrl
+ */
+export function buildVisionUserMessage(prompt, imageUrl) {
+  return {
+    role: 'user',
+    content: [
+      { type: 'text', text: String(prompt || '').trim() || DEFAULT_VISION_PROMPT },
+      { type: 'image_url', image_url: { url: imageUrl } }
+    ]
+  }
+}
+
+/**
+ * 执行一次视觉对话补全（非流式，单轮，无工具）。
+ * @param {Object} options
+ * @param {{ baseUrl: string, model: string, apiKey: string }} options.config
+ * @param {string} [options.visionModel] 留空则用 config.model
+ * @param {string} options.imageUrl 已是 data:image/...;base64,... 或可公开访问的 http(s) URL
+ * @param {string} [options.prompt] 用户想了解的内容；缺省用 DEFAULT_VISION_PROMPT
+ * @param {AbortSignal} [options.signal] 用户停止生成时中断等待（抛 AbortError）
+ * @returns {Promise<string>} 模型对图片的描述文本
+ */
+export async function runVisionCompletion({ config, visionModel, imageUrl, prompt, signal }) {
+  throwIfAborted(signal)
+  const { url, model, headers } = resolveVisionEndpoint(config, visionModel)
+  if (!imageUrl) throw new Error('缺少图片数据')
+
+  const data = await postVisionJson(url, headers, {
+    model,
+    messages: [buildVisionUserMessage(prompt, imageUrl)]
+    // 刻意不传 max_tokens：部分推理/网关会把 tiny 上限整个烧在思考上返回空 content
+  }, signal)
+
+  return extractAssistantText(data)
 }

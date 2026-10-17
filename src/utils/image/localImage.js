@@ -66,30 +66,51 @@ export async function pickLinkedLocalImages(limit) {
 }
 
 export async function pickLinkedLocalImage() {
-  if (Capacitor.isNativePlatform()) {
-    const file = await pickNativeGalleryImage().catch(async (error) => {
-      console.warn('[localImage] native gallery picker failed, fallback to file input', error)
-      return await pickBrowserImageFile()
-    })
-    if (!file) return null
+  const file = await pickLocalImageFile()
+  if (!file) return null
 
-    const saved = await saveLocalImage(file)
-
+  if (!Capacitor.isNativePlatform()) {
     return {
-      uri: saved.uri,
-      localPath: saved.localPath,
-      storageMode: 'linked-local'
+      uri: await fileToDataUrl(file),
+      localPath: '',
+      storageMode: 'inline-local'
     }
   }
 
-  const file = await pickBrowserImageFile()
-  if (!file) return null
+  const saved = await saveLocalImage(file)
 
   return {
-    uri: await fileToDataUrl(file),
-    localPath: '',
-    storageMode: 'inline-local'
+    uri: saved.uri,
+    localPath: saved.localPath,
+    storageMode: 'linked-local'
   }
+}
+
+/**
+ * 选一张图片并直接读成 data URL，**不写进 user-images**。
+ * 用于「只要图内容、不需要把图存进谷子图片库」的场景（如拍照识别）——
+ * 否则用户只是想识别一下，本地却留下一个没人引用的托管文件。
+ * @returns {Promise<{ uri: string, localPath: string } | null>}
+ */
+export async function pickImageForRecognition() {
+  const file = await pickLocalImageFile()
+  if (!file) return null
+  return { uri: await fileToDataUrl(file), localPath: '' }
+}
+
+/**
+ * 选一张图（原生优先相册，失败退回文件选择器；Web 走文件选择器）。
+ * 返回原始 File，落盘与转 data URL 由调用方决定。
+ * @returns {Promise<File | null>}
+ */
+async function pickLocalImageFile() {
+  if (Capacitor.isNativePlatform()) {
+    return await pickNativeGalleryImage().catch(async (error) => {
+      console.warn('[localImage] native gallery picker failed, fallback to file input', error)
+      return await pickBrowserImageFile()
+    })
+  }
+  return await pickBrowserImageFile()
 }
 
 async function pickNativeGalleryImages(limit) {

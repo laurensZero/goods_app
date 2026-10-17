@@ -29,6 +29,88 @@
             <p class="hero-label">{{ heroLabel }}</p>
             <h1 class="hero-title">{{ heroTitle }}</h1>
             <p class="hero-desc">{{ heroDesc }}</p>
+
+            <!-- 拍照识别：上传一张订单截图 / 商品图，自动认出字段并预填表单 -->
+            <template v-if="showPhotoRecognize">
+              <div class="photo-recognize-actions">
+                <button
+                  type="button"
+                  class="photo-recognize-btn"
+                  :disabled="recognizing"
+                  :aria-busy="recognizing"
+                  @click="handlePhotoRecognize"
+                >
+                  <svg
+                    class="photo-recognize-btn__icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 8h3l1.6-2.4h6.8L17 8h3v11H4z" />
+                    <circle cx="12" cy="13.2" r="3.1" />
+                    <path d="M18.4 2.4l.7 1.9 1.9.7-1.9.7-.7 1.9-.7-1.9-1.9-.7 1.9-.7z" />
+                  </svg>
+                  <span>{{ recognizing ? t('goods.photoScan.recognizing') : t('goods.photoScan.uploadButton') }}</span>
+                </button>
+
+                <!-- 慢端点可能要等一整分钟：别让用户只能盯着转圈 -->
+                <button
+                  v-if="recognizing"
+                  type="button"
+                  class="photo-recognize-cancel"
+                  @click="cancelPhotoRecognize"
+                >
+                  {{ t('goods.photoScan.cancel') }}
+                </button>
+              </div>
+
+              <p
+                v-if="photoRecognizeHint"
+                class="photo-recognize-hint"
+                :class="{ 'photo-recognize-hint--error': photoRecognizeHasError }"
+              >
+                <span>{{ photoRecognizeHint }}</span>
+                <button
+                  v-if="photoRecognizeNeedsConfig"
+                  type="button"
+                  class="photo-recognize-hint__link"
+                  @click="goConfigureAiService"
+                >
+                  {{ t('goods.photoScan.goConfigure') }}
+                </button>
+              </p>
+
+              <div v-if="photoRecognizeSummary" class="photo-recognize-result">
+                <p class="photo-recognize-result__title">
+                  {{ t('goods.photoScan.filledTitle', { count: photoRecognizeSummary.filled.length }) }}
+                </p>
+                <div class="photo-recognize-result__chips">
+                  <span
+                    v-for="key in photoRecognizeSummary.filled"
+                    :key="key"
+                    class="photo-recognize-chip"
+                  >
+                    {{ t(PHOTO_RECOGNIZE_FIELD_LABEL_KEYS[key]) }}
+                  </span>
+                </div>
+                <p v-if="photoRecognizeSummary.uncertain.length" class="photo-recognize-result__note">
+                  {{ t('goods.photoScan.uncertainNote', { count: photoRecognizeSummary.uncertain.length }) }}
+                </p>
+                <p v-if="photoRecognizeSummary.skipped.length" class="photo-recognize-result__note">
+                  {{ t('goods.photoScan.skippedNote', { count: photoRecognizeSummary.skipped.length }) }}
+                </p>
+                <p v-if="photoRecognizeSummary.notRecognized.length" class="photo-recognize-result__note">
+                  {{ t('goods.photoScan.notFoundNote', { count: photoRecognizeSummary.notRecognized.length }) }}
+                </p>
+                <button type="button" class="photo-recognize-result__undo" @click="undoPhotoRecognize">
+                  {{ t('goods.photoScan.undo') }}
+                </button>
+              </div>
+            </template>
           </article>
         </section>
 
@@ -1054,6 +1136,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { flushActiveInput } from '@/utils/commitActiveInput'
 import { useGoodsEditorForm } from '@/composables/goods/useGoodsEditorForm'
 import { useSmartTagging } from '@/composables/goods/useSmartTagging'
@@ -1075,6 +1158,9 @@ import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import CustomFieldPickerSheet from '@/components/goods/CustomFieldPickerSheet.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import StatusTimelineEditor from '@/components/goods/StatusTimelineEditor.vue'
+import { pickImageForRecognition } from '@/utils/image/localImage'
+import { showGlobalToast } from '@/utils/globalToast'
+import { NAVIGATE_PAGES } from '@/utils/ai/jumpLinks'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { resizeTextarea } from '@/utils/textarea'
 import { CURRENCIES, CURRENCY_MAP } from '@/constants/currencies'
@@ -1082,6 +1168,7 @@ import { getCoverTone } from '@/utils/goods/coverTone'
 import { SALE_REMINDER_PRESET_OFFSETS, formatSaleAtDisplay, getSaleReminderKind } from '@/utils/goods/saleReminder'
 
 const { t } = useI18n()
+const router = useRouter()
 
 const props = defineProps({
   mode: {
@@ -1553,6 +1640,184 @@ async function handleFormSubmit(event) {
     await nextTick()
     focusActiveErrorField()
   }
+}
+
+// ============ 拍照识别：上传一张图 → 认出字段 → 预填表单 ============
+
+/**
+ * 识别结果字段 → 表单字段标签。直接复用编辑页已有文案，不新造一套同义词
+ * （name 取 nameRequired 是因为该 key 的值就是「名称」，星号在模板里单独渲染）。
+ */
+const PHOTO_RECOGNIZE_FIELD_LABEL_KEYS = {
+  name: 'goods.editor.nameRequired',
+  category: 'common.category',
+  ip: 'common.ip',
+  characters: 'common.character',
+  price: 'goods.editor.priceLabel',
+  actualPrice: 'goods.editor.actualPrice',
+  acquiredAt: 'goods.editor.purchaseDate'
+}
+
+/** 只在新增页出现：编辑页是在改既有数据，不该拿识别结果去覆盖 */
+const showPhotoRecognize = computed(() => props.mode === 'add')
+
+const recognizing = ref(false)
+const photoRecognizeController = ref(null)
+const photoRecognizeSummary = ref(null)
+const photoRecognizeNeedsConfig = ref(false)
+const photoRecognizeErrorText = ref('')
+const photoRecognizeUndo = ref(null)
+
+const photoRecognizeHasError = computed(
+  () => photoRecognizeNeedsConfig.value || Boolean(photoRecognizeErrorText.value)
+)
+const photoRecognizeHint = computed(() => {
+  if (photoRecognizeNeedsConfig.value) return t('goods.photoScan.notConfigured')
+  return photoRecognizeErrorText.value
+})
+
+function resetPhotoRecognizeFeedback() {
+  photoRecognizeSummary.value = null
+  photoRecognizeNeedsConfig.value = false
+  photoRecognizeErrorText.value = ''
+  photoRecognizeUndo.value = null
+}
+
+/**
+ * 识别链路动态 import：/add 是高频入口，识别栈（结构化抽取 → visionClient →
+ * @capacitor/core）只在真的点按钮时才进这个 chunk。
+ */
+async function loadPhotoRecognition() {
+  const [recognize, planner, vocabulary, backends] = await Promise.all([
+    import('@/services/recognition/recognizeImage'),
+    import('@/services/recognition/planFormPrefill'),
+    import('@/services/recognition/mapToPresets'),
+    import('@/services/recognition/backends')
+  ])
+  return {
+    recognizeImage: recognize.recognizeImage,
+    planFormPrefill: planner.planFormPrefill,
+    buildVocabulary: vocabulary.buildVocabulary,
+    hasRecognitionBackend: backends.hasRecognitionBackend
+  }
+}
+
+async function handlePhotoRecognize() {
+  if (recognizing.value) return
+  resetPhotoRecognizeFeedback()
+
+  const picked = await pickImageForRecognition().catch((error) => {
+    console.warn('[photo-recognize] 选择图片失败', error)
+    return null
+  })
+  if (!picked) return // 用户取消
+
+  recognizing.value = true
+  // 慢端点一次要等几十秒：给用户一条自己结束等待的路
+  photoRecognizeController.value = new AbortController()
+  flushActiveInput()
+  try {
+    const { recognizeImage, planFormPrefill, buildVocabulary, hasRecognitionBackend } =
+      await loadPhotoRecognition()
+
+    // 入口不隐藏：没配模型时点一下才知道该去配，比藏起来更容易被发现
+    if (!hasRecognitionBackend()) {
+      photoRecognizeNeedsConfig.value = true
+      return
+    }
+
+    const result = await recognizeImage({
+      image: picked,
+      vocabulary: buildVocabulary(presets),
+      signal: photoRecognizeController.value.signal
+    })
+
+    await applyPhotoRecognition(result, planFormPrefill)
+  } catch (error) {
+    if (error?.name === 'AbortError') return
+    console.warn('[photo-recognize] 识别失败', error)
+    photoRecognizeErrorText.value = String(error?.message || '').trim() || t('goods.photoScan.failed')
+    showGlobalToast(photoRecognizeErrorText.value)
+  } finally {
+    photoRecognizeController.value = null
+    recognizing.value = false
+  }
+}
+
+/** 用户主动结束等待（慢端点 / 点错了） */
+function cancelPhotoRecognize() {
+  photoRecognizeController.value?.abort()
+}
+
+/**
+ * 把识别结果落进表单。只填空字段、不改用户已填内容（判定在 planFormPrefill 里，纯函数可测）。
+ * @param {{ fields: Record<string, any> }} result
+ * @param {Function} planFormPrefill
+ */
+async function applyPhotoRecognition(result, planFormPrefill) {
+  const plan = planFormPrefill({
+    fields: result?.fields,
+    current: {
+      name: form.name,
+      category: form.category,
+      ip: form.ip,
+      characters: form.characters,
+      price: form.price,
+      actualPrice: form.actualPrice,
+      acquiredAt: form.acquiredAt
+    },
+    // 心愿单模式下这两个字段会被表单自己清空，预填只会留一个看不见的脏值
+    exclude: form.isWishlist ? ['actualPrice', 'acquiredAt'] : []
+  })
+
+  const undo = {}
+  for (const field of Object.keys(plan.assignments)) {
+    undo[field] = Array.isArray(form[field]) ? [...form[field]] : form[field]
+  }
+
+  // 先写 ip 再写角色：ip 变化会触发「按 IP 过滤角色」的 watcher，
+  // 若同一次 flush 里已经写了角色，识别出的角色会在词表里找不到而被抹掉。
+  if (plan.assignments.ip !== undefined) {
+    form.ip = plan.assignments.ip
+    await nextTick()
+  }
+
+  for (const [field, value] of Object.entries(plan.assignments)) {
+    if (field === 'ip') continue
+    form[field] = Array.isArray(value) ? [...value] : value
+  }
+
+  // 入手价默认折叠在「补充入手价」里，填了就把面板展开，否则用户看不到
+  if (plan.assignments.actualPrice !== undefined) showActualPriceInput.value = true
+
+  photoRecognizeUndo.value = Object.keys(undo).length > 0 ? undo : null
+
+  if (plan.filled.length === 0 && plan.skipped.length === 0) {
+    showGlobalToast(t('goods.photoScan.empty'))
+    return
+  }
+
+  photoRecognizeSummary.value = plan
+
+  // 带用户去填了东西的 tab，否则在别的 tab 上根本看不到识别结果
+  const onBasicTab = ['name', 'category', 'ip', 'characters']
+  if (plan.filled.some((field) => onBasicTab.includes(field))) setActiveTab('basic', { force: true })
+  else if (plan.filled.length > 0) setActiveTab('price', { force: true })
+}
+
+/** 撤销本次识别填入的内容（只回滚它填过的字段） */
+function undoPhotoRecognize() {
+  const undo = photoRecognizeUndo.value
+  if (undo) {
+    for (const [field, value] of Object.entries(undo)) {
+      form[field] = Array.isArray(value) ? [...value] : value
+    }
+  }
+  resetPhotoRecognizeFeedback()
+}
+
+function goConfigureAiService() {
+  router.push({ name: NAVIGATE_PAGES.ai_service }).catch(() => {})
 }
 
 watch(showTrackEditor, (visible) => {

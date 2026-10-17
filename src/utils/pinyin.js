@@ -165,3 +165,14 @@ export function compareByPinyin(a, b) {
   const kb = getSortKey(b)
   return ka < kb ? -1 : ka > kb ? 1 : 0
 }
+
+/**
+ * 文本的拼音归一 key（全拼、无声调、取常用读音、小写）。
+ * 用于「同一个名字的不同写法」等值判断，例如繁简混用「納西妲 / 纳西妲」。
+ * pinyin-pro 尚未加载时返回原文，调用方据此自然降级为不匹配。
+ * @param {string} text
+ * @returns {string}
+ */
+export function toPinyinKey(text) {
+  return getSortKey(text)
+}

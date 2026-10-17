@@ -18,31 +18,7 @@ import {
   unpackAppCsvZip,
   isAppCsvZipFilename
 } from '@/utils/table/appDataCsv'
-
-/** 可映射到谷子的字段（对齐 writeTools WRITABLE_FIELDS 的常用子集） */
-export const MAPPABLE_FIELDS = [
-  'name', 'category', 'ip', 'characters', 'tags', 'variant', 'storageLocation',
-  'price', 'actualPrice', 'currency', 'quantity',
-  'acquiredAt', 'isWishlist', 'note',
-  'collectStatus', 'sellPrice', 'sellPlatform', 'sellDate', 'saleAt'
-]
-
-/** 需要数组的字段：单元格按分隔符自动拆 */
-const ARRAY_FIELDS = new Set(['characters', 'tags'])
-
-/** 需要布尔的字段 */
-const BOOL_FIELDS = new Set(['isWishlist'])
-
-/** 日期字段：统一尝试多种常见格式 → YYYY-MM-DD */
-const DATE_FIELDS = new Set(['acquiredAt', 'sellDate', 'saleAt'])
-
-const DATE_FORMATS = [
-  /^(\d{4})-(\d{1,2})-(\d{1,2})$/,
-  /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/,
-  /^(\d{4})\.(\d{1,2})\.(\d{1,2})$/,
-  /^(\d{4})年(\d{1,2})月(\d{1,2})日$/,
-  /^(\d{4})(\d{2})(\d{2})$/
-]
+import { MAPPABLE_FIELDS, coerceValue, normalizeDefaults } from '@/utils/goods/fieldCoercion'
 
 /** 官方 schema 的中文标签（展示用） */
 const SCHEMA_LABELS = {
@@ -402,54 +378,6 @@ export function createTableToolHandlers({
   }
 
   /**
-   * @param {string} field
-   * @param {string} raw
-   */
-  function coerceValue(field, raw) {
-    const value = String(raw ?? '').trim()
-    if (value === '') return undefined
-    if (ARRAY_FIELDS.has(field)) {
-      return value.split(/[,、;；|/]+/).map((s) => s.trim()).filter(Boolean)
-    }
-    if (BOOL_FIELDS.has(field)) {
-      if (['1', 'true', '是', 'y', 'yes'].includes(value.toLowerCase()) || value === '✓') return true
-      if (['0', 'false', '否', 'n', 'no'].includes(value.toLowerCase()) || value === '✗') return false
-      return undefined
-    }
-    if (DATE_FIELDS.has(field)) {
-      const normalized = normalizeDate(value)
-      if (!normalized) throw new Error(`无法识别日期：「${value}」（需 YYYY-MM-DD）`)
-      return normalized
-    }
-    if (field === 'quantity') {
-      const n = Number(value.replace(/[^\d.-]/g, ''))
-      if (!Number.isFinite(n) || n < 1) throw new Error(`数量无效：「${value}」（需 ≥ 1 的数字）`)
-      return Math.floor(n)
-    }
-    if (field === 'price' || field === 'actualPrice' || field === 'sellPrice') {
-      const cleaned = value.replace(/[¥$€£,\s]/g, '')
-      if (cleaned === '') return undefined
-      if (!/^-?\d+(\.\d+)?$/.test(cleaned)) throw new Error(`金额格式无法识别：「${value}」`)
-      return cleaned
-    }
-    return value
-  }
-
-  /** @param {string} value */
-  function normalizeDate(value) {
-    for (const re of DATE_FORMATS) {
-      const m = value.match(re)
-      if (!m) continue
-      const y = m[1]
-      const mo = String(Number(m[2])).padStart(2, '0')
-      const d = String(Number(m[3])).padStart(2, '0')
-      if (Number(m[2]) < 1 || Number(m[2]) > 12 || Number(m[3]) < 1 || Number(m[3]) > 31) continue
-      return `${y}-${mo}-${d}`
-    }
-    return ''
-  }
-
-  /**
    * @param {string[]} headers
    * @param {string[][]} rows
    * @param {Record<string, number>} fieldToCol
@@ -716,22 +644,6 @@ export function createTableToolHandlers({
   }
 
   return { table_dryrun, table_commit }
-}
-
-/**
- * @param {Record<string, any>} [defaults]
- * @returns {Record<string, any>}
- */
-function normalizeDefaults(defaults) {
-  if (!defaults || typeof defaults !== 'object' || Array.isArray(defaults)) return {}
-  /** @type {Record<string, any>} */
-  const out = {}
-  for (const [key, value] of Object.entries(defaults)) {
-    if (!MAPPABLE_FIELDS.includes(key)) continue
-    if (value === undefined || value === null || value === '') continue
-    out[key] = value
-  }
-  return out
 }
 
 /**

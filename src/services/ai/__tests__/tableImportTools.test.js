@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { createTableToolHandlers, TABLE_TOOL_DEFINITIONS, MAPPABLE_FIELDS } from '../tableImportTools'
+import { createTableToolHandlers, TABLE_TOOL_DEFINITIONS } from '../tableImportTools'
 
 const CSV = '名称,类型,价格,数量,入手日期,角色\n吧唧,原神,30,2,2024-03-01,纳西妲\n立牌,,50,,2024/03/15,芙宁娜;那维莱特\n,,abc,x,bad-date,\n'
 
@@ -30,12 +30,6 @@ describe('tableImportTools', () => {
     expect(names).toContain('table_dryrun')
     expect(names).toContain('table_commit')
     expect(names).not.toContain('table_preview')
-  })
-
-  it('MAPPABLE_FIELDS 含核心字段', () => {
-    expect(MAPPABLE_FIELDS).toContain('name')
-    expect(MAPPABLE_FIELDS).toContain('price')
-    expect(MAPPABLE_FIELDS).toContain('acquiredAt')
   })
 
   it('table_dryrun 不带 mapping：返回结构与样本，不写库', async () => {

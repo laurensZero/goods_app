@@ -1211,3 +1211,148 @@ html.theme-dark .btn-float {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* ── 拍照识别：hero 卡片内的「上传图片识别」入口 ── */
+.photo-recognize-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.photo-recognize-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  height: 42px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 0.14s ease, opacity 0.14s ease;
+}
+
+.photo-recognize-cancel {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.photo-recognize-btn:active {
+  transform: scale(0.97);
+}
+
+.photo-recognize-btn:disabled {
+  opacity: 0.55;
+}
+
+.photo-recognize-btn__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+}
+
+/* 识别中：图标呼吸提示还在跑，别让用户以为点了没反应 */
+.photo-recognize-btn:disabled .photo-recognize-btn__icon {
+  animation: photo-recognize-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes photo-recognize-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.photo-recognize-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.photo-recognize-hint--error {
+  color: var(--app-danger, #c74444);
+}
+
+.photo-recognize-hint__link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.photo-recognize-result {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+}
+
+.photo-recognize-result__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.photo-recognize-result__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.photo-recognize-chip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+  color: var(--app-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.photo-recognize-result__note {
+  margin: 6px 0 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.photo-recognize-result__undo {
+  margin-top: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+html.theme-dark .photo-recognize-btn {
+  background: #f5f5f7;
+  color: #141416;
+}
