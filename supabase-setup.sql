@@ -1513,3 +1513,174 @@ ALTER TABLE goods ADD COLUMN IF NOT EXISTS shipping_events JSONB DEFAULT '[]'::j
 -- PostgREST schema cache（改函数后必刷）
 NOTIFY pgrst, 'reload schema';
 
+-- ============================================================
+-- 16. 行级预设 / 收藏馆背景同步（新增安装必跑；存量库用
+--     supabase/supabase-migration-sync-row-tables.sql + sync-pull-row-domains）
+-- ============================================================
+
+ALTER TABLE sync_preset_rows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE collection_profiles ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS sync_preset_rows_select_own ON sync_preset_rows;
+DROP POLICY IF EXISTS sync_preset_rows_insert_own ON sync_preset_rows;
+DROP POLICY IF EXISTS sync_preset_rows_update_own ON sync_preset_rows;
+DROP POLICY IF EXISTS sync_preset_rows_delete_own ON sync_preset_rows;
+CREATE POLICY sync_preset_rows_select_own ON sync_preset_rows
+  FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY sync_preset_rows_insert_own ON sync_preset_rows
+  FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY sync_preset_rows_update_own ON sync_preset_rows
+  FOR UPDATE TO authenticated USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY sync_preset_rows_delete_own ON sync_preset_rows
+  FOR DELETE TO authenticated USING ((select auth.uid()) = user_id);
+
+DROP POLICY IF EXISTS collection_profiles_select_own ON collection_profiles;
+DROP POLICY IF EXISTS collection_profiles_insert_own ON collection_profiles;
+DROP POLICY IF EXISTS collection_profiles_update_own ON collection_profiles;
+DROP POLICY IF EXISTS collection_profiles_delete_own ON collection_profiles;
+CREATE POLICY collection_profiles_select_own ON collection_profiles
+  FOR SELECT TO authenticated USING ((select auth.uid()) = user_id);
+CREATE POLICY collection_profiles_insert_own ON collection_profiles
+  FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY collection_profiles_update_own ON collection_profiles
+  FOR UPDATE TO authenticated USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
+CREATE POLICY collection_profiles_delete_own ON collection_profiles
+  FOR DELETE TO authenticated USING ((select auth.uid()) = user_id);
+
+REVOKE ALL ON public.sync_preset_rows FROM anon;
+REVOKE ALL ON public.collection_profiles FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.sync_preset_rows TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.collection_profiles TO authenticated;
+
+ALTER TABLE sync_preset_rows REPLICA IDENTITY FULL;
+ALTER TABLE collection_profiles REPLICA IDENTITY FULL;
+DO $realtime_rows$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE sync_preset_rows;
+  EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE collection_profiles;
+  EXCEPTION WHEN duplicate_object THEN NULL; WHEN undefined_object THEN NULL; END;
+END
+$realtime_rows$;
+
+CREATE OR REPLACE FUNCTION public.sync_push_rows(
+  p_preset_rows        JSONB DEFAULT '[]'::jsonb,
+  p_collection_profiles JSONB DEFAULT '[]'::jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = public
+AS $fn_rows$
+DECLARE
+  v_now TIMESTAMPTZ := now();
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  INSERT INTO public.sync_preset_rows (
+    user_id, domain, id, payload, sort_order, deleted, synced_by, updated_at
+  )
+  SELECT auth.uid(), r.domain, r.id, COALESCE(r.payload, '{}'::jsonb),
+         COALESCE(r.sort_order, 0), COALESCE(r.deleted, 0),
+         COALESCE(r.synced_by, ''), COALESCE(r.updated_at, v_now)
+  FROM jsonb_to_recordset(COALESCE(p_preset_rows, '[]'::jsonb)) AS r(
+    domain TEXT, id TEXT, payload JSONB, sort_order INTEGER,
+    deleted INTEGER, synced_by TEXT, updated_at TIMESTAMPTZ
+  )
+  WHERE r.domain IN ('category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field')
+    AND NULLIF(r.id, '') IS NOT NULL
+  ON CONFLICT (user_id, domain, id) DO UPDATE SET
+    payload = EXCLUDED.payload,
+    sort_order = EXCLUDED.sort_order,
+    deleted = EXCLUDED.deleted,
+    synced_by = EXCLUDED.synced_by,
+    updated_at = EXCLUDED.updated_at
+  WHERE sync_preset_rows.updated_at <= EXCLUDED.updated_at;
+
+  INSERT INTO public.collection_profiles (
+    user_id, id, kind, items, rotation, theme, deleted, synced_by, updated_at
+  )
+  SELECT auth.uid(), r.id, COALESCE(r.kind, 'ip'), COALESCE(r.items, '[]'::jsonb),
+         COALESCE(r.rotation, '{}'::jsonb), COALESCE(r.theme, '{}'::jsonb),
+         COALESCE(r.deleted, 0), COALESCE(r.synced_by, ''), COALESCE(r.updated_at, v_now)
+  FROM jsonb_to_recordset(COALESCE(p_collection_profiles, '[]'::jsonb)) AS r(
+    id TEXT, kind TEXT, items JSONB, rotation JSONB, theme JSONB,
+    deleted INTEGER, synced_by TEXT, updated_at TIMESTAMPTZ
+  )
+  WHERE NULLIF(r.id, '') IS NOT NULL AND r.kind IN ('ip', 'character')
+  ON CONFLICT (user_id, id) DO UPDATE SET
+    kind = EXCLUDED.kind,
+    items = EXCLUDED.items,
+    rotation = EXCLUDED.rotation,
+    theme = EXCLUDED.theme,
+    deleted = EXCLUDED.deleted,
+    synced_by = EXCLUDED.synced_by,
+    updated_at = EXCLUDED.updated_at
+  WHERE collection_profiles.updated_at <= EXCLUDED.updated_at;
+
+  RETURN jsonb_build_object('synced_at', v_now);
+END;
+$fn_rows$;
+
+REVOKE ALL ON FUNCTION public.sync_push_rows(JSONB, JSONB) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sync_push_rows(JSONB, JSONB) TO authenticated;
+
+-- 5 参数 sync_pull：行级预设/背景使用独立 since 水位，不再被全局 manifest 挡住
+DROP FUNCTION IF EXISTS public.sync_pull(timestamptz, text, text);
+DROP FUNCTION IF EXISTS public.sync_pull(timestamptz);
+DROP FUNCTION IF EXISTS public.sync_pull(timestamptz, text, text, timestamptz, timestamptz);
+
+CREATE OR REPLACE FUNCTION public.sync_pull(
+  p_since         timestamptz DEFAULT NULL,
+  p_device_id     text        DEFAULT '',
+  p_source        text        DEFAULT '',
+  p_preset_since  timestamptz DEFAULT NULL,
+  p_profile_since timestamptz DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $fn_pull_rows$
+DECLARE
+  v_result jsonb;
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION 'Authentication required';
+  END IF;
+
+  v_result := (
+    SELECT jsonb_build_object(
+      'manifest', (SELECT to_jsonb(m) FROM sync_manifest m WHERE m.user_id = auth.uid()),
+      'goods', (SELECT coalesce(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND (g.trashed IS NULL OR g.trashed = 0) AND g.user_id = auth.uid()),
+      'goods_trash', (SELECT coalesce(jsonb_agg(to_jsonb(g)), '[]'::jsonb) FROM goods g WHERE (p_since IS NULL OR g.updated_at > p_since) AND g.trashed = 1 AND g.user_id = auth.uid()),
+      'groups', (SELECT coalesce(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND (gg.deleted IS NULL OR gg.deleted != 1) AND gg.user_id = auth.uid()),
+      'groups_trash', (SELECT coalesce(jsonb_agg(to_jsonb(gg)), '[]'::jsonb) FROM goods_groups gg WHERE (p_since IS NULL OR gg.updated_at > p_since) AND gg.deleted = 1 AND gg.user_id = auth.uid()),
+      'group_items', (SELECT coalesce(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND (ggi.deleted IS NULL OR ggi.deleted != 1) AND ggi.user_id = auth.uid()),
+      'group_items_trash',(SELECT coalesce(jsonb_agg(to_jsonb(ggi)), '[]'::jsonb) FROM goods_group_items ggi WHERE (p_since IS NULL OR ggi.updated_at > p_since) AND ggi.deleted = 1 AND ggi.user_id = auth.uid()),
+      'recharge', (SELECT coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND (r.deleted IS NULL OR r.deleted != 1) AND r.user_id = auth.uid()),
+      'recharge_trash',(SELECT coalesce(jsonb_agg(to_jsonb(r)), '[]'::jsonb) FROM recharge_records r WHERE (p_since IS NULL OR r.updated_at > p_since) AND r.deleted = 1 AND r.user_id = auth.uid()),
+      'events', (SELECT coalesce(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND (e.deleted IS NULL OR e.deleted != 1) AND e.user_id = auth.uid()),
+      'events_trash', (SELECT coalesce(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.deleted = 1 AND e.user_id = auth.uid()),
+      'batch_drafts', (SELECT coalesce(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND (bd.deleted IS NULL OR bd.deleted != 1) AND bd.user_id = auth.uid()),
+      'batch_drafts_trash', (SELECT coalesce(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND bd.deleted = 1 AND bd.user_id = auth.uid()),
+      'preset_rows', (SELECT coalesce(jsonb_agg(to_jsonb(pr) ORDER BY pr.updated_at, pr.domain, pr.id), '[]'::jsonb) FROM sync_preset_rows pr WHERE (p_preset_since IS NULL OR pr.updated_at > p_preset_since) AND pr.deleted IS DISTINCT FROM 1 AND pr.user_id = auth.uid()),
+      'preset_rows_trash', (SELECT coalesce(jsonb_agg(to_jsonb(pr) ORDER BY pr.updated_at, pr.domain, pr.id), '[]'::jsonb) FROM sync_preset_rows pr WHERE (p_preset_since IS NULL OR pr.updated_at > p_preset_since) AND pr.deleted = 1 AND pr.user_id = auth.uid()),
+      'collection_profiles', (SELECT coalesce(jsonb_agg(to_jsonb(cp) ORDER BY cp.updated_at, cp.id), '[]'::jsonb) FROM collection_profiles cp WHERE (p_profile_since IS NULL OR cp.updated_at > p_profile_since) AND cp.deleted IS DISTINCT FROM 1 AND cp.user_id = auth.uid()),
+      'collection_profiles_trash', (SELECT coalesce(jsonb_agg(to_jsonb(cp) ORDER BY cp.updated_at, cp.id), '[]'::jsonb) FROM collection_profiles cp WHERE (p_profile_since IS NULL OR cp.updated_at > p_profile_since) AND cp.deleted = 1 AND cp.user_id = auth.uid())
+    )
+  );
+  RETURN v_result;
+END;
+$fn_pull_rows$;
+
+REVOKE ALL ON FUNCTION public.sync_pull(timestamptz, text, text, timestamptz, timestamptz) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.sync_pull(timestamptz, text, text, timestamptz, timestamptz) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

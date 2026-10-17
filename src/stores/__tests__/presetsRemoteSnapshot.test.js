@@ -87,4 +87,19 @@ describe('replacePresetsSnapshot 块级时钟（服务器时间域）', () => {
       { id: 'cf_1', name: '联动限定', type: 'text', options: [], scopes: ['collection', 'wishlist'] }
     ])
   })
+
+  it('删除角色会保留 character 行级墓碑（id 与行表一致，经过 normalizeCharacterName）', async () => {
+    await storage.writePersisted('goods_presets_characters', JSON.stringify([{ name: '角色A', ip: '' }]))
+    const presets = usePresetsStore()
+    await presets.init()
+
+    await presets.removeCharacter('角色A')
+
+    const tombstones = JSON.parse(await storage.readPersisted('goods_presets_row_tombstones_v1'))
+    expect(tombstones).toEqual([
+      // 行表 id 与 buildPresetsData 一样使用 normalizeCharacterName 后的名字，
+      // 保证墓碑和 active 行是同一条（否则云端永远删不掉）
+      expect.objectContaining({ domain: 'character', id: '角色' })
+    ])
+  })
 })

@@ -468,6 +468,9 @@ export function createSyncOrchestrator({
     try {
       remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(localSyncTime),
+        // 行级预设/背景不走全局 since 水位：每次扫描行表增量（rowSince=0），
+        // 否则水位线一旦越过某行，那条预设/背景就永远拉不到（"数据已是最新"但缺失）。
+        rowSince: 0,
         trackSyncStep,
         source: syncSource
       })
@@ -744,6 +747,12 @@ export function createSyncOrchestrator({
       )
       serverSyncedAt = writeResult?.serverSyncedAt || null
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+
+    // 行级预设墓碑已经随 sync_push_rows 落库成功：清掉本地墓碑，避免每次同步重复推送。
+    // 写远端失败时保留（catch 不会走到这里），下次同步会重试。
+    if (hasPresetsDiff && stores.presetsStore?.clearRowTombstones) {
+      await stores.presetsStore.clearRowTombstones().catch((e) => log.warn('clear preset row tombstones failed:', e))
+    }
 
     // Upload images AFTER data is safely written.
     // Track per-file success so local refs/base64 are only replaced for files that

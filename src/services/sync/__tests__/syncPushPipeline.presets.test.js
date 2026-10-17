@@ -76,6 +76,35 @@ describe('row-level preset/profile push diff', () => {
     ])
   })
 
+  it('删除墓碑即使本机时钟慢于服务器也会推 deleted=1，并对齐历史未规范化的 id', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const remoteUpdatedAt = Date.parse('2026-10-17T00:00:10.000Z')
+    const backend = {
+      pushAll,
+      pullPresetRows: vi.fn(async () => ({
+        active: [
+          { domain: 'character', id: '角色A', payload: { name: '角色A', ip: 'IP' }, sortOrder: 0, deleted: 0, updatedAt: remoteUpdatedAt }
+        ],
+        trash: []
+      })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    args.syncData.presets.characters = []
+    args.syncData.presets.presetRowTombstones = [
+      { key: 'character:角色', domain: 'character', id: '角色', updatedAt: Date.now() - 60_000 }
+    ]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    const tombstone = pushed.presetRows.find((row) => row.domain === 'character' && Number(row.deleted) === 1)
+    expect(tombstone).toBeTruthy()
+    // 历史云端行 id 是「角色A」：墓碑必须对齐到同一条，否则原行永远删不掉
+    expect(tombstone.id).toBe('角色A')
+    expect(Date.parse(tombstone.updated_at)).toBeGreaterThan(remoteUpdatedAt)
+  })
+
   it('非预设脏域不会顺带推送预设和背景行', async () => {
     const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
     const backend = { pushAll }

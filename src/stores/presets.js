@@ -567,6 +567,7 @@ export const usePresetsStore = defineStore('presets', () => {
     }
 
     await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    await markRowTombstone('category', previous)
     autoPushPresets()
     return true
   }
@@ -593,6 +594,7 @@ export const usePresetsStore = defineStore('presets', () => {
     if (!normalized || isBuiltinEventType(normalized)) return
     eventTypes.value = eventTypes.value.filter((item) => item.name !== normalized)
     await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    await markRowTombstone('event_type', normalized)
     autoPushPresets()
   }
 
@@ -610,6 +612,7 @@ export const usePresetsStore = defineStore('presets', () => {
     updated.splice(index, 1, { ...updated[index], name: next })
     eventTypes.value = updated
     await writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value)
+    await markRowTombstone('event_type', previous)
     autoPushPresets()
     return true
   }
@@ -741,6 +744,7 @@ export const usePresetsStore = defineStore('presets', () => {
     const removed = customFieldDefs.value[index]
     customFieldDefs.value = customFieldDefs.value.filter((item) => item.id !== removed.id)
     await persistCustomFieldDefs()
+    await markRowTombstone('custom_field', removed.id)
     autoPushPresets()
     return removed
   }
@@ -812,6 +816,7 @@ export const usePresetsStore = defineStore('presets', () => {
     }
 
     await writePersistedList(STORAGE_KEY_IP, ips.value)
+    await markRowTombstone('ip', previous)
     autoPushPresets()
     return true
   }
@@ -834,6 +839,7 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_CHR, characters.value),
       writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
     ])
+    await markRowTombstone('character', normalized)
     autoPushPresets()
   }
 
@@ -865,6 +871,7 @@ export const usePresetsStore = defineStore('presets', () => {
     }
 
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    await markRowTombstone('character', previous)
     autoPushPresets()
     return true
   }
@@ -955,6 +962,7 @@ export const usePresetsStore = defineStore('presets', () => {
 
     storageLocations.value = storageLocations.value.filter((node) => !removedIds.has(node.id))
     await persistStorageLocations()
+    await Promise.all([...removedIds].map((id) => markRowTombstone('storage_location', id)))
     autoPushPresets()
     return [...removedIds]
   }
@@ -1095,9 +1103,25 @@ export const usePresetsStore = defineStore('presets', () => {
     return characters.value.map((character) => character.name)
   }
 
+  /**
+   * 行级墓碑在推送成功（或拉取确认远端已是墓碑）后清掉，避免每次同步重复推。
+   * @param {Array<{domain?: string, id?: string}>|null} consumed
+   */
+  async function clearRowTombstones(consumed = null) {
+    if (!Array.isArray(rowTombstones.value) || rowTombstones.value.length === 0) return
+    if (!Array.isArray(consumed)) {
+      rowTombstones.value = []
+    } else {
+      const keys = new Set(consumed.map((row) => `${row.domain}:${row.id}`))
+      rowTombstones.value = rowTombstones.value.filter((row) => !keys.has(row.key))
+    }
+    await writePersisted(STORAGE_KEY_ROW_TOMBSTONES, JSON.stringify(rowTombstones.value))
+  }
+
   return {
     categories,
     rowTombstones,
+    clearRowTombstones,
     ips,
     characters,
     storageLocations,

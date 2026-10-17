@@ -201,19 +201,33 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     return []
   }
 
-  async function pullAll({ since = 0, source = '' } = {}) {
+  async function pullAll({ since = 0, presetSince = 0, profileSince = 0, source = '' } = {}) {
     const db = getDb()
     const sinceParam = since > 0 ? new Date(since).toISOString() : null
+    const presetSinceParam = presetSince > 0 ? new Date(presetSince).toISOString() : null
+    const profileSinceParam = profileSince > 0 ? new Date(profileSince).toISOString() : null
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
 
     // p_device_id / p_source 供 sync_pull 服务端写审计；旧 RPC 忽略未知命名参数
-    const { data: rawData, error } = await withRetry(() =>
-      db.rpc('sync_pull', {
+    const rpcParams = {
+        p_since: sinceParam,
+        p_device_id: currentDeviceId || '',
+        p_source: source || '',
+        p_preset_since: presetSinceParam,
+        p_profile_since: profileSinceParam
+    }
+    let response = await withRetry(() => db.rpc('sync_pull', rpcParams))
+    // 旧服务端还没执行升级脚本时，先回退到旧三参数 RPC；新客户端随后
+    // 仍会用现有的独立行查询补齐数据，不会因为发布顺序导致整套同步失败。
+    const rpcErrorText = String(response?.error?.message || '').toLowerCase()
+    if (response?.error && (rpcErrorText.includes('could not find function') || rpcErrorText.includes('p_preset_since') || rpcErrorText.includes('p_profile_since'))) {
+      response = await withRetry(() => db.rpc('sync_pull', {
         p_since: sinceParam,
         p_device_id: currentDeviceId || '',
         p_source: source || ''
-      })
-    )
+      }))
+    }
+    const { data: rawData, error } = response
     if (error) throw error
 
     const data = typeof rawData === 'string' ? JSON.parse(rawData) : (rawData || {})
@@ -340,6 +354,26 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       }
     })() : null
 
+    const parsePresetRow = (row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.createdAt = normalizeTimestamp(item.createdAt)
+      item.sortOrder = Number(item.sortOrder) || 0
+      item.deleted = Number(item.deleted) === 1 ? 1 : 0
+      return item
+    }
+    const parseProfileRow = (row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.createdAt = normalizeTimestamp(item.createdAt)
+      item.deleted = Number(item.deleted) === 1 ? 1 : 0
+      return item
+    }
+    const presetRows = (data.preset_rows || []).map(parsePresetRow)
+    const presetRowsTrash = (data.preset_rows_trash || []).map(parsePresetRow)
+    const collectionProfileRows = (data.collection_profiles || []).map(parseProfileRow)
+    const collectionProfileRowsTrash = (data.collection_profiles_trash || []).map(parseProfileRow)
+
     return {
       manifest,
       goods: (data.goods || []).map(mapGoods),
@@ -353,7 +387,13 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       groupItems,
       groupItemsTrash,
       batchDrafts,
-      batchDraftsTrash
+      batchDraftsTrash,
+      presetRows,
+      presetRowsTrash,
+      collectionProfileRows,
+      collectionProfileRowsTrash,
+      rowDomainsFromRpc: Object.prototype.hasOwnProperty.call(data, 'preset_rows')
+        && Object.prototype.hasOwnProperty.call(data, 'collection_profiles')
     }
   }
 

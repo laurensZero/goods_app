@@ -5,8 +5,20 @@ import { normalizeBudgetValue, sortedStringify } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
 import { computeBucketDiff } from '../supabaseAdapter/helpers'
 
-function normalizePresetRowForDiff(row) {
-  return {
+// 与 stores/presets.js 的 normalizeCharacterName 保持同一规则（这里不能直接 import，
+// presets store 会反向依赖 sync store，形成循环）。用于把历史脏 id 对齐到行表 id。
+function canonicalPresetId(domain, id) {
+  const text = String(id || '')
+    .replace(/^\s*[\/／]+\s*/g, '')
+    .replace(/\s*[\/／]+\s*$/g, '')
+    .trim()
+  if (domain === 'character' && /[\u4e00-\u9fff]/.test(text)) {
+    return text.replace(/\s*[A-E]$/i, '').trim()
+  }
+  return text
+}
+
+function normalizePresetRowForDiff(row) {  return {
     domain: String(row?.domain || ''),
     id: String(row?.id || ''),
     payload: row?.payload && typeof row.payload === 'object' ? row.payload : {},
@@ -288,7 +300,31 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
       readFullPresetRowsForPush(be, remoteData),
       readFullCollectionProfilesForPush(be, remoteData)
     ])
+    // 云端已存在的行（active + trash）按 domain:id 建索引：墓碑推送时要确保
+    // updated_at 一定晚于远端行，否则 sync_push_rows 的 LWW 条件会静默跳过删除
+    // （设备时钟略慢于服务器时间时就会发生，表现就是 deleted 一直是 0）。
+    const remotePresetByKey = new Map(
+      (remotePresetRows || []).map((row) => [`${row.domain || ''}\u0000${row.id || ''}`, row])
+    )
     const localPresetRows = [...allPresetRows, ...allPresetTombstoneRows]
+    for (const row of allPresetTombstoneRows) {
+      let remote = remotePresetByKey.get(`${row.domain}\u0000${row.id}`)
+      // 历史数据里 character id 可能是未规范化的名字（如「角色A」），墓碑按规范化名
+      // 找不到同一条行时，按同一规则对齐到远端实际 id，否则云端原行永远不会被删。
+      if (!remote) {
+        const canonical = canonicalPresetId(row.domain, row.id)
+        const matched = (remotePresetRows || []).find((candidate) => (
+          candidate.domain === row.domain && canonicalPresetId(row.domain, candidate.id) === canonical
+        ))
+        if (matched) {
+          remote = matched
+          row.id = matched.id
+        }
+      }
+      const remoteTs = Number(remote?.updatedAt) || 0
+      const localTs = row.updated_at ? Date.parse(row.updated_at) : 0
+      row.updated_at = new Date(Math.max(localTs || 0, remoteTs + 1, Date.now())).toISOString()
+    }
     const changedPresetRows = filterChangedRows(
       localPresetRows,
       remotePresetRows,

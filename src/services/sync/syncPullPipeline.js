@@ -28,7 +28,7 @@ export async function readRemoteData(be, { since = 0, rowSince = since, trackSyn
   const isIncremental = since > 0
   const pullData = await wrapStep(
     i18n.global.t('sync.step.readData'),
-    () => be.pullAll({ since, source }),
+    () => be.pullAll({ since, presetSince: rowSince, profileSince: rowSince, source }),
     {
       startDetail: i18n.global.t('sync.step.readData.start'),
       category: 'pull',
@@ -40,12 +40,14 @@ export async function readRemoteData(be, { since = 0, rowSince = since, trackSyn
     }
   )
   pullData.isIncremental = isIncremental
-  if (typeof be.pullPresetRows === 'function') {
+  // 新版 sync_pull 已在同一 RPC 返回两个行级域；仅当服务端尚未执行
+  // SQL 升级时才走旧的直查兜底，避免发布顺序导致旧后端无法同步。
+  if (!pullData.rowDomainsFromRpc && typeof be.pullPresetRows === 'function') {
     const rows = await be.pullPresetRows({ since: rowSince })
     pullData.presetRows = rows.active
     pullData.presetRowsTrash = rows.trash
   }
-  if (typeof be.pullCollectionProfiles === 'function') {
+  if (!pullData.rowDomainsFromRpc && typeof be.pullCollectionProfiles === 'function') {
     const rows = await be.pullCollectionProfiles({ since: rowSince })
     pullData.collectionProfileRows = rows.active
     pullData.collectionProfileRowsTrash = rows.trash
@@ -402,7 +404,9 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
         items: row.deleted ? [] : (row.items || []),
         rotation: row.rotation || {},
         theme: row.theme || {},
-        updatedAt: row.updatedAt
+        updatedAt: row.updatedAt,
+        // 墓碑要原样传下去：mergeProfileMapFromRemote 靠它把本地条目也删掉
+        deleted: Number(row.deleted) === 1
       }
     }
     const profileChanges = await stores.collectionProfileStore.applyRemoteProfiles(profiles, {
