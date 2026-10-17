@@ -398,7 +398,7 @@ export function createSyncOrchestrator({
     // Single RPC: push items + presets + manifest
     const syncTimestamp = new Date().toISOString()
     let presetsData = null
-    try { presetsData = await ctx.buildPresetsData() } catch { /* non-fatal */ }
+    try { presetsData = await ctx.buildPresetsData({ includeCollectionProfiles: false }) } catch { /* non-fatal */ }
 
     // crash-safe：先持久化 pending-push 标记再写远端
     await setPendingPush(ctx, { ts: syncTimestamp, deviceId: currentDeviceId })
@@ -479,6 +479,19 @@ export function createSyncOrchestrator({
       })
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
     remoteData.manifest = remoteManifest
+
+    // 收藏馆背景：先按「每个 IP/角色」逐条 LWW 合并远端快照，再参与差异比较 / 推送。
+    // 这个块以前是整块 LWW —— 一台设备的旧快照会直接抹掉另一台设备刚加的背景。
+    // 逐条合并后，任何设备的推送都是「远端 ∪ 本地」的并集，不会丢别人的条目。
+    if (stores.collectionProfileStore && remoteData.presets?.collectionProfiles) {
+      try {
+        await stores.collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
+          resolveImageUrl: be?.getImagePublicUrl || null
+        })
+      } catch (e) {
+        log.warn('merge remote collection profiles failed (non-fatal):', e)
+      }
+    }
 
     // 3. Compare
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0

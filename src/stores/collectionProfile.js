@@ -8,7 +8,7 @@ import {
   buildCharacterProfileKey,
   collectProfileImageRefs,
   collectProfileSetLocalPaths,
-  hydrateProfileMapFromSync,
+  mergeProfileMapFromRemote,
   normalizeBackgroundSet,
   normalizeProfileItem,
   normalizeProfileMap,
@@ -140,20 +140,31 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
   }
 
   /**
+   * 写入时给出该收藏馆自己的 LWW 时间戳；空集写成删除墓碑（`deleted: true`），
+   * 否则整块快照合并时另一边会把删掉的背景又带回来。
+   * @param {any} normalized
+   * @param {number} updatedAt
+   */
+  function stampSet(normalized, updatedAt = Date.now()) {
+    const isEmpty = !Array.isArray(normalized.items) || normalized.items.length === 0
+    return {
+      ...normalized,
+      items: isEmpty ? [] : normalized.items,
+      updatedAt,
+      deleted: isEmpty
+    }
+  }
+
+  /**
    * @param {string} ip
    * @param {any} set
-   * @param {{ silent?: boolean }} [options] silent: 同步回填时不标脏、不触发自动推送
+   * @param {{ silent?: boolean, updatedAt?: number }} [options] silent: 同步回填时不标脏、不触发自动推送
    */
   function writeIpProfile(ip, set, options = {}) {
     const key = String(ip || '').trim()
     if (!key) return
-    const normalized = normalizeBackgroundSet(set)
     const next = { ...ipProfiles.value }
-    if (normalized.items.length > 0) {
-      next[key] = normalized
-    } else {
-      delete next[key]
-    }
+    next[key] = stampSet(normalizeBackgroundSet(set), options.updatedAt || Date.now())
     ipProfiles.value = next
     schedulePersist()
     if (!options.silent) notifyProfilesChanged()
@@ -163,18 +174,13 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
    * @param {string} ip
    * @param {string} characterName
    * @param {any} set
-   * @param {{ silent?: boolean }} [options]
+   * @param {{ silent?: boolean, updatedAt?: number }} [options]
    */
   function writeCharacterProfile(ip, characterName, set, options = {}) {
     const key = buildCharacterProfileKey(ip, characterName)
     if (!key) return
-    const normalized = normalizeBackgroundSet(set)
     const next = { ...characterProfiles.value }
-    if (normalized.items.length > 0) {
-      next[key] = normalized
-    } else {
-      delete next[key]
-    }
+    next[key] = stampSet(normalizeBackgroundSet(set), options.updatedAt || Date.now())
     characterProfiles.value = next
     schedulePersist()
     if (!options.silent) notifyProfilesChanged()
@@ -204,7 +210,8 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
     const existing = characterProfiles.value[key]
     if (!existing) return
     const next = { ...characterProfiles.value }
-    delete next[key]
+    // 保留删除墓碑，让「跟随 IP」这个决定也能同步到其它设备
+    next[key] = stampSet(normalizeBackgroundSet({}), Date.now())
     characterProfiles.value = next
     schedulePersist()
     notifyProfilesChanged()
@@ -231,16 +238,32 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
    * @param {{ ipProfiles?: object, characterProfiles?: object }} remote
    * @param {{ resolveImageUrl?: (cloudFileName: string) => string }} [options]
    */
+  /**
+   * 拉取远端快照后按「每个收藏馆一条」做 LWW 合并：
+   * 远端更新才覆盖本机，本机更新的条目保留（并会在下一次推送带上）。
+   * @param {{ ipProfiles?: object, characterProfiles?: object }} remote
+   * @param {{ resolveImageUrl?: (cloudFileName: string) => string }} [options]
+   */
   async function applyRemoteProfiles(remote, options = {}) {
     if (!remote) return
-    const nextIp = hydrateProfileMapFromSync(remote.ipProfiles, {
-      resolveImageUrl: options.resolveImageUrl,
-      previous: ipProfiles.value
+    const countItems = (map) => Object.values(map || {})
+      .reduce((total, set) => total + (Array.isArray(set?.items) ? set.items.length : 0), 0)
+    const beforeCount = countItems(ipProfiles.value) + countItems(characterProfiles.value)
+    const nextIp = mergeProfileMapFromRemote(ipProfiles.value, remote.ipProfiles, {
+      resolveImageUrl: options.resolveImageUrl
     })
-    const nextCharacters = hydrateProfileMapFromSync(remote.characterProfiles, {
-      resolveImageUrl: options.resolveImageUrl,
-      previous: characterProfiles.value
+    const nextCharacters = mergeProfileMapFromRemote(characterProfiles.value, remote.characterProfiles, {
+      resolveImageUrl: options.resolveImageUrl
     })
+    const afterCount = countItems(nextIp) + countItems(nextCharacters)
+    // 云端把本机原本存在的背景整块清空属于高风险操作，留一条日志便于排查（不阻断应用）
+    if (beforeCount > 0 && afterCount === 0) {
+      console.warn('[collectionProfile] remote profiles cleared all local backgrounds', {
+        beforeCount,
+        remoteIpProfiles: Object.keys(remote.ipProfiles || {}).length,
+        remoteCharacterProfiles: Object.keys(remote.characterProfiles || {}).length
+      })
+    }
     ipProfiles.value = nextIp
     characterProfiles.value = nextCharacters
     await persistNow()

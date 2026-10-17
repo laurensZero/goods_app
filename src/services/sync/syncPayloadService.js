@@ -557,6 +557,13 @@ export function createSyncPayloadService({
             continue
           }
 
+          // 导入中的临时预览（blob:）不参与本轮上传：等落盘替换成真实文件、标脏后再传，
+          // 否则会把原图 / 半成品先推上去
+          if (String(localItem?.uri || '').trim().startsWith('blob:')) {
+            items.push({ ...serializedItem, cloudFileName: '' })
+            continue
+          }
+
           const localDataUrl = await readLocalImageAsDataUrl(localItem?.uri, localItem?.localPath).catch(() => null)
           if (!String(localDataUrl || '').startsWith('data:image/')) {
             // 本地文件丢失且云端也不存在：保留引用，等下次同步重试

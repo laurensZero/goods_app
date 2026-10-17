@@ -264,7 +264,7 @@ DO $realtime$
 DECLARE
   t TEXT;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items', 'batch_drafts'] LOOP
+  FOREACH t IN ARRAY ARRAY['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items', 'batch_drafts', 'sync_presets'] LOOP
     BEGIN
       EXECUTE format('ALTER PUBLICATION supabase_realtime ADD TABLE %I', t);
     EXCEPTION WHEN duplicate_object THEN
@@ -1412,6 +1412,8 @@ ALTER TABLE recharge_records REPLICA IDENTITY FULL;
 ALTER TABLE goods_groups REPLICA IDENTITY FULL;
 ALTER TABLE goods_group_items REPLICA IDENTITY FULL;
 ALTER TABLE batch_drafts REPLICA IDENTITY FULL;
+-- 收藏馆背景 / 预设：单行整块 LWW，其它设备要能实时收到通知后增量 pull
+ALTER TABLE sync_presets REPLICA IDENTITY FULL;
 
 
 -- ============================================================

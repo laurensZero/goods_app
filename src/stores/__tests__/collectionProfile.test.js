@@ -92,14 +92,19 @@ describe('collectionProfile store — 写入与持久化', () => {
     expect(stored.ipProfiles['明日方舟'].items.map((item) => item.id)).toEqual(['a', 'b'])
   })
 
-  it('removes the entry instead of storing an empty set', async () => {
+  it('清空背景写成删除墓碑（deleted），不再直接丢 key，保证删除能同步', async () => {
     await store.init()
     store.writeIpProfile('明日方舟', imageSet(['a']))
     store.writeIpProfile('明日方舟', { items: [], rotation: {} })
 
-    expect(store.ipProfiles['明日方舟']).toBeUndefined()
+    expect(store.ipProfiles['明日方舟'].items).toEqual([])
+    expect(store.ipProfiles['明日方舟'].deleted).toBe(true)
+    expect(store.resolve({ ip: '明日方舟' }).owner).toBe('none')
+
     vi.advanceTimersByTime(200)
-    expect(readStored().ipProfiles).toEqual({})
+    const stored = readStored()
+    expect(stored.ipProfiles['明日方舟'].deleted).toBe(true)
+    expect(stored.ipProfiles['明日方舟'].items).toEqual([])
   })
 
   it('keeps character profiles keyed by ip::name', async () => {

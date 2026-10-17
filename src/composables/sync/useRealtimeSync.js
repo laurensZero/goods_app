@@ -10,7 +10,9 @@ import { createLogger } from '@/utils/logger'
  * Android WebView / 弱网下 WebSocket 常静默断开或落到 CHANNEL_ERROR/TIMED_OUT/CLOSED，
  * 这里统一走 scheduleRebuild：指数退避 + 抖动，成功订阅后重置退避；前台还有健康巡检兜底。
  */
-const REALTIME_TABLES = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items']
+// sync_presets 也要订阅：收藏馆背景 / 预设是整块单行更新，不订阅的话另一台设备
+// 改了背景，本机只能等下次手动同步才知道。
+const REALTIME_TABLES = ['goods', 'events', 'recharge_records', 'goods_groups', 'goods_group_items', 'sync_presets']
 const REBUILD_BASE_MS = 2000
 const REBUILD_MAX_MS = 60_000
 const HEALTH_CHECK_MS = 30_000

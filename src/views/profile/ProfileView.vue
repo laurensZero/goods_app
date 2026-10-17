@@ -642,11 +642,11 @@ function openBackgroundSheet() {
   showBackgroundSheet.value = true
 }
 
-function writeSet(set) {
+function writeSet(set, options = {}) {
   if (isCharacter.value) {
-    profileStore.writeCharacterProfile(ip.value, characterName.value, set)
+    profileStore.writeCharacterProfile(ip.value, characterName.value, set, options)
   } else {
-    profileStore.writeIpProfile(ipName.value, set)
+    profileStore.writeIpProfile(ipName.value, set, options)
   }
 }
 
@@ -658,7 +658,13 @@ function applyItems(nextItems) {
   if (removed.length > 0) void profileStore.deleteFiles(removed)
 
   editableItems.value = nextItems
-  writeSet({ items: nextItems, rotation: editableRotation.value, theme: editableTheme.value })
+  // 导入中的临时预览条目用 blob: 地址，仅先显示、不标同步脏：
+  // 等压缩/落盘完成替换成真实文件地址后再触发后台推送，避免把原图抢占上传。
+  const hasPendingPreview = nextItems.some((item) => String(item?.uri || '').startsWith('blob:'))
+  writeSet(
+    { items: nextItems, rotation: editableRotation.value, theme: editableTheme.value },
+    { silent: hasPendingPreview }
+  )
 }
 
 function applyRotation(nextRotation) {

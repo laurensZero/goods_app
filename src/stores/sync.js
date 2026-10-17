@@ -351,7 +351,13 @@ export const useSyncStore = defineStore('sync', () => {
 
   // ── Helpers ──
 
-  async function buildPresetsData() {
+  /**
+   * @param {{ includeCollectionProfiles?: boolean }} [options]
+   * quickPush 传 includeCollectionProfiles=false：它没先拉远端整块快照，
+   * 带上本地 profiles 可能把其它设备刚写的内容覆盖掉；背景/预设变更本来就走 fullSync。
+   */
+  async function buildPresetsData(options = {}) {
+    const includeCollectionProfiles = options.includeCollectionProfiles !== false
     const presets = usePresetsStore()
     const favCat = presets.favoriteCategorySet
     const favIp = presets.favoriteIpSet
@@ -383,6 +389,7 @@ export const useSyncStore = defineStore('sync', () => {
     // 覆盖到云端，其他设备打开就是裂图）；真正带 cloudFileName 的快照由
     // payload 侧 prepareCollectionProfilesForSync 在上传前生成。
     try {
+      if (!includeCollectionProfiles) return data
       const profileStore = useCollectionProfileStore()
       const profiles = {
         ipProfiles: serializeProfileMapForSync(profileStore.ipProfiles),

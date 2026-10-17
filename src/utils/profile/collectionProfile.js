@@ -93,6 +93,13 @@ export function isUsableProfileItem(item) {
   return Boolean(String(item.uri || '').trim() || String(item.cloudFileName || '').trim())
 }
 
+/** 导入中的临时预览条目：只有 blob: 地址，进程重启后必然失效，不能从持久化数据里恢复 */
+export function isTransientBlobItem(item) {
+  if (!item || item.kind === 'gradient') return false
+  const uri = String(item.uri || '').trim()
+  return uri.startsWith('blob:') && !String(item.localPath || '').trim() && !String(item.cloudFileName || '').trim()
+}
+
 /**
  * @param {any} raw
  * @returns {ProfileBackgroundItem}
@@ -235,12 +242,15 @@ export function normalizeBackgroundSet(raw = {}) {
   return {
     items,
     rotation: normalizeProfileRotation(raw?.rotation),
-    theme: normalizeProfileTheme(raw?.theme)
+    theme: normalizeProfileTheme(raw?.theme),
+    // 按收藏馆逐条 LWW：每个 IP/角色自己的修改时间与删除墓碑
+    updatedAt: Math.max(0, Math.round(Number(raw?.updatedAt) || 0)),
+    deleted: raw?.deleted === true
   }
 }
 
 /**
- * 归一化 { [key]: BackgroundSet }；空集直接丢弃，避免脏 key 膨胀。
+ * 归一化 { [key]: BackgroundSet }；空集且不是删除墓碑的脏 key 直接丢弃。
  * @param {any} raw
  * @returns {Record<string, ProfileBackgroundSet>}
  */
@@ -251,7 +261,9 @@ export function normalizeProfileMap(raw) {
     const normalizedKey = String(key || '').trim()
     if (!normalizedKey) continue
     const set = normalizeBackgroundSet(value)
-    if (set.items.length > 0) out[normalizedKey] = set
+    // 持久化数据里的 blob: 预览地址（上次导入未完成就被杀）直接丢弃
+    set.items = set.items.filter((item) => !isTransientBlobItem(item))
+    if (set.items.length > 0 || set.deleted) out[normalizedKey] = set
   }
   return out
 }
@@ -319,9 +331,10 @@ export function serializeProfileItemForSync(item) {
 }
 
 /**
- * 序列化整张 profile map（用于同步比较 / 落库）。空集不输出。
+ * 序列化整张 profile map（用于同步比较 / 落库）。空集（非删除墓碑）不输出。
+ * 每个收藏馆带自己的 `updatedAt` 与 `deleted`，同步侧据此做逐条 LWW，
+ * 而不是整块覆盖（否则一台设备的旧快照会把另一台设备刚加的背景抹掉）。
  * @param {Record<string, ProfileBackgroundSet>} raw
- * @returns {Record<string, { items: any[], rotation: ProfileRotation }>}
  */
 export function serializeProfileMapForSync(raw) {
   if (!raw || typeof raw !== 'object') return {}
@@ -333,8 +346,14 @@ export function serializeProfileMapForSync(raw) {
     if (!normalizedKey) continue
     const set = normalizeBackgroundSet(value)
     const items = set.items.map(serializeProfileItemForSync)
-    if (items.length === 0) continue
-    out[normalizedKey] = { items, rotation: set.rotation, theme: set.theme }
+    if (items.length === 0 && !set.deleted) continue
+    out[normalizedKey] = {
+      items,
+      rotation: set.rotation,
+      theme: set.theme,
+      updatedAt: set.updatedAt,
+      deleted: set.deleted
+    }
   }
   return out
 }
@@ -343,6 +362,7 @@ export function serializeProfileMapForSync(raw) {
 export function isProfileMapFullyUploaded(raw) {
   if (!raw || typeof raw !== 'object') return true
   for (const set of Object.values(raw)) {
+    if (set?.deleted) continue
     for (const item of set?.items || []) {
       if (item?.kind !== 'image') continue
       if (!String(item.cloudFileName || '').trim()) return false
@@ -352,9 +372,47 @@ export function isProfileMapFullyUploaded(raw) {
 }
 
 /**
- * 把同步用的 profile map 还原成本地 store 结构：云端图片用公开 URL 展示，
- * 若本机已有同一 cloudFileName 的本地文件则保留本地 uri/localPath（离线可用、不重复下载）。
- *
+ * 单个远端 set 转成本地结构：同 id 条目尽量保留本机 uri/localPath。
+ * @param {ProfileBackgroundSet} remoteSet
+ * @param {ProfileBackgroundSet|null} previousSet
+ * @param {((cloudFileName: string) => string)|null} resolveImageUrl
+ */
+function hydrateProfileSet(remoteSet, previousSet, resolveImageUrl) {
+  const previousItems = new Map(
+    (previousSet?.items || []).map((item) => [String(item?.id || ''), item])
+  )
+  const items = remoteSet.items.map((item) => {
+    if (item.kind !== 'image') return item
+    const previousItem = previousItems.get(item.id) || null
+    const previousUri = String(previousItem?.uri || '').trim()
+    // 同 id 的条目一定对应同一张本地图：只要本机还有可用 uri（本地文件 / data URL /
+    // 之前已解析的公开 URL），就继续用本机的。云端上传失败时若改用云端 URL，
+    // 会把本来能显示的本地图换成 404 链——这正是「同步一次背景图就丢了」的原因。
+    const keepLocal = Boolean(previousItem?.uri)
+    let uri = keepLocal ? previousUri : ''
+    if (!uri && item.cloudFileName && resolveImageUrl) {
+      uri = String(resolveImageUrl(item.cloudFileName) || '').trim()
+    }
+    if (!uri) uri = previousUri
+    return normalizeProfileItem({
+      ...item,
+      uri,
+      localPath: keepLocal ? (previousItem?.localPath || '') : '',
+      // 云端快照没带主题色时沿用本机已提取的值
+      accent: item.accent || previousItem?.accent || ''
+    })
+  })
+  return {
+    items,
+    rotation: remoteSet.rotation,
+    theme: remoteSet.theme,
+    updatedAt: remoteSet.updatedAt,
+    deleted: remoteSet.deleted
+  }
+}
+
+/**
+ * 把同步用的 profile map 还原成本地 store 结构（纯转换，不做时间比较）。
  * @param {Record<string, any>} raw 同步格式（serializeProfileMapForSync 的结果）
  * @param {{ resolveImageUrl?: (cloudFileName: string) => string,
  *   previous?: Record<string, ProfileBackgroundSet> }} [options]
@@ -370,32 +428,46 @@ export function hydrateProfileMapFromSync(raw, options = {}) {
     const normalizedKey = String(key || '').trim()
     if (!normalizedKey) continue
     const set = normalizeBackgroundSet(value)
-    if (set.items.length === 0) continue
+    if (set.items.length === 0 && !set.deleted) continue
+    out[normalizedKey] = hydrateProfileSet(set, previous[normalizedKey] || null, resolveImageUrl)
+  }
+  return out
+}
 
-    const previousItems = new Map(
-      (previous[normalizedKey]?.items || []).map((item) => [String(item?.id || ''), item])
-    )
+/**
+ * 逐条 LWW 合并远端 profile map：同一 IP/角色比较 `updatedAt`，更新的一方生效；
+ * 删除用 `deleted: true` 墓碑传播。**不会整块覆盖**，因此一台设备的旧快照
+ * 不会抹掉另一台设备新增/修改的收藏馆背景。
+ *
+ * @param {Record<string, ProfileBackgroundSet>} localMap
+ * @param {Record<string, any>} remoteMap 同步格式
+ * @param {{ resolveImageUrl?: (cloudFileName: string) => string }} [options]
+ * @returns {Record<string, ProfileBackgroundSet>}
+ */
+export function mergeProfileMapFromRemote(localMap, remoteMap, options = {}) {
+  const resolveImageUrl = typeof options.resolveImageUrl === 'function' ? options.resolveImageUrl : null
+  const out = {}
+  for (const [key, value] of Object.entries(localMap || {})) {
+    const normalizedKey = String(key || '').trim()
+    if (!normalizedKey) continue
+    out[normalizedKey] = normalizeBackgroundSet(value)
+  }
 
-    set.items = set.items.map((item) => {
-      if (item.kind !== 'image') return item
-      const previousItem = previousItems.get(item.id) || null
-      const keepLocal = previousItem
-        && item.cloudFileName
-        && previousItem.cloudFileName === item.cloudFileName
-        && previousItem.uri
-      let uri = keepLocal ? previousItem.uri : ''
-      if (!uri && item.cloudFileName && resolveImageUrl) {
-        uri = String(resolveImageUrl(item.cloudFileName) || '').trim()
-      }
-      if (!uri) uri = String(previousItem?.uri || '')
-      return normalizeProfileItem({
-        ...item,
-        uri,
-        localPath: keepLocal ? (previousItem?.localPath || '') : ''
-      })
-    })
-
-    out[normalizedKey] = { items: set.items, rotation: set.rotation, theme: set.theme }
+  for (const [key, value] of Object.entries(remoteMap || {})) {
+    const normalizedKey = String(key || '').trim()
+    if (!normalizedKey) continue
+    const remoteSet = normalizeBackgroundSet(value)
+    if (remoteSet.items.length === 0 && !remoteSet.deleted) continue
+    const localSet = out[normalizedKey] || null
+    const localTs = Number(localSet?.updatedAt) || 0
+    const remoteTs = Number(remoteSet.updatedAt) || 0
+    // 远端更新才覆盖；时间相同且远端有内容（旧数据 updatedAt=0 首次上云）时也采用远端
+    const remoteWins = !localSet
+      || remoteTs > localTs
+      || (remoteTs === localTs && remoteSet.items.length > 0)
+    if (remoteWins) {
+      out[normalizedKey] = hydrateProfileSet(remoteSet, localSet, resolveImageUrl)
+    }
   }
   return out
 }

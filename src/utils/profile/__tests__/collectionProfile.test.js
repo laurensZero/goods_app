@@ -9,6 +9,7 @@ import {
   getGradientAccent,
   hydrateProfileMapFromSync,
   isUsableProfileItem,
+  mergeProfileMapFromRemote,
   normalizeBackgroundSet,
   normalizeProfileItem,
   normalizeProfileMap,
@@ -230,6 +231,19 @@ describe('单图背景条目', () => {
     expect(square.width / square.height).toBe(1)
     expect(strip.width / strip.height).toBe(3)
   })
+
+  it('导入中的 blob: 预览条目不会从持久化数据里恢复', () => {
+    const blobSet = {
+      items: [{ id: 'preview', kind: 'image', uri: 'blob:http://localhost/abc', width: 1200, height: 800 }],
+      rotation: {}
+    }
+    const savedSet = imageItem('saved')
+    const map = normalizeProfileMap({ '明日方舟': { items: [...blobSet.items, savedSet], rotation: {} } })
+    expect(map['明日方舟'].items.map((item) => item.id)).toEqual(['saved'])
+
+    // 内存里仍可用（正在预览 / 等待落盘替换）
+    expect(isUsableProfileItem(normalizeProfileItem(blobSet.items[0]))).toBe(true)
+  })
 })
 
 describe('同步序列化 / 回填', () => {
@@ -267,6 +281,29 @@ describe('同步序列化 / 回填', () => {
     })
     expect(fresh['明日方舟'].items[0].uri).toBe('https://cdn/profile-bg__a__main.jpg')
     expect(fresh['明日方舟'].items[0].localPath).toBe('')
+  })
+
+  it('云端上传失败 / cloudFileName 不一致时也不把本机可用图换成云端 URL', () => {
+    const remote = serializeProfileMapForSync({ 明日方舟: set() })
+    // 本机背景图还没成功上云：没有 cloudFileName，但本地文件可显示
+    const previous = {
+      明日方舟: normalizeBackgroundSet({
+        items: [normalizeProfileItem({
+          id: 'a',
+          kind: 'image',
+          uri: 'user-images/a.jpg',
+          localPath: 'user-images/a.jpg',
+          width: 1600,
+          height: 1200
+        })]
+      })
+    }
+    const hydrated = hydrateProfileMapFromSync(remote, {
+      resolveImageUrl: (name) => `https://cdn/${name}`,
+      previous
+    })
+    expect(hydrated['明日方舟'].items[0].uri).toBe('user-images/a.jpg')
+    expect(hydrated['明日方舟'].items[0].localPath).toBe('user-images/a.jpg')
   })
 })
 
@@ -318,5 +355,41 @@ describe('收藏馆主题色', () => {
 
     const hydrated = hydrateProfileMapFromSync(serialized)
     expect(hydrated['明日方舟'].theme).toEqual({ source: 'custom', customColor: '#123456' })
+  })
+})
+
+describe('逐条 LWW 合并（不再整块覆盖）', () => {
+  const localSet = (id, updatedAt) => normalizeBackgroundSet({ items: [imageItem(id)], updatedAt })
+  const remoteSet = (id, updatedAt, deleted = false) => serializeProfileMapForSync({
+    k: normalizeBackgroundSet({ items: deleted ? [] : [imageItem(id)], updatedAt, deleted })
+  })
+
+  it('两台设备各自新增不同收藏馆时，合并结果是并集（不会互相抹掉）', () => {
+    const local = { 'A': localSet('a1', 100) }
+    const remote = remoteSet('b1', 200)
+    const merged = mergeProfileMapFromRemote(local, { 'B': remote.k })
+    expect(Object.keys(merged).sort()).toEqual(['A', 'B'])
+    expect(merged['A'].items[0].id).toBe('a1')
+    expect(merged['B'].items[0].id).toBe('b1')
+  })
+
+  it('同一收藏馆按 updatedAt 取新：远端新则覆盖，本机新则保留', () => {
+    const local = { '明日方舟': localSet('local', 200) }
+    const remoteOlder = { '明日方舟': remoteSet('remote-old', 100)['k'] }
+    expect(mergeProfileMapFromRemote(local, remoteOlder)['明日方舟'].items[0].id).toBe('local')
+
+    const remoteNewer = { '明日方舟': remoteSet('remote-new', 300)['k'] }
+    expect(mergeProfileMapFromRemote(local, remoteNewer)['明日方舟'].items[0].id).toBe('remote-new')
+  })
+
+  it('删除墓碑比旧内容新时生效，比本机新内容旧时保留本机', () => {
+    const local = { '明日方舟': localSet('local', 200) }
+    const remoteDelete = { '明日方舟': remoteSet('', 300, true)['k'] }
+    const deleted = mergeProfileMapFromRemote(local, remoteDelete)['明日方舟']
+    expect(deleted.items).toEqual([])
+    expect(deleted.deleted).toBe(true)
+
+    const oldRemoteDelete = { '明日方舟': remoteSet('', 100, true)['k'] }
+    expect(mergeProfileMapFromRemote(local, oldRemoteDelete)['明日方舟'].items[0].id).toBe('local')
   })
 })
