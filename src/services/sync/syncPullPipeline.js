@@ -7,6 +7,7 @@ import { compareStateSync } from '@/utils/sync/stateCompare'
 import { writePersisted } from '@/utils/platform/storage'
 import { getAllBatchDrafts, saveBatchDrafts } from '@/utils/db'
 import { normalizeBatchDraft, isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
+import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import i18n from '@/locales'
 
@@ -152,6 +153,19 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
 
   // batch draft items：cloud-image:// → public URL（Supabase 无需下载）
   if (be?.getImagePublicUrl) {
+    const resolveDraftImage = (image) => {
+      // localPath 只对源设备有意义；收到的对端行里清掉，避免误当本地文件
+      const remoteImage = { ...(image || {}) }
+      delete remoteImage.localPath
+      const cloudFileName = String(remoteImage.cloudFileName || parseCloudImageUri(remoteImage.uri) || '').trim()
+      if (!cloudFileName) return remoteImage
+      return {
+        ...remoteImage,
+        uri: be.getImagePublicUrl(cloudFileName),
+        cloudFileName,
+        storageMode: remoteImage.storageMode || 'cloud-local'
+      }
+    }
     const resolveDraftUris = (list) => (list || []).map((draft) => {
       if (!Array.isArray(draft?.items)) return draft
       return {
@@ -162,6 +176,12 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
           // receiving device's draft database.
           const remoteItem = { ...(item || {}) }
           delete remoteItem.localImageUri
+          // 单个草稿：表单快照里的多张图走商品图片字段（uri/localPath）
+          if (getSingleDraftEntry({ items: [item] })) {
+            const form = item[SINGLE_DRAFT_FORM_KEY]
+            const images = Array.isArray(form?.images) ? form.images : []
+            return { ...remoteItem, [SINGLE_DRAFT_FORM_KEY]: { ...form, images: images.map(resolveDraftImage) } }
+          }
           const cloudFileName = String(item?.cloudFileName || parseCloudImageUri(item?.imageUri) || '').trim()
           if (!cloudFileName) return remoteItem
           return {

@@ -3,8 +3,9 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { createGoodsImageId, buildCloudImageUri, parseCloudImageUri, parseStoragePublicImageUrl } from '@/utils/goods/images'
 import { deleteManagedLocalImages, isLocalImageUri } from '@/utils/image/localImage'
 import { appLog } from '@/utils/logger'
-import { getAllBatchDrafts, getBatchDraft, saveBatchDraft, saveBatchDrafts, softDeleteBatchDraft } from '@/utils/db'
+import { getAllBatchDrafts, getBatchDraft, getBatchDraftUpdatedAt, saveBatchDraft, saveBatchDrafts, softDeleteBatchDraft } from '@/utils/db'
 import { createAutoPush } from '@/stores/storeCore'
+import { buildSingleDraftItem, getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 
 /** @typedef {'collection' | 'wishlist'} BatchDraftSlot */
 
@@ -21,6 +22,11 @@ const batchId = ref('')
 const isWishlist = ref(false)
 // 当前内存队列归属的草稿槽位；空串 = 尚未 init/resume
 const activeSlot = ref(/** @type {BatchDraftSlot | ''} */ (''))
+// 单个新增编辑器当前绑定的草稿槽（空串 = 未打开）。与 activeSlot 互斥：
+// 同一时刻一侧只可能有一个「未完成新增」，要么队列、要么单个表单。
+const singleDraftActiveSlot = ref(/** @type {BatchDraftSlot | ''} */ (''))
+// 远端 pull 合并命中单个草稿槽时自增，编辑器据此重新读库对齐（避免 stale 表单盖回远端）
+export const singleDraftRemoteRevision = ref(0)
 
 // 防抖落库计时器
 let persistTimer = null
@@ -103,8 +109,8 @@ async function persistActiveDraft() {
   }
   // 草稿采用 LWW。设备时钟可能比云端/另一台设备慢，因此不能只用
   // Date.now()；否则二次编辑会被远端较大的 updatedAt 判定为旧数据。
-  const existing = await getBatchDraft(slot)
-  const knownUpdatedAt = Number(existing?.updatedAt) || 0
+  // 读取原始行（含墓碑），这样清除后再次编辑也能基于旧 updatedAt 递增。
+  const knownUpdatedAt = await getBatchDraftUpdatedAt(slot)
   const updatedAt = Math.max(Date.now(), knownUpdatedAt + 1)
   await saveBatchDraft({
     slot,
@@ -152,14 +158,26 @@ function schedulePersist() {
 /**
  * 查询槽位是否存在未完成草稿
  * @param {BatchDraftSlot} slot
- * @returns {Promise<{ count: number, batchId: string, isWishlist: boolean, updatedAt: number } | null>}
+ * @returns {Promise<{ kind: 'queue' | 'single', count: number, batchId: string, isWishlist: boolean, updatedAt: number } | null>}
  */
 export async function getDraftMeta(slot) {
   if (!slot) return null
   try {
     const draft = await getBatchDraft(slot)
-    if (!draft || !Array.isArray(draft.items) || draft.items.length === 0) return null
+    if (!draft) return null
+    // 单个草稿与队列草稿共用一行：单个草稿 = 唯一一个带 singleForm 的条目
+    if (getSingleDraftEntry(draft)) {
+      return {
+        kind: 'single',
+        count: 1,
+        batchId: '',
+        isWishlist: draft.isWishlist === true,
+        updatedAt: draft.updatedAt
+      }
+    }
+    if (!Array.isArray(draft.items) || draft.items.length === 0) return null
     return {
+      kind: 'queue',
       count: draft.items.length,
       batchId: draft.batchId,
       isWishlist: draft.isWishlist,
@@ -194,6 +212,8 @@ export async function resumeDraft(slot) {
   }
   try {
     const draft = await getBatchDraft(slot)
+    // 该槽是单个草稿：队列恢复不认它，且绝不能软删（否则会毁掉单个草稿）
+    if (getSingleDraftEntry(draft)) return false
     const items = draft && Array.isArray(draft.items) ? draft.items : []
     if (items.length === 0) {
       queue.value = []
@@ -239,26 +259,146 @@ export async function clearDraft(slot) {
     batchId.value = ''
     isWishlist.value = false
     activeSlot.value = ''
-  } else {
-    try {
-      const draft = await getBatchDraft(target)
-      if (draft && Array.isArray(draft.items)) {
-        uris = draft.items.map((item) => item?.localImageUri || item?.imageUri).filter(Boolean)
-      }
-    } catch (e) {
-      console.warn('[useBatchQueue] clearDraft read failed', e)
-    }
   }
+  // 单个草稿（或非当前队列槽）的图片只能从 DB 行里取
+  try {
+    const draft = await getBatchDraft(target)
+    uris = uris.concat(collectDraftLocalImageCandidates(draft))
+  } catch (e) {
+    console.warn('[useBatchQueue] clearDraft read failed', e)
+  }
+  if (singleDraftActiveSlot.value === target) singleDraftActiveSlot.value = ''
   try {
     await softDeleteBatchDraft(target)
   } catch (e) {
     console.warn('[useBatchQueue] clearDraft soft-delete failed', e)
   }
   // 只删本地文件；云端已上传副本由孤儿回收（48h 宽限）处理
-  const localUris = uris.filter((uri) => isLocalImageUri(uri) || String(uri).startsWith('file:') || String(uri).startsWith('data:image/'))
+  const localUris = [...new Set(
+    uris.filter((uri) => isLocalImageUri(uri) || String(uri).startsWith('file:') || String(uri).startsWith('data:image/'))
+  )]
   if (localUris.length > 0) void deleteManagedLocalImages(localUris)
   triggerBatchDraftSync()
   appLog('info', 'batch-queue: draft cleared', { slot: target, count: localUris.length })
+}
+
+/**
+ * 从草稿行收集需要清理的本地图片（原始 URI）。
+ * 队列草稿取 items[].localImageUri/imageUri；单个草稿取 singleForm.images[].uri。
+ * @param {any} draft
+ * @returns {Array<string>}
+ */
+function collectDraftLocalImageCandidates(draft) {
+  const out = []
+  if (!draft) return out
+  const singleEntry = getSingleDraftEntry(draft)
+  if (singleEntry) {
+    const form = singleEntry[SINGLE_DRAFT_FORM_KEY]
+    const images = Array.isArray(form?.images) ? form.images : []
+    for (const image of images) {
+      const uri = image?.uri || image?.localPath
+      if (uri) out.push(uri)
+    }
+    return out
+  }
+  if (Array.isArray(draft.items)) {
+    for (const item of draft.items) {
+      const uri = item?.localImageUri || item?.imageUri
+      if (uri) out.push(uri)
+    }
+  }
+  return out
+}
+
+// ── 单个谷子新增草稿（与队列草稿共用同一 batch_drafts 行）────────────────────
+
+/**
+ * 读取槽位的单个草稿
+ * @param {BatchDraftSlot} slot
+ * @returns {Promise<{ form: object, isWishlist: boolean, updatedAt: number } | null>}
+ */
+export async function getSingleDraft(slot) {
+  if (!slot) return null
+  try {
+    const draft = await getBatchDraft(slot)
+    const entry = getSingleDraftEntry(draft)
+    if (!entry) return null
+    const form = entry[SINGLE_DRAFT_FORM_KEY]
+    return {
+      form: form && typeof form === 'object' && !Array.isArray(form) ? form : {},
+      isWishlist: draft.isWishlist === true,
+      updatedAt: Number(draft.updatedAt) || 0
+    }
+  } catch (e) {
+    console.warn('[useBatchQueue] getSingleDraft failed', e)
+    return null
+  }
+}
+
+/**
+ * 写入单个草稿（LWW，与队列草稿同款时钟策略）。
+ * 写入即代表该槽被单个草稿占用：清掉可能残留的队列内存，避免之后 flush 把整行盖成队列。
+ * @param {BatchDraftSlot} slot
+ * @param {object} form 表单快照
+ * @param {boolean} isWishlist
+ * @returns {Promise<number>} 落库的 updatedAt
+ */
+export async function saveSingleDraft(slot, form, isWishlist) {
+  if (!slot) return 0
+  cancelPersistTimer()
+  try {
+    const knownUpdatedAt = await getBatchDraftUpdatedAt(slot)
+    const updatedAt = Math.max(Date.now(), knownUpdatedAt + 1)
+    await saveBatchDraft({
+      slot,
+      batchId: '',
+      isWishlist: isWishlist === true,
+      items: [buildSingleDraftItem(form)],
+      defaults: { ip: '', category: '', price: '' },
+      deleted: false,
+      updatedAt
+    })
+    if (activeSlot.value === slot) {
+      queue.value = []
+      defaults.value = { ip: '', category: '', price: '' }
+      batchId.value = ''
+      activeSlot.value = ''
+    }
+    triggerBatchDraftSync()
+    return updatedAt
+  } catch (e) {
+    console.warn('[useBatchQueue] saveSingleDraft failed', e)
+    return 0
+  }
+}
+
+/**
+ * 软删单个草稿行（不删图片）。成功保存为商品后调用：图片已归商品所有。
+ * @param {BatchDraftSlot} slot
+ */
+export async function clearSingleDraft(slot) {
+  const target = slot || singleDraftActiveSlot.value
+  if (!target) return
+  cancelPersistTimer()
+  if (singleDraftActiveSlot.value === target) singleDraftActiveSlot.value = ''
+  try {
+    await softDeleteBatchDraft(target)
+    triggerBatchDraftSync()
+  } catch (e) {
+    console.warn('[useBatchQueue] clearSingleDraft failed', e)
+  }
+}
+
+/**
+ * 单个编辑器挂载时绑定槽位（供 pull 合并后回刷）
+ */
+export function bindSingleDraftSlot(slot) {
+  singleDraftActiveSlot.value = slot || ''
+}
+
+/** 单个编辑器卸载时解绑 */
+export function unbindSingleDraftSlot(slot) {
+  if (!slot || singleDraftActiveSlot.value === slot) singleDraftActiveSlot.value = ''
 }
 
 /**
@@ -515,34 +655,40 @@ function discardQueue() {
 
 /**
  * pull 合并写库后刷新当前编辑槽内存，避免 stale 队列在下次 persist 盖回远端。
- * 仅当 activeSlot 有草稿时调用；无草稿/删除时清空对应内存。
+ * 同时通知正在打开的单个草稿编辑器重读（singleDraftRemoteRevision）。
  */
 export async function refreshActiveSlotFromDb() {
   const slot = activeSlot.value
-  if (!slot) return
-  try {
-    const draft = await getBatchDraft(slot)
-    const items = draft && Array.isArray(draft.items) ? draft.items : []
-    withSuppressPersist(() => {
-      if (items.length === 0) {
-        // 远端墓碑赢下 LWW：清空内存，但不删本地图片（清除语义由对端 clear 触发）
-        queue.value = []
-        defaults.value = { ip: '', category: '', price: '' }
-        batchId.value = ''
-        return
-      }
-      queue.value = deserializeItems(items)
-      defaults.value = {
-        ip: String(draft.defaults?.ip || ''),
-        category: String(draft.defaults?.category || ''),
-        price: String(draft.defaults?.price || '')
-      }
-      batchId.value = draft.batchId || ''
-      isWishlist.value = draft.isWishlist === true
-    })
-    appLog('info', 'batch-queue: refreshed active slot from remote', { slot, count: items.length })
-  } catch (e) {
-    console.warn('[useBatchQueue] refreshActiveSlotFromDb failed', e)
+  if (slot) {
+    try {
+      const draft = await getBatchDraft(slot)
+      // 远端把该槽改成了单个草稿：不要塞进队列内存（否则队列会把整行盖回去）
+      const items = draft && !getSingleDraftEntry(draft) && Array.isArray(draft.items) ? draft.items : []
+      withSuppressPersist(() => {
+        if (items.length === 0) {
+          // 远端墓碑赢下 LWW：清空内存，但不删本地图片（清除语义由对端 clear 触发）
+          queue.value = []
+          defaults.value = { ip: '', category: '', price: '' }
+          batchId.value = ''
+          return
+        }
+        queue.value = deserializeItems(items)
+        defaults.value = {
+          ip: String(draft.defaults?.ip || ''),
+          category: String(draft.defaults?.category || ''),
+          price: String(draft.defaults?.price || '')
+        }
+        batchId.value = draft.batchId || ''
+        isWishlist.value = draft.isWishlist === true
+      })
+      appLog('info', 'batch-queue: refreshed active slot from remote', { slot, count: items.length })
+    } catch (e) {
+      console.warn('[useBatchQueue] refreshActiveSlotFromDb failed', e)
+    }
+  }
+  // 单个草稿编辑器打开：无论远端是单个草稿、被清空还是变成队列，都让它重读对齐
+  if (singleDraftActiveSlot.value) {
+    singleDraftRemoteRevision.value += 1
   }
 }
 
@@ -677,6 +823,12 @@ export function useBatchQueue() {
     hasDraft,
     resumeDraft,
     clearDraft,
+    getSingleDraft,
+    saveSingleDraft,
+    clearSingleDraft,
+    bindSingleDraftSlot,
+    unbindSingleDraftSlot,
+    singleDraftRemoteRevision,
     flushBatchDraft,
     slotForWishlist,
     getAllBatchDrafts,

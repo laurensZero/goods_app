@@ -37,6 +37,10 @@ vi.mock('@/utils/db', () => ({
     return row ? structuredClone(row) : null
   }),
   getAllBatchDrafts: vi.fn(async () => [...mocks.draftStore.values()].map((row) => structuredClone(row))),
+  getBatchDraftUpdatedAt: vi.fn(async (slot) => {
+    const row = mocks.draftStore.get(slot)
+    return row ? (Number(row.updatedAt) || 0) : 0
+  }),
   saveBatchDraft: vi.fn(async (draft) => {
     mocks.draftStore.set(draft.slot, {
       slot: draft.slot,
@@ -69,7 +73,7 @@ vi.mock('@/utils/db', () => ({
       ...row,
       items: [],
       deleted: true,
-      updatedAt: Date.now()
+      updatedAt: Math.max(Date.now(), (Number(row.updatedAt) || 0) + 1)
     })
   }),
   deleteBatchDraft: vi.fn(async (slot) => {
@@ -284,10 +288,100 @@ describe('useBatchQueue', () => {
     await q.initQueue([{ uri: URI_A }], { batchId: 'b1' })
     await flushPersist(q)
     const meta = await q.getDraftMeta('collection')
-    expect(meta).toMatchObject({ count: 1, batchId: 'b1', isWishlist: false })
+    expect(meta).toMatchObject({ kind: 'queue', count: 1, batchId: 'b1', isWishlist: false })
     expect(await q.hasDraft('collection')).toBe(true)
     // wishlist 侧仍无
     expect(await q.hasDraft('wishlist')).toBe(false)
+  })
+
+  it('saveSingleDraft / getSingleDraft：单个草稿与队列草稿共用同一行且可读回', async () => {
+    const q = await loadQueue()
+    const updatedAt = await q.saveSingleDraft('collection', {
+      name: '单草稿',
+      images: [{ id: 'i1', uri: URI_A }]
+    }, false)
+    expect(updatedAt).toBeGreaterThan(0)
+
+    const meta = await q.getDraftMeta('collection')
+    expect(meta).toMatchObject({ kind: 'single', count: 1, isWishlist: false })
+
+    const single = await q.getSingleDraft('collection')
+    expect(single.form.name).toBe('单草稿')
+    expect(single.form.images[0].uri).toBe(URI_A)
+    expect(single.updatedAt).toBe(updatedAt)
+  })
+
+  it('resumeDraft 遇到单个草稿既不恢复队列也不软删（保护单个草稿）', async () => {
+    const q = await loadQueue()
+    await q.saveSingleDraft('collection', { name: '单草稿' }, false)
+
+    const ok = await q.resumeDraft('collection')
+    expect(ok).toBe(false)
+    expect(q.queue.value).toHaveLength(0)
+
+    const row = mocks.draftStore.get('collection')
+    expect(row.deleted).toBeFalsy()
+    expect((await q.getDraftMeta('collection')).kind).toBe('single')
+  })
+
+  it('clearDraft 删掉单个草稿行与其中的本地图片', async () => {
+    const q = await loadQueue()
+    await q.saveSingleDraft('collection', {
+      name: '单草稿',
+      images: [{ id: 'i1', uri: URI_A }, { id: 'i2', uri: URI_B }]
+    }, false)
+
+    await q.clearDraft('collection')
+
+    expect(isTombstone(mocks.draftStore.get('collection'))).toBe(true)
+    expect(mocks.deleteManagedLocalImages).toHaveBeenCalledWith([URI_A, URI_B])
+  })
+
+  it('clearSingleDraft 软删草稿行但不删图片（保存成功语义）', async () => {
+    const q = await loadQueue()
+    await q.saveSingleDraft('wishlist', {
+      name: '单草稿',
+      images: [{ id: 'i1', uri: URI_A }]
+    }, true)
+    mocks.deleteManagedLocalImages.mockClear()
+
+    await q.clearSingleDraft('wishlist')
+
+    expect(isTombstone(mocks.draftStore.get('wishlist'))).toBe(true)
+    expect(mocks.deleteManagedLocalImages).not.toHaveBeenCalled()
+  })
+
+  it('清除草稿：墓碑 updatedAt 必须晚于内容行（本机时钟落后也不会被云端/pull 盖回）', async () => {
+    const q = await loadQueue()
+    vi.setSystemTime(new Date('2026-01-01T00:00:10.000Z'))
+    await q.saveSingleDraft('collection', { name: '单草稿' }, false)
+    const contentTs = mocks.draftStore.get('collection').updatedAt
+    expect(contentTs).toBeGreaterThan(0)
+
+    // 模拟本机时钟落后 / 内容行来自更快的时钟：墓碑若只用 Date.now() 会比内容行更旧，
+    // 云端 upsert（updated_at <= excluded）会拒收，随后 pull 把内容行盖回 → 草稿复活。
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    await q.clearSingleDraft('collection')
+
+    const tomb = mocks.draftStore.get('collection')
+    expect(isTombstone(tomb)).toBe(true)
+    expect(tomb.updatedAt).toBeGreaterThan(contentTs)
+  })
+
+  it('清除后再次写入单个草稿：updatedAt 仍基于墓碑递增（不因墓碑被判 null 而退回设备时钟）', async () => {
+    const q = await loadQueue()
+    vi.setSystemTime(new Date('2026-01-01T00:00:10.000Z'))
+    await q.saveSingleDraft('collection', { name: '旧草稿' }, false)
+    await q.clearSingleDraft('collection')
+    const tombTs = mocks.draftStore.get('collection').updatedAt
+
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    const newTs = await q.saveSingleDraft('collection', { name: '新草稿' }, false)
+
+    expect(newTs).toBeGreaterThan(tombTs)
+    const row = mocks.draftStore.get('collection')
+    expect(row.deleted).toBe(false)
+    expect(await q.getDraftMeta('collection')).toMatchObject({ kind: 'single' })
   })
 
   it('clearDraft 删除草稿行与全部本地图片并清内存', async () => {

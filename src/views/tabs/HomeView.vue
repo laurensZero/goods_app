@@ -183,8 +183,8 @@
     <BatchDraftResumeSheet
       v-model="showDraftResume"
       :count="draftResumeCount"
-      @continue="resumeBatchDraft"
-      @restart="restartBatchDraft"
+      @continue="handleDraftResumeContinue"
+      @restart="handleDraftResumeRestart"
     />
 
     <DangerConfirmDialog
@@ -479,6 +479,10 @@ let _lastSyncDensity = ''
 const showAddSheet = ref(false)
 const showDraftResume = ref(false)
 const draftResumeCount = ref(0)
+// 触发恢复面板的入口：'batch' | 'manual'；决定「重新开始」后走哪条路
+const pendingAddEntry = ref('manual')
+// 该槽现有草稿的类型：'queue' | 'single'；决定「继续上次」打开哪个编辑器
+const draftResumeKind = ref('queue')
 const showDailyRec = ref(false)
 const showTimelinePopup = ref(false)
 const popupTimelineItem = ref(null)
@@ -876,9 +880,11 @@ function handleTaobaoImport() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
-  // 有未完成草稿 → 先让用户选继续 / 重新开始
+  // 有未完成草稿（队列或单个）→ 先让用户选继续 / 重新开始
   const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.COLLECTION)
   if (draft) {
+    pendingAddEntry.value = 'batch'
+    draftResumeKind.value = draft.kind
     draftResumeCount.value = draft.count
     // 等添加面板 leave 走起来再弹，避免两层 scrim 同帧叠开
     await nextTick()
@@ -901,7 +907,7 @@ async function startBatchAddFlow() {
   )
 }
 
-function resumeBatchDraft() {
+function openBatchQueueResume() {
   saveScrollPosition(true, 'home:handleBatchAdd')
   homeDisplayReady.value = false
   runWithRouteTransition(
@@ -912,12 +918,39 @@ function resumeBatchDraft() {
   )
 }
 
-async function restartBatchDraft() {
-  await clearDraft(BATCH_DRAFT_SLOTS.COLLECTION)
-  await startBatchAddFlow()
+/** 恢复面板「继续上次」：按草稿类型打开对应编辑器 */
+function handleDraftResumeContinue() {
+  if (draftResumeKind.value === 'single') {
+    captureAddMotionSnapshot()
+    navigateFromAddSheet('/add?resume=1', 'home:goToAdd')
+    return
+  }
+  openBatchQueueResume()
 }
 
-function goToAdd() {
+/** 恢复面板「重新开始」：清掉旧草稿后按原入口重新开始 */
+async function handleDraftResumeRestart() {
+  await clearDraft(BATCH_DRAFT_SLOTS.COLLECTION)
+  if (pendingAddEntry.value === 'batch') {
+    await startBatchAddFlow()
+    return
+  }
+  captureAddMotionSnapshot()
+  navigateFromAddSheet('/add?fresh=1', 'home:goToAdd')
+}
+
+async function goToAdd() {
+  showAddSheet.value = false
+  // 同侧槽位已有未完成草稿（队列或单个）→ 先让用户选继续 / 重新开始
+  const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.COLLECTION)
+  if (draft) {
+    pendingAddEntry.value = 'manual'
+    draftResumeKind.value = draft.kind
+    draftResumeCount.value = draft.count
+    await nextTick()
+    showDraftResume.value = true
+    return
+  }
   captureAddMotionSnapshot()
   navigateFromAddSheet('/add', 'home:goToAdd')
 }

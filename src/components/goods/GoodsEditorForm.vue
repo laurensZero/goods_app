@@ -1182,6 +1182,16 @@ const props = defineProps({
   editId: {
     type: String,
     default: ''
+  },
+  // 单个新增草稿槽位（'collection' | 'wishlist'）：add 模式下与批量队列草稿共用同一行
+  draftSlot: {
+    type: String,
+    default: ''
+  },
+  // 进入时是否恢复该槽位已有草稿；false = 本次「重新开始」
+  resumeDraft: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -1293,6 +1303,8 @@ const {
   mode: props.mode,
   editId: props.editId,
   initialIsWishlist: props.initialIsWishlist,
+  draftSlot: props.draftSlot,
+  resumeDraft: props.resumeDraft,
   getMotionSourceEl: () => previewMediaRef.value,
   beforeNavigateAway: () => leaveGuardSlot.current?.markLeaveAllowed()
 })
@@ -1361,7 +1373,10 @@ const customFieldDatePickerTitle = computed(() => {
   return def?.name || t('goods.editor.customFieldDatePlaceholder')
 })
 
-const leaveGuard = useUnsavedLeaveGuard({ isDirty: hasUnsavedChanges })
+// add 模式下未保存离开不再二次确认：改由「单个草稿」承接未完成内容
+const leaveGuard = useUnsavedLeaveGuard({
+  isDirty: computed(() => props.mode === 'edit' && hasUnsavedChanges.value)
+})
 leaveGuardSlot.current = leaveGuard
 const {
   showLeaveConfirm,

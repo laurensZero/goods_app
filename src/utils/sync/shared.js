@@ -6,6 +6,7 @@ import {
 } from '@/utils/goods/images'
 import { readPersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
+import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 
 const IMAGE_FILE_PREFIX = 'goods-image__'
 const EVENT_COVER_PREFIX = 'event-cover__'
@@ -452,6 +453,17 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
 
   for (const draft of batchDrafts) {
     addId(draft?.id || draft?.slot)
+    // 单个草稿：图片在 singleForm.images（商品图片字段），必须一并登记，
+    // 否则未保存的单个草稿图会在推送末尾的孤儿回收里被删掉
+    const singleEntry = getSingleDraftEntry(draft)
+    if (singleEntry) {
+      const form = singleEntry[SINGLE_DRAFT_FORM_KEY]
+      for (const img of normalizeGoodsImageList(form?.images)) {
+        addRef(resolveRefName(img))
+        addRef(img?.editSourceCloudFileName || parseCloudImageUri(img?.editSourceUri))
+      }
+      continue
+    }
     for (const item of (Array.isArray(draft?.items) ? draft.items : [])) {
       addRef(
         item?.cloudFileName

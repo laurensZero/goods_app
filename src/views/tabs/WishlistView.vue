@@ -148,8 +148,8 @@
     <BatchDraftResumeSheet
       v-model="showDraftResume"
       :count="draftResumeCount"
-      @continue="resumeBatchDraft"
-      @restart="restartBatchDraft"
+      @continue="handleDraftResumeContinue"
+      @restart="handleDraftResumeRestart"
     />
 
     <DangerConfirmDialog
@@ -353,6 +353,10 @@ const windowWidth = ref(window.innerWidth)
 const showAddSheet = ref(false)
 const showDraftResume = ref(false)
 const draftResumeCount = ref(0)
+// 触发恢复面板的入口：'batch' | 'manual'；决定「重新开始」后走哪条路
+const pendingAddEntry = ref('manual')
+// 该槽现有草稿的类型：'queue' | 'single'；决定「继续上次」打开哪个编辑器
+const draftResumeKind = ref('queue')
 const showDeleteConfirm = ref(false)
 const showBatchEditSheet = ref(false)
 const showShareSheet = ref(false)
@@ -1165,7 +1169,18 @@ function navigateFromAddSheet(path, reason) {
   )
 }
 
-function goToManualAdd() {
+async function goToManualAdd() {
+  showAddSheet.value = false
+  // 同侧槽位已有未完成草稿（队列或单个）→ 先让用户选继续 / 重新开始
+  const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.WISHLIST)
+  if (draft) {
+    pendingAddEntry.value = 'manual'
+    draftResumeKind.value = draft.kind
+    draftResumeCount.value = draft.count
+    await nextTick()
+    showDraftResume.value = true
+    return
+  }
   navigateFromAddSheet('/add?mode=wishlist', 'wishlist:goToManualAdd')
 }
 
@@ -1175,9 +1190,11 @@ function handleTaobaoImport() {
 
 async function handleBatchAdd() {
   showAddSheet.value = false
-  // 有未完成草稿 → 先让用户选继续 / 重新开始
+  // 有未完成草稿（队列或单个）→ 先让用户选继续 / 重新开始
   const draft = await getDraftMeta(BATCH_DRAFT_SLOTS.WISHLIST)
   if (draft) {
+    pendingAddEntry.value = 'batch'
+    draftResumeKind.value = draft.kind
     draftResumeCount.value = draft.count
     // 等添加面板 leave 起来再弹，避免两层 scrim 同帧叠开
     await nextTick()
@@ -1200,7 +1217,7 @@ async function startBatchAddFlow() {
   )
 }
 
-function resumeBatchDraft() {
+function openBatchQueueResume() {
   saveScrollPosition(true, 'wishlist:handleBatchAdd')
   wishlistDisplayReady.value = false
   runWithRouteTransition(
@@ -1211,9 +1228,23 @@ function resumeBatchDraft() {
   )
 }
 
-async function restartBatchDraft() {
+/** 恢复面板「继续上次」：按草稿类型打开对应编辑器 */
+function handleDraftResumeContinue() {
+  if (draftResumeKind.value === 'single') {
+    navigateFromAddSheet('/add?mode=wishlist&resume=1', 'wishlist:goToManualAdd')
+    return
+  }
+  openBatchQueueResume()
+}
+
+/** 恢复面板「重新开始」：清掉旧草稿后按原入口重新开始 */
+async function handleDraftResumeRestart() {
   await clearDraft(BATCH_DRAFT_SLOTS.WISHLIST)
-  await startBatchAddFlow()
+  if (pendingAddEntry.value === 'batch') {
+    await startBatchAddFlow()
+    return
+  }
+  navigateFromAddSheet('/add?mode=wishlist&fresh=1', 'wishlist:goToManualAdd')
 }
 
 function goToImport() {

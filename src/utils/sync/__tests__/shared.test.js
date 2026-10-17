@@ -347,6 +347,28 @@ describe('collectReferencedImageState', () => {
     expect(ownedEntityIds.has('collection')).toBe(true)
   })
 
+  it('单个草稿：登记 singleForm.images，避免未保存的单草稿图被孤儿回收删掉', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      batchDrafts: [{
+        id: 'wishlist',
+        slot: 'wishlist',
+        items: [{
+          id: 'single',
+          singleForm: {
+            name: '单草稿',
+            images: [
+              { id: 'img1', uri: 'cloud-image://goods-image__w1__img1__1.jpg', cloudFileName: 'goods-image__w1__img1__1.jpg' },
+              { id: 'img2', uri: 'https://x.supabase.co/storage/v1/object/public/goods-images/uid-1/goods-image__w1__img2__1.jpg' }
+            ]
+          }
+        }]
+      }]
+    })
+    expect(referencedFiles.has('goods-image__w1__img1__1.jpg')).toBe(true)
+    expect(referencedFiles.has('goods-image__w1__img2__1.jpg')).toBe(true)
+    expect(ownedEntityIds.has('wishlist')).toBe(true)
+  })
+
   it('collects cloudFileName from goods images', () => {
     const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
       goods: [{

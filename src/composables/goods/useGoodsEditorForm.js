@@ -1,6 +1,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { showGlobalToast } from '@/utils/globalToast'
 import {
@@ -26,6 +26,14 @@ import {
   normalizeSaleAt,
   normalizeSaleReminderOffsets
 } from '@/utils/goods/saleReminder'
+import {
+  getSingleDraft,
+  saveSingleDraft,
+  clearSingleDraft,
+  bindSingleDraftSlot,
+  unbindSingleDraftSlot,
+  singleDraftRemoteRevision
+} from '@/composables/batch/useBatchQueue'
 
 const ADD_MOTION_REQUEST_KEY = 'goods-app:add-motion-request-v1'
 
@@ -51,6 +59,10 @@ export function useGoodsEditorForm(options = {}) {
   const initialIsWishlist = Boolean(options.initialIsWishlist)
   const getMotionSourceEl = typeof options.getMotionSourceEl === 'function' ? options.getMotionSourceEl : null
   const beforeNavigateAway = typeof options.beforeNavigateAway === 'function' ? options.beforeNavigateAway : null
+  // 单个新增草稿槽位（'collection' | 'wishlist'）：add 模式下与批量队列草稿共用同一行。
+  // 空串 = 不落草稿（编辑态）。resumeDraft=false 表示本次进入要「重新开始」，忽略旧草稿。
+  const draftSlot = typeof options.draftSlot === 'string' ? options.draftSlot : ''
+  const resumeDraft = options.resumeDraft !== false
 
   const { t } = useI18n()
   const router = useRouter()
@@ -152,6 +164,127 @@ export function useGoodsEditorForm(options = {}) {
   const hasUnsavedChanges = computed(() => {
     if (!formBaselineReady.value) return false
     return serializeGoodsFormSnapshot() !== formBaseline.value
+  })
+
+  // ── 单个新增草稿（add 模式；与批量队列草稿共用同一 batch_drafts 行）──
+  const draftEnabled = mode === 'add' && !!draftSlot
+  // 空白基线：判断表单是否仍是「初始空白」。为空则不落草稿，并把同槽旧草稿清掉。
+  const blankFormSnapshot = ref('')
+  // 本机最近一次写入/读取草稿的 updatedAt，用于比对远端是否真的有更新
+  const draftPersistedAt = ref(0)
+  let draftPersistTimer = null
+  // 草稿写入串行化：防抖落库与「保存成功后清草稿」竞争时，保证清草稿永远排在最后
+  let draftWriteChain = Promise.resolve()
+  // 已提交为商品：停止一切草稿写入（含卸载时的 flush），避免把已清的草稿又写回来
+  let draftSuppressed = false
+
+  function enqueueDraftWrite(task) {
+    draftWriteChain = draftWriteChain.then(task).catch((e) => {
+      console.warn('[useGoodsEditorForm] draft write failed', e)
+    })
+    return draftWriteChain
+  }
+
+  /**
+   * 把草稿里的表单快照恢复到表单上；字段名与 serializeGoodsFormSnapshot 一一对应。
+   * 恢复后同步派生 UI 状态（展开的价格/逐件输入等），与编辑态载入保持一致。
+   */
+  function applyDraftSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const clone = (value) => (value && typeof value === 'object' ? JSON.parse(JSON.stringify(value)) : value)
+    const keys = [
+      'name', 'variant', 'size', 'category', 'ip', 'goodsId', 'isWishlist', 'characters', 'tags',
+      'storageLocation', 'price', 'actualPrice', 'points', 'acquiredAt', 'saleAt',
+      'saleReminderEnabled', 'saleReminderOffsets', 'images', 'tracks', 'note', 'quantity',
+      'unitAcquiredAtList', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
+      'currency', 'actualPriceCurrency', 'collectStatus', 'shippingFee', 'shippingEvents',
+      'sellPrice', 'sellPlatform', 'sellFee', 'sellDate', 'unitSaleInfoList', 'statusTimeline',
+      'customFields'
+    ]
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(snapshot, key)) form[key] = clone(snapshot[key])
+    }
+
+    // 草稿里存过 acquiredAt（可能被用户改过）→ 挡住 isWishlist watcher 的「今天就清空」逻辑
+    hasCustomAcquiredAt.value = true
+    form.saleReminderOffsets = normalizeSaleReminderOffsets(form.saleReminderOffsets)
+    form.customFields = form.customFields && typeof form.customFields === 'object' && !Array.isArray(form.customFields)
+      ? { ...form.customFields }
+      : {}
+    showPointsInput.value = !!String(form.points || '').trim()
+    showActualPriceInput.value = hasActualPriceValue(form.actualPrice)
+    showUnitAcquiredAtInput.value = form.unitAcquiredAtList.some((value) => !!String(value || '').trim())
+    showUnitActualPriceInput.value = form.unitActualPriceList.some((value) => !!String(value || '').trim())
+    showUnitCharacterInput.value = form.unitCharacterList.some((value) => !!String(value || '').trim())
+    showUnitCollectStatusInput.value = form.unitCollectStatusList.some((value) => !!String(value || '').trim())
+    showShippingEvents.value = form.shippingEvents.length > 0
+    syncUnitAcquiredAtListLength()
+    syncUnitActualPriceListLength()
+    syncUnitCharacterListLength()
+    syncUnitCollectStatusListLength()
+    datePickerValue.value = toDatePickerValue(form.acquiredAt)
+  }
+
+  /** 立即把当前表单写入草稿（空白表单 → 清掉草稿，不删图片文件） */
+  function persistDraftNow() {
+    if (!draftEnabled || draftSuppressed || !formBaselineReady.value) return draftWriteChain
+    if (draftPersistTimer) {
+      clearTimeout(draftPersistTimer)
+      draftPersistTimer = null
+    }
+    const snapshot = serializeGoodsFormSnapshot()
+    const wishlist = form.isWishlist
+    return enqueueDraftWrite(async () => {
+      if (snapshot === blankFormSnapshot.value) {
+        // 表单已回到初始空白：清草稿行（图片由后续正常清理逻辑处理）
+        draftPersistedAt.value = 0
+        await clearSingleDraft(draftSlot)
+        return
+      }
+      draftPersistedAt.value = await saveSingleDraft(draftSlot, JSON.parse(snapshot), wishlist)
+    })
+  }
+
+  /** 保存为商品成功：清掉草稿（不删图片：已归商品所有） */
+  function clearDraftAfterSubmit() {
+    if (!draftEnabled) return
+    draftSuppressed = true
+    if (draftPersistTimer) {
+      clearTimeout(draftPersistTimer)
+      draftPersistTimer = null
+    }
+    void enqueueDraftWrite(() => clearSingleDraft(draftSlot))
+  }
+
+  /** 防抖落草稿：编辑中频繁输入只写最后一次 */
+  function scheduleDraftPersist() {
+    if (!draftEnabled || !formBaselineReady.value) return
+    if (draftPersistTimer) clearTimeout(draftPersistTimer)
+    draftPersistTimer = setTimeout(() => { void persistDraftNow() }, 400)
+  }
+
+  watch(serializeGoodsFormSnapshot, () => {
+    if (formBaselineReady.value) scheduleDraftPersist()
+  })
+
+  // 远端 pull 合并命中本槽的单个草稿 → 若本地没有未保存编辑，重读对齐
+  watch(singleDraftRemoteRevision, async () => {
+    if (!draftEnabled) return
+    try {
+      const remote = await getSingleDraft(draftSlot)
+      if (!remote || remote.updatedAt === draftPersistedAt.value) return
+      if (hasUnsavedChanges.value) return
+      applyDraftSnapshot(remote.form)
+      draftPersistedAt.value = remote.updatedAt
+      nextTick(() => captureGoodsFormBaseline())
+    } catch (e) {
+      console.warn('[useGoodsEditorForm] refresh single draft failed', e)
+    }
+  })
+
+  onBeforeRouteLeave(() => {
+    if (draftEnabled) void persistDraftNow()
+    return true
   })
 
   const showPointsInput = ref(false)
@@ -344,7 +477,7 @@ export function useGoodsEditorForm(options = {}) {
     { immediate: true }
   )
 
-  onMounted(() => {
+  onMounted(async () => {
     if (mode === 'add') {
       form.isWishlist = initialIsWishlist
       if (!form.isWishlist) {
@@ -424,6 +557,21 @@ export function useGoodsEditorForm(options = {}) {
     syncUnitActualPriceListLength()
     syncUnitCharacterListLength()
     syncUnitCollectStatusListLength()
+    if (draftEnabled) {
+      // 先等挂载后的默认态归一化跑完（收藏态会清空补款提醒、按数量补齐逐件列表等，
+      // 这些 watcher 在 mounted 之后才 flush），再固定「空白基线」。
+      // 否则归一化前的默认值会被当成用户填写，导致什么都没填退出也落一份草稿。
+      await nextTick()
+      blankFormSnapshot.value = serializeGoodsFormSnapshot()
+      if (resumeDraft) {
+        const draft = await getSingleDraft(draftSlot)
+        if (draft) {
+          applyDraftSnapshot(draft.form)
+          draftPersistedAt.value = draft.updatedAt
+        }
+      }
+      bindSingleDraftSlot(draftSlot)
+    }
     updateViewport()
     // 系统同步逐份列表完成后再打基线，避免「打开即脏」
     nextTick(() => {
@@ -434,9 +582,12 @@ export function useGoodsEditorForm(options = {}) {
   })
 
   onBeforeUnmount(() => {
+    // 离开编辑页即把当前表单落草稿（fire-and-forget：DB 写入会在组件卸载后继续完成）
+    if (draftEnabled) void persistDraftNow()
     document.removeEventListener('mousedown', handleClickOutside)
     document.removeEventListener('touchstart', handleClickOutside)
     cleanupSessionLocalImages()
+    if (draftEnabled) unbindSingleDraftSlot(draftSlot)
   })
 
   // 未保存就离开编辑页：清理本次会话新复制的本地图片，防止孤儿文件。
@@ -449,6 +600,12 @@ export function useGoodsEditorForm(options = {}) {
     const referenced = new Set()
     for (const item of [...store.list, ...store.trashList]) {
       for (const path of collectManagedLocalImagePathsFromGoodsItem(item)) {
+        referenced.add(path)
+      }
+    }
+    // add 模式的当前表单已（或即将）作为草稿落库，其中的本地图片不能当孤儿删
+    if (draftEnabled) {
+      for (const path of collectManagedLocalImagePathsFromGoodsItem({ images: form.images })) {
         referenced.add(path)
       }
     }
@@ -615,6 +772,8 @@ export function useGoodsEditorForm(options = {}) {
       const addPromise = store.addGoods({ ...form, id: motionId })
       // 保存已发起：会话内新图片归商品所有，移出待清理集合
       sessionNewLocalImagePaths.clear()
+      // 保存成功：草稿使命结束（不删图片，图片已随商品落库）
+      clearDraftAfterSubmit()
       writeAddMotionRequest(motionId, event)
       beforeNavigateAway?.()
       runWithRouteTransition(() => router.back(), { direction: 'back', fallbackTransitionKind: 'detail-fade' })

@@ -18,6 +18,7 @@ import {
 import { buildCloudImageUri, inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri, parseStoragePublicImageUrl, sanitizeGoodsItemForSync } from '@/utils/goods/images'
 import { getAllBatchDrafts, getAllImageEdits } from '@/utils/db'
 import { isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
+import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 import {
   SYNC_PAYLOAD_VERSION,
   RECHARGE_PAYLOAD_VERSION,
@@ -800,6 +801,29 @@ export function createSyncPayloadService({
       || (value && !/^https?:/i.test(value) && !value.startsWith('cloud-image://') && !value.startsWith('gist-image://'))
   }
 
+  /**
+   * 单个草稿：复用商品图片上传逻辑处理 form.images（本地→云端、登记引用）。
+   * 单草稿图片不能走 prepareDraftItemForSync（那是「一项一张图」的队列模型），
+   * 这里直接交给 prepareImagesForSync，保证一张表单的多张图都能上云。
+   */
+  async function prepareSingleDraftFormForSync(draft, form, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
+    if (!form || typeof form !== 'object' || Array.isArray(form)) return {}
+    const images = Array.isArray(form.images) ? form.images : []
+    if (images.length === 0) return { ...form, images: [] }
+    let preparedImages = images
+    try {
+      preparedImages = await prepareImagesForSync(
+        { id: draft.slot, name: String(form.name || ''), images },
+        imageFiles, imageStats, referencedImageFiles, existingImageFiles
+      )
+    } catch (e) {
+      // 图片读不到/压缩失败不应让整次草稿同步失败：降级为原样（回捞侧再处理）
+      console.warn('[sync] single draft image prepare failed, keeping raw images:', e)
+      preparedImages = images
+    }
+    return { ...form, images: preparedImages }
+  }
+
   async function buildBatchDraftSyncPayload({ existingImageCloud = null } = {}) {
     const imageStats = buildImageSyncStats()
     const imageFiles = {}
@@ -814,6 +838,17 @@ export function createSyncPayloadService({
         (entry) => prepareDraftItemForSync(draft, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles),
         6
       )
+      // 单个草稿：处理其表单快照里的多张图片（队列项逻辑不适用）
+      const singleEntry = getSingleDraftEntry({ items })
+      if (singleEntry) {
+        const processedForm = await prepareSingleDraftFormForSync(
+          draft,
+          singleEntry[SINGLE_DRAFT_FORM_KEY],
+          imageFiles, imageStats, referencedImageFiles, existingImageFiles
+        )
+        const index = items.indexOf(singleEntry)
+        items[index] = { ...singleEntry, [SINGLE_DRAFT_FORM_KEY]: processedForm }
+      }
       return {
         id: draft.slot,
         slot: draft.slot,

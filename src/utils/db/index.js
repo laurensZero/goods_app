@@ -1208,21 +1208,49 @@ export async function saveBatchDraft(draft) {
 
 /**
  * 软删墓碑：清 items、deleted=1、刷 updatedAt，供同步传播清除
+ *
+ * 时钟策略必须与内容写入（max(Date.now(), 已知 updatedAt + 1)）一致：设备时钟可能落后于
+ * 云端/另一台设备，若这里只用 Date.now()，墓碑的 updatedAt 可能 <= 原内容行，云端 upsert 的
+ * `WHERE batch_drafts.updated_at <= EXCLUDED.updated_at` 会拒收 → 清除同步不过去；随后 pull 又用
+ * 更新的内容行盖回本地墓碑 → 草稿「复活」（本地云端都没清掉）。
  * @param {string} slot
  */
 export async function softDeleteBatchDraft(slot) {
   if (!slot) return
   await initDB()
   try {
-    const existing = await db.query('SELECT slot FROM batch_drafts WHERE slot = ?', [slot])
+    const existing = await db.query('SELECT updatedAt FROM batch_drafts WHERE slot = ?', [slot])
     if (!existing.length) return
+    const knownUpdatedAt = Number(existing[0].updatedAt) || 0
+    const updatedAt = Math.max(Date.now(), knownUpdatedAt + 1)
     await db.run(
       'UPDATE batch_drafts SET deleted = 1, items = \'[]\', updatedAt = ? WHERE slot = ?',
-      [Date.now(), slot]
+      [updatedAt, slot]
     )
   } catch (e) {
     console.error('[db] softDeleteBatchDraft failed:', e)
     throw e
+  }
+}
+
+/**
+ * 同步 LWW 时钟用：读取行的原始 updatedAt（含 deleted=1 墓碑），无行返回 0。
+ *
+ * 不能用 getBatchDraft：它会给墓碑返回 null，使 knownUpdatedAt 退回 0，新写入的 updatedAt
+ * 只能取设备时钟——若墓碑/旧行来自更快的时钟，新写入反而「更旧」，push 被判负。
+ * @param {string} slot
+ * @returns {Promise<number>}
+ */
+export async function getBatchDraftUpdatedAt(slot) {
+  if (!slot) return 0
+  await initDB()
+  try {
+    const rows = await db.query('SELECT updatedAt FROM batch_drafts WHERE slot = ?', [slot])
+    if (!rows.length) return 0
+    return Number(rows[0].updatedAt) || 0
+  } catch (e) {
+    console.error('[db] getBatchDraftUpdatedAt failed:', e)
+    return 0
   }
 }
 
