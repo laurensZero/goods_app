@@ -490,7 +490,7 @@
           </div>
           <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
-            <span class="conflict-value">{{ formatTime(pullConflictData.remoteTime) }}</span>
+            <span class="conflict-value">{{ formatTimeWithSeconds(pullConflictData.remoteTime) }}</span>
           </div>
           <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.remoteTotal') }}</span>
@@ -528,15 +528,15 @@
         <div class="conflict-info">
           <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
-            <span class="conflict-value">{{ formatTime(syncConflictData.remoteTime) }}</span>
+            <span class="conflict-value">{{ formatTimeWithSeconds(syncConflictData.remoteTime) }}</span>
           </div>
           <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.localLastSync') }}</span>
-            <span class="conflict-value">{{ formatTime(syncConflictData.localTime) || t('sync.neverSynced') }}</span>
+            <span class="conflict-value">{{ formatTimeWithSeconds(syncConflictData.localTime) || t('sync.neverSynced') }}</span>
           </div>
           <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.localLastModified') }}</span>
-            <span class="conflict-value">{{ formatTime(syncConflictData.localModifiedTime) || t('sync.noLocalChanges') }}</span>
+            <span class="conflict-value">{{ formatTimeWithSeconds(syncConflictData.localModifiedTime) || t('sync.noLocalChanges') }}</span>
           </div>
         </div>
         <p class="conflict-desc">{{ t('sync.conflictChoose') }}</p>
@@ -906,6 +906,16 @@ function resetPageScrollTop() {
 
 function formatTime(isoString) {
   return formatDate(isoString, 'YYYY-MM-DD HH:mm')
+}
+
+// 冲突弹窗专门显示到秒：远端 manifest 时间与本地水位线常常只差几秒到几十秒，
+// 只显示到分钟会让「本机上次推送的清单」看起来和本地时间完全一样，用户无法自查。
+function formatTimeWithSeconds(isoString) {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return ''
+  const pad = (value) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 function formatLogTime(isoString) {

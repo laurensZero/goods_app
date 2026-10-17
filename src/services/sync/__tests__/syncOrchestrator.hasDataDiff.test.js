@@ -268,6 +268,37 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     expect(writeRemoteData).not.toHaveBeenCalled()
   })
 
+  it('远端清单领先但最后写入者就是本机时，不弹冲突而走推送，并自愈服务器水位线', async () => {
+    // 远端 synced_at 比本地服务器水位线新，但 deviceId 与本机相同：
+    // 这是本机上一次推送的清单（服务器时间/网络延迟差），不是其他设备更新
+    const newerRemote = '2026-07-25T00:00:00.000Z'
+    stubRemote({ lastSyncAt: newerRemote, deviceId: 'dev-a' })
+    const stores = makeStores()
+    const conflict = makeConflict({ updatedGoods: 1, hasChanges: true })
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: newerRemote, deviceId: 'dev-a' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: newerRemote })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ deviceId: 'dev-a', lastServerSyncedAt: REMOTE_SYNC_TIME })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(),
+      dirtyGoodsIds: new Set(),
+      source: 'manual'
+    })
+
+    expect(result.action).toBe('pushed')
+    expect(result.action).not.toBe('conflict')
+    expect(writeRemoteData).toHaveBeenCalled()
+    // 自愈：服务器水位线对齐本机 manifest 时间
+    expect(ctx.saveLastServerSyncedAt).toHaveBeenCalled()
+  })
+
   it('只有远端 presets/收藏馆背景变化（数据行无 diff、本机无脏标记）时也要走 pull', async () => {
     // 远端清单比本机服务器水位线新 = 另一台设备刚推过背景/预设
     const newerRemote = '2026-07-25T00:00:00.000Z'

@@ -1110,9 +1110,18 @@ SET search_path = public
 AS $fn$
 DECLARE
   v_synced_at timestamptz := coalesce((payload->>'synced_at')::timestamptz, now());
+  v_uid uuid := auth.uid();
+  v_manifest_synced_at timestamptz;
   v_set text;
   v_arr jsonb;
   v_table text;
+  v_collection_count bigint;
+  v_wishlist_count bigint;
+  v_goods_count bigint;
+  v_trash_count bigint;
+  v_recharge_count bigint;
+  v_event_count bigint;
+  v_image_count bigint;
   v_keys text[] := ARRAY['goods','goods_trash','goods_groups','goods_groups_trash',
                          'goods_group_items','goods_group_items_trash',
                          'recharge_records','recharge_records_trash',
@@ -1178,13 +1187,48 @@ BEGIN
     ) USING v_arr;
   END LOOP;
 
+  -- manifest 计数：goods 四个计数用一次扫描（FILTER 聚合），recharge/events 各取一次；
+  -- storage.objects 的 image_count 拆成「uid 目录前缀」+「根目录 owner_id」两段可走
+  -- 索引的计数再相加（与原 OR 条件语义等价，但避免对全桶做函数扫描）。
+  SELECT count(*) FILTER (WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0)),
+         count(*) FILTER (WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1),
+         count(*) FILTER (WHERE (trashed IS NULL OR trashed = 0)),
+         count(*) FILTER (WHERE trashed = 1)
+    INTO v_collection_count, v_wishlist_count, v_goods_count, v_trash_count
+    FROM goods
+   WHERE user_id = v_uid;
+
+  SELECT count(*) INTO v_recharge_count
+    FROM recharge_records
+   WHERE (deleted IS NULL OR deleted != 1) AND user_id = v_uid;
+
+  SELECT count(*) INTO v_event_count
+    FROM events
+   WHERE (deleted IS NULL OR deleted != 1) AND user_id = v_uid;
+
+  -- 第一段：uid 目录前缀；第二段：根目录文件按 owner_id 归属
+  SELECT count(*) INTO v_image_count
+    FROM storage.objects
+   WHERE bucket_id IN ('goods-images', 'event-photos', 'profile-backgrounds')
+     AND name LIKE v_uid::text || '/%'
+     AND name NOT LIKE '%.emptyFolderPlaceholder';
+
+  v_image_count := v_image_count + (
+    SELECT count(*)
+      FROM storage.objects
+     WHERE bucket_id IN ('goods-images', 'event-photos', 'profile-backgrounds')
+       AND position('/' IN name) = 0
+       AND owner_id = v_uid::text
+       AND name NOT LIKE '%.emptyFolderPlaceholder'
+  );
+
   INSERT INTO sync_manifest (
     user_id, device_id, synced_at, image_bucket,
     recharge_updated_at, event_updated_at, budget_monthly, budget_yearly,
     collection_count, wishlist_count, goods_count, trash_count,
     recharge_count, event_count, image_count
   ) VALUES (
-    auth.uid(),
+    v_uid,
     coalesce(payload->>'device_id', ''),
     v_synced_at,
     coalesce(payload->>'image_bucket', 'goods-images'),
@@ -1192,18 +1236,13 @@ BEGIN
     (payload->>'event_updated_at')::timestamptz,
     coalesce((payload->>'budget_monthly')::real, 0),
     coalesce((payload->>'budget_yearly')::real, 0),
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND (is_wishlist IS NULL OR is_wishlist = 0) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND is_wishlist = 1 AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM goods WHERE (trashed IS NULL OR trashed = 0) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM goods WHERE trashed = 1 AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM recharge_records WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM events WHERE (deleted IS NULL OR deleted != 1) AND user_id = auth.uid()),
-    (SELECT COUNT(*) FROM storage.objects WHERE bucket_id IN ('goods-images', 'event-photos', 'profile-backgrounds')
-      AND name NOT LIKE '%.emptyFolderPlaceholder'
-      AND (
-            (storage.foldername(name))[1] = auth.uid()::text
-            OR (position('/' in name) = 0 AND owner_id = auth.uid()::text::text)
-          ))
+    v_collection_count,
+    v_wishlist_count,
+    v_goods_count,
+    v_trash_count,
+    v_recharge_count,
+    v_event_count,
+    v_image_count
   ) ON CONFLICT (user_id) DO UPDATE SET
     device_id = EXCLUDED.device_id,
     synced_at = EXCLUDED.synced_at,
@@ -1218,9 +1257,13 @@ BEGIN
     trash_count = EXCLUDED.trash_count,
     recharge_count = EXCLUDED.recharge_count,
     event_count = EXCLUDED.event_count,
-    image_count = EXCLUDED.image_count;
+    image_count = EXCLUDED.image_count
+  RETURNING synced_at INTO v_manifest_synced_at;
 
-  RETURN jsonb_build_object('synced_at', v_synced_at);
+  -- 返回触发器实际写入的服务器时间：sync_manifest.synced_at 被 BEFORE 触发器
+  -- set_manifest_synced_at() 强制为 now()，不能返回客户端 payload 里的 v_synced_at，
+  -- 否则客户端水位线会落后于服务器，下次同步误判「远端领先」造成假冲突。
+  RETURN jsonb_build_object('synced_at', v_manifest_synced_at);
 END;
 $fn$;
 

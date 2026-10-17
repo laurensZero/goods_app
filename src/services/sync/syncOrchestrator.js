@@ -60,6 +60,14 @@ function hasPresetRowDelta(remoteData) {
   ].some((rows) => Array.isArray(rows) && rows.length > 0)
 }
 
+// 远端清单最后写入者是否就是本机：manifest 时间领先本地服务器水位线时，
+// 只有确认是「其他设备」才值得走冲突/拉取；本机自己上一次推送的清单不是他人更新。
+function isOwnManifestDevice(remoteManifest, ctx) {
+  const remoteDevice = String(remoteManifest?.deviceId || '')
+  const localDevice = String(ctx?.deviceId || '')
+  return remoteDevice !== '' && localDevice !== '' && remoteDevice === localDevice
+}
+
 // 中断推送恢复：上次推送若已写入远端但进程在本地水位线保存前被杀，
 // 远端清单的最后写入者仍是本设备且时间戳不早于标记时间，说明推送实际已成功，
 // 快进本地水位线以复现完整推送的落盘结果，避免下次同步把自己的推送误报为冲突。
@@ -421,7 +429,23 @@ export function createSyncOrchestrator({
     const remoteSyncedMs = toTimestampMs(existingManifest?.synced_at)
     const localWatermarkMs = getServerSyncTimeMs(ctx)
     if (remoteSyncedMs > localWatermarkMs) {
-      throw new Error('QUICK_PUSH_REMOTE_AHEAD')
+      // 例外：远端清单的最后写入者就是本机（existingManifest 是 raw snake_case 行），
+      // 领先只是服务器时间/网络延迟差，且可能是旧版本未保存服务器 synced_at 留下的滞后水位线。
+      // 对齐服务器水位线后继续快推，不必降级到 fullSync，更不能弹冲突。
+      const remoteManifestDeviceId = String(existingManifest?.device_id || '')
+      const sameDeviceManifest = remoteManifestDeviceId !== ''
+        && currentDeviceId !== ''
+        && remoteManifestDeviceId === String(currentDeviceId)
+      if (sameDeviceManifest) {
+        log.info('sync:quick-push:self-manifest-ahead', {
+          remoteSyncedAt: existingManifest.synced_at,
+          localWatermarkMs,
+          deviceId: currentDeviceId
+        })
+        await saveServerWatermark(ctx, existingManifest.synced_at)
+      } else {
+        throw new Error('QUICK_PUSH_REMOTE_AHEAD')
+      }
     }
 
     // Single RPC: push items + manifest. Presets use sync_push_rows in fullSync.
@@ -586,7 +610,20 @@ export function createSyncOrchestrator({
     }
 
     // 4. Pull or push
-    const remoteDataAhead = remoteTime > serverSyncTime || (remotePresetRowsChanged && !isPresetsDirty)
+    // 远端清单的最后写入者就是本机时，manifest 时间领先本地服务器水位线只是服务器时间/
+    // 网络延迟差，不是「其他设备更新」：不弹冲突、不 pull，直接把服务器水位线对齐本机
+    // 上一次推送的清单时间（老版本客户端留下滞后水位线的自愈路径），继续走 push。
+    const sameDeviceManifest = isOwnManifestDevice(remoteManifest, ctx)
+    if (remoteTime > serverSyncTime && sameDeviceManifest) {
+      log.info('sync:self-manifest-ahead', {
+        remoteTime: remoteManifest.lastSyncAt,
+        serverSyncTime: ctx.lastServerSyncedAt,
+        deviceId: ctx.deviceId
+      })
+      await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
+    }
+    const remoteDataAhead = (remoteTime > serverSyncTime && !sameDeviceManifest)
+      || (remotePresetRowsChanged && !isPresetsDirty)
     if (remoteDataAhead) {
       if (!remoteManifest) {
         // First sync — push local data
@@ -947,6 +984,10 @@ export function createSyncOrchestrator({
   // "保留本地"强推时，本地条目可能带着比远端更旧的 updatedAt 上传，
   // 其他设备按 LWW 会用远端（更新）副本反向覆盖，静默撤销用户的冲突决策。
   // 推送前把会被覆盖的条目 updatedAt 提升到远端之上，并写回本地保持两端一致。
+  // 只 bump 远端严格更新的行（remoteTs > localTs）：相等时间戳无需 bump —— sync_push 的
+  // upsert 条件本身就是 <=（相等也会覆盖写入），且 computeBucketDiff 对相等时间戳不推送；
+  // 若相等也 bump，所有远端存在但内容未变的行都会被强制重推，大库会把整库塞进一次
+  // sync_push，触发服务器 statement timeout。
   async function bumpTimestampsForForcePush(stores, remoteData, conflictRemoteMs) {
     const nowMs = Date.now()
     const buildRemoteTsMap = (...lists) => {
@@ -967,7 +1008,7 @@ export function createSyncOrchestrator({
       for (const item of (items || [])) {
         const localTs = getItemTimestamp(item)
         const remoteTs = map ? map.get(item.id) : undefined
-        if (map && (remoteTs === undefined || remoteTs < localTs)) continue
+        if (map && (remoteTs === undefined || remoteTs <= localTs)) continue
         item.updatedAt = Math.max(localTs, remoteTs || 0, conflictRemoteMs, nowMs) + 1
         changed.push(item)
       }
