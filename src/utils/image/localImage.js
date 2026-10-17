@@ -169,7 +169,7 @@ async function pickNativeGalleryImage() {
   // 下方优先走 blob / path → fetch 成 File，只有插件两个都没给时才回退 data。
   const result = await FilePicker.pickImages({
     limit: 1,
-    readData: false
+    readData: true
   })
   const picked = result?.files?.[0]
   if (!picked) return null

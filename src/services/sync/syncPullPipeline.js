@@ -406,7 +406,9 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
       }
     }
     await stores.collectionProfileStore.applyRemoteProfiles(profiles, {
-      resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined
+      resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined,
+      forceReapply,
+      forceAlign
     })
   }
 

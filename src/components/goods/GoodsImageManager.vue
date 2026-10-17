@@ -218,6 +218,10 @@ const remotePickerRef = ref(null)
 const draftRemoteUrl = ref('')
 const draftKind = ref('primary')
 const isPickingLocal = ref(false)
+// 原生相册打开期间，响应式 disabled 尚未刷新时可能重复进入 click handler。
+// 用同步锁保证一次点击只打开一个选择器。
+let pickingLocalLock = false
+let lastLocalPickerFinishedAt = 0
 const isPreparingEdit = ref(false)
 const isRefreshingImages = ref(false)
 const galleryRefreshKey = ref(0)
@@ -334,6 +338,9 @@ function addRemoteImage() {
 }
 
 async function addLocalImage() {
+  const now = Date.now()
+  if (pickingLocalLock || now - lastLocalPickerFinishedAt < 800) return
+  pickingLocalLock = true
   isPickingLocal.value = true
 
   try {
@@ -356,6 +363,8 @@ async function addLocalImage() {
     })
   } finally {
     isPickingLocal.value = false
+    pickingLocalLock = false
+    lastLocalPickerFinishedAt = Date.now()
   }
 }
 

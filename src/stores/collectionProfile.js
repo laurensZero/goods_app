@@ -250,10 +250,14 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
       .reduce((total, set) => total + (Array.isArray(set?.items) ? set.items.length : 0), 0)
     const beforeCount = countItems(ipProfiles.value) + countItems(characterProfiles.value)
     const nextIp = mergeProfileMapFromRemote(ipProfiles.value, remote.ipProfiles, {
-      resolveImageUrl: options.resolveImageUrl
+      resolveImageUrl: options.resolveImageUrl,
+      forceReapply: options.forceReapply,
+      forceAlign: options.forceAlign
     })
     const nextCharacters = mergeProfileMapFromRemote(characterProfiles.value, remote.characterProfiles, {
-      resolveImageUrl: options.resolveImageUrl
+      resolveImageUrl: options.resolveImageUrl,
+      forceReapply: options.forceReapply,
+      forceAlign: options.forceAlign
     })
     const afterCount = countItems(nextIp) + countItems(nextCharacters)
     // 云端把本机原本存在的背景整块清空属于高风险操作，留一条日志便于排查（不阻断应用）

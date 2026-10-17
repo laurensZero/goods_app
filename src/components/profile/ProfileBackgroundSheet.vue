@@ -240,8 +240,8 @@ import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { showGlobalToast } from '@/utils/globalToast'
-import { pickImageFile } from '@/utils/image/localImage'
-import { createProfileBackgroundImageItem, readProfileImageDimensions } from '@/utils/profile/backgroundImage'
+import { pickImageForRecognition } from '@/utils/image/localImage'
+import { createProfileBackgroundImageItem } from '@/utils/profile/backgroundImage'
 import {
   PROFILE_GRADIENT_PRESETS,
   makeProfileItemId,
@@ -328,43 +328,17 @@ function emitItems(nextItems) {
 function addImage() {
   if (adding.value) return
   adding.value = true
-  let previewUrl = ''
-  let previewId = ''
   void (async () => {
     try {
-      // 直接拿 File：避免大图先转 base64；先显示预览，解码/压缩/落盘全部后台继续
-      const file = await pickImageFile()
-      if (!file) return
-
-      previewUrl = URL.createObjectURL(file)
-      previewId = makeProfileItemId()
-      const dims = await readProfileImageDimensions(file)
-      const previewItem = normalizeProfileItem({
-        id: previewId,
-        kind: 'image',
-        uri: previewUrl,
-        width: dims.width,
-        height: dims.height,
-        mimeType: String(file.type || ''),
-        fileSize: Number(file.size) || 0
-      })
-      // 立即上屏（收藏馆页头 / 弹窗网格马上能看到），此时不标同步脏
-      emitItems([...props.items, previewItem])
-      selectedId.value = previewId
-      showGlobalToast(t('profile.background.processing'))
-
-      // 后台处理：解码 → 缩放/压缩 → 落盘 → 取主题色；完成后原地替换预览地址
-      const finalItem = await createProfileBackgroundImageItem(file)
-      emitItems(props.items.map((item) => (
-        item.id === previewId ? { ...finalItem, id: previewId } : item
-      )))
-      if (selectedId.value === previewId) selectedId.value = previewId
+      const picked = await pickImageForRecognition()
+      if (!picked?.uri) return
+      const item = await createProfileBackgroundImageItem(picked.uri)
+      emitItems([...props.items, item])
+      selectedId.value = item.id
     } catch (e) {
       console.warn('[profile] add background image failed', e)
-      if (previewId) emitItems(props.items.filter((item) => item.id !== previewId))
       showGlobalToast(t('profile.background.importFailed'))
     } finally {
-      if (previewUrl) URL.revokeObjectURL(previewUrl)
       adding.value = false
     }
   })()

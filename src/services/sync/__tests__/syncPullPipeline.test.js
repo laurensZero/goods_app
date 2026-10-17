@@ -28,7 +28,8 @@ function makeStores(localGoods = [], localTrash = []) {
     rechargeStore: { importBackup: vi.fn() },
     eventsStore: { importEventsBackup: vi.fn() },
     goodsGroupStore: { updateGroupsBackup: vi.fn() },
-    presetsStore: { replacePresetsSnapshot: vi.fn() }
+    presetsStore: { replacePresetsSnapshot: vi.fn() },
+    collectionProfileStore: { applyRemoteProfiles: vi.fn() }
   }
 }
 
@@ -267,5 +268,43 @@ describe('mergeToLocal row-level presets', () => {
     await mergeToLocal(stores, remote, { reconcileMissing: false })
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
+  })
+
+  it('应用 collection_profiles 行并保留角色背景 key 与图片引用', async () => {
+    const stores = makeStores()
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [],
+      presetRowsTrash: [],
+      collectionProfileRows: [{
+        id: '原神::沃雅妮莎',
+        kind: 'character',
+        items: [{ id: 'bg-1', kind: 'image', cloudFileName: 'profile-bg__bg-1__main.jpg' }],
+        rotation: { mode: 'visit' },
+        theme: { source: 'background' },
+        updatedAt: Date.parse('2026-10-17T08:39:07.078Z'),
+        deleted: 0
+      }],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false, resolveProfileImage: (name) => `https://cdn/${name}` })
+
+    expect(stores.collectionProfileStore.applyRemoteProfiles).toHaveBeenCalledWith({
+      ipProfiles: {},
+      characterProfiles: {
+        '原神::沃雅妮莎': expect.objectContaining({
+          items: [expect.objectContaining({
+            cloudFileName: 'profile-bg__bg-1__main.jpg'
+          })],
+          updatedAt: Date.parse('2026-10-17T08:39:07.078Z')
+        })
+      }
+    }, {
+      resolveImageUrl: expect.any(Function),
+      forceReapply: false,
+      forceAlign: false
+    })
   })
 })

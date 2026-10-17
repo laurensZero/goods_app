@@ -1,9 +1,64 @@
 // src/services/syncPushPipeline.js
 // Push pipeline: build payload → write remote → upload images → update local refs
 
-import { normalizeBudgetValue } from '@/utils/sync/shared'
+import { normalizeBudgetValue, sortedStringify } from '@/utils/sync/shared'
 import { parseCloudImageUri } from '@/utils/goods/images'
 import { computeBucketDiff } from '../supabaseAdapter/helpers'
+
+function normalizePresetRowForDiff(row) {
+  return {
+    domain: String(row?.domain || ''),
+    id: String(row?.id || ''),
+    payload: row?.payload && typeof row.payload === 'object' ? row.payload : {},
+    sort_order: Number.isFinite(Number(row?.sort_order ?? row?.sortOrder))
+      ? Number(row.sort_order ?? row.sortOrder)
+      : 0,
+    deleted: Number(row?.deleted) === 1 ? 1 : 0
+  }
+}
+
+function normalizeCollectionProfileForDiff(row) {
+  return {
+    id: String(row?.id || ''),
+    kind: row?.kind === 'character' ? 'character' : 'ip',
+    items: Array.isArray(row?.items) ? row.items : [],
+    rotation: row?.rotation && typeof row.rotation === 'object' ? row.rotation : {},
+    theme: row?.theme && typeof row.theme === 'object' ? row.theme : {},
+    deleted: Number(row?.deleted) === 1 ? 1 : 0
+  }
+}
+
+function filterChangedRows(localRows, remoteRows, normalizeRow, keyOf) {
+  const remoteByKey = new Map()
+  for (const row of remoteRows || []) {
+    const key = keyOf(row)
+    if (key) remoteByKey.set(key, normalizeRow(row))
+  }
+
+  return (localRows || []).filter((row) => {
+    const key = keyOf(row)
+    if (!key) return false
+    const remote = remoteByKey.get(key)
+    if (!remote) return true
+    return sortedStringify(normalizeRow(row)) !== sortedStringify(remote)
+  })
+}
+
+async function readFullPresetRowsForPush(be, remoteData) {
+  if (typeof be.pullPresetRows !== 'function') {
+    return [...(remoteData?.presetRows || []), ...(remoteData?.presetRowsTrash || [])]
+  }
+  const rows = await be.pullPresetRows({ since: 0 })
+  return [...(rows?.active || []), ...(rows?.trash || [])]
+}
+
+async function readFullCollectionProfilesForPush(be, remoteData) {
+  if (typeof be.pullCollectionProfiles !== 'function') {
+    return [...(remoteData?.collectionProfileRows || []), ...(remoteData?.collectionProfileRowsTrash || [])]
+  }
+  const rows = await be.pullCollectionProfiles({ since: 0 })
+  return [...(rows?.active || []), ...(rows?.trash || [])]
+}
 
 /**
  * Build sync payloads (image upload is deferred to doPush).
@@ -185,45 +240,70 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
   const localEventsTrash = shouldWriteEvent ? (eventSyncData.eventsTrash || []) : []
   const localBatchDrafts = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDrafts || []) : []
   const localBatchDraftsTrash = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDraftsTrash || []) : []
-  const presetSources = [
-    ['category', syncData.presets?.categories],
-    ['ip', syncData.presets?.ips],
-    ['character', syncData.presets?.characters],
-    ['storage_location', syncData.presets?.storageLocations],
-    ['event_type', syncData.presets?.eventTypes],
-    ['custom_field', syncData.presets?.customFieldDefs]
-  ]
-  const presetRows = presetSources.flatMap(([domain, values]) => (Array.isArray(values) ? values : []).map((value, index) => ({
-    domain,
-    id: String(value?.id || value?.key || value?.name || value?.value || ''),
-    payload: value,
-    sort_order: index,
-    deleted: 0,
-    synced_by: manifest?.deviceId || ''
-  })).filter((row) => row.id))
-  const presetTombstoneRows = (syncData.presets?.presetRowTombstones || []).map((row) => ({
-    domain: row.domain,
-    id: String(row.id || ''),
-    payload: {},
-    sort_order: 0,
-    deleted: 1,
-    synced_by: manifest?.deviceId || '',
-    updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined
-  })).filter((row) => row.domain && row.id)
-  const profileMaps = syncData.presets?.collectionProfiles || {}
-  const collectionProfileRows = [
-    ...Object.entries(profileMaps.ipProfiles || {}).map(([id, value]) => ({ id, kind: 'ip', value })),
-    ...Object.entries(profileMaps.characterProfiles || {}).map(([id, value]) => ({ id, kind: 'character', value }))
-  ].map(({ id, kind, value }) => ({
-    id,
-    kind,
-    items: value?.items || [],
-    rotation: value?.rotation || {},
-    theme: value?.theme || {},
-    deleted: Array.isArray(value?.items) && value.items.length === 0 ? 1 : 0,
-    synced_by: manifest?.deviceId || '',
-    updated_at: value?.updatedAt ? new Date(value.updatedAt).toISOString() : undefined
-  }))
+  let presetRows = []
+  let presetTombstoneRows = []
+  let collectionProfileRows = []
+  if (shouldWritePresets) {
+    const presetSources = [
+      ['category', syncData.presets?.categories],
+      ['ip', syncData.presets?.ips],
+      ['character', syncData.presets?.characters],
+      ['storage_location', syncData.presets?.storageLocations],
+      ['event_type', syncData.presets?.eventTypes],
+      ['custom_field', syncData.presets?.customFieldDefs]
+    ]
+    const allPresetRows = presetSources.flatMap(([domain, values]) => (Array.isArray(values) ? values : []).map((value, index) => ({
+      domain,
+      id: String(value?.id || value?.key || value?.name || value?.value || ''),
+      payload: value,
+      sort_order: index,
+      deleted: 0,
+      synced_by: manifest?.deviceId || ''
+    })).filter((row) => row.id))
+    const allPresetTombstoneRows = (syncData.presets?.presetRowTombstones || []).map((row) => ({
+      domain: row.domain,
+      id: String(row.id || ''),
+      payload: {},
+      sort_order: 0,
+      deleted: 1,
+      synced_by: manifest?.deviceId || '',
+      updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined
+    })).filter((row) => row.domain && row.id)
+    const profileMaps = syncData.presets?.collectionProfiles || {}
+    const allCollectionProfileRows = [
+      ...Object.entries(profileMaps.ipProfiles || {}).map(([id, value]) => ({ id, kind: 'ip', value })),
+      ...Object.entries(profileMaps.characterProfiles || {}).map(([id, value]) => ({ id, kind: 'character', value }))
+    ].map(({ id, kind, value }) => ({
+      id,
+      kind,
+      items: value?.items || [],
+      rotation: value?.rotation || {},
+      theme: value?.theme || {},
+      deleted: Array.isArray(value?.items) && value.items.length === 0 ? 1 : 0,
+      synced_by: manifest?.deviceId || '',
+      updated_at: value?.updatedAt ? new Date(value.updatedAt).toISOString() : undefined
+    }))
+
+    const [remotePresetRows, remoteProfileRows] = await Promise.all([
+      readFullPresetRowsForPush(be, remoteData),
+      readFullCollectionProfilesForPush(be, remoteData)
+    ])
+    const localPresetRows = [...allPresetRows, ...allPresetTombstoneRows]
+    const changedPresetRows = filterChangedRows(
+      localPresetRows,
+      remotePresetRows,
+      normalizePresetRowForDiff,
+      (row) => `${row?.domain || ''}\u0000${row?.id || ''}`
+    )
+    presetRows = changedPresetRows.filter((row) => Number(row.deleted) !== 1)
+    presetTombstoneRows = changedPresetRows.filter((row) => Number(row.deleted) === 1)
+    collectionProfileRows = filterChangedRows(
+      allCollectionProfileRows,
+      remoteProfileRows,
+      normalizeCollectionProfileForDiff,
+      (row) => `${row?.kind || 'ip'}\u0000${row?.id || ''}`
+    )
+  }
 
   let goods = localGoods, goodsTrash = localTrash
   let groups = localGroups, groupsTrash = localGroupsTrash

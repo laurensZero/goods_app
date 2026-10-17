@@ -366,6 +366,7 @@ export async function createProfileBackgroundImageItem(input) {
   }
 
   const type = String(file.type || '').toLowerCase()
+
   let { width, height } = await readImageDimensions(file)
 
   // 文件头解析失败时才整图解码取尺寸（正常 JPEG/PNG/WebP/GIF 不会走到这里）

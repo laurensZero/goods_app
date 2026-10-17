@@ -245,7 +245,7 @@ export function normalizeBackgroundSet(raw = {}) {
     theme: normalizeProfileTheme(raw?.theme),
     // 按收藏馆逐条 LWW：每个 IP/角色自己的修改时间与删除墓碑
     updatedAt: Math.max(0, Math.round(Number(raw?.updatedAt) || 0)),
-    deleted: raw?.deleted === true
+    deleted: raw?.deleted === true || Number(raw?.deleted) === 1
   }
 }
 
@@ -446,6 +446,7 @@ export function hydrateProfileMapFromSync(raw, options = {}) {
  */
 export function mergeProfileMapFromRemote(localMap, remoteMap, options = {}) {
   const resolveImageUrl = typeof options.resolveImageUrl === 'function' ? options.resolveImageUrl : null
+  const forceReapply = options.forceReapply === true || options.forceAlign === true
   const out = {}
   for (const [key, value] of Object.entries(localMap || {})) {
     const normalizedKey = String(key || '').trim()
@@ -462,7 +463,8 @@ export function mergeProfileMapFromRemote(localMap, remoteMap, options = {}) {
     const localTs = Number(localSet?.updatedAt) || 0
     const remoteTs = Number(remoteSet.updatedAt) || 0
     // 远端更新才覆盖；时间相同且远端有内容（旧数据 updatedAt=0 首次上云）时也采用远端
-    const remoteWins = !localSet
+    const remoteWins = forceReapply
+      || !localSet
       || remoteTs > localTs
       || (remoteTs === localTs && remoteSet.items.length > 0)
     if (remoteWins) {

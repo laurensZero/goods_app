@@ -42,7 +42,10 @@ export const MANIFEST_VERSION = 1
 //      （tracks 是 JSONB 列，无需云端迁移）。
 //      旧版本 normalizeTracks 会剥掉该子字段并整行写回云端，必须强制一次全量重拉。
 // v17: presets / collection profiles migrated to row-level tables with tombstones.
-export const SYNC_SCHEMA_VERSION = 17
+// v18: row-level cutover bootstrap — existing devices must replay the full
+// preset/profile tables once because their old global watermark may already
+// be newer than rows written during the migration.
+export const SYNC_SCHEMA_VERSION = 18
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

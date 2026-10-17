@@ -392,4 +392,15 @@ describe('逐条 LWW 合并（不再整块覆盖）', () => {
     const oldRemoteDelete = { '明日方舟': remoteSet('', 100, true)['k'] }
     expect(mergeProfileMapFromRemote(local, oldRemoteDelete)['明日方舟'].items[0].id).toBe('local')
   })
+
+  it('全量回填可强制覆盖本机较新的同 key 行', () => {
+    const local = { '明日方舟': localSet('local', 500) }
+    const remote = { '明日方舟': remoteSet('remote', 300)['k'] }
+    expect(mergeProfileMapFromRemote(local, remote, { forceReapply: true })['明日方舟'].items[0].id).toBe('remote')
+  })
+
+  it('行表的 deleted=1 会保留为本地墓碑', () => {
+    const deleted = normalizeBackgroundSet({ items: [], updatedAt: 300, deleted: 1 })
+    expect(deleted.deleted).toBe(true)
+  })
 })

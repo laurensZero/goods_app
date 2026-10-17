@@ -365,7 +365,14 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     if (Number(since) > 0) query = query.gt('updated_at', new Date(Number(since)).toISOString())
     const { data, error } = await withRetry(() => query.order('updated_at', { ascending: true }).order('id', { ascending: true }))
     if (error) throw error
-    const rows = (data || []).map(toCamelCase)
+    const rows = (data || []).map((row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.createdAt = normalizeTimestamp(item.createdAt)
+      item.sortOrder = Number(item.sortOrder) || 0
+      item.deleted = Number(item.deleted) === 1 ? 1 : 0
+      return item
+    })
     return { active: rows.filter((row) => Number(row.deleted) !== 1), trash: rows.filter((row) => Number(row.deleted) === 1) }
   }
 
@@ -377,7 +384,13 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     if (Number(since) > 0) query = query.gt('updated_at', new Date(Number(since)).toISOString())
     const { data, error } = await withRetry(() => query.order('updated_at', { ascending: true }).order('id', { ascending: true }))
     if (error) throw error
-    const rows = (data || []).map(toCamelCase)
+    const rows = (data || []).map((row) => {
+      const item = toCamelCase(row)
+      item.updatedAt = normalizeTimestamp(item.updatedAt)
+      item.createdAt = normalizeTimestamp(item.createdAt)
+      item.deleted = Number(item.deleted) === 1 ? 1 : 0
+      return item
+    })
     return { active: rows.filter((row) => Number(row.deleted) !== 1), trash: rows.filter((row) => Number(row.deleted) === 1) }
   }
 
