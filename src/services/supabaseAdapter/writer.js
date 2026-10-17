@@ -1,5 +1,5 @@
 // src/services/supabaseAdapter/writer.js
-// Supabase write operations: pushAll, writeManifest, writePresets
+// Supabase write operations: pushAll and device/row-level writes
 
 import { toSnakeCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/sync/syncRetry'
@@ -70,48 +70,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (forceResyncAt) query = query.eq('force_resync_at', forceResyncAt)
     const { error } = await withRetry(() => query)
     if (error) console.warn('[supabase] device force_resync clear warning:', error.message)
-  }
-
-  // 注意：当前没有调用方 —— 后端适配器（supabaseAdapter/index.js）只装配了 pushAll，
-  // presets 实际由 sync_push 的 payload.presets 分支落库（见 pushAll）。
-  // 这里与 payload 保持同构，避免以后接回来时漏字段。
-  async function writePresets(presetsData) {
-    const db = getDb()
-    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-    // 后加的列：自建/未迁移实例可能没有，报错时逐个摘掉重试，保证其余预设仍可同步
-    const optionalCols = {
-      event_types: JSON.stringify(presetsData.eventTypes || []),
-      custom_field_defs: JSON.stringify(presetsData.customFieldDefs || []),
-      ...(presetsData.collectionProfiles ? { collection_profiles: JSON.stringify(presetsData.collectionProfiles) } : {})
-    }
-    const presetsRow = {
-      categories: JSON.stringify(presetsData.categories || []),
-      ips: JSON.stringify(presetsData.ips || []),
-      characters: JSON.stringify(presetsData.characters || []),
-      storage_locations: JSON.stringify(presetsData.storageLocations || []),
-      ...optionalCols,
-      user_id: currentUserId || null
-    }
-    let { error } = await withRetry(() =>
-      db.from('sync_presets').upsert(presetsRow, { onConflict: 'user_id' })
-    )
-    if (error) {
-      const message = error.message || ''
-      const fallbackRow = { ...presetsRow }
-      let dropped = false
-      for (const column of Object.keys(optionalCols)) {
-        if (new RegExp(column, 'i').test(message)) {
-          delete fallbackRow[column]
-          dropped = true
-        }
-      }
-      if (dropped) {
-        ;({ error } = await withRetry(() =>
-          db.from('sync_presets').upsert(fallbackRow, { onConflict: 'user_id' })
-        ))
-      }
-    }
-    if (error) console.warn('[supabase] presets upsert warning:', error.message)
   }
 
   /**
@@ -248,7 +206,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     goods = [], goodsTrash = [], groups = [], groupsTrash = [], groupItems = [], groupItemsTrash = [],
     recharge = [], rechargeTrash = [], events = [], eventsTrash = [],
     batchDrafts = [], batchDraftsTrash = [],
-    presets = null,
+    presetRows = [], collectionProfileRows = [],
     deleteGoods = [], deleteGroups = [], deleteGroupItems = [],
     deleteRecharge = [], deleteEvents = [], deleteBatchDrafts = [],
     deviceId = '', syncedAt = new Date().toISOString(),
@@ -275,17 +233,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
         events_trash: toEventRows(eventsTrash, deviceIdRef, currentUserId, true),
         batch_drafts: toBatchDraftRows(batchDrafts, deviceIdRef, currentUserId, false),
         batch_drafts_trash: toBatchDraftRows(batchDraftsTrash, deviceIdRef, currentUserId, true),
-        presets: presets ? {
-          categories: JSON.stringify(presets.categories || []),
-          ips: JSON.stringify(presets.ips || []),
-          characters: JSON.stringify(presets.characters || []),
-          storage_locations: JSON.stringify(presets.storageLocations || []),
-          event_types: JSON.stringify(presets.eventTypes || []),
-          custom_field_defs: JSON.stringify(presets.customFieldDefs || []),
-          // 收藏馆背景集（含 phone/tablet 变体的 cloudFileName）；键缺失时 sync_push
-          // 动态 SET 不会碰该列，旧客户端 / 无背景用户不会抹掉云端数据
-          ...(presets.collectionProfiles ? { collection_profiles: JSON.stringify(presets.collectionProfiles) } : {})
-        } : {},
         delete_goods: deleteGoods || [],
         delete_groups: deleteGroups || [],
         delete_group_items: deleteGroupItems || [],
@@ -306,6 +253,20 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     // pushAll 是整包数据+清单的 RPC，与单独写 manifest 的失败要区分文案，否则数据行失败被误报成清单问题
     if (error) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: error.message }))
 
+    if (presetRows.length) {
+      const { error: presetRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
+        p_preset_rows: presetRows,
+        p_collection_profiles: collectionProfileRows
+      }))
+      if (presetRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: presetRowsError.message }))
+    } else if (collectionProfileRows.length) {
+      const { error: profileRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
+        p_preset_rows: [],
+        p_collection_profiles: collectionProfileRows
+      }))
+      if (profileRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: profileRowsError.message }))
+    }
+
     // 新版 sync_push RPC 返回 { synced_at: <服务器时间> } 作为本地水位线，
     // 消除设备时钟偏移；旧版 RPC 返回 void（data 为 null）→ 调用方回退客户端时间
     let payload = data
@@ -318,7 +279,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
 
   return {
     writeManifest,
-    writePresets,
     pushDomainRows,
     pushAll,
     writeDeviceHeartbeat,

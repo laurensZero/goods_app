@@ -13,7 +13,7 @@ import i18n from '@/locales'
 
 /**
  * Read remote data from the backend via pullAll RPC.
- * sync_pull 恒返回全部域 + manifest + presets，没有按表/按域裁剪参数；
+ * sync_pull 返回业务数据域 + manifest；预设与收藏馆背景由独立行级查询补齐。
  * 只需要清单时请用 be.readManifest()（直查 sync_manifest，不拉数据行）。
  *
  * @param {object} be - backend adapter
@@ -40,6 +40,16 @@ export async function readRemoteData(be, { since = 0, trackSyncStep = null, sour
     }
   )
   pullData.isIncremental = isIncremental
+  if (typeof be.pullPresetRows === 'function') {
+    const rows = await be.pullPresetRows({ since })
+    pullData.presetRows = rows.active
+    pullData.presetRowsTrash = rows.trash
+  }
+  if (typeof be.pullCollectionProfiles === 'function') {
+    const rows = await be.pullCollectionProfiles({ since })
+    pullData.collectionProfileRows = rows.active
+    pullData.collectionProfileRowsTrash = rows.trash
+  }
   return pullData
 }
 
@@ -218,7 +228,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false, preserveLocalPresets = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -350,26 +360,54 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     }
   }
 
-  // ── Presets ──
-  // 本地 presets 有「尚未推送」的改动时不能被远端快照覆盖：presets 是整块 LWW，
-  // 而冲突判定（getLocalChangesSince）只数 goods/events/recharge/groups，
-  // 所以「刚新建（或删除）一个自定义字段」后的自动 pull 会把这次改动整个抹掉 ——
-  // 表现为「刚加的字段在编辑页找不到」「删掉的字段又回来了」，随后推送还会把被抹掉的
-  // 状态当成本地真值推上云。此时保留本地，并由 orchestrator 在 pull 后补推一次。
-  // （用户显式选择「使用云端数据」的 pull 路径不传该标记，仍是云端优先。）
-  if (remoteData.presets && presetsStore && !preserveLocalPresets) {
-    await presetsStore.replacePresetsSnapshot(remoteData.presets, {
-      // 块级时钟（服务器时间）：用于挡掉「pull 在本地推送之前发出」的过期响应
-      updatedAt: remoteData.presetsUpdatedAt || 0
-    })
-    // 收藏馆背景集同属 presets 块；远端图片只带 cloudFileName，这里换成公开 URL，
-    // 本机已有同名文件的条目保留本地 uri/localPath
-    const collectionProfileStore = stores.collectionProfileStore
-    if (collectionProfileStore && remoteData.presets.collectionProfiles) {
-      await collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
-        resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined
-      })
+  // ── Row-level presets / collection profiles ──
+  // Rows are LWW independently; only after applying the row delta do we
+  // feed the existing stores a compatible snapshot. On a non-incremental
+  // pull, an empty remote set is authoritative and clears stale local rows.
+  const hasPresetRowsPayload = Array.isArray(remoteData.presetRows) && Array.isArray(remoteData.presetRowsTrash)
+  if (hasPresetRowsPayload && (reconcileMissing || remoteData.presetRows.length || remoteData.presetRowsTrash.length) && presetsStore) {
+    const read = (value) => value?.value ?? value ?? []
+    const fields = {
+      category: 'categories', ip: 'ips', character: 'characters',
+      storage_location: 'storageLocations', event_type: 'eventTypes', custom_field: 'customFieldDefs'
     }
+    const next = {}
+    for (const [domain, field] of Object.entries(fields)) {
+      const current = Array.isArray(read(presetsStore[field])) ? read(presetsStore[field]) : []
+      const itemKey = (item) => typeof item === 'string'
+        ? item
+        : String(item?.id || item?.key || item?.name || item?.value || '')
+      const byId = new Map((reconcileMissing ? [] : current.map((item) => [itemKey(item), item])).filter(([id]) => id))
+      const localOrder = new Map(current.map((item, index) => [itemKey(item), index]))
+      const remoteOrder = new Map()
+      for (const row of [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])].filter((item) => item.domain === domain)) {
+        const id = String(row.id || '')
+        if (!id) continue
+        remoteOrder.set(id, Number.isFinite(Number(row.sortOrder)) ? Number(row.sortOrder) : Number.MAX_SAFE_INTEGER)
+        if (Number(row.deleted) === 1 || remoteData.presetRowsTrash?.includes(row)) byId.delete(id)
+        else byId.set(id, row.payload ?? '')
+      }
+      next[field] = [...byId.entries()]
+        .sort((a, b) => (remoteOrder.get(a[0]) ?? localOrder.get(a[0]) ?? Number.MAX_SAFE_INTEGER) - (remoteOrder.get(b[0]) ?? localOrder.get(b[0]) ?? Number.MAX_SAFE_INTEGER))
+        .map(([, value]) => value)
+    }
+    await presetsStore.replacePresetsSnapshot(next, { updatedAt: Date.now() })
+  }
+
+  const hasProfileRowsPayload = Array.isArray(remoteData.collectionProfileRows) && Array.isArray(remoteData.collectionProfileRowsTrash)
+  if (hasProfileRowsPayload && (reconcileMissing || remoteData.collectionProfileRows.length || remoteData.collectionProfileRowsTrash.length) && stores.collectionProfileStore) {
+    const profiles = { ipProfiles: {}, characterProfiles: {} }
+    for (const row of [...(remoteData.collectionProfileRows || []), ...(remoteData.collectionProfileRowsTrash || [])]) {
+      profiles[row.kind === 'character' ? 'characterProfiles' : 'ipProfiles'][row.id] = {
+        items: row.deleted ? [] : (row.items || []),
+        rotation: row.rotation || {},
+        theme: row.theme || {},
+        updatedAt: row.updatedAt
+      }
+    }
+    await stores.collectionProfileStore.applyRemoteProfiles(profiles, {
+      resolveImageUrl: typeof resolveProfileImage === 'function' ? resolveProfileImage : undefined
+    })
   }
 
   // ── Budget settings ──

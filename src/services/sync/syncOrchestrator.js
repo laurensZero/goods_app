@@ -51,6 +51,15 @@ async function saveServerWatermark(ctx, timestamp) {
   ctx.lastServerSyncedAt = timestamp
 }
 
+function hasPresetRowDelta(remoteData) {
+  return [
+    remoteData?.presetRows,
+    remoteData?.presetRowsTrash,
+    remoteData?.collectionProfileRows,
+    remoteData?.collectionProfileRowsTrash
+  ].some((rows) => Array.isArray(rows) && rows.length > 0)
+}
+
 // 中断推送恢复：上次推送若已写入远端但进程在本地水位线保存前被杀，
 // 远端清单的最后写入者仍是本设备且时间戳不早于标记时间，说明推送实际已成功，
 // 快进本地水位线以复现完整推送的落盘结果，避免下次同步把自己的推送误报为冲突。
@@ -114,11 +123,6 @@ export function createSyncOrchestrator({
     const { tables, since = 0, silent = false, schemaResync = false, forceAlign = false } = opts
     const be = ctx.backend || backend
     const stores = getLocalStores()
-    // 本地 presets 有未推送改动时，pull 不能用远端整块快照覆盖（否则刚新增的角色会被抹掉，
-    // 且之后 local == remote → hasPresetsDiff 恒 false，脏标记也永远推不走）。
-    // 语义与 fullSync 的 isPresetsDirty 不同：此处 dirtyDomains 为空表示「没有未推送改动」，
-    // 必须应用远端，否则跨设备新增的预设永远拉不下来。
-    const preserveLocalPresets = !!opts.dirtyDomains?.has('presets') || !!opts.dirtyDomains?.has('profiles')
     let localBatchDrafts = []
     try { localBatchDrafts = await getAllBatchDrafts() } catch { localBatchDrafts = [] }
     const storesWithDrafts = { ...stores, batchDrafts: localBatchDrafts }
@@ -158,7 +162,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, preserveLocalPresets, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
           },
@@ -205,18 +209,9 @@ export function createSyncOrchestrator({
         diff.changedTrashIds = new Set((remoteData.trash || []).map(t => t.id))
         diff.hasChanges = true
       } else if (!diff.hasChanges) {
-        // 数据行没变化也要看 presets 块：只改收藏馆背景 / 预设时远端会更新，
-        // 直接 no_changes 会让另一台设备永远拉不到这些内容
-        let presetsDiffer = false
-        if (remoteData.presets) {
-          try {
-            const localPresets = typeof ctx.buildPresetsData === 'function' ? await ctx.buildPresetsData() : null
-            presetsDiffer = !localPresets || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
-          } catch {
-            presetsDiffer = true
-          }
-        }
-        if (!presetsDiffer) {
+        // 数据行没变化也要看行级预设/背景：否则只改预设时会误报 no_changes。
+        const presetsDirty = opts.dirtyDomains?.has('presets') || opts.dirtyDomains?.has('profiles')
+        if (!hasPresetRowDelta(remoteData) && !presetsDirty) {
           await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
           await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
           return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
@@ -256,7 +251,6 @@ export function createSyncOrchestrator({
             forceAlign,
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
-            preserveLocalPresets,
             resolveRechargeImage: be?.getImagePublicUrl || null,
             resolveProfileImage: be?.getImagePublicUrl || null
           })
@@ -395,10 +389,8 @@ export function createSyncOrchestrator({
       throw new Error('QUICK_PUSH_REMOTE_AHEAD')
     }
 
-    // Single RPC: push items + presets + manifest
+    // Single RPC: push items + manifest. Presets use sync_push_rows in fullSync.
     const syncTimestamp = new Date().toISOString()
-    let presetsData = null
-    try { presetsData = await ctx.buildPresetsData({ includeCollectionProfiles: false }) } catch { /* non-fatal */ }
 
     // crash-safe：先持久化 pending-push 标记再写远端
     await setPendingPush(ctx, { ts: syncTimestamp, deviceId: currentDeviceId })
@@ -406,7 +398,6 @@ export function createSyncOrchestrator({
     const pushResult = await be.pushAll({
       goods: itemsToPush,
       goodsTrash: trashToPush,
-      presets: presetsData,
       deviceId: currentDeviceId,
       syncedAt: syncTimestamp,
       imageBucket: existingManifest?.image_bucket ?? 'goods-images',
@@ -480,19 +471,6 @@ export function createSyncOrchestrator({
     } catch (e) { wrapSyncError(e, PHASE_READ_REMOTE) }
     remoteData.manifest = remoteManifest
 
-    // 收藏馆背景：先按「每个 IP/角色」逐条 LWW 合并远端快照，再参与差异比较 / 推送。
-    // 这个块以前是整块 LWW —— 一台设备的旧快照会直接抹掉另一台设备刚加的背景。
-    // 逐条合并后，任何设备的推送都是「远端 ∪ 本地」的并集，不会丢别人的条目。
-    if (stores.collectionProfileStore && remoteData.presets?.collectionProfiles) {
-      try {
-        await stores.collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
-          resolveImageUrl: be?.getImagePublicUrl || null
-        })
-      } catch (e) {
-        log.warn('merge remote collection profiles failed (non-fatal):', e)
-      }
-    }
-
     // 3. Compare
     const remoteTime = remoteManifest?.lastSyncAt ? new Date(remoteManifest.lastSyncAt).getTime() : 0
     // 分支判定用服务器域水位线：remoteTime 是 manifest.synced_at（服务器时间域），
@@ -550,57 +528,9 @@ export function createSyncOrchestrator({
       normalizeBudgetValue(localBudgetSettings.monthly) !== normalizeBudgetValue(remoteManifest?.budgetMonthly)
       || normalizeBudgetValue(localBudgetSettings.yearly) !== normalizeBudgetValue(remoteManifest?.budgetYearly)
     )
-    let hasPresetsDiff = false
-    if (isPresetsDirty) {
-      try {
-        const localPresets = await ctx.buildPresetsData()
-        // 远端还没有 sync_presets 行（reader 返回 presets: null）时必须视为有差异：
-        // 否则「只加角色、不动商品」的用户恒被判 no_changes，云端行永远建不出来 ——
-        // 叠加 canQuickPush 要求 dirtyGoodsIds 非空，纯预设改动会彻底死锁。
-        // profiles 脏：本地快照在为上传图片算 cloudFileName 前可能刻意省略 collectionProfiles，
-        // 不能只靠 JSON 比对（会误判无差异），必须强制推送一次。
-        hasPresetsDiff = !!dirty?.has?.('profiles')
-          || !remoteData.presets
-          || JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
-      } catch { hasPresetsDiff = true }
-    }
-    // 本机没有 presets 脏标记、但远端更新（例如另一台设备只改了收藏馆背景 / 预设）时，
-    // 也要走 pull 分支：否则 hasEffectiveDiff 恒 false → 直接 no_changes，
-    // collection_profiles / presets 永远不会拉下来（表现为另一端的背景图不显示）。
-    if (!hasPresetsDiff && remoteData.presets && remoteTime > serverSyncTime) {
-      try {
-        const localPresets = await ctx.buildPresetsData()
-        hasPresetsDiff = JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)
-      } catch { hasPresetsDiff = true }
-    }
-    // 本机预设/背景没有未推送改动、且远端清单不比本地新（不会走 pull 分支）时，
-    // 直接以远端 presets 整块为准：replacePresetsSnapshot 内部会用块级 updated_at
-    // 挡掉过期响应，只有真正应用成功才联动回填 collection_profiles。
-    // 典型卡死场景：上次 pull 时本机 profiles 脏 → 跳过了应用，随后 push 把水位线
-    // 推到与远端持平，之后再也不会有 pull 分支 → 永远「另一台设备有、本机没有」。
-    if (!isPresetsDirty && remoteData.presets && remoteTime > 0 && remoteTime <= serverSyncTime) {
-      try {
-        const localPresets = await ctx.buildPresetsData()
-        if (JSON.stringify(localPresets) !== JSON.stringify(remoteData.presets)) {
-          let applied = true
-          if (typeof stores.presetsStore?.replacePresetsSnapshot === 'function') {
-            applied = (await stores.presetsStore.replacePresetsSnapshot(remoteData.presets, {
-              updatedAt: remoteData.presetsUpdatedAt || 0
-            })) !== false
-          }
-          if (applied) {
-            if (stores.collectionProfileStore && remoteData.presets.collectionProfiles) {
-              await stores.collectionProfileStore.applyRemoteProfiles(remoteData.presets.collectionProfiles, {
-                resolveImageUrl: be?.getImagePublicUrl || null
-              })
-            }
-            hasPresetsDiff = false
-          }
-        }
-      } catch (e) {
-        log.warn('apply remote presets while locally clean failed (non-fatal):', e)
-      }
-    }
+    const remotePresetRowsChanged = hasPresetRowDelta(remoteData)
+    // 预设/背景不再比较整块快照；本地脏域或行级增量即代表需要同步。
+    const hasPresetsDiff = isPresetsDirty || remotePresetRowsChanged
     const hasEffectiveDiff = hasDataDiff || hasRechargeDataDiff || hasEventDataDiff || hasBatchDraftDataDiff || hasBudgetDiff || hasPresetsDiff
     log.info('sync:compare', {
       hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff, hasBudgetDiff, hasPresetsDiff,
@@ -618,7 +548,8 @@ export function createSyncOrchestrator({
     }
 
     // 4. Pull or push
-    if (remoteTime > serverSyncTime) {
+    const remoteDataAhead = remoteTime > serverSyncTime || (remotePresetRowsChanged && !isPresetsDirty)
+    if (remoteDataAhead) {
       if (!remoteManifest) {
         // First sync — push local data
         return doPush(ctx, stores, be, { hasDataDiff: true, hasRechargeDataDiff: true, hasEventDataDiff: true, hasBatchDraftDataDiff: true, hasPresetsDiff: true, source: syncSource })
@@ -667,7 +598,6 @@ export function createSyncOrchestrator({
             localSyncTime,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             // 本地 presets 有未推送改动（刚新建/删除自定义字段、改分类…）时不被远端快照覆盖
-            preserveLocalPresets: isPresetsDirty,
             resolveRechargeImage: be?.getImagePublicUrl || null,
             resolveProfileImage: be?.getImagePublicUrl || null
           })
@@ -687,8 +617,7 @@ export function createSyncOrchestrator({
       if (remoteManifest?.lastSyncAt) await ctx.saveLastSyncedAt(remoteManifest.lastSyncAt)
       await saveServerWatermark(ctx, remoteManifest?.lastSyncAt)
       // 拉取后本地仍有脏域：立刻再推一次，避免 doSync 的 clearDirtyDomains 吞掉这些改动。
-      // presets：上面按 preserveLocalPresets 保住了本地定义，这里必须把它推到云端，
-      // 否则脏标记被清掉后云端会一直停留在旧快照（新增/删除的字段不再同步）。
+      // 行级预设/背景在 pull 中先按行合并；本地脏域随后补推，避免脏标记被清掉。
       if (draftsDomainDirty || hasBatchDraftDataDiff || isPresetsDirty) {
         const pushAfterPull = await doPush(ctx, stores, be, {
           hasDataDiff: false,

@@ -51,6 +51,8 @@ export function createSupabaseBackendAdapter({
     pushAll: writer.pushAll,
     pullAll: reader.pullAll,
     readManifest: reader.readManifest,
+    pullPresetRows: reader.pullPresetRows,
+    pullCollectionProfiles: reader.pullCollectionProfiles,
     readDeviceRow: reader.readDeviceRow,
     writeDeviceHeartbeat: writer.writeDeviceHeartbeat,
     clearDeviceForceResync: writer.clearDeviceForceResync,

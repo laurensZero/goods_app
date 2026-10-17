@@ -185,6 +185,45 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
   const localEventsTrash = shouldWriteEvent ? (eventSyncData.eventsTrash || []) : []
   const localBatchDrafts = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDrafts || []) : []
   const localBatchDraftsTrash = shouldWriteBatchDrafts ? (batchDraftSyncData.batchDraftsTrash || []) : []
+  const presetSources = [
+    ['category', syncData.presets?.categories],
+    ['ip', syncData.presets?.ips],
+    ['character', syncData.presets?.characters],
+    ['storage_location', syncData.presets?.storageLocations],
+    ['event_type', syncData.presets?.eventTypes],
+    ['custom_field', syncData.presets?.customFieldDefs]
+  ]
+  const presetRows = presetSources.flatMap(([domain, values]) => (Array.isArray(values) ? values : []).map((value, index) => ({
+    domain,
+    id: String(value?.id || value?.key || value?.name || value?.value || ''),
+    payload: value,
+    sort_order: index,
+    deleted: 0,
+    synced_by: manifest?.deviceId || ''
+  })).filter((row) => row.id))
+  const presetTombstoneRows = (syncData.presets?.presetRowTombstones || []).map((row) => ({
+    domain: row.domain,
+    id: String(row.id || ''),
+    payload: {},
+    sort_order: 0,
+    deleted: 1,
+    synced_by: manifest?.deviceId || '',
+    updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : undefined
+  })).filter((row) => row.domain && row.id)
+  const profileMaps = syncData.presets?.collectionProfiles || {}
+  const collectionProfileRows = [
+    ...Object.entries(profileMaps.ipProfiles || {}).map(([id, value]) => ({ id, kind: 'ip', value })),
+    ...Object.entries(profileMaps.characterProfiles || {}).map(([id, value]) => ({ id, kind: 'character', value }))
+  ].map(({ id, kind, value }) => ({
+    id,
+    kind,
+    items: value?.items || [],
+    rotation: value?.rotation || {},
+    theme: value?.theme || {},
+    deleted: Array.isArray(value?.items) && value.items.length === 0 ? 1 : 0,
+    synced_by: manifest?.deviceId || '',
+    updated_at: value?.updatedAt ? new Date(value.updatedAt).toISOString() : undefined
+  }))
 
   let goods = localGoods, goodsTrash = localTrash
   let groups = localGroups, groupsTrash = localGroupsTrash
@@ -234,7 +273,6 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     goods, goodsTrash, groups, groupsTrash, groupItems, groupItemsTrash,
     recharge, rechargeTrash, events, eventsTrash,
     batchDrafts, batchDraftsTrash,
-    presets: (shouldWriteData || shouldWritePresets) ? syncData.presets : null,
     deleteGoods: [], deleteGroups: [], deleteGroupItems: [],
     deleteRecharge: [], deleteEvents: [], deleteBatchDrafts: [],
     deviceId: manifest?.deviceId || '',
@@ -244,6 +282,8 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     budgetYearly: manifest?.budgetYearly || 0,
     rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
     eventUpdatedAt: manifest?.eventUpdatedAt || null,
+    presetRows: [...presetRows, ...presetTombstoneRows],
+    collectionProfileRows,
     source: source || ''
   })
 

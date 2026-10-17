@@ -231,33 +231,41 @@ describe('mergeToLocal forceReapply（同步格式版本升级回填）', () => 
   })
 })
 
-describe('mergeToLocal presets（本地未推送的改动不被远端快照覆盖）', () => {
-  it('默认应用远端 presets 快照（并透传块级时钟）', async () => {
+describe('mergeToLocal row-level presets', () => {
+  it('应用远端预设行并按 sortOrder 生成兼容快照', async () => {
     const stores = makeStores()
-    const presets = { categories: [{ name: 'A' }], customFieldDefs: [] }
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'category', id: 'A', payload: { name: 'A' }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
 
-    await mergeToLocal(stores, { goods: [], trash: [], presets, presetsUpdatedAt: 1234 }, { reconcileMissing: false })
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
 
-    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(presets, { updatedAt: 1234 })
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ categories: [{ name: 'A' }] }),
+      { updatedAt: expect.any(Number) }
+    )
   })
 
-  it('preserveLocalPresets=true 时跳过远端 presets（保护刚新增/删除的字段定义）', async () => {
+  it('行级删除使用 tombstone 移除本地预设', async () => {
     const stores = makeStores()
-    const presets = { categories: [{ name: 'A' }], customFieldDefs: [] }
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [],
+      presetRowsTrash: [{ domain: 'category', id: 'A', sortOrder: 0, deleted: 1 }],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
 
-    await mergeToLocal(stores, { goods: [], trash: [], presets }, {
-      reconcileMissing: false,
-      preserveLocalPresets: true
-    })
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
 
-    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
-  })
-
-  it('远端没有 presets 时不调用快照替换', async () => {
-    const stores = makeStores()
-
-    await mergeToLocal(stores, { goods: [], trash: [] }, { reconcileMissing: false })
-
-    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
   })
 })

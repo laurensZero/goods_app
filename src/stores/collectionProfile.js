@@ -23,7 +23,7 @@ export const COLLECTION_PROFILE_STORAGE_KEY = 'goods_collection_profiles_v1'
  *
  * 第一阶段纯本地：Preferences/localStorage 存 JSON，背景图片走
  * `utils/image/localImage` 的受管本地图（复制进 app 私有目录）。
- * 字段结构按将来同步到 `sync_presets.ip_profiles` 的形态设计，上云时无需迁移。
+ * 字段结构按行级 collection_profiles 的形态设计，上云时无需迁移。
  */
 export const useCollectionProfileStore = defineStore('collectionProfile', () => {
   /**
@@ -83,7 +83,7 @@ export const useCollectionProfileStore = defineStore('collectionProfile', () => 
   }
 
   /**
-   * 背景编辑属于 presets 块同步域（ip_profiles / character_profiles 挂在 sync_presets）。
+   * 背景编辑属于 collection_profiles 行级同步域。
    * 动态 import 避免 collectionProfile ↔ sync 的模块循环依赖。
    */
   function notifyProfilesChanged() {

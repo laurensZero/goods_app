@@ -32,7 +32,7 @@ export const MANIFEST_VERSION = 1
 //      旧版本归一化会剥掉这三个字段并把行写回云端，故必须强制一次全量重拉。
 //      见 docs/frame-reedit-plan.md 阶段二。
 // v14: goods.customFields JSON —— 用户自定义字段的值 { <defId>: string }，
-//      定义列表随 sync_presets.custom_field_defs 同步。发布前执行
+//      定义列表随 sync_preset_rows.custom_field 同步。发布前执行
 //      supabase/supabase-migration-goods-custom-fields.sql；presets 推送链路
 //      见 docs/goods-custom-fields-plan.md（前置验证）。
 // v15: goods.starred BOOLEAN —— 星标谷子（0/1），支持一键筛选与批量加星。
@@ -41,7 +41,8 @@ export const MANIFEST_VERSION = 1
 // v16: events.tracks[].bilibiliPage / bilibiliPageList —— B 站分P页码与合并连播列表
 //      （tracks 是 JSONB 列，无需云端迁移）。
 //      旧版本 normalizeTracks 会剥掉该子字段并整行写回云端，必须强制一次全量重拉。
-export const SYNC_SCHEMA_VERSION = 16
+// v17: presets / collection profiles migrated to row-level tables with tombstones.
+export const SYNC_SCHEMA_VERSION = 17
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

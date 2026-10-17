@@ -98,7 +98,8 @@ function stubRemote(remoteOverrides = {}) {
     goods: [], trash: [], events: [], eventsTrash: [],
     recharge: [], rechargeTrash: [], groups: [], groupsTrash: [],
     groupItems: [], groupItemsTrash: [], batchDrafts: [], batchDraftsTrash: [],
-    presets: null,
+    presetRows: [], presetRowsTrash: [],
+    collectionProfileRows: [], collectionProfileRowsTrash: [],
     isIncremental: true,
     ...remoteOverrides
   })
@@ -134,8 +135,8 @@ beforeEach(() => {
   stubPullPipeline()
 })
 
-describe('presets 首推死锁（云端还没有 sync_presets 行）', () => {
-  it('只加角色、远端 presets 为 null 时不得判 no_changes，必须推送 presets', async () => {
+describe('row-level presets', () => {
+  it('只加角色时必须推送行级预设', async () => {
     stubRemote()
     const stores = makeStores()
     const orchestrator = makeOrchestrator(makeBackend(), stores)
@@ -153,42 +154,25 @@ describe('presets 首推死锁（云端还没有 sync_presets 行）', () => {
     )
   })
 
-  it('远端 presets 与本地一致时仍判无差异，不空推', async () => {
-    stubRemote({ presets: { ...LOCAL_PRESETS } })
-    const stores = makeStores()
-    const orchestrator = makeOrchestrator(makeBackend(), stores)
+  it('远端行级变更时走 pull', async () => {
+    stubRemote({
+      presetRows: [{ domain: 'category', id: '远端分类', payload: { name: '远端分类' }, sortOrder: 0, deleted: 0 }]
+    })
+    const orchestrator = makeOrchestrator(makeBackend(), makeStores())
 
     const result = await orchestrator.sync(makeCtx(), {
-      dirtyDomains: new Set(['presets']),
-      dirtyGoodsIds: null,
+      dirtyDomains: new Set(),
+      dirtyGoodsIds: new Set(),
       source: 'auto'
     })
 
-    expect(result.action).toBe('no_changes')
-    expect(writeRemoteData).not.toHaveBeenCalled()
-  })
-
-  it('远端 presets 有差异时正常推送', async () => {
-    stubRemote({ presets: { ...LOCAL_PRESETS, characters: [] } })
-    const stores = makeStores()
-    const orchestrator = makeOrchestrator(makeBackend(), stores)
-
-    const result = await orchestrator.sync(makeCtx(), {
-      dirtyDomains: new Set(['presets']),
-      dirtyGoodsIds: null,
-      source: 'auto'
-    })
-
-    expect(result.action).toBe('pushed')
-    expect(writeRemoteData).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({ shouldWritePresets: true })
-    )
+    expect(result.action).toBe('pulled')
+    expect(mergeToLocal).toHaveBeenCalled()
   })
 })
 
-describe('pull 不得用远端快照覆盖未推送的本地 presets', () => {
-  it('增量拉取：本地 presets 脏时 preserveLocalPresets=true', async () => {
+describe('pull applies row-level presets', () => {
+  it('增量拉取：预设行与背景行一起交给 merge', async () => {
     stubRemote()
     const backend = { pullAll: vi.fn(), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
     const stores = makeStores()
@@ -200,14 +184,10 @@ describe('pull 不得用远端快照覆盖未推送的本地 presets', () => {
       dirtyDomains: new Set(['presets'])
     })
 
-    expect(mergeToLocal).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ preserveLocalPresets: true })
-    )
+    expect(mergeToLocal).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything())
   })
 
-  it('增量拉取：本地 presets 干净时照常应用远端（否则跨设备新增角色拉不下来）', async () => {
+  it('本地干净时照常应用远端行', async () => {
     stubRemote()
     const backend = { pullAll: vi.fn(), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
     const orchestrator = makeOrchestrator(backend, makeStores())
@@ -218,14 +198,10 @@ describe('pull 不得用远端快照覆盖未推送的本地 presets', () => {
       dirtyDomains: null
     })
 
-    expect(mergeToLocal).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ preserveLocalPresets: false })
-    )
+    expect(mergeToLocal).toHaveBeenCalled()
   })
 
-  it('全量拉取（schemaResync 强制合并）同样保护本地 presets', async () => {
+  it('全量拉取（schemaResync）同样应用远端行', async () => {
     stubRemote()
     const backend = { pullAll: vi.fn().mockResolvedValue({}), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
     const orchestrator = makeOrchestrator(backend, makeStores())
@@ -236,24 +212,16 @@ describe('pull 不得用远端快照覆盖未推送的本地 presets', () => {
       dirtyDomains: new Set(['presets'])
     })
 
-    expect(mergeToLocal).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ preserveLocalPresets: true, forceReapply: true })
-    )
+    expect(mergeToLocal).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.objectContaining({ forceReapply: true }))
   })
 
-  it('未传 dirtyDomains 时默认不保留（保持旧行为：远端快照覆盖本地）', async () => {
+  it('未传 dirtyDomains 时仍使用行级合并', async () => {
     stubRemote()
     const backend = { pullAll: vi.fn().mockResolvedValue({}), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
     const orchestrator = makeOrchestrator(backend, makeStores())
 
     await orchestrator.pull(makeCtx(), { silent: true, schemaResync: true })
 
-    expect(mergeToLocal).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.anything(),
-      expect.objectContaining({ preserveLocalPresets: false })
-    )
+    expect(mergeToLocal).toHaveBeenCalled()
   })
 })

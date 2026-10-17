@@ -5,7 +5,7 @@
  * 这里只放**纯函数**（归一化 / 解析 / 序列化），便于单测；本地持久化与图片文件生命周期
  * 见 `stores/collectionProfile.js`，背景图导入压缩 / 取色见 `utils/profile/backgroundImage.js`。
  *
- * 数据结构刻意保持「将来可直接搬进 sync_presets.ip_profiles」的形态，
+ * 数据结构刻意保持可直接写入 collection_profiles 行的形态，
  * 上云阶段不需要再做数据迁移。一张背景就是一张图（方形图 / 长条图都可能是），
  * 展示侧按图片宽高自动决定 cover 还是完整居中 + 模糊铺底。
  * 深浅色永远跟随 App 主题；这里只存每个收藏馆独立的强调色（主题色）来源。

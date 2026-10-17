@@ -120,14 +120,32 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
 );
 
 -- sync_presets 表（存储分类、IP、角色、存储位置；每个用户一行，user_id 唯一）
-CREATE TABLE IF NOT EXISTS sync_presets (
-  user_id UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
-  categories JSONB DEFAULT '[]',
-  ips JSONB DEFAULT '[]',
-  characters JSONB DEFAULT '[]',
-  storage_locations JSONB DEFAULT '[]',
-  collection_profiles JSONB DEFAULT '{}',
-  updated_at TIMESTAMPTZ DEFAULT now()
+-- 行级预设 / 收藏馆背景同步表；旧 sync_presets 保留作为过渡兼容源。
+CREATE TABLE IF NOT EXISTS sync_preset_rows (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  domain TEXT NOT NULL CHECK (domain IN ('category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field')),
+  id TEXT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
+  synced_by TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, domain, id)
+);
+
+CREATE TABLE IF NOT EXISTS collection_profiles (
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'ip' CHECK (kind IN ('ip', 'character')),
+  items JSONB NOT NULL DEFAULT '[]',
+  rotation JSONB NOT NULL DEFAULT '{}',
+  theme JSONB NOT NULL DEFAULT '{}',
+  deleted INTEGER NOT NULL DEFAULT 0 CHECK (deleted IN (0, 1)),
+  synced_by TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, id)
 );
 
 -- goods_groups 表（谷子组）
@@ -1069,8 +1087,7 @@ BEGIN
       'events',       (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND (e.deleted IS NULL OR e.deleted != 1) AND e.user_id = auth.uid()),
       'events_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(e)), '[]'::jsonb) FROM events e WHERE (p_since IS NULL OR e.updated_at > p_since) AND e.deleted = 1 AND e.user_id = auth.uid()),
       'batch_drafts', (SELECT COALESCE(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND (bd.deleted IS NULL OR bd.deleted != 1) AND bd.user_id = auth.uid()),
-      'batch_drafts_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND bd.deleted = 1 AND bd.user_id = auth.uid()),
-      'presets',      (SELECT to_jsonb(p) FROM sync_presets p WHERE p.user_id = auth.uid())
+      'batch_drafts_trash', (SELECT COALESCE(jsonb_agg(to_jsonb(bd)), '[]'::jsonb) FROM batch_drafts bd WHERE (p_since IS NULL OR bd.updated_at > p_since) AND bd.deleted = 1 AND bd.user_id = auth.uid())
     )
   );
 END;

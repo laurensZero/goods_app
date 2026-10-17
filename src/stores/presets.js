@@ -27,6 +27,7 @@ const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
 const STORAGE_KEY_CUSTOM_FIELD_DEFS = 'goods_presets_custom_field_defs'
 // 已应用/已确认的远端预设块时间戳（服务器时间域，毫秒字符串）
 const STORAGE_KEY_PRESETS_REMOTE_AT = 'goods_presets_remote_updated_at'
+const STORAGE_KEY_ROW_TOMBSTONES = 'goods_presets_row_tombstones_v1'
 
 const DEFAULT_CATEGORIES = ['手办', '挂件', '立牌', '徽章', '卡牌', '明信片', '色纸', 'CD/专辑', '服饰', '镭射票', '画集', '赠品', '其他']
 const DEFAULT_IPS = []
@@ -210,7 +211,7 @@ function normalizeCharacters(list) {
 
 function normalizeCategoriesList(list) {
   const values = Array.isArray(list)
-    ? list.map((item) => String(item || '').trim()).filter(Boolean)
+    ? list.map((item) => String(item && typeof item === 'object' ? item.name : item || '').trim()).filter(Boolean)
     : []
   const unique = [...new Set(values)]
   const withoutOther = unique.filter((item) => item !== '其他')
@@ -221,7 +222,7 @@ function normalizeCategoriesList(list) {
 
 function normalizeIpsList(list) {
   const values = Array.isArray(list)
-    ? list.map((item) => String(item || '').trim()).filter(Boolean)
+    ? list.map((item) => String(item && typeof item === 'object' ? item.name : item || '').trim()).filter(Boolean)
     : []
   return [...new Set(values)]
 }
@@ -253,6 +254,15 @@ export const usePresetsStore = defineStore('presets', () => {
   const favoriteIps = ref([])
   const favoriteCharacters = ref([])
   const isReady = ref(false)
+  const rowTombstones = ref([])
+
+  async function markRowTombstone(domain, id) {
+    const key = `${domain}:${String(id || '').trim()}`
+    if (!key.endsWith(':')) {
+      rowTombstones.value = [...rowTombstones.value.filter((item) => item.key !== key), { key, domain, id: String(id).trim(), updatedAt: Date.now() }]
+      await writePersisted(STORAGE_KEY_ROW_TOMBSTONES, JSON.stringify(rowTombstones.value))
+    }
+  }
 
   const storageLocationChildrenMap = computed(() => {
     const grouped = new Map()
@@ -317,7 +327,7 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes, fieldDefs] = await Promise.all([
+    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes, fieldDefs, tombstones] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
@@ -326,7 +336,8 @@ export const usePresetsStore = defineStore('presets', () => {
       readPersistedList(STORAGE_KEY_FAV_IP, []),
       readPersistedList(STORAGE_KEY_FAV_CHR, []),
       readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES),
-      readPersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, DEFAULT_CUSTOM_FIELD_DEFS)
+      readPersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, DEFAULT_CUSTOM_FIELD_DEFS),
+      readPersisted(STORAGE_KEY_ROW_TOMBSTONES)
     ])
     categories.value = cat
     ips.value = ip
@@ -337,6 +348,7 @@ export const usePresetsStore = defineStore('presets', () => {
     favoriteCategories.value = Array.isArray(favCat) ? favCat : []
     favoriteIps.value = Array.isArray(favIp) ? favIp : []
     favoriteCharacters.value = Array.isArray(favChr) ? favChr : []
+    try { rowTombstones.value = tombstones ? JSON.parse(tombstones) : [] } catch { rowTombstones.value = [] }
 
     if (!Array.isArray(categories.value)) categories.value = cloneList(DEFAULT_CATEGORIES)
     if (!Array.isArray(ips.value)) ips.value = cloneList(DEFAULT_IPS)
@@ -527,6 +539,7 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value)
     ])
+    await markRowTombstone('category', name)
     autoPushPresets()
   }
 
@@ -771,6 +784,7 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_IP, ips.value),
       writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value)
     ])
+    await markRowTombstone('ip', name)
     autoPushPresets()
   }
 
@@ -1083,6 +1097,7 @@ export const usePresetsStore = defineStore('presets', () => {
 
   return {
     categories,
+    rowTombstones,
     ips,
     characters,
     storageLocations,

@@ -1,14 +1,13 @@
 // src/services/supabaseAdapter/reader.js
-// Supabase read operations: pullAll, readPresets
+// Supabase read operations: pullAll and row-level preset/profile reads
 
 import { toCamelCase } from '@/utils/sync/columnMapping'
 import { withRetry } from '@/services/sync/syncRetry'
-import { serializeProfileMapForSync } from '@/utils/profile/collectionProfile'
 import {
   GOODS_SELECT_COLS, RECHARGE_SELECT_COLS, EVENT_SELECT_COLS, EVENT_JSON_KEYS,
   GOODS_JSON_OBJECT_KEYS,
   GOODS_GROUP_SELECT_COLS, GOODS_GROUP_ITEM_SELECT_COLS, BATCH_DRAFT_SELECT_COLS, BATCH_DRAFT_JSON_KEYS,
-  fetchAllRows, normalizeTimestamp, safeParseJsonArray, safeParseJsonObject, parsePresetsField
+  fetchAllRows, normalizeTimestamp, safeParseJsonArray, safeParseJsonObject
 } from './helpers'
 
 // events 行的 JSONB 数组列统一解析（coverImageData 是对象，单独处理）。
@@ -65,40 +64,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
     // 直接读原始列名：force_resync_at 不在 columnMapping 静态映射表里，
     // toCamelCase 会原样保留键名，row.forceResyncAt 会取到 undefined
     return { forceResyncAt: data[0].force_resync_at || '' }
-  }
-
-  // 收藏馆背景集：列不存在（未迁移实例）时返回 undefined，调用方据此保留本地数据
-  function parseCollectionProfilesField(value) {
-    const raw = safeParseJsonObject(value)
-    return serializeProfileMapForSync({
-      ipProfiles: raw?.ipProfiles,
-      characterProfiles: raw?.characterProfiles
-    })
-  }
-
-  async function readPresets() {
-    const db = getDb()
-    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
-    // 防止未登录用户查询导致 PostgreSQL "invalid input syntax for type uuid" 错误
-    if (!uid || typeof uid !== 'string' || uid.trim() === '') return null
-    const { data } = await withRetry(() =>
-      db.from('sync_presets').select('*').eq('user_id', uid).limit(1)
-    )
-    if (!data || data.length === 0) return null
-    const row = toCamelCase(data[0])
-    return {
-      categories: parsePresetsField(row.categories),
-      ips: parsePresetsField(row.ips),
-      characters: parsePresetsField(row.characters),
-      storageLocations: parsePresetsField(row.storageLocations),
-      // 迁移前列不存在时省略该键，replacePresetsSnapshot 据此保留本地自定义类型
-      ...(row.eventTypes !== undefined ? { eventTypes: parsePresetsField(row.eventTypes) } : {}),
-      // 同上：列不存在时省略，保留本地自定义字段定义（值不丢）
-      ...(row.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(row.customFieldDefs) } : {}),
-      ...(row.collectionProfiles !== undefined
-        ? { collectionProfiles: parseCollectionProfilesField(row.collectionProfiles) }
-        : {})
-    }
   }
 
   // manifest-only 读取：fullSync 第 1 步只需要清单；
@@ -375,30 +340,6 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       }
     })() : null
 
-    const presetsRow = data.presets
-    const presets = presetsRow ? (() => {
-      const p = toCamelCase(presetsRow)
-      return {
-        categories: parsePresetsField(p.categories),
-        ips: parsePresetsField(p.ips),
-        characters: parsePresetsField(p.characters),
-        storageLocations: parsePresetsField(p.storageLocations),
-        ...(p.eventTypes !== undefined ? { eventTypes: parsePresetsField(p.eventTypes) } : {}),
-        ...(p.customFieldDefs !== undefined ? { customFieldDefs: parsePresetsField(p.customFieldDefs) } : {}),
-        ...(p.collectionProfiles !== undefined
-          ? { collectionProfiles: parseCollectionProfilesField(p.collectionProfiles) }
-          : {})
-      }
-    })() : null
-
-    // 预设块的服务器时间戳（sync_push 每次写入都会刷新）。
-    // 放在 presets 之外：它不是预设内容，混进去会让 hasPresetsDiff 的
-    // JSON 比较永远判为「有差异」→ 每次同步都白推一遍。
-    // 列不存在（旧实例）时给 0，调用方据此跳过时效判断。
-    const presetsUpdatedAt = presetsRow && presetsRow.updated_at != null
-      ? normalizeTimestamp(presetsRow.updated_at)
-      : 0
-
     return {
       manifest,
       goods: (data.goods || []).map(mapGoods),
@@ -412,11 +353,33 @@ export function createReader({ getDb, trackSyncStep, userIdRef, deviceIdRef }) {
       groupItems,
       groupItemsTrash,
       batchDrafts,
-      batchDraftsTrash,
-      presets,
-      presetsUpdatedAt
+      batchDraftsTrash
     }
   }
 
-  return { readPresets, readManifest, pullDomainRows, pullAll, readDeviceRow }
+  async function pullPresetRows({ since = 0 } = {}) {
+    const db = getDb()
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    if (!uid) return { active: [], trash: [] }
+    let query = db.from('sync_preset_rows').select('*').eq('user_id', uid)
+    if (Number(since) > 0) query = query.gt('updated_at', new Date(Number(since)).toISOString())
+    const { data, error } = await withRetry(() => query.order('updated_at', { ascending: true }).order('id', { ascending: true }))
+    if (error) throw error
+    const rows = (data || []).map(toCamelCase)
+    return { active: rows.filter((row) => Number(row.deleted) !== 1), trash: rows.filter((row) => Number(row.deleted) === 1) }
+  }
+
+  async function pullCollectionProfiles({ since = 0 } = {}) {
+    const db = getDb()
+    const uid = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    if (!uid) return { active: [], trash: [] }
+    let query = db.from('collection_profiles').select('*').eq('user_id', uid)
+    if (Number(since) > 0) query = query.gt('updated_at', new Date(Number(since)).toISOString())
+    const { data, error } = await withRetry(() => query.order('updated_at', { ascending: true }).order('id', { ascending: true }))
+    if (error) throw error
+    const rows = (data || []).map(toCamelCase)
+    return { active: rows.filter((row) => Number(row.deleted) !== 1), trash: rows.filter((row) => Number(row.deleted) === 1) }
+  }
+
+  return { readManifest, pullDomainRows, pullPresetRows, pullCollectionProfiles, pullAll, readDeviceRow }
 }

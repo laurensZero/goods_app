@@ -139,7 +139,8 @@ function stubRemote(manifest, remoteData = {}) {
     groupItemsTrash: [],
     batchDrafts: [],
     batchDraftsTrash: [],
-    presets: null,
+    presetRows: [], presetRowsTrash: [],
+    collectionProfileRows: [], collectionProfileRowsTrash: [],
     isIncremental: true,
     ...remoteData
   })
@@ -272,7 +273,12 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     const newerRemote = '2026-07-25T00:00:00.000Z'
     stubRemote(
       { lastSyncAt: newerRemote, deviceId: 'dev-b' },
-      { presets: { categories: [{ name: '远端分类' }], collectionProfiles: { ipProfiles: {}, characterProfiles: {} } } }
+      {
+        presetRows: [{ domain: 'category', id: '远端分类', payload: { name: '远端分类' }, sortOrder: 0, deleted: 0 }],
+        presetRowsTrash: [],
+        collectionProfileRows: [],
+        collectionProfileRowsTrash: []
+      }
     )
     hydrateRemoteImages.mockResolvedValue({ restoredImages: 0 })
     mergeToLocal.mockResolvedValue({ counts: { importedGoods: 0, updatedGoods: 0, importedTrash: 0 } })
@@ -302,13 +308,18 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     expect(result.action).not.toBe('no_changes')
     expect(result.action).toBe('pulled')
     expect(mergeToLocal).toHaveBeenCalled()
-    expect(mergeToLocal.mock.calls[0][1].presets).toBeTruthy()
+    expect(mergeToLocal.mock.calls[0][1].presetRows).toBeTruthy()
   })
 
   it('本机无脏标记且水位线已与远端持平时，仍要应用远端 presets/收藏馆背景', async () => {
     stubRemote(
       { lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' },
-      { presets: { categories: [{ name: '远端分类' }], collectionProfiles: { ipProfiles: {}, characterProfiles: {} } } }
+      {
+        presetRows: [{ domain: 'category', id: '远端分类', payload: { name: '远端分类' }, sortOrder: 0, deleted: 0 }],
+        presetRowsTrash: [],
+        collectionProfileRows: [],
+        collectionProfileRowsTrash: []
+      }
     )
     const stores = makeStores()
     stores.goodsStore.list = []
@@ -336,9 +347,9 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
       source: 'manual'
     })
 
-    expect(result.action).toBe('no_changes')
-    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
-    expect(stores.collectionProfileStore.applyRemoteProfiles).toHaveBeenCalled()
+    expect(result.action).toBe('pulled')
+    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
+    expect(stores.collectionProfileStore.applyRemoteProfiles).not.toHaveBeenCalled()
     expect(writeRemoteData).not.toHaveBeenCalled()
   })
 })

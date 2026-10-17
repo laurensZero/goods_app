@@ -379,11 +379,14 @@ export const useSyncStore = defineStore('sync', () => {
         name: String(item?.name || '').trim(),
         showTracks: Boolean(item?.showTracks)
       })).filter((item) => item.name),
-      // 键的位置必须与 reader.readPresets 完全一致，且两侧共用 normalizeCustomFieldDefs：
+      // 键的位置必须与行级预设 payload 保持一致，且两侧共用 normalizeCustomFieldDefs：
       // syncOrchestrator 用 JSON.stringify(local) !== JSON.stringify(remote) 判预设差异，
       // 键序/默认值只要有一点不对称就会「永远有差异」→ 每次同步都推送。
       customFieldDefs: normalizeCustomFieldDefs(presets.customFieldDefs)
     }
+    data.presetRowTombstones = Array.isArray(presets.rowTombstones)
+      ? presets.rowTombstones
+      : []
 
     // 收藏馆背景集：图片变体还没全部上传时不写这个键（否则会把空 cloudFileName
     // 覆盖到云端，其他设备打开就是裂图）；真正带 cloudFileName 的快照由

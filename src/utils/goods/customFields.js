@@ -8,7 +8,7 @@
  * 就会永远判为有差异 → 每次同步都推一遍 presets。
  *
  * 数据形状：
- *   定义 sync_presets.custom_field_defs = [{ id, name, type, options }]（数组顺序即展示顺序）
+ *   定义 sync_preset_rows.custom_field.payload = { id, name, type, options }（sort_order 即展示顺序）
  *   值   goods.custom_fields            = { <defId>: string }（键 = 定义 id，值统一存字符串）
  */
 
