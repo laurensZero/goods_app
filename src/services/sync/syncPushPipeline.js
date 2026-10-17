@@ -57,6 +57,10 @@ function filterChangedRows(localRows, remoteRows, normalizeRow, keyOf) {
 }
 
 async function readFullPresetRowsForPush(be, remoteData) {
+  // 本次 sync_pull 已经全量拉过行表（since=0，例如本地有脏预设）时直接复用，省一次请求
+  if (remoteData?.rowDomainsComplete) {
+    return [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])]
+  }
   if (typeof be.pullPresetRows !== 'function') {
     return [...(remoteData?.presetRows || []), ...(remoteData?.presetRowsTrash || [])]
   }
@@ -65,6 +69,9 @@ async function readFullPresetRowsForPush(be, remoteData) {
 }
 
 async function readFullCollectionProfilesForPush(be, remoteData) {
+  if (remoteData?.rowDomainsComplete) {
+    return [...(remoteData.collectionProfileRows || []), ...(remoteData.collectionProfileRowsTrash || [])]
+  }
   if (typeof be.pullCollectionProfiles !== 'function') {
     return [...(remoteData?.collectionProfileRows || []), ...(remoteData?.collectionProfileRowsTrash || [])]
   }

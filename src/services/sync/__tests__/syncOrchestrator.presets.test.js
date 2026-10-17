@@ -187,7 +187,9 @@ describe('pull applies row-level presets', () => {
     expect(mergeToLocal).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything())
     expect(readRemoteData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       since: expect.any(Number),
-      rowSince: 0
+      // 本地 presets 脏 → 行表强制全量拉一次（用于推送 diff）
+      presetSince: 0,
+      profileSince: 0
     }))
   })
 

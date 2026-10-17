@@ -117,6 +117,36 @@ export function createSyncOrchestrator({
     }
   }
 
+  // ── 行级预设 / 背景：goods 同款增量水位 ──
+
+  /** 本地预设/背景有未推送改动时强制全量拉一次行表（用于推送 diff），否则用行水位增量 */
+  function rowSinceFor(ctx, dirtyDomains) {
+    const dirty = !!dirtyDomains && (dirtyDomains.has('presets') || dirtyDomains.has('profiles'))
+    if (dirty) return { presetSince: 0, profileSince: 0 }
+    return {
+      presetSince: Number(ctx.presetRowSince) || 0,
+      profileSince: Number(ctx.profileRowSince) || 0
+    }
+  }
+
+  /**
+   * 拉取成功后推进行水位：取本次可见行的最大 updated_at，用 manifest 服务器时间做上限；
+   * 全量行扫描（since=0）没拉到任何行时也推进到 manifest 时间，表示「已完整核对过」。
+   */
+  async function advanceRowWatermarks(ctx, remoteData) {
+    if (!ctx?.saveRowSyncedAt || !remoteData) return
+    const cap = toTimestampMs(remoteData.manifest?.lastSyncAt) || (Date.now() + PULL_CLOCK_OVERLAP_MS)
+    const maxTs = (rows) => (rows || []).reduce((max, row) => Math.max(max, toTimestampMs(row?.updatedAt)), 0)
+    const presetRows = [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])]
+    const profileRows = [...(remoteData.collectionProfileRows || []), ...(remoteData.collectionProfileRowsTrash || [])]
+    const complete = remoteData.rowDomainsComplete === true
+    const presetTs = Math.min(Math.max(maxTs(presetRows), complete ? cap : 0), cap)
+    const profileTs = Math.min(Math.max(maxTs(profileRows), complete ? cap : 0), cap)
+    await ctx.saveRowSyncedAt({
+      preset: presetTs > 0 ? new Date(presetTs).toISOString() : '',
+      profile: profileTs > 0 ? new Date(profileTs).toISOString() : ''
+    })
+  }
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
@@ -137,9 +167,8 @@ export function createSyncOrchestrator({
       const pullStartMs = Date.now()
       const remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(since),
-        // 行级预设/背景不使用旧的全局 manifest 水位线；每次单点拉取都扫行表，
-        // 这样旧客户端曾经把 sync_manifest 推过行 updated_at 时也能自愈。
-        rowSince: 0,
+        // 有本地未推送改动时全量拉行表（用于推送 diff），否则用行级水位增量
+        ...rowSinceFor(ctx, opts.dirtyDomains),
         trackSyncStep,
         source: pullSource
       })
@@ -168,6 +197,7 @@ export function createSyncOrchestrator({
             const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
+            await advanceRowWatermarks(ctx, remoteData)
           },
           {
             startDetail: i18n.global.t('sync.step.readData.startIncremental'),
@@ -217,6 +247,7 @@ export function createSyncOrchestrator({
         if (!hasPresetRowDelta(remoteData) && !presetsDirty) {
           await ctx.saveLastSyncedAt(remoteData.manifest?.lastSyncAt || new Date().toISOString())
           await saveServerWatermark(ctx, remoteData.manifest?.lastSyncAt)
+          await advanceRowWatermarks(ctx, remoteData)
           return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteData.manifest?.lastSyncAt ? new Date(remoteData.manifest.lastSyncAt).getTime() : 0) }
         }
       }
@@ -258,6 +289,7 @@ export function createSyncOrchestrator({
             resolveProfileImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
+          await advanceRowWatermarks(ctx, remoteData)
           if (be.getImagePublicUrl) {
             const { cleanupBase64Images } = await import('@/stores/goods/goodsSync')
             await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
@@ -428,7 +460,8 @@ export function createSyncOrchestrator({
     const isRechargeDirty = !dirty || dirty.has('recharge')
     const isEventsDirty = !dirty || dirty.has('events')
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('profiles') || dirty.has('group')
-    const isPresetsDirty = !dirty || dirty.has('presets') || dirty.has('profiles')
+    // 行级表只在真正有本地未推送改动时才算 dirty；不再用 !!dirty 兜底，否则每次同步都会进入同步流程
+    const isPresetsDirty = !!dirty && (dirty.has('presets') || dirty.has('profiles'))
     const isBudgetDirty = !dirty || dirty.has('budget')
     const isBatchDraftDirty = !dirty || dirty.has('batchDrafts')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
@@ -468,9 +501,7 @@ export function createSyncOrchestrator({
     try {
       remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(localSyncTime),
-        // 行级预设/背景不走全局 since 水位：每次扫描行表增量（rowSince=0），
-        // 否则水位线一旦越过某行，那条预设/背景就永远拉不到（"数据已是最新"但缺失）。
-        rowSince: 0,
+        ...rowSinceFor(ctx, opts.dirtyDomains),
         trackSyncStep,
         source: syncSource
       })
@@ -550,6 +581,7 @@ export function createSyncOrchestrator({
         : (ctx.lastSyncedAt || new Date().toISOString())
       await ctx.saveLastSyncedAt(noChangeWatermark)
       if (remoteTime > serverSyncTime) await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
+      await advanceRowWatermarks(ctx, remoteData)
       return { action: 'no_changes', ...conflict.getLocalChangesSince(remoteTime || localSyncTime) }
     }
 
@@ -608,6 +640,7 @@ export function createSyncOrchestrator({
             resolveProfileImage: be?.getImagePublicUrl || null
           })
           pullCounts = merged.counts
+          await advanceRowWatermarks(ctx, remoteData)
           if (be.getImagePublicUrl) {
             const { cleanupBase64Images } = await import('@/stores/goods/goodsSync')
             await cleanupBase64Images(stores.goodsStore.list, stores.goodsStore.trashList, be).catch(() => {})
@@ -972,7 +1005,7 @@ export function createSyncOrchestrator({
       let remoteData = null
       try {
         const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), trackSyncStep, source: 'forcePush' })
+        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), presetSince: 0, profileSince: 0, trackSyncStep, source: 'forcePush' })
       } catch (e) {
         log.warn('forcePush: read remote failed, pushing full data', e.message)
       }

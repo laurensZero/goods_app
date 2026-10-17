@@ -21,14 +21,14 @@ import i18n from '@/locales'
  * @param {number} opts.since - incremental: only rows after this timestamp (ms)
  * @param {string} [opts.source] - 同步触发源，随 sync_pull 透传给服务端审计
  */
-export async function readRemoteData(be, { since = 0, rowSince = since, trackSyncStep = null, source = '' } = {}) {
+export async function readRemoteData(be, { since = 0, presetSince = 0, profileSince = 0, trackSyncStep = null, source = '' } = {}) {
   // Helper to wrap a task with trackSyncStep if available
   const wrapStep = (title, task, opts) => trackSyncStep ? trackSyncStep(title, task, opts) : task()
 
   const isIncremental = since > 0
   const pullData = await wrapStep(
     i18n.global.t('sync.step.readData'),
-    () => be.pullAll({ since, presetSince: rowSince, profileSince: rowSince, source }),
+    () => be.pullAll({ since, presetSince, profileSince, source }),
     {
       startDetail: i18n.global.t('sync.step.readData.start'),
       category: 'pull',
@@ -43,15 +43,17 @@ export async function readRemoteData(be, { since = 0, rowSince = since, trackSyn
   // 新版 sync_pull 已在同一 RPC 返回两个行级域；仅当服务端尚未执行
   // SQL 升级时才走旧的直查兜底，避免发布顺序导致旧后端无法同步。
   if (!pullData.rowDomainsFromRpc && typeof be.pullPresetRows === 'function') {
-    const rows = await be.pullPresetRows({ since: rowSince })
+    const rows = await be.pullPresetRows({ since: presetSince })
     pullData.presetRows = rows.active
     pullData.presetRowsTrash = rows.trash
   }
   if (!pullData.rowDomainsFromRpc && typeof be.pullCollectionProfiles === 'function') {
-    const rows = await be.pullCollectionProfiles({ since: rowSince })
+    const rows = await be.pullCollectionProfiles({ since: profileSince })
     pullData.collectionProfileRows = rows.active
     pullData.collectionProfileRowsTrash = rows.trash
   }
+  // 两个行域本次是否拉到了「完整集合」（since=0）：推送 diff 可以直接复用，避免再查一遍
+  pullData.rowDomainsComplete = Number(presetSince) <= 0 && Number(profileSince) <= 0
   return pullData
 }
 

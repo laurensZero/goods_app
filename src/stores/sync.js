@@ -44,6 +44,10 @@ import { isProfileMapFullyUploaded, serializeProfileMapForSync } from '@/utils/p
 
 const LAST_SYNC_KEY = 'sync_last_synced_at'
 const EVENT_LAST_SYNC_KEY = 'sync_event_last_synced_at'
+// 行级预设 / 收藏馆背景各自的拉取水位（对应 sync_pull 的 p_preset_since / p_profile_since）。
+// 与 goods 的水位同语义：用行自己的 updated_at 推进，与 manifest.synced_at 无关。
+const PRESET_ROWS_SYNC_KEY = 'sync_preset_rows_synced_at'
+const PROFILE_ROWS_SYNC_KEY = 'sync_collection_profiles_synced_at'
 // 服务器域水位线：最后已见 manifest synced_at（行域 LAST_SYNC_KEY 仅作增量拉取的 since）
 const LAST_SERVER_SYNC_KEY = 'sync_last_server_synced_at'
 // 同步数据格式版本：持久化的格式版本低于 SYNC_SCHEMA_VERSION 时，首次同步强制全量回填
@@ -85,6 +89,9 @@ export const useSyncStore = defineStore('sync', () => {
   // ── Sync Timestamps ──
   const lastSyncedAt = ref('')
   const eventLastSyncedAt = ref('')
+  // 行级预设 / 背景拉取水位
+  const presetRowsSyncedAt = ref('')
+  const profileRowsSyncedAt = ref('')
   // 服务器域水位线：最后已见 manifest synced_at，与行域 lastSyncedAt（推送方客户端时间域）分开，
   // 供 remote-ahead / 冲突分支判定，消除跨时钟域比较造成的误报冲突
   const lastServerSyncedAt = ref('')
@@ -147,6 +154,22 @@ export const useSyncStore = defineStore('sync', () => {
     await writeSyncKey(EVENT_LAST_SYNC_KEY, timestamp)
   }
 
+  /** 行级预设/背景拉取成功后推进；只进不退，时间戳来自远端行的 updated_at */
+  async function saveRowSyncedAt({ preset = '', profile = '' } = {}) {
+    let changed = false
+    if (preset && preset > (presetRowsSyncedAt.value || '')) {
+      presetRowsSyncedAt.value = preset
+      await writeSyncKey(PRESET_ROWS_SYNC_KEY, preset)
+      changed = true
+    }
+    if (profile && profile > (profileRowsSyncedAt.value || '')) {
+      profileRowsSyncedAt.value = profile
+      await writeSyncKey(PROFILE_ROWS_SYNC_KEY, profile)
+      changed = true
+    }
+    return changed
+  }
+
   async function saveLastServerSyncedAt(timestamp) {
     lastServerSyncedAt.value = timestamp
     await writeSyncKey(LAST_SERVER_SYNC_KEY, timestamp)
@@ -178,9 +201,11 @@ export const useSyncStore = defineStore('sync', () => {
     if (switched) {
       console.warn('[sync] account switched, clearing sync watermarks')
       lastSyncedAt.value = ''; eventLastSyncedAt.value = ''; lastServerSyncedAt.value = ''; pendingPush.value = null
+      presetRowsSyncedAt.value = ''; profileRowsSyncedAt.value = ''
       await Promise.all([
         writeSyncKey(LAST_SYNC_KEY, ''), writeSyncKey(EVENT_LAST_SYNC_KEY, ''),
-        writeSyncKey(LAST_SERVER_SYNC_KEY, ''), writeSyncKey(PENDING_PUSH_KEY, '')
+        writeSyncKey(LAST_SERVER_SYNC_KEY, ''), writeSyncKey(PENDING_PUSH_KEY, ''),
+        writeSyncKey(PRESET_ROWS_SYNC_KEY, ''), writeSyncKey(PROFILE_ROWS_SYNC_KEY, '')
       ])
     }
     if (prevUid !== uid) await writeSyncKey(LAST_SYNC_USER_KEY, uid)
@@ -449,6 +474,9 @@ export const useSyncStore = defineStore('sync', () => {
       backend: activeBackend,
       deviceId: deviceId.value,
       lastSyncedAt: lastSyncedAt.value, lastServerSyncedAt: lastServerSyncedAt.value, conflictData: conflictData.value,
+      // 行级预设/背景的独立水位（0 = 首次/需要全量行扫描）
+      presetRowSince: presetRowsSyncedAt.value ? new Date(presetRowsSyncedAt.value).getTime() : 0,
+      profileRowSince: profileRowsSyncedAt.value ? new Date(profileRowsSyncedAt.value).getTime() : 0,
       // 入口预读的 manifest：orchestrator 复用它做维护模式检查，消掉同轮同步的重复请求
       preReadManifest,
       // reconcile 删除保护：脏标记中的条目是未推送的本地改动，拉取合并时不得物理删除；
@@ -456,6 +484,7 @@ export const useSyncStore = defineStore('sync', () => {
       getDirtyGoodsIds: () => dirtyGoodsIds,
       saveLastSyncedAt: guarded(saveLastSyncedAt), saveEventLastSyncedAt: guarded(saveEventLastSyncedAt),
       saveLastServerSyncedAt: guarded(saveLastServerSyncedAt),
+      saveRowSyncedAt: guarded(saveRowSyncedAt),
       pendingPush: pendingPush.value, savePendingPush: guarded(savePendingPush), clearPendingPush: guarded(clearPendingPush),
       saveImageCloudId: async () => {},
       saveMaintenanceMode: guarded((mode) => { maintenanceMode.value = mode }),
@@ -475,17 +504,21 @@ export const useSyncStore = defineStore('sync', () => {
     const [
       lastSyncedAtVal, eventLastSyncedAtVal, deviceIdVal,
       syncBackendVal, supabaseUrlVal, supabaseAnonKeyVal, syncPausedVal,
-      pendingPushVal, lastServerSyncedAtVal, schemaVersionVal
+      pendingPushVal, lastServerSyncedAtVal, schemaVersionVal,
+      presetRowsSyncedAtVal, profileRowsSyncedAtVal
     ] = await Promise.all([
       readSyncKey(LAST_SYNC_KEY),
       readSyncKey(EVENT_LAST_SYNC_KEY), readOrCreateDeviceId(DEVICE_ID_KEY, generateDeviceId),
       readSyncKey(SYNC_BACKEND_KEY), readSyncKey(SUPABASE_URL_KEY), readSyncKey(SUPABASE_ANON_KEY_KEY),
       readSyncKey(SYNC_PAUSED_KEY),
-      readSyncKey(PENDING_PUSH_KEY), readSyncKey(LAST_SERVER_SYNC_KEY), readSyncKey(SYNC_SCHEMA_VERSION_KEY)
+      readSyncKey(PENDING_PUSH_KEY), readSyncKey(LAST_SERVER_SYNC_KEY), readSyncKey(SYNC_SCHEMA_VERSION_KEY),
+      readSyncKey(PRESET_ROWS_SYNC_KEY), readSyncKey(PROFILE_ROWS_SYNC_KEY)
     ])
 
     lastSyncedAt.value = lastSyncedAtVal || ''
     eventLastSyncedAt.value = eventLastSyncedAtVal || ''
+    presetRowsSyncedAt.value = presetRowsSyncedAtVal || ''
+    profileRowsSyncedAt.value = profileRowsSyncedAtVal || ''
     lastServerSyncedAt.value = lastServerSyncedAtVal || ''
     // 持久化版本缺失（新装或从无门控的旧版本升级）按 0 处理：一律 < 当前版本，
     // 首次同步做一次全量回填，把可能被旧版本丢弃的字段从云端补回
