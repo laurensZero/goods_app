@@ -416,4 +416,34 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     )
     expect(writeRemoteData).toHaveBeenCalled()
   })
+
+  it('远端只领先时钟容差（旧版水位线残差）且设备不同时，也自愈对齐而不弹冲突', async () => {
+    // 旧版 sync_push 把客户端时间存成水位线，manifest 只领先几百毫秒~几秒；
+    // 重装后 device_id 不再匹配，靠容差判定为残差 → 对齐水位线继续推送
+    const remoteTwoSecondsAhead = '2026-07-15T00:00:02.000Z'
+    stubRemote({ lastSyncAt: remoteTwoSecondsAhead, deviceId: 'dev-b' })
+    const stores = makeStores()
+    const conflict = makeConflict({ updatedGoods: 1, hasChanges: true })
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: remoteTwoSecondsAhead, deviceId: 'dev-b' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: remoteTwoSecondsAhead })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ lastServerSyncedAt: REMOTE_SYNC_TIME })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(),
+      dirtyGoodsIds: new Set(),
+      source: 'manual'
+    })
+
+    expect(result.action).toBe('pushed')
+    expect(result.action).not.toBe('conflict')
+    expect(writeRemoteData).toHaveBeenCalled()
+    expect(ctx.saveLastServerSyncedAt).toHaveBeenCalled()
+  })
 })

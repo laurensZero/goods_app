@@ -20,6 +20,14 @@ import i18n from '@/locales'
 
 const log = createLogger('sync:orchestrator')
 
+// manifest 时间领先本地服务器水位线的容差（服务器/客户端时钟差 + 请求延迟量级）。
+// 旧版 sync_push 把「客户端 payload 时间」当作 RPC 返回值，客户端却把它存成 lastServerSyncedAt，
+// 而 manifest.synced_at 被触发器强制为服务器 now()，于是本机推送成功后 manifest 恒领先
+// 本地水位线几百毫秒~几秒。旧版本留下的这种滞后水位线（如重装后 device_id 变化，无法用
+// 「最后写入者是本机」自愈）只差这个量级，应直接对齐而不是弹冲突；真正的多设备冲突
+// 时间差通常远大于该值。
+const MANIFEST_AHEAD_TOLERANCE_MS = 5_000
+
 // ── crash-safe push：pending-push 标记 ──
 // 写远端前持久化标记（ctx 内存 + 存储），推送完整落盘（本地水位线已保存）后清除
 
@@ -429,18 +437,23 @@ export function createSyncOrchestrator({
     const remoteSyncedMs = toTimestampMs(existingManifest?.synced_at)
     const localWatermarkMs = getServerSyncTimeMs(ctx)
     if (remoteSyncedMs > localWatermarkMs) {
-      // 例外：远端清单的最后写入者就是本机（existingManifest 是 raw snake_case 行），
+      // 例外 1：远端清单的最后写入者就是本机（existingManifest 是 raw snake_case 行），
       // 领先只是服务器时间/网络延迟差，且可能是旧版本未保存服务器 synced_at 留下的滞后水位线。
-      // 对齐服务器水位线后继续快推，不必降级到 fullSync，更不能弹冲突。
+      // 例外 2：领先量在时钟容差内（旧版水位线残差，重装后 device_id 变化也能自愈）。
+      // 两者都对齐服务器水位线后继续快推，不必降级到 fullSync，更不能弹冲突。
       const remoteManifestDeviceId = String(existingManifest?.device_id || '')
       const sameDeviceManifest = remoteManifestDeviceId !== ''
         && currentDeviceId !== ''
         && remoteManifestDeviceId === String(currentDeviceId)
-      if (sameDeviceManifest) {
+      const aheadMs = remoteSyncedMs - localWatermarkMs
+      const timeSkewResidue = localWatermarkMs > 0 && aheadMs <= MANIFEST_AHEAD_TOLERANCE_MS
+      if (sameDeviceManifest || timeSkewResidue) {
         log.info('sync:quick-push:self-manifest-ahead', {
           remoteSyncedAt: existingManifest.synced_at,
           localWatermarkMs,
-          deviceId: currentDeviceId
+          aheadMs,
+          deviceId: currentDeviceId,
+          sameDeviceManifest
         })
         await saveServerWatermark(ctx, existingManifest.synced_at)
       } else {
@@ -613,16 +626,22 @@ export function createSyncOrchestrator({
     // 远端清单的最后写入者就是本机时，manifest 时间领先本地服务器水位线只是服务器时间/
     // 网络延迟差，不是「其他设备更新」：不弹冲突、不 pull，直接把服务器水位线对齐本机
     // 上一次推送的清单时间（老版本客户端留下滞后水位线的自愈路径），继续走 push。
+    // 同理，领先量在 MANIFEST_AHEAD_TOLERANCE_MS 内也视为旧版水位线残差（重装后
+    // device_id 变化时无法用 deviceId 判定），一次性对齐后继续 push，避免卡在冲突循环。
     const sameDeviceManifest = isOwnManifestDevice(remoteManifest, ctx)
-    if (remoteTime > serverSyncTime && sameDeviceManifest) {
+    const manifestAheadMs = remoteTime - serverSyncTime
+    const timeSkewResidue = manifestAheadMs > 0 && manifestAheadMs <= MANIFEST_AHEAD_TOLERANCE_MS
+    if (manifestAheadMs > 0 && (sameDeviceManifest || timeSkewResidue)) {
       log.info('sync:self-manifest-ahead', {
         remoteTime: remoteManifest.lastSyncAt,
         serverSyncTime: ctx.lastServerSyncedAt,
-        deviceId: ctx.deviceId
+        aheadMs: manifestAheadMs,
+        deviceId: ctx.deviceId,
+        sameDeviceManifest
       })
       await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
     }
-    const remoteDataAhead = (remoteTime > serverSyncTime && !sameDeviceManifest)
+    const remoteDataAhead = (remoteTime > serverSyncTime && !sameDeviceManifest && !timeSkewResidue)
       || (remotePresetRowsChanged && !isPresetsDirty)
     if (remoteDataAhead) {
       if (!remoteManifest) {
