@@ -60,6 +60,11 @@ const PROBE_TIMEOUT_MS = 1500
 const BACKUP_PROBE_TIMEOUT_MS = 3000
 // 数据面请求超时（storage 上传除外）
 const DATA_FETCH_TIMEOUT_MS = 12_000
+// 全量同步 RPC 单独放宽：sync_push 要上传整包 JSON（大库可达数 MB，弱网上传本身就超过 12s），
+// sync_pull 全量拉取同理。沿用 12s 会在请求上传途中被 AbortController 掐断，
+// 表现为「推送数据失败: AbortError: signal is aborted without reason」。
+const SYNC_PUSH_TIMEOUT_MS = 120_000
+const SYNC_PULL_TIMEOUT_MS = 60_000
 // 探测节流：同步/启动连续触发时不反复打两端
 const PROBE_THROTTLE_MS = 10_000
 let _dataEndpoint = PRIMARY_ENDPOINT
@@ -268,6 +273,13 @@ async function fetchWithTimeout(input, init = {}, timeoutMs = PROBE_TIMEOUT_MS) 
   }
 }
 
+/** 按请求路径选择数据面超时：同步 RPC（整包上传/全量拉取）远慢于普通读写 */
+function dataFetchTimeoutFor(rawUrl = '') {
+  if (rawUrl.includes('/rpc/sync_push')) return SYNC_PUSH_TIMEOUT_MS
+  if (rawUrl.includes('/rpc/sync_pull')) return SYNC_PULL_TIMEOUT_MS
+  return DATA_FETCH_TIMEOUT_MS
+}
+
 function buildClient(url, anonKey) {
   return createClient(url, anonKey, {
     auth: {
@@ -278,12 +290,12 @@ function buildClient(url, anonKey) {
     },
     global: {
       headers: deviceHeaders(),
-      // 数据面 REST/auth：12s 硬超时，避免国内连主站时请求无限挂起；
-      // storage 上传/下载走原生 fetch 不截断。
+      // 数据面 REST/auth：默认 12s 硬超时，避免国内连主站时请求无限挂起；
+      // 同步 RPC 走更长超时（整包上传可能超过 12s）；storage 上传/下载走原生 fetch 不截断。
       fetch: (input, init) => {
         const raw = typeof input === 'string' ? input : input?.url || ''
         if (raw.includes('/storage/v1/')) return fetch(input, init)
-        return fetchWithTimeout(input, init, DATA_FETCH_TIMEOUT_MS)
+        return fetchWithTimeout(input, init, dataFetchTimeoutFor(raw))
       }
     }
   })

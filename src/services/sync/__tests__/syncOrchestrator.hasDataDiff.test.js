@@ -383,4 +383,37 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     expect(stores.collectionProfileStore.applyRemoteProfiles).not.toHaveBeenCalled()
     expect(writeRemoteData).not.toHaveBeenCalled()
   })
+
+  it('冲突里选择「保留本地」时必须全量读远端，否则会把旧行当 local-only 整库重推', async () => {
+    readRemoteData.mockResolvedValue({
+      manifest: null,
+      goods: [{ id: 'g1', name: 'remote-copy', updatedAt: Date.parse('2026-07-25T00:00:00.000Z'), images: [] }],
+      trash: [], events: [], eventsTrash: [], recharge: [], rechargeTrash: [],
+      groups: [], groupsTrash: [], groupItems: [], groupItemsTrash: [],
+      batchDrafts: [], batchDraftsTrash: [], presetRows: [], presetRowsTrash: [],
+      collectionProfileRows: [], collectionProfileRowsTrash: [],
+      isIncremental: false
+    })
+    const stores = makeStores()
+    const conflict = makeConflict({ updatedGoods: 1, hasChanges: true })
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: REMOTE_SYNC_TIME })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ conflictData: { remoteTime: '2026-07-25T00:00:00.000Z' } })
+
+    const result = await orchestrator.resolveConflict(ctx, false)
+
+    expect(result.action).toBe('pushed')
+    expect(readRemoteData).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ since: 0 })
+    )
+    expect(writeRemoteData).toHaveBeenCalled()
+  })
 })

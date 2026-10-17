@@ -1042,11 +1042,15 @@ export function createSyncOrchestrator({
     log.info('force-push:start')
 
     try {
-      // Read remote data so doPush can send incremental diffs; fall back to full push on failure
+      // 「保留本地」需要完整的远端视图才能正确决定哪些行要 bump、哪些行真的需要重推：
+      // 用增量视图（since=lastSyncedAt）时，窗口外的远端旧行既不会参与 bump（其他设备会
+      // 用远端副本反向覆盖用户的冲突决策），又会被 computeBucketDiff 当成 local-only
+      // 全量重推（大库会把整库塞进一次 sync_push，弱网/8s statement timeout 下必挂）。
+      // 因此这里改为全量读远端（sync_pull since=null，读请求比写请求便宜），
+      // 让 doPush 只提交真正的差异行，冲突解决路径的载荷从「整库」降到「实际冲突行」。
       let remoteData = null
       try {
-        const localSyncTime = ctx.lastSyncedAt ? new Date(ctx.lastSyncedAt).getTime() : 0
-        remoteData = await readRemoteData(be, { since: sinceWithOverlap(localSyncTime), presetSince: 0, profileSince: 0, trackSyncStep, source: 'forcePush' })
+        remoteData = await readRemoteData(be, { since: 0, presetSince: 0, profileSince: 0, trackSyncStep, source: 'forcePush' })
       } catch (e) {
         log.warn('forcePush: read remote failed, pushing full data', e.message)
       }

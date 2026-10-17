@@ -527,6 +527,10 @@
         <p class="conflict-desc">{{ t('sync.conflictDesc') }}</p>
         <div class="conflict-info">
           <div class="conflict-row">
+            <span class="conflict-label">{{ t('sync.sourceDevice') }}</span>
+            <span class="conflict-value conflict-value--mono">{{ syncConflictData.remoteDevice || '-' }}</span>
+          </div>
+          <div class="conflict-row">
             <span class="conflict-label">{{ t('sync.remoteTime') }}</span>
             <span class="conflict-value">{{ formatTimeWithSeconds(syncConflictData.remoteTime) }}</span>
           </div>
@@ -1020,6 +1024,7 @@ async function handleSync() {
     if (result.action === 'conflict') {
       syncConflictData.value = {
         remoteTime: syncStore.conflictData?.remoteTime,
+        remoteDevice: syncStore.conflictData?.remoteDevice,
         localTime: syncStore.conflictData?.localTime,
         localModifiedTime: syncStore.conflictData?.localModifiedTime
       }
@@ -1679,6 +1684,14 @@ html.theme-dark .realtime-status--disconnected { color: #f08d8d; }
 }
 .realtime-reconnect-btn:active {
   transform: scale(var(--press-scale-card, 0.98));
+}
+
+/* 冲突弹窗的来源设备 id：等宽并允许换行，方便与设置页「设备 ID」对照 */
+.conflict-value--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  word-break: break-all;
+  text-align: right;
 }
 </style>
 
