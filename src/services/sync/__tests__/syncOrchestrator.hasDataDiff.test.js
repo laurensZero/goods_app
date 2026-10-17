@@ -446,4 +446,40 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
     expect(writeRemoteData).toHaveBeenCalled()
     expect(ctx.saveLastServerSyncedAt).toHaveBeenCalled()
   })
+
+  it('只由行级预设新行触发的「远端领先」+ 本地改动时，走推送而不是冲突', async () => {
+    // 回归：sync_push_rows 的 updated_at 晚于 manifest，客户端行水位曾被 manifest 钳住，
+    // 导致刚推的预设行每次同步都被当成远端新行；叠加本地改动就误报冲突（单设备死循环）。
+    const remotePresetRow = { domain: 'category', id: 'cat-1', payload: { name: '分类' }, sortOrder: 0, deleted: 0 }
+    stubRemote(
+      { lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' },
+      { presetRows: [remotePresetRow] }
+    )
+    const stores = makeStores()
+    const conflict = makeConflict({ updatedGoods: 1, hasChanges: true })
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b' }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: REMOTE_SYNC_TIME })
+      },
+      stores,
+      conflict
+    )
+    // 清单时间与服务器水位线持平：只有行级预设有新行
+    const ctx = makeCtx({ lastServerSyncedAt: REMOTE_SYNC_TIME })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(['goods']),
+      dirtyGoodsIds: null,
+      source: 'manual'
+    })
+
+    expect(result.action).toBe('pushed')
+    expect(result.action).not.toBe('conflict')
+    expect(writeRemoteData).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ shouldWritePresets: true })
+    )
+  })
 })

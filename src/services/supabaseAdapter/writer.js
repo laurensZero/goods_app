@@ -219,6 +219,24 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
     const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
 
+    // 行级预设/背景先写，数据+manifest 后写：sync_push_rows 的服务端 updated_at 取 now()，
+    // 如果放在 manifest 之后，这些行的 updated_at 会晚于 manifest.synced_at，客户端行水位
+    // 被 manifest 上限钳住永远追不上 → 下次同步把刚推上去的行当成「远端新行」，叠加本地
+    // 改动就误报冲突（单设备也会死循环）。先写行表可保证 manifest 时间晚于行 updated_at。
+    if (presetRows.length) {
+      const { error: presetRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
+        p_preset_rows: presetRows,
+        p_collection_profiles: collectionProfileRows
+      }))
+      if (presetRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: presetRowsError.message }))
+    } else if (collectionProfileRows.length) {
+      const { error: profileRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
+        p_preset_rows: [],
+        p_collection_profiles: collectionProfileRows
+      }))
+      if (profileRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: profileRowsError.message }))
+    }
+
     const { data, error } = await withRetry(() => db.rpc('sync_push', {
       payload: {
         goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
@@ -252,20 +270,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
 
     // pushAll 是整包数据+清单的 RPC，与单独写 manifest 的失败要区分文案，否则数据行失败被误报成清单问题
     if (error) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: error.message }))
-
-    if (presetRows.length) {
-      const { error: presetRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
-        p_preset_rows: presetRows,
-        p_collection_profiles: collectionProfileRows
-      }))
-      if (presetRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: presetRowsError.message }))
-    } else if (collectionProfileRows.length) {
-      const { error: profileRowsError } = await withRetry(() => db.rpc('sync_push_rows', {
-        p_preset_rows: [],
-        p_collection_profiles: collectionProfileRows
-      }))
-      if (profileRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: profileRowsError.message }))
-    }
 
     // 新版 sync_push RPC 返回 { synced_at: <服务器时间> } 作为本地水位线，
     // 消除设备时钟偏移；旧版 RPC 返回 void（data 为 null）→ 调用方回退客户端时间

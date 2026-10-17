@@ -146,8 +146,13 @@ export function createSyncOrchestrator({
   }
 
   /**
-   * 拉取成功后推进行水位：取本次可见行的最大 updated_at，用 manifest 服务器时间做上限；
-   * 全量行扫描（since=0）没拉到任何行时也推进到 manifest 时间，表示「已完整核对过」。
+   * 拉取成功后推进行水位：取本次可见行的最大 updated_at；全量行扫描（since=0）没拉到
+   * 任何行时推进到 manifest 时间，表示「已完整核对过」。
+   *
+   * 行水位不能再用 manifest.synced_at 做上限：sync_push_rows（行级预设/背景）是独立 RPC，
+   * 它的 now() 事务时间晚于同一轮推送里 sync_push 写下的 manifest.synced_at。若把水位钳在
+   * manifest 时间，刚推上去的预设行 updated_at 永远大于水位 → 每次同步都被当成「远端新行」，
+   * 叠加本地未推送改动就误报冲突；且 pull 时水位同样被钳住，冲突永远解不开（单设备死循环）。
    */
   async function advanceRowWatermarks(ctx, remoteData) {
     if (!ctx?.saveRowSyncedAt || !remoteData) return
@@ -156,8 +161,10 @@ export function createSyncOrchestrator({
     const presetRows = [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])]
     const profileRows = [...(remoteData.collectionProfileRows || []), ...(remoteData.collectionProfileRowsTrash || [])]
     const complete = remoteData.rowDomainsComplete === true
-    const presetTs = Math.min(Math.max(maxTs(presetRows), complete ? cap : 0), cap)
-    const profileTs = Math.min(Math.max(maxTs(profileRows), complete ? cap : 0), cap)
+    const presetMax = maxTs(presetRows)
+    const profileMax = maxTs(profileRows)
+    const presetTs = presetMax > 0 ? presetMax : (complete ? cap : 0)
+    const profileTs = profileMax > 0 ? profileMax : (complete ? cap : 0)
     await ctx.saveRowSyncedAt({
       preset: presetTs > 0 ? new Date(presetTs).toISOString() : '',
       profile: profileTs > 0 ? new Date(profileTs).toISOString() : ''
@@ -641,8 +648,13 @@ export function createSyncOrchestrator({
       })
       await saveServerWatermark(ctx, remoteManifest.lastSyncAt)
     }
+    // 行级预设/背景有远端新行时：本地无待推送改动才走 pull 合并；本地有改动时不要弹冲突
+    // —— 行级预设行是独立 RPC 写入的（updated_at 晚于 manifest），仅由它触发的"远端领先"
+    // 并不代表数据冲突。直接走 push 把本地改动推上去，预设行留给下一次同步（本地已无改动）
+    // 走 pull 合并，避免单设备也被行级预设的增量反复卡死在冲突弹窗。
+    const presetRowsAhead = remotePresetRowsChanged && !isPresetsDirty
     const remoteDataAhead = (remoteTime > serverSyncTime && !sameDeviceManifest && !timeSkewResidue)
-      || (remotePresetRowsChanged && !isPresetsDirty)
+      || (presetRowsAhead && !localChanges.hasChanges)
     if (remoteDataAhead) {
       if (!remoteManifest) {
         // First sync — push local data
