@@ -72,7 +72,9 @@ function render() {
     canvas.height = pixelSize
   }
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  // 不带 willReadFrequently：保持 GPU 加速。吸色取样走 QuickImageEditorDialog 里的
+  // 探针 canvas，不要为了 1×1 读像素把整块预览拖回 CPU 软渲染（会拖卡滑杆实时预览）。
+  const ctx = canvas.getContext('2d')
   if (!ctx) return
   renderFrameComposition(ctx, {
     width: pixelSize,

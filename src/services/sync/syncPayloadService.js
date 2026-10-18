@@ -26,7 +26,8 @@ import {
   RECHARGE_PAYLOAD_VERSION,
   EVENT_PAYLOAD_VERSION,
   EVENT_DATA_VERSION,
-  MANIFEST_VERSION
+  MANIFEST_VERSION,
+  BATCH_DRAFT_IMAGE_PREFIX
 } from '@/constants/syncConstants'
 
 export function createSyncPayloadService({
@@ -124,7 +125,17 @@ export function createSyncPayloadService({
     }
   }
 
-  async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources = null) {
+  /**
+   * @param {any} item
+   * @param {Record<string, any>|null} imageFiles
+   * @param {any} imageStats
+   * @param {Set<string>} referencedImageFiles
+   * @param {Map<string, any>|null} existingImageFiles
+   * @param {Map<string, any>|null} [editSources]
+   * @param {{ imageFilePrefix?: string }} [options] 文件名前缀覆盖：单草稿走 batch-draft-image__
+   */
+  async function prepareImagesForSync(item, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources = null, options = {}) {
+    const imageFilePrefix = options?.imageFilePrefix || ''
     // Include legacy single-image fields so old records can still upload local images.
     const normalizedImages = normalizeGoodsImageList(item?.images, item?.coverImage || item?.image || '')
     if (normalizedImages.length === 0) return []
@@ -211,7 +222,7 @@ export function createSyncPayloadService({
         imageDataUrl = compressedDataUrl
       }
 
-      const cloudFileName = buildImageFilename(item, imageEntry, parsedData.mimeType)
+      const cloudFileName = buildImageFilename(item, imageEntry, parsedData.mimeType, imageFilePrefix || undefined)
       referencedImageFiles.add(cloudFileName)
 
       if (existingImageFiles?.has(cloudFileName)) {
@@ -237,7 +248,7 @@ export function createSyncPayloadService({
     // 一张都没套过框时直接返回，不走调度器
     if (!preparedImages.some((entry) => entry?.edit)) return preparedImages
     return await processWithConcurrency(preparedImages, async (entry) => (
-      await prepareImageEditSourceForSync(item, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources)
+      await prepareImageEditSourceForSync(item, entry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources, options)
     ), 4)
   }
 
@@ -248,7 +259,7 @@ export function createSyncPayloadService({
    * 这里按 imageId 取出来读盘上传，回填 editSourceCloudFileName / editSourceUri。
    * 本机没有底图（换设备刚拉下来的行）时只维持云端引用，不做下载——下载发生在用户真的点二次编辑时。
    */
-  async function prepareImageEditSourceForSync(item, imageEntry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources) {
+  async function prepareImageEditSourceForSync(item, imageEntry, imageFiles, imageStats, referencedImageFiles, existingImageFiles, editSources, options = {}) {
     const recipe = imageEntry?.edit || null
     if (!recipe) return imageEntry
 
@@ -297,7 +308,7 @@ export function createSyncPayloadService({
     // 压不下去就不上传：本机照样能二次编辑，别的设备退化成「快速编辑」，但同步不至于失败
     if (parsedData.fileSize > imageFileSizeLimit) return keepExisting()
 
-    const cloudFileName = buildImageEditSourceFilename(item, imageEntry, parsedData.mimeType, local.sourcePath)
+    const cloudFileName = buildImageEditSourceFilename(item, imageEntry, parsedData.mimeType, local.sourcePath, options?.imageFilePrefix || undefined)
     referencedImageFiles.add(cloudFileName)
 
     if (existingImageFiles?.has(cloudFileName)) {
@@ -916,6 +927,10 @@ export function createSyncPayloadService({
    * 单个草稿：复用商品图片上传逻辑处理 form.images（本地→云端、登记引用）。
    * 单草稿图片不能走 prepareDraftItemForSync（那是「一项一张图」的队列模型），
    * 这里直接交给 prepareImagesForSync，保证一张表单的多张图都能上云。
+   *
+   * 文件名前缀用 batch-draft-image__：单草稿和批量草稿共用 batch_drafts 表，
+   * 都属于「草稿图」，不该占用商品图前缀（goods-image__）——否则保存成商品前就
+   * 在 storage 里留下 goods-image__collection__… 这类看起来像商品图的孤儿。
    */
   async function prepareSingleDraftFormForSync(draft, form, imageFiles, imageStats, referencedImageFiles, existingImageFiles) {
     if (!form || typeof form !== 'object' || Array.isArray(form)) return {}
@@ -925,7 +940,9 @@ export function createSyncPayloadService({
     try {
       preparedImages = await prepareImagesForSync(
         { id: draft.slot, name: String(form.name || ''), images },
-        imageFiles, imageStats, referencedImageFiles, existingImageFiles
+        imageFiles, imageStats, referencedImageFiles, existingImageFiles,
+        null,
+        { imageFilePrefix: BATCH_DRAFT_IMAGE_PREFIX }
       )
     } catch (e) {
       // 图片读不到/压缩失败不应让整次草稿同步失败：降级为原样（回捞侧再处理）

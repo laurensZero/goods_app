@@ -547,15 +547,22 @@ function resolveImageExtension(mimeType, fallbackName = '') {
   return nameExt || 'jpg'
 }
 
-export function buildImageFilename(item, imageEntry, mimeType) {
+/**
+ * @param {any} item
+ * @param {any} imageEntry
+ * @param {string} mimeType
+ * @param {string} [filePrefix] 前缀覆盖：单草稿图片用 batch-draft-image__（见 prepareSingleDraftFormForSync）
+ */
+export function buildImageFilename(item, imageEntry, mimeType, filePrefix = IMAGE_FILE_PREFIX) {
   const existingCloudFileName = String(imageEntry?.cloudFileName || parseCloudImageUri(imageEntry?.uri) || '').trim()
   if (existingCloudFileName) return existingCloudFileName
 
+  const prefix = filePrefix || IMAGE_FILE_PREFIX
   const itemId = sanitizeFilenamePart(item?.id)
   const imageId = sanitizeFilenamePart(imageEntry?.id)
   const updatedAt = String(getItemTimestamp(item) || 0)
   const extension = resolveImageExtension(mimeType, imageEntry?.uri || imageEntry?.cloudFileName || '')
-  return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}`
+  return `${prefix}${itemId}__${imageId}__${updatedAt}.${extension}`
 }
 
 /**
@@ -563,17 +570,18 @@ export function buildImageFilename(item, imageEntry, mimeType) {
  * 第三段必须与成品图**不同**：孤儿回收的归属校验按 `__` 切段取前缀匹配，
  * 若用同一个 imageId，底图会被判成成品图的另一个版本、互相牵连（见 docs/frame-reedit-plan.md）。
  */
-export function buildImageEditSourceFilename(item, imageEntry, mimeType, fallbackName = '') {
+export function buildImageEditSourceFilename(item, imageEntry, mimeType, fallbackName = '', filePrefix = IMAGE_FILE_PREFIX) {
   const existingCloudFileName = String(
     imageEntry?.editSourceCloudFileName || parseCloudImageUri(imageEntry?.editSourceUri) || ''
   ).trim()
   if (existingCloudFileName) return existingCloudFileName
 
+  const prefix = filePrefix || IMAGE_FILE_PREFIX
   const itemId = sanitizeFilenamePart(item?.id)
   const imageId = `${sanitizeFilenamePart(imageEntry?.id)}s`
   const updatedAt = String(getItemTimestamp(item) || 0)
   const extension = resolveImageExtension(mimeType, fallbackName)
-  return `${IMAGE_FILE_PREFIX}${itemId}__${imageId}__${updatedAt}.${extension}`
+  return `${prefix}${itemId}__${imageId}__${updatedAt}.${extension}`
 }
 
 export function buildEventCoverFilename(event, mimeType) {

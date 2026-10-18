@@ -503,6 +503,25 @@ describe('collectReferencedImageState', () => {
   })
 })
 
+describe('buildImageFilename 前缀覆盖', () => {
+  it('默认商品图前缀', () => {
+    const name = buildImageFilename({ id: 'g1', updatedAt: 1700000000000 }, { id: 'img_1' }, 'image/jpeg')
+    expect(name).toBe('goods-image__g1__img_1__1700000000000.jpg')
+  })
+
+  it('单草稿图可用 batch-draft-image__ 前缀（实体 id 仍是草稿槽位）', () => {
+    const name = buildImageFilename({ id: 'collection' }, { id: 'img_1' }, 'image/jpeg', 'batch-draft-image__')
+    expect(name).toBe('batch-draft-image__collection__img_1__0.jpg')
+  })
+
+  it('底图前缀覆盖同样生效（第三段保留 s 后缀）', () => {
+    const name = buildImageEditSourceFilename(
+      { id: 'collection' }, { id: 'img_1' }, 'image/png', '', 'batch-draft-image__'
+    )
+    expect(name).toBe('batch-draft-image__collection__img_1s__0.png')
+  })
+})
+
 describe('buildImageEditSourceFilename', () => {
   const item = { id: 'g1', updatedAt: 1700000000000 }
   const imageEntry = { id: 'img_1' }

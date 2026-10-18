@@ -1079,11 +1079,29 @@ function eventToPickPixel(event) {
 }
 
 /** 从合成结果里取色：点外框就取外框的颜色，点主体就取主体的颜色。 */
+// 1×1 探针 canvas（自带 willReadFrequently）：
+//   - 主预览画布保持 GPU 加速，读像素在这里只做一次 1×1 拷贝 + 读取，开销可忽略；
+//   - 若直接 getImageData 主画布，GPU→CPU 回读会卡住 pointermove，还会诱导浏览器关掉它的加速。
+let pickProbeCtx = null
+
+function getPickProbeCtx() {
+  if (!pickProbeCtx) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 1
+    canvas.height = 1
+    pickProbeCtx = canvas.getContext('2d', { willReadFrequently: true })
+  }
+  return pickProbeCtx
+}
+
 function sampleImagePixelAt(canvas, x, y) {
   if (!canvas) return null
+  const probe = getPickProbeCtx()
+  if (!probe) return null
   try {
-    const ctx = canvas.getContext('2d', { willReadFrequently: true })
-    return ctx.getImageData(x, y, 1, 1).data
+    probe.clearRect(0, 0, 1, 1)
+    probe.drawImage(canvas, x, y, 1, 1, 0, 0, 1, 1)
+    return probe.getImageData(0, 0, 1, 1).data
   } catch {
     return null
   }
@@ -1110,9 +1128,12 @@ function renderPickMagnifier(pixel) {
   const ctx = canvas.getContext('2d')
   ctx.save()
   ctx.clearRect(0, 0, PICK_SIZE, PICK_SIZE)
-  ctx.translate(PICK_SIZE / 2, PICK_SIZE / 2)
-  ctx.scale(PICK_ZOOM, PICK_ZOOM)
-  ctx.drawImage(source, -pixel.x, -pixel.y)
+  // 只拷贝可视区域（PICK_SIZE/PICK_ZOOM 像素见方），不要整块源画布拖进 drawImage
+  const visible = PICK_SIZE / PICK_ZOOM
+  const sx = pixel.x - visible / 2
+  const sy = pixel.y - visible / 2
+  ctx.imageSmoothingEnabled = false
+  ctx.drawImage(source, sx, sy, visible, visible, 0, 0, PICK_SIZE, PICK_SIZE)
   ctx.restore()
 
   const center = PICK_SIZE / 2
