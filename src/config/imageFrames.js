@@ -20,6 +20,7 @@
  *   drawLabels(api, labels) 可选，文字槽位
  */
 import { collageFrame, waveFrame } from '@/config/frames/collage'
+import { comicFrame } from '@/config/frames/comic'
 import { waFrame, vintageFrame } from '@/config/frames/heritage'
 import { blossomFrame, moonlitFrame, mountainFrame, sweetsFrame } from '@/config/frames/mood'
 import { minimalFrame, photocardFrame } from '@/config/frames/simple'
@@ -33,7 +34,8 @@ export const FRAME_CATEGORIES = [
   { id: 'texture', nameKey: 'imageEditor.frameCategoryTexture' },
   { id: 'classic', nameKey: 'imageEditor.frameCategoryClassic' },
   { id: 'oriental', nameKey: 'imageEditor.frameCategoryOriental' },
-  { id: 'mood', nameKey: 'imageEditor.frameCategoryMood' }
+  { id: 'mood', nameKey: 'imageEditor.frameCategoryMood' },
+  { id: 'comic', nameKey: 'imageEditor.frameCategoryComic' }
 ]
 
 /** 展示顺序即分类顺序，分类内按设计稿的轻重排。 */
@@ -49,7 +51,8 @@ export const ALL_FRAMES = [
   moonlitFrame,
   mountainFrame,
   blossomFrame,
-  sweetsFrame
+  sweetsFrame,
+  comicFrame
 ]
 
 export const IMAGE_FRAMES = ALL_FRAMES
@@ -58,6 +61,7 @@ export {
   acrylicFrame,
   blossomFrame,
   collageFrame,
+  comicFrame,
   filmFrame,
   minimalFrame,
   moonlitFrame,
