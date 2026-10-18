@@ -78,10 +78,20 @@ async function replaceIpName(oldName, newName, list, trashList, triggerSync) {
   if (typeof triggerSync === 'function') triggerSync(changedIds)
 }
 
-async function replaceCharacterName(oldName, newName, list, trashList, triggerSync) {
+/**
+ * 角色改名 → 同步改写商品上的角色名。
+ * @param {string} [scopeIp] 传入时只改该 IP 下的商品（角色身份是 (ip, name)，
+ *   不同 IP 下的同名角色必须各自独立改名）；不传则维持旧的「按名字全局改」。
+ */
+async function replaceCharacterName(oldName, newName, scopeIp, list, trashList, triggerSync) {
   const previous = normalizeCharacterName(oldName)
   const next = normalizeCharacterName(newName)
   if (!previous || !next || previous === next) return
+
+  const scoped = typeof scopeIp === 'string'
+  const targetIp = String(scopeIp || '').trim()
+  const matches = (item) => item.characters?.includes(previous)
+    && (!scoped || String(item.ip || '').trim() === targetIp)
 
   let listChanged = false
   let trashChanged = false
@@ -89,7 +99,7 @@ async function replaceCharacterName(oldName, newName, list, trashList, triggerSy
   const changedIds = []
 
   list.value = list.value.map((item) => {
-    if (!item.characters?.includes(previous)) return item
+    if (!matches(item)) return item
     listChanged = true
     changedIds.push(item.id)
     return {
@@ -102,7 +112,7 @@ async function replaceCharacterName(oldName, newName, list, trashList, triggerSy
   })
 
   trashList.value = trashList.value.map((item) => {
-    if (!item.characters?.includes(previous)) return item
+    if (!matches(item)) return item
     trashChanged = true
     changedIds.push(item.id)
     return {
@@ -117,8 +127,8 @@ async function replaceCharacterName(oldName, newName, list, trashList, triggerSy
   if (!listChanged && !trashChanged) return
 
   const updatedItems = [
-    ...list.value.filter(item => item.characters?.includes(next)),
-    ...trashList.value.filter(item => item.characters?.includes(next))
+    ...list.value.filter((item) => item.characters?.includes(next) && (!scoped || String(item.ip || '').trim() === targetIp)),
+    ...trashList.value.filter((item) => item.characters?.includes(next) && (!scoped || String(item.ip || '').trim() === targetIp))
   ]
 
   await Promise.all([

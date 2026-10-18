@@ -138,7 +138,7 @@
                   >
                     <span class="multi-select__option-main">
                       <svg
-                        v-if="presets.favoriteCharacterSet.has(character.name)"
+                        v-if="isFavoriteCharacter(character)"
                         class="multi-select__fav"
                         viewBox="0 0 24 24"
                         fill="none"
@@ -284,6 +284,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
+import { buildCharacterRowId } from '@/utils/presets/characterId'
 import { useGoodsStore } from '@/stores/goods'
 import { formatDate } from '@/utils/format'
 import { validatePrice } from '@/utils/validate'
@@ -415,9 +416,15 @@ const availableCharacters = computed(() => {
   const list = form.ip
     ? presets.characters.filter((character) => character.ip === form.ip)
     : [...presets.characters]
+  // 收藏 key 是 (ip,name) 复合 id；这里可能列出所有 IP 的角色，必须用各自的 ip
   const favoriteSet = presets.favoriteCharacterSet
-  return list.sort((a, b) => Number(favoriteSet.has(b.name)) - Number(favoriteSet.has(a.name)))
+  const favKey = (character) => buildCharacterRowId(character.ip, character.name)
+  return list.sort((a, b) => Number(favoriteSet.has(favKey(b))) - Number(favoriteSet.has(favKey(a))))
 })
+
+function isFavoriteCharacter(character) {
+  return presets.favoriteCharacterSet.has(buildCharacterRowId(character?.ip, character?.name))
+}
 
 watch(
   () => props.show,

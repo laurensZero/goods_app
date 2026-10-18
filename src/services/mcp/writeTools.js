@@ -51,6 +51,7 @@ const NOTIFY_KEYS = new Set([
 // navigate 支持的页面 → 路由名映射（与 app:// 跳转按钮共用，见 utils/ai/jumpLinks.js）
 import { NAVIGATE_PAGES, NAVIGATE_PAGES_WITH_ID } from '../../utils/ai/jumpLinks'
 import { geocodeAddressToCity, combineCityDistrict } from '../../utils/events/geocodeCity'
+import { buildCharacterRowId } from '../../utils/presets/characterId'
 
 const APPEARANCE_VALUES = new Set(['system', 'light', 'dark'])
 
@@ -833,11 +834,12 @@ export function createMcpWriteToolHandlers({
         if (!renamed) throw new Error(`重命名失败（名称重复或为空）：${newName}`)
         return { ok: true, entity, action, name, newName }
       } else {
+        // 角色身份是 (ip, name)：同名角色可分属不同 IP，定位时带上 ip
         if (action === 'add') await presetsStore.addCharacter(name, ip)
-        else if (action === 'remove') await presetsStore.removeCharacter(name)
+        else if (action === 'remove') await presetsStore.removeCharacter(buildCharacterRowId(ip, name))
         else {
-          await presetsStore.updateCharacterName(name, newName)
-          await goodsStore.replaceCharacterName(name, newName)
+          await presetsStore.updateCharacterName(buildCharacterRowId(ip, name), newName)
+          await goodsStore.replaceCharacterName(name, newName, ip)
         }
       }
 

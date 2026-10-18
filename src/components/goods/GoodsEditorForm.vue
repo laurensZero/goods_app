@@ -390,7 +390,7 @@
                         >
                           <span class="multi-select__option-main">
                             <svg
-                              v-if="presets.favoriteCharacterSet.has(character.name)"
+                              v-if="isFavoriteCharacter(character.ip, character.name)"
                               class="multi-select__fav"
                               viewBox="0 0 24 24"
                               fill="none"
@@ -1250,6 +1250,7 @@ const {
   minDate,
   maxDate,
   availableCharacters,
+  isFavoriteCharacter,
   selectedCharacterOptions,
   storageLocationOptions,
   quickCharacterIpOptions,

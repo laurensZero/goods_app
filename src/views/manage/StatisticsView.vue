@@ -282,8 +282,9 @@ function openProfileFromRanking(entry) {
   const name = String(entry?.label || '').trim()
   if (!name) return
   showRankingPopup.value = false
+  // 角色维度按 (ip,name) 拆行，重名时用行上的 meta（IP）落到正确的收藏馆
   const target = profileDimension.value === 'character'
-    ? { name: 'character-profile', params: { charName: name } }
+    ? { name: 'character-profile', params: { charName: name }, query: { ip: String(entry?.meta || '') } }
     : profileDimension.value === 'ip'
       ? { name: 'ip-profile', params: { ipName: name } }
       : null

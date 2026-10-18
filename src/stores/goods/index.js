@@ -292,8 +292,9 @@ export const useGoodsStore = defineStore('goods', () => {
     return _replaceIpName(oldName, newName, list, trashList, autoPushGoods)
   }
 
-  function replaceCharacterName(oldName, newName) {
-    return _replaceCharacterName(oldName, newName, list, trashList, autoPushGoods)
+  // scopeIp 传入时只改该 IP 下的商品：同名角色可分属不同 IP，各自独立改名
+  function replaceCharacterName(oldName, newName, scopeIp) {
+    return _replaceCharacterName(oldName, newName, scopeIp, list, trashList, autoPushGoods)
   }
 
   function syncCharacterIp(name, nextIp, previousIp = '') {

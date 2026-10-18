@@ -22,8 +22,9 @@ export function normalizePresetSortMode(value) {
  * @param {'default'|'name'|'goodsCount'} sortMode
  * @param {'asc'|'desc'} sortDirection
  * @param {Map<string,{collection:number,wishlist:number}>|Map<string,number>} goodsCountMap  名称 → 商品数量
- * @param {Set<string>} favoriteSet          收藏项名称集合
- * @param {{ alwaysLast?: (item) => boolean }} [opts]
+ * @param {Set<string>} favoriteSet          收藏项 key 集合（默认取名称）
+ * @param {{ alwaysLast?: (item) => boolean, keyOf?: (item) => string }} [opts]
+ *   keyOf 用于收藏 / 数量查找的键（角色等按名字不唯一的域可传 (ip,name) 复合 id）
  * @returns 排序后的列表
  */
 export function sortPresetList(list, sortMode, sortDirection, goodsCountMap, favoriteSet, opts = {}) {
@@ -36,13 +37,15 @@ export function sortPresetList(list, sortMode, sortDirection, goodsCountMap, fav
     return typeof item === 'string' ? item : item.name
   }
 
+  const keyOf = opts.keyOf || extractName
+
   function compareByName(a, b) {
     return extractName(a).localeCompare(extractName(b), 'zh-Hans-CN')
   }
 
   function compareByCount(a, b) {
-    const countA = goodsCountMap.get(extractName(a))
-    const countB = goodsCountMap.get(extractName(b))
+    const countA = goodsCountMap.get(keyOf(a))
+    const countB = goodsCountMap.get(keyOf(b))
     const totalA = typeof countA === 'object' ? (countA.collection + countA.wishlist) : (countA || 0)
     const totalB = typeof countB === 'object' ? (countB.collection + countB.wishlist) : (countB || 0)
     if (totalA !== totalB) return (totalA - totalB) * dir
@@ -65,10 +68,9 @@ export function sortPresetList(list, sortMode, sortDirection, goodsCountMap, fav
   const last = []
 
   for (const item of list) {
-    const name = extractName(item)
     if (alwaysLast && alwaysLast(item)) {
       last.push(item)
-    } else if (favoriteSet.has(name)) {
+    } else if (favoriteSet.has(keyOf(item))) {
       favorites.push(item)
     } else {
       normal.push(item)

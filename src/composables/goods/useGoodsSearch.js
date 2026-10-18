@@ -185,6 +185,25 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
       : null
   ))
 
+  // 收藏馆入口用 (ip, name) 候选：同名角色在不同 IP 下要各给一个入口
+  // （筛选 chip 仍按名字，保持「按名字筛选」的语义不变）
+  const characterProfileTargets = computed(() => {
+    const seen = new Set()
+    const targets = []
+    for (const item of characterSourceList.value) {
+      const ip = String(item?.ip || '').trim()
+      for (const raw of Array.isArray(item.characters) ? item.characters : []) {
+        const name = String(raw || '').trim()
+        if (!name) continue
+        const key = `${ip}\u0000${name}`
+        if (seen.has(key)) continue
+        seen.add(key)
+        targets.push({ name, ip })
+      }
+    }
+    return targets
+  })
+
   const showAllCharacterOptions = ref(false)
 
   const hasCollapsedCharacterOptions = computed(() => (
@@ -483,6 +502,7 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     ipOptions,
     characterSourceList,
     characterOptions,
+    characterProfileTargets,
     showAllCharacterOptions,
     hasCollapsedCharacterOptions,
     visibleCharacterOptions,

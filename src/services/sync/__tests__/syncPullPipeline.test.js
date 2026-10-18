@@ -270,6 +270,62 @@ describe('mergeToLocal row-level presets', () => {
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
   })
 
+  it('角色行按 (ip,name) 复合 id 归并，不产生「本地一条 + 远端一条」的重复', async () => {
+    const stores = makeStores()
+    // 本地只有名字（角色条目本身不带 id），远端行 id 是 A::小樱
+    stores.presetsStore.characters = [{ name: '小樱', ip: 'A' }]
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character', id: 'A::小樱', payload: { name: '小樱', ip: 'A', fav: false }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characters: [{ name: '小樱', ip: 'A', fav: false }]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('同名角色分属不同 IP 时各自成行', async () => {
+    const stores = makeStores()
+    stores.presetsStore.characters = [
+      { name: '小樱', ip: 'A' },
+      { name: '小樱', ip: 'B' }
+    ]
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character', id: 'A::小樱', payload: { name: '小樱', ip: 'A' }, sortOrder: 0, deleted: 0 },
+        { domain: 'character', id: 'B::小樱', payload: { name: '小樱', ip: 'B' }, sortOrder: 1, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characters: [
+          { name: '小樱', ip: 'A' },
+          { name: '小樱', ip: 'B' }
+        ]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
   it('reconcileMissing 但行表只拉到增量（rowDomainsComplete=false）时，叠加合并、不得清空本地预设', async () => {
     // 回归：拉取远端（since=0 数据全量）曾用「远端全量」语义重建预设快照，但行表只按
     // 行水位增量拉；未变更的分类/自定义字段/活动类型被当成远端已删而清空。

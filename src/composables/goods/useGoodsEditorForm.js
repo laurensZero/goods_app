@@ -10,6 +10,7 @@ import {
 } from '@/utils/image/localImage'
 import { forgetImageEditsBySourcePaths } from '@/utils/image/imageEdit'
 import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
+import { buildCharacterRowId } from '@/utils/presets/characterId'
 import { formatDate } from '@/utils/format'
 import { commitActiveInput } from '@/utils/commitActiveInput'
 import { runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
@@ -330,11 +331,19 @@ export function useGoodsEditorForm(options = {}) {
 
   const availableCharacters = computed(() => {
     if (!form.ip) return []
+    // 收藏 key 是 (ip,name) 复合 id：同名角色可分属不同 IP
     const favoriteSet = presets.favoriteCharacterSet
+    const favKey = (character) => buildCharacterRowId(character.ip, character.name)
     return presets.characters
       .filter((character) => character.ip === form.ip)
-      .sort((a, b) => Number(favoriteSet.has(b.name)) - Number(favoriteSet.has(a.name)))
+      .sort((a, b) => Number(favoriteSet.has(favKey(b))) - Number(favoriteSet.has(favKey(a))))
   })
+  /** 收藏判定按 (ip,name) 复合 id；模板里用 */
+  function isFavoriteCharacter(ip, name) {
+    const key = buildCharacterRowId(ip, name)
+    return Boolean(key) && presets.favoriteCharacterSet.has(key)
+  }
+
   const selectedCharacterOptions = computed(() => (
     form.characters.map((character) => ({
       label: character,
@@ -1326,6 +1335,7 @@ export function useGoodsEditorForm(options = {}) {
     minDate,
     maxDate,
     availableCharacters,
+    isFavoriteCharacter,
     selectedCharacterOptions,
     storageLocationOptions,
     quickCharacterIpOptions,

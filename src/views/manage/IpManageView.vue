@@ -174,6 +174,7 @@ import { useEditSheet } from '@/composables/manage/useEditSheet'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
 import { sortPresetList } from '@/utils/presets/sort'
+import { buildCharacterRowId } from '@/utils/presets/characterId'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
@@ -300,7 +301,8 @@ function closeEdit() {
 async function migrateCharacterIps(oldIp, newIp) {
   const relatedCharacters = presets.characters.filter((character) => character.ip === oldIp)
   for (const character of relatedCharacters) {
-    await presets.updateCharacterIp(character.name, newIp)
+    // 角色 id 是 (ip,name) 复合键：必须带上旧 IP 才能定位到这一条
+    await presets.updateCharacterIp(buildCharacterRowId(oldIp, character.name), newIp)
   }
 }
 

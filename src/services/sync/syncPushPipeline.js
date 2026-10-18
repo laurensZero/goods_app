@@ -7,15 +7,36 @@ import { computeBucketDiff } from '../supabaseAdapter/helpers'
 
 // 与 stores/presets.js 的 normalizeCharacterName 保持同一规则（这里不能直接 import，
 // presets store 会反向依赖 sync store，形成循环）。用于把历史脏 id 对齐到行表 id。
-function canonicalPresetId(domain, id) {
-  const text = String(id || '')
+function stripCharacterAffixes(text) {
+  return String(text || '')
     .replace(/^\s*[\/／]+\s*/g, '')
     .replace(/\s*[\/／]+\s*$/g, '')
     .trim()
-  if (domain === 'character' && /[\u4e00-\u9fff]/.test(text)) {
+}
+
+function stripCharacterVariant(text) {
+  if (/[\u4e00-\u9fff]/.test(text)) {
     return text.replace(/\s*[A-E]$/i, '').trim()
   }
   return text
+}
+
+// 与 stores/presets.js 的 normalizeCharacterName 同规则
+function canonicalCharacterName(name) {
+  return stripCharacterVariant(stripCharacterAffixes(name))
+}
+
+function canonicalPresetId(domain, id) {
+  const text = stripCharacterAffixes(id)
+  if (domain !== 'character') return text
+
+  // 角色行 id 是 (ip,name) 复合键 `ip::name`；只对名字部分做规范化，
+  // 否则会把 IP 名也一起 strip，导致行 id 对不上。
+  const sep = text.indexOf('::')
+  if (sep >= 0) {
+    return `${text.slice(0, sep)}::${canonicalCharacterName(text.slice(sep + 2))}`
+  }
+  return canonicalCharacterName(text)
 }
 
 function normalizePresetRowForDiff(row) {  return {
@@ -354,6 +375,10 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     const remotePresetByKey = new Map(
       (remotePresetRows || []).map((row) => [`${row.domain || ''}\u0000${row.id || ''}`, row])
     )
+    // 旧版 character 行 id（纯名字）不在客户端重建：改由服务端一次性批量改成
+    // (ip,name) 复合键 `ip::name`，见 supabase/supabase-migration-character-ip-identity.sql
+    // （上线前执行；SYNC_SCHEMA_VERSION v19 升级后首次同步会全量重拉预设行）。
+    // 客户端只负责读，避免和「多设备并发推送」在旧行上互相打架。
     // 新增预设必须排在云端已有行之后，否则会被拉到默认排序最前面（见函数注释）
     normalizeNewPresetSortOrders(allPresetRows, remotePresetRows)
     const localPresetRows = [...allPresetRows, ...allPresetTombstoneRows]

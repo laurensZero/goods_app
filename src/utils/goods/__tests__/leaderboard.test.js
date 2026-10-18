@@ -174,3 +174,76 @@ describe('buildLeaderboardEntries 价格口径', () => {
     expect(zhongli.quantity).toBeCloseTo(1)
   })
 })
+
+describe('buildLeaderboardEntries 角色按 (ip, name) 拆行', () => {
+  function entriesOfLabel(result, label) {
+    return result.entries.filter((entry) => entry.label === label)
+  }
+
+  it('不同 IP 下的同名角色各自成一行，meta 标注各自 IP', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ id: 'a', ip: 'IP-A', characters: ['小樱'], quantityNumber: 2, quantity: 2, totalValueNumber: 200 }),
+      makeItem({ id: 'b', ip: 'IP-B', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100 })
+    ], 'character')
+
+    const entries = entriesOfLabel(result, '小樱')
+    expect(entries).toHaveLength(2)
+
+    const byIp = new Map(entries.map((entry) => [entry.meta, entry]))
+    expect(byIp.get('IP-A').quantity).toBeCloseTo(2)
+    expect(byIp.get('IP-A').totalValue).toBeCloseTo(200)
+    expect(byIp.get('IP-B').quantity).toBeCloseTo(1)
+    expect(byIp.get('IP-B').totalValue).toBeCloseTo(100)
+  })
+
+  it('同一 IP 下的同名角色仍然合并成一行', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ id: 'a', ip: 'IP-A', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100 }),
+      makeItem({ id: 'b', ip: 'IP-A', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 50 })
+    ], 'character')
+
+    const entries = entriesOfLabel(result, '小樱')
+    expect(entries).toHaveLength(1)
+    expect(entries[0].meta).toBe('IP-A')
+    expect(entries[0].quantity).toBeCloseTo(2)
+    expect(entries[0].totalValue).toBeCloseTo(150)
+  })
+
+  it('逐份角色分摊同样按 (ip, name) 拆行', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({
+        id: 'a', ip: 'IP-A', characters: ['小樱'], unitCharacterList: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100
+      }),
+      makeItem({
+        id: 'b', ip: 'IP-B', characters: ['小樱'], unitCharacterList: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 70
+      })
+    ], 'character')
+
+    const entries = entriesOfLabel(result, '小樱')
+    expect(entries).toHaveLength(2)
+    const byIp = new Map(entries.map((entry) => [entry.meta, entry]))
+    expect(byIp.get('IP-A').totalValue).toBeCloseTo(100)
+    expect(byIp.get('IP-B').totalValue).toBeCloseTo(70)
+  })
+
+  it('商品没填 IP 时退回预设里该角色的 IP', () => {
+    const presetMap = new Map([['小樱', 'IP-A']])
+    const result = buildLeaderboardEntries([
+      makeItem({ ip: '', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 10 })
+    ], 'character', presetMap)
+
+    const entries = entriesOfLabel(result, '小樱')
+    expect(entries).toHaveLength(1)
+    expect(entries[0].meta).toBe('IP-A')
+  })
+
+  it('非角色维度不受影响，key 仍是标签本身', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ ip: '原神', quantityNumber: 1, quantity: 1, totalValueNumber: 10 })
+    ], 'ip')
+
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].key).toBe('原神')
+    expect(result.entries[0].meta).toBe('')
+  })
+})

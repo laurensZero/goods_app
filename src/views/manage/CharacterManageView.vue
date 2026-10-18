@@ -112,21 +112,21 @@
           <div class="row-list">
             <div
               v-for="(item, idx) in filteredCharacters"
-              :key="item.name"
+              :key="item.id"
               class="row-item"
               :class="{ 'row-item--last': idx === filteredCharacters.length - 1 }"
             >
               <button
                 class="row-fav"
-                :class="{ 'row-fav--active': isFavorite(item.name) }"
-                :aria-label="isFavorite(item.name) ? t('manage.favoriteRemove') : t('manage.favoriteAdd')"
-                @click.stop="toggleFavorite(item.name)"
+                :class="{ 'row-fav--active': isFavorite(item.id) }"
+                :aria-label="isFavorite(item.id) ? t('manage.favoriteRemove') : t('manage.favoriteAdd')"
+                @click.stop="toggleFavorite(item.id)"
               >
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path
                     d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                    :fill="isFavorite(item.name) ? '#f5a623' : 'none'"
-                    :stroke="isFavorite(item.name) ? '#f5a623' : 'currentColor'"
+                    :fill="isFavorite(item.id) ? '#f5a623' : 'none'"
+                    :stroke="isFavorite(item.id) ? '#f5a623' : 'currentColor'"
                     stroke-width="1.8"
                     stroke-linecap="round"
                     stroke-linejoin="round"
@@ -140,11 +140,11 @@
                   <span class="row-ip-badge" :class="{ 'row-ip-badge--empty': !item.ip }">
                     {{ item.ip || t('manage.character.ipNotSet') }}
                   </span>
-                  <span class="row-meta">{{ t('manage.character.goodsCount', getGoodsCount(item.name)) }}</span>
+                  <span class="row-meta">{{ t('manage.character.goodsCount', getGoodsCount(item.id)) }}</span>
                 </div>
               </button>
 
-              <button class="row-enter" type="button" :aria-label="t('profile.entry.open')" @click="openProfile(item.name)">
+              <button class="row-enter" type="button" :aria-label="t('profile.entry.open')" @click="openProfile(item.name, item.ip)">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <rect x="3.5" y="5" width="17" height="14" rx="3" />
                   <circle cx="9" cy="10" r="1.4" />
@@ -152,7 +152,7 @@
                 </svg>
               </button>
 
-              <button class="row-delete" type="button" :aria-label="t('manage.character.delete')" @click="removeCharacter(item.name)">
+              <button class="row-delete" type="button" :aria-label="t('manage.character.delete')" @click="removeCharacter(item.id)">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                   <path d="M18 6L6 18" />
                   <path d="M6 6L18 18" />
@@ -181,7 +181,7 @@
           <button type="button" class="edit-close" @click="closeEdit">×</button>
         </div>
 
-        <p class="edit-caption">{{ t('manage.character.current', { name: editingCharacter }) }}</p>
+        <p class="edit-caption">{{ t('manage.character.current', { name: editingCharacterName }) }}</p>
 
         <input
           ref="editInputRef"
@@ -225,7 +225,7 @@
 
   <PresetDeleteConfirm
     :show="showDeleteConfirm"
-    :name="pendingDeleteName"
+    :name="pendingDeleteLabel"
     :count="affectedCount"
     :field-label="t('manage.character.fieldLabel')"
     @cancel="showDeleteConfirm = false"
@@ -238,7 +238,8 @@
 import { computed, nextTick, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import { normalizeCharacterName, usePresetsStore } from '@/stores/presets'
+import { usePresetsStore } from '@/stores/presets'
+import { normalizeCharacterName, buildCharacterRowId, parseCharacterRowId } from '@/utils/presets/characterId'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { useEditSheet } from '@/composables/manage/useEditSheet'
@@ -259,20 +260,33 @@ const router = useRouter()
 const presets = usePresetsStore()
 const store = useGoodsStore()
 
-function openProfile(name) {
+function openProfile(name, ip = '') {
   runWithRouteTransition(
-    () => router.push({ name: 'character-profile', params: { charName: name } }),
+    () => router.push({
+      name: 'character-profile',
+      params: { charName: name },
+      query: { ip: String(ip || '') }
+    }),
     { direction: 'forward' }
   )
 }
 
 const { sortMode, sortDirection, toggleSortDirection, setSortMode } = usePresetPreferences('characters')
 
+// 删除/收藏都用 (ip,name) 复合 id 当作 token，避免同名角色串到别的 IP
 const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeCharacter, confirmDelete } = usePresetDelete({
-  getAffected: (list, name) => list.filter((item) => item.characters?.includes(name)),
-  patch: (item, name) => ({ ...item, characters: item.characters.filter((character) => character !== name) }),
-  removePreset: (name) => presets.removeCharacter(name)
+  getAffected: (list, id) => {
+    const { ip, name } = parseCharacterRowId(id)
+    return list.filter((item) => item.characters?.includes(name) && String(item.ip || '').trim() === ip)
+  },
+  patch: (item, id) => {
+    const { name } = parseCharacterRowId(id)
+    return { ...item, characters: item.characters.filter((character) => character !== name) }
+  },
+  removePreset: (id) => presets.removeCharacter(id)
 })
+
+const pendingDeleteLabel = computed(() => parseCharacterRowId(pendingDeleteName.value).name || pendingDeleteName.value)
 
 const showInput = ref(false)
 const newName = ref('')
@@ -280,8 +294,9 @@ const newIp = ref('')
 const inputRef = ref(null)
 const searchKey = ref('')
 const selectedIp = ref('')
+// editingCharacter 存的是 (ip,name) 复合 id（行 id）；显示/编辑用 parse 出来的纯名字
 const editingCharacter = ref('')
-const originalCharacterIp = ref('')
+const editingCharacterName = computed(() => parseCharacterRowId(editingCharacter.value).name || editingCharacter.value)
 const editName = ref('')
 const editIp = ref('')
 const editError = ref('')
@@ -295,6 +310,7 @@ const { editSheetStyle, editSheetVisible, handleEditInputFocus } = useEditSheet(
 
 const filteredCharacters = computed(() => {
   let list = presets.characters.map((character) => ({
+    id: buildCharacterRowId(character.ip, character.name),
     name: character.name,
     ip: character.ip
   }))
@@ -310,35 +326,46 @@ const filteredCharacters = computed(() => {
     list = list.filter((character) => character.ip === selectedIp.value)
   }
 
-  return sortPresetList(list, sortMode.value, sortDirection.value, goodsCountMap.value, presets.favoriteCharacterSet)
+  return sortPresetList(
+    list,
+    sortMode.value,
+    sortDirection.value,
+    goodsCountMap.value,
+    presets.favoriteCharacterSet,
+    { keyOf: (item) => item.id }
+  )
 })
 
+// 名称在不同 IP 下可能重名，计数必须按 (ip,name) 复合键，否则会串到一起
 const goodsCountMap = computed(() => {
   const map = new Map()
   for (const item of store.list) {
+    const itemIp = String(item.ip || '').trim()
     for (const character of item.characters || []) {
-      const entry = map.get(character) || { collection: 0, wishlist: 0 }
+      const key = buildCharacterRowId(itemIp, character)
+      if (!key) continue
+      const entry = map.get(key) || { collection: 0, wishlist: 0 }
       if (item.isWishlist) {
         entry.wishlist++
       } else {
         entry.collection++
       }
-      map.set(character, entry)
+      map.set(key, entry)
     }
   }
   return map
 })
 
-function getGoodsCount(name) {
-  return goodsCountMap.value.get(name) || { collection: 0, wishlist: 0 }
+function getGoodsCount(id) {
+  return goodsCountMap.value.get(id) || { collection: 0, wishlist: 0 }
 }
 
-function isFavorite(name) {
-  return presets.favoriteCharacterSet.has(name)
+function isFavorite(id) {
+  return presets.favoriteCharacterSet.has(id)
 }
 
-function toggleFavorite(name) {
-  presets.toggleFavoriteCharacter(name)
+function toggleFavorite(id) {
+  presets.toggleFavoriteCharacter(id)
 }
 
 async function toggleInput() {
@@ -374,8 +401,7 @@ function syncDomField() {
 }
 
 function openEdit(character) {
-  editingCharacter.value = character.name
-  originalCharacterIp.value = character.ip || ''
+  editingCharacter.value = character.id
   editName.value = character.name
   editIp.value = character.ip || ''
   editError.value = ''
@@ -387,15 +413,13 @@ function openEdit(character) {
 
 function closeEdit() {
   editingCharacter.value = ''
-  originalCharacterIp.value = ''
   editName.value = ''
   editIp.value = ''
   editError.value = ''
 }
 
 async function saveEdit() {
-  const previousName = editingCharacter.value
-  const previousIp = originalCharacterIp.value
+  const { ip: previousIp, name: previousName } = parseCharacterRowId(editingCharacter.value)
   const nextName = normalizeCharacterName(editName.value)
   const nextIp = String(editIp.value || '').trim()
 
@@ -407,18 +431,19 @@ async function saveEdit() {
   let currentName = previousName
 
   if (nextName !== previousName) {
-    const renamed = await presets.updateCharacterName(previousName, nextName)
+    const renamed = await presets.updateCharacterName(buildCharacterRowId(previousIp, previousName), nextName)
     if (!renamed) {
       editError.value = t('manage.character.errorExists')
       return
     }
 
-    await store.replaceCharacterName(previousName, nextName)
+    // 只改当前 IP 下的商品，别动到其它 IP 的同名角色
+    await store.replaceCharacterName(previousName, nextName, previousIp)
     currentName = nextName
   }
 
   if (nextIp !== previousIp) {
-    await presets.updateCharacterIp(currentName, nextIp)
+    await presets.updateCharacterIp(buildCharacterRowId(previousIp, currentName), nextIp)
     await store.syncCharacterIp(currentName, nextIp, previousIp)
   }
 

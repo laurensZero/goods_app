@@ -5,7 +5,8 @@ import { App as CapacitorApp } from '@capacitor/app'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { useGoodsStore } from './goods'
 import { useEventsStore } from './events'
-import { usePresetsStore, normalizeCharacterName } from './presets'
+import { usePresetsStore } from './presets'
+import { normalizeCharacterName, buildCharacterRowId } from '@/utils/presets/characterId'
 import { useRechargeStore } from '@/stores/recharge'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useCollectionProfileStore } from '@/stores/collectionProfile'
@@ -390,13 +391,16 @@ export const useSyncStore = defineStore('sync', () => {
     const data = {
       categories: presets.categories.map((name) => ({ name, fav: favCat.has(name) })),
       ips: presets.ips.map((name) => ({ name, fav: favIp.has(name) })),
+      // id 用 (ip,name) 复合键（ip::name），行表主键是 (user_id, domain, id)：
+      // 角色若只按名字做 id，不同 IP 下的同名角色会互相覆盖。
       characters: presets.characters
-        .map((item) => ({
-          name: normalizeCharacterName(item?.name || ''),
-          ip: String(item?.ip || '').trim(),
-          fav: favChr.has(normalizeCharacterName(item?.name || ''))
-        }))
-        .filter((item) => item.name),
+        .map((item) => {
+          const name = normalizeCharacterName(item?.name || '')
+          const ip = String(item?.ip || '').trim()
+          const id = buildCharacterRowId(ip, name)
+          return { id, name, ip, fav: favChr.has(id) }
+        })
+        .filter((item) => item.id),
       storageLocations: presets.storageLocations.map((item) => ({
         id: String(item?.id || '').trim(), name: String(item?.name || '').trim(), parentId: String(item?.parentId || '').trim()
       })),

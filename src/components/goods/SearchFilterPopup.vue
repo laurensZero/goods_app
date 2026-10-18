@@ -33,9 +33,9 @@
             :key="entry.key"
             class="profile-entry"
             type="button"
-            @click="$emit('open-profile', { kind: entry.kind, name: entry.name })"
+            @click="$emit('open-profile', { kind: entry.kind, name: entry.name, ip: entry.ip })"
           >
-            {{ t('profile.entry.openNamed', { name: entry.name }) }}
+            {{ t('profile.entry.openNamed', { name: entry.displayName }) }}
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -384,17 +384,20 @@
                       {{ option.label }}
                     </button>
                   </div>
-                  <button
-                    v-if="showProfileEntry && filters.characters.length === 1"
-                    class="profile-entry"
-                    type="button"
-                    @click="$emit('open-profile', { kind: 'character', name: filters.characters[0] })"
-                  >
-                    {{ t('profile.entry.open') }}
-                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                      <path d="M9 6l6 6-6 6" />
-                    </svg>
-                  </button>
+                  <div v-if="selectedCharacterProfileTargets.length" class="profile-entry-row">
+                    <button
+                      v-for="target in selectedCharacterProfileTargets"
+                      :key="`${target.ip}\u0000${target.name}`"
+                      class="profile-entry"
+                      type="button"
+                      @click="$emit('open-profile', { kind: 'character', name: target.name, ip: target.ip })"
+                    >
+                      {{ t('profile.entry.openNamed', { name: target.displayName }) }}
+                      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <path d="M9 6l6 6-6 6" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
 
                 <!-- Custom fields (select type only in v1) -->
@@ -516,6 +519,12 @@ const props = defineProps({
   categoryOptions: { type: Array, default: () => [] },
   ipOptions: { type: Array, default: () => [] },
   characterOptions: { type: Array, default: () => [] },
+  /**
+   * 收藏馆入口的角色候选（含 IP）：`[{ name, ip }]`。
+   * 同名角色在不同 IP 下会各占一项，这样关键词命中时能给出两个不同的收藏馆入口。
+   * 不传时退回 characterOptions（仅名字）。
+   */
+  characterProfileTargets: { type: Array, default: () => [] },
   visibleCharacterOptions: { type: Array, default: () => [] },
   hasCollapsedCharacterOptions: { type: Boolean, default: false },
   showAllCharacterOptions: { type: Boolean, default: false },
@@ -563,18 +572,45 @@ const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters
 
 const PROFILE_ENTRY_LIMIT = 3
 
+/** 展示名：带上 IP，重名时才能区分 */
+function profileDisplayName(name, ip) {
+  return ip ? `${name} · ${ip}` : name
+}
+
+/** 角色收藏馆候选：宿主给了 (ip, name) 目标就用它，否则退回只有名字的 characterOptions */
+function resolveCharacterProfileTargets() {
+  const targets = Array.isArray(props.characterProfileTargets) ? props.characterProfileTargets : []
+  const list = []
+  const seen = new Set()
+  for (const target of targets) {
+    const name = String(target?.name || '').trim()
+    const ip = String(target?.ip || '').trim()
+    if (!name) continue
+    const key = `${ip}\u0000${name}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    list.push({ name, ip })
+  }
+  if (list.length > 0) return list
+
+  for (const option of props.characterOptions) {
+    const name = String(option?.value || '').trim()
+    if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noCharacter) continue
+    list.push({ name, ip: '' })
+  }
+  return list
+}
+
 /** 可进收藏馆的候选（排除「未归类 IP / 未标角色」这两个特殊值） */
 function buildProfileCandidates() {
   const candidates = []
   for (const option of props.ipOptions) {
     const name = String(option?.value || '').trim()
     if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noIp) continue
-    candidates.push({ kind: 'ip', name })
+    candidates.push({ kind: 'ip', name, ip: '' })
   }
-  for (const option of props.characterOptions) {
-    const name = String(option?.value || '').trim()
-    if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noCharacter) continue
-    candidates.push({ kind: 'character', name })
+  for (const target of resolveCharacterProfileTargets()) {
+    candidates.push({ kind: 'character', name: target.name, ip: target.ip })
   }
   return candidates
 }
@@ -617,21 +653,40 @@ const keywordProfileEntries = computed(() => {
     const rank = rankProfileCandidate(candidate.name, keyword, pinyinReady)
     if (!rank) continue
     if (rank > bestRank) bestRank = rank
-    matched.push({ ...candidate, rank, key: `${candidate.kind}:${candidate.name}` })
+    matched.push({
+      ...candidate,
+      rank,
+      key: `${candidate.kind}:${candidate.ip || ''}\u0000${candidate.name}`,
+      displayName: profileDisplayName(candidate.name, candidate.ip)
+    })
   }
 
   // 只留命中最强的一档：搜「ys」时给「原神」一个精确入口，
-  // 而不是把拼音里恰好含 ys 的角色一起堆上来
+  // 而不是把拼音里恰好含 ys 的角色一起堆上来。
+  // IP 也参与排序，保证同分同名的入口顺序稳定。
   return matched
     .filter((entry) => entry.rank === bestRank)
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => a.kind.localeCompare(b.kind)
+      || a.name.localeCompare(b.name, 'zh-Hans-CN')
+      || a.ip.localeCompare(b.ip, 'zh-Hans-CN'))
     .slice(0, PROFILE_ENTRY_LIMIT)
+})
+
+/** 单选一个角色 chip 时的收藏馆入口：同名跨 IP 时每个 IP 给一个 */
+const selectedCharacterProfileTargets = computed(() => {
+  if (!props.showProfileEntry) return []
+  if (props.filters.characters?.length !== 1) return []
+  const selected = String(props.filters.characters[0] || '').trim()
+  if (!selected || selected === GOODS_FILTER_SPECIAL_VALUES.noCharacter) return []
+  return resolveCharacterProfileTargets()
+    .filter((target) => target.name === selected)
+    .map((target) => ({ ...target, displayName: profileDisplayName(target.name, target.ip) }))
 })
 
 watch(showProxy, async (visible) => {
   if (!visible) return
   if (!props.showProfileEntry) return
-  const names = buildProfileCandidates().map((candidate) => candidate.name)
+  const names = [...new Set(buildProfileCandidates().map((candidate) => candidate.name))]
   if (!names.length) return
   await warmPinyinCache(names)
   pinyinVersion.value += 1

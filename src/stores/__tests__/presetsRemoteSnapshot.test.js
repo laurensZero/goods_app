@@ -88,7 +88,7 @@ describe('replacePresetsSnapshot 块级时钟（服务器时间域）', () => {
     ])
   })
 
-  it('删除角色会保留 character 行级墓碑（id 与行表一致，经过 normalizeCharacterName）', async () => {
+  it('删除角色会保留 character 行级墓碑（id 与行表一致，(ip,name) 复合键）', async () => {
     await storage.writePersisted('goods_presets_characters', JSON.stringify([{ name: '角色A', ip: '' }]))
     const presets = usePresetsStore()
     await presets.init()
@@ -97,9 +97,26 @@ describe('replacePresetsSnapshot 块级时钟（服务器时间域）', () => {
 
     const tombstones = JSON.parse(await storage.readPersisted('goods_presets_row_tombstones_v1'))
     expect(tombstones).toEqual([
-      // 行表 id 与 buildPresetsData 一样使用 normalizeCharacterName 后的名字，
-      // 保证墓碑和 active 行是同一条（否则云端永远删不掉）
-      expect.objectContaining({ domain: 'character', id: '角色' })
+      // 行表 id 与 buildPresetsData 一样是 `ip::角色名`（无 IP 为 `::名字`，名字经过
+      // normalizeCharacterName），保证墓碑和 active 行是同一条（否则云端永远删不掉）
+      expect.objectContaining({ domain: 'character', id: '::角色' })
+    ])
+  })
+
+  it('删除带 IP 的角色只删该 (ip,name) 行，墓碑用复合 id', async () => {
+    await storage.writePersisted('goods_presets_characters', JSON.stringify([
+      { name: '小樱', ip: 'A' },
+      { name: '小樱', ip: 'B' }
+    ]))
+    const presets = usePresetsStore()
+    await presets.init()
+
+    await presets.removeCharacter('A::小樱')
+
+    expect(presets.characters).toEqual([{ name: '小樱', ip: 'B' }])
+    const tombstones = JSON.parse(await storage.readPersisted('goods_presets_row_tombstones_v1'))
+    expect(tombstones).toEqual([
+      expect.objectContaining({ domain: 'character', id: 'A::小樱' })
     ])
   })
 })

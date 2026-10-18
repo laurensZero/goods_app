@@ -45,7 +45,14 @@ export const MANIFEST_VERSION = 1
 // v18: row-level cutover bootstrap — existing devices must replay the full
 // preset/profile tables once because their old global watermark may already
 // be newer than rows written during the migration.
-export const SYNC_SCHEMA_VERSION = 18
+// v19: sync_preset_rows 的 character 行 id 由「纯名字」改为 (ip,name) 复合键
+//      `ip::name`（无 IP 为 `::名字`），这样不同 IP 下的同名角色能各自成行、
+//      不再互相覆盖。升级后首次同步会全量重拉预设行。
+//      旧行由服务端一次性批量重建（客户端只读、不做重建）：
+//      上线前先执行 supabase/supabase-migration-character-ip-identity.sql，把云端残留的
+//      「纯名字」行改成 `ip::名字`（该名字已有新行则删旧行，旧墓碑行直接删）。
+//      有本地预设备份时，用 supabase/data-fix-character-rows-*.sql 按备份重建更准确。
+export const SYNC_SCHEMA_VERSION = 19
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

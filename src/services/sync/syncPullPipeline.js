@@ -9,6 +9,7 @@ import { getAllBatchDrafts, saveBatchDrafts } from '@/utils/db'
 import { normalizeBatchDraft, isBatchDraftDeleted } from '@/stores/batchDraftHelpers'
 import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
+import { buildCharacterRowId } from '@/utils/presets/characterId'
 import i18n from '@/locales'
 
 /**
@@ -385,9 +386,18 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     const rebuildFromRemote = reconcileMissing && presetRowsComplete
     for (const [domain, field] of Object.entries(fields)) {
       const current = Array.isArray(read(presetsStore[field])) ? read(presetsStore[field]) : []
-      const itemKey = (item) => typeof item === 'string'
-        ? item
-        : String(item?.id || item?.key || item?.name || item?.value || '')
+      // character 的本地条目是 [{name, ip}]、远端行 id 是复合键 `ip::name`，
+      // 两侧必须用同一规则建键，否则同一个角色会被当成「本地一条 + 远端一条」重复。
+      const itemKey = (item) => {
+        if (domain === 'character') {
+          return typeof item === 'string'
+            ? buildCharacterRowId('', item)
+            : buildCharacterRowId(item?.ip, item?.name)
+        }
+        return typeof item === 'string'
+          ? item
+          : String(item?.id || item?.key || item?.name || item?.value || '')
+      }
       const byId = new Map((rebuildFromRemote ? [] : current.map((item) => [itemKey(item), item])).filter(([id]) => id))
       const localOrder = new Map(current.map((item, index) => [itemKey(item), index]))
       const remoteOrder = new Map()

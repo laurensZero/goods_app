@@ -1165,14 +1165,9 @@ async function handleSave() {
   }
 
   try {
-    // 把用户选中的角色加入预设（如果还没有的话）
+    // 把用户选中的角色加入预设（addCharacter 自带 (ip,name) 去重，重复调用幂等）
     for (const charName of form.characters) {
-      const exists = presets.characters.some(c =>
-        (typeof c === 'string' ? c : c.name) === charName
-      )
-      if (!exists) {
-        presets.addCharacter(charName, form.ip || '')
-      }
+      presets.addCharacter(charName, form.ip || '')
     }
     await goodsStore.addGoods({
       name: form.name.trim(),

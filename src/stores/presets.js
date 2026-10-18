@@ -14,6 +14,13 @@ import {
   isCustomFieldType,
   normalizeCustomFieldDefs
 } from '@/utils/goods/customFields'
+import {
+  normalizeCharacterName,
+  buildCharacterRowId,
+  parseCharacterRowId
+} from '@/utils/presets/characterId'
+
+export { normalizeCharacterName, buildCharacterRowId, parseCharacterRowId }
 
 const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
@@ -173,20 +180,6 @@ function sortByLocale(list, pick = (item) => item) {
   return [...list].sort((a, b) => pick(a).localeCompare(pick(b), 'zh-Hans-CN'))
 }
 
-export function normalizeCharacterName(name) {
-  const text = String(name || '')
-    .replace(/^\s*[\/／]+\s*/g, '')
-    .replace(/\s*[\/／]+\s*$/g, '')
-    .trim()
-  if (!text) return ''
-
-  if (/[\u4e00-\u9fff]/.test(text)) {
-    return text.replace(/\s*[A-E]$/i, '').trim()
-  }
-
-  return text
-}
-
 function normalizeCharacters(list) {
   const merged = new Map()
 
@@ -195,18 +188,54 @@ function normalizeCharacters(list) {
     const ip = String(character.ip || '').trim()
     if (!name) continue
 
-    if (!merged.has(name)) {
-      merged.set(name, { name, ip })
-      continue
-    }
-
-    const existing = merged.get(name)
-    if (!existing.ip && ip) {
-      merged.set(name, { name, ip })
-    }
+    const key = `${ip}\u0000${name}`
+    if (!merged.has(key)) merged.set(key, { name, ip })
   }
 
-  return [...merged.values()]
+  // 旧模型按名字唯一：无 IP 的占位条目在同名带 IP 条目存在时丢弃，
+  // 否则升级到 (ip,name) 后会凭空多出一条无 IP 的重复角色。
+  const hasIpByName = new Set()
+  for (const character of merged.values()) {
+    if (character.ip) hasIpByName.add(character.name)
+  }
+
+  return [...merged.values()].filter((character) => character.ip || !hasIpByName.has(character.name))
+}
+
+/**
+ * 旧版收藏只存角色名；升级到复合 key 时定位到具体角色。
+ * 已是 `ip::name` 的原样保留（幂等）。
+ */
+function migrateFavoriteCharacters(favorites, characters) {
+  const raw = Array.isArray(favorites) ? favorites : []
+  const byName = new Map()
+  for (const character of characters) {
+    const list = byName.get(character.name) || []
+    list.push(character)
+    byName.set(character.name, list)
+  }
+
+  const result = []
+  const seen = new Set()
+  for (const entry of raw) {
+    const key = String(entry || '').trim()
+    if (!key) continue
+    if (key.includes('::')) {
+      if (!seen.has(key)) {
+        seen.add(key)
+        result.push(key)
+      }
+      continue
+    }
+    const matches = byName.get(normalizeCharacterName(key)) || []
+    const target = matches.find((character) => character.ip) || matches[0]
+    const id = target ? buildCharacterRowId(target.ip, target.name) : `::${normalizeCharacterName(key)}`
+    if (id && !seen.has(id)) {
+      seen.add(id)
+      result.push(id)
+    }
+  }
+  return result
 }
 
 function normalizeCategoriesList(list) {
@@ -363,12 +392,14 @@ export const usePresetsStore = defineStore('presets', () => {
     }
 
     characters.value = normalizeCharacters(characters.value)
+    favoriteCharacters.value = migrateFavoriteCharacters(favoriteCharacters.value, characters.value)
     storageLocations.value = normalizeStorageLocationNodes(storageLocations.value)
 
     await Promise.all([
       writePersistedList(STORAGE_KEY_CAT, categories.value),
       writePersistedList(STORAGE_KEY_IP, ips.value),
       writePersistedList(STORAGE_KEY_CHR, characters.value),
+      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
       writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
@@ -821,71 +852,116 @@ export const usePresetsStore = defineStore('presets', () => {
     return true
   }
 
+  /**
+   * 把「行 id / 旧版名字」解析成实际角色，(ip,name) 复合身份。
+   * 兼容旧调用只传名字：该名字在此 IP 下唯一时直接命中。
+   */
+  function resolveCharacterTarget(id) {
+    const { ip, name } = parseCharacterRowId(id)
+    if (!name) return null
+    const exact = characters.value.find((character) => character.name === name && character.ip === ip)
+    if (exact) return exact
+
+    const matches = characters.value.filter((character) => character.name === name)
+    if (matches.length === 0) return null
+    if (matches.length === 1) return matches[0]
+    return matches.find((character) => !character.ip) || null
+  }
+
+  /** 角色身份变化（改名 / 改 IP / 占位升级）时，把收藏 key 一起搬过去 */
+  async function migrateFavoriteKey(oldKey, newKey) {
+    if (!oldKey || !newKey || oldKey === newKey) return
+    if (!favoriteCharacters.value.includes(oldKey)) return
+    const next = favoriteCharacters.value.filter((key) => key !== oldKey)
+    if (!next.includes(newKey)) next.push(newKey)
+    favoriteCharacters.value = next
+    await writePersistedList(STORAGE_KEY_FAV_CHR, next)
+  }
+
   async function addCharacter(name, ip = '') {
     const normalized = normalizeCharacterName(name)
-    if (!normalized || characters.value.some((character) => character.name === normalized)) return false
+    const normalizedIp = String(ip || '').trim()
+    if (!normalized) return false
+    if (characters.value.some((character) => character.name === normalized && character.ip === normalizedIp)) return false
 
-    characters.value.push({ name: normalized, ip: ip.trim() })
+    // 同名但无 IP 的占位条目：带 IP 新增时直接升级，避免留下重复的无 IP 角色
+    const placeholderIndex = normalizedIp
+      ? characters.value.findIndex((character) => character.name === normalized && !character.ip)
+      : -1
+    if (placeholderIndex >= 0) {
+      const updated = [...characters.value]
+      updated.splice(placeholderIndex, 1, { name: normalized, ip: normalizedIp })
+      characters.value = updated
+      await migrateFavoriteKey(buildCharacterRowId('', normalized), buildCharacterRowId(normalizedIp, normalized))
+    } else {
+      characters.value.push({ name: normalized, ip: normalizedIp })
+    }
+
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
     autoPushPresets()
     return true
   }
 
-  async function removeCharacter(name) {
-    const normalized = normalizeCharacterName(name)
-    characters.value = characters.value.filter((character) => character.name !== normalized)
-    favoriteCharacters.value = favoriteCharacters.value.filter((c) => c !== normalized)
+  async function removeCharacter(id) {
+    const target = resolveCharacterTarget(id)
+    if (!target) return
+
+    const rowId = buildCharacterRowId(target.ip, target.name)
+    characters.value = characters.value.filter((character) => !(character.name === target.name && character.ip === target.ip))
+    favoriteCharacters.value = favoriteCharacters.value.filter((key) => key !== rowId)
     await Promise.all([
       writePersistedList(STORAGE_KEY_CHR, characters.value),
       writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
     ])
-    await markRowTombstone('character', normalized)
+    await markRowTombstone('character', rowId)
     autoPushPresets()
   }
 
-  async function updateCharacterName(oldName, newName) {
-    const previous = normalizeCharacterName(oldName)
+  async function updateCharacterName(id, newName) {
+    const target = resolveCharacterTarget(id)
+    if (!target) return false
+
     const next = normalizeCharacterName(newName)
-    if (!previous || !next) return false
+    if (!next) return false
+    if (next === target.name) return true
+    if (characters.value.some((character) => character.name === next && character.ip === target.ip)) return false
 
-    const index = characters.value.findIndex((character) => character.name === previous)
-    if (index === -1) return false
-    if (previous === next) return true
-    if (characters.value.some((character) => character.name === next)) return false
-
-    const current = characters.value[index]
+    const oldId = buildCharacterRowId(target.ip, target.name)
+    const newId = buildCharacterRowId(target.ip, next)
     const updated = [...characters.value]
-    updated.splice(index, 1, {
-      ...current,
-      name: next
-    })
+    const index = updated.findIndex((character) => character.name === target.name && character.ip === target.ip)
+    updated.splice(index, 1, { name: next, ip: target.ip })
     characters.value = updated
 
-    // 同步更新收藏列表中的名称
-    const favIdx = favoriteCharacters.value.indexOf(previous)
-    if (favIdx >= 0) {
-      const favUpdated = [...favoriteCharacters.value]
-      favUpdated.splice(favIdx, 1, next)
-      favoriteCharacters.value = favUpdated
-      await writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
-    }
-
+    await migrateFavoriteKey(oldId, newId)
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
-    await markRowTombstone('character', previous)
+    await markRowTombstone('character', oldId)
     autoPushPresets()
     return true
   }
 
-  async function updateCharacterIp(name, ip) {
-    const normalized = normalizeCharacterName(name)
-    const index = characters.value.findIndex((character) => character.name === normalized)
+  async function updateCharacterIp(id, ip) {
+    const target = resolveCharacterTarget(id)
+    if (!target) return
+
+    const nextIp = String(ip || '').trim()
+    const oldId = buildCharacterRowId(target.ip, target.name)
+    const newId = buildCharacterRowId(nextIp, target.name)
+    if (oldId === newId) return
+
+    const index = characters.value.findIndex((character) => character.name === target.name && character.ip === target.ip)
     if (index === -1) return
 
-    characters.value.splice(index, 1, {
-      name: normalized,
-      ip: ip.trim()
-    })
+    // 目标 (nextIp, name) 已存在时视为合并，避免出现重复行
+    const duplicate = characters.value.some((character, i) => i !== index && character.name === target.name && character.ip === nextIp)
+    const updated = [...characters.value]
+    if (duplicate) updated.splice(index, 1)
+    else updated.splice(index, 1, { name: target.name, ip: nextIp })
+    characters.value = updated
+
+    await migrateFavoriteKey(oldId, newId)
     await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    await markRowTombstone('character', oldId)
     autoPushPresets()
   }
 
@@ -1013,13 +1089,13 @@ export const usePresetsStore = defineStore('presets', () => {
     ips.value = ip.items
     if (ip.favorites.length > 0) favoriteIps.value = ip.favorites
 
-    // characters — 始终是 [{name, ip, fav?}] 格式
+    // characters — 始终是 [{name, ip, fav?}] 格式；收藏 key 为 (ip,name) 复合 id
     const chrRaw = snapshot.characters
     characters.value = normalizeCharacters(chrRaw)
     if (Array.isArray(chrRaw)) {
       const favChr = chrRaw
         .filter((c) => c?.fav)
-        .map((c) => normalizeCharacterName(c?.name))
+        .map((c) => buildCharacterRowId(c?.ip, c?.name))
         .filter(Boolean)
       if (favChr.length > 0) favoriteCharacters.value = favChr
     }
@@ -1085,22 +1161,27 @@ export const usePresetsStore = defineStore('presets', () => {
     autoPushPresets()
   }
 
-  async function toggleFavoriteCharacter(name) {
-    const normalized = normalizeCharacterName(name)
-    if (!normalized) return
+  /**
+   * 传入行 id（`ip::name`）或旧版角色名；收藏 key 统一为复合 id。
+   */
+  async function toggleFavoriteCharacter(id) {
+    const target = resolveCharacterTarget(id)
+    if (!target) return
+    const key = buildCharacterRowId(target.ip, target.name)
+    if (!key) return
     const arr = favoriteCharacters.value
-    const idx = arr.indexOf(normalized)
+    const idx = arr.indexOf(key)
     if (idx >= 0) {
       arr.splice(idx, 1)
     } else {
-      arr.push(normalized)
+      arr.push(key)
     }
     await writePersistedList(STORAGE_KEY_FAV_CHR, arr)
     autoPushPresets()
   }
 
   function characterNames() {
-    return characters.value.map((character) => character.name)
+    return [...new Set(characters.value.map((character) => character.name))]
   }
 
   /**

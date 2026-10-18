@@ -230,9 +230,13 @@ const enteringFromDetail = hasPendingGoodsHeroBack(route.fullPath)
 const isCharacter = computed(() => route.name === 'character-profile')
 const characterName = computed(() => String(route.params.charName || '').trim())
 const ipName = computed(() => String(route.params.ipName || '').trim())
+// 角色名可能在不同 IP 下重名，入口可用 ?ip= 显式带上所属 IP。
+// null = 未指定（回退按名字查第一个），'' = 明确「无 IP」。
+const characterIpQuery = computed(() => (route.query.ip === undefined ? null : String(route.query.ip || '').trim()))
 
 const ip = computed(() => {
   if (!isCharacter.value) return ipName.value
+  if (characterIpQuery.value !== null) return characterIpQuery.value
   return String(presets.characters.find((item) => item.name === characterName.value)?.ip || '').trim()
 })
 
@@ -249,7 +253,14 @@ const matchedItems = computed(() => {
   if (isCharacter.value) {
     const name = characterName.value
     if (!name) return []
-    return list.filter((item) => Array.isArray(item.characters) && item.characters.includes(name))
+    // 显式指定 IP 时按 (ip, name) 精确匹配（同名角色分属不同 IP 时才不会互相串数据）；
+    // 未指定时维持旧的按名字匹配。
+    const scopedIp = characterIpQuery.value
+    return list.filter((item) => (
+      Array.isArray(item.characters)
+      && item.characters.includes(name)
+      && (scopedIp === null || String(item.ip || '').trim() === scopedIp)
+    ))
   }
   const target = ipName.value
   if (!target) return []

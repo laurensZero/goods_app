@@ -94,6 +94,14 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
   const emptyLabel = t ? t(`leaderboard.empty.${dimension}`) : ''
   const map = new Map()
   let emptyCount = 0
+  const isCharacter = dimension === 'character'
+
+  // 角色身份是 (ip, name)：同名角色在不同 IP 下必须是两条独立的榜，
+  // 否则会被合并成一条、meta 里只剩其中一个 IP（重名就分不清了）。
+  // 商品的 ip 是权威值；商品没填 ip 时退回预设里该角色的 ip（重名时只能取到其中一个，尽力而为）。
+  const entryIpOf = (item, label) => String(item?.ip || '').trim() || presetCharacterIpMap.get(label) || ''
+  const entryKeyOf = (item, label) => (isCharacter ? `${entryIpOf(item, label)}\u0000${label}` : label)
+  const entryMetaOf = (item, label) => (isCharacter ? entryIpOf(item, label) : '')
 
   for (const item of list) {
     if (item?.isWishlist) continue
@@ -127,12 +135,13 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       const touchedLabels = new Set()
 
       const upsert = (label) => {
-        let current = map.get(label)
+        const key = entryKeyOf(item, label)
+        let current = map.get(key)
         if (!current) {
           current = {
-            key: label,
+            key,
             label,
-            meta: '',
+            meta: entryMetaOf(item, label),
             quantity: 0,
             totalValue: 0,
             officialTotalValue: 0,
@@ -142,7 +151,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
             latestAcquiredTime: 0,
             isEmpty: false
           }
-          map.set(label, current)
+          map.set(key, current)
         }
         touchedLabels.add(label)
         return current
@@ -173,12 +182,9 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       }
 
       for (const label of touchedLabels) {
-        const current = map.get(label)
+        const current = map.get(entryKeyOf(item, label))
         if (!current) continue
         current.itemCount += 1
-        if (!current.meta) {
-          current.meta = String(item.ip || '').trim() || presetCharacterIpMap.get(label) || ''
-        }
         current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
       }
 
@@ -220,10 +226,11 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     const officialTotalShare = officialPrice * quantityNumber * shareFactor
 
     for (const label of values) {
-      const current = map.get(label) || {
-        key: label,
+      const key = entryKeyOf(item, label)
+      const current = map.get(key) || {
+        key,
         label,
-        meta: '',
+        meta: entryMetaOf(item, label),
         quantity: 0,
         totalValue: 0,
         officialTotalValue: 0,
@@ -241,11 +248,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
       current.itemCount += 1
       current.latestAcquiredTime = Math.max(current.latestAcquiredTime, Number(item.acquiredTime || 0))
 
-      if (!current.meta && dimension === 'character') {
-        current.meta = String(item.ip || '').trim() || presetCharacterIpMap.get(label) || ''
-      }
-
-      map.set(label, current)
+      map.set(key, current)
     }
   }
 
@@ -289,7 +292,10 @@ export function sortLeaderboardEntries(entries, metric, dimension) {
       return String(b.label).localeCompare(String(a.label), 'zh-Hans-CN')
     }
 
-    return String(a.label).localeCompare(String(b.label), 'zh-Hans-CN')
+    const byLabel = String(a.label).localeCompare(String(b.label), 'zh-Hans-CN')
+    if (byLabel !== 0) return byLabel
+    // 角色按 (ip,name) 拆行后，同名同分时再按 IP 稳定排序
+    return String(a.meta || '').localeCompare(String(b.meta || ''), 'zh-Hans-CN')
   })
 }
 

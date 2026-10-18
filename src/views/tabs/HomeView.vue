@@ -275,6 +275,7 @@
       :category-options="searchCategoryOptions"
       :ip-options="searchIpOptions"
       :character-options="searchCharacterOptions"
+      :character-profile-targets="searchCharacterProfileTargets"
       :visible-character-options="searchVisibleCharacterOptions"
       :has-collapsed-character-options="searchHasCollapsedCharacterOptions"
       :show-all-character-options="searchShowAllCharacterOptions"
@@ -556,6 +557,7 @@ const {
   categoryOptions: searchCategoryOptions,
   ipOptions: searchIpOptions,
   characterOptions: searchCharacterOptions,
+  characterProfileTargets: searchCharacterProfileTargets,
   visibleCharacterOptions: searchVisibleCharacterOptions,
   hasCollapsedCharacterOptions: searchHasCollapsedCharacterOptions,
   showAllCharacterOptions: searchShowAllCharacterOptions,
@@ -704,7 +706,8 @@ function handleOpenProfileEntry(payload) {
   if (!name) return
   showSearchPopup.value = false
   const target = payload.kind === 'character'
-    ? { name: 'character-profile', params: { charName: name } }
+    // 角色可能同名跨 IP，入口会带上所属 IP，落到对应的收藏馆
+    ? { name: 'character-profile', params: { charName: name }, query: { ip: String(payload?.ip || '') } }
     : { name: 'ip-profile', params: { ipName: name } }
   runWithRouteTransition(() => router.push(target), { direction: 'forward' })
 }

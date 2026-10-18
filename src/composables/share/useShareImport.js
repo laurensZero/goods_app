@@ -114,13 +114,9 @@ export function useShareImport(options = {}) {
           presets.addCategory(item.category)
         }
         if (item.characters?.length) {
+          // addCharacter 自带 (ip,name) 去重，重复调用幂等
           for (const ch of item.characters) {
-            const exists = presets.characters.some(c =>
-              (typeof c === 'string' ? c : c.name) === ch
-            )
-            if (!exists) {
-              presets.addCharacter(ch, item.ip || '')
-            }
+            presets.addCharacter(ch, item.ip || '')
           }
         }
 

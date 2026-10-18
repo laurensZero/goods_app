@@ -355,11 +355,20 @@ async function doImport() {
     await store.addMultipleGoods(toImport.map((g) => ({ ...g, isWishlist: isWishlistMode.value })))
     importedCount.value = toImport.length
     importedTotalQty.value = toImport.reduce((s, g) => s + (g.quantity || 1), 0)
-    // 同步角色/IP 预设（与米游铺购物车导入一致）
-    await Promise.all([
-      ...[...new Set(toImport.map((g) => g.ip).filter(Boolean))].map((ip) => presets.addIp(ip)),
-      ...[...new Set(toImport.flatMap((g) => g.characters || []))].map((c) => presets.addCharacter(c)),
-    ])
+    // 同步角色/IP 预设（与米游铺购物车导入一致）；角色要带上所属 IP，(ip,name) 才是身份
+    await Promise.all([...new Set(toImport.map((g) => g.ip).filter(Boolean))].map((ip) => presets.addIp(ip)))
+    const characterSeeds = []
+    const seenCharacterKeys = new Set()
+    for (const g of toImport) {
+      const ip = String(g.ip || '').trim()
+      for (const c of g.characters || []) {
+        const key = `${ip}\u0000${c}`
+        if (seenCharacterKeys.has(key)) continue
+        seenCharacterKeys.add(key)
+        characterSeeds.push(presets.addCharacter(c, ip))
+      }
+    }
+    await Promise.all(characterSeeds)
     view.value = 'done'
   } catch (err) {
     console.warn('[taobao-cart-import] save failed', err)

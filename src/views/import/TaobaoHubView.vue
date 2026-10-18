@@ -924,9 +924,9 @@ async function handleSave() {
   const selectedSkuNameValue = selectedSkuName.value
 
   // 把用户选中的角色/分类/IP 加入预设（与米游铺导入一致）
+  // addCharacter 自带 (ip,name) 去重，重复调用是幂等的
   for (const charName of form.characters) {
-    const exists = presets.characters.some((c) => (typeof c === 'string' ? c : c.name) === charName)
-    if (!exists) presets.addCharacter(charName, form.ip || '')
+    presets.addCharacter(charName, form.ip || '')
   }
   if (form.category && !presets.categories.includes(form.category)) presets.addCategory(form.category)
   if (form.ip && !presets.ips.includes(form.ip)) presets.addIp(form.ip)
