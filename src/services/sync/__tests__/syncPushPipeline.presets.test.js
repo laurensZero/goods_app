@@ -115,4 +115,111 @@ describe('row-level preset/profile push diff', () => {
     expect(pushed.presetRows).toEqual([])
     expect(pushed.collectionProfileRows).toEqual([])
   })
+
+  it('本机列表较短时，新增 IP 追加到云端已有行之后（而不是排在默认排序最前面）', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const backend = {
+      pushAll,
+      // 云端已有 3 个 IP，本机此时只有刚快速新增的「洛天依」
+      pullPresetRows: vi.fn(async () => ({
+        active: [
+          { domain: 'ip', id: '旧1', payload: { name: '旧1' }, sortOrder: 0, deleted: 0 },
+          { domain: 'ip', id: '旧2', payload: { name: '旧2' }, sortOrder: 1, deleted: 0 },
+          { domain: 'ip', id: '旧3', payload: { name: '旧3' }, sortOrder: 2, deleted: 0 }
+        ],
+        trash: []
+      })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    args.syncData.presets.ips = [{ name: '洛天依', fav: false }]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    expect(pushed.presetRows.filter((row) => row.domain === 'ip')).toEqual([
+      expect.objectContaining({ domain: 'ip', id: '洛天依', sort_order: 3, deleted: 0 })
+    ])
+  })
+
+  it('本机列表完整时新增 IP 仍排在最后，已有行 sort_order 不变', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const backend = {
+      pushAll,
+      pullPresetRows: vi.fn(async () => ({
+        active: [
+          { domain: 'ip', id: '旧1', payload: { name: '旧1' }, sortOrder: 0, deleted: 0 },
+          { domain: 'ip', id: '旧2', payload: { name: '旧2' }, sortOrder: 1, deleted: 0 },
+          { domain: 'ip', id: '旧3', payload: { name: '旧3' }, sortOrder: 2, deleted: 0 }
+        ],
+        trash: []
+      })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    args.syncData.presets.ips = [{ name: '旧1' }, { name: '旧2' }, { name: '旧3' }, { name: '洛天依' }]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    expect(pushed.presetRows.filter((row) => row.domain === 'ip')).toEqual([
+      expect.objectContaining({ domain: 'ip', id: '洛天依', sort_order: 3, deleted: 0 })
+    ])
+  })
+
+  it('云端 sort_order 脏数据（新增行排在最前）会在下次推送时被纠正回来', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const backend = {
+      pushAll,
+      // 云端历史脏数据：洛天依 sort_order=0，把它顶到了最前面
+      pullPresetRows: vi.fn(async () => ({
+        active: [
+          { domain: 'ip', id: '洛天依', payload: { name: '洛天依' }, sortOrder: 0, deleted: 0 },
+          { domain: 'ip', id: '旧1', payload: { name: '旧1' }, sortOrder: 1, deleted: 0 },
+          { domain: 'ip', id: '旧2', payload: { name: '旧2' }, sortOrder: 2, deleted: 0 },
+          { domain: 'ip', id: '旧3', payload: { name: '旧3' }, sortOrder: 3, deleted: 0 }
+        ],
+        trash: []
+      })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    // 本机顺序是正确的插入顺序：洛天依在最后
+    args.syncData.presets.ips = [{ name: '旧1' }, { name: '旧2' }, { name: '旧3' }, { name: '洛天依' }]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    expect(pushed.presetRows.filter((row) => row.domain === 'ip')).toEqual([
+      expect.objectContaining({ domain: 'ip', id: '旧1', sort_order: 0 }),
+      expect.objectContaining({ domain: 'ip', id: '旧2', sort_order: 1 }),
+      expect.objectContaining({ domain: 'ip', id: '旧3', sort_order: 2 }),
+      expect.objectContaining({ domain: 'ip', id: '洛天依', sort_order: 3 })
+    ])
+  })
+
+  it('已有预设的本机重排仍会随 sort_order 同步出去', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const backend = {
+      pushAll,
+      pullPresetRows: vi.fn(async () => ({
+        active: [
+          { domain: 'ip', id: '旧1', payload: { name: '旧1' }, sortOrder: 0, deleted: 0 },
+          { domain: 'ip', id: '旧2', payload: { name: '旧2' }, sortOrder: 1, deleted: 0 }
+        ],
+        trash: []
+      })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    args.syncData.presets.ips = [{ name: '旧2' }, { name: '旧1' }]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    expect(pushed.presetRows.filter((row) => row.domain === 'ip')).toEqual([
+      expect.objectContaining({ domain: 'ip', id: '旧2', sort_order: 0 }),
+      expect.objectContaining({ domain: 'ip', id: '旧1', sort_order: 1 })
+    ])
+  })
 })

@@ -56,6 +56,47 @@ function filterChangedRows(localRows, remoteRows, normalizeRow, keyOf) {
   })
 }
 
+/**
+ * 预设行 sort_order 归一化。
+ *
+ * - 远端已存在的行保持本机相对顺序（本地 splice 重排才能同步出去）；
+ * - 远端还不存在的新行（本机刚快速新增的 IP / 角色等）一律追加到该域全部已有行之后。
+ *
+ * 否则当本机列表较短甚至为空时，新行按「本地下标」推送会得到一个很小的值
+ * （极端情况下是 0）；拉取合并严格按远端 sort_order 排序，就会把这个刚添加的
+ * 预设顶到默认排序的最前面，而不是用户期望的最后一位。
+ */
+function normalizeNewPresetSortOrders(localRows, remoteRows) {
+  const remoteKeys = new Set()
+  const remoteMaxSort = new Map()
+  for (const row of remoteRows || []) {
+    const domain = String(row?.domain || '')
+    const id = String(row?.id || '')
+    if (!domain || !id) continue
+    remoteKeys.add(`${domain}\u0000${id}`)
+    const sort = Number(row?.sort_order ?? row?.sortOrder)
+    if (Number.isFinite(sort)) {
+      remoteMaxSort.set(domain, Math.max(remoteMaxSort.get(domain) ?? -1, sort))
+    }
+  }
+  const byDomain = new Map()
+  for (const row of localRows || []) {
+    const list = byDomain.get(row.domain) || []
+    list.push(row)
+    byDomain.set(row.domain, list)
+  }
+  for (const [domain, rows] of byDomain) {
+    const existing = rows.filter((row) => remoteKeys.has(`${domain}\u0000${row.id}`))
+    const added = rows.filter((row) => !remoteKeys.has(`${domain}\u0000${row.id}`))
+    existing.forEach((row, index) => { row.sort_order = index })
+    let next = Math.max((remoteMaxSort.get(domain) ?? -1) + 1, existing.length)
+    for (const row of added) {
+      row.sort_order = next
+      next += 1
+    }
+  }
+}
+
 async function readFullPresetRowsForPush(be, remoteData) {
   // 本次 sync_pull 已经全量拉过行表（since=0，例如本地有脏预设）时直接复用，省一次请求
   if (remoteData?.rowDomainsComplete) {
@@ -313,6 +354,8 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     const remotePresetByKey = new Map(
       (remotePresetRows || []).map((row) => [`${row.domain || ''}\u0000${row.id || ''}`, row])
     )
+    // 新增预设必须排在云端已有行之后，否则会被拉到默认排序最前面（见函数注释）
+    normalizeNewPresetSortOrders(allPresetRows, remotePresetRows)
     const localPresetRows = [...allPresetRows, ...allPresetTombstoneRows]
     for (const row of allPresetTombstoneRows) {
       let remote = remotePresetByKey.get(`${row.domain}\u0000${row.id}`)
