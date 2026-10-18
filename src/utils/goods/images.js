@@ -28,10 +28,6 @@ export function parseCloudImageUri(uri) {
   if (value.startsWith(CLOUD_IMAGE_PREFIX)) return value.slice(CLOUD_IMAGE_PREFIX.length)
   // Backward compat: old gist-image:// prefix
   if (value.startsWith('gist-image://')) return value.slice('gist-image://'.length)
-  // 收敛后的相对引用形态 cloud:<fileName>（见 src/utils/image/ref.js 的 CLOUD_REF_PREFIX）。
-  // 云端迁移会写成这种形态，反解必须认：孤儿回收靠本函数判断"文件是否被引用"，
-  // 认不出来就会把仍在使用的图当孤儿删掉。
-  if (value.startsWith('cloud:')) return value.slice('cloud:'.length)
   return ''
 }
 
