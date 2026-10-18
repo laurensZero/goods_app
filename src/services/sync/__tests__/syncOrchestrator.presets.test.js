@@ -230,4 +230,53 @@ describe('pull applies row-level presets', () => {
 
     expect(mergeToLocal).toHaveBeenCalled()
   })
+
+  it('整库拉取（since=0，含强制全量/拉取远端）时必须全量拉预设行，不能沿用行水位', async () => {
+    // 回归：数据 since=0 全量、但行表只拿增量行 → merge 用「远端全量」语义重建预设快照，
+    // 未变更的分类/自定义字段/活动类型被清空；且强制全量拉取也补不回来。
+    stubRemote()
+    const backend = { pullAll: vi.fn().mockResolvedValue({}), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
+    const orchestrator = makeOrchestrator(backend, makeStores())
+    const ctx = makeCtx({ presetRowSince: 1_700_000_000_000, profileRowSince: 1_700_000_000_000 })
+
+    await orchestrator.pull(ctx, { silent: true, forceAlign: true })
+
+    expect(readRemoteData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      presetSince: 0,
+      profileSince: 0
+    }))
+  })
+
+  it('增量拉取且本地干净时继续使用行水位增量', async () => {
+    stubRemote()
+    const backend = { pullAll: vi.fn(), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
+    const orchestrator = makeOrchestrator(backend, makeStores())
+    const ctx = makeCtx({ presetRowSince: 1_700_000_000_000, profileRowSince: 1_700_000_000_001 })
+
+    await orchestrator.pull(ctx, { since: Date.parse(SYNC_TIME), dirtyDomains: null })
+
+    expect(readRemoteData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      presetSince: 1_700_000_000_000,
+      profileSince: 1_700_000_000_001
+    }))
+  })
+
+  it('本地预设快照被清空时，增量拉取也强制全量拉行表（自愈恢复）', async () => {
+    stubRemote()
+    const backend = { pullAll: vi.fn(), getExistingImageCloud: vi.fn().mockResolvedValue({ files: {} }) }
+    const stores = makeStores()
+    stores.presetsStore = {
+      categories: [], ips: [], characters: [], storageLocations: [], eventTypes: [], customFieldDefs: [],
+      replacePresetsSnapshot: vi.fn()
+    }
+    const orchestrator = makeOrchestrator(backend, stores)
+    const ctx = makeCtx({ presetRowSince: 1_700_000_000_000, profileRowSince: 1_700_000_000_000 })
+
+    await orchestrator.pull(ctx, { since: Date.parse(SYNC_TIME), dirtyDomains: null })
+
+    expect(readRemoteData).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      presetSince: 0,
+      profileSince: 0
+    }))
+  })
 })

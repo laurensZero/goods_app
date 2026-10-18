@@ -270,6 +270,72 @@ describe('mergeToLocal row-level presets', () => {
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalled()
   })
 
+  it('reconcileMissing 但行表只拉到增量（rowDomainsComplete=false）时，叠加合并、不得清空本地预设', async () => {
+    // 回归：拉取远端（since=0 数据全量）曾用「远端全量」语义重建预设快照，但行表只按
+    // 行水位增量拉；未变更的分类/自定义字段/活动类型被当成远端已删而清空。
+    const stores = makeStores()
+    stores.presetsStore.categories = ['旧分类']
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'category', id: 'B', payload: { name: 'B' }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: [],
+      rowDomainsComplete: false
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categories: ['旧分类', expect.objectContaining({ name: 'B' })]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('行表增量且没有拉到任何行时，reconcileMissing 也不重建快照（避免清空本地预设）', async () => {
+    const stores = makeStores()
+    stores.presetsStore.categories = ['旧分类']
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: [],
+      rowDomainsComplete: false
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('行表完整（rowDomainsComplete=true）且 reconcileMissing 时，空远端才允许清空本地预设', async () => {
+    const stores = makeStores()
+    stores.presetsStore.categories = ['旧分类']
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: [],
+      rowDomainsComplete: true
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ categories: [] }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
   it('应用 collection_profiles 行并保留角色背景 key 与图片引用', async () => {
     const stores = makeStores()
     const remote = {

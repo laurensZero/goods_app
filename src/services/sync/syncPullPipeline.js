@@ -365,23 +365,30 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   }
 
   // ── Row-level presets / collection profiles ──
-  // Rows are LWW independently; only after applying the row delta do we
-  // feed the existing stores a compatible snapshot. On a non-incremental
-  // pull, an empty remote set is authoritative and clears stale local rows.
+  // Rows are LWW independently; only after applying the row delta do we feed the
+  // existing stores a compatible snapshot. 只有当远端返回的是「完整行集合」
+  // （rowDomainsComplete，即行表按 since=0 全量拉取）时，reconcileMissing 才允许
+  // 用远端空集清掉本地行；否则增量行只能叠加合并。此前「拉取远端」用增量行重建
+  // 快照，把未变更的分类/自定义字段/活动类型当成「远端已删」清空（数据丢失）。
   const hasPresetRowsPayload = Array.isArray(remoteData.presetRows) && Array.isArray(remoteData.presetRowsTrash)
-  if (hasPresetRowsPayload && (reconcileMissing || remoteData.presetRows.length || remoteData.presetRowsTrash.length) && presetsStore) {
+  const presetRowsComplete = remoteData.rowDomainsComplete === true
+  const shouldMergePresetRows = hasPresetRowsPayload
+    && (presetRowsComplete || remoteData.presetRows.length || remoteData.presetRowsTrash.length)
+  if (shouldMergePresetRows && presetsStore) {
     const read = (value) => value?.value ?? value ?? []
     const fields = {
       category: 'categories', ip: 'ips', character: 'characters',
       storage_location: 'storageLocations', event_type: 'eventTypes', custom_field: 'customFieldDefs'
     }
     const next = {}
+    // 只有「完整行集合 + 需要 reconcile」时才用远端重建；增量行一律在本地现状上叠加
+    const rebuildFromRemote = reconcileMissing && presetRowsComplete
     for (const [domain, field] of Object.entries(fields)) {
       const current = Array.isArray(read(presetsStore[field])) ? read(presetsStore[field]) : []
       const itemKey = (item) => typeof item === 'string'
         ? item
         : String(item?.id || item?.key || item?.name || item?.value || '')
-      const byId = new Map((reconcileMissing ? [] : current.map((item) => [itemKey(item), item])).filter(([id]) => id))
+      const byId = new Map((rebuildFromRemote ? [] : current.map((item) => [itemKey(item), item])).filter(([id]) => id))
       const localOrder = new Map(current.map((item, index) => [itemKey(item), index]))
       const remoteOrder = new Map()
       for (const row of [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])].filter((item) => item.domain === domain)) {

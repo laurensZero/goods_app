@@ -135,8 +135,14 @@ export function createSyncOrchestrator({
 
   // ── 行级预设 / 背景：goods 同款增量水位 ──
 
-  /** 本地预设/背景有未推送改动时强制全量拉一次行表（用于推送 diff），否则用行水位增量 */
-  function rowSinceFor(ctx, dirtyDomains) {
+  /**
+   * 本地预设/背景有未推送改动时强制全量拉一次行表（用于推送 diff），否则用行水位增量。
+   * full=true 表示本次是整库数据拉取（since=0，例如「拉取远端」/长按强制全量）：
+   * 此时 merge 会按「远端全量」语义重建预设快照，行表也必须全量拉，否则只拿到增量行，
+   * 未变更的分类/自定义字段/活动类型会被当成「远端已删」清空（数据丢失）。
+   */
+  function rowSinceFor(ctx, dirtyDomains, { full = false } = {}) {
+    if (full) return { presetSince: 0, profileSince: 0 }
     const dirty = !!dirtyDomains && (dirtyDomains.has('presets') || dirtyDomains.has('profiles'))
     if (dirty) return { presetSince: 0, profileSince: 0 }
     return {
@@ -170,6 +176,25 @@ export function createSyncOrchestrator({
       profile: profileTs > 0 ? new Date(profileTs).toISOString() : ''
     })
   }
+  /**
+   * 本地预设快照是否整体为空（六个域全空）。
+   * 用于自愈：本地预设被清空（如历史版本「拉取远端」用增量行重建快照）后，
+   * 普通增量 pull 也会强制全量拉一次行表，把云端仍在的分类/字段/活动类型补回来，
+   * 不必依赖「强制全量拉取」（后者会用远端覆盖本地未推送的商品改动）。
+   * 拿不到 store 字段时返回 false（测试/精简环境不改变原有行为）。
+   */
+  function isPresetsSnapshotEmpty(presetsStore) {
+    if (!presetsStore) return false
+    const read = (value) => value?.value ?? value
+    const fields = ['categories', 'ips', 'characters', 'storageLocations', 'eventTypes', 'customFieldDefs']
+    const present = fields.filter((field) => presetsStore[field] !== undefined)
+    if (present.length === 0) return false
+    return present.every((field) => {
+      const value = read(presetsStore[field])
+      return !Array.isArray(value) || value.length === 0
+    })
+  }
+
   // ── pull() — unified pull entry point ──
 
   async function pull(ctx, opts = {}) {
@@ -190,8 +215,10 @@ export function createSyncOrchestrator({
       const pullStartMs = Date.now()
       const remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(since),
-        // 有本地未推送改动时全量拉行表（用于推送 diff），否则用行级水位增量
-        ...rowSinceFor(ctx, opts.dirtyDomains),
+        // 有本地未推送改动时全量拉行表（用于推送 diff），否则用行级水位增量；
+        // 整库数据拉取（!isIncremental）时行表也必须全量拉，否则 merge 重建快照会丢行；
+        // 本地预设快照被清空时同样全量拉一次，自动把云端行补回（自愈）。
+        ...rowSinceFor(ctx, opts.dirtyDomains, { full: !isIncremental || isPresetsSnapshotEmpty(stores.presetsStore) }),
         trackSyncStep,
         source: pullSource
       })
@@ -545,7 +572,11 @@ export function createSyncOrchestrator({
     try {
       remoteData = await readRemoteData(be, {
         since: sinceWithOverlap(localSyncTime),
-        ...rowSinceFor(ctx, opts.dirtyDomains),
+        // 无行水位（首次同步/整库拉取）或本地预设快照被清空时，行级预设也必须全量拉，
+        // 避免重建快照丢行 / 让云端仍在的预设行自动补回本地
+        ...rowSinceFor(ctx, opts.dirtyDomains, {
+          full: localSyncTime <= 0 || isPresetsSnapshotEmpty(stores.presetsStore)
+        }),
         trackSyncStep,
         source: syncSource
       })
