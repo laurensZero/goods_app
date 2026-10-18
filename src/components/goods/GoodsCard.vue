@@ -140,6 +140,7 @@ import {
   hasCollectStatusMatch,
   resolvePrimaryCollectStatus,
   areAllCopiesExited,
+  EXITED_COLLECT_STATUSES,
   formatCollectStatusSummary,
   formatPendingStatusSummary,
   getStatusShortLabel,
@@ -340,11 +341,32 @@ const statusDaysText = computed(() => {
       if (statusSet.size === 1) return `${getStatusShortLabel(list[0].status)} ${daysStr}`
       return `${formatCollectStatusSummary(props.item, { compact: true })} · ${daysStr}`
     }
-    return `${t('goods.card.holding')} ${daysStr}`
+
+    // 已出/已赠出/丢失的件不再持有，不并入「持有」区间（避免「持有 0~273 天」里的 0 来自已出件）
+    const heldList = list.filter((e) => !EXITED_COLLECT_STATUSES.has(e.status))
+    if (heldList.length > 0) {
+      const heldDays = heldList.map((e) => e.days)
+      const heldMin = Math.min(...heldDays)
+      const heldMax = Math.max(...heldDays)
+      const heldStr = heldMin === heldMax ? `${heldMin} ${daysUnit}` : `${heldMin}~${heldMax} ${daysUnit}`
+      return `${t('goods.card.holding')} ${heldStr}`
+    }
+
+    // 全部件都已出/已赠出/丢失：改用状态摘要替代「持有」，保留持有过的天数
+    const allExitedStatusSet = new Set(list.map((e) => e.status))
+    if (allExitedStatusSet.size === 1) return `${getStatusShortLabel(list[0].status)} ${daysStr}`
+    return `${formatCollectStatusSummary(props.item, { compact: true })} · ${daysStr}`
   }
 
   const days = holdingDays.value
-  if (days !== null) return `${t('goods.card.holding')} ${days} ${t('common.daysUnit')}`
+  if (days !== null) {
+    // 已出/已赠出/丢失：不再持有，改用状态标签 + 持有过的天数
+    if (isExited.value) {
+      const primary = props.item._primaryStatus ?? resolvePrimaryCollectStatus(props.item)
+      return `${getStatusShortLabel(primary)} ${days} ${t('common.daysUnit')}`
+    }
+    return `${t('goods.card.holding')} ${days} ${t('common.daysUnit')}`
+  }
 
   // 在途未入手：不算持有，但显示进入在途状态至今的天数
   const pending = pendingDays.value
