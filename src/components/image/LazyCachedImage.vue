@@ -350,6 +350,22 @@ onMounted(() => {
       return
     }
 
+    // endpoint：数据面端点已切换。已渲染出来的字节与端点无关（缓存里存的就是图片本身），
+    // 保持画面不动，避免整屏闪一下；只有「停在失败占位」或「还没解析出 src」的实例需要
+    // 按新端点重来——getCachedImage 会把内置存储域名 rebase 到当前偏好端点。
+    if (reason === 'endpoint') {
+      if (!hasEnteredViewport.value) return
+      if (!hasLoadError.value && (resolvedSrc.value || isImageLoading.value)) return
+      hasLoadError.value = false
+      retryKey.value = 0
+      forceDecodeValidationOnCacheHit = false
+      resolvedSrc.value = ''
+      isImageLoading.value = !!props.src
+      resetSkeletonVisibility()
+      void runLoad()
+      return
+    }
+
     if (reason === 'resume') {
       forceDecodeValidationOnCacheHit = true
     }

@@ -608,6 +608,7 @@ import {
 } from '@/utils/sync/supabaseClient'
 import { useAuthStore } from '@/stores/auth'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { signalImageCacheRefresh } from '@/utils/image/cache'
 import { formatDate } from '@/utils/format'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
@@ -1283,6 +1284,8 @@ async function handleSwitchEndpoint(id) {
     }
     endpointProbes.value = {}
     refreshEndpointRows()
+    // 存量行里的 uri 还指着旧端点的绝对地址，端点已切换：让停留在失败占位的图按新端点重解析
+    signalImageCacheRefresh('endpoint')
     if (syncStore.isSyncing || syncStore.isPulling) {
       syncStore.isSyncing = false
       syncStore.isPulling = false

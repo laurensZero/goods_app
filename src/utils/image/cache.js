@@ -8,6 +8,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem'
 import { Capacitor } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
 import { resolveImageRequestReferrerPolicy } from '@/utils/image/imageRequestPolicy'
+import { getPublicImageDisplayCandidates } from '@/utils/sync/supabaseClient'
 
 const CACHE_NAME = 'img-cache-v1'
 const CAP_DIR = Directory.Cache
@@ -242,6 +243,36 @@ function buildImageFetchInit(url) {
     ...(IMAGE_FETCH_INIT || {}),
     ...(referrerPolicy ? { referrerPolicy } : {})
   }
+}
+
+/**
+ * 图片下载的候选地址（按尝试顺序）：当前偏好端点优先，其余内置端点兜底。
+ *
+ * 行里的 uri 是「推送那一刻那台设备所在端点」的绝对地址，而切换数据面端点不会回写
+ * 存量行（cloudFileName 才是唯一真相，uri 只是展示缓存）。旧域名一旦失效，这些图会
+ * 一直 404。这里在下载入口按当前端点把内置存储地址 rebase 回来：uri 当缓存用，
+ * 端点切到哪就打到哪；切端点后旧域名 404，自动落到候选里的另一端点。
+ * 第三方 CDN（米游铺等）与本地文件不是内置存储地址，原样返回、只试一次。
+ * @param {string} url
+ * @returns {string[]}
+ */
+function getFetchUrlCandidates(url) {
+  const raw = String(url || '').trim()
+  if (!raw) return []
+  try {
+    const candidates = getPublicImageDisplayCandidates(raw)
+    return candidates.length > 0 ? candidates : [raw]
+  } catch {
+    return [raw]
+  }
+}
+
+/** 开发环境把米游铺 CDN 换成代理路径（仅影响 fetch，缓存 key 保留原始 URL） */
+function toDevFetchUrl(url) {
+  if (import.meta.env.DEV && url.includes('sdk-webstatic.mihoyo.com')) {
+    return url.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
+  }
+  return url
 }
 
 // --- Layer 1: 内存缓存 ---
@@ -704,11 +735,9 @@ export async function getCachedImage(url, options = {}) {
   const cacheKey = cacheKeys[0] || normalizedUrl || url
   const priority = options?.priority === 'preload' ? 'preload' : 'viewport'
 
-  // 转换开发环境的跨域 URL 为代理路径（仅用于 fetch，缓存 key 保留原始 URL）
-  let fetchUrl = normalizedUrl || url
-  if (import.meta.env.DEV && fetchUrl.includes('sdk-webstatic.mihoyo.com')) {
-    fetchUrl = fetchUrl.replace('https://sdk-webstatic.mihoyo.com', '/mihoyo-static')
-  }
+  // 下载地址在 run() 里按当前端点重算（见 getFetchUrlCandidates）：端点偏好可能在
+  // 入队之后才被切换，这里保留原始地址只用于泳道分类与日志语义。
+  const fetchUrl = normalizedUrl || url
 
   // 1: 内存（用原始 URL 作为 key）；命中重插保持 LRU 语义
   for (const key of cacheKeys) {
@@ -767,8 +796,21 @@ export async function getCachedImage(url, options = {}) {
         }
 
         try {
-          const response = await fetchWithPlatformBridge(fetchUrl, buildImageFetchInit(fetchUrl))
-          if (!response.ok) throw new Error(`HTTP ${response.status}`)
+          // 当前端点优先、另一内置端点兜底：行里存的旧域名失效时仍能出图
+          let response = null
+          let lastError = null
+          for (const candidate of getFetchUrlCandidates(fetchUrl || url)) {
+            const target = toDevFetchUrl(candidate)
+            try {
+              const next = await fetchWithPlatformBridge(target, buildImageFetchInit(target))
+              if (!next.ok) throw new Error(`HTTP ${next.status}`)
+              response = next
+              break
+            } catch (error) {
+              lastError = error
+            }
+          }
+          if (!response) throw lastError || new Error('image fetch failed')
 
           const blob = await response.blob()
           if (!blob || !blob.size) throw new Error('empty image body')
