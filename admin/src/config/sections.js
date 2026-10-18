@@ -88,7 +88,7 @@ export const SECTIONS = [
     label: '图片存储',
     short: '存储',
     icon: 'image',
-    description: '存储占用与孤儿图回收（Supabase Storage）',
+    description: '存储占用与孤儿/重复图回收（Supabase Storage）',
     component: defineAsyncComponent(() => import('../sections/ImageStorageSection.vue'))
   },
   {

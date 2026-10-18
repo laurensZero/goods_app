@@ -40,12 +40,12 @@ export function listStorage() {
   return callStorageAdmin('list')
 }
 
-/** 计算孤儿图（dry-run，不删除）。 */
+/** 计算可回收对象（孤儿图 + 重复图，dry-run，全量，不删除）。 */
 export function findOrphans() {
   return callStorageAdmin('orphans', { method: 'POST' })
 }
 
-/** 回收孤儿图（物理删除）。 */
+/** 全量回收可回收对象（物理删除；无 48h 宽限、无数量上限）。 */
 export function runGc() {
   return callStorageAdmin('gc', { method: 'POST' })
 }

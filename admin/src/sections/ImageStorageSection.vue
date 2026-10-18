@@ -11,10 +11,18 @@ const loading = ref(false)
 const busy = ref(false)
 const status = ref({ text: '', type: 'default' })
 const overview = ref(null) // { total_objects, total_bytes, buckets: [{bucket, objects, bytes}] }
-const orphans = ref(null) // { count, bytes, samples, truncated }
+const orphans = ref(null) // { count, bytes, orphans:{count,bytes}, duplicates:{count,bytes}, samples, samples_truncated }
 
 function setStatus(text, type = 'default') {
   status.value = { text, type }
+}
+
+// 兼容旧版函数（只返回 count/bytes，无 orphans/duplicates 拆分）
+function countsOf(result) {
+  const total = result?.count || 0
+  const orphanCount = result?.orphans?.count ?? total
+  const dupCount = result?.duplicates?.count || 0
+  return { total, orphanCount, dupCount }
 }
 
 async function loadOverview() {
@@ -31,11 +39,16 @@ async function loadOverview() {
 
 async function loadOrphans() {
   busy.value = true
-  setStatus('正在计算孤儿图…')
+  setStatus('正在计算可回收对象…')
   try {
     orphans.value = await findOrphans()
-    const n = orphans.value?.count || 0
-    setStatus(n ? `找到 ${n} 个孤儿对象（约 ${formatBytes(orphans.value?.bytes)}）。` : '未发现可回收的孤儿对象。', n ? 'default' : 'ok')
+    const { total, orphanCount, dupCount } = countsOf(orphans.value)
+    setStatus(
+      total
+        ? `找到 ${total} 个可回收对象（孤儿 ${orphanCount}、重复 ${dupCount}，约 ${formatBytes(orphans.value?.bytes)}）。`
+        : '未发现可回收的孤儿/重复对象。',
+      total ? 'default' : 'ok'
+    )
   } catch (e) {
     setStatus(e?.message || '计算失败。', 'error')
   } finally {
@@ -44,11 +57,11 @@ async function loadOrphans() {
 }
 
 async function doGc() {
-  const count = orphans.value?.count || 0
-  if (!count) return
+  const { total, orphanCount, dupCount } = countsOf(orphans.value)
+  if (!total) return
   const ok = await confirm({
-    title: '回收孤儿图',
-    message: `将物理删除 ${count} 个孤儿对象（约 ${formatBytes(orphans.value?.bytes)}）。48h 内新建的对象不会被删。此操作不可撤销。`,
+    title: '全量回收孤儿/重复图',
+    message: `将物理删除 ${total} 个对象（孤儿 ${orphanCount}、重复 ${dupCount}，约 ${formatBytes(orphans.value?.bytes)}）。全量回收：不设 48h 宽限、不设数量上限，此操作不可撤销。`,
     danger: true,
     confirmText: '回收'
   })
@@ -57,7 +70,11 @@ async function doGc() {
   try {
     const r = await runGc()
     orphans.value = null
-    setStatus(`已回收 ${r.deleted} 个对象（约 ${formatBytes(r.bytes)}）。`, 'ok')
+    const dupDeleted = r.duplicates_deleted || 0
+    setStatus(
+      `已回收 ${r.deleted} 个对象（约 ${formatBytes(r.bytes)}${dupDeleted ? `，其中重复图 ${dupDeleted} 个` : ''}）。`,
+      'ok'
+    )
     await loadOverview()
   } catch (e) {
     setStatus(e?.message || '回收失败。', 'error')
@@ -102,21 +119,28 @@ onMounted(loadOverview)
   <div class="card card--inner">
     <div class="card-header">
       <div>
-        <p class="card-kicker">Orphan GC</p>
-        <h3 class="card-title">孤儿图回收</h3>
+        <p class="card-kicker">Storage GC</p>
+        <h3 class="card-title">孤儿图 / 重复图回收</h3>
       </div>
       <span class="state">{{ orphans ? `${orphans.count} 个` : '未计算' }}</span>
     </div>
 
     <p class="tip">
       回收逻辑复刻客户端同步内的孤儿回收：仅处理 <code>goods-image__</code> / <code>event-cover__</code> /
-      <code>event-photo__</code> / <code>recharge-image__</code> 前缀文件，跳过 48h 内新建对象，单次上限 200。
-      判定偏保守，不会误删仍存在实体的文件。
+      <code>event-photo__</code> / <code>recharge-image__</code> 前缀文件，按实体级引用保守判定，不会误删仍存在实体的文件。
+    </p>
+    <p class="tip">
+      管理台为<strong>手动全量回收</strong>：不设 48h 宽限期、不设单次数量上限，一次扫全量、一次清完。
+      另外会清理同一桶内带 <code>(1)</code> / <code>(2)</code> 等序号后缀、且存在同名基名文件、大小一致的重复图（如
+      <code>xxx (1).jpg</code>）；大小不一致或找不到基名文件的副本一律保留。
+    </p>
+    <p class="tip">
+      注意：刚上传、尚未入库的文件会被视为孤儿，建议在其他设备不同步时执行回收。
     </p>
 
     <div class="actions">
       <button class="btn btn--soft" type="button" :disabled="busy" @click="loadOrphans">
-        {{ busy ? '处理中…' : '计算孤儿' }}
+        {{ busy ? '处理中…' : '计算可回收' }}
       </button>
       <button
         class="btn btn--danger"
@@ -124,7 +148,7 @@ onMounted(loadOverview)
         :disabled="busy || !orphans?.count"
         @click="doGc"
       >
-        回收孤儿{{ orphans?.count ? `（${orphans.count}）` : '' }}
+        回收{{ orphans?.count ? `（${orphans.count}）` : '' }}
       </button>
     </div>
 
@@ -132,11 +156,18 @@ onMounted(loadOverview)
       <hr class="sep">
       <div v-for="s in orphans.samples.slice(0, 20)" :key="s.path" class="list-item">
         <div class="list-item-main">
-          <span class="list-item-title">{{ s.name }}</span>
+          <span class="list-item-title">
+            {{ s.name }}
+            <span class="reason-pill" :class="s.reason === 'duplicate' ? 'reason-pill--duplicate' : 'reason-pill--orphan'">
+              {{ s.reason === 'duplicate' ? '重复' : '孤儿' }}
+            </span>
+          </span>
           <span class="list-item-meta">{{ formatBytes(s.size) }} · {{ formatTime(s.created_at) }}</span>
         </div>
       </div>
-      <p v-if="orphans.truncated" class="status-text">仅显示前 20 条（超出部分需分批回收）。</p>
+      <p v-if="orphans.samples_truncated" class="status-text">
+        仅显示前 20 条样例（实际回收会处理全部 {{ orphans.count }} 个）。
+      </p>
     </template>
   </div>
 </template>
@@ -202,6 +233,26 @@ onMounted(loadOverview)
 .bucket-meta {
   font-size: 12px;
   color: var(--app-text-tertiary);
+}
+
+.reason-pill {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  font-weight: 500;
+}
+
+.reason-pill--orphan {
+  background: var(--status-info-bg);
+  color: var(--status-info);
+}
+
+.reason-pill--duplicate {
+  background: var(--status-warn-bg);
+  color: var(--status-warn);
 }
 
 .card--inner {
