@@ -13,6 +13,7 @@ import {
   fetchAllOrders,
   searchGoodsList,
   addToCart,
+  fetchGoodsDetail,
   fetchGoodsDetailForCart,
   getMihoyoIpByShopCode,
 } from '../index'
@@ -92,5 +93,76 @@ describe('getMihoyoIpByShopCode（按店铺回填规范 IP 名称）', () => {
   it('未知店铺返回空串', () => {
     expect(getMihoyoIpByShopCode('')).toBe('')
     expect(getMihoyoIpByShopCode('unknown')).toBe('')
+  })
+})
+
+describe('fetchGoodsDetail：SKU 顺序按 sale_attrs 原始顺序（而非 detail.skus 键顺序）', () => {
+  it('单维度：按 sale_attrs.content 组内顺序输出', async () => {
+    mocks.mihoyoRequest.mockResolvedValue({
+      retcode: 0,
+      data: {
+        goods: {
+          detail: {
+            sale_attrs: [
+              {
+                name: '款式',
+                content: [
+                  { key: 'a', text: '黑天鹅' },
+                  { key: 'b', text: '花火' },
+                  { key: 'c', text: '黄泉' },
+                ],
+              },
+            ],
+            // 故意与 sale_attrs 顺序不一致
+            skus: {
+              c: { price: 1000, cover_url: 'cover-c' },
+              a: { price: 1000, cover_url: 'cover-a' },
+              b: { price: 1000, cover_url: 'cover-b' },
+            },
+          },
+        },
+      },
+    })
+
+    const result = await fetchGoodsDetail('order-test-single')
+    expect(result.skuVariants.map((v) => v.text)).toEqual(['黑天鹅', '花火', '黄泉'])
+  })
+
+  it('多维度：先按维度组序、再按组内序排列（第一维变化最慢）', async () => {
+    mocks.mihoyoRequest.mockResolvedValue({
+      retcode: 0,
+      data: {
+        goods: {
+          detail: {
+            sale_attrs: [
+              {
+                name: '角色',
+                content: [
+                  { key: 'a', text: 'A' },
+                  { key: 'b', text: 'B' },
+                ],
+              },
+              {
+                name: '款式',
+                content: [
+                  { key: 'x', text: 'X' },
+                  { key: 'y', text: 'Y' },
+                ],
+              },
+            ],
+            skus: {
+              b_y: { price: 1000 },
+              a_x: { price: 1000 },
+              b_x: { price: 1000 },
+              a_y: { price: 1000 },
+            },
+          },
+        },
+      },
+    })
+
+    const result = await fetchGoodsDetail('order-test-multi')
+    expect(result.skuVariants.map((v) => v.text))
+      .toEqual(['A / X', 'A / Y', 'B / X', 'B / Y'])
   })
 })

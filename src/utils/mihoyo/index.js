@@ -221,6 +221,34 @@ function buildSaleAttrVariants(rawSaleAttrs) {
   return variants
 }
 
+// 维度项在 sale_attrs 中的原始位置（组序 + 组内序）：
+// detail.skus 的键顺序与店铺展示顺序不一致，需要用它把 SKU 还原成米游铺原始款式顺序
+function buildAttrRankMap(groups) {
+  const attrRank = new Map()
+  groups.forEach((group, groupIndex) => {
+    group.content.forEach((item, itemIndex) => {
+      if (!attrRank.has(item.key)) attrRank.set(item.key, { groupIndex, itemIndex })
+    })
+  })
+  return attrRank
+}
+
+function rankOfSelections(selections, attrRank) {
+  return selections
+    .map((selection) => attrRank.get(selection.key))
+    .filter(Boolean)
+    .sort((a, b) => a.groupIndex - b.groupIndex || a.itemIndex - b.itemIndex)
+}
+
+function compareSelectionRank(a, b) {
+  const len = Math.min(a.length, b.length)
+  for (let i = 0; i < len; i += 1) {
+    if (a[i].groupIndex !== b[i].groupIndex) return a[i].groupIndex - b[i].groupIndex
+    if (a[i].itemIndex !== b[i].itemIndex) return a[i].itemIndex - b[i].itemIndex
+  }
+  return a.length - b.length
+}
+
 function buildSkuVariantsFromDetail(detail) {
   const groups = normalizeSaleAttrGroups(detail?.sale_attrs)
   if (!groups.length) return []
@@ -241,7 +269,9 @@ function buildSkuVariantsFromDetail(detail) {
     }
   }
 
-  const variants = []
+  const attrRank = buildAttrRankMap(groups)
+
+  const entries = []
   const skus = detail?.skus && typeof detail.skus === 'object'
     ? Object.entries(detail.skus)
     : []
@@ -267,10 +297,14 @@ function buildSkuVariantsFromDetail(detail) {
     })
     // 文本已排除单选项组；key 覆盖为完整组合 key
     variant.key = selections.map((s) => s.key).join('_')
-    variants.push(variant)
+    entries.push({ variant, rank: rankOfSelections(selections, attrRank) })
   }
 
-  return variants.length ? variants : buildSaleAttrVariants(groups)
+  if (!entries.length) return buildSaleAttrVariants(groups)
+
+  // 按 sale_attrs 原始顺序（而不是 detail.skus 的键顺序）还原店铺展示顺序
+  entries.sort((a, b) => compareSelectionRank(a.rank, b.rank))
+  return entries.map((entry) => entry.variant)
 }
 
 /**

@@ -672,7 +672,13 @@ const sheetDetail = computed(() => {
   return itemDetailMap[activeItem.value.goods_id] || null
 })
 
-const sheetVariants = computed(() => sheetDetail.value?.variants || [])
+// 款式较多时按店铺展示习惯倒序显示；款式很少时保持原始顺序
+// （仅本页显示层处理，不改动数据、不影响其他页面）
+const SKU_REVERSE_MIN_COUNT = 10
+const sheetVariants = computed(() => {
+  const list = sheetDetail.value?.variants || []
+  return list.length > SKU_REVERSE_MIN_COUNT ? [...list].reverse() : list
+})
 
 function priceRangeOf(skus) {
   const prices = (skus || [])
