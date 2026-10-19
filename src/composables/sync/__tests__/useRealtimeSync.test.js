@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import { realtimeState, requestRealtimeReconnect, useRealtimeSync } from '@/composables/sync/useRealtimeSync'
 
 const mocks = vi.hoisted(() => ({
-  callbacks: [],
+  channels: [],
   staleChannels: [],
   socketUp: { value: true },
   socketConnecting: { value: false },
@@ -14,16 +14,20 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('@/utils/sync/supabaseClient', () => {
-  const builder = {
-    on() { return builder },
-    subscribe(cb) {
-      mocks.callbacks.push(cb)
-      return { unsubscribe() {} }
-    }
-  }
   return {
     getSupabaseClient: vi.fn(() => ({
-      channel: () => builder,
+      channel(name) {
+        const channel = {
+          topic: `realtime:${name}`,
+          on() { return channel },
+          subscribe(cb) {
+            mocks.channels.push({ topic: channel.topic, callback: cb, channel })
+            return channel
+          },
+          unsubscribe() {}
+        }
+        return channel
+      },
       getChannels: () => mocks.staleChannels,
       realtime: {
         isConnected: () => mocks.socketUp.value,
@@ -61,8 +65,25 @@ function mountRealtime(syncStore) {
   return mount(Harness)
 }
 
+function tableTopic(table) {
+  return `realtime:data-realtime:${table}`
+}
+
+function latestChannel(table) {
+  for (let i = mocks.channels.length - 1; i >= 0; i--) {
+    if (mocks.channels[i].topic === tableTopic(table)) return mocks.channels[i]
+  }
+  return null
+}
+
+// 所有表一起发状态（连接级事件）
 function emitStatus(status) {
-  mocks.callbacks[mocks.callbacks.length - 1](status)
+  for (const item of [...mocks.channels]) item.callback(status)
+}
+
+// 只给某张表发状态（表级事件）
+function emitStatusFor(table, status) {
+  latestChannel(table)?.callback(status)
 }
 
 describe('useRealtimeSync realtime state', () => {
@@ -71,7 +92,7 @@ describe('useRealtimeSync realtime state', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    mocks.callbacks.length = 0
+    mocks.channels.length = 0
     mocks.staleChannels.length = 0
     mocks.socketUp.value = true
     mocks.socketConnecting.value = false
@@ -104,20 +125,20 @@ describe('useRealtimeSync realtime state', () => {
     expect(realtimeState.value.attempt).toBe(0)
   })
 
-  it('CHANNEL_ERROR 进入 reconnecting 并按退避自动重建恢复', async () => {
+  it('单表 CHANNEL_ERROR 只重建该表，不影响其它表', async () => {
     await mountReady()
     emitStatus('SUBSCRIBED')
 
-    emitStatus('CHANNEL_ERROR')
+    emitStatusFor('goods', 'CHANNEL_ERROR')
     expect(realtimeState.value.status).toBe('reconnecting')
     expect(realtimeState.value.reason).toBe('CHANNEL_ERROR')
     expect(realtimeState.value.attempt).toBe(1)
 
     await vi.advanceTimersByTimeAsync(4000)
-    expect(mocks.reconnectSupabase).toHaveBeenCalled()
-    expect(realtimeState.value.status).toBe('connecting')
-
-    emitStatus('SUBSCRIBED')
+    // 表级故障不触发连接级重连
+    expect(mocks.reconnectSupabase).not.toHaveBeenCalled()
+    // 只重建 goods：其余表仍保持已订阅状态，goods 重新 join 成功后整体恢复
+    emitStatusFor('goods', 'SUBSCRIBED')
     expect(realtimeState.value.status).toBe('connected')
     expect(realtimeState.value.attempt).toBe(0)
   })

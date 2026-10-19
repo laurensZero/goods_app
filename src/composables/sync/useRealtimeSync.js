@@ -24,8 +24,10 @@ const SOCKET_KICK_WAIT_MS = 2000
 // subscribe() 之后迟迟收不到任何状态回调 = 回调没挂上（同名 channel 复用）或 join 一直排队
 const SUBSCRIBE_WATCHDOG_MS = 15_000
 const STALE_CHANNEL_WAIT_MS = 1500
-const CHANNEL_NAME = 'data-realtime'
-const CHANNEL_TOPIC = `realtime:${CHANNEL_NAME}`
+// 每张表一个 channel：Supabase 的 postgres_changes 校验是 channel 级的，
+// 一张表配置异常（不在 publication / 缺 REPLICA IDENTITY / 缺列）会让同 channel
+// 上其它表的订阅一起失败。拆开后单表故障只影响它自己，日志也能直接定位表名。
+const CHANNEL_PREFIX = 'data-realtime'
 
 /**
  * 模块级共享状态：App.vue 只实例化一次，云同步设置页（SyncView）直接读它展示实时推送状态。
@@ -47,7 +49,9 @@ export function requestRealtimeReconnect() {
 
 export function useRealtimeSync({ syncStore }) {
   const log = createLogger('realtime')
-  const channel = ref(null)
+  // table -> channel
+  const channels = new Map()
+  const subscribedTables = new Set()
   const isConnected = ref(false)
   let pullDebounceTimer = null
   let retryTimer = null
@@ -59,6 +63,10 @@ export function useRealtimeSync({ syncStore }) {
   let visibilityDebounceTimer = null
   let subscribeWatchdogTimer = null
   let isSubscribing = false
+  let socketDownTicks = 0
+  // 待重建范围：All = 连接级重建；rebuildTables = 只重建指定表（表级配置错误不影响其它表）
+  let rebuildAllPending = false
+  const rebuildTables = new Set()
 
   function doPull() {
     if (syncStore.syncPaused) return
@@ -110,10 +118,14 @@ export function useRealtimeSync({ syncStore }) {
     if (pullDebounceTimer) { clearTimeout(pullDebounceTimer); pullDebounceTimer = null }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
     clearSubscribeWatchdog()
-    if (channel.value) {
-      try { channel.value.unsubscribe() } catch { /* ignore */ }
-      channel.value = null
-      isConnected.value = false
+    // 先清表（map）再退订：unsubscribe() 可能同步回调 CLOSED，
+    // 回调里发现 channel 已不在 map 就会忽略，不会把主动退订误判成故障并排重建
+    const pending = [...channels.values()]
+    channels.clear()
+    subscribedTables.clear()
+    isConnected.value = false
+    for (const channel of pending) {
+      try { channel.unsubscribe() } catch { /* ignore */ }
     }
   }
 
@@ -122,6 +134,12 @@ export function useRealtimeSync({ syncStore }) {
       clearTimeout(subscribeWatchdogTimer)
       subscribeWatchdogTimer = null
     }
+  }
+
+  function recomputeConnected() {
+    const connected = subscribedTables.size === REALTIME_TABLES.length
+    isConnected.value = connected
+    return connected
   }
 
   // 底层 WebSocket 不通/卡住时先强拆：RealtimeClient.connect() 会被 isConnecting() 短路，
@@ -145,8 +163,10 @@ export function useRealtimeSync({ syncStore }) {
   // leaving/joining，subscribe() 会跳过回调注册（既不 SUBSCRIBED 也不报错），
   // 状态就永远停在 connecting。这里先把同名残留清干净再新建。
   async function dropStaleChannels(db) {
+    const active = new Set(channels.values())
+    const prefix = `realtime:${CHANNEL_PREFIX}`
     const stale = (typeof db.getChannels === 'function' ? db.getChannels() : [])
-      .filter((item) => item?.topic === CHANNEL_TOPIC)
+      .filter((item) => typeof item?.topic === 'string' && item.topic.startsWith(prefix) && !active.has(item))
     for (const item of stale) {
       try {
         await Promise.race([
@@ -177,7 +197,7 @@ export function useRealtimeSync({ syncStore }) {
     // 重建排队/进行中优先：静默断线时本地 isConnected 可能还停在 true
     if (isRebuilding || rebuildTimer) return 'reconnecting'
     if (isConnected.value) return 'connected'
-    if (channel.value) return 'connecting'
+    if (channels.size > 0 || isSubscribing) return 'connecting'
     return 'disconnected'
   }
 
@@ -192,6 +212,73 @@ export function useRealtimeSync({ syncStore }) {
     realtimeState.value = { status, reason: nextReason, attempt: rebuildAttempt, changedAt: Date.now() }
   }
 
+  function teardownTable(table) {
+    const channel = channels.get(table)
+    channels.delete(table)
+    subscribedTables.delete(table)
+    recomputeConnected()
+    if (channel) {
+      try { channel.unsubscribe() } catch { /* ignore */ }
+    }
+  }
+
+  function handleTableChannelError(table, status, err) {
+    const detail = String(err?.message || '')
+    log.warn(`channel ${table} failed:`, status, detail)
+    if (/invalid column for filter/i.test(detail)) {
+      log.error(
+        `channel ${table}: invalid column for filter user_id — 检查 public.${table} 是否在 supabase_realtime publication 中、` +
+        'REPLICA IDENTITY 是否为 FULL、以及 user_id 列是否存在（见 supabase/supabase-migration-realtime-filter-fix.sql）'
+      )
+    }
+    // 表级错误（publication / replica identity / 列权限）不是连接问题：
+    // 只重建这一张表，别把其它表的健康订阅一起拆掉
+    teardownTable(table)
+    scheduleRebuild(status, table)
+  }
+
+  function subscribeTable(db, table) {
+    if (channels.has(table)) return
+    if (!syncStore.isSupabaseMode()) return
+    const userId = useAuthStore().user?.id
+    if (!userId) return
+
+    const channel = db.channel(`${CHANNEL_PREFIX}:${table}`)
+    channels.set(table, channel)
+    channel.on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table,
+      filter: `user_id=eq.${userId}`
+    }, handleRemoteChange)
+    channel.subscribe((status, err) => {
+      // 已被 teardown / 重建替换掉的旧 channel 回调直接丢弃
+      if (channels.get(table) !== channel) return
+
+      log.info(`channel ${table}:`, status, err?.message || '')
+      if (status === 'SUBSCRIBED') {
+        subscribedTables.add(table)
+        // 全部表都订阅成功才清看门狗：个别表回调迟迟不来时仍要能触发重建
+        if (recomputeConnected()) {
+          clearSubscribeWatchdog()
+          rebuildAttempt = 0
+          socketDownTicks = 0
+          clearRebuildTimer()
+          publishState('')
+        } else {
+          publishState()
+        }
+        return
+      }
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        clearSubscribeWatchdog()
+        handleTableChannelError(table, status, err)
+        return
+      }
+      publishState(status)
+    })
+  }
+
   async function rebuildChannel(reason) {
     if (isRebuilding) return
     if (!canOperate()) { publishState(); return }
@@ -199,6 +286,8 @@ export function useRealtimeSync({ syncStore }) {
     publishState(reason)
     try {
       log.info('rebuilding channel:', reason, 'attempt', rebuildAttempt + 1)
+      rebuildAllPending = false
+      rebuildTables.clear()
       unsubscribe()
       // WebSocket 已死/卡在 CONNECTING：先强拆让它重新 connect；
       // socket 活着时才走端点探测，避免复用过期 DNS 缓存 / 半死实例
@@ -216,7 +305,40 @@ export function useRealtimeSync({ syncStore }) {
     }
   }
 
-  function scheduleRebuild(reason) {
+  // 只重建指定的表：表级配置错误（publication / replica identity）不会波及其它表
+  async function rebuildTableChannels(tables, reason) {
+    if (!canOperate()) { publishState(); return }
+    let db = null
+    try { db = getSupabaseClient() } catch { /* not initialized yet */ }
+    if (!db) { scheduleRebuild('no-client'); return }
+    isRebuilding = true
+    publishState(reason)
+    try {
+      for (const table of tables) subscribeTable(db, table)
+    } catch (e) {
+      console.warn('[realtime] table rebuild failed:', e?.message || e)
+      for (const table of tables) rebuildTables.add(table)
+      scheduleRebuild('rebuild-failed')
+    } finally {
+      isRebuilding = false
+      publishState()
+    }
+  }
+
+  function addRebuildScope(table) {
+    if (!table || table === false) {
+      rebuildAllPending = true
+      return
+    }
+    if (Array.isArray(table)) {
+      for (const name of table) rebuildTables.add(name)
+      return
+    }
+    rebuildTables.add(table)
+  }
+
+  function scheduleRebuild(reason, table = null) {
+    addRebuildScope(table)
     if (rebuildTimer) return
     if (!canOperate()) { publishState(); return }
 
@@ -225,60 +347,44 @@ export function useRealtimeSync({ syncStore }) {
     const delay = Math.round(jitter)
     rebuildAttempt = Math.min(rebuildAttempt + 1, 6)
 
-    log.info('schedule rebuild:', reason, `in ${delay}ms`)
+    log.info('schedule rebuild:', reason, table || 'all', `in ${delay}ms`)
     // 先挂上定时器再发布状态：publishState 靠 rebuildTimer 判定 reconnecting
     rebuildTimer = setTimeout(() => {
       rebuildTimer = null
-      void rebuildChannel(reason)
+      const rebuildAll = rebuildAllPending
+      const tables = [...rebuildTables]
+      rebuildAllPending = false
+      rebuildTables.clear()
+      if (rebuildAll || tables.length === 0) {
+        void rebuildChannel(reason)
+      } else {
+        void rebuildTableChannels(tables, reason)
+      }
     }, delay)
     publishState(reason)
   }
 
   async function subscribe() {
-    if (channel.value || isSubscribing) return
+    if (isSubscribing) return
     if (!syncStore.isSupabaseMode()) return
+
+    const authStore = useAuthStore()
+    const userId = authStore.user?.id
+    if (!userId) return
+    if (channels.size >= REALTIME_TABLES.length) return
+
     isSubscribing = true
     clearSubscribeWatchdog()
 
     try {
       const db = getSupabaseClient()
-      if (!db) {
-        scheduleRebuild('no-client')
-        return
-      }
+      if (!db) { scheduleRebuild('no-client'); return }
+      // 全量重建时先清理同名残留；只补缺失表时不能碰已订阅的 channel
+      if (channels.size === 0) await dropStaleChannels(db)
 
-      const authStore = useAuthStore()
-      const userId = authStore.user?.id
-      if (!userId) return
-
-      await dropStaleChannels(db)
-
-      let builder = db.channel(CHANNEL_NAME)
       for (const table of REALTIME_TABLES) {
-        builder = builder.on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table,
-          filter: `user_id=eq.${userId}`
-        }, handleRemoteChange)
+        if (!channels.has(table)) subscribeTable(db, table)
       }
-      channel.value = builder.subscribe((status) => {
-        clearSubscribeWatchdog()
-        isConnected.value = status === 'SUBSCRIBED'
-        log.info('channel status:', status)
-        if (status === 'SUBSCRIBED') {
-          rebuildAttempt = 0
-          clearRebuildTimer()
-          publishState('')
-          return
-        }
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-          // 先清掉半死 channel，再走退避重建；realtime client 不会自动从 channel 级错误恢复
-          scheduleRebuild(status)
-          return
-        }
-        publishState(status)
-      })
       // 回调迟迟不来 = 没挂上或 join 一直排队：强制走重建，别让状态卡在 connecting
       subscribeWatchdogTimer = setTimeout(() => {
         subscribeWatchdogTimer = null
@@ -295,7 +401,19 @@ export function useRealtimeSync({ syncStore }) {
     }
   }
 
-  let socketDownTicks = 0
+  // 读底层 socket 状态；client 尚未初始化时按「网络不可用」处理，不抛异常
+  function getSocketHealth() {
+    try {
+      const realtime = getSupabaseClient()?.realtime
+      if (!realtime || typeof realtime.isConnected !== 'function') return { alive: true, stuck: false }
+      return {
+        alive: !!realtime.isConnected(),
+        stuck: typeof realtime.isConnecting === 'function' && !!realtime.isConnecting()
+      }
+    } catch {
+      return { alive: false, stuck: false }
+    }
+  }
 
   function startHealthCheck() {
     stopHealthCheck()
@@ -307,22 +425,25 @@ export function useRealtimeSync({ syncStore }) {
       // 底层 WebSocket 静默断开/卡住：channel 级回调可能一动不动，这里直接探 socket。
       // 卡在 CONNECTING 时 phoenix 不会自己超时，同样要算死（否则永远停在 connecting）。
       // 连续两轮巡检为断开才判定真死，避免与库自带重连打架。
-      const realtime = getSupabaseClient()?.realtime
-      const socketDead = !!realtime && typeof realtime.isConnected === 'function' && !realtime.isConnected()
-      if (socketDead) {
+      const socket = getSocketHealth()
+      if (!socket.alive) {
         socketDownTicks += 1
         if (socketDownTicks >= SOCKET_DOWN_TICKS) {
           socketDownTicks = 0
-          const stuck = typeof realtime.isConnecting === 'function' && !!realtime.isConnecting()
-          scheduleRebuild(stuck ? 'socket-stuck' : 'socket-down')
+          scheduleRebuild(socket.stuck ? 'socket-stuck' : 'socket-down')
         }
         return
       }
       socketDownTicks = 0
 
-      // channel 还在但未 SUBSCRIBED：静默半死，触发轻量重建
-      if (!channel.value || !isConnected.value) {
+      // channel 还在但未 SUBSCRIBED：只补缺失的表，不要把已健康的订阅一起拆掉
+      if (!channels.size) {
         scheduleRebuild('health')
+        return
+      }
+      if (!isConnected.value) {
+        const missing = REALTIME_TABLES.filter((table) => !channels.has(table))
+        if (missing.length > 0) scheduleRebuild('health', missing)
         return
       }
       publishState()
@@ -354,21 +475,30 @@ export function useRealtimeSync({ syncStore }) {
       return
     }
 
-    // Supabase 模式：回到前台时重建连接 + 重新订阅 + 增量拉取
+    // Supabase 模式：回到前台时按需重建连接 + 重新订阅 + 增量拉取
     if (visibilityDebounceTimer) clearTimeout(visibilityDebounceTimer)
     visibilityDebounceTimer = setTimeout(async () => {
       if (syncStore.syncPaused) return
-      if (syncStore.isSupabaseMode() && !syncStore.isSyncing && !syncStore.isPulling) {
-        rebuildAttempt = 0
-        clearRebuildTimer()
+      if (!syncStore.isSupabaseMode() || syncStore.isSyncing || syncStore.isPulling) return
+
+      rebuildAttempt = 0
+      clearRebuildTimer()
+      rebuildAllPending = false
+      rebuildTables.clear()
+
+      // 所有表都还 SUBSCRIBED 且底层 socket 活着时不要拆掉重建：
+      // 拆建会清空 channel 且在重新 join 完成前漏掉远端事件；只有确实不健康才重连
+      const socketAlive = getSocketHealth().alive
+      if (!socketAlive || !isConnected.value || channels.size !== REALTIME_TABLES.length) {
         unsubscribe()
         await reconnectSupabase()
         await subscribe()
-        const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
-        try { await syncStore.pull({ tables: [...REALTIME_TABLES], since, source: 'visibility' }) } catch { /* ignore */ }
-        startHealthCheck()
-        publishState()
       }
+
+      const since = syncStore.lastSyncedAt ? new Date(syncStore.lastSyncedAt).getTime() : 0
+      try { await syncStore.pull({ tables: [...REALTIME_TABLES], since, source: 'visibility' }) } catch { /* ignore */ }
+      startHealthCheck()
+      publishState()
     }, 2000)
   }
 
@@ -378,6 +508,8 @@ export function useRealtimeSync({ syncStore }) {
   const stopClientWatch = onSupabaseClientChange((client) => {
     unsubscribe()
     rebuildAttempt = 0
+    rebuildAllPending = false
+    rebuildTables.clear()
     clearRebuildTimer()
     if (client && canOperate()) void subscribe()
     publishState()
@@ -388,6 +520,8 @@ export function useRealtimeSync({ syncStore }) {
     if (!canOperate()) return
     clearRebuildTimer()
     rebuildAttempt = 0
+    rebuildAllPending = false
+    rebuildTables.clear()
     void rebuildChannel('manual')
   }
 

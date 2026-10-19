@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { SUPABASE_URL, SUPABASE_BACKUP_URL, SUPABASE_CF_URL, SUPABASE_ANON_KEY } from '@/config/supabase'
 import { getDeviceId } from '@/utils/feedback/feedbackDevice'
 import { readSyncKey, writeSyncKey } from '@/utils/sync/storage'
+import { setForegroundTimeout } from '@/utils/sync/foregroundTimer'
 
 let supabase = null
 
@@ -255,12 +256,16 @@ export function getFileDownloadBaseUrls() {
  */
 async function fetchWithTimeout(input, init = {}, timeoutMs = PROBE_TIMEOUT_MS) {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  // WebView 会在后台冻结 JS 定时器，恢复时普通 setTimeout 可能立即补跑，
+  // 将仍在上传的 sync_push 请求误判超时并 abort。超时只累计前台运行时间。
+  const timer = setForegroundTimeout(() => {
+    controller.abort(new DOMException('Request timed out', 'TimeoutError'))
+  }, timeoutMs)
   const callerSignal = init?.signal
   const onAbort = () => controller.abort(callerSignal?.reason)
   if (callerSignal) {
     if (callerSignal.aborted) {
-      clearTimeout(timer)
+      timer.cancel()
       throw callerSignal.reason || new DOMException('Aborted', 'AbortError')
     }
     callerSignal.addEventListener('abort', onAbort, { once: true })
@@ -268,7 +273,7 @@ async function fetchWithTimeout(input, init = {}, timeoutMs = PROBE_TIMEOUT_MS) 
   try {
     return await fetch(input, { ...init, signal: controller.signal })
   } finally {
-    clearTimeout(timer)
+    timer.cancel()
     callerSignal?.removeEventListener('abort', onAbort)
   }
 }
