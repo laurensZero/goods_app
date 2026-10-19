@@ -228,6 +228,36 @@ describe('mihoyo import resolver', () => {
     expect(flash.category).toBe('卡片')
   })
 
+  it('does not turn 品类词+修饰 的款式文案 into a character (上新/导入)', () => {
+    const context = buildMihoyoImportContext({
+      presetCharacters: [{ name: '铃', ip: '绝区零' }],
+      categories: ['海报'],
+      ips: ['绝区零', '崩坏：星穹铁道'],
+    })
+
+    const cases = [
+      { ip: '崩坏：星穹铁道', text: '盲袋' },
+      { ip: '绝区零', text: 'Q版应援扇' },
+      { ip: '绝区零', text: 'Q版贴纸' },
+      { ip: '绝区零', text: '印花毛巾' },
+      { ip: '绝区零', text: '妄想天使' },
+      { ip: '绝区零', text: '应援棒' },
+      { ip: '绝区零', text: '装饰海报' },
+    ]
+
+    for (const { ip, text } of cases) {
+      const draft = resolveMihoyoImportDraft({
+        name: `${ip} ${text}`,
+        ip,
+        variant: text,
+        image: 'https://example.com/a.png',
+        skuCharacters: [text],
+        variants: [{ text, key: 'k' }],
+      }, { context, preferredCharacter: text })
+      expect(draft.characters).toEqual([])
+    }
+  })
+
   it('auto-matches a known character from shared context (上新加入心愿单的行为)', () => {
     const context = buildMihoyoImportContext({
       presetCharacters: [{ name: '兹白', ip: '原神' }],

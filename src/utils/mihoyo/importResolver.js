@@ -6,7 +6,9 @@ import {
   displayVariantText,
   normalizeCharacterName,
   isLikelyCharName,
+  hasMerchandiseWord,
   MERCHANDISE_TYPE_WORDS,
+  MERCHANDISE_SERIES_WORDS,
 } from '@/utils/goods/variantText'
 
 const MIN_CATEGORY_SCORE = 0.6
@@ -52,6 +54,7 @@ const STATIC_CATEGORY_NAMES = [
   '画册',
   // 谷子类型词：SKU / 款式文案里出现时是品类，不应被当成角色（含「毛巾」「闪卡」等）
   ...MERCHANDISE_TYPE_WORDS,
+  ...MERCHANDISE_SERIES_WORDS,
 ]
 
 function normalizeText(value) {
@@ -113,6 +116,9 @@ function normalizeCharacterCandidate(value, categoryBlocklist = null) {
   const normalized = normalizeCharacterName(value)
   if (!normalized || /\d{4}年?/.test(normalized) || /周年/.test(normalized)) return ''
   if (isCategoryName(normalized, categoryBlocklist)) return ''
+  // 分类黑名单是「整词精确匹配」，而 SKU/款式文案常是「品类词 + 修饰」，
+  // 如「印花毛巾」「Q版应援扇」；这里再做一次包含式判断，避免整条被当成角色。
+  if (hasMerchandiseWord(normalized)) return ''
   return normalized
 }
 

@@ -4,6 +4,7 @@ import {
   extractCharName,
   extractCharsFromVariants,
   isLikelyCharName,
+  hasMerchandiseWord,
   preserveGenderQualifier,
   displayVariantText,
   normalizeCharacterName
@@ -166,6 +167,25 @@ describe('isLikelyCharName', () => {
     expect(isLikelyCharName('闪卡')).toBe(false)
     expect(isLikelyCharName('鼠标垫')).toBe(false)
     expect(isLikelyCharName('镭射闪卡')).toBe(false)
+  })
+
+  it('returns false for 品类词 + 修饰 的款式文案', () => {
+    expect(isLikelyCharName('印花毛巾')).toBe(false)
+    expect(isLikelyCharName('Q版贴纸')).toBe(false)
+    expect(isLikelyCharName('装饰海报')).toBe(false)
+    expect(isLikelyCharName('盲袋')).toBe(false)
+    expect(isLikelyCharName('应援棒')).toBe(false)
+    expect(isLikelyCharName('Q版应援扇')).toBe(false)
+    expect(isLikelyCharName('妄想天使')).toBe(false)
+  })
+
+  it('hasMerchandiseWord 只做包含式品类/系列判断，不误伤英文角色名', () => {
+    expect(hasMerchandiseWord('印花毛巾')).toBe(true)
+    expect(hasMerchandiseWord('Q版应援扇')).toBe(true)
+    expect(hasMerchandiseWord('妄想天使')).toBe(true)
+    expect(hasMerchandiseWord('芙宁娜')).toBe(false)
+    expect(hasMerchandiseWord('Furina')).toBe(false)
+    expect(hasMerchandiseWord('')).toBe(false)
   })
 
   it('still returns true for a real character name', () => {

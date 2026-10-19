@@ -78,7 +78,14 @@ export const MERCHANDISE_TYPE_WORDS = [
   '摆件', '手办', '玩偶', '公仔', '毛绒', '冰箱贴', '立牌', '亚克力', '色纸',
   '明信片', '拍立得', '闪卡', '卡套', '卡砖', '贴纸', '海报', '挂画', '拼图',
   '文件夹', '笔记本', '便签', '台历', '帆布袋', '手提袋', '斜挎包', '背包',
-  '口罩', '帽子', '围巾', '手套', '袜子'
+  '口罩', '帽子', '围巾', '手套', '袜子',
+  // 常见盲盒 / 应援 / 卡牌类
+  '盲袋', '应援', '扇子', '挂毯', '卡册', '卡包', '票根', '镭射',
+]
+
+// 系列名（不是品类词，但同样不应被当成角色）
+export const MERCHANDISE_SERIES_WORDS = [
+  '妄想天使',
 ]
 
 const NON_CHAR_WORDS = [
@@ -87,8 +94,21 @@ const NON_CHAR_WORDS = [
   '联名', '联动', '合作', '纪念', '限定', '典藏', '豪华', '版本',
   '白色', '黑色', '红色', '蓝色', '绿色', '黄色', '粉色', '紫色', '橙色', '棕色',
   '标准', '普通', '完整', '初始', '全部', '其他', '同款', '款', '新年', '年版',
-  ...MERCHANDISE_TYPE_WORDS
+  ...MERCHANDISE_TYPE_WORDS,
+  ...MERCHANDISE_SERIES_WORDS,
 ]
+
+/**
+ * 文本里是否含品类/系列词（用于「角色候选」的包含式判断）。
+ * 注意：不检查纯英数、长度、必须含汉字等规则——那些是 isLikelyCharName 的职责，
+ * 这里只回答「是不是谷子品类/系列文案」，避免误伤英文角色名。
+ */
+export function hasMerchandiseWord(text) {
+  const name = String(text || '')
+  if (!name) return false
+  return MERCHANDISE_TYPE_WORDS.some((word) => name.includes(word))
+    || MERCHANDISE_SERIES_WORDS.some((word) => name.includes(word))
+}
 
 export function isLikelyCharName(name) {
   if (!name) return false
