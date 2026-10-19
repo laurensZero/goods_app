@@ -496,6 +496,7 @@ const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, {
     banners: detail.banner_url || [],
     goodsId,           // 商品 ID，供后续懒加载 main_url 用
     variants,  // { text, key, img_url }[] —— 原始 SKU 选项
+    skuGroups: normalizeSaleAttrGroups(detail.sale_attrs),  // 维度组（多级 SKU 用）
     skuCharacters,  // SKU 中明确标注的角色名（降级用）
   }
 }
@@ -533,6 +534,10 @@ function cloneGoodsDetailResult(result) {
     skuCovers: { ...(result.skuCovers || {}) },
     skuPrices: { ...(result.skuPrices || {}) },
     skuVariants: (result.skuVariants || []).map((v) => ({ ...v })),
+    skuGroups: (result.skuGroups || []).map((group) => ({
+      ...group,
+      content: (group.content || []).map((item) => ({ ...item })),
+    })),
   }
 }
 
@@ -554,6 +559,7 @@ async function requestGoodsDetailOnce(goodsId) {
         ? detail.banner_url
         : []
     const skuVariants = buildSkuVariantsFromDetail(detail)
+    const skuGroups = normalizeSaleAttrGroups(detail?.sale_attrs)
     // skus 是以 key 为属性名的对象，每条有 cover_url 和 price（单位：分）
     const skuCovers = {}
     const skuPrices = {}  // { [key]: priceYuan }
@@ -594,9 +600,9 @@ async function requestGoodsDetailOnce(goodsId) {
         }
       }
     }
-    return { mainImages, skuCovers, skuPrices, skuVariants, coverUrl: detail?.cover_url || '', ok: true }
+    return { mainImages, skuCovers, skuPrices, skuVariants, skuGroups, coverUrl: detail?.cover_url || '', ok: true }
   } catch {
-    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '', ok: false }
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], skuGroups: [], coverUrl: '', ok: false }
   }
 }
 
@@ -608,7 +614,7 @@ async function requestGoodsDetailOnce(goodsId) {
 export async function fetchGoodsDetail(goodsId) {
   const id = String(goodsId || '').trim()
   if (!id) {
-    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], coverUrl: '', ok: false }
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], skuGroups: [], coverUrl: '', ok: false }
   }
 
   const cached = goodsDetailCache.get(id)

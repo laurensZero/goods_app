@@ -56,24 +56,15 @@
     {{ t('import.errorParseFailed') }}
   </div>
 
-  <div v-if="variants.length > 0" class="mhpicker-scroll">
-    <button
-      v-for="v in variants"
-      :key="v.key"
-      :class="['mhpicker-item', selectedKey === v.key && 'mhpicker-item--active']"
-      type="button"
-      @click="pickVariant(v)"
-    >
-      <div class="mhpicker-thumb">
-        <img :src="v.cover_url" class="mhpicker-img" loading="lazy" />
-        <svg v-if="selectedKey === v.key" class="mhpicker-check" viewBox="0 0 24 24" fill="none">
-          <circle cx="12" cy="12" r="12" fill="#4a7aec"/>
-          <polyline points="6 12 10 16 18 8" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </div>
-      <span class="mhpicker-label">{{ v.text }}</span>
-    </button>
-  </div>
+  <MihoyoSkuPicker
+    v-if="variants.length > 0"
+    class="mhpicker-levels"
+    layout="card"
+    :groups="skuGroups"
+    :variants="variants"
+    :model-value="selectedKey ? [selectedKey] : []"
+    @change="onPickerChange"
+  />
   <p v-if="variants.length > 0" class="mhpicker-save-hint">{{ t('import.selectVariantHint') }}</p>
 
   <QuickImageEditorDialog
@@ -87,6 +78,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { isMihoyoGiftUrl, parseMihoyoUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
+import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
 import { saveLocalImage } from '@/utils/image/localImage'
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
@@ -106,6 +98,7 @@ const inputRef = ref(null)
 const fileInputRef = ref(null)
 const fetchState = ref('') // '' | 'loading' | 'done' | 'error'
 const variants = ref([])
+const skuGroups = ref([])
 const selectedKey = ref('')
 const pickedCover = ref('') // 当前选中款式的 cover_url（不立即写回 v-model）
 const uploading = ref(false)
@@ -164,6 +157,7 @@ async function handleQuickEditorSave(result) {
     const { uri: localUri } = await saveLocalImage(result.file)
     // 清除米游铺款式选择状态（本地图片不需要）
     variants.value = []
+    skuGroups.value = []
     fetchState.value = ''
     selectedKey.value = ''
     pickedCover.value = ''
@@ -180,6 +174,7 @@ async function handleQuickEditorSave(result) {
 async function tryFetch(url) {
   if (!mihoyoFeaturesStore.enabled) {
     variants.value = []
+    skuGroups.value = []
     fetchState.value = ''
     selectedKey.value = ''
     pickedCover.value = ''
@@ -189,6 +184,7 @@ async function tryFetch(url) {
   if (!isMihoyoGiftUrl(url)) {
     if (variants.value.length || fetchState.value) {
       variants.value = []
+      skuGroups.value = []
       fetchState.value = ''
       selectedKey.value = ''
       pickedCover.value = ''
@@ -200,10 +196,12 @@ async function tryFetch(url) {
   lastParsedUrl = url
   fetchState.value = 'loading'
   variants.value = []
+  skuGroups.value = []
   selectedKey.value = ''
   pickedCover.value = ''
   try {
     const result = await parseMihoyoUrl(url)
+    skuGroups.value = Array.isArray(result?.skuGroups) ? result.skuGroups : []
     if (!result?.variants?.length) {
       // 没有款式，直接使用商品主图
       const coverUrl = result?.image || ''
@@ -216,7 +214,8 @@ async function tryFetch(url) {
       return
     }
     // 并行获取 SKU 封面图（sale_attrs.content 里的 cover_url/img_url 通常为空）
-    const { skuCovers, skuVariants, coverUrl: mainCover } = await fetchGoodsDetail(result.goodsId).catch(() => ({ skuCovers: {}, skuVariants: [], coverUrl: '' }))
+    const { skuCovers, skuVariants, skuGroups: detailGroups, coverUrl: mainCover } = await fetchGoodsDetail(result.goodsId).catch(() => ({ skuCovers: {}, skuVariants: [], skuGroups: [], coverUrl: '' }))
+    if (Array.isArray(detailGroups) && detailGroups.length) skuGroups.value = detailGroups
     // 合并封面：skuCovers[key] > cover_url > img_url > 商品主图
     const fallback = mainCover || result.image || ''
     const sourceVariants = skuVariants.length ? skuVariants : result.variants
@@ -254,6 +253,17 @@ function pickVariant(v) {
   emit('update:modelValue', v.cover_url || props.modelValue)
   // 更新 lastParsedUrl，避免 watch 触发 tryFetch 清除款式选择器
   lastParsedUrl = v.cover_url || props.modelValue
+}
+
+// 多级 SKU 选择器变化（单选场景）：定位唯一组合；取消选中时清空
+function onPickerChange(list) {
+  const picked = list[list.length - 1] || null
+  if (!picked) {
+    selectedKey.value = ''
+    pickedCover.value = ''
+    return
+  }
+  pickVariant(picked)
 }
 
 // 当 modelValue 从外部变化时（比如打开编辑不同商品），重新尝试解析
@@ -343,6 +353,13 @@ input::placeholder {
 }
 .mhpicker-hint--error {
   color: #e04040;
+}
+
+.mhpicker-levels {
+  margin-top: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px 2px;
 }
 
 .mhpicker-scroll {

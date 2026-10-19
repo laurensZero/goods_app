@@ -360,37 +360,19 @@
           </div>
 
           <template v-else-if="activeItem">
-            <div v-if="sheetVariants.length" class="sku-chips">
-              <button
-                v-for="sku in sheetVariants"
-                :key="sku.key"
-                type="button"
-                class="sku-chip"
-                :class="{
-                  'sku-chip--selected': isSelectedSku(sku),
-                  'sku-chip--wished': isSkuInWishlist(activeItem?.goods_id, sku),
-                }"
-                @click="toggleSku(sku)"
-              >
-                <span v-if="sku.cover_url" class="sku-chip__thumb">
-                  <img :src="sku.cover_url" :alt="sku.text" loading="lazy" />
-                </span>
-                <span class="sku-chip__main">
-                  <span class="sku-chip__text">{{ sku.text }}</span>
-                  <span v-if="sheetHasPriceRange && sku.price != null" class="sku-chip__price">
-                    {{ formatYuanValue(sku.price) }}{{ t('mihoyoNew.priceUnit') }}
-                  </span>
-                </span>
-                <span class="sku-chip__flags">
-                  <span v-if="isSkuInWishlist(activeItem?.goods_id, sku)" class="sku-chip__wished">
-                    {{ t('mihoyoNew.skuWished') }}
-                  </span>
-                  <span v-if="isSkuOwned(activeItem?.goods_id, sku)" class="sku-chip__owned">
-                    {{ t('mihoyoNew.skuOwned') }}
-                  </span>
-                </span>
-              </button>
-            </div>
+            <MihoyoSkuPicker
+              v-if="sheetVariants.length"
+              v-model="selectedSkuKeys"
+              :groups="sheetGroups"
+              :variants="sheetVariants"
+              :reverse-when-many="SKU_REVERSE_MIN_COUNT"
+              multi
+              :wished-keys="sheetWishedItemKeys"
+              :owned-keys="sheetOwnedItemKeys"
+              :wished-text="t('mihoyoNew.skuWished')"
+              :owned-text="t('mihoyoNew.skuOwned')"
+              @change="onSkuSelectionChange"
+            />
             <p v-else class="sku-sheet__empty">{{ t('mihoyoNew.noSku') }}</p>
           </template>
         </div>
@@ -437,6 +419,7 @@ import AppSheet from '@/components/common/AppSheet.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
+import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
 import { useToast } from '@/composables/useToast'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -452,6 +435,7 @@ import { resolveMihoyoImportDraft, buildMihoyoImportContext } from '@/utils/miho
 import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
 import { normalizeGoodsVariant, getGoodsVariant } from '@/utils/goods/identity'
 import { normalizeCharacterName, isLikelyCharName } from '@/utils/goods/variantText'
+import { variantItemKeys } from '@/utils/mihoyo/skuSelection'
 
 defineOptions({ name: 'MihoyoNewArrivalsView' })
 
@@ -623,8 +607,9 @@ const selectedSkus = computed(() => {
   return selectedSkuKeys.value.map((key) => byKey.get(key)).filter(Boolean)
 })
 
-function isSelectedSku(sku) {
-  return Boolean(sku?.key) && selectedSkuKeys.value.includes(sku.key)
+// 多级 SKU 选择器选中变化：记录最后一个组合，供预览大图使用
+function onSkuSelectionChange(variants) {
+  lastSelectedSkuKey.value = variants.length ? variants[variants.length - 1].key : ''
 }
 
 const pendingSkus = computed(() => {
@@ -675,10 +660,22 @@ const sheetDetail = computed(() => {
 // 款式较多时按店铺展示习惯倒序显示；款式很少时保持原始顺序
 // （仅本页显示层处理，不改动数据、不影响其他页面）
 const SKU_REVERSE_MIN_COUNT = 10
-const sheetVariants = computed(() => {
-  const list = sheetDetail.value?.variants || []
-  return list.length > SKU_REVERSE_MIN_COUNT ? [...list].reverse() : list
-})
+const sheetVariants = computed(() => sheetDetail.value?.variants || [])
+const sheetGroups = computed(() => sheetDetail.value?.skuGroups || [])
+
+/** 维度项命中「已加心愿单 / 已有」标记：所属组合里存在已加/已有的款式 */
+function buildMatchedItemKeys(matchFn) {
+  const goodsId = activeItem.value?.goods_id
+  if (!goodsId) return []
+  const set = new Set()
+  for (const variant of sheetVariants.value) {
+    if (!matchFn(goodsId, variant)) continue
+    for (const key of variantItemKeys(variant)) set.add(key)
+  }
+  return [...set]
+}
+const sheetWishedItemKeys = computed(() => buildMatchedItemKeys(isSkuInWishlist))
+const sheetOwnedItemKeys = computed(() => buildMatchedItemKeys(isSkuOwned))
 
 function priceRangeOf(skus) {
   const prices = (skus || [])
@@ -789,6 +786,7 @@ function ensureDetailSlot(goodsId) {
       loaded: false,
       error: '',
       variants: [],
+      skuGroups: [],
       skuCharacters: [],
       coverUrl: '',
     }
@@ -879,21 +877,6 @@ function closeSkuSheet() {
   sheetPreviewIndex.value = -1
 }
 
-function toggleSku(sku) {
-  if (!sku?.key) return
-  const keys = selectedSkuKeys.value
-  const idx = keys.indexOf(sku.key)
-  if (idx >= 0) {
-    keys.splice(idx, 1)
-    if (lastSelectedSkuKey.value === sku.key) {
-      lastSelectedSkuKey.value = keys[keys.length - 1] || ''
-    }
-    return
-  }
-  keys.push(sku.key)
-  lastSelectedSkuKey.value = sku.key
-}
-
 async function loadVariants(item) {
   const slot = ensureDetailSlot(item.goods_id)
   if (slot.loading || (slot.loaded && !slot.error)) return
@@ -911,6 +894,7 @@ async function loadVariants(item) {
     slot.skuCharacters = Array.isArray(result.skuCharacters)
       ? result.skuCharacters.filter(Boolean)
       : []
+    slot.skuGroups = Array.isArray(result.skuGroups) ? result.skuGroups : []
     slot.variants = (result.skuVariants || [])
       .filter((v) => v && v.key)
       .map((v) => {

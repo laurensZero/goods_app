@@ -64,27 +64,16 @@
           {{ t('mihoyoStock.wholeGoods') }}
         </button>
 
-        <div v-if="entry.variants.length > 0" class="sku-cards" :class="{ 'sku-cards--tablet': isTablet }">
-          <button
-            v-for="v in entry.variants"
-            :key="v.key"
-            type="button"
-            class="sku-card"
-            :class="{ 'sku-card--selected': isSkuSelected(v.key) }"
-            @click="$emit('select-sku', v)"
-          >
-            <span class="sku-card__img-wrap">
-              <img v-if="v.cover_url" :src="v.cover_url" :alt="v.text" class="sku-card__img" loading="lazy" />
-              <span v-else class="sku-card__fallback">{{ (v.text || '款').charAt(0) }}</span>
-            </span>
-            <span class="sku-card__text">{{ v.text }}</span>
-            <span v-if="isSkuSelected(v.key)" class="sku-card__check">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            </span>
-          </button>
-        </div>
+        <MihoyoSkuPicker
+          v-if="entry.variants.length > 0"
+          class="sku-picker-levels"
+          layout="card"
+          :groups="entry.skuGroups || []"
+          :variants="entry.variants"
+          :model-value="selectedKeys"
+          :multi="props.multiSelect"
+          @change="$emit('select-skus', $event)"
+        />
       </div>
 
       <p v-if="entry.error" class="sku-picker-error">{{ entry.error }}</p>
@@ -107,6 +96,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
 
 defineOptions({ name: 'MihoyoSkuPickerCard' })
 
@@ -125,13 +115,13 @@ const props = defineProps({
   largeThumb: { type: Boolean, default: false },
 })
 
-defineEmits(['select-sku', 'select-whole', 'expand', 'collapse', 'remove', 'retry'])
+defineEmits(['select-skus', 'select-whole', 'expand', 'collapse', 'remove', 'retry'])
 
 const { t } = useI18n()
 
 // 多选款式：selectedSkus = [{ key, text, cover_url }]，空数组 = 整件商品
 const selectedSkus = computed(() => props.entry?.selectedSkus || [])
-const isSkuSelected = (key) => selectedSkus.value.some((s) => s.key === key)
+const selectedKeys = computed(() => selectedSkus.value.map((s) => s.key))
 
 // 摘要文案：整件 / 单款式 / 多款式（已选 N 款）
 const selectionSummary = computed(() => {
@@ -478,6 +468,11 @@ const displayCover = computed(() => {
 /* 平板：双栏更宽卡片，方便核对/点选 */
 .sku-cards--tablet {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* 款式选择：多级 SKU（按维度分组，导入与有货监控共用） */
+.sku-picker-levels {
+  margin-top: 10px;
 }
 
 .sku-picker-error {

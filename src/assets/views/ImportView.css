@@ -716,6 +716,10 @@
 }
 
 /* ── 变体（角色款式）选择器 ── */
+.variant-levels {
+  margin-top: 4px;
+}
+
 .variant-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));

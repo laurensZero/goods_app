@@ -137,7 +137,7 @@
               :show-remove="queue.length > 1"
               :counter="queue.length > 1 ? `${queue.indexOf(entry) + 1} / ${queue.length}` : ''"
               :large-thumb="true"
-              @select-sku="selectSku(entry, $event)"
+              @select-skus="setSelectedSkus(entry, $event)"
               @select-whole="selectWholeGoods(entry)"
               @expand="expandSkuPicker(entry)"
               @collapse="collapseSkuPicker(entry)"
@@ -346,7 +346,7 @@ const {
   isQueued,
   getQueuedEntry,
   enqueueGoods,
-  selectSku,
+  setSelectedSkus,
   selectWholeGoods,
   expandSkuPicker,
   collapseSkuPicker,

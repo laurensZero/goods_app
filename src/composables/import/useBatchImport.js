@@ -168,7 +168,7 @@ export function useBatchImport({
   }, 0))
 
   // ── 把解析草稿回填到队列项（入队与重试共用） ──
-  function fillEntryFromDraft(entry, draft, variants = []) {
+  function fillEntryFromDraft(entry, draft, variants = [], groups = []) {
     entry.goodsId = String(
       draft.goodsId || draft.goods_id || extractGoodsIdFromMihoyoUrl(entry.url)
     ).trim()
@@ -198,13 +198,16 @@ export function useBatchImport({
     entry.parseFailed = false
     entry.parseError = ''
     entry.error = ''
+    entry.skuGroups = (Array.isArray(groups) && groups.length)
+      ? groups
+      : (Array.isArray(draft.skuGroups) ? draft.skuGroups : [])
     autoSelectSku(entry)
     // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
     entry.expanded = !entry.selectedSkus.length
   }
 
   // 根据解析结果入队（带智能识别草稿 + 款式变体）
-  function enqueueFromDraft(result, { url = '', preferredCharacter = '', variants = [] } = {}) {
+  function enqueueFromDraft(result, { url = '', preferredCharacter = '', variants = [], groups = [] } = {}) {
     const draft = resolveMihoyoImportDraft(result, {
       context: ensureHistoricalTagContext(),
       preferredCharacter,
@@ -235,7 +238,7 @@ export function useBatchImport({
         characters: [],
       }),
     }, { load: false })
-    fillEntryFromDraft(entry, draft, variants)
+    fillEntryFromDraft(entry, draft, variants, groups.length ? groups : (result?.skuGroups || []))
     return { entry, draft }
   }
 
@@ -321,7 +324,7 @@ export function useBatchImport({
       })
       if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
       if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
-      fillEntryFromDraft(entry, draft, variants)
+      fillEntryFromDraft(entry, draft, variants, result.skuGroups || [])
       updateHistoricalTagContextFromItem({
         ip: entry.info.ip,
         characters: entry.info.characters,
@@ -335,9 +338,11 @@ export function useBatchImport({
   }
 
   // 拉取详情并合并 SKU 专属封面/价格到变体（失败时回退解析草稿的变体）
-  async function mergeVariants(result) {    if (!result?.goodsId) return []
+  async function mergeVariants(result) {
+    if (!result?.goodsId) return []
     try {
-      const { skuCovers, skuPrices, skuVariants, coverUrl } = await fetchGoodsDetail(result.goodsId)
+      const { skuCovers, skuPrices, skuVariants, skuGroups, coverUrl } = await fetchGoodsDetail(result.goodsId)
+      if (Array.isArray(skuGroups) && skuGroups.length) result.skuGroups = skuGroups
       if (skuVariants.length) {
         return skuVariants.map((v) => ({
           ...v,
@@ -389,6 +394,7 @@ export function useBatchImport({
             url,
             preferredCharacter: getSearchContext().preferredCharacter,
             variants,
+            groups: result.skuGroups || [],
           })
           updateHistoricalTagContextFromItem({
             ip: entry.info.ip,
@@ -475,6 +481,18 @@ export function useBatchImport({
       entry.selectedSkus = [{ key: variant.key, text: variant.text, cover_url: variant.cover_url || '', price: variant.price != null ? Number(variant.price) : null }]
       applySkuInfo(entry, variant)
     }
+  }
+
+  // 多级 SKU 选择器（导入单选）：用完整选择覆盖当前款式，并联动分类/角色/图片
+  function setEntrySkus(entry, variants) {
+    if (!entry || entry.parseFailed) return
+    queueState.setSelectedSkus(entry, variants)
+    if (!entry.selectedSkus.length) {
+      restoreDefaultImages(entry)
+      restoreDefaultPrice(entry)
+      return
+    }
+    applySkuInfo(entry, entry.selectedSkus[0])
   }
 
   // 整件商品：清空选中款式并恢复默认主图（图片区为空时）。
@@ -617,6 +635,7 @@ export function useBatchImport({
     toggleQueueImage,
     enqueueFromSearch,
     selectSingleSku,
+    setEntrySkus,
     selectWholeGoods,
   }
 }

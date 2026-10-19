@@ -64,6 +64,7 @@ export function useMihoyoGoodsQueue(options = {}) {
       priceCents: Number(priceCents) || 0,
       coverUrl: String(coverUrl || '').trim(),
       variants: [],
+      skuGroups: [],
       selectedSkus: [],
       loading: false,
       variantsLoaded: false,
@@ -76,11 +77,12 @@ export function useMihoyoGoodsQueue(options = {}) {
 
   // 将商品加入队列；activate 时置为当前处理项。
   // variants 传入时视为已解析（跳过拉取），否则按需懒加载 SKU 变体。
-  function enqueueGoods(payload, { activate = true, load = true, variants = null } = {}) {
+  function enqueueGoods(payload, { activate = true, load = true, variants = null, groups = null } = {}) {
     const entry = createQueueEntry(payload)
     queue.value.push(entry)
     if (activate) activeUid.value = entry.uid
     if (activate) scrollDeckToActive()
+    if (Array.isArray(groups) && groups.length) entry.skuGroups = groups
     if (Array.isArray(variants) && variants.length) {
       entry.variants = variants
         .filter((v) => v && v.key)
@@ -122,6 +124,7 @@ export function useMihoyoGoodsQueue(options = {}) {
       }
       const skuCovers = result.skuCovers || {}
       const productCover = String(result.coverUrl || '')
+      entry.skuGroups = Array.isArray(result.skuGroups) ? result.skuGroups : []
       entry.variants = (result.skuVariants || [])
         .filter((v) => v && v.key)
         .map((v) => ({
@@ -197,6 +200,23 @@ export function useMihoyoGoodsQueue(options = {}) {
   function selectWholeGoods(entry) {
     if (!entry) return
     entry.selectedSkus = []
+  }
+
+  // 多级 SKU 选择器：用「选中的完整款式集合」覆盖队列项选择（多选展开后一次性回写）
+  function setSelectedSkus(entry, variants) {
+    if (!entry) return
+    const previousKeys = new Set(entry.selectedSkus.map((s) => s.key))
+    entry.selectedSkus = (Array.isArray(variants) ? variants : [])
+      .filter((v) => v && v.key)
+      .map((v) => ({
+        key: String(v.key),
+        text: String(v.text || v.key),
+        cover_url: String(v.cover_url || ''),
+        price: v.price != null ? Number(v.price) : null,
+      }))
+    for (const sku of entry.selectedSkus) {
+      if (!previousKeys.has(sku.key)) onSkuSelected?.(entry, sku)
+    }
   }
 
   function expandSkuPicker(entry) {
@@ -294,6 +314,7 @@ export function useMihoyoGoodsQueue(options = {}) {
     retryLoadVariants,
     autoSelectSku,
     selectSku,
+    setSelectedSkus,
     selectWholeGoods,
     expandSkuPicker,
     collapseSkuPicker,

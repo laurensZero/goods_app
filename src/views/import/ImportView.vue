@@ -215,7 +215,7 @@
                   :multi-select="false"
                   :show-whole="false"
                   :large-thumb="true"
-                  @select-sku="selectSingleSku(entry, $event)"
+                  @select-skus="setEntrySkus(entry, $event)"
                   @select-whole="selectWholeGoods(entry)"
                   @expand="expandSkuPicker(entry)"
                   @collapse="collapseSkuPicker(entry)"
@@ -439,23 +439,17 @@
                 <p v-if="variantSectionCollapsed && selectedVariantName" class="variant-field-match">
                   {{ t('import.matched', { name: selectedVariantName }) }}
                 </p>
-                <div v-if="!variantSectionCollapsed" class="variant-grid">
-                  <button
-                    v-for="v in parsedVariants"
-                    :key="v.key || v.text"
-                    type="button"
-                    class="variant-btn"
-                    :class="{ 'variant-btn--selected': isVariantSelected(v) }"
-                    @click="handleVariantSelect(v)"
-                  >
-                    <div v-if="isVariantSuggested(v)" class="variant-suggest-tag">{{ t('import.guessYouWant') }}</div>
-                    <div v-if="v.cover_url || v.img_url" class="variant-img-wrap">
-                      <img :src="v.cover_url || v.img_url" class="variant-img" />
-                    </div>
-                    <span class="variant-name">{{ displayVariantText(v.text) }}</span>
-                    <div v-if="isVariantSelected(v)" class="variant-check">✓</div>
-                  </button>
-                </div>
+                <MihoyoSkuPicker
+                  v-if="!variantSectionCollapsed"
+                  class="variant-levels"
+                  layout="card"
+                  :groups="parsedSkuGroups"
+                  :variants="parsedVariants"
+                  :model-value="selectedVariantKey ? [selectedVariantKey] : []"
+                  :suggested-keys="suggestedVariantItemKeys"
+                  :suggest-tag-text="t('import.guessYouWant')"
+                  @change="onFormVariantChange"
+                />
               </div>
               <!-- 角色显示（智能建议或已识别） -->
               <div v-if="false" class="field">
@@ -637,6 +631,7 @@ import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import { getSharedTaggingContext, warmTaggingContext } from '@/utils/tagging/taggingContextCache'
 import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
+import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
 import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
@@ -684,14 +679,18 @@ const topCharactersPerIp = computed(() => {
   return result
 })
 
-function isVariantSelected(variant) {
-  return selectedVariantKey.value === variant.key
-}
-
-function isVariantSuggested(variant) {
-  const name = normalizeCharacterName(variant.text)
-  return name ? topCharactersPerIp.value.has(name) : false
-}
+// 多级 SKU：维度项命中「猜你想要」（该 IP 的高频角色）时打标
+const suggestedVariantItemKeys = computed(() => {
+  const keys = []
+  for (const group of parsedSkuGroups.value) {
+    if (!Array.isArray(group?.content) || group.content.length <= 1) continue
+    for (const item of group.content) {
+      const name = normalizeCharacterName(item.text)
+      if (name && topCharactersPerIp.value.has(name)) keys.push(item.key)
+    }
+  }
+  return keys
+})
 
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? t('import.wishlistTitle') : t('import.mihoyo'))
@@ -751,7 +750,7 @@ const {
   batchMode, batchParseButtonText, parsingLinks, linkProgress,
   savingAll, queueImportCount, isQueueItemOwned, queueSummary,
   handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue,
-  selectSingleSku,
+  setEntrySkus,
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
   ensureHistoricalTagContext, updateHistoricalTagContextFromItem,
@@ -787,6 +786,7 @@ watch(parsingLinks, (now, was) => {
 const parsedImages = ref([])  // 当前商品可用图
 const parsedBaseImages = ref([])  // 不区分款式的基础图
 const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
+const parsedSkuGroups = ref([])  // SKU 维度组（多级 SKU 用）
 const variantSectionCollapsed = ref(false)
 const selectedVariantKey = ref('')  // 当前选中的 SKU key
 const selectedVariantName = ref('')  // 选中款式清洗后的显示名
@@ -962,40 +962,54 @@ function autoSelectSingleVariant() {
 }
 
 // ── 智能推算 ──
-// ── 用户点击款式按钮：单选 + 自动匹配 SKU 专属图 ──
+// ── 取消款式选中：恢复基础图/角色 ──
+function clearVariantSelection() {
+  selectedVariantKey.value = ''
+  selectedVariantName.value = ''
+  selectedCharacterName.value = ''
+  saveAsCharacter.value = false
+  variantSectionCollapsed.value = false
+  parsedImages.value = [...parsedBaseImages.value]
+  form.images = getDefaultMihoyoImages(parsedBaseImages.value)
+  form.image = parsedBaseImages.value[0] || ''
+  form.characters = [...resolvedBaseCharacters.value]
+}
+
+// ── 用户选择款式：单选 + 自动匹配 SKU 专属图 ──
 function handleVariantSelect(v) {
   if (selectedVariantKey.value === v.key) {
-    // 再次点击同一个：取消选中
-    selectedVariantKey.value = ''
-    selectedVariantName.value = ''
-    selectedCharacterName.value = ''
-    saveAsCharacter.value = false
-    variantSectionCollapsed.value = false
-    parsedImages.value = [...parsedBaseImages.value]
-    form.images = getDefaultMihoyoImages(parsedBaseImages.value)
-    form.image = parsedBaseImages.value[0] || ''
-    form.characters = [...resolvedBaseCharacters.value]
-  } else {
-    selectedVariantKey.value = v.key
-    const resolvedVariant = resolveMihoyoVariantDraft({
-      name: form.name,
-      variant: v,
-      context: ensureHistoricalTagContext(),
-      preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
-      currentCategory: form.category,
-    })
-    selectedVariantName.value = resolvedVariant.variantName
-    selectedCharacterName.value = resolvedVariant.selectedCharacterName
-
-    if (resolvedVariant.category) {
-      if (!presets.categories.includes(resolvedVariant.category)) presets.addCategory(resolvedVariant.category)
-      form.category = resolvedVariant.category
-    }
-
-    saveAsCharacter.value = Boolean(selectedCharacterName.value)
-    form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
-    applySelectedVariantMedia(v)
+    clearVariantSelection()
+    return
   }
+  selectedVariantKey.value = v.key
+  const resolvedVariant = resolveMihoyoVariantDraft({
+    name: form.name,
+    variant: v,
+    context: ensureHistoricalTagContext(),
+    preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
+    currentCategory: form.category,
+  })
+  selectedVariantName.value = resolvedVariant.variantName
+  selectedCharacterName.value = resolvedVariant.selectedCharacterName
+
+  if (resolvedVariant.category) {
+    if (!presets.categories.includes(resolvedVariant.category)) presets.addCategory(resolvedVariant.category)
+    form.category = resolvedVariant.category
+  }
+
+  saveAsCharacter.value = Boolean(selectedCharacterName.value)
+  form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
+  applySelectedVariantMedia(v)
+}
+
+// ── 多级 SKU 选择器变化：单选场景取唯一组合（无则取消选中） ──
+function onFormVariantChange(variants) {
+  const next = variants[variants.length - 1] || null
+  if (!next) {
+    if (selectedVariantKey.value) clearVariantSelection()
+    return
+  }
+  if (selectedVariantKey.value !== next.key) handleVariantSelect(next)
 }
 
 async function handleParse() {
@@ -1012,6 +1026,7 @@ async function handleParse() {
   parseError.value = ''
   parsed.value = false
   parsedVariants.value = []
+  parsedSkuGroups.value = []
   variantSectionCollapsed.value = false
   parsedImages.value = []
   parsedBaseImages.value = []
@@ -1039,13 +1054,15 @@ async function handleParse() {
     parsedBaseImages.value = [...draft.baseParsedImages]
     parsedImages.value = [...draft.parsedImages]
     parsedVariants.value = [...draft.variants]
+    parsedSkuGroups.value = Array.isArray(result.skuGroups) ? result.skuGroups : []
 
     if (form.ip && !presets.ips.includes(form.ip)) presets.addIp(form.ip)
     if (form.category && !presets.categories.includes(form.category)) presets.addCategory(form.category)
 
     // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
     if (result.goodsId) {
-      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, skuVariants, coverUrl }) => {
+      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, skuVariants, skuGroups, coverUrl }) => {
+        if (Array.isArray(skuGroups) && skuGroups.length) parsedSkuGroups.value = skuGroups
         const sourceVariants = skuVariants.length
           ? skuVariants
           : parsedVariants.value
