@@ -165,7 +165,7 @@ import { useDialogBackButton } from '@/composables/useDialogBackButton'
 
 const GAME_LABEL_MAP = {
   hk4e_cn: '原神',
-  hkrpg_cn: '星穹铁道',
+  hkrpg_cn: '崩坏：星穹铁道',
   bh3_cn: '崩坏3',
   nap_cn: '绝区零'
 }

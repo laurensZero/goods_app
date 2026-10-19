@@ -200,4 +200,53 @@ describe('mihoyo import resolver', () => {
     expect(draft.characters).toEqual([])
     expect(draft.category).toBe('卡片')
   })
+
+  it('does not turn merchandise SKU text into a character (毛巾 / 闪卡)', () => {
+    const context = buildMihoyoImportContext({
+      presetCharacters: [{ name: '兹白', ip: '原神' }],
+      categories: ['卡片'],
+      ips: ['原神'],
+    })
+
+    // SKU 文案就是品类：选中「毛巾A」不应把「毛巾」当角色，但可从名称匹配到已知角色
+    const towel = resolveMihoyoImportDraft({
+      name: '原神 兹白 毛巾',
+      variant: '毛巾A',
+      skuCharacters: ['毛巾'],
+      image: 'https://example.com/a.png',
+    }, { context, preferredCharacter: '毛巾' })
+    expect(towel.characters).toEqual(['兹白'])
+
+    // 店铺把「闪卡」放进名为「角色」的属性组：既不是角色，也应识别为卡片
+    const flash = resolveMihoyoImportDraft({
+      name: '原神 镭射闪卡',
+      variant: '闪卡',
+      skuCharacters: ['闪卡'],
+      image: 'https://example.com/a.png',
+    }, { context })
+    expect(flash.characters).toEqual([])
+    expect(flash.category).toBe('卡片')
+  })
+
+  it('auto-matches a known character from shared context (上新加入心愿单的行为)', () => {
+    const context = buildMihoyoImportContext({
+      presetCharacters: [{ name: '兹白', ip: '原神' }],
+      categories: ['立牌'],
+      ips: ['原神'],
+    })
+
+    // 传入上下文（与导入 / 编辑页的智能建议同源）→ 自动匹配到已知角色
+    const withContext = resolveMihoyoImportDraft({
+      name: '原神 兹白 立牌',
+      image: 'https://example.com/a.png',
+    }, { context })
+    expect(withContext.characters).toEqual(['兹白'])
+
+    // 没有上下文时无法匹配到动态角色池（修复前上新加入心愿单即为此路径）
+    const withoutContext = resolveMihoyoImportDraft({
+      name: '原神 兹白 立牌',
+      image: 'https://example.com/a.png',
+    })
+    expect(withoutContext.characters).toEqual([])
+  })
 })

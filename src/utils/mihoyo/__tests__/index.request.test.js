@@ -14,6 +14,7 @@ import {
   searchGoodsList,
   addToCart,
   fetchGoodsDetailForCart,
+  getMihoyoIpByShopCode,
 } from '../index'
 
 // restoreMocks 不会重置 vi.fn() 的调用记录，需要手动清理
@@ -77,5 +78,19 @@ describe('mihoyo 调用方行为锁（错误文案与降级返回值）', () => 
     mocks.mihoyoRequest.mockRejectedValue(new Error('网络错误'))
 
     await expect(fetchGoodsDetailForCart('123')).resolves.toEqual({ shopCode: '', skus: [] })
+  })
+})
+
+describe('getMihoyoIpByShopCode（按店铺回填规范 IP 名称）', () => {
+  it('四个店铺都映射到与预设一致的规范 IP 全称', () => {
+    expect(getMihoyoIpByShopCode('ys')).toBe('原神')
+    expect(getMihoyoIpByShopCode('xqtd')).toBe('崩坏：星穹铁道')
+    expect(getMihoyoIpByShopCode('bh3')).toBe('崩坏3')
+    expect(getMihoyoIpByShopCode('zzz')).toBe('绝区零')
+  })
+
+  it('未知店铺返回空串', () => {
+    expect(getMihoyoIpByShopCode('')).toBe('')
+    expect(getMihoyoIpByShopCode('unknown')).toBe('')
   })
 })

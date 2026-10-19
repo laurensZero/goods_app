@@ -390,7 +390,7 @@
             form.name, form.category, form.ip, form.characters, form.images, form.image,
             form.price, form.source, form.purchaseDate, form.notes,
             formPriceError, tagSuggestions, parsedImages, parsedVariants,
-            sortedParsedVariants, selectedVariantKey, selectedVariantName,
+            selectedVariantKey, selectedVariantName,
             variantSectionCollapsed, topCharactersPerIp, isWishlistMode,
             presets.categories, presets.ips, locale
           ]"
@@ -441,7 +441,7 @@
                 </p>
                 <div v-if="!variantSectionCollapsed" class="variant-grid">
                   <button
-                    v-for="v in sortedParsedVariants"
+                    v-for="v in parsedVariants"
                     :key="v.key || v.text"
                     type="button"
                     class="variant-btn"
@@ -693,12 +693,6 @@ function isVariantSuggested(variant) {
   return name ? topCharactersPerIp.value.has(name) : false
 }
 
-function getVariantCharacterCount(variant) {
-  const name = normalizeCharacterName(variant.text)
-  if (!name) return 0
-  return goodsStore.characterCountMap.get(name) || 0
-}
-
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? t('import.wishlistTitle') : t('import.mihoyo'))
 const quickSearchLabel = computed(() => isWishlistMode.value ? t('import.wishlistQuickSearch') : t('import.mihoyoQuickSearch'))
@@ -799,13 +793,6 @@ const selectedVariantName = ref('')  // 选中款式清洗后的显示名
 const selectedCharacterName = ref('')  // 选中款式对应的角色名（会归并 A/B/C/D 尾缀）
 const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
 const resolvedBaseCharacters = ref([])
-
-// 按角色谷子数量降序排列的款式列表（推荐在前）
-const sortedParsedVariants = computed(() => {
-  const variants = parsedVariants.value
-  if (!variants.length) return variants
-  return [...variants].sort((a, b) => getVariantCharacterCount(b) - getVariantCharacterCount(a))
-})
 
 // ── 日期选择器 ──
 const showDatePicker = ref(false)

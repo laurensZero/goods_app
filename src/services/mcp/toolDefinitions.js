@@ -757,7 +757,7 @@ export const MCP_TOOL_DEFINITIONS = [
         shopCode: {
           type: 'string',
           enum: ['ys', 'xqtd', 'bh3', 'zzz'],
-          description: '只看某店铺：ys=原神、xqtd=星穹铁道、bh3=崩坏3、zzz=绝区零；缺省四店'
+          description: '只看某店铺：ys=原神、xqtd=崩坏：星穹铁道、bh3=崩坏3、zzz=绝区零；缺省四店'
         },
         query: { type: 'string', description: '按商品名关键词过滤（包含匹配）' },
         limit: { type: 'integer', minimum: 1, maximum: 50, default: 20, description: '返回条数上限' }

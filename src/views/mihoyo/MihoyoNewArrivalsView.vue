@@ -123,6 +123,9 @@
                 <span class="goods-card__body">
                   <span class="goods-card__shop">{{ shopLabel(item.shop_code) }}</span>
                   <span class="goods-card__name">{{ displayName(item.name) || t('mihoyoNew.unnamed') }}</span>
+                  <span v-if="giftEndText(item)" class="goods-card__gift-end">
+                    {{ giftEndText(item) }}
+                  </span>
                 </span>
               </button>
             </article>
@@ -427,7 +430,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -438,13 +441,15 @@ import { useToast } from '@/composables/useToast'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
 import {
   MIHOYO_NEW_ARRIVAL_SHOPS,
   fetchMihoyoNewArrivals,
   fetchMihoyoGiftArrivals,
 } from '@/utils/mihoyo/newArrivals'
-import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName } from '@/utils/mihoyo'
-import { resolveMihoyoImportDraft } from '@/utils/mihoyo/importResolver'
+import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName, getMihoyoIpByShopCode } from '@/utils/mihoyo'
+import { resolveMihoyoImportDraft, buildMihoyoImportContext } from '@/utils/mihoyo/importResolver'
+import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
 import { normalizeGoodsVariant, getGoodsVariant } from '@/utils/goods/identity'
 import { normalizeCharacterName, isLikelyCharName } from '@/utils/goods/variantText'
 
@@ -454,6 +459,7 @@ const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const { isTabletViewport, updateViewport } = useTabletViewport()
 const goodsStore = useGoodsStore()
+const presetsStore = usePresetsStore()
 
 const CATALOG_TABS = [
   { value: 'shop', labelKey: 'mihoyoNew.tabShop' },
@@ -475,6 +481,11 @@ const loadError = ref('')
 const partialShops = ref([])
 const itemsByCatalog = reactive({ shop: [], point: [], gift: [] })
 const loadedCatalogs = reactive({ shop: false, point: false, gift: false })
+/** 上次成功加载时间（用于回到页签时判断是否需要后台刷新） */
+const loadedAt = reactive({ shop: 0, point: 0, gift: 0 })
+/** 分钟级心跳：满赠活动到点后无需手动刷新即可从列表移除 */
+const nowTick = ref(Date.now())
+let nowTimer = null
 const sheetOpen = ref(false)
 const activeItem = ref(null)
 /** 多选 SKU key，按点击顺序 */
@@ -489,9 +500,25 @@ const filteredItems = computed(() => {
   return list.filter((item) => !item.shop_code || item.shop_code === activeShop.value)
 })
 
-const giftItems = computed(() =>
-  activeCatalog.value === 'gift' ? filteredItems.value : [],
-)
+const giftItems = computed(() => {
+  // 依赖 nowTick：页面停留跨过活动结束时刻也能自动消失
+  void nowTick.value
+  return activeCatalog.value === 'gift'
+    ? filteredItems.value.filter((item) => !isGiftItemExpired(item))
+    : []
+})
+
+/** 满赠卡片的活动结束时间（列表渲染时再兜一层，防止停留在页面上过期不消失） */
+function isGiftItemExpired(item) {
+  const endSec = Number(item?.gift_activity_end_time) || 0
+  return endSec > 0 && endSec * 1000 <= nowTick.value
+}
+
+function giftEndText(item) {
+  const endSec = Number(item?.gift_activity_end_time) || 0
+  if (!endSec) return ''
+  return t('mihoyoNew.giftEndsAt', { date: saleTimeText(endSec) })
+}
 
 /** sale_time 为标准 UTC unix 秒（remaining_time 与真实 epoch 对齐验证）；已过开售时刻 = 已上架 */
 function isReleasedItem(item) {
@@ -765,7 +792,9 @@ function ensureDetailSlot(goodsId) {
 
 async function loadCatalog(catalog, { force = false } = {}) {
   if (loading.value) return
-  if (loadedCatalogs[catalog] && !force && itemsByCatalog[catalog].length) return
+  // 满赠活动会到期、上新会转已上架：数据超过 10 分钟就后台静默重拉一次
+  const stale = loadedAt[catalog] > 0 && Date.now() - loadedAt[catalog] > 10 * 60_000
+  if (loadedCatalogs[catalog] && !force && !stale && itemsByCatalog[catalog].length) return
 
   loading.value = true
   loadError.value = ''
@@ -779,6 +808,7 @@ async function loadCatalog(catalog, { force = false } = {}) {
           onItems: (list) => {
             itemsByCatalog.gift = (list || []).filter((item) => item?.is_gift)
             loadedCatalogs.gift = true
+            loadedAt.gift = Date.now()
             // 已有数据时立刻结束全屏 loading，避免挡住先到的结果
             if (itemsByCatalog.gift.length) loading.value = false
           },
@@ -786,6 +816,7 @@ async function loadCatalog(catalog, { force = false } = {}) {
       )
       itemsByCatalog.gift = items.filter((item) => item?.is_gift)
       loadedCatalogs.gift = true
+      loadedAt.gift = Date.now()
       partialShops.value = errors.map((e) => e.shopCode)
       if (!items.length && errors.length === MIHOYO_NEW_ARRIVAL_SHOPS.length) {
         loadError.value = errors[0]?.message || t('common.failed')
@@ -796,6 +827,7 @@ async function loadCatalog(catalog, { force = false } = {}) {
     const { items, errors } = await fetchMihoyoNewArrivals(catalog, MIHOYO_NEW_ARRIVAL_SHOPS)
     itemsByCatalog[catalog] = items.filter((item) => !item?.is_gift)
     loadedCatalogs[catalog] = true
+    loadedAt[catalog] = Date.now()
     partialShops.value = errors.map((e) => e.shopCode)
     if (!items.length && errors.length === MIHOYO_NEW_ARRIVAL_SHOPS.length) {
       loadError.value = errors[0]?.message || t('common.failed')
@@ -894,6 +926,36 @@ async function loadVariants(item) {
   }
 }
 
+/**
+ * 与米游铺导入 / 编辑页的智能建议共用同一套识别上下文：
+ * 用「预设角色/IP/分类 + 已入库商品」构建角色池，并复用语料库学到的分类关键词。
+ * 这样上新加入心愿单时也能匹配到已知角色，同时把「毛巾 / 闪卡」这类
+ * 品类文案从角色候选中过滤掉。
+ * 上下文按 goods / 预设引用做记忆化，避免每次加入都全量重扫。
+ */
+let importContextCache = null
+let importContextKey = null
+function getImportContext() {
+  const key = [
+    goodsStore.list,
+    presetsStore.characters,
+    presetsStore.categories,
+    presetsStore.ips,
+  ]
+  if (importContextCache && importContextKey && key.every((value, i) => value === importContextKey[i])) {
+    return importContextCache
+  }
+  importContextKey = key
+  importContextCache = buildMihoyoImportContext({
+    goodsList: goodsStore.list || [],
+    presetCharacters: presetsStore.characters || [],
+    categories: presetsStore.categories || [],
+    ips: presetsStore.ips || [],
+    learnedCategories: getSharedTaggingContext(presetsStore, goodsStore).getLearnedKeywords(),
+  })
+  return importContextCache
+}
+
 function buildWishlistPayload(item, sku = null) {
   const { ip: parsedIp, name: nameFromTitle } = parseTitleIpName(item.name)
   const name = cleanGoodsName(nameFromTitle || item.name)
@@ -906,7 +968,8 @@ function buildWishlistPayload(item, sku = null) {
     : null
   const priceYuan = skuPriceYuan ?? listPriceYuan
   const detail = itemDetailMap[item.goods_id]
-  const ip = parsedIp || shopLabel(item.shop_code)
+  // 标题没解析出 IP 时，按店铺 code 回填「规范 IP 名称」，避免落到本地化店铺简称（如「星穹铁道」）
+  const ip = parsedIp || getMihoyoIpByShopCode(item.shop_code) || shopLabel(item.shop_code)
 
   const notes = []
   if (item.catalog === 'point' && item.point > 0) {
@@ -935,7 +998,7 @@ function buildWishlistPayload(item, sku = null) {
       variants: detail?.variants || [],
       isWishlist: true,
     },
-    { preferredCharacter },
+    { context: getImportContext(), preferredCharacter },
   )
 
   return {
@@ -994,7 +1057,18 @@ async function confirmAddToWishlist() {
 
 onMounted(() => {
   updateViewport()
+  nowTick.value = Date.now()
+  nowTimer = window.setInterval(() => {
+    nowTick.value = Date.now()
+  }, 60_000)
   void loadCatalog(activeCatalog.value)
+})
+
+onUnmounted(() => {
+  if (nowTimer) {
+    window.clearInterval(nowTimer)
+    nowTimer = null
+  }
 })
 </script>
 
@@ -1429,6 +1503,12 @@ onMounted(() => {
   gap: 4px;
   padding: 10px 10px 12px;
   min-width: 0;
+}
+
+.goods-card__gift-end {
+  font-size: 11px;
+  color: var(--app-text-tertiary);
+  line-height: 1.3;
 }
 
 .goods-card__shop {

@@ -42,7 +42,7 @@ const TIMELINE_MAX_ENTRIES = 20
 /** 米游铺店铺展示名（给 AI 直接用的中文，不走 i18n） */
 const MIHOYO_SHOP_LABELS = Object.freeze({
   ys: '原神',
-  xqtd: '星穹铁道',
+  xqtd: '崩坏：星穹铁道',
   bh3: '崩坏3',
   zzz: '绝区零'
 })

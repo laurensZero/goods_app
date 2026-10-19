@@ -161,6 +161,17 @@ describe('isLikelyCharName', () => {
     expect(isLikelyCharName('全套兹白')).toBe(false)
   })
 
+  it('returns false for merchandise type words (品类词不是角色)', () => {
+    expect(isLikelyCharName('毛巾')).toBe(false)
+    expect(isLikelyCharName('闪卡')).toBe(false)
+    expect(isLikelyCharName('鼠标垫')).toBe(false)
+    expect(isLikelyCharName('镭射闪卡')).toBe(false)
+  })
+
+  it('still returns true for a real character name', () => {
+    expect(isLikelyCharName('芙宁娜')).toBe(true)
+  })
+
   it('returns false for too long name', () => {
     expect(isLikelyCharName('一二三四五六七八九')).toBe(false)
   })

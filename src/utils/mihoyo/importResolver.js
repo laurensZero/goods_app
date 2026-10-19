@@ -6,6 +6,7 @@ import {
   displayVariantText,
   normalizeCharacterName,
   isLikelyCharName,
+  MERCHANDISE_TYPE_WORDS,
 } from '@/utils/goods/variantText'
 
 const MIN_CATEGORY_SCORE = 0.6
@@ -49,6 +50,8 @@ const STATIC_CATEGORY_NAMES = [
   '玩偶',
   '摆件',
   '画册',
+  // 谷子类型词：SKU / 款式文案里出现时是品类，不应被当成角色（含「毛巾」「闪卡」等）
+  ...MERCHANDISE_TYPE_WORDS,
 ]
 
 function normalizeText(value) {

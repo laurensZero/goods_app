@@ -295,6 +295,7 @@
   "mihoyoNew.giftBadge": "사은품",
   "mihoyoNew.giftSectionTitle": "현재 사은품",
   "mihoyoNew.giftSectionDesc": "같은 시리즈 A/B는 합쳐서 표시합니다. 카드를 탭해 위시리스트에 추가하세요.",
+  "mihoyoNew.giftEndsAt": "{date} 종료",
   "mihoyoNew.upcomingSectionTitle": "곧 출시",
   "mihoyoNew.releasedSectionTitle": "출시됨",
   "mihoyoNew.releasedBadge": "출시됨",

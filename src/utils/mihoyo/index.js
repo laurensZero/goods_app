@@ -41,9 +41,18 @@ export function getMihoyoShopCodeByIp(ip) {
 export const MIHOYO_ROLE_SHOP_CODES = Object.values(MIHOYO_SHOP_CODE_BY_IP)
 
 // 反向索引：shop_code -> IP 名称，便于快速查表
-const SHOP_CODE_TO_IP = Object.fromEntries(
-  Object.entries(MIHOYO_SHOP_CODE_BY_IP).map(([ipName, code]) => [String(code || '').trim(), ipName])
-)
+// 额外补上「崩坏3」店铺（不在 MIHOYO_SHOP_CODE_BY_IP 里，但上新页会按店铺回填 IP）
+const SHOP_CODE_TO_IP = {
+  ...Object.fromEntries(
+    Object.entries(MIHOYO_SHOP_CODE_BY_IP).map(([ipName, code]) => [String(code || '').trim(), ipName])
+  ),
+  bh3: '崩坏3',
+}
+
+/** 由米游铺店铺 code 取规范 IP 名称（与预设 IP 对齐；未知店铺返回 ''） */
+export function getMihoyoIpByShopCode(code) {
+  return SHOP_CODE_TO_IP[String(code || '').trim()] || ''
+}
 
 // 常出现在【】中但不属于 IP 的词缀（营销/渠道标注）
 const NOISE_TITLE_PREFIX_SET = new Set([
@@ -187,14 +196,6 @@ function buildVariantFromSelections(selections, overrides = {}) {
   }
 }
 
-function sortVariantsDeterministically(list) {
-  return [...list].sort((a, b) => {
-    const textCompare = String(a?.text || '').localeCompare(String(b?.text || ''), 'zh-Hans-CN')
-    if (textCompare !== 0) return textCompare
-    return String(a?.key || '').localeCompare(String(b?.key || ''), 'zh-Hans-CN')
-  })
-}
-
 function buildSaleAttrVariants(rawSaleAttrs) {
   const groups = normalizeSaleAttrGroups(rawSaleAttrs)
   if (!groups.length) return []
@@ -216,7 +217,8 @@ function buildSaleAttrVariants(rawSaleAttrs) {
   }
 
   walk(0, [])
-  return sortVariantsDeterministically(variants)
+  // 保持米游铺返回的原始款式顺序（不按拼音/文本重排）
+  return variants
 }
 
 function buildSkuVariantsFromDetail(detail) {
@@ -268,7 +270,7 @@ function buildSkuVariantsFromDetail(detail) {
     variants.push(variant)
   }
 
-  return variants.length ? sortVariantsDeterministically(variants) : buildSaleAttrVariants(groups)
+  return variants.length ? variants : buildSaleAttrVariants(groups)
 }
 
 /**
@@ -277,7 +279,10 @@ function buildSkuVariantsFromDetail(detail) {
 export async function fetchGiftActivityPublic(activityId) {
   const id = String(activityId || '').trim()
   if (!id) {
-    return { ok: false, activityId: '', name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+    return {
+      ok: false, reason: 'invalid', activityId: '', name: '', shopCode: '',
+      startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
+    }
   }
   const reqHeaders = {
     'Referer': 'https://www.mihoyogift.com/',
@@ -286,7 +291,11 @@ export async function fetchGiftActivityPublic(activityId) {
   try {
     const json = await mihoyoRequest(`${API_GIFT_ACTIVITY}?activity_id=${id}`, { headers: reqHeaders })
     if (json.retcode !== 0) {
-      return { ok: false, activityId: id, name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+      // 活动被删除/下线时接口返回非 0：调用方据此清理本地活动缓存
+      return {
+        ok: false, reason: 'not_found', activityId: id, name: '', shopCode: '',
+        startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
+      }
     }
     const data = json?.data || {}
     const byGoodsId = new Map()
@@ -309,10 +318,17 @@ export async function fetchGiftActivityPublic(activityId) {
       shopCode: String(data.shop?.shop_code || '').trim(),
       startTime: Number(data.start_time) || 0,
       endTime: Number(data.end_time) || 0,
+      // 米游铺状态：1=进行中，>=2=已下线；serverTime 用于以服务端时间判断是否过期
+      status: Number.isFinite(Number(data.status)) ? Number(data.status) : 1,
+      serverTime: Number(data.server_time) || 0,
+      outOfStock: Boolean(data.out_of_stock),
       gifts: [...byGoodsId.values()],
     }
   } catch {
-    return { ok: false, activityId: id, name: '', shopCode: '', startTime: 0, endTime: 0, gifts: [] }
+    return {
+      ok: false, reason: 'network', activityId: id, name: '', shopCode: '',
+      startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
+    }
   }
 }
 
@@ -773,7 +789,7 @@ const CATEGORY_KEYWORDS = [
   { keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], category: '挂件' },
   { keywords: ['徽章', '马口铁', '胸章', 'Pin', 'pin'], category: '徽章' },
   { keywords: ['明信片'], category: '明信片' },
-  { keywords: ['卡片', '胶片卡', '随机卡', '收藏卡', '可换卡', '卡组'], category: '卡片' },
+  { keywords: ['卡片', '胶片卡', '随机卡', '收藏卡', '可换卡', '卡组', '闪卡', '镭射卡'], category: '卡片' },
   { keywords: ['CD', '专辑', '唱片', 'OST'], category: 'CD/专辑' },
   { keywords: ['色纸', '签板'], category: '色纸' },
   { keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰'], category: '服饰' },
