@@ -25,7 +25,6 @@ import { usePresetsStore } from '../presets'
 import { buildCharacterRowId, parseCharacterRowId } from '@/utils/presets/characterId'
 
 const CHR_KEY = 'goods_presets_characters'
-const FAV_KEY = 'goods_presets_favorite_characters'
 const TOMB_KEY = 'goods_presets_row_tombstones_v1'
 
 describe('角色身份 = (ip, name) 复合键', () => {
@@ -159,12 +158,18 @@ describe('角色身份 = (ip, name) 复合键', () => {
     ])
   })
 
-  it('init 会把旧的「纯名字」收藏迁移成复合 id', async () => {
-    await storage.writePersisted(CHR_KEY, JSON.stringify([{ name: '小樱', ip: 'A' }]))
-    await storage.writePersisted(FAV_KEY, JSON.stringify(['小樱']))
+  it('init 从角色条目本身的 fav 恢复收藏', async () => {
+    await storage.writePersisted(CHR_KEY, JSON.stringify([
+      { name: '小樱', ip: 'A', fav: true },
+      { name: '雪', ip: 'A', fav: false }
+    ]))
     const presets = usePresetsStore()
     await presets.init()
 
     expect(presets.favoriteCharacters).toEqual(['A::小樱'])
+    expect(presets.characterItems).toEqual([
+      { name: '小樱', ip: 'A', fav: true },
+      { name: '雪', ip: 'A', fav: false }
+    ])
   })
 })

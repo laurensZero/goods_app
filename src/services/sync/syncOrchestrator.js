@@ -244,7 +244,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null, presetsDirty: !!(opts.dirtyDomains && (opts.dirtyDomains.has('presets') || opts.dirtyDomains.has('profiles'))) })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
             await advanceRowWatermarks(ctx, remoteData)
@@ -334,6 +334,7 @@ export function createSyncOrchestrator({
             forceReapply: schemaResync,
             forceAlign,
             localSyncTime,
+            presetsDirty: !!(opts.dirtyDomains && (opts.dirtyDomains.has('presets') || opts.dirtyDomains.has('profiles'))),
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             resolveRechargeImage: be?.getImagePublicUrl || null,
             resolveProfileImage: be?.getImagePublicUrl || null
@@ -733,6 +734,7 @@ export function createSyncOrchestrator({
             reconcileMissing: !remoteData.isIncremental, diff,
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
+            presetsDirty: isPresetsDirty,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             // 本地 presets 有未推送改动（刚新建/删除自定义字段、改分类…）时不被远端快照覆盖
             resolveRechargeImage: be?.getImagePublicUrl || null,

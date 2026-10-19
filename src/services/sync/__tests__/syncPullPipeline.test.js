@@ -249,7 +249,7 @@ describe('mergeToLocal row-level presets', () => {
     await mergeToLocal(stores, remote, { reconcileMissing: false })
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ categories: [{ name: 'A' }] }),
+      expect.objectContaining({ categoryItems: [{ name: 'A' }] }),
       { updatedAt: expect.any(Number) }
     )
   })
@@ -273,7 +273,7 @@ describe('mergeToLocal row-level presets', () => {
   it('角色行按 (ip,name) 复合 id 归并，不产生「本地一条 + 远端一条」的重复', async () => {
     const stores = makeStores()
     // 本地只有名字（角色条目本身不带 id），远端行 id 是 A::小樱
-    stores.presetsStore.characters = [{ name: '小樱', ip: 'A' }]
+    stores.presetsStore.characterItems = [{ name: '小樱', ip: 'A', fav: false }]
     const remote = {
       goods: [],
       trash: [],
@@ -289,7 +289,7 @@ describe('mergeToLocal row-level presets', () => {
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
-        characters: [{ name: '小樱', ip: 'A', fav: false }]
+        characterItems: [{ name: '小樱', ip: 'A', fav: false }]
       }),
       { updatedAt: expect.any(Number) }
     )
@@ -297,9 +297,9 @@ describe('mergeToLocal row-level presets', () => {
 
   it('同名角色分属不同 IP 时各自成行', async () => {
     const stores = makeStores()
-    stores.presetsStore.characters = [
-      { name: '小樱', ip: 'A' },
-      { name: '小樱', ip: 'B' }
+    stores.presetsStore.characterItems = [
+      { name: '小樱', ip: 'A', fav: false },
+      { name: '小樱', ip: 'B', fav: false }
     ]
     const remote = {
       goods: [],
@@ -317,9 +317,9 @@ describe('mergeToLocal row-level presets', () => {
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
-        characters: [
-          { name: '小樱', ip: 'A' },
-          { name: '小樱', ip: 'B' }
+        characterItems: [
+          { name: '小樱', ip: 'A', fav: false },
+          { name: '小樱', ip: 'B', fav: false }
         ]
       }),
       { updatedAt: expect.any(Number) }
@@ -330,7 +330,7 @@ describe('mergeToLocal row-level presets', () => {
     // 回归：拉取远端（since=0 数据全量）曾用「远端全量」语义重建预设快照，但行表只按
     // 行水位增量拉；未变更的分类/自定义字段/活动类型被当成远端已删而清空。
     const stores = makeStores()
-    stores.presetsStore.categories = ['旧分类']
+    stores.presetsStore.categoryItems = [{ name: '旧分类', fav: false }]
     const remote = {
       goods: [],
       trash: [],
@@ -347,7 +347,7 @@ describe('mergeToLocal row-level presets', () => {
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
       expect.objectContaining({
-        categories: ['旧分类', expect.objectContaining({ name: 'B' })]
+        categoryItems: [{ name: '旧分类', fav: false }, expect.objectContaining({ name: 'B' })]
       }),
       { updatedAt: expect.any(Number) }
     )
@@ -355,7 +355,7 @@ describe('mergeToLocal row-level presets', () => {
 
   it('行表增量且没有拉到任何行时，reconcileMissing 也不重建快照（避免清空本地预设）', async () => {
     const stores = makeStores()
-    stores.presetsStore.categories = ['旧分类']
+    stores.presetsStore.categoryItems = [{ name: '旧分类', fav: false }]
     const remote = {
       goods: [],
       trash: [],
@@ -373,7 +373,7 @@ describe('mergeToLocal row-level presets', () => {
 
   it('行表完整（rowDomainsComplete=true）且 reconcileMissing 时，空远端才允许清空本地预设', async () => {
     const stores = makeStores()
-    stores.presetsStore.categories = ['旧分类']
+    stores.presetsStore.categoryItems = [{ name: '旧分类', fav: false }]
     const remote = {
       goods: [],
       trash: [],
@@ -387,7 +387,7 @@ describe('mergeToLocal row-level presets', () => {
     await mergeToLocal(stores, remote, { reconcileMissing: true })
 
     expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ categories: [] }),
+      expect.objectContaining({ categoryItems: [] }),
       { updatedAt: expect.any(Number) }
     )
   })
@@ -428,5 +428,185 @@ describe('mergeToLocal row-level presets', () => {
       forceReapply: false,
       forceAlign: false
     })
+  })
+})
+
+describe('mergeToLocal 角色星标（fav 存在角色条目上）', () => {
+  function makePresetStores({ characters = [] } = {}) {
+    const stores = makeStores()
+    stores.presetsStore = {
+      characterItems: characters,
+      replacePresetsSnapshot: vi.fn()
+    }
+    return stores
+  }
+
+  it('增量拉取只带回一个变更为收藏的角色时，不清掉其它本地星标', async () => {
+    // 回归：加星后自动同步只拉到变更过的那一行；收藏必须是条目自身的字段，
+    // 未出现在增量里的角色保留本地 fav，不能被远端增量「反推」清空。
+    const stores = makePresetStores({
+      characters: [
+        { name: '小樱', ip: 'A', fav: true },
+        { name: '雪', ip: 'A', fav: true }
+      ]
+    })
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character', id: 'A::新角色', payload: { name: '新角色', ip: 'A', fav: true }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      rowDomainsComplete: false,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterItems: expect.arrayContaining([
+          { name: '小樱', ip: 'A', fav: true },
+          { name: '雪', ip: 'A', fav: true },
+          { name: '新角色', ip: 'A', fav: true }
+        ])
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('完整行集合以远端为准：明确取消的星标会清掉', async () => {
+    const stores = makePresetStores({
+      characters: [{ name: '小樱', ip: 'A', fav: true }]
+    })
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character', id: 'A::小樱', payload: { name: '小樱', ip: 'A', fav: false }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      rowDomainsComplete: true,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterItems: [{ name: '小樱', ip: 'A', fav: false }]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('完整行集合里旧版角色行没有 fav 字段时，保留本地星标而不是当成取消收藏', async () => {
+    const stores = makePresetStores({
+      characters: [{ name: '小樱', ip: 'A', fav: true }]
+    })
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        // 旧版云端 payload 没有 fav
+        { domain: 'character', id: 'A::小樱', payload: { name: '小樱', ip: 'A' }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      rowDomainsComplete: true,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterItems: [{ name: '小樱', ip: 'A', fav: true }]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('本地预设未推送（dirty）时，拉取不覆盖本地星标', async () => {
+    const stores = makePresetStores({
+      characters: [{ name: '小樱', ip: 'A', fav: true }]
+    })
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character', id: 'A::小樱', payload: { name: '小樱', ip: 'A', fav: false }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      rowDomainsComplete: true,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true, presetsDirty: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        characterItems: [{ name: '小樱', ip: 'A', fav: true }]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('增量墓碑会移除对应角色的星标', async () => {
+    const stores = makePresetStores({
+      characters: [{ name: '小樱', ip: 'A', fav: true }]
+    })
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [],
+      presetRowsTrash: [
+        { domain: 'character', id: 'A::小樱', sortOrder: 0, deleted: 1 }
+      ],
+      rowDomainsComplete: false,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({ characterItems: [] }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
+  it('分类/ip 的 fav 也随条目一起合并，dirty 时保留本地星标', async () => {
+    const stores = makeStores()
+    stores.presetsStore = {
+      categoryItems: [{ name: '旧分类', fav: true }],
+      ipItems: [{ name: '旧 IP', fav: true }],
+      replacePresetsSnapshot: vi.fn()
+    }
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'category', id: '旧分类', payload: { name: '旧分类', fav: false }, sortOrder: 0, deleted: 0 },
+        { domain: 'ip', id: '旧 IP', payload: { name: '旧 IP', fav: false }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      rowDomainsComplete: true,
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: true, presetsDirty: true })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        categoryItems: [{ name: '旧分类', fav: true }],
+        ipItems: [{ name: '旧 IP', fav: true }]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
   })
 })

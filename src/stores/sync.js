@@ -385,20 +385,23 @@ export const useSyncStore = defineStore('sync', () => {
   async function buildPresetsData(options = {}) {
     const includeCollectionProfiles = options.includeCollectionProfiles !== false
     const presets = usePresetsStore()
-    const favCat = presets.favoriteCategorySet
-    const favIp = presets.favoriteIpSet
-    const favChr = presets.favoriteCharacterSet
     const data = {
-      categories: presets.categories.map((name) => ({ name, fav: favCat.has(name) })),
-      ips: presets.ips.map((name) => ({ name, fav: favIp.has(name) })),
+      categories: presets.categoryItems.map((item) => ({
+        name: String(item?.name || '').trim(),
+        fav: Boolean(item?.fav)
+      })).filter((item) => item.name),
+      ips: presets.ipItems.map((item) => ({
+        name: String(item?.name || '').trim(),
+        fav: Boolean(item?.fav)
+      })).filter((item) => item.name),
       // id 用 (ip,name) 复合键（ip::name），行表主键是 (user_id, domain, id)：
       // 角色若只按名字做 id，不同 IP 下的同名角色会互相覆盖。
-      characters: presets.characters
+      characters: presets.characterItems
         .map((item) => {
           const name = normalizeCharacterName(item?.name || '')
           const ip = String(item?.ip || '').trim()
           const id = buildCharacterRowId(ip, name)
-          return { id, name, ip, fav: favChr.has(id) }
+          return { id, name, ip, fav: Boolean(item?.fav) }
         })
         .filter((item) => item.id),
       storageLocations: presets.storageLocations.map((item) => ({

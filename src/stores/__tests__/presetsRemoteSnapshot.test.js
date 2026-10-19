@@ -119,4 +119,98 @@ describe('replacePresetsSnapshot 块级时钟（服务器时间域）', () => {
       expect.objectContaining({ domain: 'character', id: 'A::小樱' })
     ])
   })
+
+  it('快照中的 fav 是收藏的唯一来源', async () => {
+    const presets = usePresetsStore()
+
+    await presets.replacePresetsSnapshot({
+      ...snapshot('A'),
+      characters: [
+        { name: '小樱', ip: 'A', fav: true },
+        { name: '雪', ip: 'A', fav: false }
+      ]
+    }, { updatedAt: 2000 })
+
+    expect(presets.favoriteCharacters).toEqual(['A::小樱'])
+    expect(presets.characterItems).toEqual([
+      { name: '小樱', ip: 'A', fav: true },
+      { name: '雪', ip: 'A', fav: false }
+    ])
+  })
+
+  it('分类与 IP 的 fav 随条目一起应用', async () => {
+    const presets = usePresetsStore()
+
+    await presets.replacePresetsSnapshot({
+      ...snapshot('A'),
+      categories: [{ name: 'A', fav: true }, { name: 'B', fav: false }],
+      ips: [{ name: 'IP-A', fav: true }]
+    }, { updatedAt: 2000 })
+
+    expect(presets.favoriteCategories).toEqual(['A'])
+    expect(presets.favoriteIps).toEqual(['IP-A'])
+    expect(presets.categories).toEqual(['A', 'B'])
+    expect(presets.ips).toEqual(['IP-A'])
+  })
+
+  it('toggleFavoriteCategory / toggleFavoriteIp 把 fav 写在条目上并持久化', async () => {
+    await storage.writePersisted('goods_presets_categories', JSON.stringify(['A', 'B']))
+    await storage.writePersisted('goods_presets_ips', JSON.stringify(['IP-A']))
+    const presets = usePresetsStore()
+    await presets.init()
+
+    await presets.toggleFavoriteCategory('A')
+    await presets.toggleFavoriteIp('IP-A')
+
+    expect(presets.categoryItems).toEqual([
+      { name: 'A', fav: true },
+      { name: 'B', fav: false }
+    ])
+    expect(presets.ipItems).toEqual([{ name: 'IP-A', fav: true }])
+    expect(presets.favoriteCategories).toEqual(['A'])
+    expect(presets.favoriteIps).toEqual(['IP-A'])
+    expect(JSON.parse(await storage.readPersisted('goods_presets_categories'))).toEqual([
+      { name: 'A', fav: true },
+      { name: 'B', fav: false }
+    ])
+    expect(JSON.parse(await storage.readPersisted('goods_presets_ips'))).toEqual([
+      { name: 'IP-A', fav: true }
+    ])
+
+    await presets.toggleFavoriteCategory('A')
+    expect(presets.favoriteCategories).toEqual([])
+  })
+
+  it('重命名分类 / IP 时保留 fav', async () => {
+    await storage.writePersisted('goods_presets_categories', JSON.stringify(['A']))
+    await storage.writePersisted('goods_presets_ips', JSON.stringify(['IP-A']))
+    const presets = usePresetsStore()
+    await presets.init()
+
+    await presets.toggleFavoriteCategory('A')
+    await presets.toggleFavoriteIp('IP-A')
+    await presets.updateCategoryName('A', 'A2')
+    await presets.updateIpName('IP-A', 'IP-A2')
+
+    expect(presets.categoryItems).toEqual([{ name: 'A2', fav: true }])
+    expect(presets.ipItems).toEqual([{ name: 'IP-A2', fav: true }])
+    expect(presets.favoriteCategories).toEqual(['A2'])
+    expect(presets.favoriteIps).toEqual(['IP-A2'])
+  })
+
+  it('兼容旧的纯字符串分类/ip 与不带 fav 的旧角色行', async () => {
+    const presets = usePresetsStore()
+
+    await presets.replacePresetsSnapshot({
+      categories: ['A'],
+      ips: ['IP-A'],
+      characters: [{ name: '小樱', ip: 'A' }],
+      storageLocations: []
+    }, { updatedAt: 2000 })
+
+    expect(presets.categories).toEqual(['A'])
+    expect(presets.ips).toEqual(['IP-A'])
+    expect(presets.favoriteCharacters).toEqual([])
+    expect(presets.characterItems).toEqual([{ name: '小樱', ip: 'A', fav: false }])
+  })
 })

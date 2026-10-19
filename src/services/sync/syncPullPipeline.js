@@ -233,7 +233,7 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false, presetsDirty = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -377,41 +377,97 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     && (presetRowsComplete || remoteData.presetRows.length || remoteData.presetRowsTrash.length)
   if (shouldMergePresetRows && presetsStore) {
     const read = (value) => value?.value ?? value ?? []
+    // fav 是预设条目自身的字段：本地条目和远端 payload 用同一个键合并即可。
+    // 兼容旧格式：分类/ip 可能还是字符串，角色可能没有 fav 字段。
     const fields = {
-      category: 'categories', ip: 'ips', character: 'characters',
+      category: 'categoryItems', ip: 'ipItems', character: 'characterItems',
       storage_location: 'storageLocations', event_type: 'eventTypes', custom_field: 'customFieldDefs'
     }
+    const itemKey = (domain, item) => {
+      if (domain === 'character') {
+        return typeof item === 'string'
+          ? buildCharacterRowId('', item)
+          : buildCharacterRowId(item?.ip, item?.name)
+      }
+      return typeof item === 'string'
+        ? item
+        : String(item?.id || item?.key || item?.name || item?.value || '')
+    }
+    const localFav = {
+      category: new Map(),
+      ip: new Map(),
+      character: new Map()
+    }
+    if (presetsDirty) {
+      for (const domain of Object.keys(localFav)) {
+        const field = fields[domain]
+        for (const item of (Array.isArray(read(presetsStore[field])) ? read(presetsStore[field]) : [])) {
+          if (!item || typeof item !== 'object' || !Object.prototype.hasOwnProperty.call(item, 'fav')) continue
+          const key = itemKey(domain, item)
+          if (key) localFav[domain].set(key, Boolean(item.fav))
+        }
+      }
+    }
+
     const next = {}
     // 只有「完整行集合 + 需要 reconcile」时才用远端重建；增量行一律在本地现状上叠加
     const rebuildFromRemote = reconcileMissing && presetRowsComplete
+    const favoriteDomains = new Set(['category', 'ip', 'character'])
     for (const [domain, field] of Object.entries(fields)) {
       const current = Array.isArray(read(presetsStore[field])) ? read(presetsStore[field]) : []
-      // character 的本地条目是 [{name, ip}]、远端行 id 是复合键 `ip::name`，
+      // character 的本地条目是 [{name, ip, fav}]、远端行 id 是复合键 `ip::name`，
       // 两侧必须用同一规则建键，否则同一个角色会被当成「本地一条 + 远端一条」重复。
-      const itemKey = (item) => {
-        if (domain === 'character') {
-          return typeof item === 'string'
-            ? buildCharacterRowId('', item)
-            : buildCharacterRowId(item?.ip, item?.name)
-        }
-        return typeof item === 'string'
-          ? item
-          : String(item?.id || item?.key || item?.name || item?.value || '')
-      }
-      const byId = new Map((rebuildFromRemote ? [] : current.map((item) => [itemKey(item), item])).filter(([id]) => id))
-      const localOrder = new Map(current.map((item, index) => [itemKey(item), index]))
+      const currentByKey = new Map(current.map((item) => [itemKey(domain, item), item]).filter(([id]) => id))
+      const byId = rebuildFromRemote ? new Map() : new Map(currentByKey)
+      const localOrder = new Map(current.map((item, index) => [itemKey(domain, item), index]))
       const remoteOrder = new Map()
       for (const row of [...(remoteData.presetRows || []), ...(remoteData.presetRowsTrash || [])].filter((item) => item.domain === domain)) {
         const id = String(row.id || '')
         if (!id) continue
         remoteOrder.set(id, Number.isFinite(Number(row.sortOrder)) ? Number(row.sortOrder) : Number.MAX_SAFE_INTEGER)
-        if (Number(row.deleted) === 1 || remoteData.presetRowsTrash?.includes(row)) byId.delete(id)
-        else byId.set(id, row.payload ?? '')
+        if (Number(row.deleted) === 1 || remoteData.presetRowsTrash?.includes(row)) {
+          byId.delete(id)
+          continue
+        }
+        const payload = row.payload ?? ''
+        // 旧版云端行没有 fav 字段：不能把它当成「取消收藏」，否则全量/增量拉取都会
+        // 把本地已有的星标洗掉。只有远端明确带 fav 时才覆盖。
+        if (
+          favoriteDomains.has(domain)
+          && payload && typeof payload === 'object'
+          && !Object.prototype.hasOwnProperty.call(payload, 'fav')
+        ) {
+          const localItem = currentByKey.get(id)
+          if (localItem && typeof localItem === 'object' && Object.prototype.hasOwnProperty.call(localItem, 'fav')) {
+            byId.set(id, { ...payload, fav: Boolean(localItem.fav) })
+            continue
+          }
+        }
+        byId.set(id, payload)
       }
-      next[field] = [...byId.entries()]
+      let items = [...byId.entries()]
         .sort((a, b) => (remoteOrder.get(a[0]) ?? localOrder.get(a[0]) ?? Number.MAX_SAFE_INTEGER) - (remoteOrder.get(b[0]) ?? localOrder.get(b[0]) ?? Number.MAX_SAFE_INTEGER))
         .map(([, value]) => value)
+
+      // 本地预设还没推上去时，收藏以本地条目为准；否则远端行里的 fav 就是权威值。
+      // 增量拉取只带变更行，未变更条目的 fav 仍保留在本地条目上，不会被清掉。
+      if (presetsDirty && localFav[domain]?.size > 0) {
+        const favByKey = localFav[domain]
+        items = items.map((item) => {
+          const key = itemKey(domain, item)
+          if (!key || !favByKey.has(key)) return item
+          const fav = favByKey.get(key)
+          if (typeof item === 'string') {
+            return domain === 'character'
+              ? { name: item, ip: '', fav }
+              : { name: item, fav }
+          }
+          return { ...(item || {}), fav }
+        })
+      }
+      next[field] = items
     }
+
     await presetsStore.replacePresetsSnapshot(next, { updatedAt: Date.now() })
   }
 

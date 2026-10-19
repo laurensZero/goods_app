@@ -27,9 +27,6 @@ const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
 const STORAGE_KEY_LOC = 'goods_presets_storage_locations'
 const STORAGE_KEY_SYNC_DIGEST = 'goods_presets_sync_digest'
-const STORAGE_KEY_FAV_CAT = 'goods_presets_favorite_categories'
-const STORAGE_KEY_FAV_IP = 'goods_presets_favorite_ips'
-const STORAGE_KEY_FAV_CHR = 'goods_presets_favorite_characters'
 const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
 const STORAGE_KEY_CUSTOM_FIELD_DEFS = 'goods_presets_custom_field_defs'
 // 已应用/已确认的远端预设块时间戳（服务器时间域，毫秒字符串）
@@ -94,8 +91,8 @@ function createCurrentDigest(items, storageLocationPaths) {
 function migrateCharacters(list) {
   return list.map((character) => (
     typeof character === 'string'
-      ? { name: character, ip: '' }
-      : { name: character.name ?? '', ip: character.ip ?? '' }
+      ? { name: character, ip: '', fav: false }
+      : { name: character.name ?? '', ip: character.ip ?? '', fav: Boolean(character.fav) }
   ))
 }
 
@@ -183,13 +180,15 @@ function sortByLocale(list, pick = (item) => item) {
 function normalizeCharacters(list) {
   const merged = new Map()
 
-  for (const character of migrateCharacters(list)) {
+  for (const character of migrateCharacters(Array.isArray(list) ? list : [])) {
     const name = normalizeCharacterName(character.name)
     const ip = String(character.ip || '').trim()
     if (!name) continue
 
     const key = `${ip}\u0000${name}`
-    if (!merged.has(key)) merged.set(key, { name, ip })
+    const existing = merged.get(key)
+    if (!existing) merged.set(key, { name, ip, fav: Boolean(character.fav) })
+    else if (character.fav) existing.fav = true
   }
 
   // 旧模型按名字唯一：无 IP 的占位条目在同名带 IP 条目存在时丢弃，
@@ -202,58 +201,33 @@ function normalizeCharacters(list) {
   return [...merged.values()].filter((character) => character.ip || !hasIpByName.has(character.name))
 }
 
-/**
- * 旧版收藏只存角色名；升级到复合 key 时定位到具体角色。
- * 已是 `ip::name` 的原样保留（幂等）。
- */
-function migrateFavoriteCharacters(favorites, characters) {
-  const raw = Array.isArray(favorites) ? favorites : []
-  const byName = new Map()
-  for (const character of characters) {
-    const list = byName.get(character.name) || []
-    list.push(character)
-    byName.set(character.name, list)
+function normalizePresetItems(list, { forceOtherLast = false } = {}) {
+  const values = Array.isArray(list) ? list : []
+  const seen = new Set()
+  const result = []
+
+  for (const item of values) {
+    const name = String(item && typeof item === 'object' ? item.name : item || '').trim()
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    result.push({ name, fav: Boolean(item && typeof item === 'object' && item.fav) })
   }
 
-  const result = []
-  const seen = new Set()
-  for (const entry of raw) {
-    const key = String(entry || '').trim()
-    if (!key) continue
-    if (key.includes('::')) {
-      if (!seen.has(key)) {
-        seen.add(key)
-        result.push(key)
-      }
-      continue
-    }
-    const matches = byName.get(normalizeCharacterName(key)) || []
-    const target = matches.find((character) => character.ip) || matches[0]
-    const id = target ? buildCharacterRowId(target.ip, target.name) : `::${normalizeCharacterName(key)}`
-    if (id && !seen.has(id)) {
-      seen.add(id)
-      result.push(id)
+  if (forceOtherLast) {
+    const other = result.filter((item) => item.name === '其他')
+    if (other.length > 0) {
+      return [...result.filter((item) => item.name !== '其他'), ...other]
     }
   }
   return result
 }
 
-function normalizeCategoriesList(list) {
-  const values = Array.isArray(list)
-    ? list.map((item) => String(item && typeof item === 'object' ? item.name : item || '').trim()).filter(Boolean)
-    : []
-  const unique = [...new Set(values)]
-  const withoutOther = unique.filter((item) => item !== '其他')
-  return unique.includes('其他')
-    ? [...withoutOther, '其他']
-    : withoutOther
+function normalizeCategoryItems(list) {
+  return normalizePresetItems(list, { forceOtherLast: true })
 }
 
-function normalizeIpsList(list) {
-  const values = Array.isArray(list)
-    ? list.map((item) => String(item && typeof item === 'object' ? item.name : item || '').trim()).filter(Boolean)
-    : []
-  return [...new Set(values)]
+function normalizeIpItems(list) {
+  return normalizePresetItems(list)
 }
 
 function normalizeEventTypesList(list) {
@@ -273,17 +247,32 @@ function normalizeEventTypesList(list) {
 }
 
 export const usePresetsStore = defineStore('presets', () => {
-  const categories = ref(cloneList(DEFAULT_CATEGORIES))
-  const ips = ref(cloneList(DEFAULT_IPS))
-  const characters = ref(cloneList(DEFAULT_CHARACTERS))
+  // 预设条目的唯一数据源：fav 是条目自身的字段，不再单独维护收藏数组。
+  // categories / ips / characters 仍以名字/对象数组的形式对外暴露（兼容现有页面），
+  // 但都是这里派生出来的只读视图。
+  const categoryItems = ref(normalizeCategoryItems(DEFAULT_CATEGORIES))
+  const ipItems = ref(normalizeIpItems(DEFAULT_IPS))
+  const characterItems = ref(normalizeCharacters(DEFAULT_CHARACTERS))
   const storageLocations = ref(cloneList(DEFAULT_STORAGE_LOCATIONS))
   const eventTypes = ref(cloneList(DEFAULT_EVENT_TYPES))
   const customFieldDefs = ref(cloneList(DEFAULT_CUSTOM_FIELD_DEFS))
-  const favoriteCategories = ref([])
-  const favoriteIps = ref([])
-  const favoriteCharacters = ref([])
   const isReady = ref(false)
   const rowTombstones = ref([])
+
+  const categories = computed(() => categoryItems.value.map((item) => item.name))
+  const ips = computed(() => ipItems.value.map((item) => item.name))
+  const characters = computed(() => characterItems.value.map(({ name, ip }) => ({ name, ip })))
+
+  const favoriteCategories = computed(() => categoryItems.value.filter((item) => item.fav).map((item) => item.name))
+  const favoriteIps = computed(() => ipItems.value.filter((item) => item.fav).map((item) => item.name))
+  const favoriteCharacters = computed(() => characterItems.value
+    .filter((item) => item.fav)
+    .map((item) => buildCharacterRowId(item.ip, item.name))
+    .filter(Boolean))
+
+  const favoriteCategorySet = computed(() => new Set(favoriteCategories.value))
+  const favoriteIpSet = computed(() => new Set(favoriteIps.value))
+  const favoriteCharacterSet = computed(() => new Set(favoriteCharacters.value))
 
   async function markRowTombstone(domain, id) {
     const key = `${domain}:${String(id || '').trim()}`
@@ -309,10 +298,6 @@ export const usePresetsStore = defineStore('presets', () => {
 
     return grouped
   })
-
-  const favoriteCategorySet = computed(() => new Set(favoriteCategories.value))
-  const favoriteIpSet = computed(() => new Set(favoriteIps.value))
-  const favoriteCharacterSet = computed(() => new Set(favoriteCharacters.value))
 
   const storageLocationIdMap = computed(() =>
     new Map(storageLocations.value.map((node) => [node.id, node]))
@@ -356,50 +341,30 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc, favCat, favIp, favChr, evtTypes, fieldDefs, tombstones] = await Promise.all([
+    const [cat, ip, chr, loc, evtTypes, fieldDefs, tombstones] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
       readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS),
-      readPersistedList(STORAGE_KEY_FAV_CAT, []),
-      readPersistedList(STORAGE_KEY_FAV_IP, []),
-      readPersistedList(STORAGE_KEY_FAV_CHR, []),
       readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES),
       readPersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, DEFAULT_CUSTOM_FIELD_DEFS),
       readPersisted(STORAGE_KEY_ROW_TOMBSTONES)
     ])
-    categories.value = cat
-    ips.value = ip
-    characters.value = chr
+    categoryItems.value = normalizeCategoryItems(cat)
+    ipItems.value = normalizeIpItems(ip)
+    characterItems.value = normalizeCharacters(chr)
     storageLocations.value = loc
     eventTypes.value = normalizeEventTypesList(evtTypes)
     customFieldDefs.value = normalizeCustomFieldDefs(fieldDefs)
-    favoriteCategories.value = Array.isArray(favCat) ? favCat : []
-    favoriteIps.value = Array.isArray(favIp) ? favIp : []
-    favoriteCharacters.value = Array.isArray(favChr) ? favChr : []
     try { rowTombstones.value = tombstones ? JSON.parse(tombstones) : [] } catch { rowTombstones.value = [] }
 
-    if (!Array.isArray(categories.value)) categories.value = cloneList(DEFAULT_CATEGORIES)
-    if (!Array.isArray(ips.value)) ips.value = cloneList(DEFAULT_IPS)
-    if (!Array.isArray(characters.value)) characters.value = cloneList(DEFAULT_CHARACTERS)
     if (!Array.isArray(storageLocations.value)) storageLocations.value = cloneList(DEFAULT_STORAGE_LOCATIONS)
-
-    if (categories.value.includes('其他')) {
-      categories.value = [
-        ...categories.value.filter((category) => category !== '其他'),
-        '其他'
-      ]
-    }
-
-    characters.value = normalizeCharacters(characters.value)
-    favoriteCharacters.value = migrateFavoriteCharacters(favoriteCharacters.value, characters.value)
     storageLocations.value = normalizeStorageLocationNodes(storageLocations.value)
 
     await Promise.all([
-      writePersistedList(STORAGE_KEY_CAT, categories.value),
-      writePersistedList(STORAGE_KEY_IP, ips.value),
-      writePersistedList(STORAGE_KEY_CHR, characters.value),
-      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
+      writePersistedList(STORAGE_KEY_CAT, categoryItems.value),
+      writePersistedList(STORAGE_KEY_IP, ipItems.value),
+      writePersistedList(STORAGE_KEY_CHR, characterItems.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
       writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
@@ -489,27 +454,29 @@ export const usePresetsStore = defineStore('presets', () => {
     if (!Array.isArray(items) || items.length === 0) return false
 
     const merged = normalizeCharacters([
-      ...characters.value,
+      ...characterItems.value,
       ...items.flatMap((item) => {
         const itemIp = String(item?.ip || '').trim()
         const itemCharacters = Array.isArray(item?.characters) ? item.characters : []
         return itemCharacters.map((name) => ({
           name,
-          ip: itemIp
+          ip: itemIp,
+          fav: false
         }))
       })
     ])
 
-    if (merged.length === characters.value.length) {
+    if (merged.length === characterItems.value.length) {
       const unchanged = merged.every((character, index) => (
-        character.name === characters.value[index]?.name
-        && character.ip === characters.value[index]?.ip
+        character.name === characterItems.value[index]?.name
+        && character.ip === characterItems.value[index]?.ip
+        && Boolean(character.fav) === Boolean(characterItems.value[index]?.fav)
       ))
       if (unchanged) return false
     }
 
-    characters.value = merged
-    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    characterItems.value = merged
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     return true
   }
 
@@ -550,26 +517,22 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function addCategory(name) {
-    const normalized = name.trim()
-    if (!normalized || categories.value.includes(normalized)) return false
+    const normalized = String(name || '').trim()
+    if (!normalized || categoryItems.value.some((item) => item.name === normalized)) return false
 
-    const withoutOther = categories.value.filter((category) => category !== '其他')
-    const hasOther = categories.value.includes('其他')
-    categories.value = hasOther
-      ? [...withoutOther, normalized, '其他']
-      : [...withoutOther, normalized]
-    await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    const other = categoryItems.value.find((item) => item.name === '其他')
+    const withoutOther = categoryItems.value.filter((item) => item.name !== '其他')
+    categoryItems.value = other
+      ? [...withoutOther, { name: normalized, fav: false }, other]
+      : [...withoutOther, { name: normalized, fav: false }]
+    await writePersistedList(STORAGE_KEY_CAT, categoryItems.value)
     autoPushPresets()
     return true
   }
 
   async function removeCategory(name) {
-    categories.value = categories.value.filter((category) => category !== name)
-    favoriteCategories.value = favoriteCategories.value.filter((c) => c !== name)
-    await Promise.all([
-      writePersistedList(STORAGE_KEY_CAT, categories.value),
-      writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value)
-    ])
+    categoryItems.value = categoryItems.value.filter((item) => item.name !== name)
+    await writePersistedList(STORAGE_KEY_CAT, categoryItems.value)
     await markRowTombstone('category', name)
     autoPushPresets()
   }
@@ -579,33 +542,37 @@ export const usePresetsStore = defineStore('presets', () => {
     const next = String(newName || '').trim()
     if (!previous || !next) return false
 
-    const index = categories.value.findIndex((category) => category === previous)
+    const index = categoryItems.value.findIndex((item) => item.name === previous)
     if (index === -1) return false
     if (previous === next) return true
-    if (categories.value.includes(next)) return false
+    if (categoryItems.value.some((item) => item.name === next)) return false
 
-    const updated = [...categories.value]
-    updated.splice(index, 1, next)
-    categories.value = updated
+    const updated = [...categoryItems.value]
+    updated.splice(index, 1, { ...updated[index], name: next })
+    categoryItems.value = normalizeCategoryItems(updated)
 
-    // 同步更新收藏列表中的名称
-    const favIdx = favoriteCategories.value.indexOf(previous)
-    if (favIdx >= 0) {
-      const favUpdated = [...favoriteCategories.value]
-      favUpdated.splice(favIdx, 1, next)
-      favoriteCategories.value = favUpdated
-      await writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value)
-    }
-
-    await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    await writePersistedList(STORAGE_KEY_CAT, categoryItems.value)
     await markRowTombstone('category', previous)
     autoPushPresets()
     return true
   }
 
   async function reorderCategories(list) {
-    categories.value = [...list]
-    await writePersistedList(STORAGE_KEY_CAT, categories.value)
+    const ordered = Array.isArray(list) ? list : []
+    const byName = new Map(categoryItems.value.map((item) => [item.name, item]))
+    const next = []
+    for (const entry of ordered) {
+      const name = String(entry && typeof entry === 'object' ? entry.name : entry || '').trim()
+      const item = byName.get(name)
+      if (!item) continue
+      next.push(item)
+      byName.delete(name)
+    }
+    for (const item of categoryItems.value) {
+      if (byName.has(item.name)) next.push(item)
+    }
+    categoryItems.value = normalizeCategoryItems(next)
+    await writePersistedList(STORAGE_KEY_CAT, categoryItems.value)
     autoPushPresets()
   }
 
@@ -803,22 +770,18 @@ export const usePresetsStore = defineStore('presets', () => {
   }
 
   async function addIp(name) {
-    const normalized = name.trim()
-    if (!normalized || ips.value.includes(normalized)) return false
+    const normalized = String(name || '').trim()
+    if (!normalized || ipItems.value.some((item) => item.name === normalized)) return false
 
-    ips.value.push(normalized)
-    await writePersistedList(STORAGE_KEY_IP, ips.value)
+    ipItems.value = [...ipItems.value, { name: normalized, fav: false }]
+    await writePersistedList(STORAGE_KEY_IP, ipItems.value)
     autoPushPresets()
     return true
   }
 
   async function removeIp(name) {
-    ips.value = ips.value.filter((ip) => ip !== name)
-    favoriteIps.value = favoriteIps.value.filter((ip) => ip !== name)
-    await Promise.all([
-      writePersistedList(STORAGE_KEY_IP, ips.value),
-      writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value)
-    ])
+    ipItems.value = ipItems.value.filter((item) => item.name !== name)
+    await writePersistedList(STORAGE_KEY_IP, ipItems.value)
     await markRowTombstone('ip', name)
     autoPushPresets()
   }
@@ -828,25 +791,16 @@ export const usePresetsStore = defineStore('presets', () => {
     const next = String(newName || '').trim()
     if (!previous || !next) return false
 
-    const index = ips.value.findIndex((ip) => ip === previous)
+    const index = ipItems.value.findIndex((item) => item.name === previous)
     if (index === -1) return false
     if (previous === next) return true
-    if (ips.value.includes(next)) return false
+    if (ipItems.value.some((item) => item.name === next)) return false
 
-    const updated = [...ips.value]
-    updated.splice(index, 1, next)
-    ips.value = updated
+    const updated = [...ipItems.value]
+    updated.splice(index, 1, { ...updated[index], name: next })
+    ipItems.value = normalizeIpItems(updated)
 
-    // 同步更新收藏列表中的名称
-    const favIdx = favoriteIps.value.indexOf(previous)
-    if (favIdx >= 0) {
-      const favUpdated = [...favoriteIps.value]
-      favUpdated.splice(favIdx, 1, next)
-      favoriteIps.value = favUpdated
-      await writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value)
-    }
-
-    await writePersistedList(STORAGE_KEY_IP, ips.value)
+    await writePersistedList(STORAGE_KEY_IP, ipItems.value)
     await markRowTombstone('ip', previous)
     autoPushPresets()
     return true
@@ -859,45 +813,34 @@ export const usePresetsStore = defineStore('presets', () => {
   function resolveCharacterTarget(id) {
     const { ip, name } = parseCharacterRowId(id)
     if (!name) return null
-    const exact = characters.value.find((character) => character.name === name && character.ip === ip)
+    const exact = characterItems.value.find((character) => character.name === name && character.ip === ip)
     if (exact) return exact
 
-    const matches = characters.value.filter((character) => character.name === name)
+    const matches = characterItems.value.filter((character) => character.name === name)
     if (matches.length === 0) return null
     if (matches.length === 1) return matches[0]
     return matches.find((character) => !character.ip) || null
-  }
-
-  /** 角色身份变化（改名 / 改 IP / 占位升级）时，把收藏 key 一起搬过去 */
-  async function migrateFavoriteKey(oldKey, newKey) {
-    if (!oldKey || !newKey || oldKey === newKey) return
-    if (!favoriteCharacters.value.includes(oldKey)) return
-    const next = favoriteCharacters.value.filter((key) => key !== oldKey)
-    if (!next.includes(newKey)) next.push(newKey)
-    favoriteCharacters.value = next
-    await writePersistedList(STORAGE_KEY_FAV_CHR, next)
   }
 
   async function addCharacter(name, ip = '') {
     const normalized = normalizeCharacterName(name)
     const normalizedIp = String(ip || '').trim()
     if (!normalized) return false
-    if (characters.value.some((character) => character.name === normalized && character.ip === normalizedIp)) return false
+    if (characterItems.value.some((character) => character.name === normalized && character.ip === normalizedIp)) return false
 
     // 同名但无 IP 的占位条目：带 IP 新增时直接升级，避免留下重复的无 IP 角色
     const placeholderIndex = normalizedIp
-      ? characters.value.findIndex((character) => character.name === normalized && !character.ip)
+      ? characterItems.value.findIndex((character) => character.name === normalized && !character.ip)
       : -1
     if (placeholderIndex >= 0) {
-      const updated = [...characters.value]
-      updated.splice(placeholderIndex, 1, { name: normalized, ip: normalizedIp })
-      characters.value = updated
-      await migrateFavoriteKey(buildCharacterRowId('', normalized), buildCharacterRowId(normalizedIp, normalized))
+      const updated = [...characterItems.value]
+      updated.splice(placeholderIndex, 1, { ...updated[placeholderIndex], ip: normalizedIp })
+      characterItems.value = updated
     } else {
-      characters.value.push({ name: normalized, ip: normalizedIp })
+      characterItems.value = [...characterItems.value, { name: normalized, ip: normalizedIp, fav: false }]
     }
 
-    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     autoPushPresets()
     return true
   }
@@ -907,12 +850,8 @@ export const usePresetsStore = defineStore('presets', () => {
     if (!target) return
 
     const rowId = buildCharacterRowId(target.ip, target.name)
-    characters.value = characters.value.filter((character) => !(character.name === target.name && character.ip === target.ip))
-    favoriteCharacters.value = favoriteCharacters.value.filter((key) => key !== rowId)
-    await Promise.all([
-      writePersistedList(STORAGE_KEY_CHR, characters.value),
-      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value)
-    ])
+    characterItems.value = characterItems.value.filter((character) => !(character.name === target.name && character.ip === target.ip))
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', rowId)
     autoPushPresets()
   }
@@ -924,17 +863,15 @@ export const usePresetsStore = defineStore('presets', () => {
     const next = normalizeCharacterName(newName)
     if (!next) return false
     if (next === target.name) return true
-    if (characters.value.some((character) => character.name === next && character.ip === target.ip)) return false
+    if (characterItems.value.some((character) => character.name === next && character.ip === target.ip)) return false
 
     const oldId = buildCharacterRowId(target.ip, target.name)
-    const newId = buildCharacterRowId(target.ip, next)
-    const updated = [...characters.value]
+    const updated = [...characterItems.value]
     const index = updated.findIndex((character) => character.name === target.name && character.ip === target.ip)
-    updated.splice(index, 1, { name: next, ip: target.ip })
-    characters.value = updated
+    updated.splice(index, 1, { ...updated[index], name: next })
+    characterItems.value = updated
 
-    await migrateFavoriteKey(oldId, newId)
-    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', oldId)
     autoPushPresets()
     return true
@@ -949,18 +886,22 @@ export const usePresetsStore = defineStore('presets', () => {
     const newId = buildCharacterRowId(nextIp, target.name)
     if (oldId === newId) return
 
-    const index = characters.value.findIndex((character) => character.name === target.name && character.ip === target.ip)
+    const index = characterItems.value.findIndex((character) => character.name === target.name && character.ip === target.ip)
     if (index === -1) return
 
-    // 目标 (nextIp, name) 已存在时视为合并，避免出现重复行
-    const duplicate = characters.value.some((character, i) => i !== index && character.name === target.name && character.ip === nextIp)
-    const updated = [...characters.value]
-    if (duplicate) updated.splice(index, 1)
-    else updated.splice(index, 1, { name: target.name, ip: nextIp })
-    characters.value = updated
+    // 目标 (nextIp, name) 已存在时视为合并，避免出现重复行；收藏状态取并集
+    const duplicate = characterItems.value.some((character, i) => i !== index && character.name === target.name && character.ip === nextIp)
+    const updated = [...characterItems.value]
+    if (duplicate) {
+      const kept = updated.find((character, i) => i !== index && character.name === target.name && character.ip === nextIp)
+      updated.splice(index, 1)
+      if (target.fav && kept) kept.fav = true
+    } else {
+      updated.splice(index, 1, { ...updated[index], ip: nextIp })
+    }
+    characterItems.value = updated
 
-    await migrateFavoriteKey(oldId, newId)
-    await writePersistedList(STORAGE_KEY_CHR, characters.value)
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', oldId)
     autoPushPresets()
   }
@@ -1056,49 +997,22 @@ export const usePresetsStore = defineStore('presets', () => {
       return false
     }
 
-    // Helper: 兼容三种格式
-    // 1) 旧格式 ["..."]  → 数组，元素是字符串
-    // 2) 过渡格式 {n: [...], f: [...]} → 对象，有 n/f 键
-    // 3) 新格式 [{name, fav}] → 数组，元素是对象
-    function unpackList(raw, normalizeFn) {
-      if (!raw) return { items: [], favorites: [] }
-      // 过渡格式 {n: [...], f: [...]}
-      if (!Array.isArray(raw) && typeof raw === 'object' && raw.n) {
-        return {
-          items: normalizeFn ? normalizeFn(raw.n) : raw.n,
-          favorites: Array.isArray(raw.f) ? raw.f : []
-        }
+    // 预设条目（含 fav）是唯一数据源；兼容旧的纯字符串列表和 {n, f} 过渡格式。
+    const unpackItems = (raw) => {
+      if (!raw) return []
+      if (!Array.isArray(raw) && typeof raw === 'object' && Array.isArray(raw.n)) {
+        const favorites = new Set(Array.isArray(raw.f) ? raw.f.map((name) => String(name || '').trim()) : [])
+        return raw.n.map((entry) => {
+          const name = String(entry && typeof entry === 'object' ? entry.name : entry || '').trim()
+          return { name, fav: favorites.has(name) || Boolean(entry && typeof entry === 'object' && entry.fav) }
+        })
       }
-      if (!Array.isArray(raw) || raw.length === 0) return { items: [], favorites: [] }
-      if (typeof raw[0] === 'object' && raw[0] !== null) {
-        // 新格式 [{name, fav, ...}]
-        return {
-          items: raw.map((c) => String(c?.name || '').trim()).filter(Boolean),
-          favorites: raw.filter((c) => c?.fav).map((c) => String(c?.name || '').trim()).filter(Boolean)
-        }
-      }
-      // 旧格式 ["..."]
-      return { items: normalizeFn ? normalizeFn(raw) : raw, favorites: [] }
+      return raw
     }
 
-    const cat = unpackList(snapshot.categories, normalizeCategoriesList)
-    categories.value = cat.items
-    if (cat.favorites.length > 0) favoriteCategories.value = cat.favorites
-
-    const ip = unpackList(snapshot.ips, normalizeIpsList)
-    ips.value = ip.items
-    if (ip.favorites.length > 0) favoriteIps.value = ip.favorites
-
-    // characters — 始终是 [{name, ip, fav?}] 格式；收藏 key 为 (ip,name) 复合 id
-    const chrRaw = snapshot.characters
-    characters.value = normalizeCharacters(chrRaw)
-    if (Array.isArray(chrRaw)) {
-      const favChr = chrRaw
-        .filter((c) => c?.fav)
-        .map((c) => buildCharacterRowId(c?.ip, c?.name))
-        .filter(Boolean)
-      if (favChr.length > 0) favoriteCharacters.value = favChr
-    }
+    categoryItems.value = normalizeCategoryItems(unpackItems(snapshot.categoryItems ?? snapshot.categories))
+    ipItems.value = normalizeIpItems(unpackItems(snapshot.ipItems ?? snapshot.ips))
+    characterItems.value = normalizeCharacters(unpackItems(snapshot.characterItems ?? snapshot.characters))
 
     storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
 
@@ -1115,13 +1029,10 @@ export const usePresetsStore = defineStore('presets', () => {
     }
 
     await Promise.all([
-      writePersistedList(STORAGE_KEY_CAT, categories.value),
-      writePersistedList(STORAGE_KEY_IP, ips.value),
-      writePersistedList(STORAGE_KEY_CHR, characters.value),
+      writePersistedList(STORAGE_KEY_CAT, categoryItems.value),
+      writePersistedList(STORAGE_KEY_IP, ipItems.value),
+      writePersistedList(STORAGE_KEY_CHR, characterItems.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
-      writePersistedList(STORAGE_KEY_FAV_CAT, favoriteCategories.value),
-      writePersistedList(STORAGE_KEY_FAV_IP, favoriteIps.value),
-      writePersistedList(STORAGE_KEY_FAV_CHR, favoriteCharacters.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
       writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value),
       ...(remoteUpdatedAt > 0
@@ -1131,52 +1042,40 @@ export const usePresetsStore = defineStore('presets', () => {
     return true
   }
 
-  // --- 收藏/置顶 ---
+  // --- 收藏/置顶（fav 是预设条目自身的字段）---
 
   async function toggleFavoriteCategory(name) {
     const normalized = String(name || '').trim()
     if (!normalized) return
-    const arr = favoriteCategories.value
-    const idx = arr.indexOf(normalized)
-    if (idx >= 0) {
-      arr.splice(idx, 1)
-    } else {
-      arr.push(normalized)
-    }
-    await writePersistedList(STORAGE_KEY_FAV_CAT, arr)
+    categoryItems.value = categoryItems.value.map((item) => (
+      item.name === normalized ? { ...item, fav: !item.fav } : item
+    ))
+    await writePersistedList(STORAGE_KEY_CAT, categoryItems.value)
     autoPushPresets()
   }
 
   async function toggleFavoriteIp(name) {
     const normalized = String(name || '').trim()
     if (!normalized) return
-    const arr = favoriteIps.value
-    const idx = arr.indexOf(normalized)
-    if (idx >= 0) {
-      arr.splice(idx, 1)
-    } else {
-      arr.push(normalized)
-    }
-    await writePersistedList(STORAGE_KEY_FAV_IP, arr)
+    ipItems.value = ipItems.value.map((item) => (
+      item.name === normalized ? { ...item, fav: !item.fav } : item
+    ))
+    await writePersistedList(STORAGE_KEY_IP, ipItems.value)
     autoPushPresets()
   }
 
   /**
-   * 传入行 id（`ip::name`）或旧版角色名；收藏 key 统一为复合 id。
+   * 传入行 id（`ip::name`）或旧版角色名；收藏状态直接写在对应角色条目上。
    */
   async function toggleFavoriteCharacter(id) {
     const target = resolveCharacterTarget(id)
     if (!target) return
-    const key = buildCharacterRowId(target.ip, target.name)
-    if (!key) return
-    const arr = favoriteCharacters.value
-    const idx = arr.indexOf(key)
-    if (idx >= 0) {
-      arr.splice(idx, 1)
-    } else {
-      arr.push(key)
-    }
-    await writePersistedList(STORAGE_KEY_FAV_CHR, arr)
+    characterItems.value = characterItems.value.map((item) => (
+      item.name === target.name && item.ip === target.ip
+        ? { ...item, fav: !item.fav }
+        : item
+    ))
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     autoPushPresets()
   }
 
@@ -1201,10 +1100,13 @@ export const usePresetsStore = defineStore('presets', () => {
 
   return {
     categories,
+    categoryItems,
+    ips,
+    ipItems,
+    characters,
+    characterItems,
     rowTombstones,
     clearRowTombstones,
-    ips,
-    characters,
     storageLocations,
     eventTypes,
     customFieldDefs,
