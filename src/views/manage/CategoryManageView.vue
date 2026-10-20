@@ -43,13 +43,44 @@
       />
 
       <section class="list-section">
-        <div v-if="sortedCategories.length > 0" class="row-list">
+        <div
+          v-if="sortedCategories.length > 0"
+          ref="rowListRef"
+          class="row-list"
+          :class="{ 'row-list--dragging': drag.active }"
+        >
           <div
             v-for="(item, idx) in sortedCategories"
             :key="item"
             class="row-item"
-            :class="{ 'row-item--last': idx === sortedCategories.length - 1 }"
+            :class="{
+              'row-item--last': idx === sortedCategories.length - 1,
+              'row-item--dragging': isDragging(idx)
+            }"
+            :style="itemDragStyle(idx)"
+            data-preset-item
           >
+            <button
+              v-if="reorderEnabled"
+              class="row-drag"
+              type="button"
+              :aria-label="t('manage.sort.dragHandle')"
+              :title="t('manage.sort.dragHandle')"
+              @pointerdown="onDragPointerDown($event, idx)"
+              @pointermove="onDragPointerMove"
+              @pointerup="onDragPointerUp"
+              @pointercancel="onDragPointerCancel"
+            >
+              <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+                <circle cx="4.5" cy="2.5" r="1.4" />
+                <circle cx="9.5" cy="2.5" r="1.4" />
+                <circle cx="4.5" cy="7" r="1.4" />
+                <circle cx="9.5" cy="7" r="1.4" />
+                <circle cx="4.5" cy="11.5" r="1.4" />
+                <circle cx="9.5" cy="11.5" r="1.4" />
+              </svg>
+            </button>
+
             <button
               class="row-fav"
               :class="{ 'row-fav--active': isFavorite(item) }"
@@ -150,7 +181,8 @@ import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { useEditSheet } from '@/composables/manage/useEditSheet'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
-import { sortPresetList } from '@/utils/presets/sort'
+import { usePresetReorderDrag } from '@/composables/preset/usePresetReorderDrag'
+import { presetGroupKey, presetStoreOrderFromDisplay, sortPresetList } from '@/utils/presets/sort'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
@@ -174,6 +206,44 @@ const sortedCategories = computed(() => {
     { alwaysLast: (item) => item === '其他' }
   )
 })
+
+const rowListRef = ref(null)
+
+const reorderEnabled = computed(() => (
+  sortMode.value === 'default' && sortedCategories.value.length > 1
+))
+
+const reorderOptions = computed(() => ({
+  favoriteSet: presets.favoriteCategorySet,
+  alwaysLast: (item) => item === '其他'
+}))
+
+const {
+  drag,
+  isDragging,
+  itemDragStyle,
+  onDragPointerDown,
+  onDragPointerMove,
+  onDragPointerUp,
+  onDragPointerCancel
+} = usePresetReorderDrag({
+  listRef: rowListRef,
+  canDrag: () => reorderEnabled.value,
+  groupOf: (index) => presetGroupKey(sortedCategories.value[index], reorderOptions.value),
+  onReorder: reorderCategory
+})
+
+function reorderCategory(from, to) {
+  const display = [...sortedCategories.value]
+  const [moved] = display.splice(from, 1)
+  if (!moved) return
+  display.splice(to, 0, moved)
+  const ordered = presetStoreOrderFromDisplay(display, {
+    sortDirection: sortDirection.value,
+    ...reorderOptions.value
+  })
+  void presets.reorderCategories(ordered)
+}
 
 const { showDeleteConfirm, pendingDeleteName, affectedCount, tryRemove: removeCategory, confirmDelete } = usePresetDelete({
   getAffected: (list, name) => list.filter((item) => item.category === name),
@@ -350,12 +420,51 @@ async function restoreDefaults() {
   overflow: hidden;
 }
 
+.row-list--dragging { overflow: visible; }
+
 .row-item {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(142, 142, 147, 0.12);
+  transition: transform 180ms ease;
+}
+
+.row-item--dragging {
+  position: relative;
+  z-index: 2;
+  transition: none;
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  border-bottom-color: transparent;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+  will-change: transform;
+}
+
+.row-drag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  flex-shrink: 0;
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.row-drag:active { cursor: grabbing; }
+
+.row-drag svg {
+  width: 14px;
+  height: 14px;
 }
 
 .row-item--last { border-bottom: none; }

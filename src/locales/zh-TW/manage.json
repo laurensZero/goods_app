@@ -349,6 +349,7 @@
   "manage.sort.goodsCount": "商品數",
   "manage.sort.asc": "昇冪",
   "manage.sort.desc": "降冪",
+  "manage.sort.dragHandle": "拖動排序",
   "manage.favoriteAdd": "加入收藏",
   "manage.favoriteRemove": "取消收藏",
   "manage.surveys": "問卷調查",

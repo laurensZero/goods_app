@@ -17,6 +17,10 @@ export function normalizePresetSortMode(value) {
   return 'default'
 }
 
+function extractPresetKey(item, keyOf) {
+  return keyOf ? keyOf(item) : (typeof item === 'string' ? item : item.name)
+}
+
 /**
  * @param {string[]|{name:string,ip:string}[]} list
  * @param {'default'|'name'|'goodsCount'} sortMode
@@ -87,4 +91,40 @@ export function sortPresetList(list, sortMode, sortDirection, goodsCountMap, fav
   }
 
   return [...favorites, ...normal, ...last]
+}
+
+/**
+ * 判断预设项在默认排序下所属的分组。
+ * 拖动重排时只在同一分组内换位，否则收藏项/「其他」会被排序规则拉回原位。
+ */
+export function presetGroupKey(item, { favoriteSet, keyOf, alwaysLast } = {}) {
+  if (alwaysLast && alwaysLast(item)) return 'last'
+  if (favoriteSet && favoriteSet.has(extractPresetKey(item, keyOf))) return 'favorites'
+  return 'normal'
+}
+
+/**
+ * 把默认排序的展示顺序还原成预设数组的存储顺序。
+ * default 升序时展示顺序就是存储顺序；降序时收藏组和普通组在展示上被反转，
+ * 需要反转回来，避免拖完一次顺序又被排序规则倒过来。
+ */
+export function presetStoreOrderFromDisplay(displayList, { sortDirection, favoriteSet, keyOf, alwaysLast } = {}) {
+  if (!Array.isArray(displayList) || displayList.length === 0) return []
+
+  const groups = {
+    favorites: [],
+    normal: [],
+    last: []
+  }
+
+  for (const item of displayList) {
+    groups[presetGroupKey(item, { favoriteSet, keyOf, alwaysLast })].push(item)
+  }
+
+  if (sortDirection === 'desc') {
+    groups.favorites.reverse()
+    groups.normal.reverse()
+  }
+
+  return [...groups.favorites, ...groups.normal, ...groups.last]
 }

@@ -349,6 +349,7 @@
   "manage.sort.goodsCount": "Count",
   "manage.sort.asc": "Ascending",
   "manage.sort.desc": "Descending",
+  "manage.sort.dragHandle": "Drag to reorder",
   "manage.favoriteAdd": "Add to favorites",
   "manage.favoriteRemove": "Remove from favorites",
   "manage.surveys": "Surveys",

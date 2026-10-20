@@ -109,13 +109,43 @@
 
       <section class="list-section">
         <template v-if="filteredCharacters.length > 0">
-          <div class="row-list">
+          <div
+            ref="rowListRef"
+            class="row-list"
+            :class="{ 'row-list--dragging': drag.active }"
+          >
             <div
               v-for="(item, idx) in filteredCharacters"
               :key="item.id"
               class="row-item"
-              :class="{ 'row-item--last': idx === filteredCharacters.length - 1 }"
+              :class="{
+                'row-item--last': idx === filteredCharacters.length - 1,
+                'row-item--dragging': isDragging(idx)
+              }"
+              :style="itemDragStyle(idx)"
+              data-preset-item
             >
+              <button
+                v-if="reorderEnabled"
+                class="row-drag"
+                type="button"
+                :aria-label="t('manage.sort.dragHandle')"
+                :title="t('manage.sort.dragHandle')"
+                @pointerdown="onDragPointerDown($event, idx)"
+                @pointermove="onDragPointerMove"
+                @pointerup="onDragPointerUp"
+                @pointercancel="onDragPointerCancel"
+              >
+                <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+                  <circle cx="4.5" cy="2.5" r="1.4" />
+                  <circle cx="9.5" cy="2.5" r="1.4" />
+                  <circle cx="4.5" cy="7" r="1.4" />
+                  <circle cx="9.5" cy="7" r="1.4" />
+                  <circle cx="4.5" cy="11.5" r="1.4" />
+                  <circle cx="9.5" cy="11.5" r="1.4" />
+                </svg>
+              </button>
+
               <button
                 class="row-fav"
                 :class="{ 'row-fav--active': isFavorite(item.id) }"
@@ -245,7 +275,8 @@ import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { useEditSheet } from '@/composables/manage/useEditSheet'
 import { usePresetDelete } from '@/composables/preset/usePresetDelete'
 import { usePresetPreferences } from '@/composables/preset/usePresetPreferences'
-import { sortPresetList } from '@/utils/presets/sort'
+import { usePresetReorderDrag } from '@/composables/preset/usePresetReorderDrag'
+import { presetGroupKey, presetStoreOrderFromDisplay, sortPresetList } from '@/utils/presets/sort'
 import { pinyinIncludes } from '@/utils/pinyin'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
@@ -335,6 +366,48 @@ const filteredCharacters = computed(() => {
     { keyOf: (item) => item.id }
   )
 })
+
+const rowListRef = ref(null)
+
+// 搜索 / IP 筛选后列表只是子集，拖动重排无法安全映射回完整预设，先禁用。
+const reorderEnabled = computed(() => (
+  sortMode.value === 'default'
+  && !searchKey.value.trim()
+  && !selectedIp.value
+  && filteredCharacters.value.length > 1
+))
+
+const reorderOptions = computed(() => ({
+  favoriteSet: presets.favoriteCharacterSet,
+  keyOf: (item) => item.id
+}))
+
+const {
+  drag,
+  isDragging,
+  itemDragStyle,
+  onDragPointerDown,
+  onDragPointerMove,
+  onDragPointerUp,
+  onDragPointerCancel
+} = usePresetReorderDrag({
+  listRef: rowListRef,
+  canDrag: () => reorderEnabled.value,
+  groupOf: (index) => presetGroupKey(filteredCharacters.value[index], reorderOptions.value),
+  onReorder: reorderCharacter
+})
+
+function reorderCharacter(from, to) {
+  const display = [...filteredCharacters.value]
+  const [moved] = display.splice(from, 1)
+  if (!moved) return
+  display.splice(to, 0, moved)
+  const ordered = presetStoreOrderFromDisplay(display, {
+    sortDirection: sortDirection.value,
+    ...reorderOptions.value
+  })
+  void presets.reorderCharacters(ordered.map((item) => item.id))
+}
 
 // 名称在不同 IP 下可能重名，计数必须按 (ip,name) 复合键，否则会串到一起
 const goodsCountMap = computed(() => {
@@ -608,12 +681,51 @@ async function saveEdit() {
   overflow: hidden;
 }
 
+.row-list--dragging { overflow: visible; }
+
 .row-item {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 12px 16px;
   border-bottom: 1px solid rgba(142, 142, 147, 0.12);
+  transition: transform 180ms ease;
+}
+
+.row-item--dragging {
+  position: relative;
+  z-index: 2;
+  transition: none;
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  border-bottom-color: transparent;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+  will-change: transform;
+}
+
+.row-drag {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--app-text-tertiary);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.row-drag:active { cursor: grabbing; }
+
+.row-drag svg {
+  width: 14px;
+  height: 14px;
 }
 
 .row-item--last { border-bottom: none; }

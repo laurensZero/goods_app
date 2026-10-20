@@ -822,6 +822,25 @@ export const usePresetsStore = defineStore('presets', () => {
     return matches.find((character) => !character.ip) || null
   }
 
+  async function reorderIps(list) {
+    const ordered = Array.isArray(list) ? list : []
+    const byName = new Map(ipItems.value.map((item) => [item.name, item]))
+    const next = []
+    for (const entry of ordered) {
+      const name = String(entry && typeof entry === 'object' ? entry.name : entry || '').trim()
+      const item = byName.get(name)
+      if (!item) continue
+      next.push(item)
+      byName.delete(name)
+    }
+    for (const item of ipItems.value) {
+      if (byName.has(item.name)) next.push(item)
+    }
+    ipItems.value = normalizeIpItems(next)
+    await writePersistedList(STORAGE_KEY_IP, ipItems.value)
+    autoPushPresets()
+  }
+
   async function addCharacter(name, ip = '') {
     const normalized = normalizeCharacterName(name)
     const normalizedIp = String(ip || '').trim()
@@ -903,6 +922,30 @@ export const usePresetsStore = defineStore('presets', () => {
 
     await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', oldId)
+    autoPushPresets()
+  }
+
+  async function reorderCharacters(list) {
+    const ordered = Array.isArray(list) ? list : []
+    const byId = new Map(characterItems.value.map((item) => [buildCharacterRowId(item.ip, item.name), item]))
+    const next = []
+    for (const entry of ordered) {
+      const { ip, name } = entry && typeof entry === 'object'
+        ? { ip: String(entry.ip || '').trim(), name: normalizeCharacterName(entry.name) }
+        : parseCharacterRowId(entry)
+      if (!name) continue
+      const id = buildCharacterRowId(ip, name)
+      const item = byId.get(id)
+      if (!item) continue
+      next.push(item)
+      byId.delete(id)
+    }
+    for (const item of characterItems.value) {
+      const id = buildCharacterRowId(item.ip, item.name)
+      if (byId.has(id)) next.push(item)
+    }
+    characterItems.value = normalizeCharacters(next)
+    await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     autoPushPresets()
   }
 
@@ -1132,10 +1175,12 @@ export const usePresetsStore = defineStore('presets', () => {
     addIp,
     removeIp,
     updateIpName,
+    reorderIps,
     addCharacter,
     removeCharacter,
     updateCharacterName,
     updateCharacterIp,
+    reorderCharacters,
     addStorageLocation,
     renameStorageLocation,
     removeStorageLocation,
