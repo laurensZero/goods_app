@@ -79,7 +79,10 @@
             </button>
           </div>
 
-          <div v-if="!canUseNativeImport" class="field-group">
+          <!-- 安卓端同样支持粘贴 Cookie：留空则仍走原生网页登录 -->
+          <p v-if="canUseNativeImport" class="info-qr-lead">{{ t('import.cookieNativeHint') }}</p>
+
+          <div class="field-group">
             <label class="field-label" for="cookie-input">{{ t('import.pasteCookie') }}</label>
             <textarea
               id="cookie-input"
@@ -95,22 +98,14 @@
           </div>
 
           <div class="cookie-actions">
-            <template v-if="!canUseNativeImport">
-              <label class="remember-row">
-                <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
-                <span>{{ t('import.rememberCookie') }}</span>
-              </label>
-            </template>
-            <span v-else class="cookie-actions__spacer" />
+            <label class="remember-row">
+              <input v-model="rememberCookie" class="remember-checkbox" type="checkbox" />
+              <span>{{ t('import.rememberCookie') }}</span>
+            </label>
           </div>
-          <p v-if="!canUseNativeImport && cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
+          <p v-if="cookieWarningMessage" class="cookie-tip cookie-tip--warn">{{ cookieWarningMessage }}</p>
 
-          <button
-            class="primary-btn"
-            type="button"
-            :disabled="!canUseNativeImport && !cookieValid"
-            @click="startFetch"
-          >
+          <button class="primary-btn" type="button" :disabled="cookiePrimaryDisabled" @click="startFetch">
             {{ canUseNativeImport ? t('import.loginAndGetOrders') : t('import.startFetchOrders') }}
           </button>
 
@@ -366,13 +361,13 @@ const {
   activeAccountAvatar,
   initializeCookieState,
   applySavedCookieToInput,
+  applyCookieToNativeSession,
   persistCookieAfterSuccess,
   persistNativeCookieAfterSuccess,
   handleCookieFailure,
   clearSavedCookie,
   switchAccount,
   removeAccount,
-  refreshAccounts,
   refreshAccountProfiles,
   loginNewAccountNative,
   submitNewAccountCookie,
@@ -415,6 +410,15 @@ const canUseNativeImport = canUseNativeMihoyoImport()
 /** Cookie/账号状态是否已从本地加载完成 */
 const cookieStateReady = ref(false)
 const autoOpenedQr = ref(false)
+
+/**
+ * 网页端必须填有效 Cookie 才能继续；
+ * 安卓端留空表示走原生 WebView 登录，填了则必须是有效 Cookie。
+ */
+const cookiePrimaryDisabled = computed(() => {
+  if (!canUseNativeImport) return !cookieValid.value
+  return Boolean(cookieInput.value.trim()) && !cookieValid.value
+})
 
 /** 网页版：状态加载完且无任何会话/账号时，才自动弹扫码 */
 watch(
@@ -705,6 +709,11 @@ async function onLoginNewCookie({ cookie, remember } = {}) {
     return
   }
   accountSheetRef.value?.closeAll?.()
+  if (canUseNativeImport && result.nativeApplied === false) {
+    // Cookie 只进了账号列表、没进原生会话：继续走原生导入会用到旧会话
+    openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+    return
+  }
   await refreshAfterMihoyoLogin(result.cookie)
 }
 
@@ -734,8 +743,11 @@ watch(
 
 async function bootstrapCookieState() {
   if (canUseNativeImport) {
-    // 原生会话由插件管理；仍需拉账号列表，内嵌横幅/切号面板才可用
-    await refreshAccounts()
+    // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
+    await initializeCookieState()
+    // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
+    rememberCookie.value = true
+    cookieStateReady.value = true
     await startFetch({ silentCookieExpired: true })
     return
   }
@@ -757,6 +769,18 @@ const startFetch = async (options = {}) => {
     loadedCount.value = 0
     totalCount.value = 0
 
+    // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉订单；
+    // 留空则插件按自己的流程拉起 WebView 登录。
+    if (cookieInput.value.trim()) {
+      const applied = await applyCookieToNativeSession(cookieInput.value)
+      if (!applied.applied) {
+        ordersFetchRunning.value = false
+        step.value = 'cookie'
+        openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+        return
+      }
+    }
+
     let progressHandle = null
     if (Capacitor.isNativePlatform()) {
       progressHandle = await Capacitor.addListener('MihoyoSessionImport', 'importProgress', (event) => {
@@ -775,7 +799,7 @@ const startFetch = async (options = {}) => {
       totalCount.value = Number(total) || rawOrders.value.length
       selectedSet.value = new Set()
       step.value = 'orders'
-      await persistNativeCookieAfterSuccess()
+      await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
     } catch (err) {
       openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.confirmLoginRetry'))
       step.value = 'cookie'

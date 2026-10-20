@@ -67,6 +67,14 @@
     >
       {{ t('import.loginNewAccount') }}
     </button>
+    <button
+      v-if="isNativeLogin"
+      class="sheet-cancel sheet-cookie-login"
+      type="button"
+      @click="onCookieLogin"
+    >
+      {{ t('import.loginWithCookie') }}
+    </button>
   </AppSheet>
 
   <MihoyoCookieLoginSheet
@@ -163,6 +171,15 @@ function onLoginNew() {
   }
   // 网页版优先扫码；Sheet 内可改走粘贴 Cookie
   showQrLogin.value = true
+}
+
+/**
+ * 安卓端：原生 WebView 登录之外，再提供「粘贴 Cookie 登录」入口。
+ * 账号失效后的重新登录也可以用底部这个入口（按账号 UID 覆盖同一条账号记录）。
+ */
+function onCookieLogin() {
+  notice.value = ''
+  showCookieLogin.value = true
 }
 
 function avatarText(account) {
@@ -386,6 +403,11 @@ defineExpose({
   margin-top: 10px;
   background: #141416;
   color: #fff;
+  font-weight: 600;
+}
+
+.sheet-cookie-login {
+  margin-top: 8px;
   font-weight: 600;
 }
 

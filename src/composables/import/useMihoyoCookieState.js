@@ -15,6 +15,7 @@ import {
 } from '@/utils/mihoyo/cookie'
 import { fetchMihoyoAccountProfile } from '@/utils/mihoyo/accountProfile'
 import {
+  applyNativeMihoyoCookie,
   canUseNativeMihoyoImport,
   getNativeMihoyoCookie,
   loginMihoyoNativeNewAccount,
@@ -78,7 +79,11 @@ export function useMihoyoCookieState() {
     return { ok: true, cookie: result.cookie }
   }
 
-  /** 网页端提交新账号 Cookie */
+  /**
+   * 提交账号 Cookie（网页端粘贴、安卓端粘贴都走这里）。
+   * 安卓端会同时写入原生插件会话，避免「已登录但原生导入仍用旧会话」。
+   * @returns {Promise<{ ok: boolean, cookie: string, nativeApplied?: boolean, nativeUnsupported?: boolean }>}
+   */
   async function submitNewAccountCookie(cookie, remember = true) {
     const value = String(cookie || '').trim()
     if (!value) return { ok: false, message: 'empty' }
@@ -90,7 +95,32 @@ export function useMihoyoCookieState() {
     cookieInput.value = value
     rememberCookie.value = Boolean(remember)
     await refreshAccounts()
-    return { ok: true, cookie: value }
+
+    const native = await applyCookieToNativeSession(value)
+    return {
+      ok: true,
+      cookie: value,
+      nativeApplied: native.applied,
+      nativeUnsupported: native.unsupported
+    }
+  }
+
+  /**
+   * 安卓端把 Cookie 写入原生插件会话（原生订单/购物车导入读的是插件里的 Cookie）。
+   * 非安卓端直接返回 applied=true，调用方无需分支。
+   * @returns {Promise<{ applied: boolean, unsupported: boolean }>}
+   */
+  async function applyCookieToNativeSession(cookie) {
+    const value = String(cookie || '').trim()
+    if (!canUseNativeMihoyoImport()) return { applied: true, unsupported: false }
+    if (!value) return { applied: false, unsupported: false }
+    const result = await applyNativeMihoyoCookie(value)
+    if (!result.ok) {
+      console.warn('[mihoyoCookie] native session cookie not applied', {
+        unsupported: result.unsupported
+      })
+    }
+    return { applied: result.ok, unsupported: result.unsupported }
   }
 
   /**
@@ -139,6 +169,10 @@ export function useMihoyoCookieState() {
     cookieInput.value = savedCookieValue.value
   }
 
+  /**
+   * 请求成功后落盘会话。
+   * @returns {Promise<{ saved: boolean, nativeApplied: boolean, nativeUnsupported: boolean }>}
+   */
   async function persistCookieAfterSuccess(explicitCookie = '') {
     const value = String(explicitCookie || cookieInput.value).trim()
     const shouldSave = Boolean(value) && (Boolean(explicitCookie) || rememberCookie.value)
@@ -153,7 +187,7 @@ export function useMihoyoCookieState() {
       activeAccountId.value = ''
       activeAccountLabel.value = ''
       await refreshAccounts()
-      return
+      return { saved: false, nativeApplied: true, nativeUnsupported: false }
     }
 
     await saveMihoyoAccountWithNickname(value)
@@ -162,6 +196,14 @@ export function useMihoyoCookieState() {
     savedCookieInvalid.value = false
     cookieWarningMessage.value = ''
     await refreshAccounts()
+
+    // 安卓端：粘贴/校验通过的 Cookie 也要写进原生会话，原生导入才能复用
+    const native = await applyCookieToNativeSession(value)
+    return {
+      saved: true,
+      nativeApplied: native.applied,
+      nativeUnsupported: native.unsupported
+    }
   }
 
   /** 保存 Cookie，并尽量用米游社用户名/头像作为账号资料 */
@@ -178,9 +220,15 @@ export function useMihoyoCookieState() {
     })
   }
 
-  /** 安卓原生导入成功后：读插件 Cookie 并写入多账号列表 */
-  async function persistNativeCookieAfterSuccess() {
+  /**
+   * 安卓原生导入成功后：读插件 Cookie 并写入多账号列表。
+   * 「记住 Cookie」与实际登录的是同一个号：不勾就不进账号列表（原生会话仍保留，
+   * 插件无法做到「仅本次会话」），勾了就存下来方便下次一键切换。
+   * @param {{ remember?: boolean }} options
+   */
+  async function persistNativeCookieAfterSuccess({ remember = true } = {}) {
     if (!canUseNativeMihoyoImport()) return
+    if (!remember) return
     const cookie = await getNativeMihoyoCookie()
     if (!cookie) return
     await saveMihoyoAccountWithNickname(cookie)
@@ -325,6 +373,7 @@ export function useMihoyoCookieState() {
     hasMultipleAccounts,
     initializeCookieState,
     applySavedCookieToInput,
+    applyCookieToNativeSession,
     persistCookieAfterSuccess,
     persistNativeCookieAfterSuccess,
     handleCookieFailure,

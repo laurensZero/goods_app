@@ -55,6 +55,27 @@ export async function setNativeMihoyoCookie(cookie) {
   }
 }
 
+/**
+ * 让原生会话改用给定 Cookie（安卓端粘贴 Cookie 登录后调用）。
+ * 写入后必须能读回同一 Cookie，否则原生导入仍会用旧会话。
+ * 旧包没有 setSavedCookie 时返回 ok=false / unsupported=true，调用方应引导用户走网页登录。
+ * @param {string} cookie
+ * @returns {Promise<{ ok: boolean, unsupported: boolean }>}
+ */
+export async function applyNativeMihoyoCookie(cookie) {
+  const value = String(cookie || '').trim()
+  if (!canUseNativeMihoyoImport()) return { ok: true, unsupported: false }
+  if (!value) return { ok: false, unsupported: false }
+  const stored = await setNativeMihoyoCookie(value)
+  if (!stored) return { ok: false, unsupported: true }
+  try {
+    const current = await getNativeMihoyoCookie()
+    return { ok: Boolean(current) && current === value, unsupported: false }
+  } catch {
+    return { ok: false, unsupported: false }
+  }
+}
+
 /** 退出米游铺原生登录（清插件 Cookie + WebView Cookie），便于切换账号 */
 export async function logoutMihoyoNativeSession() {
   if (!canUseNativeMihoyoImport()) return
