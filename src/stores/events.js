@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { computed, triggerRef } from 'vue'
 import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/music/tracks'
-import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
+import { buildCloudImageUri, normalizeEventCoverFields, normalizeEventPhotoList, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages, extractManagedLocalImagePath } from '@/utils/image/localImage'
 import { aliasCachedImage } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goods/goodsHelpers'
@@ -59,6 +59,8 @@ export function normalizeEvent(data) {
   const dayTicketList = normalizeDayTicketList(data.dayTicketList, dates)
   // 逐天价格填满时以逐天总和为准（表单已同步，这里兜底备份导入等旁路写入）
   const dayTicketTotal = resolveCompleteDayTicketTotal(dayTicketList, dates)
+  // 云端迁移后封面 / 照片只有 ref，在这里翻译回 uri + cloudFileName（显示与同步都继续用旧字段）
+  const cover = normalizeEventCoverFields(data.coverImage, data.coverImageData)
   return {
     id,
     name: String(data.name || '').trim(),
@@ -69,9 +71,9 @@ export function normalizeEvent(data) {
     latitude: String(data.latitude || '').trim(),
     longitude: String(data.longitude || '').trim(),
     description: String(data.description || '').trim(),
-    coverImage: String(data.coverImage || '').trim(),
-    coverImageData: data.coverImageData ? { ...data.coverImageData } : null,
-    photos: Array.isArray(data.photos) ? data.photos : [],
+    coverImage: cover.coverImage,
+    coverImageData: cover.coverImageData,
+    photos: normalizeEventPhotoList(data.photos),
     ticketPrice: dayTicketTotal || String(data.ticketPrice || '').trim(),
     ticketType: String(data.ticketType || '').trim(),
     seatInfo: String(data.seatInfo || '').trim(),
@@ -83,6 +85,22 @@ export function normalizeEvent(data) {
     deleted: Boolean(data.deleted),
     createdAt: data.createdAt || now,
     updatedAt: data.updatedAt || now
+  }
+}
+
+/**
+ * 云端行（迁移后）里的封面 / 照片只有 ref：进本地库前统一翻译回 uri / cloudFileName。
+ * 本地库与显示层始终是旧形态，只有同步边界认识 ref。
+ * @param {any} event
+ */
+function normalizeIncomingEventImages(event) {
+  if (!event || typeof event !== 'object') return event
+  const cover = normalizeEventCoverFields(event.coverImage, event.coverImageData)
+  return {
+    ...event,
+    coverImage: cover.coverImage,
+    coverImageData: cover.coverImageData,
+    photos: normalizeEventPhotoList(event.photos)
   }
 }
 
@@ -374,7 +392,7 @@ export const useEventsStore = defineStore('events', () => {
   // ── Backup import (events-specific: coverImageData backfill, image cleanup) ──
 
   async function importEventsBackup(events, { reconcileMissing = false, preserveLocalNewerThan = 0, forceReapply = false, forceAlign = false } = {}) {
-    const incoming = Array.isArray(events) ? events : []
+    const incoming = (Array.isArray(events) ? events : []).map(normalizeIncomingEventImages)
     const incomingIds = new Set()
     let added = 0
     let updated = 0

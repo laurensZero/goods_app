@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 
-// Mock dependencies
-vi.mock('@/utils/goods/images', () => ({
-  inferGoodsImageStorageMode: vi.fn(() => 'cloud-local'),
-  normalizeGoodsImageList: vi.fn((images) => Array.isArray(images) ? images : []),
-  parseCloudImageUri: vi.fn(() => null)
-}))
+// 只用真实实现；这里曾经把整个模块 mock 掉，新增导出（ref 读取）就会在运行时炸掉
+vi.mock('@/utils/goods/images', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual }
+})
 
 vi.mock('@/utils/sync/shared', () => ({
   processWithConcurrency: vi.fn(async (items, fn) => Promise.all(items.map(fn)))
@@ -150,6 +149,46 @@ describe('createSyncImageService', () => {
       expect(item.images[0].editSourceCloudFileName).toBe(backingName)
     })
 
+    function makeHydrateService() {
+      return createSyncImageService({
+        backend: {
+          getImagePublicUrl: (name) => `https://cdn.example.com/${name}`
+        },
+        getBackend: null,
+        trackSyncStep: mockTrackSyncStep,
+        imageFilePrefix: 'goods-image__',
+        eventCoverPrefix: 'event-cover__',
+        eventPhotoPrefix: 'event-photo__',
+        rechargeImagePrefix: 'recharge-image__',
+        batchDraftImagePrefix: 'batch-draft-image__'
+      })
+    }
+
+    it('迁移后的 { id, ref } 商品图也能换成公开 URL', async () => {
+      const [item] = await makeHydrateService().hydrateRemoteItemsWithImages([{
+        id: 'g1',
+        images: [{ id: 'img_1', ref: 'cloud:goods-image__g1__img_1__1.jpg' }]
+      }], null, { restoredImages: 0 })
+
+      expect(item.images[0].uri).toBe('https://cdn.example.com/goods-image__g1__img_1__1.jpg')
+      expect(item.images[0].storageMode).toBe('remote')
+      expect(item.images[0].ref).toBeUndefined()
+    })
+
+    it('迁移后的活动封面 / 照片 ref 也能换成公开 URL', async () => {
+      const [event] = await makeHydrateService().hydrateEventCoversWithImages([{
+        id: 'evt1',
+        coverImage: 'cloud:event-cover__evt1__1.jpg',
+        coverImageData: {},
+        photos: [{ id: 'p1', ref: 'cloud:event-photo__evt1__p1__1.jpg' }]
+      }], null, { restoredImages: 0 })
+
+      expect(event.coverImage).toBe('https://cdn.example.com/event-cover__evt1__1.jpg')
+      expect(event.coverImageData.cloudFileName).toBe('event-cover__evt1__1.jpg')
+      expect(event.photos[0].uri).toBe('https://cdn.example.com/event-photo__evt1__p1__1.jpg')
+      expect(event.photos[0].ref).toBeUndefined()
+    })
+
     const OLD_CREATED_AT = '2020-01-01T00:00:00Z'
     const ownedIds = () => new Set(['1712000000000', 'evt1', 'collection', 'wishlist'])
 
@@ -157,12 +196,25 @@ describe('createSyncImageService', () => {
       return { id: 'goods-images', files, complete }
     }
 
+    // 护栏④⑤ 之后，所有「应当删除」的用例都必须给出一份健康的引用集：
+    // 云端还有一批被引用的文件，孤儿只占少数；否则会被比例护栏整体挡下。
+    function healthyCloud(files, { referenced = 20 } = {}) {
+      const all = { ...files }
+      const refs = new Set()
+      for (let i = 0; i < referenced; i++) {
+        const name = `goods-image__1712000000000__keep_${i}__1.jpg`
+        all[name] = { name, createdAt: OLD_CREATED_AT }
+        refs.add(name)
+      }
+      return { cloud: makeCloud(all), referencedFiles: refs }
+    }
+
     it('deletes unreferenced owned file older than grace period', () => {
-      const cloud = makeCloud({
+      const { cloud, referencedFiles } = healthyCloud({
         'goods-image__1712000000000__img_a__1.jpg': { name: 'goods-image__1712000000000__img_a__1.jpg', createdAt: OLD_CREATED_AT }
       })
       const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
-        referencedFiles: new Set(),
+        referencedFiles,
         ownedEntityIds: ownedIds()
       })
       expect(result).toEqual(['goods-image__1712000000000__img_a__1.jpg'])
@@ -170,14 +222,14 @@ describe('createSyncImageService', () => {
 
     it('reclaims unreferenced batch draft images (prefix must be registered)', () => {
       // 回归：前缀未挂进 imageService 时，batch-draft-image__ 会被 matchedPrefix skip，云端草稿图永远无法回收
-      const cloud = makeCloud({
+      const { cloud, referencedFiles } = healthyCloud({
         'batch-draft-image__collection__q1__1712000000000.jpg': {
           name: 'batch-draft-image__collection__q1__1712000000000.jpg',
           createdAt: OLD_CREATED_AT
         }
       })
       const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
-        referencedFiles: new Set(),
+        referencedFiles,
         ownedEntityIds: ownedIds()
       })
       expect(result).toEqual(['batch-draft-image__collection__q1__1712000000000.jpg'])
@@ -280,13 +332,13 @@ describe('createSyncImageService', () => {
 
     it('skips .txt alias keys and non-prefixed files', () => {
       const entry = { name: 'goods-image__1712000000000__img_a__1.jpg', createdAt: OLD_CREATED_AT }
-      const cloud = makeCloud({
+      const { cloud, referencedFiles } = healthyCloud({
         'goods-image__1712000000000__img_a__1.jpg': entry,
         'goods-image__1712000000000__img_a__1.jpg.txt': entry,
         'data.json': { name: 'data.json', createdAt: OLD_CREATED_AT }
       })
       const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
-        referencedFiles: new Set(),
+        referencedFiles,
         ownedEntityIds: ownedIds()
       })
       // 无重复、无非图片文件
@@ -305,29 +357,77 @@ describe('createSyncImageService', () => {
     })
 
     it('matches event cover and photo files via event id', () => {
-      const cloud = makeCloud({
+      const { cloud, referencedFiles } = healthyCloud({
         'event-cover__evt1__123.jpg': { name: 'event-cover__evt1__123.jpg', createdAt: OLD_CREATED_AT },
         'event-photo__evt1__p1__123.jpg': { name: 'event-photo__evt1__p1__123.jpg', createdAt: OLD_CREATED_AT },
         'event-cover__evt-other__123.jpg': { name: 'event-cover__evt-other__123.jpg', createdAt: OLD_CREATED_AT }
       })
       const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
-        referencedFiles: new Set(),
+        referencedFiles,
         ownedEntityIds: ownedIds()
       })
       expect(result.sort()).toEqual(['event-cover__evt1__123.jpg', 'event-photo__evt1__p1__123.jpg'])
     })
 
     it('caps output at MAX_ORPHAN_DELETE_PER_SYNC', () => {
-      const files = {}
+      // 声明足够多的被引用文件，让候选比例低于护栏阈值，才能测到数量上限
+      const { cloud, referencedFiles } = healthyCloud({}, { referenced: MAX_ORPHAN_DELETE_PER_SYNC * 3 })
       for (let i = 0; i < MAX_ORPHAN_DELETE_PER_SYNC + 50; i++) {
         const name = `goods-image__1712000000000__img_${i}__1.jpg`
-        files[name] = { name, createdAt: OLD_CREATED_AT }
+        cloud.files[name] = { name, createdAt: OLD_CREATED_AT }
       }
-      const result = supabaseService.collectSupabaseOrphanImageFiles(makeCloud(files), {
-        referencedFiles: new Set(),
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles,
         ownedEntityIds: ownedIds()
       })
       expect(result).toHaveLength(MAX_ORPHAN_DELETE_PER_SYNC)
+    })
+
+    it('护栏④：本地云端引用集为空时一张都不删（新装 / 清数据 / 迁移不兼容）', () => {
+      const cloud = makeCloud({
+        'goods-image__1712000000000__img_a__1.jpg': { name: 'goods-image__1712000000000__img_a__1.jpg', createdAt: OLD_CREATED_AT },
+        'goods-image__1712000000000__img_b__1.jpg': { name: 'goods-image__1712000000000__img_b__1.jpg', createdAt: OLD_CREATED_AT }
+      })
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles: new Set(),
+        ownedEntityIds: ownedIds()
+      })
+      expect(result).toEqual([])
+      expect(warn).toHaveBeenCalled()
+      warn.mockRestore()
+    })
+
+    it('护栏⑤：候选孤儿超过自持文件 30% 时跳过（引用集整体塌方）', () => {
+      const files = {}
+      for (let i = 0; i < 8; i++) {
+        const name = `goods-image__1712000000000__img_${i}__1.jpg`
+        files[name] = { name, createdAt: OLD_CREATED_AT }
+      }
+      // 只剩 2 个引用：80% 的受管文件成了候选 → 不可信，整体放弃
+      const { cloud, referencedFiles } = healthyCloud(files, { referenced: 2 })
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles,
+        ownedEntityIds: ownedIds()
+      })
+      expect(result).toEqual([])
+      expect(warn).toHaveBeenCalled()
+      warn.mockRestore()
+    })
+
+    it('护栏⑤不放宽正常清理：29% 的候选仍会执行', () => {
+      const files = {}
+      for (let i = 0; i < 29; i++) {
+        const name = `goods-image__1712000000000__img_${i}__1.jpg`
+        files[name] = { name, createdAt: OLD_CREATED_AT }
+      }
+      const { cloud, referencedFiles } = healthyCloud(files, { referenced: 71 })
+      const result = supabaseService.collectSupabaseOrphanImageFiles(cloud, {
+        referencedFiles,
+        ownedEntityIds: ownedIds()
+      })
+      expect(result).toHaveLength(29)
     })
   })
 })

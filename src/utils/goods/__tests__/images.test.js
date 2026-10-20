@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   inferGoodsImageStorageMode,
+  normalizeEventCoverFields,
+  normalizeEventPhotoList,
   normalizeGoodsImageList,
   sanitizeGoodsImagesForSync,
   sanitizeGoodsImagesForShare
@@ -136,5 +138,118 @@ describe('外框二次编辑字段（阶段二：随行同步）', () => {
     expect(shared[0].edit).toBeUndefined()
     expect(shared[0].editSourceUri).toBeUndefined()
     expect(shared[0].editSourceCloudFileName).toBeUndefined()
+  })
+})
+
+// 云端迁移后条目只剩 ref，读取层必须翻译回 uri / cloudFileName。
+// 这是"图片不再被孤儿回收误删"的第一道闸：读不出 ref 的文件名，
+// 本地引用集合就会漏掉它。
+describe('ref 形态读取（云端迁移后）', () => {
+  it('cloud: ref → cloud-image:// + cloudFileName', () => {
+    const [image] = normalizeGoodsImageList([{ id: 'img1', ref: 'cloud:goods-image__g1__img1__1.jpg' }])
+    expect(image.uri).toBe('cloud-image://goods-image__g1__img1__1.jpg')
+    expect(image.cloudFileName).toBe('goods-image__g1__img1__1.jpg')
+    expect(image.storageMode).toBe('cloud-local')
+  })
+
+  it('remote: ref → 原 URL，不当成云端文件', () => {
+    const [image] = normalizeGoodsImageList([{ id: 'img1', ref: 'remote:https://example.com/a.jpg' }])
+    expect(image.uri).toBe('https://example.com/a.jpg')
+    expect(image.cloudFileName).toBe('')
+  })
+
+  it('local: ref → 本地路径', () => {
+    const [image] = normalizeGoodsImageList([{ id: 'img1', ref: 'local:user-images/1.jpg' }])
+    expect(image.uri).toBe('user-images/1.jpg')
+    expect(image.storageMode).toBe('local')
+  })
+
+  it('纯字符串 ref 也能读', () => {
+    const [image] = normalizeGoodsImageList(['cloud:goods-image__g1__img1__1.jpg'])
+    expect(image.uri).toBe('cloud-image://goods-image__g1__img1__1.jpg')
+    expect(image.cloudFileName).toBe('goods-image__g1__img1__1.jpg')
+  })
+
+  it('同时有 uri 与 ref 时以 uri 为准（混合期数据）', () => {
+    const [image] = normalizeGoodsImageList([{
+      id: 'img1',
+      uri: 'cloud-image://goods-image__g1__img1__1.jpg',
+      ref: 'cloud:goods-image__g1__other__1.jpg'
+    }])
+    expect(image.uri).toBe('cloud-image://goods-image__g1__img1__1.jpg')
+    expect(image.cloudFileName).toBe('goods-image__g1__img1__1.jpg')
+  })
+
+  it('editSourceRef 翻译回底图两个旧字段，push 仍写旧形态', () => {
+    const [image] = normalizeGoodsImageList([{
+      id: 'img1',
+      ref: 'cloud:goods-image__g1__img1__1.jpg',
+      edit: RECIPE,
+      editSourceRef: 'cloud:goods-image__g1__img1s__1.jpg'
+    }])
+    expect(image.editSourceUri).toBe('cloud-image://goods-image__g1__img1s__1.jpg')
+    expect(image.editSourceCloudFileName).toBe('goods-image__g1__img1s__1.jpg')
+
+    // 推送走 prepareImagesForSync 的产物（preparedImages），仍写旧形态
+    const [synced] = sanitizeGoodsImagesForSync([image], [image])
+    expect(synced.uri).toBe('cloud-image://goods-image__g1__img1__1.jpg')
+    expect(synced.editSourceCloudFileName).toBe('goods-image__g1__img1s__1.jpg')
+  })
+
+  it('认不出的 ref 不会凭空造出图片', () => {
+    expect(normalizeGoodsImageList([{ id: 'img1', ref: 'bogus' }])).toHaveLength(0)
+  })
+
+  it('半迁移数据：cloud: 落在 uri 字段里也按云图认', () => {
+    const [image] = normalizeGoodsImageList([{ id: 'img1', uri: 'cloud:goods-image__g1__img1__1.jpg' }])
+    expect(image.uri).toBe('cloud-image://goods-image__g1__img1__1.jpg')
+    expect(image.cloudFileName).toBe('goods-image__g1__img1__1.jpg')
+  })
+})
+
+describe('活动封面 / 照片的 ref 读取', () => {
+  it('封面 ref → uri + coverImageData.cloudFileName', () => {
+    const { coverImage, coverImageData } = normalizeEventCoverFields('cloud:event-cover__evt1__1.jpg', { mimeType: 'image/jpeg' })
+    expect(coverImage).toBe('cloud-image://event-cover__evt1__1.jpg')
+    expect(coverImageData.cloudFileName).toBe('event-cover__evt1__1.jpg')
+    expect(coverImageData.uri).toBe('cloud-image://event-cover__evt1__1.jpg')
+    expect(coverImageData.storageMode).toBe('cloud-local')
+    expect(coverImageData.mimeType).toBe('image/jpeg')
+  })
+
+  it('非 ref 封面原样返回（仅 trim）', () => {
+    const { coverImage, coverImageData } = normalizeEventCoverFields('  https://example.com/a.jpg ', null)
+    expect(coverImage).toBe('https://example.com/a.jpg')
+    expect(coverImageData).toBeNull()
+  })
+
+  it('fillCloudFileName：本地库读取时按旧行为补齐 coverImageData', () => {
+    const { coverImageData } = normalizeEventCoverFields('cloud-image://event-cover__evt1__1.jpg', null, { fillCloudFileName: true })
+    expect(coverImageData.cloudFileName).toBe('event-cover__evt1__1.jpg')
+    expect(coverImageData.uri).toBe('cloud-image://event-cover__evt1__1.jpg')
+    expect(coverImageData.storageMode).toBe('cloud-local')
+  })
+
+  it('fillCloudFileName 不从 http 封面推断文件名（保持旧行为）', () => {
+    const { coverImageData } = normalizeEventCoverFields('https://example.com/a.jpg', null, { fillCloudFileName: true })
+    expect(coverImageData).toBeNull()
+  })
+
+  it('照片 ref → uri + cloudFileName，且不再保留 ref', () => {
+    const [photo] = normalizeEventPhotoList([{ id: 'p1', ref: 'cloud:event-photo__evt1__p1__1.jpg', caption: '正面' }])
+    expect(photo.uri).toBe('cloud-image://event-photo__evt1__p1__1.jpg')
+    expect(photo.cloudFileName).toBe('event-photo__evt1__p1__1.jpg')
+    expect(photo.caption).toBe('正面')
+    expect(photo.ref).toBeUndefined()
+  })
+
+  it('已有 uri 的照片不被 ref 覆盖', () => {
+    const [photo] = normalizeEventPhotoList([{
+      id: 'p1',
+      uri: 'https://x.supabase.co/storage/v1/object/public/event-photos/event-photo__evt1__p1__1.jpg',
+      cloudFileName: 'event-photo__evt1__p1__1.jpg',
+      ref: 'cloud:event-photo__evt1__p1__1.jpg'
+    }])
+    expect(photo.uri).toBe('https://x.supabase.co/storage/v1/object/public/event-photos/event-photo__evt1__p1__1.jpg')
   })
 })

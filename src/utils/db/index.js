@@ -15,7 +15,7 @@
  */
 
 import { Capacitor } from '@capacitor/core'
-import { buildCloudImageUri, parseCloudImageUri } from '@/utils/goods/images'
+import { normalizeEventCoverFields, normalizeEventPhotoList } from '@/utils/goods/images'
 import { parseJsonArray } from '@/utils/parseJsonArray'
 import { MIGRATIONS } from './migrations'
 import { createLogger } from '@/utils/logger'
@@ -796,21 +796,15 @@ export async function getEvents() {
         parsedCoverImageData = null
       }
 
-      const coverImageFileName = String(parsedCoverImageData?.cloudFileName || parseCloudImageUri(r.coverImage) || '').trim()
-      const coverImageData = coverImageFileName
-        ? {
-            ...parsedCoverImageData,
-            uri: parsedCoverImageData?.uri || buildCloudImageUri(coverImageFileName),
-            storageMode: parsedCoverImageData?.storageMode || 'cloud-local',
-            cloudFileName: coverImageFileName
-          }
-        : parsedCoverImageData
+      // 封面可能是迁移后的 ref（cloud:xxx.jpg），统一翻译回 uri + cloudImageData
+      const cover = normalizeEventCoverFields(r.coverImage, parsedCoverImageData, { fillCloudFileName: true })
 
       // dates 为唯一日期字段；旧库 startDate/endDate/selectedDates 由 normalizeEvent 回填
       return {
         ...r,
-        coverImageData,
-        photos: parseJsonArray(r.photos),
+        coverImage: cover.coverImage,
+        coverImageData: cover.coverImageData,
+        photos: normalizeEventPhotoList(parseJsonArray(r.photos)),
         dates: parseJsonArray(r.dates),
         dayTicketList: parseJsonArray(r.dayTicketList),
         otherExpenses: parseJsonArray(r.otherExpenses),

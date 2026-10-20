@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { getRechargeRecords, addRechargeRecord, saveRechargeRecords, deleteRechargeRecords } from '@/utils/db/index'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { isLocalImageUri } from '@/utils/image/localImage'
+import { normalizeImageRefDisplayValue } from '@/utils/goods/images'
 import { aliasCachedImage } from '@/utils/image/cache'
 import { createLogger } from '@/utils/logger'
 
@@ -24,7 +25,8 @@ function normalizeRecord(input = {}) {
     amount: Number.isFinite(amount) ? amount : 0,
     chargedAt,
     note: String(input.note || '').trim(),
-    image: String(input.image || '').trim(),
+    // 云端迁移后 image 可能是 ref（cloud:/remote:），读层统一还原成显示形态
+    image: normalizeImageRefDisplayValue(input.image),
     deleted: Boolean(input.deleted),
     updatedAt: Number(input.updatedAt || now)
   }

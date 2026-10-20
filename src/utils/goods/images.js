@@ -1,6 +1,7 @@
 // @ts-check
 import { isLocalImageUri, readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { preserveImageEditRecipe } from '@/utils/image/imageEditRecipe'
+import { parseRef } from '@/utils/image/refKinds'
 
 export const GOODS_IMAGE_KIND_OPTIONS = [
   { value: 'primary', label: '主图' },
@@ -28,6 +29,10 @@ export function parseCloudImageUri(uri) {
   if (value.startsWith(CLOUD_IMAGE_PREFIX)) return value.slice(CLOUD_IMAGE_PREFIX.length)
   // Backward compat: old gist-image:// prefix
   if (value.startsWith('gist-image://')) return value.slice('gist-image://'.length)
+  // 收敛后的相对引用形态 cloud:<fileName>（见 src/utils/image/ref.js 的 CLOUD_REF_PREFIX）。
+  // 云端迁移会写成这种形态，反解必须认：孤儿回收靠本函数判断"文件是否被引用"，
+  // 认不出来就会把仍在使用的图当孤儿删掉。
+  if (value.startsWith('cloud:')) return value.slice('cloud:'.length)
   return ''
 }
 
@@ -48,6 +53,25 @@ export function parseStoragePublicImageUrl(uri) {
 
 export function isCloudImageUri(uri) {
   return !!parseCloudImageUri(uri)
+}
+
+/**
+ * 把可能带 ref 前缀的图片值还原成本地显示形态（读层边界用）。
+ * - cloud:<name> → cloud-image://<name>（由图片缓存解析成公链）
+ * - remote:<url> → <url>
+ * - local:<path|data> → <path|data>
+ * - 其它原样返回
+ *
+ * 用于没有独立 normalize 函数的字段（如充值记录 image）。
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function normalizeImageRefDisplayValue(value) {
+  const raw = String(value || '').trim()
+  const ref = parseRef(raw)
+  if (!ref) return raw
+  if (ref.kind === 'cloud') return buildCloudImageUri(ref.value)
+  return ref.value
 }
 
 export function inferGoodsImageStorageMode(uri, explicitMode = '') {
@@ -90,6 +114,19 @@ export function isExportableGoodsImage(entry) {
 }
 
 /**
+ * uri 字段里的半迁移数据：迁移脚本写的是 `ref`，但如果它落到了 `uri` 里
+ * （`cloud:xxx.jpg`），显示层要按 `cloud-image://` 认，否则图片空白。
+ * 只处理 cloud:（与 fixture「cloud: ref 被当作 uri 传入」一致）；不猜其余前缀。
+ * @param {unknown} value
+ * @returns {string}
+ */
+function normalizeUriValue(value) {
+  const trimmed = String(value || '').trim()
+  if (trimmed.startsWith('cloud:')) return buildCloudImageUri(trimmed.slice('cloud:'.length))
+  return trimmed
+}
+
+/**
  * @param {Partial<import('@/types/models').GoodsImage> & { url?: string, image?: string }} entry
  * @param {number} fallbackIndex
  * @returns {import('@/types/models').GoodsImage | null}
@@ -97,26 +134,39 @@ export function isExportableGoodsImage(entry) {
 export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   if (!entry) return null
 
+  // 云端迁移后的条目只剩 ref（cloud:/remote:/local:）。
+  // 这里是**唯一**把 ref 翻译回旧形态字段的地方：显示、同步、孤儿回收、
+  // 外框编辑全都继续用 uri / cloudFileName，下游零改动。
+  const ref = parseRef(entry?.ref)
+  const refUri = ref ? (ref.kind === 'cloud' ? buildCloudImageUri(ref.value) : ref.value) : ''
+  // local: 是本机专属路径，显式标记，别让 infer 把它当 remote 推上云
+  const refStorageMode = ref?.kind === 'local' ? 'local' : ''
+
   // 支持纯字符串 URL
   if (typeof entry === 'string') {
-    const uri = entry.trim()
+    const stringRef = parseRef(entry)
+    const uri = stringRef
+      ? (stringRef.kind === 'cloud' ? buildCloudImageUri(stringRef.value) : stringRef.value)
+      : normalizeUriValue(entry)
     if (!uri) return null
     return {
       id: createGoodsImageId(),
       uri,
       kind: fallbackIndex === 0 ? 'primary' : 'custom',
       label: '',
-      storageMode: inferGoodsImageStorageMode(uri, ''),
+      storageMode: inferGoodsImageStorageMode(uri, stringRef?.kind === 'local' ? 'local' : ''),
       localPath: '',
-      cloudFileName: parseCloudImageUri(uri),
+      cloudFileName: parseCloudImageUri(uri) || (stringRef?.kind === 'cloud' ? stringRef.value : ''),
       mimeType: '',
       fileSize: 0,
       isPrimary: fallbackIndex === 0,
     }
   }
 
-  const rawUri = String(entry.uri || entry.url || entry.image || '').trim()
-  const cloudFileName = String(entry.cloudFileName || entry.gistFileName || parseCloudImageUri(rawUri)).trim()
+  const rawUri = normalizeUriValue(entry.uri || entry.url || entry.image) || refUri
+  const cloudFileName = String(
+    entry.cloudFileName || entry.gistFileName || parseCloudImageUri(rawUri) || (ref?.kind === 'cloud' ? ref.value : '')
+  ).trim()
   const uri = rawUri || buildCloudImageUri(cloudFileName)
   if (!uri) return null
 
@@ -128,12 +178,22 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
   // 新增图片字段时要同时改 sanitizeGoodsImagesForSync / ForExport，
   // 会同步的文件名引用还要登记到 collectReferencedImageState，否则会被孤儿回收删文件
   const edit = preserveImageEditRecipe(entry.edit)
+  // 迁移后「去框底图」只剩 editSourceRef，同样在边界翻译回两个旧字段
+  const editSource = edit ? parseRef(entry.editSourceRef) : null
+  const editSourceUri = edit
+    ? String(entry.editSourceUri || '').trim()
+      || (editSource ? (editSource.kind === 'cloud' ? buildCloudImageUri(editSource.value) : editSource.value) : '')
+    : ''
+  const editSourceCloudFileName = edit
+    ? String(entry.editSourceCloudFileName || '').trim()
+      || (editSource?.kind === 'cloud' ? editSource.value : '')
+    : ''
   return {
     id: String(entry.id || createGoodsImageId()).trim(),
     uri,
     kind,
     label: String(entry.label || '').trim(),
-    storageMode: inferGoodsImageStorageMode(uri, entry.storageMode),
+    storageMode: inferGoodsImageStorageMode(uri, entry.storageMode || refStorageMode),
     localPath: String(entry.localPath || '').trim(),
     cloudFileName,
     mimeType: String(entry.mimeType || '').trim(),
@@ -142,8 +202,8 @@ export function normalizeGoodsImageEntry(entry, fallbackIndex = 0) {
     // 外框二次编辑：配方 + 去框底图的云端位置。
     // 底图的**本地**路径不进这里（同步行会被远端整行覆盖），在 image_edits 表里单独记账
     edit,
-    editSourceUri: edit ? String(entry.editSourceUri || '').trim() : '',
-    editSourceCloudFileName: edit ? String(entry.editSourceCloudFileName || '').trim() : ''
+    editSourceUri,
+    editSourceCloudFileName
   }
 }
 
@@ -392,6 +452,77 @@ export async function sanitizeGoodsItemForShare(item) {
     ...rest,
     images
   }
+}
+
+/**
+ * events 封面：迁移后 `cover_image` 是 ref（`cloud:xxx.jpg`），
+ * 在这里翻译回 `uri` + `coverImageData.cloudFileName`，其余逻辑不用知道 ref。
+ * 非 ref 入参原样返回（仅 trim）。
+ *
+ * `fillCloudFileName` 保留本地库读取的旧行为：coverImage 能解析出云端文件名、
+ * 而 coverImageData 里没有时补齐 uri / storageMode / cloudFileName。
+ * 只给 getEvents 用，同步边界不要开启（否则会给远端行补字段、干扰 diff）。
+ * @param {unknown} coverImage
+ * @param {unknown} coverImageData
+ * @param {{ fillCloudFileName?: boolean }} [options]
+ * @returns {{ coverImage: string, coverImageData: any }}
+ */
+export function normalizeEventCoverFields(coverImage, coverImageData, options = {}) {
+  const data = coverImageData && typeof coverImageData === 'object' ? { ...coverImageData } : null
+  const ref = parseRef(coverImage)
+  if (!ref) {
+    const cover = String(coverImage || '').trim()
+    const derivedName = String(data?.cloudFileName || parseCloudImageUri(cover) || '').trim()
+    if (options.fillCloudFileName && derivedName) {
+      return {
+        coverImage: cover,
+        coverImageData: {
+          ...(data || {}),
+          uri: String(data?.uri || '').trim() || buildCloudImageUri(derivedName),
+          storageMode: String(data?.storageMode || '').trim() || 'cloud-local',
+          cloudFileName: derivedName
+        }
+      }
+    }
+    return { coverImage: cover, coverImageData: data }
+  }
+
+  const uri = ref.kind === 'cloud' ? buildCloudImageUri(ref.value) : ref.value
+  if (ref.kind !== 'cloud') return { coverImage: uri, coverImageData: data }
+
+  return {
+    coverImage: uri,
+    coverImageData: {
+      ...(data || {}),
+      uri: String(data?.uri || '').trim() || uri,
+      storageMode: String(data?.storageMode || '').trim() || 'cloud-local',
+      cloudFileName: ref.value
+    }
+  }
+}
+
+/**
+ * events.photos 条目：迁移后只有 ref，翻译回 uri / cloudFileName。
+ * 照片条目不是 goods 图片（没有 kind / label / isPrimary），故不复用 normalizeGoodsImageEntry。
+ * @param {any} photo
+ * @returns {any}
+ */
+export function normalizeEventPhotoEntry(photo) {
+  if (!photo || typeof photo !== 'object') return photo
+  const ref = parseRef(photo.ref)
+  if (!ref) return photo
+  const { ref: _ref, ...rest } = photo
+  const uri = ref.kind === 'cloud' ? buildCloudImageUri(ref.value) : ref.value
+  return {
+    ...rest,
+    uri: String(photo.uri || '').trim() || uri,
+    cloudFileName: String(photo.cloudFileName || '').trim() || (ref.kind === 'cloud' ? ref.value : '')
+  }
+}
+
+/** @param {unknown} photos */
+export function normalizeEventPhotoList(photos) {
+  return Array.isArray(photos) ? photos.map(normalizeEventPhotoEntry) : []
 }
 
 export async function sanitizeEventForExport(event) {

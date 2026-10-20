@@ -1,4 +1,4 @@
-import { inferGoodsImageStorageMode, normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
+import { inferGoodsImageStorageMode, normalizeEventPhotoEntry, normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { processWithConcurrency } from '@/utils/sync/shared'
 import i18n from '@/locales'
 
@@ -7,6 +7,10 @@ import i18n from '@/locales'
 export const SUPABASE_ORPHAN_GRACE_MS = 48 * 60 * 60 * 1000
 // 单次同步最多删除的孤儿文件数，限制误判时的影响范围；剩余的留待后续同步继续回收
 export const MAX_ORPHAN_DELETE_PER_SYNC = 200
+// 护栏②：本次候选孤儿占「我拥有的托管文件」的比例上限。正常清理（删几件谷子、清空草稿）
+// 远低于这个比例；一旦超过，说明本地引用集整体塌了（迁移格式不兼容 / 清数据 / 新装），
+// 这时删下去就是把云端图库清空——历史事故就是这么发生的，宁可这次不回收。
+export const ORPHAN_DELETE_MAX_RATIO = 0.3
 
 export function createSyncImageService({
   backend,
@@ -193,19 +197,20 @@ export function createSyncImageService({
 
       if (sourcePhotos.length > 0) {
         nextPhotos = await Promise.all(sourcePhotos.map(async (photoEntry, index) => {
-          const photoUri = String(photoEntry?.uri || '').trim()
+          const photo = normalizeEventPhotoEntry(photoEntry)
+          const photoUri = String(photo?.uri || '').trim()
           if (!photoUri) return photoEntry
 
-          const photoStorageMode = inferGoodsImageStorageMode(photoUri, photoEntry?.storageMode)
+          const photoStorageMode = inferGoodsImageStorageMode(photoUri, photo?.storageMode)
           if (photoStorageMode !== 'cloud-local') return photoEntry
 
-          const cloudFileName = String(photoEntry?.cloudFileName || parseCloudImageUri(photoUri)).trim()
+          const cloudFileName = String(photo?.cloudFileName || parseCloudImageUri(photoUri)).trim()
           if (!cloudFileName) return photoEntry
 
           // Supabase: replace with public URL, skip download
           if (isSupabase) {
             return {
-              ...photoEntry,
+              ...photo,
               uri: currentBackend.getImagePublicUrl(cloudFileName),
               storageMode: 'remote',
               cloudFileName
@@ -233,7 +238,7 @@ export function createSyncImageService({
             imageStats.restoredImages += 1
 
             return {
-              ...photoEntry,
+              ...photo,
               uri: fileCache.get(cloudFileName),
               storageMode: 'cloud-local',
               cloudFileName
@@ -254,9 +259,15 @@ export function createSyncImageService({
   }
 
   // Supabase 模式的孤儿图片检测：在 doPush 末尾调用，返回可安全删除的云端文件名列表。
-  // 三重防护：1) 归属校验（只删文件名中嵌入的实体 ID 属于当前用户的文件，共享桶内他人文件不动）
-  // 2) 宽限期（跳过 graceMs 内新建的文件，规避多设备并发上传竞态）
-  // 3) 数量上限（单次最多 MAX_ORPHAN_DELETE_PER_SYNC 个，限制误判影响范围）
+  // 五重防护：
+  //   1) 列表完整性（分页失败 → 拒绝执行）
+  //   2) 归属校验（只删文件名里嵌入的实体 ID 属于当前用户的文件，共享桶内他人文件不动）
+  //   3) 宽限期（跳过 graceMs 内新建的文件，规避多设备并发上传竞态）
+  //   4) 引用集下限（本地一条云端引用都算不出来 → 拒绝执行）
+  //   5) 比例上限（候选孤儿超过自持文件的 30% → 拒绝执行）
+  // 第 4/5 条是硬护栏：它们不解决"哪张图该删"，只保证"本地状态整体不可信时一张都不删"。
+  // 图片被误删后无法从数据库恢复（备份表只有行，没有 Storage 对象），所以这里的
+  // 默认动作必须是"不动"，而不是"尽力回收"。
   function collectSupabaseOrphanImageFiles(existingImageCloud, {
     referencedFiles,
     ownedEntityIds,
@@ -281,14 +292,13 @@ export function createSyncImageService({
     }
 
     const prefixes = listManagedImagePrefixes()
-    const orphans = []
+    const ownedFiles = []
+    const candidates = []
     for (const [key, value] of Object.entries(existingImageCloud.files || {})) {
-      if (orphans.length >= MAX_ORPHAN_DELETE_PER_SYNC) break
       // 跳过 .txt 别名条目（与真实文件指向同一对象，避免重复删除）
       if (key.endsWith('.txt')) continue
       const matchedPrefix = prefixes.find((prefix) => key.startsWith(prefix))
       if (!matchedPrefix) continue
-      if (refs.has(key)) continue
 
       // 归属校验：文件名格式为 <prefix><entityId>__...，实体 ID 本身可能含 '__'，
       // 逐段拼接尝试匹配当前用户拥有的实体 ID；匹配不上视为他人文件，绝不删除
@@ -300,15 +310,40 @@ export function createSyncImageService({
         if (ownedEntityIds.has(candidate)) { owned = true; break }
       }
       if (!owned) continue
+      ownedFiles.push(key)
+
+      if (refs.has(key)) continue
 
       // 宽限期：created_at 缺失/无法解析或距今不足 graceMs 的文件一律保留
       const createdMs = Date.parse(String(value?.createdAt || ''))
       if (!Number.isFinite(createdMs)) continue
       if (now - createdMs < graceMs) continue
 
-      orphans.push(key)
+      candidates.push(key)
     }
-    return orphans
+
+    if (candidates.length === 0) return []
+
+    // 护栏④：本地算不出一条云端引用 → 本地状态不可信（新装未拉取、清过数据、
+    // 迁移后读取路径不认识新格式…）。此时"孤儿"等于整个云端图库，必须整体放弃。
+    if (refs.size === 0) {
+      console.warn('[orphan-gc] 本地云端引用集为空，跳过本次回收', { candidates: candidates.length, owned: ownedFiles.length })
+      return []
+    }
+
+    // 护栏⑤：候选占比过高 → 引用集整体塌方，而不是"用户真的删了这么多图"。
+    const ratio = ownedFiles.length > 0 ? candidates.length / ownedFiles.length : 1
+    if (ratio > ORPHAN_DELETE_MAX_RATIO) {
+      console.warn('[orphan-gc] 候选孤儿占比过高，跳过本次回收', {
+        candidates: candidates.length,
+        owned: ownedFiles.length,
+        ratio: Number(ratio.toFixed(3)),
+        limit: ORPHAN_DELETE_MAX_RATIO
+      })
+      return []
+    }
+
+    return candidates.slice(0, MAX_ORPHAN_DELETE_PER_SYNC)
   }
 
   function buildImageCleanupFiles(existingImageCloud, referencedImageFiles) {

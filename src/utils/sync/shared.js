@@ -5,6 +5,7 @@ import {
   parseStoragePublicImageUrl
 } from '@/utils/goods/images'
 import { readPersisted } from '@/utils/platform/storage'
+import { cloudNameFromRef } from '@/utils/image/refKinds'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { getSingleDraftEntry, SINGLE_DRAFT_FORM_KEY } from '@/utils/batch/singleDraft'
 
@@ -388,12 +389,14 @@ export function buildImageReferenceMap({ goods = [], trash = [], events = [] } =
 }
 
 // 解析图片条目对应的云端文件名：优先 cloudFileName，
-// 其次 cloud-image:// 引用，最后兼容直接存 Supabase 公开 URL 的旧数据
+// 其次 cloud-image:// 引用，最后兼容直接存 Supabase 公开 URL 的旧数据。
+// ref（cloud:xxx）也认：迁移后条目只剩 ref 时，这里读不出文件名就会被当孤儿删掉。
 function resolveRefName(entry) {
   return String(
     entry?.cloudFileName
     || parseCloudImageUri(entry?.uri)
     || parseStoragePublicImageUrl(entry?.uri)
+    || cloudNameFromRef(entry?.ref)
     || ''
   ).trim()
 }
@@ -440,6 +443,7 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
         photo?.cloudFileName
         || parseCloudImageUri(photo?.uri)
         || parseStoragePublicImageUrl(photo?.uri)
+        || cloudNameFromRef(photo?.ref)
       )
     }
   }
@@ -450,6 +454,7 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
       record?.cloudFileName
       || parseCloudImageUri(record?.image)
       || parseStoragePublicImageUrl(record?.image)
+      || cloudNameFromRef(record?.ref)
     )
   }
 
@@ -471,6 +476,7 @@ export function collectReferencedImageState({ goods = [], trash = [], events = [
         item?.cloudFileName
         || parseCloudImageUri(item?.imageUri)
         || parseStoragePublicImageUrl(item?.imageUri)
+        || cloudNameFromRef(item?.ref)
       )
     }
   }

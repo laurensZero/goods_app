@@ -501,6 +501,49 @@ describe('collectReferencedImageState', () => {
     expect(referencedFiles.size).toBe(0)
     expect(ownedEntityIds.size).toBe(0)
   })
+
+  // 事故复现路径：云端迁移后条目只剩 ref，如果这里读不出文件名，
+  // referencedFiles 会漏掉这些文件 → 孤儿回收把它们当垃圾删掉。
+  it('ref 形态：goods / 活动 / 充值 / 草稿的文件名都要登记', () => {
+    const { referencedFiles, ownedEntityIds } = collectReferencedImageState({
+      goods: [{
+        id: 'g1',
+        images: [
+          { id: 'img1', ref: 'cloud:goods-image__g1__img1__1.jpg' },
+          {
+            id: 'img2',
+            ref: 'cloud:goods-image__g1__img2__1.jpg',
+            edit: { version: 1, frameId: 'wave' },
+            editSourceRef: 'cloud:goods-image__g1__img2s__1.jpg'
+          },
+          { id: 'img3', ref: 'remote:https://example.com/external.jpg' }
+        ]
+      }],
+      events: [{
+        id: 'evt1',
+        coverImage: 'cloud:event-cover__evt1__1.jpg',
+        photos: [{ id: 'p1', ref: 'cloud:event-photo__evt1__p1__1.jpg' }]
+      }],
+      recharge: [{ id: 'r1', ref: 'cloud:recharge-image__r1__1.jpg' }],
+      batchDrafts: [{
+        id: 'collection',
+        items: [{ id: 'q1', ref: 'cloud:batch-draft-image__collection__q1__1.jpg' }]
+      }]
+    })
+
+    expect([...referencedFiles].sort()).toEqual([
+      'batch-draft-image__collection__q1__1.jpg',
+      'event-cover__evt1__1.jpg',
+      'event-photo__evt1__p1__1.jpg',
+      'goods-image__g1__img1__1.jpg',
+      'goods-image__g1__img2__1.jpg',
+      'goods-image__g1__img2s__1.jpg',
+      'recharge-image__r1__1.jpg'
+    ])
+    expect(referencedFiles.has('external.jpg')).toBe(false)
+    expect(ownedEntityIds.has('g1')).toBe(true)
+    expect(ownedEntityIds.has('evt1')).toBe(true)
+  })
 })
 
 describe('buildImageFilename 前缀覆盖', () => {
