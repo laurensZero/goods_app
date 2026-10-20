@@ -327,5 +327,6 @@
   "sync.realtimeReason.health": "Health check found it offline",
   "sync.realtimeReason.noClient": "Client not ready",
   "sync.realtimeReason.failed": "Reconnect failed",
+  "sync.realtimeReason.authPending": "Waiting for sign-in credentials",
   "sync.realtimeReason.manual": "Manual reconnect"
 }

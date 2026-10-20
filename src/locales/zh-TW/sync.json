@@ -327,5 +327,6 @@
   "sync.realtimeReason.health": "巡檢發現斷線",
   "sync.realtimeReason.noClient": "用戶端未就緒",
   "sync.realtimeReason.failed": "重連失敗",
+  "sync.realtimeReason.authPending": "等待登入憑證",
   "sync.realtimeReason.manual": "手動重連"
 }

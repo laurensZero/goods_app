@@ -262,7 +262,9 @@ async function fetchWithTimeout(input, init = {}, timeoutMs = PROBE_TIMEOUT_MS) 
     controller.abort(new DOMException('Request timed out', 'TimeoutError'))
   }, timeoutMs)
   const callerSignal = init?.signal
-  const onAbort = () => controller.abort(callerSignal?.reason)
+  // abort() 不传 reason 时浏览器只会报 “signal is aborted without reason”，
+  // 无法区分超时、取消还是后台恢复误杀；这里始终带可读原因。
+  const onAbort = () => controller.abort(callerSignal?.reason || new DOMException('Request aborted', 'AbortError'))
   if (callerSignal) {
     if (callerSignal.aborted) {
       timer.cancel()
@@ -286,12 +288,34 @@ function dataFetchTimeoutFor(rawUrl = '') {
 }
 
 function buildClient(url, anonKey) {
-  return createClient(url, anonKey, {
+  // supabase-js 默认的 realtime.accessToken 在 auth.getSession() 拿不到 session 时
+  // 会回退到 anon key。Realtime 以 anon 角色加入 channel 后，anon 没有业务表的
+  // SELECT 权限，postgres_changes 的 user_id 过滤器校验会直接抛：
+  //   P0001 invalid column for filter user_id
+  // 冷启动（本地只有缓存 user、session 还在恢复）和后台恢复（token 过期 + 弱网刷新失败）
+  // 都会命中这个窗口。这里改成“拿不到 session 就沿用最后已知 token，绝不退回 anon”，
+  // 由订阅方在真正没有 token 时等待，而不是用错误身份去 join。
+  let createdClient = null
+  let cachedRealtimeToken = ''
+  const client = createClient(url, anonKey, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
       storageKey: 'sb-main-auth-token'
+    },
+    realtime: {
+      accessToken: async () => {
+        try {
+          const { data } = (await createdClient?.auth?.getSession?.()) || {}
+          const token = data?.session?.access_token
+          if (token) {
+            cachedRealtimeToken = token
+            return token
+          }
+        } catch { /* 读取 session 失败时沿用缓存 token */ }
+        return cachedRealtimeToken
+      }
     },
     global: {
       headers: deviceHeaders(),
@@ -304,6 +328,16 @@ function buildClient(url, anonKey) {
       }
     }
   })
+  createdClient = client
+  // 登出时清掉缓存，避免 Realtime 继续拿着上一个用户的 token；
+  // 登录/刷新时提前缓存，弱网下 getSession 短暂读不到也不会退回 anon。
+  try {
+    client.auth?.onAuthStateChange?.((event, session) => {
+      if (event === 'SIGNED_OUT') cachedRealtimeToken = ''
+      else if (session?.access_token) cachedRealtimeToken = session.access_token
+    })
+  } catch { /* 旧版本/自定义 auth 不支持时忽略 */ }
+  return client
 }
 
 /**

@@ -327,5 +327,6 @@
   "sync.realtimeReason.health": "ヘルスチェックで切断を検出",
   "sync.realtimeReason.noClient": "クライアント未準備",
   "sync.realtimeReason.failed": "再接続に失敗",
+  "sync.realtimeReason.authPending": "ログイン情報を待機中",
   "sync.realtimeReason.manual": "手動再接続"
 }

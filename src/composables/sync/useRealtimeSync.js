@@ -63,6 +63,9 @@ export function useRealtimeSync({ syncStore }) {
   let visibilityDebounceTimer = null
   let subscribeWatchdogTimer = null
   let isSubscribing = false
+  let authRetryTimer = null
+  let authRetryAttempt = 0
+  let authRetryLogged = false
   let socketDownTicks = 0
   // 待重建范围：All = 连接级重建；rebuildTables = 只重建指定表（表级配置错误不影响其它表）
   let rebuildAllPending = false
@@ -117,6 +120,7 @@ export function useRealtimeSync({ syncStore }) {
   function unsubscribe() {
     if (pullDebounceTimer) { clearTimeout(pullDebounceTimer); pullDebounceTimer = null }
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
+    clearAuthRetry()
     clearSubscribeWatchdog()
     // 先清表（map）再退订：unsubscribe() 可能同步回调 CLOSED，
     // 回调里发现 channel 已不在 map 就会忽略，不会把主动退订误判成故障并排重建
@@ -192,10 +196,81 @@ export function useRealtimeSync({ syncStore }) {
     return !!authStore.user?.id
   }
 
+  // 会话 token 是否还够用：快过期的 token 先走 getSession() 触发刷新，
+  // 避免拿一个即将失效的 JWT 去 join，随后又因 401 被踢下线重来。
+  function hasUsableToken(session) {
+    if (!session?.access_token) return false
+    const expiresAt = Number(session.expires_at || 0) * 1000
+    return !expiresAt || expiresAt - Date.now() > 30_000
+  }
+
+  async function resolveRealtimeToken(db) {
+    const session = useAuthStore().session
+    if (hasUsableToken(session)) return session.access_token
+    try {
+      const { data } = (await db?.auth?.getSession?.()) || {}
+      const fresh = data?.session
+      return fresh?.access_token || (hasUsableToken(session) ? session.access_token : '')
+    } catch {
+      // getSession 失败（弱网刷新失败）时只在原 token 仍有效时沿用；
+      // 已过期就等待刷新成功，绝不退化成 anon，也不拿过期 JWT 去 join。
+      return hasUsableToken(session) ? session.access_token : ''
+    }
+  }
+
+  /**
+   * 在创建/重建 channel 之前显式同步 Realtime 的 JWT。
+   * supabase-js 的 channel.subscribe() 会同步读取 realtime.accessTokenValue 作为 join payload，
+   * 不会等待 auth 初始化；冷启动/后台恢复时先 subscribe 就会以 anon 身份 join，
+   * 触发 P0001 invalid column for filter user_id。
+   * @returns {Promise<boolean>} 是否已具备可用的登录身份
+   */
+  async function ensureRealtimeAuth(db) {
+    if (!db?.realtime || typeof db.realtime.setAuth !== 'function') return true
+    const token = await resolveRealtimeToken(db)
+    if (!token) {
+      if (!authRetryLogged) {
+        log.warn('realtime auth token not ready, waiting before subscribe (avoid anon join)')
+        authRetryLogged = true
+      }
+      return false
+    }
+    authRetryLogged = false
+    authRetryAttempt = 0
+    try {
+      await db.realtime.setAuth(token)
+      return true
+    } catch (e) {
+      log.warn('realtime setAuth failed:', e?.message || e)
+      return false
+    }
+  }
+
+  function clearAuthRetry() {
+    if (authRetryTimer) {
+      clearTimeout(authRetryTimer)
+      authRetryTimer = null
+    }
+  }
+
+  // auth 还没就绪时不要创建 channel：拿 anon 身份 join 只会换来 P0001。
+  // 这里短暂轮询 session，就绪后自动补订阅；长时间拿不到就放慢轮询。
+  function scheduleAuthRetry() {
+    if (authRetryTimer) return
+    const delay = Math.min(1500 * (2 ** authRetryAttempt), 30_000)
+    authRetryAttempt = Math.min(authRetryAttempt + 1, 5)
+    authRetryTimer = setTimeout(() => {
+      authRetryTimer = null
+      if (!canOperate()) { publishState(); return }
+      void subscribe()
+    }, delay)
+    publishState('auth-pending')
+  }
+
   function computeStatus() {
     if (!canOperate()) return 'disabled'
     // 重建排队/进行中优先：静默断线时本地 isConnected 可能还停在 true
-    if (isRebuilding || rebuildTimer) return 'reconnecting'
+    if (isRebuilding || rebuildTimer || authRetryTimer) return 'reconnecting'
     if (isConnected.value) return 'connected'
     if (channels.size > 0 || isSubscribing) return 'connecting'
     return 'disconnected'
@@ -228,7 +303,8 @@ export function useRealtimeSync({ syncStore }) {
     if (/invalid column for filter/i.test(detail)) {
       log.error(
         `channel ${table}: invalid column for filter user_id — 检查 public.${table} 是否在 supabase_realtime publication 中、` +
-        'REPLICA IDENTITY 是否为 FULL、以及 user_id 列是否存在（见 supabase/supabase-migration-realtime-filter-fix.sql）'
+        'REPLICA IDENTITY 是否为 FULL、user_id 列是否存在，以及 Realtime 是否误用 anon 身份订阅' +
+        '（见 supabase/supabase-migration-realtime-filter-fix.sql）'
       )
     }
     // 表级错误（publication / replica identity / 列权限）不是连接问题：
@@ -311,6 +387,8 @@ export function useRealtimeSync({ syncStore }) {
     let db = null
     try { db = getSupabaseClient() } catch { /* not initialized yet */ }
     if (!db) { scheduleRebuild('no-client'); return }
+    // 表级重建同样要先同步 JWT：否则重试仍会以 anon 身份 join，P0001 永远不停
+    if (!(await ensureRealtimeAuth(db))) { scheduleAuthRetry(); return }
     isRebuilding = true
     publishState(reason)
     try {
@@ -379,6 +457,14 @@ export function useRealtimeSync({ syncStore }) {
     try {
       const db = getSupabaseClient()
       if (!db) { scheduleRebuild('no-client'); return }
+
+      // 必须等 Realtime 拿到登录 JWT 再创建 channel：channel.subscribe() 会同步读取
+      // realtime.accessTokenValue，尚未 setAuth 时会以 anon 身份 join 并触发 P0001。
+      if (!(await ensureRealtimeAuth(db))) {
+        scheduleAuthRetry()
+        return
+      }
+
       // 全量重建时先清理同名残留；只补缺失表时不能碰已订阅的 channel
       if (channels.size === 0) await dropStaleChannels(db)
 

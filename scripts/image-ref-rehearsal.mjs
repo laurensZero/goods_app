@@ -4,16 +4,20 @@
 //   1. 从云端读出当前行（旧形态：uri / cloudFileName / 公链 URL）
 //   2. 用 ref.js 的迁移规则把行投影成「SQL 迁移后」的 ref 形态（含 .txt 归一化）
 //   3. 用运行时真正使用的 normalize* 函数把 ref 形态读回来
-//   4. 逐条对比「迁移前 vs 迁移后」指向的 Storage 对象是否一致，并对比孤儿回收的引用集合
+//   4. 逐条对比三件事：
+//        · 指向的 Storage 对象是否还是同一个
+//        · 迁移后会不会读不出来（条目丢失）
+//        · 本地图片缓存键（也就是拉取后写进本地库的显示 URL）是否不变 → 旧缓存还能不能命中
+//   5. 对比孤儿回收的引用集合有没有变化
 //
-// 判定：条目丢失 0、指向对象不一致 0、引用集合差集 0 → 迁移不会导致白图，也不会让孤儿回收误删。
-// 不写云端、不写本地库。文件是否真实存在由 scripts/check-image-storage-state.mjs 负责。
+// 判定：四列全 0 才算通过。不写云端、不写本地库。文件是否真实存在由
+// scripts/check-image-storage-state.mjs 负责。
 //
 // 用法:
 //   npm run image:rehearsal
 //   npm run image:rehearsal -- --html out.html   # 额外导出缩略图预览（用公链地址）
 //
-// 需要 vite-node（npm i -D vite-node）来解析 @/ 别名与 import.meta.env。
+// 需要 vite-node（devDependency）来解析 @/ 别名与 import.meta.env。
 
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { migrateImageEntry, toRef } from '@/utils/image/ref'
@@ -110,12 +114,47 @@ const migrateTextValue = (value, cloudFileName = '') => {
   return ref.startsWith('cloud:') ? `cloud:${bareCloudName(ref.slice('cloud:'.length))}` : ref
 }
 
-// ── 显示身份：不同写法指向同一个 Storage 对象就算一致 ────────────────────────────────────────
-// 例：公链 URL、cloud-image://name、cloud:name、name.txt → 都归一到 <bucket>/<name>
+// ── Storage 索引：文件名 → 真实对象路径（含用户目录前缀）──────────────────────────────────
+// 用来把"迁移后该显示成什么 URL"算实，而不是只做字符串推理。
+const BUCKETS = ['goods-images', 'event-photos', 'profile-backgrounds']
 const BUCKET_BY_PREFIX = [
   ['event-photo__', 'event-photos'],
   ['profile-bg__', 'profile-backgrounds']
 ]
+const storageIndex = new Map()
+
+function bucketFor(name) {
+  return BUCKET_BY_PREFIX.find(([prefix]) => name.startsWith(prefix))?.[1] || 'goods-images'
+}
+
+async function loadStorageIndex() {
+  for (const bucket of BUCKETS) {
+    for (const file of await listBucket(bucket)) {
+      storageIndex.set(`${bucket}/${bareCloudName(file.name)}`, file.path)
+    }
+  }
+}
+
+// 迁移/拉取后真正交给图片缓存的 URL（与 supabaseAdapter.getImagePublicUrl 等价）
+function storageUrlFor(name) {
+  const storageName = bareCloudName(name)
+  const bucket = bucketFor(storageName)
+  const fullPath = storageIndex.get(`${bucket}/${storageName}`)
+  if (!fullPath) return `missing:${bucket}/${storageName}`
+  return `${URL_BASE}/storage/v1/object/public/${bucket}/${fullPath}`
+}
+
+// 本地库里最终存下来的图片地址 = 图片缓存键。cloud 类先解析成公链，其余原样。
+function localDisplayUrl(image) {
+  const name = String(image?.cloudFileName || parseCloudImageUri(image?.uri) || '').trim()
+  if (name) return storageUrlFor(name)
+  const uri = String(image?.uri || '').trim()
+  // remote: 在充值 store / 各 normalize 层都会被还原成裸 URL
+  const remote = uri.match(/^remote:(.+)$/i)
+  const value = remote ? remote[1].trim() : uri
+  return /^https?:\/\//i.test(value) ? value : ''
+}
+
 function displayIdentity(value) {
   const raw = String(value || '').trim()
   if (!raw) return 'empty'
@@ -123,14 +162,12 @@ function displayIdentity(value) {
   if (storageUrl) {
     let path = storageUrl[2]
     try { path = decodeURIComponent(path) } catch {}
-    const name = path.split('/').pop() || ''
-    return `storage:${storageUrl[1]}/${name.replace(/\.txt$/i, '')}`
+    return `storage:${storageUrl[1]}/${bareCloudName(path.split('/').pop() || '')}`
   }
   const cloudName = parseCloudImageUri(raw)
   if (cloudName) {
-    const name = cloudName.replace(/\.txt$/i, '')
-    const bucket = BUCKET_BY_PREFIX.find(([prefix]) => name.startsWith(prefix))?.[1] || 'goods-images'
-    return `storage:${bucket}/${name}`
+    const name = bareCloudName(cloudName)
+    return `storage:${bucketFor(name)}/${name}`
   }
   if (/^remote:/i.test(raw)) return `remote:${raw.slice('remote:'.length)}`
   // 迁移只给外链加前缀，指向的还是同一个 URL
@@ -147,6 +184,9 @@ function checkDomain(label, beforeList, afterList, refBefore, refAfter) {
   const afterByKey = new Map(afterList.map((entry) => [entry.key, entry]))
   const dropped = []
   const mismatched = []
+  const cacheChanged = []
+  const hostRebased = []
+  const unresolved = []
 
   for (const before of beforeList) {
     const after = afterByKey.get(before.key)
@@ -154,16 +194,31 @@ function checkDomain(label, beforeList, afterList, refBefore, refAfter) {
       dropped.push(before)
       continue
     }
-    const beforeIdentity = displayIdentity(before.value)
-    const afterIdentity = displayIdentity(after.value)
-    if (beforeIdentity !== afterIdentity) {
-      mismatched.push({ key: before.key, before: before.value, after: after.value, beforeIdentity, afterIdentity })
+    const beforeIdentity = displayIdentity(before.image?.uri)
+    const afterIdentity = displayIdentity(after.image?.uri)
+    const sameObject = beforeIdentity === afterIdentity
+    if (!sameObject) {
+      mismatched.push({ key: before.key, before: before.image?.uri, after: after.image?.uri, beforeIdentity, afterIdentity })
+    }
+    const beforeUrl = localDisplayUrl(before.image)
+    const afterUrl = localDisplayUrl(after.image)
+    if (beforeUrl && !afterUrl) {
+      unresolved.push({ key: before.key, beforeUrl })
+    } else if (beforeUrl && afterUrl && beforeUrl !== afterUrl) {
+      // 同一个 Storage 对象、只是换了域名 → 一次性重新下载，不是坏图
+      if (sameObject) hostRebased.push({ key: before.key, beforeUrl, afterUrl })
+      else cacheChanged.push({ key: before.key, beforeUrl, afterUrl })
     }
   }
 
   const onlyBefore = [...refBefore].filter((name) => !refAfter.has(name))
   const onlyAfter = [...refAfter].filter((name) => !refBefore.has(name))
-  const ok = dropped.length === 0 && mismatched.length === 0 && onlyBefore.length === 0 && onlyAfter.length === 0
+  const ok = dropped.length === 0
+    && mismatched.length === 0
+    && cacheChanged.length === 0
+    && unresolved.length === 0
+    && onlyBefore.length === 0
+    && onlyAfter.length === 0
   if (!ok) failures += 1
 
   report.push({
@@ -171,11 +226,23 @@ function checkDomain(label, beforeList, afterList, refBefore, refAfter) {
     entries: `${beforeList.length} → ${afterList.length}`,
     identity: mismatched.length,
     dropped: dropped.length,
+    cache: cacheChanged.length,
+    rebased: hostRebased.length,
     refs: `${refBefore.size} → ${refAfter.size}`,
     refDiff: onlyBefore.length + onlyAfter.length,
     ok
   })
 
+  if (cacheChanged.length) {
+    console.log(`\n  ⚠ ${label}: ${cacheChanged.length} 条缓存键会变（旧缓存命中不了，需要重新下载）`)
+    for (const item of cacheChanged.slice(0, 5)) {
+      console.log(`    - ${item.key}\n      ${item.beforeUrl}\n      → ${item.afterUrl}`)
+    }
+  }
+  if (unresolved.length) {
+    console.log(`\n  ⚠ ${label}: ${unresolved.length} 条迁移后算不出显示地址（会白图）`)
+    for (const item of unresolved.slice(0, 5)) console.log(`    - ${item.key}: ${item.beforeUrl}`)
+  }
   if (mismatched.length) {
     console.log(`\n  ⚠ ${label}: ${mismatched.length} 条指向的对象变了`)
     for (const item of mismatched.slice(0, 5)) {
@@ -184,7 +251,7 @@ function checkDomain(label, beforeList, afterList, refBefore, refAfter) {
   }
   if (dropped.length) {
     console.log(`\n  ⚠ ${label}: ${dropped.length} 条迁移后读不出来`)
-    for (const item of dropped.slice(0, 5)) console.log(`    - ${item.key}: ${item.value}`)
+    for (const item of dropped.slice(0, 5)) console.log(`    - ${item.key}: ${item.image?.uri}`)
   }
   if (onlyBefore.length || onlyAfter.length) {
     console.log(`\n  ⚠ ${label}: 孤儿回收引用集合变化（可能导致误删）`)
@@ -193,11 +260,13 @@ function checkDomain(label, beforeList, afterList, refBefore, refAfter) {
   }
 }
 
-const normalizedRefs = (set) => new Set([...set].map((name) => String(name).replace(/\.txt$/i, '')))
+const normalizedRefs = (set) => new Set([...set].map((name) => bareCloudName(name)))
 
 async function main() {
   await pickBase()
-  console.log(`端点: ${URL_BASE}\n`)
+  console.log(`端点: ${URL_BASE}`)
+  await loadStorageIndex()
+  console.log(`Storage 索引: ${storageIndex.size} 个文件\n`)
 
   // ── 谷子 ──
   {
@@ -211,12 +280,8 @@ async function main() {
       if (!rawImages.length) continue
       const normalizedBefore = normalizeGoodsImageList(rawImages)
       const normalizedAfter = normalizeGoodsImageList(rawImages.map(migrateEntry))
-      for (const image of normalizedBefore) {
-        before.push({ key: `${row.id}/${image.id}`, value: image.uri })
-      }
-      for (const image of normalizedAfter) {
-        after.push({ key: `${row.id}/${image.id}`, value: image.uri })
-      }
+      for (const image of normalizedBefore) before.push({ key: `${row.id}/${image.id}`, image })
+      for (const image of normalizedAfter) after.push({ key: `${row.id}/${image.id}`, image })
       localBefore.push({ id: row.id, images: rawImages })
       localAfter.push({ id: row.id, images: normalizedAfter })
     }
@@ -227,7 +292,7 @@ async function main() {
       normalizedRefs(collectReferencedImageState({ goods: localBefore }).referencedFiles),
       normalizedRefs(collectReferencedImageState({ goods: localAfter }).referencedFiles)
     )
-    for (const image of after) gallery.push({ domain: '谷子', key: image.key, value: image.value })
+    for (const entry of after) gallery.push({ domain: '谷子', key: entry.key, image: entry.image })
   }
 
   // ── 活动 ──
@@ -249,16 +314,22 @@ async function main() {
           }
         : {})
       const photosAfter = normalizeEventPhotoList((row.photos || []).map(migrateEntry))
-
       const rawPhotos = Array.isArray(row.photos) ? row.photos : []
-      for (const photo of photosBefore) {
-        before.push({ key: `${row.id}/photo/${photo.id}`, value: photo.uri })
+
+      for (const photo of photosBefore) before.push({ key: `${row.id}/photo/${photo.id}`, image: photo })
+      for (const photo of photosAfter) after.push({ key: `${row.id}/photo/${photo.id}`, image: photo })
+      if (coverBefore.coverImage) {
+        before.push({
+          key: `${row.id}/cover`,
+          image: { uri: coverBefore.coverImage, cloudFileName: coverBefore.coverImageData?.cloudFileName }
+        })
       }
-      for (const photo of photosAfter) {
-        after.push({ key: `${row.id}/photo/${photo.id}`, value: photo.uri })
+      if (coverAfter.coverImage) {
+        after.push({
+          key: `${row.id}/cover`,
+          image: { uri: coverAfter.coverImage, cloudFileName: coverAfter.coverImageData?.cloudFileName }
+        })
       }
-      if (coverBefore.coverImage) before.push({ key: `${row.id}/cover`, value: coverBefore.coverImage })
-      if (coverAfter.coverImage) after.push({ key: `${row.id}/cover`, value: coverAfter.coverImage })
 
       localBefore.push({
         id: row.id,
@@ -280,7 +351,7 @@ async function main() {
       normalizedRefs(collectReferencedImageState({ events: localBefore }).referencedFiles),
       normalizedRefs(collectReferencedImageState({ events: localAfter }).referencedFiles)
     )
-    for (const image of after) gallery.push({ domain: '活动', key: image.key, value: image.value })
+    for (const entry of after) gallery.push({ domain: '活动', key: entry.key, image: entry.image })
   }
 
   // ── 充值记录 ──
@@ -293,8 +364,8 @@ async function main() {
     for (const row of rows) {
       if (!row.image) continue
       const migrated = migrateTextValue(row.image)
-      before.push({ key: row.id, value: row.image })
-      after.push({ key: row.id, value: migrated })
+      before.push({ key: row.id, image: { uri: row.image } })
+      after.push({ key: row.id, image: { uri: migrated } })
       localBefore.push({ id: row.id, image: row.image })
       localAfter.push({ id: row.id, image: migrated })
     }
@@ -305,7 +376,7 @@ async function main() {
       normalizedRefs(collectReferencedImageState({ recharge: localBefore }).referencedFiles),
       normalizedRefs(collectReferencedImageState({ recharge: localAfter }).referencedFiles)
     )
-    for (const image of after) gallery.push({ domain: '充值', key: image.key, value: image.value })
+    for (const entry of after) gallery.push({ domain: '充值', key: entry.key, image: entry.image })
   }
 
   // ── 批量草稿 ──
@@ -318,8 +389,15 @@ async function main() {
     for (const row of rows) {
       const items = Array.isArray(row.items) ? row.items : []
       const migratedItems = items.map(migrateEntry)
-      for (const item of items) before.push({ key: `${row.slot}/${item.id}`, value: item.imageUri || '' })
-      for (const item of migratedItems) after.push({ key: `${row.slot}/${item.id}`, value: item.imageUri || item.ref || '' })
+      for (const item of items) {
+        before.push({ key: `${row.slot}/${item.id}`, image: { uri: item.imageUri, cloudFileName: item.cloudFileName } })
+      }
+      for (const item of migratedItems) {
+        after.push({
+          key: `${row.slot}/${item.id}`,
+          image: { uri: item.imageUri || item.ref, cloudFileName: item.cloudFileName }
+        })
+      }
       localBefore.push({ id: row.slot, items })
       localAfter.push({ id: row.slot, items: migratedItems })
     }
@@ -338,17 +416,25 @@ async function main() {
     '条目(前→后)': row.entries,
     指向不一致: row.identity,
     迁移后丢失: row.dropped,
+    缓存键变化: row.cache,
+    '换域名(需重下)': row.rebased,
     '引用集(前→后)': row.refs,
     引用差集: row.refDiff,
     结论: row.ok ? 'OK' : '失败'
   })))
+
+  const rebasedTotal = report.reduce((sum, row) => sum + row.rebased, 0)
+  if (rebasedTotal > 0) {
+    console.log(`\n说明：${rebasedTotal} 条图片迁移后从旧直连域名切到当前数据面域名（同一个 Storage 对象，`)
+    console.log('缓存键随之变化，会重新下载一次；图片不会白，也不会占双份空间（旧缓存按容量淘汰）。')
+  }
 
   if (failures > 0) {
     console.error(`\n演练失败：${failures} 个域存在差异，先别跑云端迁移。`)
     process.exitCode = 1
     return
   }
-  console.log('\n演练通过：迁移前后指向同一批 Storage 对象，孤儿回收引用集合无变化。')
+  console.log('\n演练通过：指向同一批 Storage 对象、缓存键除换域名外不变、孤儿回收引用集合无变化。')
   console.log('下一步：确认所有设备都装了新版（会读 ref）再执行 SQL 迁移。')
 
   const htmlIndex = process.argv.indexOf('--html')
@@ -357,29 +443,13 @@ async function main() {
   }
 }
 
-// 缩略图预览：用 Storage 列表反查真实对象路径，生成公链地址
+// 缩略图预览：直接把迁移后会显示的 URL 渲染出来，人眼过一遍
 async function writeGallery(outPath) {
-  const BUCKETS = ['goods-images', 'event-photos', 'profile-backgrounds']
-  const pathByName = new Map()
-  for (const bucket of BUCKETS) {
-    for (const file of await listBucket(bucket)) {
-      pathByName.set(`${bucket}/${file.name.replace(/\.txt$/i, '')}`, file.path)
-    }
-  }
-
   const seen = new Set()
   const cards = []
   for (const item of gallery) {
-    const identity = displayIdentity(item.value)
-    const match = identity.match(/^storage:([^/]+)\/(.+)$/)
-    let src = ''
-    if (match) {
-      const fullPath = pathByName.get(`${match[1]}/${match[2]}`)
-      if (fullPath) src = `${URL_BASE}/storage/v1/object/public/${match[1]}/${fullPath}`
-    } else if (/^https?:\/\//i.test(String(item.value))) {
-      src = item.value
-    }
-    if (!src || seen.has(src)) continue
+    const src = localDisplayUrl(item.image)
+    if (!src || src.startsWith('missing:') || seen.has(src)) continue
     seen.add(src)
     cards.push(`<figure><img loading="lazy" src="${src}" alt=""><figcaption>${item.domain} · ${item.key}</figcaption></figure>`)
   }

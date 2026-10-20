@@ -801,6 +801,7 @@ const REALTIME_REASON_KEYS = {
   'no-client': 'sync.realtimeReason.noClient',
   'subscribe-failed': 'sync.realtimeReason.failed',
   'rebuild-failed': 'sync.realtimeReason.failed',
+  'auth-pending': 'sync.realtimeReason.authPending',
   manual: 'sync.realtimeReason.manual'
 }
 

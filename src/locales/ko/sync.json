@@ -327,5 +327,6 @@
   "sync.realtimeReason.health": "상태 확인 중 끊김 감지",
   "sync.realtimeReason.noClient": "클라이언트 준비 안됨",
   "sync.realtimeReason.failed": "다시 연결 실패",
+  "sync.realtimeReason.authPending": "로그인 정보 대기 중",
   "sync.realtimeReason.manual": "수동 다시 연결"
 }

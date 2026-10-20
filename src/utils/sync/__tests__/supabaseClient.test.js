@@ -34,7 +34,10 @@ function mockClient(url) {
   return {
     supabaseUrl: url,
     supabaseKey: KEY,
-    auth: { stopAutoRefresh: vi.fn() },
+    auth: {
+      stopAutoRefresh: vi.fn(),
+      getSession: vi.fn(async () => ({ data: { session: null } }))
+    },
     realtime: { disconnect: vi.fn() },
     removeAllChannels: vi.fn()
   }
@@ -324,6 +327,29 @@ describe('client lifecycle (no churn, no leak)', () => {
     expect(first.auth.stopAutoRefresh).not.toHaveBeenCalled()
     expect(first.realtime.disconnect).not.toHaveBeenCalled()
     expect(createClientMock).toHaveBeenCalledTimes(1)
+  })
+
+  // P0001 invalid column for filter user_id 的根因：supabase-js 默认在拿不到 session
+  // 时把 realtime token 回退成 anon key，anon 没有业务表 SELECT 权限。
+  it('realtime accessToken never falls back to the anon key', async () => {
+    const mod = await freshClient()
+    let options = null
+    const client = mockClient(PRIMARY)
+    createClientMock.mockImplementation((url, key, opts) => {
+      options = opts
+      return client
+    })
+    mod.initSupabaseClient(PRIMARY, KEY)
+
+    expect(options.realtime.accessToken).toBeTypeOf('function')
+    expect(await options.realtime.accessToken()).toBe('')
+
+    client.auth.getSession.mockResolvedValueOnce({ data: { session: { access_token: 'jwt-1' } } })
+    expect(await options.realtime.accessToken()).toBe('jwt-1')
+
+    // session 短暂读不到（后台恢复/刷新中）时沿用最后已知 token，而不是退回 anon
+    client.auth.getSession.mockResolvedValueOnce({ data: { session: null } })
+    expect(await options.realtime.accessToken()).toBe('jwt-1')
   })
 
   it('disposes the client on clearSupabaseClient', async () => {

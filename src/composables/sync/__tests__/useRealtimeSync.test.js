@@ -8,9 +8,11 @@ const mocks = vi.hoisted(() => ({
   staleChannels: [],
   socketUp: { value: true },
   socketConnecting: { value: false },
-  auth: { user: { id: 'user-1' } },
+  auth: { user: { id: 'user-1' }, session: null },
   disconnect: vi.fn(async () => 'ok'),
-  reconnectSupabase: vi.fn(async () => true)
+  reconnectSupabase: vi.fn(async () => true),
+  getSession: vi.fn(async () => ({ data: { session: null } })),
+  setAuth: vi.fn(async () => {})
 }))
 
 vi.mock('@/utils/sync/supabaseClient', () => {
@@ -29,10 +31,14 @@ vi.mock('@/utils/sync/supabaseClient', () => {
         return channel
       },
       getChannels: () => mocks.staleChannels,
+      auth: {
+        getSession: mocks.getSession
+      },
       realtime: {
         isConnected: () => mocks.socketUp.value,
         isConnecting: () => mocks.socketConnecting.value,
-        disconnect: mocks.disconnect
+        disconnect: mocks.disconnect,
+        setAuth: mocks.setAuth
       }
     })),
     reconnectSupabase: mocks.reconnectSupabase,
@@ -97,6 +103,10 @@ describe('useRealtimeSync realtime state', () => {
     mocks.socketUp.value = true
     mocks.socketConnecting.value = false
     mocks.auth.user = { id: 'user-1' }
+    mocks.auth.session = { access_token: 'token-1', expires_at: Math.floor(Date.now() / 1000) + 3600 }
+    mocks.getSession.mockReset()
+    mocks.getSession.mockResolvedValue({ data: { session: mocks.auth.session } })
+    mocks.setAuth.mockClear()
     mocks.disconnect.mockClear()
     mocks.reconnectSupabase.mockClear()
     realtimeState.value = { status: 'idle', reason: '', attempt: 0, changedAt: 0 }
@@ -123,6 +133,27 @@ describe('useRealtimeSync realtime state', () => {
     expect(realtimeState.value.status).toBe('connected')
     expect(realtimeState.value.reason).toBe('')
     expect(realtimeState.value.attempt).toBe(0)
+  })
+
+  it('创建 channel 前先同步 Realtime JWT，避免以 anon 角色 join 触发 P0001', async () => {
+    await mountReady()
+
+    expect(mocks.setAuth).toHaveBeenCalledWith('token-1')
+    expect(mocks.channels).toHaveLength(7)
+  })
+
+  it('session 未就绪时不创建 channel，token 到达后自动补订阅', async () => {
+    mocks.auth.session = null
+    mocks.getSession.mockResolvedValueOnce({ data: { session: null } })
+
+    await mountReady()
+    expect(mocks.channels).toHaveLength(0)
+    expect(realtimeState.value.status).toBe('reconnecting')
+    expect(realtimeState.value.reason).toBe('auth-pending')
+
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(mocks.setAuth).toHaveBeenCalledWith('token-1')
+    expect(mocks.channels).toHaveLength(7)
   })
 
   it('单表 CHANNEL_ERROR 只重建该表，不影响其它表', async () => {
