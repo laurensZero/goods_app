@@ -499,10 +499,23 @@ function runManageEntryPrimary(entry) {
   if (entry.path) goManageChild(entry.path)
 }
 
-function handleResize() { windowWidth.value = window.innerWidth }
+function handleResize() {
+  const wasDesktop = isDesktopSettingsViewport.value
+  windowWidth.value = window.innerWidth
+  // 跨断点时滚动容器会在 .page-body / .settings-detail 之间切换，需要重新绑定监听
+  if (wasDesktop !== isDesktopSettingsViewport.value) {
+    unbindPageScroll()
+    nextTick(() => bindPageScroll())
+  }
+}
 
 // 只恢复从设置子页返回的情况；首次进入设置页不读取旧位置。
 const pageBodyRef = ref(null)
+// 桌面/平板（≥1200）布局下页面本身 overflow:hidden，真正滚动的是右侧详情面板；
+// 移动端才是整页 .page-body 滚动。不区分容器会导致记录到的一直是 0。
+const scrollRestoreRef = computed(() =>
+  isDesktopSettingsViewport.value ? settingsDetailRef.value : pageBodyRef.value
+)
 let pageScrollRaf = 0
 let isRouteLeaving = false
 const {
@@ -512,7 +525,7 @@ const {
   saveScrollPosition,
   restorePendingScrollPosition,
   cancelPendingRestore
-} = createPageScrollRestore('manage')(pageBodyRef)
+} = createPageScrollRestore('manage')(scrollRestoreRef)
 const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({
   getScrollEl,
   markScrollSource,

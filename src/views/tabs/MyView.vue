@@ -849,8 +849,8 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -867,6 +867,7 @@ import { useQQBindingStore } from '@/stores/qqBinding'
 import { detectMarkdownContent, renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
+import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
@@ -891,6 +892,37 @@ const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
 const qqStore = useQQBindingStore()
 const pageBodyRef = ref(null)
+
+// ── 页面滚动位置记录 ──
+// 我的页是 KeepAlive 页面：tab 切换、进入设置/同步等子页后返回时都恢复上次位置，
+// 首次挂载仍从顶部开始（见 onMounted 的清空逻辑）。
+let pageScrollRaf = 0
+let isRouteLeaving = false
+const {
+  getScrollEl,
+  getStoredScrollState,
+  markScrollSource,
+  rememberCurrentScrollPosition,
+  saveScrollPosition,
+  restoreActivatedScrollPosition,
+  cancelPendingRestore,
+  clearStoredScrollState,
+  clearDisplayedScrollPosition
+} = createPageScrollRestore('my')(pageBodyRef)
+const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({
+  getScrollEl,
+  markScrollSource,
+  handlePageScroll
+})
+
+function handlePageScroll() {
+  if (isRouteLeaving || pageScrollRaf) return
+  pageScrollRaf = window.requestAnimationFrame(() => {
+    pageScrollRaf = 0
+    if (!isRouteLeaving) rememberCurrentScrollPosition()
+  })
+}
+
 const showLoginDialog = ref(false)
 const showLogoutDialog = ref(false)
 const showBudgetDialog = ref(false)
@@ -1477,18 +1509,50 @@ useDialogBackButton(closeAnnouncementList, () => announcementStore.listVisible)
 useDialogBackButton(closeAnnouncementDetail, () => detailAnnouncement.value !== null)
 
 onMounted(async () => {
+  isRouteLeaving = false
+  // 首次挂载不复用上一次会话的滚动位置，直接从顶部开始
+  clearStoredScrollState()
+  clearDisplayedScrollPosition()
   resetPageScrollTop()
-  window.requestAnimationFrame(resetPageScrollTop)
+  bindPageScroll()
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
 })
 
-onActivated(() => {
+onActivated(async () => {
+  isRouteLeaving = false
   resetScannerState()
-  resetPageScrollTop()
-  window.requestAnimationFrame(resetPageScrollTop)
   void loadBudgetSettings()
+  const storedState = getStoredScrollState()
+  if (storedState?.source) markScrollSource(storedState.source)
+  await restoreActivatedScrollPosition(() => {}, () => {})
+  bindPageScroll()
+})
+
+onDeactivated(() => {
+  cancelPendingRestore()
+  if (!isRouteLeaving) rememberCurrentScrollPosition()
+  unbindPageScroll()
+})
+
+onBeforeRouteLeave(() => {
+  isRouteLeaving = true
+  saveScrollPosition(false, 'my:onBeforeRouteLeave')
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
+})
+
+onBeforeUnmount(() => {
+  cancelPendingRestore()
+  if (pageScrollRaf) {
+    window.cancelAnimationFrame(pageScrollRaf)
+    pageScrollRaf = 0
+  }
+  unbindPageScroll()
 })
 </script>
 
