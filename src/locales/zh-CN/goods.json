@@ -31,6 +31,7 @@
   "goods.batch.inputCharacterName": "输入角色名称",
   "goods.batch.inputIpName": "输入 IP 名称",
   "goods.batch.leaveEmptyNoChange": "留空则不修改",
+  "goods.batch.invalidQuantity": "数量需为大于等于 1 的整数",
   "goods.batch.markAsOwned": "批量标记已入手",
   "goods.batch.markAsOwnedDesc": "勾选后会把这些心愿移到收藏；未填写购入日期时自动写入今天。",
   "goods.batch.modifyItems": "修改 {count} 件谷子",

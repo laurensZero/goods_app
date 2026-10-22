@@ -31,6 +31,7 @@
   "goods.batch.inputCharacterName": "캐릭터 이름 입력",
   "goods.batch.inputIpName": "IP 이름 입력",
   "goods.batch.leaveEmptyNoChange": "비워두면 변경 없음",
+  "goods.batch.invalidQuantity": "수량은 1 이상의 정수여야 합니다",
   "goods.batch.markAsOwned": "일괄 소유로 변경",
   "goods.batch.markAsOwnedDesc": "체크하면 위시리스트 아이템이 컬렉션으로 이동됩니다. 구매일이 설정되지 않은 경우 오늘 날짜가 사용됩니다.",
   "goods.batch.modifyItems": "{count}개 변경",

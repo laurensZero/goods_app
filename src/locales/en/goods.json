@@ -31,6 +31,7 @@
   "goods.batch.inputCharacterName": "Enter character name",
   "goods.batch.inputIpName": "Enter IP name",
   "goods.batch.leaveEmptyNoChange": "Leave empty to keep unchanged",
+  "goods.batch.invalidQuantity": "Quantity must be a whole number of at least 1",
   "goods.batch.markAsOwned": "Batch Mark as Owned",
   "goods.batch.markAsOwnedDesc": "When checked, these wishlist items will be moved to collection; if no purchase date is set, today's date will be used.",
   "goods.batch.modifyItems": "Modify {count} items",

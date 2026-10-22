@@ -31,6 +31,7 @@
   "goods.batch.inputCharacterName": "キャラクター名を入力",
   "goods.batch.inputIpName": "IP名を入力",
   "goods.batch.leaveEmptyNoChange": "空欄のままにすると変更なし",
+  "goods.batch.invalidQuantity": "数量は1以上の整数で入力してください",
   "goods.batch.markAsOwned": "一括で所有に変更",
   "goods.batch.markAsOwnedDesc": "チェックすると、これらのウィッシュリストアイテムがコレクションに移動されます。購入日が未設定の場合は今日の日付が使用されます。",
   "goods.batch.modifyItems": "{count}件を変更",

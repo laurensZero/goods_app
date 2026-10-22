@@ -131,6 +131,52 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     expect(item.statusTimeline).toContainEqual({ status: '已拥有', at: '2026-03-01' })
   })
 
+  it('批量改数量：减少数量时按新数量裁剪逐件数据', async () => {
+    const list = shallowRef([
+      {
+        ...makeItem('qty-down'),
+        isWishlist: false,
+        collectStatus: '已拥有',
+        acquiredAt: '2026-01-01',
+        quantity: 3,
+        unitCollectStatusList: ['已拥有', '已出', '已拥有'],
+        unitActualPriceList: ['100', '200', '300'],
+        unitAcquiredAtList: ['2026-01-01', '2026-02-01', '2026-03-01'],
+        unitSaleInfoList: [null, { price: '250', date: '2026-09-01' }, null]
+      }
+    ])
+
+    await updateMultipleGoods(new Set(['qty-down']), { quantity: 2 }, list)
+
+    const item = list.value[0]
+    expect(item.quantity).toBe(2)
+    expect(item.unitCollectStatusList).toEqual(['已拥有', '已出'])
+    expect(item.unitActualPriceList).toEqual(['100', '200'])
+    expect(item.unitAcquiredAtList).toEqual(['2026-01-01', '2026-02-01'])
+    expect(item.unitSaleInfoList).toEqual([null, { price: '250', date: '2026-09-01' }])
+  })
+
+  it('批量改数量：增加数量时保留整条时间线，逐件数据保持空边界', async () => {
+    const list = shallowRef([
+      {
+        ...makeItem('qty-up'),
+        isWishlist: false,
+        collectStatus: '已拥有',
+        acquiredAt: '2026-01-01',
+        quantity: 1,
+        statusTimeline: [{ status: '已拥有', at: '2026-01-01' }]
+      }
+    ])
+
+    await updateMultipleGoods(new Set(['qty-up']), { quantity: 3 }, list)
+
+    const item = list.value[0]
+    expect(item.quantity).toBe(3)
+    expect(item.unitCollectStatusList).toEqual([])
+    // 整条状态条目不带 unitIndexes，新增份数沿用同一条记录
+    expect(item.statusTimeline).toEqual([{ status: '已拥有', at: '2026-01-01' }])
+  })
+
   it('批量心愿转收藏：custom 序号重新接到收藏末尾且不重复', async () => {
     const list = shallowRef([
       { ...makeItem('c1'), isWishlist: false, manualOrders: { custom: 10 } },

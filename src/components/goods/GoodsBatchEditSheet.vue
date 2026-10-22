@@ -224,6 +224,23 @@
             </button>
           </label>
 
+          <label class="field" :class="{ 'field--error': quantityError }">
+            <span class="field-label">{{ t('goods.editor.quantity') }}</span>
+            <input
+              v-model="form.quantity"
+              class="field-input"
+              type="number"
+              min="1"
+              step="1"
+              inputmode="numeric"
+              :placeholder="t('goods.batch.leaveEmptyNoChange')"
+              :aria-invalid="Boolean(quantityError)"
+              @keydown="preventQuantityKeys"
+              @input="sanitizeQuantityInput"
+            />
+            <span v-if="quantityError" class="field-error">{{ quantityError }}</span>
+          </label>
+
           <label class="field" :class="{ 'field--error': priceError }">
             <span class="field-label">{{ t('goods.editor.priceLabel') }}（¥）</span>
             <input
@@ -320,12 +337,14 @@ const quickIpName = ref('')
 const quickCharacterName = ref('')
 const quickCharacterIp = ref(NO_IP_OPTION)
 const priceError = ref('')
+const quantityError = ref('')
 const form = reactive({
   markAsOwned: false,
   // 星标三态：'' 不修改 / 'yes' 加星标 / 'no' 取消星标
   starred: '',
   category: '',
   ip: '',
+  quantity: '',
   price: '',
   acquiredAt: '',
   storageLocation: '',
@@ -355,7 +374,7 @@ const showProxy = computed({
 const { isWide } = useWideViewport()
 const isTablet = isWide
 
-function hasPriceInput(value) {
+function hasInputValue(value) {
   return value !== '' && value !== null && value !== undefined
 }
 
@@ -385,20 +404,32 @@ function sanitizeShippingFeeInput(event) {
   form.shippingFee = rawValue.replace(/-/g, '')
 }
 
+function preventQuantityKeys(event) {
+  if (['-', '+', '.', 'e', 'E'].includes(event.key)) {
+    event.preventDefault()
+  }
+}
+
+function sanitizeQuantityInput(event) {
+  const rawValue = String(event?.target?.value ?? form.quantity ?? '')
+  form.quantity = rawValue.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '')
+}
+
 const canSubmit = computed(() =>
   Boolean(
     form.markAsOwned ||
     form.starred !== '' ||
     form.category ||
     form.ip ||
-    hasPriceInput(form.price) ||
+    hasInputValue(form.quantity) ||
+    hasInputValue(form.price) ||
     form.acquiredAt ||
     form.storageLocation ||
     form.characters.length > 0 ||
     form.tags.length > 0 ||
     form.collectStatus ||
-    hasPriceInput(form.shippingFee)
-  ) && !priceError.value
+    hasInputValue(form.shippingFee)
+  ) && !priceError.value && !quantityError.value
 )
 const storageLocationOptions = computed(() => goodsStore.storageLocations)
 const quickCharacterIpOptions = computed(() => {
@@ -461,11 +492,27 @@ watch(
   }
 )
 
+watch(
+  () => form.quantity,
+  (value) => {
+    if (value === '') {
+      quantityError.value = ''
+      return
+    }
+
+    const numeric = Number(value)
+    quantityError.value = Number.isInteger(numeric) && numeric >= 1
+      ? ''
+      : t('goods.batch.invalidQuantity')
+  }
+)
+
 function resetForm() {
   form.markAsOwned = false
   form.starred = ''
   form.category = ''
   form.ip = ''
+  form.quantity = ''
   form.price = ''
   form.acquiredAt = ''
   form.storageLocation = ''
@@ -474,6 +521,7 @@ function resetForm() {
   form.collectStatus = ''
   form.shippingFee = ''
   priceError.value = ''
+  quantityError.value = ''
   closeQuickCreate()
   datePickerValue.value = toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD'))
   closeNestedPanels()
@@ -585,6 +633,14 @@ async function apply() {
     return
   }
 
+  if (hasInputValue(form.quantity)) {
+    const quantityValue = Number(form.quantity)
+    if (!Number.isInteger(quantityValue) || quantityValue < 1) {
+      quantityError.value = t('goods.batch.invalidQuantity')
+      return
+    }
+  }
+
   const payload = {}
   if (form.markAsOwned) {
     payload.isWishlist = false
@@ -596,13 +652,14 @@ async function apply() {
   if (form.starred) payload.starred = form.starred === 'yes'
   if (form.category) payload.category = form.category
   if (form.ip) payload.ip = form.ip
-  if (hasPriceInput(form.price)) payload.price = `${Math.round(Number(form.price) * 100) / 100}`
+  if (hasInputValue(form.quantity)) payload.quantity = Math.floor(Number(form.quantity))
+  if (hasInputValue(form.price)) payload.price = `${Math.round(Number(form.price) * 100) / 100}`
   if (form.acquiredAt) payload.acquiredAt = form.acquiredAt
   if (form.storageLocation) payload.storageLocation = form.storageLocation
   if (form.characters.length > 0) payload.characters = [...form.characters]
   if (form.tags.length > 0) payload.tags = [...form.tags]
   if (form.collectStatus) payload.collectStatus = form.collectStatus
-  if (hasPriceInput(form.shippingFee)) payload.shippingFee = `${Math.round(Number(form.shippingFee) * 100) / 100}`
+  if (hasInputValue(form.shippingFee)) payload.shippingFee = `${Math.round(Number(form.shippingFee) * 100) / 100}`
   if (Object.keys(payload).length === 0) return
 
   emit('apply', payload)
