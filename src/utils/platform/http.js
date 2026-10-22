@@ -4,6 +4,7 @@ const DEFAULT_TIMEOUT_MS = 30000
 
 const DESKTOP_PROXY_RULES = Object.freeze([
   { prefix: '/mihoyo-api', target: 'https://api-mall.mihoyogift.com' },
+  { prefix: '/mihoyo-passport', target: 'https://passport-api.mihoyogift.com' },
   { prefix: '/mihoyo-static', target: 'https://sdk-webstatic.mihoyo.com' },
   { prefix: '/netease-api', target: 'https://music.163.com' },
   { prefix: '/qqmusic-api', target: 'https://u.y.qq.com' },

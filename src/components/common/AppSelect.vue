@@ -1,6 +1,6 @@
 <template>
   <div ref="rootRef" class="app-select" :class="{ 'app-select--open': open, 'app-select--disabled': disabled }">
-    <button class="app-select__trigger" type="button" :disabled="disabled" @pointerdown="flushActiveInput" @click="toggle">
+    <button ref="triggerRef" class="app-select__trigger" type="button" :disabled="disabled" @pointerdown="flushActiveInput" @click="toggle">
       <span class="app-select__value" :class="{ 'app-select__value--placeholder': !displayLabel }">
         {{ displayLabel || placeholder || t('common.selectPlaceholder') }}
       </span>
@@ -10,32 +10,43 @@
       </svg>
     </button>
 
-    <transition name="select-panel">
-      <div v-if="open" class="app-select__panel">
-        <button
-          v-for="option in normalizedOptions"
-          :key="option.value"
-          class="app-select__option"
-          :class="{ 'app-select__option--active': option.value === modelValue }"
-          type="button"
-          @click="selectOption(option.value)"
+    <Teleport to="body" :disabled="!teleport">
+      <transition name="select-panel">
+        <div
+          v-if="open"
+          ref="panelRef"
+          class="app-select__panel"
+          :class="{
+            'app-select__panel--teleported': teleport,
+            'app-select__panel--above': teleport && panelPosition.above
+          }"
+          :style="panelStyle"
         >
-          <span>{{ option.label }}</span>
-
-          <svg
-            v-if="option.value === modelValue"
-            class="app-select__check"
-            viewBox="0 0 24 24"
-            fill="none"
-            aria-hidden="true"
+          <button
+            v-for="option in normalizedOptions"
+            :key="option.value"
+            class="app-select__option"
+            :class="{ 'app-select__option--active': option.value === modelValue }"
+            type="button"
+            @click="selectOption(option.value)"
           >
-            <path d="M5 13L9 17L19 7" />
-          </svg>
-        </button>
+            <span>{{ option.label }}</span>
 
-        <div v-if="normalizedOptions.length === 0" class="app-select__empty">{{ t('common.noOptions') }}</div>
-      </div>
-    </transition>
+            <svg
+              v-if="option.value === modelValue"
+              class="app-select__check"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden="true"
+            >
+              <path d="M5 13L9 17L19 7" />
+            </svg>
+          </button>
+
+          <div v-if="normalizedOptions.length === 0" class="app-select__empty">{{ t('common.noOptions') }}</div>
+        </div>
+      </transition>
+    </Teleport>
   </div>
 </template>
 
@@ -60,6 +71,14 @@ const props = defineProps({
   disabled: {
     type: Boolean,
     default: false
+  },
+  /**
+   * 把面板 Teleport 到 body 并用 fixed 定位，避免被 AppSheet 等
+   * overflow 容器裁剪。默认关闭，保持既有调用方行为不变。
+   */
+  teleport: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -67,7 +86,11 @@ const emit = defineEmits(['update:modelValue'])
 const { t } = useI18n()
 
 const rootRef = ref(null)
+const triggerRef = ref(null)
+const panelRef = ref(null)
 const open = ref(false)
+const panelPosition = ref({ top: 0, bottom: 0, left: 0, width: 0, maxHeight: 280, above: false })
+let positionListenersBound = false
 
 const normalizedOptions = computed(() =>
   props.options.map((item) => {
@@ -87,14 +110,75 @@ const displayLabel = computed(() => {
   return matched?.label ?? ''
 })
 
+const panelStyle = computed(() => {
+  if (!props.teleport) return {}
+  const p = panelPosition.value
+  return {
+    top: p.above ? 'auto' : `${p.top}px`,
+    bottom: p.above ? `${p.bottom}px` : 'auto',
+    left: `${p.left}px`,
+    width: `${p.width}px`,
+    maxHeight: `${p.maxHeight}px`
+  }
+})
+
+function updatePanelPosition() {
+  if (!props.teleport) return
+  const rect = triggerRef.value?.getBoundingClientRect()
+  if (!rect) return
+
+  const gap = 8
+  const margin = 12
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  const spaceBelow = viewportHeight - rect.bottom - gap - margin
+  const spaceAbove = rect.top - gap - margin
+  const above = spaceBelow < 180 && spaceAbove > spaceBelow
+  const maxHeight = Math.max(140, Math.min(300, above ? spaceAbove : spaceBelow))
+  const width = Math.min(rect.width, viewportWidth - margin * 2)
+  const left = Math.min(Math.max(rect.left, margin), viewportWidth - width - margin)
+
+  panelPosition.value = {
+    top: rect.bottom + gap,
+    bottom: viewportHeight - rect.top + gap,
+    left,
+    width,
+    maxHeight,
+    above
+  }
+}
+
+function bindPositionListeners() {
+  if (!props.teleport || positionListenersBound) return
+  positionListenersBound = true
+  window.addEventListener('resize', updatePanelPosition)
+  document.addEventListener('scroll', updatePanelPosition, true)
+}
+
+function unbindPositionListeners() {
+  if (!positionListenersBound) return
+  positionListenersBound = false
+  window.removeEventListener('resize', updatePanelPosition)
+  document.removeEventListener('scroll', updatePanelPosition, true)
+}
+
 async function toggle() {
   if (props.disabled) return
   await commitActiveInput()
-  open.value = !open.value
+  if (open.value) {
+    close()
+    return
+  }
+  if (props.teleport) {
+    updatePanelPosition()
+    bindPositionListeners()
+  }
+  open.value = true
 }
 
 function close() {
   open.value = false
+  unbindPositionListeners()
 }
 
 function selectOption(value) {
@@ -103,6 +187,8 @@ function selectOption(value) {
 }
 
 function handleClickOutside(event) {
+  // Teleport 后面板不在 rootRef 内，需要单独判断，否则点击选项会被提前关闭
+  if (panelRef.value?.contains(event.target)) return
   if (!rootRef.value?.contains(event.target)) {
     close()
   }
@@ -114,6 +200,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  unbindPositionListeners()
   document.removeEventListener('mousedown', handleClickOutside)
   document.removeEventListener('touchstart', handleClickOutside)
 })
@@ -202,6 +289,19 @@ onBeforeUnmount(() => {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
+.app-select__panel--teleported {
+  position: fixed;
+  z-index: 1000;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.app-select__panel--teleported::-webkit-scrollbar {
+  display: none;
+}
+
 .app-select__option {
   display: flex;
   align-items: center;
@@ -257,6 +357,16 @@ onBeforeUnmount(() => {
 .select-panel-leave-to {
   opacity: 0;
   transform: translateY(-6px);
+}
+
+.app-select__panel--above.select-panel-enter-active,
+.app-select__panel--above.select-panel-leave-active {
+  transform-origin: bottom center;
+}
+
+.app-select__panel--above.select-panel-enter-from,
+.app-select__panel--above.select-panel-leave-to {
+  transform: translateY(6px);
 }
 
 html.theme-dark .app-select__trigger {

@@ -235,7 +235,13 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/mihoyo-passport/, ''),
         selfHandleResponse: true,
         configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            // 地址管理等需要登录态的接口：浏览器不能设 Cookie 头，由 x-cookie-forward 转写
+            const forwardedCookie = req.headers['x-cookie-forward']
+            if (forwardedCookie) {
+              proxyReq.setHeader('cookie', decodeURIComponent(forwardedCookie))
+              proxyReq.removeHeader('x-cookie-forward')
+            }
             proxyReq.setHeader('origin', 'https://user.mihoyogift.com')
             proxyReq.setHeader('referer', 'https://user.mihoyogift.com/')
             if (!proxyReq.getHeader('x-rpc-app_id')) {

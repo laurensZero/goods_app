@@ -10,9 +10,20 @@
 
 const TARGET_ORIGIN = 'https://passport-api.mihoyogift.com'
 const PREFIX = '/mihoyo-passport'
-const ALLOWED_PATHS = new Set([
+const QR_LOGIN_PATHS = new Set([
   '/account/ma-cn-passport/web/createQRLogin',
   '/account/ma-cn-passport/web/queryQRLoginStatus',
+])
+const ADDRESS_GET_PATHS = new Set([
+  '/account/address/list',
+  '/account/address/queryDivisions',
+  '/account/address/v2/getAddress',
+])
+const ADDRESS_POST_PATHS = new Set([
+  '/account/address/v2/newAddress',
+  '/account/address/v2/updateAddress',
+  '/account/address/v2/deleteAddress',
+  '/account/address/v2/setDefaultAddress',
 ])
 
 const AUTH_COOKIE_KEYS = new Set([
@@ -51,8 +62,8 @@ function corsHeaders(origin) {
     'access-control-allow-origin': origin || '*',
     'access-control-allow-credentials': 'true',
     'access-control-allow-headers':
-      'content-type,x-rpc-app_id,x-rpc-client_type,x-rpc-game_biz,x-rpc-device_id,x-rpc-device_fp,x-rpc-device_name,x-rpc-device_model,x-rpc-device_os,x-rpc-sdk_version,x-rpc-lifecycle_id,x-rpc-mi_referrer',
-    'access-control-allow-methods': 'POST,OPTIONS',
+      'content-type,x-cookie-forward,x-rpc-app_id,x-rpc-client_type,x-rpc-game_biz,x-rpc-device_id,x-rpc-device_fp,x-rpc-device_name,x-rpc-device_model,x-rpc-device_os,x-rpc-sdk_version,x-rpc-lifecycle_id,x-rpc-mi_referrer',
+    'access-control-allow-methods': 'GET,POST,OPTIONS',
     'access-control-expose-headers': 'X-Mihoyo-Set-Cookie,X-Rpc-Aigis,X-Trace-Id',
     'access-control-max-age': '86400',
   }
@@ -112,7 +123,7 @@ export async function onRequest(context) {
     return new Response(null, { status: 204, headers: cors })
   }
 
-  if (request.method !== 'POST') {
+  if (!['GET', 'POST'].includes(request.method)) {
     return new Response(JSON.stringify({ retcode: -1, message: 'Method not allowed' }), {
       status: 405,
       headers: { ...cors, 'content-type': 'application/json;charset=utf-8', 'cache-control': 'no-store' },
@@ -121,7 +132,10 @@ export async function onRequest(context) {
 
   const url = new URL(request.url)
   const path = url.pathname.replace(/^\/mihoyo-passport/, '') || '/'
-  if (!ALLOWED_PATHS.has(path)) {
+  const allowed = request.method === 'GET'
+    ? (ADDRESS_GET_PATHS.has(path) || QR_LOGIN_PATHS.has(path))
+    : (QR_LOGIN_PATHS.has(path) || ADDRESS_POST_PATHS.has(path))
+  if (!allowed) {
     return new Response(JSON.stringify({ retcode: -1, message: 'Path not allowed' }), {
       status: 403,
       headers: { ...cors, 'content-type': 'application/json;charset=utf-8', 'cache-control': 'no-store' },
@@ -134,6 +148,20 @@ export async function onRequest(context) {
   headers.set('Accept-Language', 'zh-CN,zh;q=0.9')
   headers.set('Origin', 'https://user.mihoyogift.com')
   headers.set('Referer', 'https://user.mihoyogift.com/')
+
+  // 地址接口需要登录态：浏览器用 x-cookie-forward 转发，原生/外部调用可直接带 Cookie
+  let forwardedCookie = request.headers.get('cookie') || ''
+  if (!forwardedCookie) {
+    const raw = request.headers.get('x-cookie-forward') || ''
+    if (raw) {
+      try {
+        forwardedCookie = decodeURIComponent(raw)
+      } catch {
+        forwardedCookie = raw
+      }
+    }
+  }
+  if (forwardedCookie) headers.set('Cookie', forwardedCookie)
 
   const contentType = request.headers.get('content-type')
   if (contentType) headers.set('Content-Type', contentType)
@@ -160,11 +188,11 @@ export async function onRequest(context) {
   if (!headers.get('x-rpc-game_biz')) headers.set('x-rpc-game_biz', 'mall_cn')
 
   try {
-    const bodyText = await request.text()
+    const bodyText = request.method === 'POST' ? await request.text() : ''
     const upstream = await fetch(target.toString(), {
-      method: 'POST',
+      method: request.method,
       headers,
-      body: bodyText || '{}',
+      ...(request.method === 'POST' ? { body: bodyText || '{}' } : {}),
       redirect: 'follow',
     })
 
