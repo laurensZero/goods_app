@@ -1,13 +1,19 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { HOME_MOTION } from '@/constants/homeMotion'
 import { normalizeHomeSortMode } from '@/utils/goods/homeSort'
+import {
+  HIDDEN_COLLECT_STATUS_STORAGE_KEY,
+  HIDDEN_COLLECT_STATUS_VALUES,
+  normalizeHiddenCollectStatuses
+} from '@/utils/goods/hiddenStatus'
 
 const DEFAULT_STORAGE_KEYS = {
   displayMode: 'goods-app:home-display-mode',
   gridDensity: 'goods-app:home-grid-density',
   sortDirection: 'goods-app:home-sort-direction',
   sortMode: 'goods-app:home-sort-mode',
-  groupDisplayMode: 'goods-app:home-group-display-mode'
+  groupDisplayMode: 'goods-app:home-group-display-mode',
+  hiddenCollectStatuses: HIDDEN_COLLECT_STATUS_STORAGE_KEY
 }
 
 export const GROUP_DISPLAY_MODES = {
@@ -64,6 +70,7 @@ export function useHomePreferences(windowWidth, options = {}) {
   const sortDirection = ref('desc')
   const sortMode = ref('createdAt')
   const groupDisplayMode = ref(GROUP_DISPLAY_MODES.pinned)
+  const hiddenCollectStatuses = ref([])
   const isDensityAnimating = ref(false)
   const isSortAnimating = ref(false)
   let densityAnimationTimer = 0
@@ -140,6 +147,14 @@ export function useHomePreferences(windowWidth, options = {}) {
     groupDisplayMode.value = mode
   }
 
+  function toggleHiddenCollectStatus(status) {
+    if (!HIDDEN_COLLECT_STATUS_VALUES.includes(status)) return
+    const current = hiddenCollectStatuses.value
+    hiddenCollectStatuses.value = current.includes(status)
+      ? current.filter((value) => value !== status)
+      : [...current, status]
+  }
+
   function restoreDisplayDensity() {
     const storedDisplayMode = localStorage.getItem(displayModeStorageKey)
     if (allowTimeline && storedDisplayMode === 'timeline') {
@@ -176,11 +191,21 @@ export function useHomePreferences(windowWidth, options = {}) {
     }
   }
 
+  function restoreHiddenCollectStatuses() {
+    try {
+      const raw = localStorage.getItem(storageKeys.hiddenCollectStatuses)
+      hiddenCollectStatuses.value = raw ? normalizeHiddenCollectStatuses(JSON.parse(raw)) : []
+    } catch {
+      hiddenCollectStatuses.value = []
+    }
+  }
+
   function restoreHomePreferences() {
     restoreSortMode()
     restoreSortDirection()
     restoreDisplayDensity()
     restoreGroupDisplayMode()
+    restoreHiddenCollectStatuses()
   }
 
   // Restore synchronously during setup so keep-alive pages don't flash
@@ -206,6 +231,13 @@ export function useHomePreferences(windowWidth, options = {}) {
     localStorage.setItem(storageKeys.groupDisplayMode, value)
   })
 
+  watch(hiddenCollectStatuses, (value) => {
+    localStorage.setItem(
+      storageKeys.hiddenCollectStatuses,
+      JSON.stringify(normalizeHiddenCollectStatuses(value))
+    )
+  })
+
   onBeforeUnmount(() => {
     clearDensityAnimationTimer()
     clearSortAnimationTimer()
@@ -218,6 +250,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     sortDirection,
     sortMode,
     groupDisplayMode,
+    hiddenCollectStatuses,
     isDensityAnimating,
     isSortAnimating,
     getResponsiveCols,
@@ -227,10 +260,12 @@ export function useHomePreferences(windowWidth, options = {}) {
     triggerSortAnimation,
     setSortMode,
     setGroupDisplayMode,
+    toggleHiddenCollectStatus,
     restoreDisplayDensity,
     restoreSortDirection,
     restoreSortMode,
     restoreGroupDisplayMode,
+    restoreHiddenCollectStatuses,
     restoreHomePreferences,
     clearDensityAnimationTimer,
     clearSortAnimationTimer

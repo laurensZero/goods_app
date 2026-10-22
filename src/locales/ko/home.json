@@ -17,6 +17,8 @@
   "home.groupDisplay.hiddenDesc": "그룹 아이템을 개별 항목으로 표시",
   "home.groupDisplay.pinned": "고정",
   "home.groupDisplay.pinnedDesc": "그룹을 항상 상단에 표시",
+  "home.hideStatus.desc": "컬렉션 목록과 그룹 상세 표시에만 영향을 주며 데이터는 삭제되지 않습니다. 여러 개 상품은 개별 상태에 따라 숨겨집니다.",
+  "home.hideStatus.title": "항목 숨기기",
   "home.myCollection": "내 컬렉션",
   "home.noTimeline": "없음",
   "home.resetFilter": "필터 초기화",

@@ -17,6 +17,8 @@
   "home.groupDisplay.hiddenDesc": "グループアイテムを個別エントリとして表示",
   "home.groupDisplay.pinned": "ピン留め",
   "home.groupDisplay.pinnedDesc": "グループを常に上部に表示",
+  "home.hideStatus.desc": "コレクション一覧とグループ詳細の表示にのみ影響します。データは削除されません。複数個の商品は個別の状態ごとに非表示になります。",
+  "home.hideStatus.title": "アイテムを非表示",
   "home.myCollection": "マイコレクション",
   "home.noTimeline": "なし",
   "home.resetFilter": "フィルターをリセット",

@@ -120,6 +120,15 @@ function enrichItem(item, exchangeRate) {
 }
 
 /**
+ * 重新计算单条视图字段（逐件裁剪后保持数量/价格/持有天数等派生值一致）。
+ * @param {object} item
+ * @returns {object}
+ */
+export function enrichGoodsViewItem(item) {
+  return enrichItem(item, useExchangeRateStore())
+}
+
+/**
  * Creates a viewList using incremental watcher-based diffing.
  * The watcher detects changed items and only recomputes those.
  * The computed reads from viewMap/viewOrder — no dependency on list.value.

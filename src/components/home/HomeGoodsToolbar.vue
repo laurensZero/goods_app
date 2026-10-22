@@ -165,6 +165,33 @@
           </button>
         </div>
       </div>
+
+      <template v-if="hiddenStatusOptions.length > 0">
+        <div class="sort-sheet__divider" />
+        <div class="sort-sheet__section">
+          <p class="sort-sheet__section-label">{{ t('home.hideStatus.title') }}</p>
+          <p class="sort-sheet__section-desc">{{ t('home.hideStatus.desc') }}</p>
+          <div class="sort-sheet__toggles">
+            <button
+              v-for="option in hiddenStatusOptions"
+              :key="option.value"
+              type="button"
+              role="switch"
+              :aria-checked="hiddenCollectStatuses.includes(option.value)"
+              class="hide-status-row"
+              @click="$emit('toggle-hidden-status', option.value)"
+            >
+              <span class="hide-status-row__label">{{ option.label }}</span>
+              <span
+                :class="['hide-status-row__switch', { 'hide-status-row__switch--on': hiddenCollectStatuses.includes(option.value) }]"
+                aria-hidden="true"
+              >
+                <span class="hide-status-row__thumb" />
+              </span>
+            </button>
+          </div>
+        </div>
+      </template>
     </div>
   </AppSheet>
 
@@ -254,10 +281,12 @@ const props = defineProps({
   showNewArrivalsButton: { type: Boolean, default: false },
   activeFilterCount: { type: Number, default: 0 },
   groupDisplayMode: { type: String, default: 'pinned' },
-  groupDisplayOptions: { type: Array, default: () => [] }
+  groupDisplayOptions: { type: Array, default: () => [] },
+  hiddenCollectStatuses: { type: Array, default: () => [] },
+  hiddenStatusOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'toggle-hidden-status', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
 
 const showSortSheet = ref(false)
 const showRegenerateSheet = ref(false)
@@ -950,6 +979,95 @@ onBeforeUnmount(() => {
 .sort-sheet__option-meta {
   color: var(--app-text-tertiary);
   font-size: 13px;
+}
+
+.sort-sheet__section-desc {
+  margin: -4px 0 10px;
+  padding: 0 14px;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.sort-sheet__toggles {
+  display: flex;
+  flex-direction: column;
+}
+
+.hide-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--app-text);
+  text-align: left;
+  transition: background 0.14s ease;
+}
+
+.hide-status-row:active {
+  background: rgba(142, 142, 147, 0.12);
+}
+
+.hide-status-row__label {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.hide-status-row__switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 28px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(142, 142, 147, 0.28);
+  transition: background 0.18s ease;
+}
+
+.hide-status-row__switch--on {
+  background: #141416;
+}
+
+.hide-status-row__thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(20, 20, 22, 0.18);
+  transform: translateX(0);
+  transition: transform 0.18s ease;
+}
+
+.hide-status-row__switch--on .hide-status-row__thumb {
+  transform: translateX(18px);
+}
+
+html.theme-dark .hide-status-row__switch {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+html.theme-dark .hide-status-row__switch--on {
+  background: #f5f5f7;
+}
+
+html.theme-dark .hide-status-row__switch--on .hide-status-row__thumb {
+  background: #141416;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hide-status-row__switch,
+  .hide-status-row__thumb {
+    transition-duration: 0ms;
+  }
 }
 
 html.theme-dark .density-switch__indicator {

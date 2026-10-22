@@ -17,6 +17,8 @@
   "home.groupDisplay.hiddenDesc": "组内谷子作为独立条目显示",
   "home.groupDisplay.pinned": "置顶显示",
   "home.groupDisplay.pinnedDesc": "谷子组始终显示在列表顶部",
+  "home.hideStatus.desc": "只影响收藏列表与分组详情的显示，不删除数据；多件商品按单件状态分别隐藏。",
+  "home.hideStatus.title": "隐藏条目",
   "home.myCollection": "我的收藏",
   "home.noTimeline": "暂无",
   "home.resetFilter": "重置筛选",

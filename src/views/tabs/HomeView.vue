@@ -73,6 +73,9 @@
         :active-filter-count="searchActiveFilterCount"
         :group-display-mode="groupDisplayMode"
         :group-display-options="groupDisplayOptions"
+        :hidden-collect-statuses="hiddenCollectStatuses"
+        :hidden-status-options="hiddenStatusOptions"
+        @toggle-hidden-status="toggleHiddenCollectStatus"
         @open-daily-rec="showDailyRec = true"
         @toggle-sort="toggleSortDirection"
         @set-sort-mode="setSortModeWithSeed"
@@ -333,6 +336,9 @@ import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityF
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { createHomeSortOptions, sortHomeGoodsList, isHomeSortReorderable, getHomeSortGroupKey } from '@/utils/goods/homeSort'
+import { enrichGoodsViewItem } from '@/stores/goods/goodsViewList'
+import { applyHiddenCollectStatuses, HIDDEN_COLLECT_STATUS_VALUES } from '@/utils/goods/hiddenStatus'
+import { getStatusLabel } from '@/utils/goods/status'
 import { buildCustomSortRegenerateIds, getCustomSortRegenerateBaseMode } from '@/utils/goods/customSortRegenerate'
 import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
@@ -536,6 +542,7 @@ const {
   sortDirection,
   sortMode,
   groupDisplayMode,
+  hiddenCollectStatuses,
   isDensityAnimating,
   isSortAnimating,
   getResponsiveCols,
@@ -545,8 +552,21 @@ const {
   triggerSortAnimation,
   setSortMode,
   setGroupDisplayMode,
+  toggleHiddenCollectStatus,
   restoreHomePreferences
 } = useHomePreferences(windowWidth, { t })
+
+// 隐藏「已出/丢失/已赠出」：多件商品只裁掉命中状态的份数，剩余份数继续显示
+const hiddenCollectStatusSet = computed(() => new Set(hiddenCollectStatuses.value))
+const visibleCollectionViewList = computed(() => applyHiddenCollectStatuses(
+  store.collectionViewList,
+  hiddenCollectStatusSet.value,
+  { refresh: enrichGoodsViewItem }
+))
+const hiddenStatusOptions = computed(() => HIDDEN_COLLECT_STATUS_VALUES.map((value) => ({
+  value,
+  label: getStatusLabel(value)
+})))
 
 const {
   filters: searchFilters,
@@ -575,7 +595,7 @@ const {
   customFieldFilterGroups: searchCustomFieldFilterGroups,
   toggleCustomFieldFilter: searchToggleCustomFieldFilter,
   formatPresetSummary: searchFormatPresetSummary
-} = useGoodsSearch(computed(() => store.collectionViewList), { scope: 'collection' })
+} = useGoodsSearch(visibleCollectionViewList, { scope: 'collection' })
 
 const showSearchPopup = ref(false)
 const filterTransitionActive = ref(false)

@@ -7,7 +7,7 @@
       </button>
       <div class="header-title">
         <span class="header-title-text">{{ groupData?.name || t('goodsGroup.untitled') }}</span>
-        <span class="header-title-count">{{ memberGoods.length }} {{ t('goodsGroup.items') }}</span>
+        <span class="header-title-count">{{ displayMemberGoods.length }} {{ t('goodsGroup.items') }}</span>
       </div>
       <button class="header-edit-btn" @click="showEditSheet = true">
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 20H21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" /><path d="M16.5 3.5a2.12 2.12 0 013 3L8 18l-4 1 1-4 12.5-11.5z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
@@ -23,16 +23,16 @@
       </div>
       <div class="group-summary-item">
         <span class="summary-label">{{ t('goodsGroup.memberCount') }}</span>
-        <span class="summary-value">{{ memberGoods.length }}</span>
+        <span class="summary-value">{{ displayMemberGoods.length }}</span>
       </div>
     </div>
 
     <!-- Member goods grid -->
     <div ref="pageBodyRef" class="group-detail-body">
       <GoodsCardGridSection
-        v-if="memberGoods.length > 0"
+        v-if="displayMemberGoods.length > 0"
         ref="gridSectionRef"
-        :items="memberGoods"
+        :items="displayMemberGoods"
         :density="displayDensity"
         :selected-ids="selectedIds"
         :selection-mode="selectionMode"
@@ -58,7 +58,7 @@
       v-if="selectionMode"
       :selected-count="selectedIds.size"
       :all-selected="allSelected"
-      :total-count="memberGoods.length"
+      :total-count="displayMemberGoods.length"
       @back="exitSelectionMode"
       @toggle-select-all="toggleSelectAll"
     />
@@ -110,6 +110,7 @@ import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { createPageScrollRestore } from '@/composables/scroll'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
+import { applyHiddenCollectStatuses, readHiddenCollectStatuses } from '@/utils/goods/hiddenStatus'
 import { setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
@@ -159,6 +160,13 @@ const memberGoods = computed(() => {
     .filter(Boolean)
 })
 
+// 与收藏页共用同一份隐藏状态偏好：已出/丢失/已赠出按件隐藏
+const hiddenCollectStatuses = ref(readHiddenCollectStatuses())
+const displayMemberGoods = computed(() => applyHiddenCollectStatuses(
+  memberGoods.value,
+  hiddenCollectStatuses.value
+))
+
 const groupCurrency = computed(() => groupData.value?.currency || 'CNY')
 const currencySymbol = computed(() => CURRENCY_MAP[groupCurrency.value]?.symbol || '¥')
 
@@ -168,7 +176,7 @@ const displayTotalPrice = computed(() => {
     const amount = Number(groupData.value.totalAmount) || 0
     return `${currencySymbol.value}${Number.isInteger(amount) ? String(amount) : amount.toFixed(2)}`
   }
-  const sum = memberGoods.value.reduce((acc, g) => {
+  const sum = displayMemberGoods.value.reduce((acc, g) => {
     const price = parseFloat(g.actualPrice || g.price || '0')
     return acc + (isNaN(price) ? 0 : price)
   }, 0)
@@ -185,7 +193,7 @@ const totalPriceCNYHint = computed(() => {
   return ''
 })
 
-// Selection — pass memberGoods so the watch source is valid
+// Selection — 只对当前显示的成员生效
 const {
   selectionMode,
   selectedIds,
@@ -194,7 +202,7 @@ const {
   toggleSelect,
   toggleSelectAll,
   exitSelectionMode
-} = useGoodsSelection(memberGoods)
+} = useGoodsSelection(displayMemberGoods)
 
 // 组内成员始终按 goods_group_items.sortOrder 手排序，多选即可拖
 const reorderEnabled = computed(() => selectionMode.value && memberGoods.value.length > 1)
@@ -322,6 +330,8 @@ onMounted(() => {
 })
 
 onActivated(async () => {
+  // 收藏页可能刚改过隐藏状态，重新读一次本地偏好
+  hiddenCollectStatuses.value = readHiddenCollectStatuses()
   bindBackButton()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()

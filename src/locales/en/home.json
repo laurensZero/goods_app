@@ -17,6 +17,8 @@
   "home.groupDisplay.hiddenDesc": "Group items shown as individual entries",
   "home.groupDisplay.pinned": "Pinned",
   "home.groupDisplay.pinnedDesc": "Groups always shown at top",
+  "home.hideStatus.desc": "Only affects the collection list and group details; data is not deleted. For multi-copy items, copies are hidden individually by status.",
+  "home.hideStatus.title": "Hide Items",
   "home.myCollection": "My Collection",
   "home.noTimeline": "None",
   "home.resetFilter": "Reset filters",
