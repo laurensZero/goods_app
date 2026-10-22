@@ -195,6 +195,7 @@
           <label class="field">
             <span class="field-label">{{ t('goods.editor.collectStatus') }}</span>
             <AppSelect v-model="form.collectStatus" :options="collectStatusOptions" :placeholder="t('goods.batch.leaveEmptyNoChange')" />
+            <p class="field-hint">{{ t('goods.batch.collectStatusTimelineHint') }}</p>
           </label>
 
           <div class="field">
@@ -960,6 +961,13 @@ html.theme-dark .star-toggle-btn--active {
   color: #c74444;
   font-size: 12px;
   line-height: 1.4;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .date-field {

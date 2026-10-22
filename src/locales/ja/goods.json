@@ -25,6 +25,7 @@
   "goods.batch.applyChanges": "変更を適用",
   "goods.batch.batchEditLabel": "一括編集",
   "goods.batch.cardTitle": "アイテム {index}",
+  "goods.batch.collectStatusTimelineHint": "状態を戻す場合は最新のタイムライン記録を上書きし、進める場合は履歴を保持します。",
   "goods.batch.currentIpLabel": "選択したIPに割り当てられます",
   "goods.batch.defaultTitle": "一括デフォルト",
   "goods.batch.inputCategoryName": "カテゴリ名を入力",

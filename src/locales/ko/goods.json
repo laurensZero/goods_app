@@ -25,6 +25,7 @@
   "goods.batch.applyChanges": "변경 사항 적용",
   "goods.batch.batchEditLabel": "일괄 편집",
   "goods.batch.cardTitle": "아이템 {index}",
+  "goods.batch.collectStatusTimelineHint": "상태를 이전 단계로 되돌리면 최근 타임라인 기록을 덮어쓰고, 다음 단계로 진행하면 기록을 유지합니다.",
   "goods.batch.currentIpLabel": "선택한 IP에 할당됩니다",
   "goods.batch.defaultTitle": "일괄 기본값",
   "goods.batch.inputCategoryName": "카테고리 이름 입력",

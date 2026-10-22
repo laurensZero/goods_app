@@ -25,6 +25,7 @@
   "goods.batch.applyChanges": "應用修改",
   "goods.batch.batchEditLabel": "批量編輯",
   "goods.batch.cardTitle": "第 {index} 件",
+  "goods.batch.collectStatusTimelineHint": "狀態回退會覆蓋最近一條時間線記錄；狀態推進仍保留歷史。",
   "goods.batch.currentIpLabel": "目前将歸到已選 IP",
   "goods.batch.defaultTitle": "批量預設值",
   "goods.batch.inputCategoryName": "輸入分類名稱",

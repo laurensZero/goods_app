@@ -5,6 +5,39 @@ import { formatDate } from '@/utils/format'
 export const ACQUISITION_STATUSES = new Set(['已拥有', '待发货', '待补款', '待补邮'])
 
 /**
+ * 状态流转顺序（越大越靠后）。用于区分「推进」与「修正」：
+ * 从靠后状态改回靠前状态（如 已拥有 → 待发货）通常是纠正录错，
+ * 应覆盖最近一条状态记录，而不是在同一份数据上叠一条互相矛盾的历史。
+ */
+const STATUS_FLOW_RANK = new Map([
+  ['待补款', 0],
+  ['待补邮', 0],
+  ['待发货', 0],
+  ['已拥有', 1],
+  ['想出', 2],
+  ['在售', 3],
+  ['已出', 4],
+  ['已赠出', 4],
+  ['丢失', 4]
+])
+
+/**
+ * 是否为「回退/同阶段修正」的状态变更。
+ * @param {string} oldStatus
+ * @param {string} newStatus
+ * @returns {boolean}
+ */
+export function isCorrectiveStatusChange(oldStatus, newStatus) {
+  const prev = String(oldStatus || '').trim()
+  const next = String(newStatus || '').trim()
+  if (!prev || !next || prev === next) return false
+  const prevRank = STATUS_FLOW_RANK.get(prev)
+  const nextRank = STATUS_FLOW_RANK.get(next)
+  if (prevRank == null || nextRank == null) return false
+  return nextRank <= prevRank
+}
+
+/**
  * 读取条目的归属件集合。
  * 兼容两种形态:legacy 单件 `unitIndex`,多件 `unitIndexes`(升序去重后的非负整数数组)。
  * @param {import('@/types/models').StatusTimelineEntry|null|undefined} entry
@@ -190,6 +223,34 @@ export function appendStatusTimelineEntry(timeline, status, options = {}) {
     ...(Number.isInteger(options.unitIndex) ? [options.unitIndex] : [])
   ]))
   return [...(Array.isArray(timeline) ? timeline : []), entry]
+}
+
+/**
+ * 状态被纠正时覆盖最近一条同状态记录（保留原日期），而不是追加一条新历史。
+ * 找不到可覆盖条目时退回追加。
+ * @param {import('@/types/models').StatusTimelineEntry[]} timeline
+ * @param {string} oldStatus
+ * @param {string} newStatus
+ * @param {number[]|null} [targetUnits] - 需要整批覆盖的件；null 表示单件/不限归属
+ * @returns {import('@/types/models').StatusTimelineEntry[]}
+ */
+function replaceLatestStatusTimelineEntry(timeline, oldStatus, newStatus, targetUnits = null) {
+  const list = Array.isArray(timeline) ? [...timeline] : []
+
+  for (let i = list.length - 1; i >= 0; i--) {
+    const entry = list[i]
+    if (!entry || entry.status !== oldStatus) continue
+
+    if (targetUnits && targetUnits.length > 0) {
+      const scope = getEntryUnitIndexes(entry)
+      if (scope !== null && !targetUnits.every((unit) => scope.includes(unit))) continue
+    }
+
+    list[i] = { ...entry, status: newStatus }
+    return list
+  }
+
+  return appendStatusTimelineEntry(list, newStatus)
 }
 
 
@@ -810,6 +871,7 @@ export function computeEditedTimeline({
   timeline = applyAcquiredAtToTimeline(timeline, oldAcquiredAt, newAcquiredAt)
 
   // 逐件日期/状态变更:仅多件商品参与(qty=1 的逐件列表是表单预填,不代表用户输入)
+  const isCorrection = isCorrectiveStatusChange(oldStatus, newStatus)
   let unitStatusChanged = false
   if (qty >= 2) {
     if (newUnitDates.length > 0) {
@@ -819,13 +881,31 @@ export function computeEditedTimeline({
       unitStatusChanged = newUnitStatuses.some(
         (status, i) => (oldUnitStatuses[i] || '') !== '' && status !== '' && status !== oldUnitStatuses[i]
       )
-      timeline = syncUnitStatusTimeline(timeline, oldUnitStatuses, newUnitStatuses)
+      // 整件所有份数一起回退/修正（如 3 件都由 已拥有 改成 待发货）→ 覆盖原记录；
+      // 只改部分份数则仍按逐件追加，保留其它份数的历史
+      const uniformCorrection = isCorrection &&
+        newUnitStatuses.every((status) => status === newStatus) &&
+        oldUnitStatuses.every((status) => status === oldStatus)
+      if (uniformCorrection) {
+        timeline = replaceLatestStatusTimelineEntry(
+          timeline,
+          oldStatus,
+          newStatus,
+          Array.from({ length: qty }, (_, i) => i)
+        )
+        unitStatusChanged = true
+      } else {
+        timeline = syncUnitStatusTimeline(timeline, oldUnitStatuses, newUnitStatuses)
+      }
     }
   }
 
-  // 整条状态变更 → 追加汇总条目;逐件变更已记录时不再重复追加
+  // 整条状态变更：推进（待发货 → 已拥有 → 在售 → 已出）保留历史并追加；
+  // 回退/修正（已拥有 → 待发货）覆盖最近一条旧状态，避免用户还要手动删记录
   if (oldStatus !== newStatus && !unitStatusChanged) {
-    timeline = appendStatusTimelineEntry(timeline, newStatus)
+    timeline = isCorrection
+      ? replaceLatestStatusTimelineEntry(timeline, oldStatus, newStatus)
+      : appendStatusTimelineEntry(timeline, newStatus)
   }
 
   return timeline

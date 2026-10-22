@@ -159,6 +159,49 @@ describe('computeEditedTimeline', () => {
     })
     expect(result).toEqual([{ status: '已拥有', at: '2026-01-01' }])
   })
+
+  it('回退状态时覆盖旧记录，不再追加一条矛盾历史（已拥有 → 待发货）', () => {
+    const timeline = [{ status: '已拥有', at: '2026-01-01', note: '首发预订' }]
+    const result = computeEditedTimeline({
+      ...base,
+      oldStatus: '已拥有',
+      newStatus: '待发货',
+      formTimeline: timeline,
+      originalTimeline: timeline
+    })
+    expect(result).toEqual([{ status: '待发货', at: '2026-01-01', note: '首发预订' }])
+  })
+
+  it('状态推进时仍保留历史并追加当天记录（待发货 → 已拥有）', () => {
+    const timeline = [{ status: '待发货', at: '2026-01-01' }]
+    const result = computeEditedTimeline({
+      ...base,
+      oldStatus: '待发货',
+      newStatus: '已拥有',
+      formTimeline: timeline,
+      originalTimeline: timeline
+    })
+    expect(result).toContainEqual({ status: '待发货', at: '2026-01-01' })
+    expect(result).toContainEqual({ status: '已拥有', at: localToday() })
+  })
+
+  it('多件商品整批回退时覆盖整批旧记录（3 件 已拥有 → 待发货）', () => {
+    const timeline = [{ status: '已拥有', at: '2026-01-01' }]
+    const dates = ['2026-01-01', '2026-01-01', '2026-01-01']
+    const result = computeEditedTimeline({
+      ...base,
+      quantity: 3,
+      oldStatus: '已拥有',
+      newStatus: '待发货',
+      formTimeline: timeline,
+      originalTimeline: timeline,
+      oldUnitDates: dates,
+      newUnitDates: dates,
+      oldUnitStatuses: ['已拥有', '已拥有', '已拥有'],
+      newUnitStatuses: ['待发货', '待发货', '待发货']
+    })
+    expect(result).toEqual([{ status: '待发货', at: '2026-01-01' }])
+  })
 })
 
 describe('getHoldingDaysFromDate local timezone', () => {

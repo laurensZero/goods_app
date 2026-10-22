@@ -25,6 +25,7 @@
   "goods.batch.applyChanges": "Apply Changes",
   "goods.batch.batchEditLabel": "Batch Edit",
   "goods.batch.cardTitle": "Item {index}",
+  "goods.batch.collectStatusTimelineHint": "Moving a status backward overwrites the latest timeline entry; moving it forward keeps history.",
   "goods.batch.currentIpLabel": "Will be assigned to selected IP",
   "goods.batch.defaultTitle": "Batch Defaults",
   "goods.batch.inputCategoryName": "Enter category name",

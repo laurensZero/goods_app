@@ -24,7 +24,6 @@ import { removeGoods, removeMultipleGoods, restoreTrashItem, emptyTrash, updateM
 import { addItem, deleteItems, saveItems } from '@/utils/db/index'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
 import { scheduleSaleReminderForItem } from '@/utils/goods/saleReminder'
-import { formatDate } from '@/utils/format'
 
 function makeItem(id) {
   return {
@@ -44,7 +43,7 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     deleteManagedLocalImages.mockResolvedValue(undefined)
   })
 
-  it('单件商品：批量改成待发货时同步写入状态时间线', async () => {
+  it('单件商品：批量改成待发货时覆盖原已拥有记录', async () => {
     const list = shallowRef([
       {
         ...makeItem('a'),
@@ -59,9 +58,8 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     await updateMultipleGoods(new Set(['a']), { collectStatus: '待发货' }, list)
 
     const item = list.value[0]
-    const today = formatDate(new Date(), 'YYYY-MM-DD')
     expect(item.collectStatus).toBe('待发货')
-    expect(item.statusTimeline).toContainEqual({ status: '待发货', at: today })
+    expect(item.statusTimeline).toEqual([{ status: '待发货', at: '2026-01-01' }])
   })
 
   it('多件商品：批量改成待发货时同步 unitCollectStatusList，角标不再停在已拥有', async () => {
@@ -80,15 +78,10 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     await updateMultipleGoods(new Set(['multi']), { collectStatus: '待发货' }, list)
 
     const item = list.value[0]
-    const today = formatDate(new Date(), 'YYYY-MM-DD')
     expect(item.collectStatus).toBe('待发货')
     // normalize 会剥空「全是已拥有」的列表；改成待发货后必须保留逐件状态
     expect(item.unitCollectStatusList).toEqual(['待发货', '待发货', '待发货'])
-    expect(item.statusTimeline).toContainEqual({
-      status: '待发货',
-      at: today,
-      unitIndexes: [0, 1, 2]
-    })
+    expect(item.statusTimeline).toEqual([{ status: '待发货', at: '2026-01-01' }])
   })
 
   it('多件商品已有逐件状态：批量改状态时逐件状态对齐新状态', async () => {
