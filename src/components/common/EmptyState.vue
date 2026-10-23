@@ -49,7 +49,7 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
   width: 88px;
   height: 88px;
   margin-bottom: 18px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: var(--app-glass-strong);
   box-shadow: var(--app-shadow);
 }
@@ -61,7 +61,7 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
 
 .empty-title {
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -70,7 +70,7 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
   margin-top: 10px;
   max-width: 280px;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -80,10 +80,10 @@ const resolvedDescription = computed(() => (props.title ? props.description : ''
   margin-top: 20px;
   padding: 0 20px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: #141416;
   color: #ffffff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, opacity 0.16s ease;

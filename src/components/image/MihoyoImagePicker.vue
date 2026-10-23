@@ -284,10 +284,10 @@ input {
   width: 100%;
   min-height: var(--input-height, 48px);
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface, #ffffff);
   color: var(--app-text, #1a1a1a);
-  font-size: 16px;
+  font-size: var(--font-title);
   padding: 0 14px;
   outline: none;
   box-sizing: border-box;
@@ -316,7 +316,7 @@ input::placeholder {
   width: 44px;
   height: var(--input-height, 48px);
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface, #ffffff);
   color: var(--app-text-secondary, #666);
   display: flex;
@@ -346,7 +346,7 @@ input::placeholder {
 }
 
 .mhpicker-hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary, #aaa);
   padding: 2px 0;
   line-height: 1.4;
@@ -379,9 +379,9 @@ input::placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 5px;
-  border-radius: 10px;
+  gap: 6px;
+  padding: 6px;
+  border-radius: var(--radius-xs);
   border: 2px solid transparent;
   background: var(--app-surface-soft, #f4f4f6);
   cursor: pointer;
@@ -402,7 +402,7 @@ input::placeholder {
   width: 60px;
   height: 60px;
   object-fit: cover;
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
   display: block;
 }
 
@@ -417,7 +417,7 @@ input::placeholder {
 }
 
 .mhpicker-label {
-  font-size: 10px;
+  font-size: var(--font-micro);
   color: var(--app-text-secondary, #666);
   max-width: 68px;
   text-align: center;
@@ -428,7 +428,7 @@ input::placeholder {
 }
 
 .mhpicker-save-hint {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary, #aaa);
   margin: 0;
   padding: 0 2px;

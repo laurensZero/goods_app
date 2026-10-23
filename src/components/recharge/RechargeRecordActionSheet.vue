@@ -64,20 +64,20 @@ function onDelete() {
 .sheet-title {
   text-align: center;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .sheet-record {
   margin-top: 6px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   text-align: center;
 }
 
 .sheet-options {
   margin-top: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   background: var(--app-surface-soft);
 }
@@ -107,13 +107,13 @@ function onDelete() {
 .option-icon {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
 }
 
@@ -124,14 +124,14 @@ function onDelete() {
 
 .option-title {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .option-desc {
   color: var(--app-text-tertiary);
-  font-size: 12px;
-  margin-top: 3px;
+  font-size: var(--font-small);
+  margin-top: 4px;
 }
 
 .sheet-cancel {
@@ -139,10 +139,10 @@ function onDelete() {
   width: 100%;
   height: 48px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 </style>

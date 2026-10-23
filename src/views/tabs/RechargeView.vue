@@ -257,7 +257,7 @@ onBeforeRouteLeave(() => {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }

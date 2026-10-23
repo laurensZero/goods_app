@@ -66,7 +66,7 @@ watch(() => props.show, async (visible) => {
   flex-direction: column;
   gap: 10px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: rgba(20, 20, 22, 0.04);
 }
 
@@ -75,10 +75,10 @@ watch(() => props.show, async (visible) => {
   min-height: 44px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.16s ease;
 }
@@ -99,7 +99,7 @@ watch(() => props.show, async (visible) => {
 
 .quick-create-secondary__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
 }
 
@@ -112,8 +112,8 @@ watch(() => props.show, async (visible) => {
   flex: 1;
   min-height: 40px;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: transform 0.16s ease, opacity 0.16s ease;
 }

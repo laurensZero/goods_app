@@ -354,7 +354,7 @@ defineExpose({ consumeBack })
 }
 
 .group-sheet__title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary);
   text-align: center;
@@ -375,7 +375,7 @@ defineExpose({ consumeBack })
 
 .field-label {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   padding: 0 2px;
 }
@@ -383,7 +383,7 @@ defineExpose({ consumeBack })
 .field-card {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   padding: 0 14px;
 }
 
@@ -411,7 +411,7 @@ defineExpose({ consumeBack })
 
 .currency-select :deep(.app-select__trigger) {
   height: var(--input-height, 48px);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
 }
@@ -445,10 +445,10 @@ defineExpose({ consumeBack })
   flex: 1;
   height: 36px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease, box-shadow 0.14s ease;
@@ -465,7 +465,7 @@ defineExpose({ consumeBack })
   height: var(--input-height, 48px);
   border: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   outline: none;
 }
@@ -480,7 +480,7 @@ defineExpose({ consumeBack })
   padding: 12px 0;
   border: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   outline: none;
   resize: vertical;
@@ -495,7 +495,7 @@ defineExpose({ consumeBack })
 .member-list-card {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -518,7 +518,7 @@ defineExpose({ consumeBack })
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   color: var(--app-text-tertiary);
   cursor: grab;
   flex-shrink: 0;
@@ -538,7 +538,7 @@ defineExpose({ consumeBack })
 .member-thumb {
   width: 40px;
   height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -556,7 +556,7 @@ defineExpose({ consumeBack })
 }
 
 .member-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text);
   overflow: hidden;
@@ -565,7 +565,7 @@ defineExpose({ consumeBack })
 }
 
 .member-price {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -597,10 +597,10 @@ defineExpose({ consumeBack })
 .delete-btn {
   height: var(--button-height, 52px);
   border: 1.5px solid #ff3b30;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: transparent;
   color: #ff3b30;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.14s ease, background 0.14s ease;
@@ -625,7 +625,7 @@ defineExpose({ consumeBack })
   align-items: center;
   gap: 6px;
   padding: 10px 6px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   border: 2px solid color-mix(in srgb, var(--app-border) 78%, transparent);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   cursor: pointer;
@@ -644,7 +644,7 @@ defineExpose({ consumeBack })
 .cover-picker-thumb {
   width: 56px;
   height: 56px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
 }
 
@@ -653,7 +653,7 @@ defineExpose({ consumeBack })
 }
 
 .cover-picker-name {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-secondary);
   text-align: center;
   overflow: hidden;

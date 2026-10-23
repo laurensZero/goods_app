@@ -296,7 +296,7 @@ onBeforeUnmount(() => {
     / var(--tab-bar-count)
   );
   height: var(--tab-item-height);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: #141416;
   transform: translateX(calc((100% + var(--tab-bar-gap)) * var(--tab-bar-index)));
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease;
@@ -315,7 +315,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--app-text-tertiary);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
@@ -340,7 +340,7 @@ onBeforeUnmount(() => {
 }
 
 .tab-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   letter-spacing: 0.01em;
 }

@@ -41,13 +41,13 @@ defineProps({
 .extremes-header { margin-bottom: 14px; }
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .section-title--sub {
   margin-top: 4px;
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -91,13 +91,13 @@ defineProps({
 }
 .extreme-label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 .extreme-name {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   line-height: 1.35;
   overflow: hidden;
@@ -107,7 +107,7 @@ defineProps({
 .extreme-value {
   margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 

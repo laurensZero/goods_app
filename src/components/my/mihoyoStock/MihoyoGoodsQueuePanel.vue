@@ -254,7 +254,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: none;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -306,7 +306,7 @@ onBeforeUnmount(() => {
   /* --dot-on: 0..1，由 scrollLeft 连续驱动；不加 transition，跟手 */
   width: calc(6px + 12px * var(--dot-on, 0));
   height: 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   background: var(--app-border);
   position: relative;
   overflow: hidden;
@@ -365,7 +365,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 8px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
   text-align: left;
@@ -383,12 +383,12 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 9px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface);
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .queue-card__thumb img {
@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
 }
 
 .queue-card__name {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   line-height: 1.3;
   overflow: hidden;
@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
 }
 
 .queue-card__sku {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -434,7 +434,7 @@ onBeforeUnmount(() => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;

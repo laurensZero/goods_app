@@ -316,7 +316,7 @@ defineExpose({ isWide, isCentered, placement })
 .app-sheet__handle {
   width: 36px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 28%, transparent);
   margin: 4px auto 12px;
   flex-shrink: 0;

@@ -520,7 +520,7 @@ watch(isHidden, (value) => {
 
 .summary-label {
   color: var(--summary-card-label);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -545,10 +545,10 @@ watch(isHidden, (value) => {
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   line-height: 1;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
@@ -566,7 +566,7 @@ watch(isHidden, (value) => {
 .summary-tip-popover {
   position: fixed;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass-strong) 92%, transparent);
   border: 1px solid var(--app-glass-border);
   color: var(--app-text);
@@ -579,7 +579,7 @@ watch(isHidden, (value) => {
 }
 
 .summary-tip-title {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--app-text);
@@ -590,7 +590,7 @@ watch(isHidden, (value) => {
   padding-left: 16px;
   display: grid;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-secondary);
 }
@@ -613,7 +613,7 @@ watch(isHidden, (value) => {
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: rgba(255, 255, 255, 0.08);
   color: var(--summary-card-button-text);
   box-shadow:
@@ -653,7 +653,7 @@ watch(isHidden, (value) => {
   border: none;
   background: transparent;
   color: var(--summary-card-label);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -716,20 +716,20 @@ watch(isHidden, (value) => {
 .summary-metric {
   min-width: 0;
   padding: 12px 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.07);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
 
 .summary-metric__label {
   color: var(--summary-card-label);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.2;
 }
 
 .summary-metric__value {
   margin-top: 8px;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   line-height: 1.15;
 }
@@ -737,7 +737,7 @@ watch(isHidden, (value) => {
 .summary-metric__meta {
   margin-top: 4px;
   color: rgba(255, 255, 255, 0.7);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 .summary-trend-expand-enter-active,
@@ -753,14 +753,14 @@ watch(isHidden, (value) => {
 
 .summary-currency {
   margin-right: 4px;
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   vertical-align: 14px;
   opacity: 0.78;
 }
 
 .summary-decimal {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   opacity: 0.72;
 }
@@ -799,7 +799,7 @@ watch(isHidden, (value) => {
   }
 
   .summary-metric__value {
-    font-size: 16px;
+    font-size: var(--font-title);
   }
 }
 </style>

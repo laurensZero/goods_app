@@ -235,10 +235,10 @@ async function submitQuickCreate() {
 .storage-location-summary {
   min-height: 44px;
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: rgba(20, 20, 22, 0.05);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.5;
   word-break: break-word;
 }
@@ -261,7 +261,7 @@ async function submitQuickCreate() {
 
 .storage-location-level__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
 }
 
@@ -274,7 +274,7 @@ async function submitQuickCreate() {
   border: none;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   line-height: 1.2;
   padding: 0;

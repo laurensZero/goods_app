@@ -135,16 +135,16 @@ watch(() => props.ip, (ip) => {
 .import-character-picker__head { display: flex; justify-content: flex-end; }
 .import-character-picker__quick-add { border: 0; padding: 2px 0; background: transparent; color: var(--app-text-secondary); font-size: 12px; cursor: pointer; }
 .import-character-picker__select { position: relative; }
-.import-character-picker__trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 6px 14px; border: 1px solid rgba(20, 20, 22, 0.08); border-radius: 16px; background: var(--app-surface); color: var(--app-text); text-align: left; }
+.import-character-picker__trigger { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 48px; padding: 6px 14px; border: 1px solid rgba(20, 20, 22, 0.08); border-radius: var(--radius-medium); background: var(--app-surface); color: var(--app-text); text-align: left; }
 .import-character-picker__content { min-width: 0; flex: 1; }
 .import-character-picker__placeholder { color: var(--app-placeholder); font-size: 16px; }
 .import-character-picker__chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.import-character-picker__chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px 5px 10px; border: 1px solid var(--app-border, rgba(120, 120, 128, 0.2)); border-radius: 8px; font-size: 0.85rem; }
+.import-character-picker__chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px 5px 10px; border: 1px solid var(--app-border, rgba(120, 120, 128, 0.2)); border-radius: var(--radius-tiny); font-size: 0.85rem; }
 .import-character-picker__remove { border: 0; padding: 0; background: transparent; color: var(--app-text-secondary, #888); font-size: 1rem; line-height: 1; cursor: pointer; }
 .import-character-picker__arrow { width: 18px; height: 18px; margin-left: 10px; flex-shrink: 0; stroke: var(--app-text-tertiary); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform 0.18s ease; }
 .import-character-picker__select--open .import-character-picker__arrow { transform: rotate(180deg); }
-.import-character-picker__panel { position: absolute; top: calc(100% + 8px); left: 0; z-index: 50; width: 100%; max-height: 240px; overflow-y: auto; padding: 8px; border: 1px solid rgba(20, 20, 22, 0.05); border-radius: 18px; background: var(--app-surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
-.import-character-picker__option { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0 12px; border: none; border-radius: 12px; background: transparent; color: var(--app-text); text-align: left; }
+.import-character-picker__panel { position: absolute; top: calc(100% + 8px); left: 0; z-index: 50; width: 100%; max-height: 240px; overflow-y: auto; padding: 8px; border: 1px solid rgba(20, 20, 22, 0.05); border-radius: var(--radius-card); background: var(--app-surface); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06); }
+.import-character-picker__option { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 44px; padding: 0 12px; border: none; border-radius: var(--radius-xs); background: transparent; color: var(--app-text); text-align: left; }
 .import-character-picker__option--active { background: rgba(20, 20, 22, 0.06); font-weight: 600; }
 .import-character-picker__check { font-weight: 700; }
 .import-character-picker__empty { padding: 14px 12px; color: var(--app-text-tertiary); font-size: 14px; text-align: center; }

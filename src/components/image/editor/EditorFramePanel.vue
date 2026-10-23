@@ -250,7 +250,7 @@ watch(activeFrame, () => {
   width: 100%;
   padding: 6px;
   border: 2px solid transparent;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   color: var(--app-text-secondary);
   font: inherit;
@@ -274,13 +274,13 @@ watch(activeFrame, () => {
   display: block;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   overflow: hidden;
   background: var(--app-surface-soft);
 }
 
 .frame-item__label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -300,7 +300,7 @@ watch(activeFrame, () => {
   min-width: 62px;
   padding: 8px 10px;
   border: 2px solid transparent;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text-secondary);
   font: inherit;
@@ -328,7 +328,7 @@ watch(activeFrame, () => {
 }
 
 .colorway-item__label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -344,7 +344,7 @@ watch(activeFrame, () => {
   gap: 8px;
   padding: 6px 12px 6px 6px;
   border: 2px solid transparent;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
   font: inherit;
@@ -363,13 +363,13 @@ watch(activeFrame, () => {
 }
 
 .slot-item__label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
 .slot-picker {
   padding: 14px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: var(--app-surface-soft);
 }
 </style>

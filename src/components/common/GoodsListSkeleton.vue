@@ -23,7 +23,7 @@
 
 .skeleton-card {
   background: color-mix(in srgb, var(--app-surface, #fff) 80%, transparent);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
   display: flex;
@@ -43,7 +43,7 @@
 .skeleton-line {
   height: 14px;
   background: var(--app-surface-soft, #f0f3fa);
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
 }
 
 .skeleton-title {
@@ -59,7 +59,7 @@
 .skeleton-tag {
   height: 18px;
   width: 36px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft, #f0f3fa) 60%, transparent);
 }
 

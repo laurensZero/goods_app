@@ -35,7 +35,7 @@ defineEmits(['click'])
   margin-right: 2px;
   padding: 4px 8px 4px 4px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, currentColor 8%, transparent);
   color: inherit;
   cursor: pointer;
@@ -60,7 +60,7 @@ defineEmits(['click'])
   justify-content: center;
   background: rgba(90, 120, 250, 0.16);
   color: #4c7dff;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
 
@@ -70,7 +70,7 @@ defineEmits(['click'])
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 </style>

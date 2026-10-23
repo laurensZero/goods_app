@@ -229,10 +229,10 @@ function handleClick() {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 9px;
+  gap: 10px;
   height: 100%;
   padding: 10px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow, 0 8px 24px rgba(0, 0, 0, 0.06));
   cursor: pointer;
@@ -267,7 +267,7 @@ function handleClick() {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 4px;
-  border-radius: calc(var(--radius-card, 18px) - 6px);
+  border-radius: calc(var(--radius-card) - var(--radius-xxs));
   overflow: hidden;
   aspect-ratio: 1;
   background: var(--app-surface, #fff);
@@ -278,8 +278,8 @@ function handleClick() {
   aspect-ratio: 1;
   overflow: hidden;
   background: var(--app-surface-muted, #f0f0f2);
-  border-radius: 10px;
-  padding: 3px;
+  border-radius: var(--radius-xs);
+  padding: 4px;
 }
 
 .group-card__thumb-img {
@@ -287,14 +287,14 @@ function handleClick() {
   height: 100%;
   object-fit: cover;
   display: block;
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
 }
 
 .group-card__thumb-empty {
   width: 100%;
   height: 100%;
   background: var(--app-surface-muted, #f0f0f2);
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
 }
 
 /* Body — matches GoodsCard .card-body layout */
@@ -310,7 +310,7 @@ function handleClick() {
   display: -webkit-box;
   overflow: hidden;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.3;
   min-height: 2.6em;
@@ -336,30 +336,30 @@ function handleClick() {
 .group-card__price {
   flex-shrink: 0;
   color: #8e8e93;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   letter-spacing: 0;
 }
 
 .group-card__price-cny {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 400;
   color: var(--app-text-tertiary);
 }
 
 .group-card__count {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
 /* Density — compact */
 .group-card--compact {
-  gap: 9px;
+  gap: 10px;
   padding: 10px;
 }
 
 .group-card--compact .group-card__grid {
-  gap: 3px;
+  gap: 4px;
 }
 
 .group-card--compact .group-card__name {

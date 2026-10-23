@@ -78,7 +78,7 @@ useDialogBackButton(cancel, () => props.show)
 
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -86,7 +86,7 @@ useDialogBackButton(cancel, () => props.show)
 .dialog-title {
   margin: 6px 0 0;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -161,7 +161,7 @@ useDialogBackButton(cancel, () => props.show)
   white-space: pre-wrap;
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -177,7 +177,7 @@ useDialogBackButton(cancel, () => props.show)
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   display: flex;
   align-items: center;

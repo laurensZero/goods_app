@@ -79,18 +79,18 @@ onUnmounted(stopTimer)
 .sale-countdown {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-top: 6px;
   padding: 6px 10px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-chip-accent-text) 8%, transparent);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-chip-accent-text);
 }
 
 .sale-countdown-icon {
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1;
 }
 

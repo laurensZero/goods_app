@@ -369,13 +369,13 @@ function addEntry() {
 }
 
 .timeline-empty__text {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-secondary);
   margin: 0 0 4px;
 }
 
 .timeline-empty__hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 0;
 }
@@ -412,10 +412,10 @@ function addEntry() {
   min-width: 120px;
   padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
@@ -430,10 +430,10 @@ function addEntry() {
   max-width: 140px;
   padding: 8px 10px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   text-align: left;
   cursor: pointer;
   white-space: nowrap;
@@ -451,10 +451,10 @@ function addEntry() {
   width: 100%;
   padding: 8px 10px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   outline: none;
 }
 
@@ -474,7 +474,7 @@ function addEntry() {
   gap: 8px;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--app-primary) 28%, var(--app-border));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-primary) 4%, var(--app-surface));
 }
 
@@ -485,12 +485,12 @@ function addEntry() {
 }
 
 .unit-panel__chip {
-  padding: 5px 12px;
+  padding: 6px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   cursor: pointer;
 }
 
@@ -515,12 +515,12 @@ function addEntry() {
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 8px 10px;
   border: 1px dashed color-mix(in srgb, var(--app-primary) 40%, var(--app-border));
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   cursor: pointer;
 }
 
@@ -563,9 +563,9 @@ function addEntry() {
   gap: 6px;
   padding: 6px 8px;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface);
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   cursor: pointer;
 }
@@ -590,7 +590,7 @@ function addEntry() {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;
@@ -616,10 +616,10 @@ function addEntry() {
   width: 100%;
   padding: 10px;
   border: 1px dashed var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   cursor: pointer;
 }
 

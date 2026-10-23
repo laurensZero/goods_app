@@ -181,7 +181,7 @@ const applyAll = () => {
 .suggestion-item__confidence {
   font-size: 0.7rem;
   padding: 2px 6px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   white-space: nowrap;
   font-weight: 600;
 }
@@ -223,7 +223,7 @@ const applyAll = () => {
 /* 标签样式 */
 .tag {
   background: var(--app-surface-muted, var(--surface-1));
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-small, 6px);
   font-size: 0.8rem;
   color: var(--text-primary);

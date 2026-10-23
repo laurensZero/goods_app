@@ -348,7 +348,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-detail-id {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -356,8 +356,8 @@ watch(() => props.modelValue, (val) => {
 .fb-status-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: var(--radius-xxs);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -384,8 +384,8 @@ watch(() => props.modelValue, (val) => {
 .fb-type-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: var(--radius-xxs);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -407,7 +407,7 @@ watch(() => props.modelValue, (val) => {
 .fb-detail-title {
   margin: 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.3;
@@ -416,7 +416,7 @@ watch(() => props.modelValue, (val) => {
 .fb-detail-time {
   margin: 6px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 /* Sections */
@@ -430,7 +430,7 @@ watch(() => props.modelValue, (val) => {
   gap: 6px;
   margin: 0 0 6px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -439,7 +439,7 @@ watch(() => props.modelValue, (val) => {
 .fb-detail-body {
   margin: 0;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -461,7 +461,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-admin-reply-time {
   margin-left: auto;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 400;
   color: var(--app-text-tertiary);
 }
@@ -491,7 +491,7 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-followup-author {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -501,13 +501,13 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-followup-time {
-  font-size: 10px;
+  font-size: var(--font-micro);
   color: var(--app-text-tertiary);
 }
 
 .fb-followup-content {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
   color: var(--app-text);
   white-space: pre-wrap;
@@ -526,7 +526,7 @@ watch(() => props.modelValue, (val) => {
   display: inline-flex;
   align-items: center;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   border: 1px solid var(--app-border);
   text-decoration: none;
   transition: opacity 0.15s ease;
@@ -544,7 +544,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-followup-att-file {
   padding: 6px 10px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   color: var(--app-text-secondary);
   max-width: 120px;
@@ -578,7 +578,7 @@ watch(() => props.modelValue, (val) => {
 .fb-attach-thumb {
   width: 40px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -589,7 +589,7 @@ watch(() => props.modelValue, (val) => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
   flex-shrink: 0;
@@ -602,7 +602,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-attach-name {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -610,7 +610,7 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-attach-size {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -628,7 +628,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
   resize: vertical;
   outline: none;
@@ -664,7 +664,7 @@ watch(() => props.modelValue, (val) => {
   width: 32px;
   height: 32px;
   border: 1px dashed var(--app-input-border);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -678,9 +678,9 @@ watch(() => props.modelValue, (val) => {
 .fb-log-toggle-sm {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   cursor: pointer;
   user-select: none;
 }
@@ -703,15 +703,15 @@ watch(() => props.modelValue, (val) => {
   align-items: center;
   gap: 6px;
   padding: 4px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface-soft);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 .fb-attach-thumb-sm {
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   object-fit: cover;
 }
 
@@ -721,7 +721,7 @@ watch(() => props.modelValue, (val) => {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
   font-size: 9px;
@@ -747,7 +747,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: 50%;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
   line-height: 1;
 }
@@ -766,7 +766,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-followup-count {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -781,7 +781,7 @@ watch(() => props.modelValue, (val) => {
   padding: 0 16px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;

@@ -82,11 +82,11 @@ const label = computed(() => t('collage.objectActions'))
   min-height: 34px;
   padding: 0 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 

@@ -482,7 +482,7 @@ onMounted(() => {
 <style scoped>
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -490,7 +490,7 @@ onMounted(() => {
 .dialog-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -517,13 +517,13 @@ onMounted(() => {
 .field-label {
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
 .field-tip {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   text-align: right;
 }
 
@@ -546,7 +546,7 @@ onMounted(() => {
   min-width: 0;
   padding: 10px;
   border: 1px solid var(--app-border);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
   text-align: left;
@@ -578,7 +578,7 @@ onMounted(() => {
   justify-content: center;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #ffffff;
 }
 
@@ -610,7 +610,7 @@ onMounted(() => {
 
 .preset-card__title {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -618,15 +618,15 @@ onMounted(() => {
 .preset-card__meta {
   margin-top: 4px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .preset-empty {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .field-input,
@@ -685,7 +685,7 @@ onMounted(() => {
 .image-preview-thumb {
   width: 72px;
   height: 72px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   border: 1px solid var(--app-border);
   background: var(--app-surface-soft);
@@ -755,7 +755,7 @@ onMounted(() => {
 .error-text {
   margin-top: 12px;
   color: #d34a4a;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .dialog-actions {
@@ -769,7 +769,7 @@ onMounted(() => {
   height: var(--button-height);
   border: none;
   border-radius: var(--radius-small);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   transition: transform var(--motion-fast) var(--motion-emphasis), opacity var(--motion-fast) var(--motion-emphasis);
 }

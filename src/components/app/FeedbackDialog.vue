@@ -361,7 +361,7 @@ watch(() => props.modelValue, (val) => {
 .fb-header__title {
   margin: 12px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.3;
@@ -370,7 +370,7 @@ watch(() => props.modelValue, (val) => {
 .fb-header__desc {
   margin: 4px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -382,7 +382,7 @@ watch(() => props.modelValue, (val) => {
   padding: 10px 14px;
   margin-bottom: 16px;
   border-radius: var(--radius-xs);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
@@ -410,7 +410,7 @@ watch(() => props.modelValue, (val) => {
 
 .fb-segment__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
@@ -431,10 +431,10 @@ watch(() => props.modelValue, (val) => {
   height: 38px;
   padding: 0 10px;
   border: none;
-  border-radius: calc(var(--radius-small) - 4px);
+  border-radius: calc(var(--radius-small) - var(--radius-xxs));
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s var(--motion-ease-default);
@@ -465,13 +465,13 @@ watch(() => props.modelValue, (val) => {
 
 .fb-field__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
 .fb-field__count {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-variant-numeric: tabular-nums;
 }
 
@@ -483,7 +483,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
@@ -527,7 +527,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
@@ -543,7 +543,7 @@ watch(() => props.modelValue, (val) => {
   align-items: center;
   gap: 6px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   cursor: pointer;
   user-select: none;
 }
@@ -572,7 +572,7 @@ watch(() => props.modelValue, (val) => {
 .fb-attach-thumb {
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -583,7 +583,7 @@ watch(() => props.modelValue, (val) => {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
   flex-shrink: 0;
@@ -597,7 +597,7 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-attach-name {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text);
   overflow: hidden;
@@ -606,7 +606,7 @@ watch(() => props.modelValue, (val) => {
 }
 
 .fb-attach-size {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -647,7 +647,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -661,7 +661,7 @@ watch(() => props.modelValue, (val) => {
   padding: 0 20px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.15s ease;

@@ -58,7 +58,7 @@ defineEmits(['update:modelValue'])
   margin-bottom: 4px;
 }
 .sq-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--van-text-color);
   margin: 0;
@@ -68,12 +68,12 @@ defineEmits(['update:modelValue'])
   font-weight: 700;
 }
 .sq-optional {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   font-weight: 400;
 }
 .sq-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   margin: 0 0 12px;
   line-height: 1.5;
@@ -86,10 +86,10 @@ defineEmits(['update:modelValue'])
 .sq-textarea {
   width: 100%;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1.5px solid var(--van-border-color);
   background: var(--van-background);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--van-text-color);
   outline: none;
   transition: border-color 0.2s;
@@ -109,7 +109,7 @@ defineEmits(['update:modelValue'])
   position: absolute;
   bottom: 8px;
   right: 12px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--van-text-color-3);
 }
 .sq-textarea ~ .sq-char-count {

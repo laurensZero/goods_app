@@ -168,7 +168,7 @@ function formatDeadline(timestamp) {
 .hero-label,
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -185,7 +185,7 @@ function formatDeadline(timestamp) {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 .survey-loading {
@@ -199,7 +199,7 @@ function formatDeadline(timestamp) {
 }
 .empty-text {
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   margin: 0;
 }
 .survey-list {
@@ -235,13 +235,13 @@ function formatDeadline(timestamp) {
   min-width: 0;
 }
 .survey-entry-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   line-height: 1.3;
 }
 .survey-entry-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   margin-top: 2px;
   line-height: 1.4;
@@ -250,7 +250,7 @@ function formatDeadline(timestamp) {
   white-space: nowrap;
 }
 .survey-entry-meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin-top: 4px;
 }
@@ -266,7 +266,7 @@ function formatDeadline(timestamp) {
   flex-shrink: 0;
 }
 .survey-entry-done-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   white-space: nowrap;
 }

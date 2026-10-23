@@ -84,7 +84,7 @@ function toggleOption(optionId) {
   margin-bottom: 4px;
 }
 .sq-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--van-text-color);
   margin: 0;
@@ -94,18 +94,18 @@ function toggleOption(optionId) {
   font-weight: 700;
 }
 .sq-optional {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   font-weight: 400;
 }
 .sq-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   margin: 0 0 12px;
   line-height: 1.5;
 }
 .sq-hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   margin: 0 0 8px;
 }
@@ -120,7 +120,7 @@ function toggleOption(optionId) {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--van-background);
   border: 1.5px solid var(--van-border-color);
   cursor: pointer;
@@ -143,7 +143,7 @@ function toggleOption(optionId) {
 .sq-checkbox-box {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   border: 2px solid var(--van-border-color);
   flex-shrink: 0;
   display: flex;
@@ -161,7 +161,7 @@ function toggleOption(optionId) {
   height: 12px;
 }
 .sq-checkbox-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--van-text-color);
   line-height: 1.4;
 }

@@ -1070,7 +1070,7 @@ onBeforeRouteLeave(() => {
 .toolbar-label,
 .month-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
 }
 
@@ -1184,7 +1184,7 @@ onBeforeRouteLeave(() => {
 
 .summary-label {
   color: var(--summary-card-label);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -1202,7 +1202,7 @@ onBeforeRouteLeave(() => {
 
 .summary-unit {
   margin-left: 8px;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: color-mix(in srgb, var(--summary-card-text) 76%, transparent);
 }
@@ -1217,7 +1217,7 @@ onBeforeRouteLeave(() => {
 .metric-chip {
   min-width: 0;
   padding: 12px 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.07);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
 }
@@ -1225,7 +1225,7 @@ onBeforeRouteLeave(() => {
 .metric-chip__label {
   display: block;
   color: var(--summary-card-label);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.2;
 }
 
@@ -1233,7 +1233,7 @@ onBeforeRouteLeave(() => {
   display: block;
   margin-top: 8px;
   color: var(--summary-card-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -1284,7 +1284,7 @@ onBeforeRouteLeave(() => {
 .toolbar-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -1292,7 +1292,7 @@ onBeforeRouteLeave(() => {
 .toolbar-title span {
   margin-left: 4px;
   color: var(--app-text-tertiary);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 400;
 }
 
@@ -1303,7 +1303,7 @@ onBeforeRouteLeave(() => {
   width: 48px;
   height: 48px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
@@ -1362,7 +1362,7 @@ onBeforeRouteLeave(() => {
   width: 48px;
   height: 48px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
@@ -1423,7 +1423,7 @@ onBeforeRouteLeave(() => {
 
 .search-panel {
   padding: 10px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-glass-strong) 85%, transparent);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(18px) saturate(135%);
@@ -1463,16 +1463,16 @@ onBeforeRouteLeave(() => {
 
 .month-count {
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .month-ticket {
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   box-shadow: var(--app-shadow);
 }
@@ -1525,7 +1525,7 @@ onBeforeRouteLeave(() => {
   bottom: max(12px, env(safe-area-inset-bottom));
   width: min(calc(100vw - 24px), 320px);
   padding: 10px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(24px) saturate(145%);
@@ -1539,10 +1539,10 @@ onBeforeRouteLeave(() => {
   width: 100%;
   height: 50px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -1570,7 +1570,7 @@ onBeforeRouteLeave(() => {
 }
 
 .events-year-num {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   color: var(--app-text-secondary);
   letter-spacing: -0.02em;
@@ -1578,7 +1578,7 @@ onBeforeRouteLeave(() => {
 }
 
 .events-year-meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }
@@ -1642,7 +1642,7 @@ onBeforeRouteLeave(() => {
 }
 
 .month-timeline-label {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   color: var(--app-text);
   letter-spacing: -0.03em;
@@ -1700,7 +1700,7 @@ onBeforeRouteLeave(() => {
   }
 
   .metric-chip strong {
-    font-size: 16px;
+    font-size: var(--font-title);
   }
 }
 
@@ -1731,15 +1731,15 @@ onBeforeRouteLeave(() => {
     flex: 0 0 auto;
     width: 48px;
     height: 48px;
-    border-radius: 18px;
+    border-radius: var(--radius-card);
   }
 
   .toolbar-title {
-    font-size: 22px;
+    font-size: var(--font-display);
   }
 
   .toolbar-title span {
-    font-size: 16px;
+    font-size: var(--font-title);
   }
 
   .summary-card {
@@ -1752,7 +1752,7 @@ onBeforeRouteLeave(() => {
   }
 
   .summary-unit {
-    font-size: 16px;
+    font-size: var(--font-title);
   }
 
   .month-title {

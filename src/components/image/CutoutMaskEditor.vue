@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
   width: 100%;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background:
     repeating-conic-gradient(rgba(0, 0, 0, 0.04) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
 }

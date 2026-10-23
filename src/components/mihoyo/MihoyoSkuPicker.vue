@@ -219,7 +219,7 @@ function onToggle(level, item) {
   display: block;
   margin-bottom: 6px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .mh-sku-level__options {
@@ -237,10 +237,10 @@ function onToggle(level, item) {
   max-width: 100%;
   padding: 8px 12px;
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.3;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
@@ -264,7 +264,7 @@ function onToggle(level, item) {
 .mh-sku-opt__thumb {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface-muted);
@@ -286,20 +286,20 @@ function onToggle(level, item) {
 
 .mh-sku-opt__tag {
   flex-shrink: 0;
-  padding: 1px 5px;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, #f0a020 18%, transparent);
   color: #b9741a;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.4;
 }
 
 .mh-sku-opt__badge {
   flex-shrink: 0;
-  padding: 1px 5px;
-  border-radius: 999px;
-  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.4;
   white-space: nowrap;
@@ -356,7 +356,7 @@ function onToggle(level, item) {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   background: var(--app-surface-soft);
 }
@@ -375,7 +375,7 @@ function onToggle(level, item) {
   width: 100%;
   height: 100%;
   color: var(--app-text-secondary);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
 }
 
@@ -383,17 +383,17 @@ function onToggle(level, item) {
   position: absolute;
   top: 6px;
   left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, #f0a020 85%, transparent);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.5;
 }
 
 .mh-sku-card__text {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   line-height: 1.3;
   word-break: break-word;

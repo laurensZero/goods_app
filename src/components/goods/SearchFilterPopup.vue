@@ -849,11 +849,11 @@ function onDateConfirm({ selectedValues }) {
   justify-content: center;
   min-width: 22px;
   height: 22px;
-  padding: 0 7px;
-  border-radius: 999px;
+  padding: 0 8px;
+  border-radius: var(--radius-pill);
   background: var(--app-pending-bg, #0e74e9);
   color: #fff;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -910,7 +910,7 @@ function onDateConfirm({ selectedValues }) {
   min-height: 72px;
   padding: 10px 6px;
   border: 1px solid var(--app-glass-border);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface) 92%, var(--app-glass));
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -928,7 +928,7 @@ function onDateConfirm({ selectedValues }) {
 }
 
 .match-tile__label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
@@ -947,7 +947,7 @@ function onDateConfirm({ selectedValues }) {
   inset: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -991,7 +991,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 .match-mode-hint {
   margin: 6px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -1042,18 +1042,18 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
 .advanced-toggle__count {
   display: inline-block;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border: 1px solid var(--app-glass-border);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-glass) 82%, var(--app-surface));
   color: var(--app-text);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
 }
 
@@ -1088,7 +1088,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 
 .section-label {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1097,17 +1097,17 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 
 .section-title {
   margin: 2px 0 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .section-title--sub {
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .section-title--tight {
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .head-actions {
@@ -1123,7 +1123,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   border-radius: var(--radius-small);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1141,7 +1141,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-bg);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -1160,7 +1160,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -1178,7 +1178,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 
 .muted-copy {
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 /* ── Preset list ── */
@@ -1215,13 +1215,13 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 }
 
 .preset-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .preset-meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1289,7 +1289,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -1298,7 +1298,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   border: none;
   background: transparent;
   color: var(--app-pending);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1314,12 +1314,12 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   gap: 4px;
   align-self: flex-start;
   margin-top: 2px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -1342,10 +1342,10 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   height: 48px;
   padding: 0 14px;
   border: 1px solid var(--app-input-border, rgba(20, 20, 22, 0.08));
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   outline: none;
   box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 68%, transparent);
   transition: border-color 0.18s ease;
@@ -1384,7 +1384,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
 .range-gap {
   flex-shrink: 0;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1403,10 +1403,10 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   height: 48px;
   padding: 0 14px;
   border: 1px solid var(--app-input-border, rgba(20, 20, 22, 0.08));
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   text-align: left;
   box-shadow: inset 0 1px 0 color-mix(in srgb, #ffffff 68%, transparent);
   transition: border-color 0.18s ease;
@@ -1448,7 +1448,7 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
   transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;

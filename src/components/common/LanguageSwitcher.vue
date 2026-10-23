@@ -45,10 +45,10 @@ async function switchLocale(newLocale) {
   gap: 8px;
   padding: 10px 16px;
   border: 1px solid var(--app-glass-border);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.18s ease;

@@ -85,13 +85,13 @@ function onPreset() {
   margin: 0 0 14px;
   text-align: center;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .sheet-options {
   margin-bottom: 10px;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-bg) 88%, var(--app-glass));
 }
 
@@ -121,7 +121,7 @@ function onPreset() {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -161,14 +161,14 @@ function onPreset() {
 .option-title {
   margin: 0 0 2px;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
 .option-desc {
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -188,10 +188,10 @@ function onPreset() {
   width: 100%;
   height: 54px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-bg, #f5f5f7);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   transition: background 0.14s ease;
 }

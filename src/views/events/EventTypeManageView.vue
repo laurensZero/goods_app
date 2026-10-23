@@ -310,7 +310,7 @@ async function saveEdit() {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -322,10 +322,10 @@ async function saveEdit() {
   height: 44px;
   padding: 0 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -334,7 +334,7 @@ async function saveEdit() {
 .section-caption {
   margin: 4px 4px 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -363,8 +363,8 @@ async function saveEdit() {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -392,23 +392,23 @@ async function saveEdit() {
 .row-main--static { cursor: default; }
 
 .row-label {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .row-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .builtin-badge {
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -424,7 +424,7 @@ async function saveEdit() {
 }
 
 .tracks-toggle__label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -432,7 +432,7 @@ async function saveEdit() {
   position: relative;
   width: 36px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(142, 142, 147, 0.28);
   transition: background 0.16s ease;
 }
@@ -494,7 +494,7 @@ async function saveEdit() {
 .count-hint,
 .empty-hint {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 
@@ -512,7 +512,7 @@ async function saveEdit() {
 }
 
 .edit-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -524,19 +524,19 @@ async function saveEdit() {
   border-radius: 50%;
   background: rgba(142, 142, 147, 0.15);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
 .edit-caption {
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .edit-error {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #d64545;
 }
 

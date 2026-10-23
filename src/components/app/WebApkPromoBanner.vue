@@ -139,7 +139,7 @@ onBeforeUnmount(() => {
   height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   color: var(--app-text);
 }
@@ -159,7 +159,7 @@ onBeforeUnmount(() => {
 
 .apk-promo__title {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   line-height: 1.3;
   color: var(--app-text);
@@ -167,7 +167,7 @@ onBeforeUnmount(() => {
 
 .apk-promo__desc {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.35;
   color: var(--app-text-secondary);
   display: -webkit-box;
@@ -178,10 +178,10 @@ onBeforeUnmount(() => {
 
 .apk-promo__download {
   border: none;
-  border-radius: 999px;
-  padding: 9px 12px;
+  border-radius: var(--radius-pill);
+  padding: 10px 12px;
   min-height: 34px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-bg);
   background: var(--app-text);
@@ -195,7 +195,7 @@ onBeforeUnmount(() => {
   display: grid;
   place-items: center;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-tertiary);
   cursor: pointer;

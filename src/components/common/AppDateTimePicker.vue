@@ -146,7 +146,7 @@ function handleConfirm() {
 .dt-picker-btn {
   border: none;
   background: none;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text-secondary);
   cursor: pointer;
   padding: 4px 8px;
@@ -161,18 +161,18 @@ function handleConfirm() {
   display: flex;
   gap: 4px;
   background: var(--app-surface-soft);
-  border-radius: 10px;
-  padding: 3px;
+  border-radius: var(--radius-xs);
+  padding: 4px;
 }
 
 .dt-picker-tab {
   border: none;
   background: none;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary);
-  padding: 5px 14px;
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-radius: var(--radius-tiny);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -185,7 +185,7 @@ function handleConfirm() {
 
 .dt-picker-preview {
   text-align: center;
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   color: var(--app-text);
   padding: 4px 16px 12px;

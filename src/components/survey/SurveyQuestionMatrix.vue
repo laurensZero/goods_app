@@ -73,7 +73,7 @@ function setRowValue(rowId, value) {
   margin-bottom: 4px;
 }
 .sq-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--van-text-color);
   margin: 0;
@@ -83,12 +83,12 @@ function setRowValue(rowId, value) {
   font-weight: 700;
 }
 .sq-optional {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   font-weight: 400;
 }
 .sq-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   margin: 0 0 12px;
   line-height: 1.5;
@@ -113,7 +113,7 @@ function setRowValue(rowId, value) {
 .sq-matrix-row-label {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color);
   overflow: hidden;
   text-overflow: ellipsis;

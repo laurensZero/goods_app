@@ -67,7 +67,7 @@
 .hero-label,
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -85,7 +85,7 @@
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
 }
 
@@ -93,7 +93,7 @@
 .section-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -109,10 +109,10 @@
   align-items: center;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -154,14 +154,14 @@
 }
 
 .language-card__name {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .language-card__native {
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .language-card__check {

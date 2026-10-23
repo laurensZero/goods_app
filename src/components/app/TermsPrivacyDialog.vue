@@ -137,7 +137,7 @@ useDialogBackButton(
 <style scoped>
 .legal-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -146,7 +146,7 @@ useDialogBackButton(
 .legal-title {
   margin: 8px 0 0;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -154,7 +154,7 @@ useDialogBackButton(
 .legal-lead {
   margin: 10px 0 0;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -172,7 +172,7 @@ useDialogBackButton(
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -189,7 +189,7 @@ useDialogBackButton(
   max-height: min(48vh, 420px);
   overflow-y: auto;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
@@ -213,7 +213,7 @@ useDialogBackButton(
 
 .legal-body::-webkit-scrollbar-thumb {
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 22%, transparent);
 }
 
@@ -259,7 +259,7 @@ useDialogBackButton(
   width: 100%;
   margin: 12px 0;
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .legal-body :deep(th),
@@ -292,7 +292,7 @@ useDialogBackButton(
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 
@@ -321,7 +321,7 @@ useDialogBackButton(
 .legal-blocked__card {
   width: min(400px, 100%);
   padding: 28px 24px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface, var(--app-bg));
   border: 1px solid var(--app-border);
   text-align: center;
@@ -330,14 +330,14 @@ useDialogBackButton(
 .legal-blocked__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
 .legal-blocked__desc {
   margin: 12px 0 0;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -350,7 +350,7 @@ useDialogBackButton(
   border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-bg);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }

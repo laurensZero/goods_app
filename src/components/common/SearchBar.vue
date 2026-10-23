@@ -110,7 +110,7 @@ function syncInputLater() {
   outline: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .search-input::placeholder {

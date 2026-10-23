@@ -162,7 +162,7 @@ resolvePick()
 }
 
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
@@ -176,10 +176,10 @@ resolvePick()
   height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: transform 0.18s ease, background 0.18s ease;
 }
@@ -203,7 +203,7 @@ resolvePick()
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
   cursor: pointer;
@@ -217,7 +217,7 @@ resolvePick()
 .rec-cover {
   width: 96px;
   height: 96px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   background: rgba(142, 142, 147, 0.15);
   flex-shrink: 0;
@@ -237,11 +237,11 @@ resolvePick()
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 
-.rec-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.rec-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .rec-tag {
-  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  display: inline-block; padding: 2px 8px; border-radius: var(--radius-xxs);
   background: rgba(142, 142, 147, 0.12); color: var(--app-text-secondary);
-  font-size: 11px; line-height: 1.4;
+  font-size: var(--font-caption); line-height: 1.4;
   max-width: 120px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 .rec-tag--ip { background: color-mix(in srgb, var(--color-primary, #07c160) 12%, transparent); color: var(--color-primary, #07c160); }
@@ -257,16 +257,16 @@ resolvePick()
 
 /* Action button */
 .sheet-action-btn {
-  height: 48px; width: 100%; border: none; border-radius: 14px;
+  height: 48px; width: 100%; border: none; border-radius: var(--radius-small);
   background: var(--app-text); color: var(--app-surface);
-  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  font-size: var(--font-subtitle); font-weight: 600; letter-spacing: -0.01em;
   margin-bottom: 10px; transition: opacity 0.14s ease, transform 0.14s ease;
 }
 .sheet-action-btn:disabled { opacity: 0.4; }
 .sheet-action-btn:active:not(:disabled) { opacity: 0.88; transform: scale(0.985); }
 
 .sheet-cancel {
-  height: 54px; width: 100%; border: none; border-radius: 18px;
+  height: 54px; width: 100%; border: none; border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   font-size: 16px; font-weight: 600; color: var(--app-text, #141416);

@@ -5,7 +5,7 @@
 /* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -13,7 +13,7 @@
 .dialog-title {
   margin: 6px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -21,7 +21,7 @@
 .dialog-desc {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.65;
   white-space: pre-wrap;
 }
@@ -38,7 +38,7 @@
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -114,7 +114,7 @@
 }
 
 .info-title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 8px;
@@ -125,11 +125,11 @@
   padding-left: 18px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .info-steps li {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.5;
 }
@@ -141,10 +141,10 @@
 
 kbd {
   display: inline-block;
-  padding: 1px 5px;
-  border-radius: 5px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(0, 0, 0, 0.07);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-family: inherit;
 }
 
@@ -156,7 +156,7 @@ kbd {
 }
 
 .field-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
@@ -168,7 +168,7 @@ kbd {
   border-radius: var(--radius-small);
   border: 1.5px solid rgba(0, 0, 0, 0.08);
   background: var(--app-surface);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-family: inherit;
   color: var(--app-text);
   line-height: 1.5;
@@ -183,7 +183,7 @@ kbd {
 }
 
 .field-error {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #c74444;
   margin: 0;
 }
@@ -200,7 +200,7 @@ kbd {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -215,7 +215,7 @@ kbd {
   border: none;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   padding: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -223,7 +223,7 @@ kbd {
 
 .cookie-tip {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -249,7 +249,7 @@ kbd {
   justify-content: center;
   background: rgba(90, 120, 250, 0.12);
   color: #4c7dff;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -262,10 +262,10 @@ kbd {
   width: 100%;
   height: 52px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: #141416;
   color: #fff;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   cursor: pointer;
@@ -283,7 +283,7 @@ kbd {
 
 .info-qr-lead {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.6;
 }
@@ -299,7 +299,7 @@ kbd {
   border: none;
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -307,14 +307,14 @@ kbd {
 
 /* ── Loading ───────────────────────────────────────────────── */
 .loading-title {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
 }
 
 .loading-sub {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-tertiary);
   margin: 4px 0 0;
 }
@@ -340,7 +340,7 @@ kbd {
 .list-count {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.4;
   color: var(--app-text-secondary);
   margin: 0;
@@ -357,7 +357,7 @@ kbd {
     flex: 1 1 52%;
     min-width: 48%;
     max-width: 58%;
-    font-size: 13px;
+    font-size: var(--font-body);
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -368,14 +368,14 @@ kbd {
 
   .list-header-actions {
     gap: 2px;
-    padding: 3px;
+    padding: 4px;
   }
 
   .text-btn {
     min-width: 0;
     height: 32px;
     padding: 0 8px;
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 }
 
@@ -384,9 +384,9 @@ kbd {
   min-width: 72px;
   height: 36px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -404,7 +404,7 @@ kbd {
   flex-shrink: 0;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.06);
 }
 
@@ -419,7 +419,7 @@ kbd {
   border-radius: var(--radius-xs);
   background: rgba(255, 149, 0, 0.1);
   color: #ff9500;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   margin-bottom: 10px;
 }
@@ -440,7 +440,7 @@ kbd {
   background: rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   /* 长列表：屏外订单分组跳过布局/绘制，减轻首屏与切回时的重排 */
   content-visibility: auto;
   contain-intrinsic-size: auto 80px;
@@ -478,7 +478,7 @@ kbd {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .goods-item {
@@ -608,7 +608,7 @@ kbd {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.06);
   display: flex;
@@ -620,7 +620,7 @@ kbd {
 .order-thumb--sm {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   cursor: default;
 }
 
@@ -631,7 +631,7 @@ kbd {
 }
 
 .thumb-initial {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: rgba(0, 0, 0, 0.3);
 }
@@ -652,7 +652,7 @@ kbd {
 }
 
 .order-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text);
   margin: 0 0 4px;
@@ -669,7 +669,7 @@ kbd {
 }
 
 .meta-price {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   font-weight: 500;
 }
@@ -680,13 +680,13 @@ kbd {
 }
 
 .meta-actual {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c7375d;
   font-weight: 600;
 }
 
 .meta-payed {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
@@ -696,52 +696,52 @@ kbd {
 }
 
 .meta-ip {
-  font-size: 12px;
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: var(--font-small);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(28, 53, 88, 0.08);
   color: #1c3558;
   white-space: nowrap;
 }
 
 .meta-qty {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: var(--app-text-primary);
   background: rgba(20, 20, 22, 0.08);
-  border-radius: 5px;
-  padding: 1px 5px;
+  border-radius: var(--radius-xxs);
+  padding: 2px 6px;
   white-space: nowrap;
 }
 
 .meta-date {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .meta-count {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
 
 .meta-shop {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .meta-char {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 /* Status badge */
 .status-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.06);
   color: var(--app-text-secondary);
 }
@@ -773,8 +773,8 @@ kbd {
 }
 
 .meta-item-status {
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: var(--font-micro);
+  padding: 2px 6px;
 }
 
 /* Bottom sticky bar */
@@ -811,7 +811,7 @@ kbd {
 }
 
 .done-title {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   color: var(--app-text);
   letter-spacing: -0.03em;
@@ -819,7 +819,7 @@ kbd {
 }
 
 .done-sub {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text-secondary);
   margin: 0 0 16px;
 }

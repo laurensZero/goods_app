@@ -457,7 +457,7 @@ onBeforeUnmount(() => {
 
 .section-label, .control-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
   font-weight: 700;
   letter-spacing: -0.04em;
 }
-.section-title--sub { font-size: 22px; font-weight: 600; }
+.section-title--sub { font-size: var(--font-display); font-weight: 600; }
 
 /* Overview */
 .overview-grid {
@@ -484,14 +484,14 @@ onBeforeUnmount(() => {
 }
 .overview-kicker {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
 }
 .overview-value {
   display: block;
   margin-top: 8px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -508,7 +508,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   padding: 6px;
   overflow-x: auto;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface) 28%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 6%, transparent);
   scrollbar-width: none;
@@ -517,12 +517,12 @@ onBeforeUnmount(() => {
 .chip {
   flex-shrink: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 10px 16px;
   background: color-mix(in srgb, var(--app-surface) 82%, transparent);
   color: var(--app-text-secondary);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 5%, transparent);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: background var(--motion-fast) var(--motion-emphasis), color var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
 }
@@ -546,7 +546,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   min-height: 140px;
   padding: 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   color: #fff;
   box-shadow: var(--app-shadow);
 }
@@ -556,15 +556,15 @@ onBeforeUnmount(() => {
 .podium-rank {
   display: inline-flex;
   width: fit-content;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 10px;
   background: rgba(255, 255, 255, 0.12);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
-.podium-name { font-size: 15px; font-weight: 700; line-height: 1.35; }
-.podium-meta { color: rgba(255, 255, 255, 0.66); font-size: 11px; }
-.podium-value { margin-top: auto; font-size: 20px; font-weight: 700; letter-spacing: -0.04em; }
+.podium-name { font-size: var(--font-subtitle); font-weight: 700; line-height: 1.35; }
+.podium-meta { color: rgba(255, 255, 255, 0.66); font-size: var(--font-caption); }
+.podium-value { margin-top: auto; font-size: var(--font-title-xl); font-weight: 700; letter-spacing: -0.04em; }
 
 /* View Full Ranking */
 .view-full-btn {
@@ -579,13 +579,13 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-card);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: background var(--motion-fast) var(--motion-emphasis);
 }
 .view-full-btn:active { background: var(--app-surface-soft); transform: scale(0.98); }
-.view-full-arrow { font-size: 18px; }
+.view-full-arrow { font-size: var(--font-title-lg); }
 
 /* Charts */
 .charts-grid {
@@ -598,7 +598,7 @@ onBeforeUnmount(() => {
   background: var(--app-card-bg, var(--app-surface));
   border: 1px solid var(--app-glass-border);
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 .chart-title { margin: 0 0 8px 0; font-size: 14px; color: var(--app-text-secondary); }
 
@@ -631,15 +631,15 @@ onBeforeUnmount(() => {
 .sale-overview-figure {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .sale-overview-kicker {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 .sale-overview-value {
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 .sale-profit--gain { color: var(--app-danger, #dc2626); }
@@ -678,9 +678,9 @@ onBeforeUnmount(() => {
   .hero-actions { gap: 10px; }
   .hero-actions :deep(.mode-switch__item) { min-width: 52px; padding: 0 10px; }
   .podium-section { gap: 8px; }
-  .podium-card { min-height: 120px; padding: 12px; border-radius: 16px; }
-  .podium-name { font-size: 13px; }
-  .podium-meta { font-size: 10px; }
-  .podium-value { font-size: 17px; }
+  .podium-card { min-height: 120px; padding: 12px; border-radius: var(--radius-medium); }
+  .podium-name { font-size: var(--font-body); }
+  .podium-meta { font-size: var(--font-micro); }
+  .podium-value { font-size: var(--font-title); }
 }
 </style>

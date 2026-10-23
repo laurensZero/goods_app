@@ -19,13 +19,13 @@ defineProps({
   box-sizing: border-box;
   width: max-content;
   max-width: min(calc(100vw - 32px), 420px);
-  padding: 11px 16px;
-  border-radius: 18px;
+  padding: 12px 16px;
+  border-radius: var(--radius-card);
   border: 1px solid var(--app-glass-border);
   background: color-mix(in srgb, var(--app-glass-strong) 90%, transparent);
   color: var(--app-text);
   box-shadow: var(--app-shadow);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   line-height: 1.45;
   white-space: normal;

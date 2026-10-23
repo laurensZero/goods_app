@@ -103,7 +103,7 @@ function removeTag(tag) {
   min-height: var(--input-height);
   padding: 10px 12px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
 }
 
@@ -117,10 +117,10 @@ function removeTag(tag) {
   gap: 6px;
   min-height: 30px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.08);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
@@ -134,7 +134,7 @@ function removeTag(tag) {
   border-radius: 50%;
   background: rgba(20, 20, 22, 0.12);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1;
 }
 
@@ -145,7 +145,7 @@ function removeTag(tag) {
   border: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   outline: none;
   padding: 0;
 }
@@ -156,7 +156,7 @@ function removeTag(tag) {
 
 .tag-input__hint {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 

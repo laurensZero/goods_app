@@ -94,7 +94,7 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
 }
 .ranking-popup__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -108,7 +108,7 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
   border-radius: 50%;
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
 }
 .ranking-popup__body {
@@ -134,10 +134,10 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
   width: 36px;
   height: 36px;
   flex-shrink: 0;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-chip-bg);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
 }
 .ranking-popup__content {
@@ -152,17 +152,17 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
 }
 .ranking-popup__name {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 .ranking-popup__meta {
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 .ranking-popup__value {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
   white-space: nowrap;
 }
@@ -173,11 +173,11 @@ useDialogBackButton(() => emit('update:show', false), () => props.show)
   margin-top: 8px;
 }
 .ranking-popup__chip {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 4px 10px;
   background: var(--app-surface-muted);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 .ranking-popup__chip--actual {
   background: color-mix(in srgb, #10b981 10%, transparent);

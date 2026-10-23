@@ -118,7 +118,7 @@ watch(showDialog, (visible) => {
 
 .update-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -127,7 +127,7 @@ watch(showDialog, (visible) => {
 .dialog-title {
   margin: 8px 0 0;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -136,14 +136,14 @@ watch(showDialog, (visible) => {
 .update-tip {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
 .update-error {
   margin-top: 10px;
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -156,7 +156,7 @@ watch(showDialog, (visible) => {
 
 .version-pill {
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
@@ -167,34 +167,34 @@ watch(showDialog, (visible) => {
 .version-pill__label {
   display: block;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .version-pill__value {
   display: block;
   margin-top: 6px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
 .release-notes {
   margin-top: 18px;
   padding: 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
 .release-notes__label {
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
 .release-notes__body {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -213,7 +213,7 @@ watch(showDialog, (visible) => {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 

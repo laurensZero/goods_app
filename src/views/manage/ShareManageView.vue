@@ -342,7 +342,7 @@ onMounted(() => {
 .share-hero__label,
 .share-toolbar__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -360,7 +360,7 @@ onMounted(() => {
 .share-state-card__desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.65;
 }
 
@@ -375,13 +375,13 @@ onMounted(() => {
 .hero-stat-card {
   min-width: 0;
   padding: 18px 16px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
 .hero-stat-card__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .hero-stat-card__value {
@@ -403,7 +403,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 18px;
   padding: 22px 24px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
 }
 
 .share-toolbar__title,
@@ -426,8 +426,8 @@ onMounted(() => {
   min-height: 46px;
   padding: 0 18px;
   border: none;
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-body-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -453,7 +453,7 @@ onMounted(() => {
   gap: 12px;
   margin-top: 18px;
   padding: 42px 24px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   text-align: center;
 }
 
@@ -467,7 +467,7 @@ onMounted(() => {
   justify-content: center;
   width: 58px;
   height: 58px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-text) 7%, transparent);
   color: var(--app-text-secondary);
 }
@@ -505,7 +505,7 @@ onMounted(() => {
 
 .share-record {
   padding: 18px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
 }
 
@@ -525,7 +525,7 @@ onMounted(() => {
   justify-content: center;
   width: 64px;
   height: 64px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: color-mix(in srgb, var(--app-surface-soft) 80%, transparent);
   flex-shrink: 0;
@@ -558,7 +558,7 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.03em;
@@ -570,8 +570,8 @@ onMounted(() => {
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
@@ -597,10 +597,10 @@ onMounted(() => {
   align-items: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 90%, transparent);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
 }
 
@@ -613,13 +613,13 @@ onMounted(() => {
   align-items: center;
   min-height: 28px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .share-record__linkbox {
   margin-top: 16px;
   padding: 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 76%, transparent);
   border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
 }
@@ -627,7 +627,7 @@ onMounted(() => {
 .share-record__linklabel {
   display: block;
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -636,7 +636,7 @@ onMounted(() => {
   display: block;
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
   word-break: break-all;
   white-space: normal;
@@ -653,10 +653,10 @@ onMounted(() => {
   min-height: 42px;
   padding: 0 12px;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass) 80%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -693,7 +693,7 @@ onMounted(() => {
   .share-toolbar,
   .share-record,
   .share-state-card {
-    border-radius: 24px;
+    border-radius: var(--radius-large);
   }
 
   .share-hero__stats {
@@ -704,12 +704,12 @@ onMounted(() => {
 
   .hero-stat-card {
     padding: 14px 10px;
-    border-radius: 18px;
+    border-radius: var(--radius-card);
     text-align: center;
   }
 
   .hero-stat-card__label {
-    font-size: 11px;
+    font-size: var(--font-caption);
   }
 
   .hero-stat-card__value {

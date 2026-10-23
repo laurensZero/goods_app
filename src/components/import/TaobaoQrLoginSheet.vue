@@ -259,7 +259,7 @@ async function pollOnce(token) {
 .sheet-title {
   margin: 0 0 4px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -267,7 +267,7 @@ async function pollOnce(token) {
 .sheet-sub {
   margin: 0 0 14px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-secondary, #8e8e93);
 }
@@ -279,7 +279,7 @@ async function pollOnce(token) {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: #fff;
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
 }
@@ -291,21 +291,21 @@ async function pollOnce(token) {
 }
 
 .qr-placeholder {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary, #8e8e93);
 }
 
 .qr-status {
   margin: 0 0 6px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text);
 }
 
 .qr-error {
   margin: 0 0 8px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
 }
 
@@ -314,10 +314,10 @@ async function pollOnce(token) {
   margin-top: 8px;
   padding: 12px 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-fill, rgba(120, 120, 128, 0.12));
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .sheet-secondary:disabled {
@@ -330,7 +330,7 @@ async function pollOnce(token) {
 
 .paste-label {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -338,11 +338,11 @@ async function pollOnce(token) {
   width: 100%;
   min-height: 88px;
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface, #fff);
   color: var(--app-text);
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   font-family: monospace;
   resize: vertical;
@@ -351,7 +351,7 @@ async function pollOnce(token) {
 
 .field-error {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
 }
 
@@ -360,10 +360,10 @@ async function pollOnce(token) {
   margin-top: 10px;
   padding: 12px 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-primary);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -376,9 +376,9 @@ async function pollOnce(token) {
   margin-top: 8px;
   padding: 12px 14px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary, #8e8e93);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 </style>

@@ -581,7 +581,7 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
@@ -608,31 +608,31 @@ onBeforeUnmount(() => {
 .goods-count {
   margin-left: 4px;
   color: var(--app-text-tertiary);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 400;
 }
 
 .filter-badge {
   display: inline-block;
-  padding: 1px 6px;
+  padding: 2px 6px;
   margin-left: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--color-primary, #07c160);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   vertical-align: middle;
 }
 
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -650,7 +650,7 @@ onBeforeUnmount(() => {
   --density-switch-duration: calc(var(--home-motion-density-duration) + 80ms);
   --density-switch-count: 3;
   --density-switch-index: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   box-shadow: var(--app-shadow);
 }
@@ -675,10 +675,10 @@ onBeforeUnmount(() => {
   height: var(--density-switch-height, 36px);
   padding: 0 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition:
     transform var(--home-motion-density-duration) var(--home-motion-ease-standard),
@@ -698,7 +698,7 @@ onBeforeUnmount(() => {
     (100% - (var(--density-switch-gap, 6px) * (var(--density-switch-count, 3) - 1)) - (var(--density-switch-pad, 6px) * 2))
     / var(--density-switch-count, 3)
   );
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   transform: translateX(calc((100% + var(--density-switch-gap, 6px)) * var(--density-switch-index, 0)));
   transition:
@@ -724,7 +724,7 @@ onBeforeUnmount(() => {
   width: 48px;
   height: 48px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
@@ -905,13 +905,13 @@ onBeforeUnmount(() => {
 
 .sort-sheet__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .sort-sheet__title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
 }
 
@@ -919,10 +919,10 @@ onBeforeUnmount(() => {
   min-height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 84%, white);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -935,7 +935,7 @@ onBeforeUnmount(() => {
 
 .sort-sheet__section-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   margin-bottom: 10px;
 }
 
@@ -956,7 +956,7 @@ onBeforeUnmount(() => {
   min-height: 56px;
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--app-text);
   text-align: left;
@@ -972,20 +972,20 @@ onBeforeUnmount(() => {
 }
 
 .sort-sheet__option-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .sort-sheet__option-meta {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .sort-sheet__section-desc {
   margin: -4px 0 10px;
   padding: 0 14px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -1003,7 +1003,7 @@ onBeforeUnmount(() => {
   min-height: 52px;
   padding: 0 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--app-text);
   text-align: left;
@@ -1015,7 +1015,7 @@ onBeforeUnmount(() => {
 }
 
 .hide-status-row__label {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -1026,8 +1026,8 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   width: 46px;
   height: 28px;
-  padding: 3px;
-  border-radius: 999px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
   background: rgba(142, 142, 147, 0.28);
   transition: background 0.18s ease;
 }

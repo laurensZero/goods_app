@@ -427,7 +427,7 @@ async function confirmDelete() {
 .section-caption {
   margin: 4px 4px 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -466,13 +466,13 @@ async function confirmDelete() {
 }
 
 .row-label {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .row-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -484,8 +484,8 @@ async function confirmDelete() {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
   font-weight: 600;
   background: rgba(142, 142, 147, 0.14);
   color: #6a6e77;
@@ -522,7 +522,7 @@ async function confirmDelete() {
 .count-hint,
 .empty-hint {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 
@@ -540,7 +540,7 @@ async function confirmDelete() {
 }
 
 .edit-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -552,7 +552,7 @@ async function confirmDelete() {
   border-radius: 50%;
   background: rgba(142, 142, 147, 0.15);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
@@ -565,7 +565,7 @@ async function confirmDelete() {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -574,7 +574,7 @@ async function confirmDelete() {
 .field-caption {
   margin-bottom: 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -583,7 +583,7 @@ async function confirmDelete() {
 .field-hint {
   margin-top: 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -603,10 +603,10 @@ async function confirmDelete() {
 .scope-option {
   height: 38px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -650,16 +650,16 @@ async function confirmDelete() {
   width: 100%;
   height: 38px;
   border: 1px dashed rgba(142, 142, 147, 0.4);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
 .edit-error {
   margin-top: 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #d64545;
 }
 
@@ -670,10 +670,10 @@ async function confirmDelete() {
   margin-top: 14px;
   padding: 0 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 

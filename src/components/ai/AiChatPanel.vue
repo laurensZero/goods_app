@@ -1828,7 +1828,7 @@ function removeSession(id) {
   width: 64px;
   height: 64px;
   margin-bottom: 4px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: rgba(52, 199, 89, 0.1);
   color: #34c759;
   animation: chat-float 3.2s ease-in-out infinite;
@@ -1846,14 +1846,14 @@ function removeSession(id) {
 .chat-empty__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
 .chat-empty__hint {
   margin: 0 0 6px;
   color: var(--app-text-tertiary);
-  font-size: 12.5px;
+  font-size: var(--font-small);
 }
 
 .chat-empty__examples {
@@ -1865,12 +1865,12 @@ function removeSession(id) {
 }
 
 .chat-example {
-  padding: 11px 16px;
+  padding: 12px 16px;
   border: 1px solid var(--app-border);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: left;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1934,9 +1934,9 @@ function removeSession(id) {
 
 .chat-bubble {
   max-width: 82%;
-  padding: 11px 14px;
-  border-radius: 18px;
-  font-size: 14.5px;
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  font-size: var(--font-body-lg);
   line-height: 1.65;
   word-break: break-word;
   /* 对话内容可长按选中复制 */
@@ -1978,7 +1978,7 @@ function removeSession(id) {
 .chat-error {
   margin: 0;
   color: #ff3b30;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -1990,10 +1990,10 @@ function removeSession(id) {
   margin-top: 8px;
   padding: 4px 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2018,7 +2018,7 @@ function removeSession(id) {
 .chat-undo-done {
   margin: 8px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 /* 打字中三点动画 */
@@ -2026,7 +2026,7 @@ function removeSession(id) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 0;
+  padding: 4px 0;
 }
 
 .chat-typing span {
@@ -2049,7 +2049,7 @@ function removeSession(id) {
 
 .chat-ask__question {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.45;
 }
@@ -2071,10 +2071,10 @@ function removeSession(id) {
   min-width: 0;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
   text-align: left;
   cursor: pointer;
@@ -2097,7 +2097,7 @@ function removeSession(id) {
   justify-content: center;
   width: 40px;
   border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 4%, transparent);
   color: var(--app-text);
   cursor: pointer;
@@ -2153,10 +2153,10 @@ function removeSession(id) {
   min-width: 0;
   padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   outline: none;
   transition: border-color 0.15s ease;
 }
@@ -2204,12 +2204,12 @@ function removeSession(id) {
   align-items: center;
   gap: 4px;
   margin-bottom: 8px;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
   color: var(--app-text-tertiary);
-  font-size: 11.5px;
+  font-size: var(--font-caption);
   cursor: pointer;
 }
 
@@ -2227,7 +2227,7 @@ function removeSession(id) {
   margin-bottom: 8px;
   padding: 8px 10px;
   border-left: 3px solid color-mix(in srgb, var(--app-text) 14%, transparent);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-text) 4%, transparent);
 }
 
@@ -2236,7 +2236,7 @@ function removeSession(id) {
   max-height: 240px;
   overflow-y: auto;
   color: var(--app-text-tertiary);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -2256,9 +2256,9 @@ function removeSession(id) {
   gap: 6px;
   padding: 4px 10px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
-  font-size: 11.5px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -2288,7 +2288,7 @@ function removeSession(id) {
 
 /* Markdown 内容（v-html 节点需 :deep 穿透） */
 .chat-markdown {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.65;
 }
 
@@ -2309,10 +2309,10 @@ function removeSession(id) {
   letter-spacing: -0.02em;
 }
 
-.chat-markdown :deep(h1) { font-size: 16px; }
-.chat-markdown :deep(h2) { font-size: 15px; }
-.chat-markdown :deep(h3) { font-size: 14.5px; }
-.chat-markdown :deep(h4) { font-size: 14px; }
+.chat-markdown :deep(h1) { font-size: var(--font-title); }
+.chat-markdown :deep(h2) { font-size: var(--font-subtitle); }
+.chat-markdown :deep(h3) { font-size: var(--font-body-lg); }
+.chat-markdown :deep(h4) { font-size: var(--font-body-lg); }
 
 .chat-markdown :deep(ul),
 .chat-markdown :deep(ol) {
@@ -2321,7 +2321,7 @@ function removeSession(id) {
 }
 
 .chat-markdown :deep(li) {
-  margin: 3px 0;
+  margin: 4px 0;
 }
 
 .chat-markdown :deep(a) {
@@ -2335,12 +2335,12 @@ function removeSession(id) {
   align-items: center;
   gap: 4px;
   margin: 4px 6px 2px 0;
-  padding: 5px 14px;
+  padding: 6px 14px;
   border: 1px solid var(--app-chip-accent-border, var(--app-border));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-accent-bg, transparent);
   color: var(--app-chip-accent-text, #2070c0);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.3;
   word-break: keep-all;
   text-decoration: none;
@@ -2364,17 +2364,17 @@ function removeSession(id) {
 }
 
 .chat-markdown :deep(code) {
-  padding: 1px 5px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xxs);
   background: color-mix(in srgb, var(--app-text) 7%, transparent);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: var(--font-small);
 }
 
 .chat-markdown :deep(pre) {
   margin: 8px 0;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   overflow-x: auto;
 }
@@ -2382,7 +2382,7 @@ function removeSession(id) {
 .chat-markdown :deep(pre code) {
   padding: 0;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
@@ -2395,7 +2395,7 @@ function removeSession(id) {
   max-height: 150px;
   margin: 6px 0;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   cursor: zoom-in;
 }
 
@@ -2409,7 +2409,7 @@ function removeSession(id) {
   display: block;
   margin: 8px 0;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: var(--font-small);
   overflow-x: auto;
   max-width: 100%;
 }
@@ -2439,7 +2439,7 @@ function removeSession(id) {
   width: 72px;
   height: 72px;
   object-fit: cover;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--app-surface) 30%, transparent);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   cursor: zoom-in;
@@ -2489,7 +2489,7 @@ function removeSession(id) {
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -2515,7 +2515,7 @@ function removeSession(id) {
   margin: 8px var(--page-padding) max(12px, env(safe-area-inset-bottom));
   padding: 6px 6px 6px 4px;
   border: 1px solid var(--app-border);
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
@@ -2552,7 +2552,7 @@ function removeSession(id) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--app-border);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
 }
@@ -2680,7 +2680,7 @@ function removeSession(id) {
   z-index: 20;
   min-width: 148px;
   padding: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   /* 毛玻璃菜单：与 AppSheet/NavBar 同一套 blur + saturate 惯例 */
   background: color-mix(in srgb, var(--app-surface, #fff) 86%, transparent);
   backdrop-filter: blur(24px) saturate(150%);
@@ -2696,10 +2696,10 @@ function removeSession(id) {
   width: 100%;
   padding: 10px 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-align: left;
   cursor: pointer;
 }
@@ -2723,7 +2723,7 @@ function removeSession(id) {
   height: 100%;
   padding: 0 8px;
   /* 与 .chat-compose__thumb-img 同款 12px 圆角，两种附件并排时轮廓一致 */
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 6%, transparent);
   color: var(--app-text-secondary);
   overflow: hidden;
@@ -2736,7 +2736,7 @@ function removeSession(id) {
 }
 
 .chat-compose__thumb-table-name {
-  font-size: 11px;
+  font-size: var(--font-caption);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2754,10 +2754,10 @@ function removeSession(id) {
   max-width: 180px;
   padding: 6px 10px;
   /* 与并排的 .chat-attach-thumb 同款 10px 圆角 */
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .chat-attach-table-chip svg {
@@ -2782,7 +2782,7 @@ function removeSession(id) {
   border: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.45;
   font-family: inherit;
   outline: none;
@@ -2955,10 +2955,10 @@ function removeSession(id) {
   gap: 6px;
   padding: 10px 14px;
   /* 与用户消息气泡同款尾角 6px，保持同一视觉语言 */
-  border-radius: 18px 18px 6px 18px;
+  border-radius: var(--radius-card) var(--radius-card) var(--radius-xxs) var(--radius-card);
   background: color-mix(in srgb, var(--app-text) 10%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.45;
   opacity: 0.55;
   /* 最多 4 行，超出省略 */
@@ -2977,12 +2977,12 @@ function removeSession(id) {
 .chat-queue__att {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 12%, transparent);
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-secondary);
 }
 
@@ -3034,7 +3034,7 @@ function removeSession(id) {
 .ai-settings-body__title {
   margin: 0 0 14px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -3047,7 +3047,7 @@ function removeSession(id) {
   display: block;
   margin-bottom: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -3066,10 +3066,10 @@ function removeSession(id) {
   flex-shrink: 0;
   padding: 6px 10px;
   border: 1px solid var(--app-border, #d0d0d0);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-bg-secondary, #f5f5f5);
   color: var(--app-text, #222);
-  font-size: 12px;
+  font-size: var(--font-small);
   cursor: pointer;
 }
 
@@ -3079,12 +3079,12 @@ function removeSession(id) {
 
 .settings-field input {
   width: 100%;
-  padding: 11px 12px;
+  padding: 12px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   outline: none;
   transition: border-color 0.2s ease;
 }
@@ -3096,7 +3096,7 @@ function removeSession(id) {
   gap: 14px;
   margin-bottom: 12px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
@@ -3108,7 +3108,7 @@ function removeSession(id) {
 .settings-toggle-row__title {
   display: block;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -3116,7 +3116,7 @@ function removeSession(id) {
   display: block;
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
@@ -3144,7 +3144,7 @@ function removeSession(id) {
   bottom: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -3195,10 +3195,10 @@ html.theme-dark .toggle-slider::before {
 .settings-save {
   min-height: 46px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }
@@ -3211,10 +3211,10 @@ html.theme-dark .toggle-slider::before {
 .settings-clear {
   min-height: 46px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 94%, transparent);
   color: #ff3b30;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }
@@ -3222,7 +3222,7 @@ html.theme-dark .toggle-slider::before {
 .ai-settings-body__hint {
   margin: 10px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
@@ -3238,7 +3238,7 @@ html.theme-dark .toggle-slider::before {
 .ai-history-body__title {
   margin: 0 0 12px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -3251,10 +3251,10 @@ html.theme-dark .toggle-slider::before {
   min-height: 44px;
   margin-bottom: 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14.5px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.15s ease;
@@ -3288,7 +3288,7 @@ html.theme-dark .toggle-slider::before {
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid var(--app-border);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 60%, transparent);
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease;
@@ -3311,7 +3311,7 @@ html.theme-dark .toggle-slider::before {
 .history-item__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   /* 固定行高：与重命名输入框同高，进入编辑态不跳动 */
   line-height: 22px;
@@ -3321,9 +3321,9 @@ html.theme-dark .toggle-slider::before {
 }
 
 .history-item__meta {
-  margin: 3px 0 0;
+  margin: 4px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .history-item__action {
@@ -3334,7 +3334,7 @@ html.theme-dark .toggle-slider::before {
   width: 32px;
   height: 32px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;
@@ -3365,10 +3365,10 @@ html.theme-dark .toggle-slider::before {
   height: 22px;
   padding: 0 8px;
   border: 1px solid rgba(52, 199, 89, 0.5);
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   font-family: inherit;
   line-height: 20px;
@@ -3379,7 +3379,7 @@ html.theme-dark .toggle-slider::before {
   margin: 8px 0;
   text-align: center;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 /* ── Keyframes（进场动画统一由全局 .page-entry / page-fade-up 处理） ── */

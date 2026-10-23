@@ -68,7 +68,7 @@ const stats = computed(() =>
   flex-direction: column;
   gap: 12px;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -85,7 +85,7 @@ const stats = computed(() =>
 
 .tree-node__name {
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -94,7 +94,7 @@ const stats = computed(() =>
 .tree-node__meta {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -106,11 +106,11 @@ const stats = computed(() =>
 
 .tree-node__action {
   border: none;
-  border-radius: 999px;
-  padding: 7px 12px;
+  border-radius: var(--radius-pill);
+  padding: 8px 12px;
   background: rgba(20, 20, 22, 0.07);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 

@@ -773,14 +773,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   pointer-events: none;
   white-space: nowrap;
@@ -804,7 +804,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(24px) saturate(150%);
@@ -818,7 +818,7 @@ onBeforeUnmount(() => {
   width: 40px;
   height: 4px;
   margin: 0 auto 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-text-tertiary);
   opacity: 0.4;
 }
@@ -839,14 +839,14 @@ onBeforeUnmount(() => {
 .map-sheet__label {
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.06em;
 }
 
 .map-sheet__title {
   margin: 2px 0 0;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
   overflow: hidden;
@@ -902,7 +902,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 10px 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface) 62%, transparent);
   text-align: left;
   transition: background 0.16s ease;
@@ -914,7 +914,7 @@ onBeforeUnmount(() => {
 
 .map-sheet__item-name {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -923,7 +923,7 @@ onBeforeUnmount(() => {
 
 .map-sheet__item-meta {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -936,12 +936,12 @@ onBeforeUnmount(() => {
   gap: 6px;
   width: 100%;
   margin-top: 10px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: transform 0.16s ease, opacity 0.16s ease;
 }
@@ -970,14 +970,14 @@ onBeforeUnmount(() => {
   padding: 0 16px;
   height: 46px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1000,14 +1000,14 @@ onBeforeUnmount(() => {
   transform: translateX(-50%);
   z-index: 550;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   box-shadow: var(--app-shadow);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   pointer-events: none;
 }
@@ -1022,7 +1022,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   box-shadow: 0 4px 14px color-mix(in srgb, var(--app-text) 30%, transparent);
   border: 2px solid color-mix(in srgb, var(--app-surface) 92%, transparent);
@@ -1034,7 +1034,7 @@ onBeforeUnmount(() => {
   color: var(--app-text-secondary);
   border: 2px dashed color-mix(in srgb, var(--app-text) 38%, transparent);
   box-shadow: none;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .event-map :deep(.map-cluster) {
@@ -1046,7 +1046,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   box-shadow: 0 4px 14px color-mix(in srgb, var(--app-text) 30%, transparent);
   border: 2px solid color-mix(in srgb, var(--app-surface) 92%, transparent);

@@ -752,7 +752,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 .cal-card {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   padding: 10px 10px 16px;
   margin-bottom: 10px;
   overflow: hidden;
@@ -780,7 +780,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-glass) 55%, var(--app-surface));
   color: var(--app-text);
   display: grid;
@@ -812,7 +812,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 }
 
 .cal-nav__month-text {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   pointer-events: none;
@@ -823,7 +823,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text);
   display: grid;
@@ -857,7 +857,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 
 .cal-weekdays span {
   text-align: center;
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary, #8e8e93);
   padding: 4px 0;
 }
@@ -874,7 +874,7 @@ useDialogBackButton(closeSheet, () => props.modelValue)
 
 .cal-stage {
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   width: 100%;
   /* 固定 6 行日高，不依赖 aspect-ratio，避免布局塌掉 */
   height: 248px;
@@ -917,10 +917,10 @@ useDialogBackButton(closeSheet, () => props.modelValue)
   height: 100%;
   min-height: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   display: grid;
   place-items: center;
@@ -965,7 +965,7 @@ html.theme-dark .cal-day--selected {
   padding: 10px 4px 8px;
   box-sizing: border-box;
   background: var(--app-surface);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 /* 打开：上滑淡入；收起：淡出，同时下层日历已插入 */
@@ -996,7 +996,7 @@ html.theme-dark .cal-day--selected {
 
 .month-picker__title {
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 8px;
@@ -1017,7 +1017,7 @@ html.theme-dark .cal-day--selected {
   align-items: center;
   gap: 2px;
   padding: 2px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-glass) 70%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
 }
@@ -1026,7 +1026,7 @@ html.theme-dark .cal-day--selected {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
   display: grid;
@@ -1065,7 +1065,7 @@ html.theme-dark .cal-day--selected {
   right: 0;
   display: block;
   text-align: center;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
   color: var(--app-text);
   line-height: 30px;
@@ -1122,11 +1122,11 @@ html.theme-dark .cal-day--selected {
 
 .month-picker__cell {
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--app-border) 70%, transparent);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1165,11 +1165,11 @@ html.theme-dark .month-picker__cell--active {
 .month-picker__today,
 .month-picker__close {
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   background: color-mix(in srgb, var(--app-glass) 70%, var(--app-surface));
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1195,7 +1195,7 @@ html.theme-dark .month-picker__today {
 }
 
 .selection-summary__label {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary, #8e8e93);
   line-height: 1.4;
 }
@@ -1204,7 +1204,7 @@ html.theme-dark .month-picker__today {
   border: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   padding: 4px 6px;
@@ -1220,8 +1220,8 @@ html.theme-dark .month-picker__today {
 .sheet-apply,
 .sheet-cancel {
   height: 54px;
-  border-radius: 18px;
-  font-size: 16px;
+  border-radius: var(--radius-card);
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   margin: 0;

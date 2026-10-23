@@ -69,10 +69,10 @@ const { t } = useI18n()
   gap: 6px;
   height: 50px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   letter-spacing: -0.02em;
   transition: transform 0.14s ease, opacity 0.14s ease;
@@ -120,7 +120,7 @@ const { t } = useI18n()
     width: min(100vw, 430px);
     padding: 10px var(--page-padding);
     border: 1px solid var(--app-glass-border);
-    border-radius: 22px;
+    border-radius: var(--radius-large);
     transform: translateX(-50%);
   }
 }

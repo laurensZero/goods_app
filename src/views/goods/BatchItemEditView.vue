@@ -388,7 +388,7 @@ async function onEditorSave(result) {
 }
 
 .batch-edit-nav-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -461,7 +461,7 @@ async function onEditorSave(result) {
   opacity: 0;
   transition: opacity 0.2s ease;
   color: white;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 
@@ -481,10 +481,10 @@ async function onEditorSave(result) {
   gap: 6px;
   padding: 8px 16px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
@@ -515,7 +515,7 @@ async function onEditorSave(result) {
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
@@ -535,7 +535,7 @@ async function onEditorSave(result) {
 
 .field-error {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #ff3b30;
 }
 
@@ -544,10 +544,10 @@ async function onEditorSave(result) {
   min-height: var(--input-height);
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   outline: none;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -573,10 +573,10 @@ async function onEditorSave(result) {
   min-height: var(--input-height);
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   text-align: left;
   cursor: pointer;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
@@ -619,7 +619,7 @@ async function onEditorSave(result) {
   height: 52px;
   border: none;
   border-radius: var(--radius-card);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   letter-spacing: -0.02em;
   box-shadow: var(--app-shadow);
@@ -697,7 +697,7 @@ async function onEditorSave(result) {
   .field :deep(.app-select),
   .date-field {
     min-height: 52px;
-    font-size: 17px;
+    font-size: var(--font-title);
   }
 
   .float-footer {
@@ -706,7 +706,7 @@ async function onEditorSave(result) {
 
   .btn-float {
     height: 56px;
-    font-size: 17px;
+    font-size: var(--font-title);
   }
 
   .btn-float--icon {

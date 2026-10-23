@@ -90,7 +90,7 @@ function submit() {
 .sheet-title {
   margin: 0 0 4px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -98,7 +98,7 @@ function submit() {
 .sheet-sub {
   margin: 0 0 14px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-secondary, #8e8e93);
 }
@@ -110,7 +110,7 @@ function submit() {
 .field-label {
   display: block;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -118,11 +118,11 @@ function submit() {
   width: 100%;
   min-height: 110px;
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface, #fff);
   color: var(--app-text);
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   resize: vertical;
   box-sizing: border-box;
@@ -130,7 +130,7 @@ function submit() {
 
 .field-error {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
 }
 
@@ -139,7 +139,7 @@ function submit() {
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -151,7 +151,7 @@ function submit() {
 .account-notice {
   margin: 0 0 10px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c77700;
 }
 
@@ -159,11 +159,11 @@ function submit() {
   width: 100%;
   margin-bottom: 8px;
   border: none;
-  border-radius: 14px;
-  padding: 13px 16px;
+  border-radius: var(--radius-small);
+  padding: 14px 16px;
   background: #141416;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -174,11 +174,11 @@ function submit() {
 .sheet-cancel {
   width: 100%;
   border: none;
-  border-radius: 14px;
-  padding: 13px 16px;
+  border-radius: var(--radius-small);
+  padding: 14px 16px;
   background: color-mix(in srgb, var(--app-glass) 80%, var(--app-surface));
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
 }
 

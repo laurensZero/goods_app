@@ -842,13 +842,13 @@ defineExpose({
 .section-label,
 .stat-card__label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -856,7 +856,7 @@ defineExpose({
 .section-count {
   margin-left: 4px;
   color: var(--app-text-tertiary);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 400;
 }
 
@@ -875,7 +875,7 @@ defineExpose({
   grid-template-columns: repeat(var(--view-switch-count, 2), minmax(0, 1fr));
   gap: var(--view-switch-gap);
   padding: var(--view-switch-pad);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-glass);
   box-shadow: var(--app-shadow);
 }
@@ -886,7 +886,7 @@ defineExpose({
   left: var(--view-switch-pad);
   width: calc((100% - (var(--view-switch-pad) * 2) - (var(--view-switch-gap) * (var(--view-switch-count, 2) - 1))) / var(--view-switch-count, 2));
   height: var(--view-switch-height);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   box-shadow: 0 6px 14px rgba(20, 20, 22, 0.12);
   transform: translateX(calc((100% + var(--view-switch-gap)) * var(--view-switch-index, 0)));
@@ -900,10 +900,10 @@ defineExpose({
   height: var(--view-switch-height);
   padding: 0 12px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: color var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
 }
@@ -938,7 +938,7 @@ defineExpose({
   background: var(--app-surface);
   color: var(--app-text-secondary);
   box-shadow: var(--app-shadow);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: transform var(--motion-fast) var(--motion-emphasis);
 }
@@ -969,13 +969,13 @@ defineExpose({
 .stat-card__value {
   margin-top: 8px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
 
 .stat-card__value--text {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 .stat-card__meta,
@@ -983,7 +983,7 @@ defineExpose({
 .leaderboard-item__meta {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .timeline-list,
@@ -1017,7 +1017,7 @@ defineExpose({
 }
 
 .timeline-year__num {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   color: var(--app-text-secondary);
   letter-spacing: -0.02em;
@@ -1025,7 +1025,7 @@ defineExpose({
 }
 
 .timeline-year__meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }
@@ -1080,7 +1080,7 @@ defineExpose({
 
 .timeline-month__title {
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   letter-spacing: -0.03em;
   line-height: 1.2;
@@ -1089,7 +1089,7 @@ defineExpose({
 .timeline-month__meta {
   flex-shrink: 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1103,7 +1103,7 @@ defineExpose({
   width: 36px;
   flex-shrink: 0;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   line-height: 1.6;
   text-align: center;
@@ -1116,13 +1116,13 @@ defineExpose({
 
 .leaderboard-item__name {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .leaderboard-item__amount {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   letter-spacing: -0.03em;
   white-space: nowrap;
@@ -1132,7 +1132,7 @@ defineExpose({
   margin-top: 10px;
   height: 8px;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 10%, transparent);
 }
 

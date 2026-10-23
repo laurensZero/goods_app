@@ -331,7 +331,7 @@ function handleTrackClick(track, event) {
     "cover details details";
   gap: 14px;
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface-soft);
   border: 1px solid transparent;
   transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
@@ -355,7 +355,7 @@ function handleTrackClick(track, event) {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 84%, var(--app-surface));
 }
 
@@ -393,15 +393,15 @@ function handleTrackClick(track, event) {
 .track-list__index,
 .track-list__duration {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .track-list__badge {
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(250, 149, 90, 0.14);
   color: #d26f20;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
@@ -419,7 +419,7 @@ function handleTrackClick(track, event) {
   display: block;
   margin-top: 6px;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
   line-height: 1.5;
 }
@@ -427,14 +427,14 @@ function handleTrackClick(track, event) {
 .track-list__desc {
   margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
 .track-list__note {
   margin-top: 4px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-word;
@@ -444,7 +444,7 @@ function handleTrackClick(track, event) {
   position: relative;
   margin-top: 10px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-border) 74%, transparent);
   overflow: hidden;
 }
@@ -473,7 +473,7 @@ function handleTrackClick(track, event) {
   height: 44px;
   padding: 0;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: transparent;
 }
 
@@ -483,7 +483,7 @@ function handleTrackClick(track, event) {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
   box-shadow: 0 10px 20px rgba(20, 20, 22, 0.08);
 }
@@ -514,7 +514,7 @@ function handleTrackClick(track, event) {
 
 .track-list__error {
   color: #c34a4a;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 @media (max-width: 1024px) {
@@ -529,7 +529,7 @@ function handleTrackClick(track, event) {
   }
 
   .track-list__cover {
-    border-radius: 16px;
+    border-radius: var(--radius-medium);
   }
 
   .track-list__title {

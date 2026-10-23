@@ -427,7 +427,7 @@ async function saveEdit() {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -439,10 +439,10 @@ async function saveEdit() {
   height: 44px;
   padding: 0 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -458,7 +458,7 @@ async function saveEdit() {
   height: 40px;
   padding: 0 12px;
   background: rgba(142, 142, 147, 0.12);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .s-icon {
@@ -477,7 +477,7 @@ async function saveEdit() {
   border: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -542,7 +542,7 @@ async function saveEdit() {
   height: 26px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   flex-shrink: 0;
@@ -578,13 +578,13 @@ async function saveEdit() {
 }
 
 .row-label {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .row-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
@@ -668,7 +668,7 @@ async function saveEdit() {
 .count-hint,
 .empty-hint {
   margin-top: 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
   text-align: center;
 }
@@ -687,7 +687,7 @@ async function saveEdit() {
 }
 
 .edit-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -699,19 +699,19 @@ async function saveEdit() {
   border-radius: 50%;
   background: rgba(142, 142, 147, 0.15);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
 .edit-caption {
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .edit-error {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #d64545;
 }
 

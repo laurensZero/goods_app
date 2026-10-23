@@ -545,7 +545,7 @@ async function saveEdit() {
   border: 1.5px solid rgba(142, 142, 147, 0.2);
   border-radius: var(--radius-small);
   background: var(--app-bg);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   width: 100%;
   outline: none;
@@ -562,7 +562,7 @@ async function saveEdit() {
 
 .ip-select-label,
 .edit-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }
@@ -581,7 +581,7 @@ async function saveEdit() {
   border-radius: var(--radius-small);
   background: var(--app-text);
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -595,7 +595,7 @@ async function saveEdit() {
   gap: 8px;
   padding: 8px 12px;
   background: rgba(142, 142, 147, 0.12);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .s-icon {
@@ -611,7 +611,7 @@ async function saveEdit() {
   flex: 1;
   border: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   outline: none;
 }
@@ -659,9 +659,9 @@ async function saveEdit() {
   scroll-snap-align: start;
   padding: 4px 12px;
   border: 1.5px solid rgba(142, 142, 147, 0.25);
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
   white-space: nowrap;
 }
@@ -712,7 +712,7 @@ async function saveEdit() {
   justify-content: center;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: grab;
@@ -747,7 +747,7 @@ async function saveEdit() {
 }
 
 .row-label {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
@@ -763,17 +763,17 @@ async function saveEdit() {
 }
 
 .row-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .row-ip-badge {
   flex-shrink: 0;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: rgba(90, 120, 250, 0.1);
   color: #5a78fa;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
 }
 
@@ -859,14 +859,14 @@ async function saveEdit() {
 }
 
 .count-hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   text-align: center;
   margin: 10px 0 0;
 }
 
 .empty-hint {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-tertiary);
   text-align: center;
   padding: 40px 0 0;
@@ -886,7 +886,7 @@ async function saveEdit() {
 }
 
 .edit-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -898,19 +898,19 @@ async function saveEdit() {
   border-radius: 50%;
   background: rgba(142, 142, 147, 0.15);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
 .edit-caption {
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .edit-error {
   margin-top: 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #d64545;
 }
 

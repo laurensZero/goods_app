@@ -69,7 +69,7 @@ const hasLabels = computed(() => {
   margin-bottom: 4px;
 }
 .sq-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--van-text-color);
   margin: 0;
@@ -79,12 +79,12 @@ const hasLabels = computed(() => {
   font-weight: 700;
 }
 .sq-optional {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   font-weight: 400;
 }
 .sq-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   margin: 0 0 12px;
   line-height: 1.5;
@@ -130,11 +130,11 @@ const hasLabels = computed(() => {
   max-width: 240px;
 }
 .sq-rating-label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--van-text-color-3);
 }
 .sq-rating-value {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   font-weight: 500;
 }

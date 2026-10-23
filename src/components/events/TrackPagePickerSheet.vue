@@ -122,21 +122,21 @@ useDialogBackButton(cancel, () => props.modelValue)
 <style scoped>
 .sheet-title {
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
 .sheet-hint {
   margin-top: 4px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
 }
 
 .sheet-error {
   margin-top: 4px;
   color: #c34a4a;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .sheet-pages {
@@ -156,7 +156,7 @@ useDialogBackButton(cancel, () => props.modelValue)
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid color-mix(in srgb, var(--app-border) 86%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   text-align: left;
   transition: border-color 160ms ease, background 160ms ease;
@@ -175,7 +175,7 @@ useDialogBackButton(cancel, () => props.modelValue)
   width: 20px;
   height: 20px;
   border: 1.5px solid var(--app-border);
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
   color: transparent;
   transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
@@ -198,7 +198,7 @@ useDialogBackButton(cancel, () => props.modelValue)
 .sheet-page__num {
   flex-shrink: 0;
   color: #e85c86;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
 }
 
@@ -206,7 +206,7 @@ useDialogBackButton(cancel, () => props.modelValue)
   min-width: 0;
   overflow: hidden;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -215,7 +215,7 @@ useDialogBackButton(cancel, () => props.modelValue)
   flex-shrink: 0;
   margin-left: auto;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .sheet-confirm,
@@ -224,8 +224,8 @@ useDialogBackButton(cancel, () => props.modelValue)
   height: 46px;
   margin-top: 12px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

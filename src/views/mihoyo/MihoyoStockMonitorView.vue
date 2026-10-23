@@ -621,7 +621,7 @@ onBeforeUnmount(() => {
 
 .hero-card__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -629,7 +629,7 @@ onBeforeUnmount(() => {
 .hero-card__title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -637,7 +637,7 @@ onBeforeUnmount(() => {
 .hero-card__desc {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   max-width: 220px;
 }
@@ -655,13 +655,13 @@ onBeforeUnmount(() => {
   gap: 2px;
   min-width: 60px;
   padding: 10px 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
 }
 
 .stat-pill__value {
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
 }
 
@@ -671,27 +671,27 @@ onBeforeUnmount(() => {
 
 .stat-pill__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 /* Add */
 .add-card {
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
 
 .add-card__label {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .add-card__desc {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
@@ -706,10 +706,10 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   outline: none;
 }
 
@@ -723,10 +723,10 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 0 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
@@ -740,7 +740,7 @@ onBeforeUnmount(() => {
   margin-top: 0;
   padding: 0 16px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   box-shadow: none;
   white-space: nowrap;
@@ -767,7 +767,7 @@ onBeforeUnmount(() => {
 .search-error {
   margin-top: 8px;
   color: #ff3b30;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -791,7 +791,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 8px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
   text-align: left;
@@ -804,12 +804,12 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface);
   color: var(--app-text-tertiary);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .search-result-thumb img {
@@ -822,7 +822,7 @@ onBeforeUnmount(() => {
 .search-result-name {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   line-height: 1.4;
   overflow: hidden;
@@ -838,11 +838,11 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
   color: var(--app-chip-accent-text);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -863,7 +863,7 @@ onBeforeUnmount(() => {
 
 .search-results-toolbar__hint {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .search-results-toggle-wrap {
@@ -875,7 +875,7 @@ onBeforeUnmount(() => {
   border: none;
   background: transparent;
   color: var(--app-chip-accent-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   cursor: pointer;
   padding: 4px 10px;
 }
@@ -887,14 +887,14 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 10px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .search-results-load-more {
   border: none;
   background: transparent;
   color: var(--app-chip-accent-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   cursor: pointer;
 }
 
@@ -907,10 +907,10 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 11px 0;
+  padding: 12px 0;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }
@@ -939,7 +939,7 @@ onBeforeUnmount(() => {
 /* List */
 .list-card {
   padding: 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -954,7 +954,7 @@ onBeforeUnmount(() => {
 
 .list-card__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -962,7 +962,7 @@ onBeforeUnmount(() => {
 .list-card__title {
   margin-top: 2px;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
@@ -972,10 +972,10 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   cursor: pointer;
 }
 
@@ -1001,14 +1001,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 12px;
   padding: 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
 }
 
 .monitor-item__thumb {
   width: 52px;
   height: 52px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface);
@@ -1028,7 +1028,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 .monitor-item__copy {
@@ -1048,7 +1048,7 @@ onBeforeUnmount(() => {
 
 .monitor-item__title {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   line-height: 1.3;
   overflow: hidden;
@@ -1061,9 +1061,9 @@ onBeforeUnmount(() => {
   top: 50%;
   right: 0;
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-tiny);
+  font-size: var(--font-caption);
   font-weight: 600;
   line-height: 1.2;
   transform: translateY(-50%);
@@ -1094,10 +1094,10 @@ onBeforeUnmount(() => {
 
 .monitor-meta-pill {
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1116,7 +1116,7 @@ onBeforeUnmount(() => {
 
 .monitor-item__checked {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 .monitor-item__remove {
@@ -1126,7 +1126,7 @@ onBeforeUnmount(() => {
   width: 34px;
   height: 34px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;
@@ -1155,7 +1155,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 10px;
   padding: 36px 20px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
   text-align: center;
@@ -1167,7 +1167,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: rgba(84, 184, 253, 0.12);
   color: #54b8fd;
 }
@@ -1185,13 +1185,13 @@ onBeforeUnmount(() => {
 
 .state-card__title {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
 .state-card__desc {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -1199,10 +1199,10 @@ onBeforeUnmount(() => {
   margin-top: 6px;
   padding: 10px 20px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1210,7 +1210,7 @@ onBeforeUnmount(() => {
 .monitor-note {
   margin-top: 14px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 

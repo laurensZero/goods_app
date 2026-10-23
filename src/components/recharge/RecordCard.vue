@@ -170,7 +170,7 @@ function onClick() {
   align-items: start;
   min-width: 0;
   padding: 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 42%, var(--app-surface));
   box-shadow: inset 0 0 0 1px var(--app-border);
   transition: transform var(--motion-fast) var(--motion-emphasis);
@@ -201,7 +201,7 @@ function onClick() {
   justify-content: center;
   width: 18px;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-text) 10%, transparent);
 }
@@ -209,7 +209,7 @@ function onClick() {
 .record-select-indicator__dot {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   transition: background var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
 }
@@ -223,7 +223,7 @@ function onClick() {
   width: 56px;
   height: 56px;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: #ffffff;
 }
 
@@ -261,7 +261,7 @@ function onClick() {
 
 .record-name {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.02em;
@@ -274,7 +274,7 @@ function onClick() {
 
 .record-amount {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
   letter-spacing: -0.03em;
   white-space: nowrap;
@@ -290,17 +290,17 @@ function onClick() {
 .record-chip {
   min-height: 22px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   line-height: 22px;
 }
 
 .record-note {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;

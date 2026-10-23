@@ -49,16 +49,16 @@ html.theme-dark .guide-section-page {
   justify-content: center;
   width: 34px;
   height: 34px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
 }
 
 .guide-section__kicker {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -67,7 +67,7 @@ html.theme-dark .guide-section-page {
 .guide-section__title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.3;
@@ -76,7 +76,7 @@ html.theme-dark .guide-section-page {
 .guide-section__desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.65;
 }
 
@@ -122,13 +122,13 @@ html.theme-dark .guide-section-page {
   border-radius: 50%;
   background: var(--guide-accent-soft);
   color: var(--guide-accent-strong);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
 
 .guide-steps__text {
   color: var(--app-text);
-  font-size: 14.5px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
@@ -176,7 +176,7 @@ html.theme-dark .guide-section-page {
 .guide-anno {
   position: absolute;
   border: 2.5px solid var(--guide-accent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--guide-accent-soft);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(232, 73, 47, 0.22);
   pointer-events: none;
@@ -194,7 +194,7 @@ html.theme-dark .guide-section-page {
   border-radius: 50%;
   background: var(--guide-accent);
   color: #fff;
-  font-size: 10.5px;
+  font-size: var(--font-micro);
   font-weight: 800;
   font-style: normal;
   box-shadow: 0 2px 6px rgba(232, 73, 47, 0.4);
@@ -237,7 +237,7 @@ html.theme-dark .guide-section-page {
   gap: 6px;
   min-width: 0;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -251,7 +251,7 @@ html.theme-dark .guide-section-page {
   border-radius: 50%;
   background: var(--guide-accent);
   color: #fff;
-  font-size: 10.5px;
+  font-size: var(--font-micro);
   font-weight: 800;
   font-style: normal;
 }
@@ -274,17 +274,17 @@ html.theme-dark .guide-section-page {
   align-items: center;
   height: 22px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--guide-accent);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   white-space: nowrap;
 }
 
 .guide-tip__text {
   color: var(--app-text);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
@@ -302,7 +302,7 @@ html.theme-dark .guide-section-page {
 
 .guide-faq__q {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   line-height: 1.6;
 }
@@ -315,17 +315,17 @@ html.theme-dark .guide-section-page {
   width: 18px;
   height: 18px;
   margin-right: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 800;
 }
 
 .guide-faq__a {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   line-height: 1.65;
 }
 
@@ -337,10 +337,10 @@ html.theme-dark .guide-section-page {
   width: 18px;
   height: 18px;
   margin-right: 6px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: var(--guide-accent);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 800;
 }
 
@@ -394,7 +394,7 @@ html.theme-dark .guide-section-page {
 
 .guide-pager__copy small {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -402,7 +402,7 @@ html.theme-dark .guide-section-page {
 .guide-pager__copy b {
   overflow: hidden;
   color: var(--app-text);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -413,7 +413,7 @@ html.theme-dark .guide-section-page {
 .guide-footnote {
   padding: 24px var(--page-padding) 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
   text-align: center;
 }

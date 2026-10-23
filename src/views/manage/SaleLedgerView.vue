@@ -209,7 +209,7 @@ function openDetail(id) {
 
 .hero-copy { display: flex; flex-direction: column; gap: 4px; }
 .hero-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
   text-transform: uppercase;
@@ -230,7 +230,7 @@ function openDetail(id) {
   flex-direction: column;
   gap: 6px;
   padding: 14px 16px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
 }
@@ -242,7 +242,7 @@ function openDetail(id) {
   display: flex;
   gap: 6px;
   padding: 4px;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
 }
@@ -251,10 +251,10 @@ function openDetail(id) {
   flex: 1;
   height: 38px;
   border: none;
-  border-radius: 11px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease;
@@ -274,7 +274,7 @@ function openDetail(id) {
   gap: 12px;
   width: 100%;
   padding: 12px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
   cursor: pointer;
@@ -286,14 +286,14 @@ function openDetail(id) {
 .ledger-thumb {
   width: 56px;
   height: 56px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface-muted);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: var(--app-text-tertiary);
 }
@@ -308,7 +308,7 @@ function openDetail(id) {
 }
 
 .ledger-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -318,7 +318,7 @@ function openDetail(id) {
 }
 
 .ledger-unit {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
   margin-left: 4px;
@@ -327,18 +327,18 @@ function openDetail(id) {
 .ledger-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .ledger-chip {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-chip-accent-text, #2070c0);
   background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12));
-  padding: 1px 8px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
 }
 
 .ledger-date { font-size: 12px; color: var(--app-text-tertiary); }
 
 .ledger-figures { display: flex; gap: 16px; flex-wrap: wrap; }
 
-.ledger-figure { display: flex; flex-direction: column; gap: 1px; }
+.ledger-figure { display: flex; flex-direction: column; gap: 2px; }
 .ledger-figure__label { font-size: 11px; color: var(--app-text-tertiary); }
 .ledger-figure__value { font-size: 14px; font-weight: 600; color: var(--app-text); }
 

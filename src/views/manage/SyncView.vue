@@ -1412,7 +1412,7 @@ html.theme-dark .backend-card--active {
 .maintenance-banner {
   margin: 12px 16px 0;
   padding: 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   display: flex;
   align-items: flex-start;
   gap: 12px;
@@ -1446,13 +1446,13 @@ html.theme-dark .backend-card--active {
 }
 
 .maintenance-banner__title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   color: #92400e;
 }
 
 .maintenance-banner__message {
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   color: #a16207;
 }
@@ -1473,13 +1473,13 @@ html.theme-dark .backend-card--active {
   align-self: center;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 12px;
-  border-radius: 999px;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius-pill);
   border: 1.5px solid rgba(217, 119, 6, 0.45);
   background: rgba(255, 255, 255, 0.65);
   color: #92400e;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
@@ -1506,7 +1506,7 @@ html.theme-dark .backend-card--active {
 .sync-notice {
   margin: 12px 16px 0;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   display: grid;
   gap: 4px;
   background: color-mix(in srgb, var(--app-surface) 88%, #fff);
@@ -1526,13 +1526,13 @@ html.theme-dark .backend-card--active {
 
 .sync-notice__title {
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
 }
 
 .sync-notice__body {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -1556,7 +1556,7 @@ html.theme-dark .backend-card--active {
 .endpoint-block__hint {
   margin: 4px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 .endpoint-test-btn,
@@ -1564,11 +1564,11 @@ html.theme-dark .backend-card--active {
   flex-shrink: 0;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.10));
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
   color: var(--app-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 .endpoint-test-btn:disabled,
@@ -1581,7 +1581,7 @@ html.theme-dark .backend-card--active {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.06));
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.02));
 }
@@ -1602,26 +1602,26 @@ html.theme-dark .backend-card--active {
 }
 .endpoint-row__name {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 .endpoint-row__badge {
-  padding: 1px 8px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, #3b82f6 14%, transparent);
   color: #3b82f6;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 .endpoint-row__url {
   color: var(--app-text-tertiary);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
+  font-size: var(--font-caption);
   word-break: break-all;
 }
 .endpoint-row__status {
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 .endpoint-row__status--ok { color: #2f9e64; }
 .endpoint-row__status--bad { color: #d45454; }
@@ -1668,7 +1668,7 @@ html.theme-dark .realtime-status--disconnected { color: #f08d8d; }
   gap: 12px;
   padding-bottom: 2px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 .realtime-meta__text {
@@ -1679,11 +1679,11 @@ html.theme-dark .realtime-status--disconnected { color: #f08d8d; }
   flex-shrink: 0;
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--app-glass-border, rgba(0, 0, 0, 0.10));
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.04));
   color: var(--app-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 .realtime-reconnect-btn:active {
@@ -1693,7 +1693,7 @@ html.theme-dark .realtime-status--disconnected { color: #f08d8d; }
 /* 冲突弹窗的来源设备 id：等宽并允许换行，方便与设置页「设备 ID」对照 */
 .conflict-value--mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--font-small);
   word-break: break-all;
   text-align: right;
 }

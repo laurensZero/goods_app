@@ -450,7 +450,7 @@ defineExpose({ checkPopup, openSurvey })
 .intro-icon {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface-soft);
   color: var(--app-text);
   display: flex;
@@ -461,7 +461,7 @@ defineExpose({ checkPopup, openSurvey })
 .intro-image {
   width: 100%;
   max-width: 280px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   margin-bottom: 20px;
 }
 .survey-popup-qimage {
@@ -470,31 +470,31 @@ defineExpose({ checkPopup, openSurvey })
   margin: 8px 0 12px;
 }
 .intro-title {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   color: var(--app-text);
   margin: 0 0 8px;
   line-height: 1.3;
 }
 .intro-desc {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-secondary);
   margin: 0 0 16px;
   line-height: 1.6;
 }
 .intro-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 /* Question */
 .survey-popup-qindex {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 0 0 4px;
 }
 .survey-popup-qtitle {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 4px;
@@ -504,7 +504,7 @@ defineExpose({ checkPopup, openSurvey })
   color: var(--van-danger-color);
 }
 .survey-popup-qdesc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   margin: 0 0 12px;
   line-height: 1.5;
@@ -518,9 +518,9 @@ defineExpose({ checkPopup, openSurvey })
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   margin-bottom: 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1.5px solid var(--app-border);
   cursor: pointer;
   transition: all 0.2s;
@@ -552,7 +552,7 @@ defineExpose({ checkPopup, openSurvey })
   background: var(--app-text);
 }
 .popup-radio-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text);
 }
 
@@ -561,9 +561,9 @@ defineExpose({ checkPopup, openSurvey })
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 14px;
+  padding: 12px 14px;
   margin-bottom: 8px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1.5px solid var(--app-border);
   cursor: pointer;
   transition: all 0.2s;
@@ -575,7 +575,7 @@ defineExpose({ checkPopup, openSurvey })
 .popup-checkbox-box {
   width: 18px;
   height: 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   border: 2px solid var(--app-border);
   flex-shrink: 0;
   display: flex;
@@ -589,7 +589,7 @@ defineExpose({ checkPopup, openSurvey })
   background: var(--app-text);
 }
 .popup-checkbox-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text);
 }
 
@@ -597,11 +597,11 @@ defineExpose({ checkPopup, openSurvey })
 .popup-input,
 .popup-textarea {
   width: 100%;
-  padding: 11px 14px;
-  border-radius: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-xs);
   border: 1.5px solid var(--app-border);
   background: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text);
   outline: none;
   box-sizing: border-box;
@@ -652,7 +652,7 @@ defineExpose({ checkPopup, openSurvey })
   gap: 8px;
 }
 .popup-matrix-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text);
   flex-shrink: 0;
 }
@@ -674,7 +674,7 @@ defineExpose({ checkPopup, openSurvey })
 /* Error */
 .survey-popup-error {
   padding: 8px 20px 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-danger-color);
   text-align: center;
 }
@@ -692,7 +692,7 @@ defineExpose({ checkPopup, openSurvey })
   height: 44px;
   border-radius: var(--radius-xs);
   border: none;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;

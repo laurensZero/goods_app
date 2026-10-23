@@ -196,7 +196,7 @@ async function confirmEmptyAll() {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-title {
@@ -210,7 +210,7 @@ async function confirmEmptyAll() {
 .hero-desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -234,7 +234,7 @@ async function confirmEmptyAll() {
 
 .summary-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .summary-value {
@@ -254,8 +254,8 @@ async function confirmEmptyAll() {
 .action-btn,
 .trash-btn {
   border: none;
-  border-radius: 16px;
-  font-size: 14px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -303,7 +303,7 @@ async function confirmEmptyAll() {
   height: 72px;
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
   font-size: 24px;
@@ -323,7 +323,7 @@ async function confirmEmptyAll() {
 
 .trash-name {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.4;
 }
@@ -331,7 +331,7 @@ async function confirmEmptyAll() {
 .trash-meta {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .trash-chips {
@@ -342,11 +342,11 @@ async function confirmEmptyAll() {
 }
 
 .trash-chip {
-  border-radius: 999px;
-  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  padding: 6px 10px;
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .trash-actions {

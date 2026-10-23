@@ -58,7 +58,7 @@
 .hero-label,
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -73,14 +73,14 @@
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
 }
 
 .hero-desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -152,14 +152,14 @@
 
 .fb-action-title {
   margin: 0 0 2px;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .fb-action-desc {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .fb-action-arrow {
@@ -240,7 +240,7 @@
 
 .fb-list-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -250,14 +250,14 @@
 .fb-list-meta {
   margin-top: 6px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .fb-type-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: var(--radius-xxs);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -279,8 +279,8 @@
 .fb-status-tag {
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 11px;
+  border-radius: var(--radius-xxs);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -316,5 +316,5 @@
 
 .fb-empty-text {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }

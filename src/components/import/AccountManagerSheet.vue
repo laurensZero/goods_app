@@ -418,7 +418,7 @@ defineExpose({
 .sheet-title {
   margin: 0 0 4px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -426,20 +426,20 @@ defineExpose({
 .account-empty {
   padding: 20px 12px;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary, #8e8e93);
 }
 
 .sheet-options {
   margin-bottom: 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   background: var(--app-surface-soft);
 }
 
 .account-section-title {
   margin: 2px 2px 8px;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }
@@ -504,7 +504,7 @@ defineExpose({
 }
 
 .account-hero__avatar-fallback {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.95);
   text-transform: uppercase;
@@ -521,7 +521,7 @@ defineExpose({
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--summary-card-text);
@@ -536,18 +536,18 @@ defineExpose({
 
 .account-hero__badge {
   flex-shrink: 0;
-  padding: 1px 8px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.14);
   color: rgba(255, 255, 255, 0.9);
-  font-size: 10.5px;
+  font-size: var(--font-micro);
   font-weight: 500;
   letter-spacing: 0;
 }
 
 .account-hero__uid {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--summary-card-label);
 }
 
@@ -587,7 +587,7 @@ defineExpose({
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--summary-card-label);
 }
@@ -627,7 +627,7 @@ defineExpose({
   margin-top: 12px;
   display: flex;
   align-items: stretch;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: var(--summary-card-button-bg);
 }
@@ -645,7 +645,7 @@ defineExpose({
   border: none;
   background: transparent;
   color: var(--summary-card-button-text);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -757,7 +757,7 @@ defineExpose({
 }
 
 .account-avatar__fallback {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text-secondary);
   text-transform: uppercase;
@@ -774,7 +774,7 @@ defineExpose({
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--app-text);
@@ -789,7 +789,7 @@ defineExpose({
 
 .account-meta {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -802,7 +802,7 @@ defineExpose({
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 11.5px;
+  font-size: var(--font-caption);
   font-weight: 500;
   line-height: 1.3;
 }
@@ -877,7 +877,7 @@ defineExpose({
   border: none;
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -955,7 +955,7 @@ defineExpose({
 .account-notice {
   margin: 0 0 10px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
@@ -972,11 +972,11 @@ defineExpose({
   height: 48px;
   margin-top: 4px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   padding: 0 16px;
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }

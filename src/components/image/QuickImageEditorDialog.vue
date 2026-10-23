@@ -1439,7 +1439,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 16px;
   background: var(--app-surface);
-  border-radius: var(--radius-large, 24px);
+  border-radius: var(--radius-large);
   box-shadow: var(--app-shadow, 0 8px 24px rgba(0, 0, 0, 0.06));
   overflow: hidden;
 }
@@ -1449,7 +1449,7 @@ onBeforeUnmount(() => {
   width: 36px;
   height: 4px;
   margin: 0 auto 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-text-tertiary);
   opacity: 0.3;
 }
@@ -1467,14 +1467,14 @@ onBeforeUnmount(() => {
 
 .editor-title h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .editor-subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -1483,11 +1483,11 @@ onBeforeUnmount(() => {
   height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1496,18 +1496,18 @@ onBeforeUnmount(() => {
   gap: 6px;
   padding: 4px;
   background: var(--app-surface-soft);
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
 }
 
 .editor-tab {
   flex: 1;
   height: 40px;
   border: none;
-  border-radius: calc(var(--radius-small, 14px) - 4px);
+  border-radius: calc(var(--radius-small) - var(--radius-xxs));
   background: transparent;
   color: var(--app-text-secondary);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1697,7 +1697,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   max-width: calc(100% - 24px);
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface, #ffffff) 90%, transparent);
   border: 1px solid var(--app-border, rgba(20, 20, 22, 0.12));
   box-shadow: 0 4px 16px rgba(20, 20, 22, 0.14);
@@ -1713,7 +1713,7 @@ onBeforeUnmount(() => {
 
 .editor-pick-hint__text {
   color: var(--app-text, #1f2937);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
   white-space: nowrap;
 }
@@ -1721,10 +1721,10 @@ onBeforeUnmount(() => {
 .editor-pick-hint__cancel {
   flex-shrink: 0;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--app-primary, #4f6ef7);
   background: color-mix(in srgb, var(--app-primary, #4f6ef7) 12%, transparent);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: background var(--motion-fast, 200ms) ease;
 }
@@ -1740,7 +1740,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   justify-items: center;
   padding: 10px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface, #ffffff) 96%, transparent);
   border: 1px solid var(--app-border, rgba(20, 20, 22, 0.12));
   box-shadow: 0 12px 36px rgba(20, 20, 22, 0.24);
@@ -1751,7 +1751,7 @@ onBeforeUnmount(() => {
   display: block;
   width: 144px;
   height: 144px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: repeating-conic-gradient(rgba(0, 0, 0, 0.06) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
 }
 
@@ -1774,7 +1774,7 @@ onBeforeUnmount(() => {
 
 .editor-pick-magnifier__hex {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.04em;
   color: var(--app-text, #1f2937);
 }
@@ -1804,7 +1804,7 @@ onBeforeUnmount(() => {
   }
 
   .editor-panels::-webkit-scrollbar-thumb {
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: rgba(120, 120, 128, 0.35);
   }
 
@@ -1824,10 +1824,10 @@ onBeforeUnmount(() => {
 .editor-error {
   margin: 0;
   padding: 12px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: rgba(199, 68, 68, 0.08);
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -1874,7 +1874,7 @@ onBeforeUnmount(() => {
   .editor-dialog {
     width: 100%;
     max-height: 94dvh;
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--radius-large) var(--radius-large) 0 0;
     padding: 12px 12px 0;
     overflow: visible;
   }

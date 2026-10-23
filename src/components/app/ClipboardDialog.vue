@@ -187,7 +187,7 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-title {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
   letter-spacing: -0.01em;
@@ -215,7 +215,7 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-loading-text {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   margin: 0;
 }
@@ -228,7 +228,7 @@ watch(showPrompt, (newVal) => {
 
 .share-error-desc {
   color: var(--app-danger);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   margin: 0 0 24px;
   line-height: 1.5;
 }
@@ -243,7 +243,7 @@ watch(showPrompt, (newVal) => {
   margin: 0 4px 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md, 10px);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   color: var(--app-warning, #d97706);
   background: color-mix(in srgb, var(--app-warning, #d97706) 10%, transparent);
@@ -262,14 +262,14 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-preview-count {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
 }
 
 .share-preview-date {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
   margin: 0;
 }
@@ -309,7 +309,7 @@ watch(showPrompt, (newVal) => {
 .share-goods-thumb {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-muted);
   display: flex;
   align-items: center;
@@ -326,7 +326,7 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-goods-initial {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   color: var(--app-text-tertiary);
 }
@@ -340,7 +340,7 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-goods-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -356,10 +356,10 @@ watch(showPrompt, (newVal) => {
 }
 
 .share-meta-tag {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   background: var(--app-overlay);
   color: var(--app-text-secondary);
   line-height: 1.2;
@@ -377,11 +377,11 @@ watch(showPrompt, (newVal) => {
 
 .share-imported-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: #28c880;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xxs);
   background: rgba(40, 200, 128, 0.1);
 }
 
@@ -395,7 +395,7 @@ watch(showPrompt, (newVal) => {
   margin: 0 0 12px;
   background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   isolation: isolate;
   flex-shrink: 0;
 }
@@ -424,7 +424,7 @@ watch(showPrompt, (newVal) => {
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary, #8e8e93);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: color 0.2s ease;
 }
@@ -446,7 +446,7 @@ watch(showPrompt, (newVal) => {
   height: 48px;
   border: none;
   border-radius: var(--radius-small);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);

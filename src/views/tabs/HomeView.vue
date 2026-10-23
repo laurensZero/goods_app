@@ -2284,7 +2284,7 @@ async function applyCouponAllocation({ allocations }) {
 
 .add-motion-ripple {
   position: fixed;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   border: 2px solid color-mix(in srgb, var(--app-text) 28%, transparent);
   box-shadow:
     0 0 0 0 color-mix(in srgb, var(--app-text) 18%, transparent),
@@ -2303,7 +2303,7 @@ async function applyCouponAllocation({ allocations }) {
   gap: 14px;
   align-items: center;
   padding: 12px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background:
     radial-gradient(120% 100% at 0% 0%, color-mix(in srgb, var(--app-glass) 78%, transparent), transparent 58%),
     color-mix(in srgb, var(--app-surface) 84%, var(--app-glass));
@@ -2334,7 +2334,7 @@ async function applyCouponAllocation({ allocations }) {
 .add-motion-ghost__cover {
   width: 84px;
   height: 84px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: var(--app-surface-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-glass-border) 60%, transparent);
@@ -2366,7 +2366,7 @@ async function applyCouponAllocation({ allocations }) {
 .add-motion-ghost__name {
   margin: 0;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 800;
   line-height: 1.25;
   letter-spacing: -0.04em;
@@ -2378,7 +2378,7 @@ async function applyCouponAllocation({ allocations }) {
 .add-motion-ghost__meta {
   margin: 4px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.2;
 }
 

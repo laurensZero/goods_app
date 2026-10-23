@@ -848,7 +848,7 @@ function compareGameOrder(left, right) {
 .section-label,
 .calendar-card__label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-title,
@@ -863,7 +863,7 @@ function compareGameOrder(left, right) {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -889,7 +889,7 @@ function compareGameOrder(left, right) {
 
 .summary-stat {
   padding: 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 60%, var(--app-surface));
   box-shadow: inset 0 0 0 1px var(--app-border);
 }
@@ -897,7 +897,7 @@ function compareGameOrder(left, right) {
 .summary-stat__value {
   display: block;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -906,7 +906,7 @@ function compareGameOrder(left, right) {
   display: block;
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .calendar-section {
@@ -924,11 +924,11 @@ function compareGameOrder(left, right) {
 }
 
 .calendar-jump-btn {
-  padding: 9px 14px;
+  padding: 10px 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--app-surface) 84%, white), var(--app-surface-soft));
@@ -1021,7 +1021,7 @@ function compareGameOrder(left, right) {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 76%, transparent);
   box-shadow: inset 0 0 0 1px var(--app-border);
 }
@@ -1029,13 +1029,13 @@ function compareGameOrder(left, right) {
 .calendar-card__legend-dot {
   width: 10px;
   height: 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(135deg, #fb7185 0%, #8b5cf6 55%, #60a5fa 100%);
 }
 
 .calendar-card__legend-text {
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .calendar-weekdays,
@@ -1051,7 +1051,7 @@ function compareGameOrder(left, right) {
 
 .calendar-weekdays__item {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   text-align: center;
   user-select: none;
   -webkit-user-select: none;
@@ -1072,7 +1072,7 @@ function compareGameOrder(left, right) {
   min-height: 68px;
   padding: 10px;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 88%, transparent);
 }
@@ -1091,7 +1091,7 @@ function compareGameOrder(left, right) {
 .calendar-day__fill {
   position: absolute;
   inset: 2px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: linear-gradient(135deg, rgba(251, 113, 133, 0.36) 0%, rgba(139, 92, 246, 0.38) 52%, rgba(96, 165, 250, 0.36) 100%);
   box-shadow:
     inset 0 0 0 1px rgba(255, 255, 255, 0.34),
@@ -1102,7 +1102,7 @@ function compareGameOrder(left, right) {
   position: relative;
   z-index: 1;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   user-select: none;
   -webkit-user-select: none;
@@ -1161,7 +1161,7 @@ function compareGameOrder(left, right) {
 .record-item__image {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   box-shadow: inset 0 0 0 1px var(--app-border);
   flex-shrink: 0;
@@ -1169,19 +1169,19 @@ function compareGameOrder(left, right) {
 
 .record-item__name {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
 }
 
 .record-item__game {
   margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .record-item__status {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
 }
 
@@ -1200,14 +1200,14 @@ function compareGameOrder(left, right) {
 .record-item__meta {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
 .empty-mini {
   padding: 20px;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .empty-wrap {
@@ -1277,8 +1277,8 @@ html.theme-dark .record-item__status--upcoming {
 
   .calendar-day {
     min-height: 52px;
-    padding: 7px;
-    border-radius: 14px;
+    padding: 8px;
+    border-radius: var(--radius-small);
   }
 
   .calendar-days {
@@ -1288,11 +1288,11 @@ html.theme-dark .record-item__status--upcoming {
 
   .calendar-day__fill {
     inset: 1px;
-    border-radius: 13px;
+    border-radius: var(--radius-xs);
   }
 
   .calendar-day__number {
-    font-size: 13px;
+    font-size: var(--font-body);
   }
 
   .calendar-card__month {

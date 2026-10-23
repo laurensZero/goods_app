@@ -1123,7 +1123,7 @@ async function importPlaylist() {
 
 .track-editor__eyebrow {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1131,7 +1131,7 @@ async function importPlaylist() {
 .track-editor__title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -1142,7 +1142,7 @@ async function importPlaylist() {
 .track-editor__remove {
   flex-shrink: 0;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   font-weight: 600;
 }
 
@@ -1172,7 +1172,7 @@ async function importPlaylist() {
   min-width: 0;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--app-border) 86%, transparent);
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 76%, var(--app-surface));
 }
 
@@ -1192,18 +1192,18 @@ async function importPlaylist() {
 .track-editor__source-toggle {
   display: flex;
   gap: 4px;
-  padding: 3px;
-  border-radius: 12px;
+  padding: 4px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
 }
 
 .track-editor__source-btn {
-  padding: 5px 10px;
+  padding: 6px 10px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   cursor: pointer;
   transition: background 160ms ease, color 160ms ease;
@@ -1232,7 +1232,7 @@ async function importPlaylist() {
 .track-editor__label,
 .track-editor__field span {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1249,16 +1249,16 @@ async function importPlaylist() {
   min-height: var(--input-height);
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .track-editor__hint {
   margin-top: 10px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
 }
 
@@ -1282,12 +1282,12 @@ async function importPlaylist() {
 .track-editor__load-more {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   transition: background 160ms ease;
 }
 
@@ -1301,7 +1301,7 @@ async function importPlaylist() {
   gap: 12px;
   min-width: 0;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
 }
 
@@ -1310,7 +1310,7 @@ async function importPlaylist() {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .track-editor__result-copy strong,
@@ -1319,12 +1319,12 @@ async function importPlaylist() {
 }
 
 .track-editor__result-copy strong {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .track-editor__result-copy span {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1363,7 +1363,7 @@ async function importPlaylist() {
   height: 26px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: grab;
@@ -1383,7 +1383,7 @@ async function importPlaylist() {
 }
 
 .track-editor__item-index {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
 }
 
@@ -1395,10 +1395,10 @@ async function importPlaylist() {
 
 .track-editor__badge {
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(250, 149, 90, 0.14);
   color: #d26f20;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
@@ -1424,10 +1424,10 @@ async function importPlaylist() {
 
 .track-editor__detected-badge {
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(250, 149, 90, 0.14);
   color: #d26f20;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
@@ -1448,10 +1448,10 @@ async function importPlaylist() {
   height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(251, 114, 153, 0.14);
   color: #e85c86;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
   cursor: pointer;
 }
@@ -1485,7 +1485,7 @@ async function importPlaylist() {
   width: 112px;
   aspect-ratio: 1;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
@@ -1522,7 +1522,7 @@ async function importPlaylist() {
 
 .track-editor__empty {
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
@@ -1536,7 +1536,7 @@ async function importPlaylist() {
 
 .track-editor__bind-label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 

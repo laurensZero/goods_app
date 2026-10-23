@@ -155,7 +155,7 @@ defineExpose({ getCanvas, render, schedule })
 
 .canvas-preview__canvas {
   display: block;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
 }
 
 .canvas-preview__canvas--picking {

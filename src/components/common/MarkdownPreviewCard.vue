@@ -63,7 +63,7 @@ async function copyMarkdown() {
   gap: 10px;
   margin-top: 12px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
   border: 1px solid rgba(20, 20, 22, 0.08);
 }
@@ -77,7 +77,7 @@ async function copyMarkdown() {
 
 .markdown-preview-card__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -86,10 +86,10 @@ async function copyMarkdown() {
 .markdown-preview-card__copy {
   flex-shrink: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.08);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 1;
   padding: 8px 12px;
@@ -97,7 +97,7 @@ async function copyMarkdown() {
 
 .markdown-preview-card__body {
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.7;
 }
 
@@ -144,7 +144,7 @@ async function copyMarkdown() {
 
 .markdown-preview-card__body :deep(code) {
   padding: 0.15em 0.35em;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(20, 20, 22, 0.08);
   font-size: 0.95em;
 }
@@ -157,7 +157,7 @@ async function copyMarkdown() {
 .markdown-preview-card__body :deep(blockquote) {
   padding: 10px 12px;
   border-left: 3px solid rgba(20, 20, 22, 0.14);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   background: rgba(20, 20, 22, 0.04);
 }
 

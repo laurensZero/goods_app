@@ -365,14 +365,14 @@ async function doSave() {
 }
 
 .batch-hero__title {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--app-text);
 }
 
 .batch-hero__percent {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -397,7 +397,7 @@ async function doSave() {
   border-radius: var(--radius-card);
   background: rgba(255, 59, 48, 0.08);
   color: #ff3b30;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -405,7 +405,7 @@ async function doSave() {
 .batch-queue-list {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
@@ -451,7 +451,7 @@ async function doSave() {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text-tertiary);
 }
@@ -465,7 +465,7 @@ async function doSave() {
 }
 
 .batch-queue-item__name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
   color: var(--app-text);
   overflow: hidden;
@@ -481,14 +481,14 @@ async function doSave() {
 }
 
 .batch-queue-item__price {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
 .batch-queue-item__chip {
-  padding: 1px 8px;
-  border-radius: 999px;
-  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-caption);
   font-weight: 500;
   color: var(--app-text-secondary);
   background: var(--app-surface-soft);
@@ -500,8 +500,8 @@ async function doSave() {
 
 .batch-queue-item__tag {
   padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-small);
   font-weight: 500;
   color: #34c759;
   background: rgba(52, 199, 89, 0.12);
@@ -529,7 +529,7 @@ async function doSave() {
   border-radius: 50%;
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   flex-shrink: 0;
 }
 
@@ -550,7 +550,7 @@ async function doSave() {
   justify-content: center;
   padding: 48px 0;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 /* 底部悬浮按钮 - 使用项目标准样式 */
@@ -572,7 +572,7 @@ async function doSave() {
   border-radius: var(--radius-card);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   box-shadow: var(--app-shadow);
@@ -614,7 +614,7 @@ async function doSave() {
   }
 
   .batch-queue-item__name {
-    font-size: 16px;
+    font-size: var(--font-title);
   }
 
   .float-footer {
@@ -623,7 +623,7 @@ async function doSave() {
 
   .btn-float {
     height: 56px;
-    font-size: 17px;
+    font-size: var(--font-title);
   }
 }
 </style>

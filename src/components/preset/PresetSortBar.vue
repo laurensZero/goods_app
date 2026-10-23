@@ -69,8 +69,8 @@ defineEmits(['update:sortMode', 'toggle-direction'])
 .sort-tabs {
   display: flex;
   gap: 4px;
-  padding: 3px;
-  border-radius: 10px;
+  padding: 4px;
+  border-radius: var(--radius-xs);
   background: rgba(142, 142, 147, 0.12);
 }
 
@@ -78,10 +78,10 @@ defineEmits(['update:sortMode', 'toggle-direction'])
   height: 30px;
   padding: 0 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
 }
@@ -99,7 +99,7 @@ defineEmits(['update:sortMode', 'toggle-direction'])
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: rgba(142, 142, 147, 0.12);
   color: var(--app-text-secondary);
   transition: background 0.16s ease, color 0.16s ease;

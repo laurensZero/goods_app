@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
   position: relative;
   height: 4px;
   margin: 4px 4px 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(128, 128, 128, 0.18);
   overflow: hidden;
 }
@@ -172,7 +172,7 @@ onBeforeUnmount(() => {
   top: 0;
   bottom: 0;
   left: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(128, 128, 128, 0.45);
   transition: left 0.05s linear;
 }
@@ -190,7 +190,7 @@ onBeforeUnmount(() => {
   border: none;
   background: none;
   padding: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   cursor: pointer;
   scroll-snap-align: start;
@@ -217,7 +217,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 @media (min-width: 600px) {

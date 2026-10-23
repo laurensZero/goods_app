@@ -35,7 +35,7 @@ defineEmits(['update:modelValue'])
   display: flex;
   gap: 6px;
   padding: 4px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft, rgba(120, 120, 128, 0.1));
 }
 
@@ -43,10 +43,10 @@ defineEmits(['update:modelValue'])
   flex: 1;
   min-height: 36px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -63,10 +63,10 @@ defineEmits(['update:modelValue'])
 }
 
 .import-tab-badge {
-  font-size: 10px;
+  font-size: var(--font-micro);
   line-height: 1;
-  padding: 3px 5px;
-  border-radius: 6px;
+  padding: 4px 6px;
+  border-radius: var(--radius-xxs);
   background: var(--app-chip-accent-bg, rgba(255, 80, 0, 0.12));
   color: var(--app-chip-accent-text, #ff5000);
 }

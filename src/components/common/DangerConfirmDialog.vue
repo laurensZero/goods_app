@@ -91,7 +91,7 @@ function handleConfirm() {
 .danger-confirm__title {
   margin: 16px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -99,7 +99,7 @@ function handleConfirm() {
 .danger-confirm__desc {
   margin: 8px 0 0;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -113,8 +113,8 @@ function handleConfirm() {
 .danger-confirm__btn {
   height: 48px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }

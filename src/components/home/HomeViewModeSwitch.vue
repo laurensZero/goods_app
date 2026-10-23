@@ -269,7 +269,7 @@ const modeSwitchStyle = computed(() => {
   grid-template-columns: repeat(var(--mode-switch-count, 3), minmax(0, 1fr));
   gap: var(--mode-switch-gap);
   padding: var(--mode-switch-pad);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-glass);
   box-shadow: var(--app-shadow);
   contain: paint;
@@ -284,7 +284,7 @@ const modeSwitchStyle = computed(() => {
     (100% - (var(--mode-switch-gap, 6px) * (var(--mode-switch-count, 3) - 1)) - (var(--mode-switch-pad, 4px) * 2))
     / var(--mode-switch-count, 3)
   );
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #141416;
   transform: translate3d(calc((100% + var(--mode-switch-gap, 6px)) * var(--mode-switch-index, 0)), 0, 0) translateZ(0);
   transition:
@@ -316,10 +316,10 @@ const modeSwitchStyle = computed(() => {
   height: var(--mode-switch-height, 32px);
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition:
     transform var(--home-motion-density-duration) var(--home-motion-ease-standard),

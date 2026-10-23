@@ -292,7 +292,7 @@ html.theme-dark .profile-hero__icon:active {
 
 .profile-hero__eyebrow {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -319,10 +319,10 @@ html.theme-dark .profile-hero__icon:active {
   max-width: 100%;
   padding: 6px 12px;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.24);
   color: #ffffff;
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-weight: 600;
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
@@ -430,7 +430,7 @@ html.theme-dark .profile-hero__icon:active {
   }
 
   .profile-hero__eyebrow {
-    font-size: 13px;
+    font-size: var(--font-body);
   }
 
   .profile-hero__title {
@@ -438,8 +438,8 @@ html.theme-dark .profile-hero__icon:active {
   }
 
   .profile-hero__chip {
-    padding: 7px 14px;
-    font-size: 13.5px;
+    padding: 8px 14px;
+    font-size: var(--font-body);
   }
 }
 
@@ -467,7 +467,7 @@ html.theme-dark .profile-hero__icon:active {
 .profile-hero--compact .profile-hero__content {
   position: static;
   bottom: auto;
-  gap: 5px;
+  gap: 6px;
   margin-top: 2px;
 }
 

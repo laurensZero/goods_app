@@ -152,19 +152,19 @@ const displayCover = computed(() => {
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 /* 导入队列：放大选中的款式图 */
 .sku-picker-thumb--large {
   width: 80px;
   height: 80px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   font-size: 24px;
   box-shadow: 0 0 0 1px var(--app-border);
 }
@@ -191,15 +191,15 @@ const displayCover = computed(() => {
 
 .sku-picker-label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .sku-picker-title {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.4;
   overflow: hidden;
@@ -210,18 +210,18 @@ const displayCover = computed(() => {
 }
 
 .sku-picker-match {
-  margin-top: 3px;
+  margin-top: 4px;
   color: var(--app-chip-accent-text);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .sku-picker-counter {
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 8px;
+  padding: 4px 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -232,7 +232,7 @@ const displayCover = computed(() => {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;
@@ -256,7 +256,7 @@ const displayCover = computed(() => {
   gap: 8px;
   margin-top: 14px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 /* 加载指示（span 形式的小转圈；@keyframes spin 为全局定义） */
@@ -277,26 +277,26 @@ const displayCover = computed(() => {
   gap: 10px;
   margin-top: 14px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
 }
 
 .sku-collapsed__text {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
 .sku-collapsed__edit {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 12px;
+  gap: 6px;
+  padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-chip-accent-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
@@ -322,7 +322,7 @@ const displayCover = computed(() => {
 
 .sku-picker__hint {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -332,10 +332,10 @@ const displayCover = computed(() => {
   gap: 4px;
   padding: 6px 10px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
@@ -351,10 +351,10 @@ const displayCover = computed(() => {
   width: 100%;
   padding: 10px 12px;
   border: 1px dashed var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   text-align: center;
   cursor: pointer;
@@ -383,7 +383,7 @@ const displayCover = computed(() => {
   min-width: 0;
   padding: 8px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   text-align: left;
@@ -406,11 +406,11 @@ const displayCover = computed(() => {
   justify-content: center;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   background: var(--app-surface);
   color: var(--app-text-tertiary);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
 }
 
 .sku-card__img {
@@ -430,7 +430,7 @@ const displayCover = computed(() => {
 
 .sku-card__text {
   min-height: 32px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.3;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -478,21 +478,21 @@ const displayCover = computed(() => {
 .sku-picker-error {
   margin-top: 8px;
   color: #ff3b30;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
 .sku-picker-retry {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-top: 8px;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-chip-accent-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }

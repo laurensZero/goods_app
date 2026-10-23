@@ -64,7 +64,7 @@
 }
 
 .info-title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 8px;
@@ -75,11 +75,11 @@
   padding-left: 18px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .info-steps li {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.5;
 }
@@ -116,14 +116,14 @@
 }
 
 .file-pick-label {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
 }
 
 .file-pick-sub {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 0;
 }
@@ -133,7 +133,7 @@
 }
 
 .field-error {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #c74444;
   margin: 0;
 }
@@ -163,7 +163,7 @@
 
 .online-fetch-desc {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   line-height: 1.5;
 }
@@ -179,7 +179,7 @@
   border-radius: var(--radius-md, 12px);
   background: var(--app-accent, #141416);
   color: #fff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -197,7 +197,7 @@
 
 .online-fetch-status {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   text-align: center;
 }
@@ -239,7 +239,7 @@
   border-radius: var(--radius-md, 12px);
   background: var(--app-accent, #141416);
   color: #fff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.18s ease, transform 0.18s ease;
@@ -257,7 +257,7 @@
 
 .load-more-progress {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   text-align: center;
 }
@@ -296,7 +296,7 @@ html.theme-dark .online-fetch-btn {
 .list-count {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.45;
   color: var(--app-text-secondary);
   margin: 0;
@@ -312,7 +312,7 @@ html.theme-dark .online-fetch-btn {
     flex: 1 1 52%;
     min-width: 48%;
     max-width: 58%;
-    font-size: 13px;
+    font-size: var(--font-body);
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -323,14 +323,14 @@ html.theme-dark .online-fetch-btn {
 
   .list-header-actions {
     gap: 2px;
-    padding: 3px;
+    padding: 4px;
   }
 
   .text-btn {
     min-width: 0;
     height: 32px;
     padding: 0 8px;
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 }
 
@@ -340,7 +340,7 @@ html.theme-dark .online-fetch-btn {
   flex-shrink: 0;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.06);
 }
 
@@ -349,9 +349,9 @@ html.theme-dark .online-fetch-btn {
   min-width: 72px;
   height: 36px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -384,7 +384,7 @@ html.theme-dark .online-fetch-btn {
   background: rgba(0, 0, 0, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .order-row {
@@ -466,7 +466,7 @@ html.theme-dark .online-fetch-btn {
   flex-shrink: 0;
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.06);
   display: flex;
@@ -478,7 +478,7 @@ html.theme-dark .online-fetch-btn {
 .order-thumb--sm {
   width: 40px;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   cursor: default;
 }
 
@@ -489,7 +489,7 @@ html.theme-dark .online-fetch-btn {
 }
 
 .thumb-initial {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: rgba(0, 0, 0, 0.3);
 }
@@ -505,7 +505,7 @@ html.theme-dark .online-fetch-btn {
 }
 
 .order-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text);
   margin: 0 0 4px;
@@ -522,25 +522,25 @@ html.theme-dark .online-fetch-btn {
 }
 
 .meta-price {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   font-weight: 500;
 }
 
 .meta-qty {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: var(--app-text);
   background: rgba(20, 20, 22, 0.08);
-  border-radius: 5px;
-  padding: 1px 5px;
+  border-radius: var(--radius-xxs);
+  padding: 2px 6px;
   white-space: nowrap;
 }
 
 .meta-ip {
-  font-size: 12px;
-  padding: 1px 7px;
-  border-radius: 999px;
+  font-size: var(--font-small);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(28, 53, 88, 0.08);
   color: #1c3558;
   white-space: nowrap;
@@ -548,33 +548,33 @@ html.theme-dark .online-fetch-btn {
 
 .meta-char,
 .meta-variant {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .meta-date,
 .meta-shop {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .meta-count {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
 
 .meta-item-status {
-  font-size: 10px;
-  padding: 1px 5px;
+  font-size: var(--font-micro);
+  padding: 2px 6px;
 }
 
 .status-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.06);
   color: var(--app-text-secondary);
 }
@@ -626,7 +626,7 @@ html.theme-dark .online-fetch-btn {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
 .goods-item {
@@ -703,8 +703,8 @@ html.theme-dark .online-fetch-btn {
 .secondary-btn {
   height: 52px;
   border: none;
-  border-radius: 16px;
-  font-size: 16px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.14s ease, opacity 0.14s ease, background 0.14s ease;
@@ -756,7 +756,7 @@ html.theme-dark .online-fetch-btn {
 }
 
 .done-title {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   color: var(--app-text);
   letter-spacing: -0.03em;
@@ -764,7 +764,7 @@ html.theme-dark .online-fetch-btn {
 }
 
 .done-sub {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text-secondary);
   margin: 0 0 16px;
 }
@@ -775,7 +775,7 @@ html.theme-dark .online-fetch-btn {
   height: 28px;
   border: none;
   background: transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   color: rgba(0, 0, 0, 0.3);
   display: flex;
   align-items: center;
@@ -801,7 +801,7 @@ html.theme-dark .online-fetch-btn {
 }
 
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--text-tertiary, #8e8e93);
   text-align: center;
@@ -827,7 +827,7 @@ html.theme-dark .online-fetch-btn {
   background: var(--app-surface-soft);
 }
 .edit-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--text-primary);
 }
@@ -835,10 +835,10 @@ html.theme-dark .online-fetch-btn {
   width: 100%;
   height: 40px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   padding: 0 12px;
   outline: none;
   transition: border-color .16s;
@@ -857,7 +857,7 @@ html.theme-dark .online-fetch-btn {
   height: 48px;
   border-radius: var(--radius-small);
   border: none;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   transition: opacity .15s;

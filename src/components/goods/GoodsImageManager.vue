@@ -717,7 +717,7 @@ function getSourceLabel(storageMode) {
 .image-manager__gallery,
 .image-manager__empty {
   padding: 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -737,7 +737,7 @@ function getSourceLabel(storageMode) {
 
 .image-manager__empty-title {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -752,7 +752,7 @@ function getSourceLabel(storageMode) {
 .image-manager__section-hint,
 .image-manager__empty-desc {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -761,10 +761,10 @@ function getSourceLabel(storageMode) {
   min-height: 28px;
   padding: 0 10px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -776,10 +776,10 @@ function getSourceLabel(storageMode) {
   flex-shrink: 0;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 28px;
 }
@@ -794,10 +794,10 @@ function getSourceLabel(storageMode) {
   min-height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -815,10 +815,10 @@ function getSourceLabel(storageMode) {
 .image-manager__action-btn {
   min-height: 42px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -853,7 +853,7 @@ function getSourceLabel(storageMode) {
   max-width: 86px;
   padding: 6px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -870,7 +870,7 @@ function getSourceLabel(storageMode) {
   height: 74px;
   min-height: 74px;
   max-height: 74px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
 }
 
@@ -878,9 +878,9 @@ function getSourceLabel(storageMode) {
 .image-manager__thumb-source {
   position: absolute;
   left: 10px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-micro);
   font-weight: 700;
 }
 
@@ -902,7 +902,7 @@ function getSourceLabel(storageMode) {
   gap: 14px;
   margin-top: 12px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
@@ -914,7 +914,7 @@ function getSourceLabel(storageMode) {
   display: block;
   width: 116px;
   height: 116px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   object-fit: cover;
   background: var(--app-surface);
 }
@@ -935,10 +935,10 @@ function getSourceLabel(storageMode) {
 .image-manager__meta-pill {
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 28px;
 }
@@ -962,17 +962,17 @@ function getSourceLabel(storageMode) {
 
 .image-manager__field-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .image-manager__field input {
   width: 100%;
   min-height: 48px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   padding: 0 14px;
   outline: none;
 }
@@ -988,8 +988,8 @@ function getSourceLabel(storageMode) {
   min-height: 40px;
   padding: 0 14px;
   border: none;
-  border-radius: 14px;
-  font-size: 13px;
+  border-radius: var(--radius-small);
+  font-size: var(--font-body);
   font-weight: 600;
 }
 

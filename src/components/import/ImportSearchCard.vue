@@ -93,12 +93,12 @@ const { t } = useI18n()
 
 .search-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .search-title {
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -116,7 +116,7 @@ const { t } = useI18n()
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   padding: 0 14px;
   outline: none;
 }
@@ -131,13 +131,13 @@ const { t } = useI18n()
   border-radius: var(--radius-small);
   background: var(--import-search-btn, #c7375d);
   color: var(--import-search-btn-text, #ffffff);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .search-error {
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 html.theme-dark .search-error {

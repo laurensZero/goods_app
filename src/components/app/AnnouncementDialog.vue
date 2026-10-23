@@ -150,7 +150,7 @@ const updatedAtLabel = computed(() => {
 
 .announcement-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -159,7 +159,7 @@ const updatedAtLabel = computed(() => {
 .dialog-title {
   margin: 8px 0 0;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -174,7 +174,7 @@ const updatedAtLabel = computed(() => {
 .announcement-body {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
@@ -220,7 +220,7 @@ const updatedAtLabel = computed(() => {
 
 .markdown-body :deep(code) {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9em;
@@ -229,7 +229,7 @@ const updatedAtLabel = computed(() => {
 .markdown-body :deep(pre) {
   margin: 12px 0;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
   overflow-x: auto;
 }
@@ -249,7 +249,7 @@ const updatedAtLabel = computed(() => {
 
 .markdown-body :deep(img) {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
 }
 
 .markdown-body :deep(table) {
@@ -279,7 +279,7 @@ const updatedAtLabel = computed(() => {
 .dialog-desc {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -291,7 +291,7 @@ const updatedAtLabel = computed(() => {
   gap: 8px 12px;
   margin-top: 12px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .dialog-actions {
@@ -306,7 +306,7 @@ const updatedAtLabel = computed(() => {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 

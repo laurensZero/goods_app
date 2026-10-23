@@ -92,7 +92,7 @@ const renderSections = computed(() => {
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
   text-transform: uppercase;
@@ -101,7 +101,7 @@ const renderSections = computed(() => {
 }
 
 .section-title {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -109,7 +109,7 @@ const renderSections = computed(() => {
 
 .timeline-card {
   background: var(--app-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -130,7 +130,7 @@ const renderSections = computed(() => {
 }
 
 .timeline-group__label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
   margin: 0 0 8px;
@@ -150,7 +150,7 @@ const renderSections = computed(() => {
   border-radius: 50%;
   background: var(--app-border);
   flex-shrink: 0;
-  margin-top: 5px;
+  margin-top: 6px;
 }
 
 .timeline-dot--active {
@@ -185,7 +185,7 @@ const renderSections = computed(() => {
 }
 
 .timeline-status {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
@@ -196,31 +196,31 @@ const renderSections = computed(() => {
 }
 
 .timeline-date {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .timeline-price {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-chip-accent-text, #2070c0);
   background: var(--app-chip-accent-bg, rgba(32, 112, 192, 0.12));
-  padding: 1px 8px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
 .timeline-platform {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  padding: 1px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 
 .timeline-note {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 0;
   line-height: 1.4;

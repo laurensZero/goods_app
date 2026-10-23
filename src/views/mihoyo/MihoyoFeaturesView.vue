@@ -268,7 +268,7 @@ onMounted(() => {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -284,7 +284,7 @@ onMounted(() => {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -294,7 +294,7 @@ onMounted(() => {
 
 .settings-card {
   padding: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -305,7 +305,7 @@ onMounted(() => {
 
 .settings-card__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -313,7 +313,7 @@ onMounted(() => {
 .settings-card__title {
   margin: 4px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -330,7 +330,7 @@ onMounted(() => {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
@@ -352,7 +352,7 @@ onMounted(() => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
 }
 
@@ -408,7 +408,7 @@ onMounted(() => {
 .settings-item__title {
   display: block;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -417,7 +417,7 @@ onMounted(() => {
   display: block;
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
@@ -444,7 +444,7 @@ onMounted(() => {
   bottom: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 

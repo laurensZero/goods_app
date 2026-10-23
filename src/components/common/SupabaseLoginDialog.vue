@@ -602,7 +602,7 @@ onBeforeUnmount(() => {
 .dialog-title {
   margin: 0 0 16px;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -610,13 +610,13 @@ onBeforeUnmount(() => {
 .dialog-error {
   margin-bottom: 12px;
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .dialog-success {
   margin-top: 8px;
   color: #28c880;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .auth-tabs {
@@ -633,10 +633,10 @@ onBeforeUnmount(() => {
   min-height: 38px;
   padding: 0 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease, color 0.16s ease;
@@ -655,7 +655,7 @@ onBeforeUnmount(() => {
 .auth-desc {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -666,7 +666,7 @@ onBeforeUnmount(() => {
 
 .auth-field__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .auth-input {
@@ -677,7 +677,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.16s ease;
 }
@@ -692,7 +692,7 @@ onBeforeUnmount(() => {
   border: none;
   background: none;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -706,7 +706,7 @@ onBeforeUnmount(() => {
   min-height: 48px;
   border: none;
   border-radius: var(--radius-small);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }
@@ -739,7 +739,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease;
@@ -765,7 +765,7 @@ onBeforeUnmount(() => {
   border: none;
   background: none;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -795,20 +795,20 @@ onBeforeUnmount(() => {
 
 .auth-qr-placeholder {
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 .auth-qr-status {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 
 .auth-qr-countdown {
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   text-align: center;
   font-variant-numeric: tabular-nums;
 }

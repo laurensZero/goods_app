@@ -309,7 +309,7 @@ function handleAction(item, action) {
   align-items: flex-start;
   gap: 10px;
   padding: 12px 14px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   border: 1px solid var(--app-glass-border);
   background: color-mix(in srgb, var(--app-glass-strong) 92%, transparent);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1), 0 1px 4px rgba(0, 0, 0, 0.06);
@@ -332,7 +332,7 @@ function handleAction(item, action) {
   flex-shrink: 0;
   width: 22px;
   height: 22px;
-  margin-top: 1px;
+  margin-top: 2px;
   color: var(--app-chip-accent-text);
 }
 .app-notify-icon svg {
@@ -350,7 +350,7 @@ function handleAction(item, action) {
 }
 
 .app-notify-title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   line-height: 1.35;
@@ -360,7 +360,7 @@ function handleAction(item, action) {
 }
 
 .app-notify-sub {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   line-height: 1.3;
   margin-top: 2px;
@@ -369,7 +369,7 @@ function handleAction(item, action) {
 .app-notify-progress {
   margin-top: 8px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 12%, transparent);
   overflow: hidden;
 }
@@ -386,7 +386,7 @@ function handleAction(item, action) {
 
 .app-notify-notes {
   margin-top: 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   overflow: hidden;
   cursor: default;
@@ -402,7 +402,7 @@ function handleAction(item, action) {
   border: none;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
@@ -415,7 +415,7 @@ function handleAction(item, action) {
 
 .app-notify-notes__chevron {
   display: inline-block;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1;
   transform: rotate(90deg);
   transition: transform 0.18s ease;
@@ -428,7 +428,7 @@ function handleAction(item, action) {
 .app-notify-notes__preview {
   padding: 0 8px 8px;
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   line-height: 1.45;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -442,7 +442,7 @@ function handleAction(item, action) {
 .app-notify-notes__body {
   padding: 0 8px 8px;
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -455,10 +455,10 @@ function handleAction(item, action) {
 }
 
 .app-notify-countdown-text {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-chip-accent-text);
-  margin-top: 3px;
+  margin-top: 4px;
   letter-spacing: 0.3px;
 }
 
@@ -470,12 +470,12 @@ function handleAction(item, action) {
 
 .app-notify-action-btn {
   flex: 1;
-  padding: 5px 10px;
-  border-radius: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-tiny);
   border: 1px solid var(--app-border);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -506,7 +506,7 @@ function handleAction(item, action) {
   border: none;
   background: rgba(0, 0, 0, 0.06);
   border-radius: 50%;
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
   cursor: pointer;
   padding: 0;
@@ -521,7 +521,7 @@ function handleAction(item, action) {
   width: 100%;
   height: 3px;
   background: color-mix(in srgb, var(--app-chip-accent-text) 60%, transparent);
-  border-radius: 0 0 16px 16px;
+  border-radius: 0 0 var(--radius-medium) var(--radius-medium);
   transform-origin: left;
   transition: transform 50ms linear;
 }

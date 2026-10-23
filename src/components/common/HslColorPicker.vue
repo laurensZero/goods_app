@@ -197,7 +197,7 @@ function pickFromScreen() {
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   box-shadow:
     inset 0 0 0 1px rgba(20, 20, 22, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.24);
@@ -207,7 +207,7 @@ function pickFromScreen() {
   flex: 1;
   min-width: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   letter-spacing: 0.04em;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -222,7 +222,7 @@ function pickFromScreen() {
   height: 38px;
   flex-shrink: 0;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
   color: var(--app-text-secondary);
   transition:
@@ -252,7 +252,7 @@ function pickFromScreen() {
 
 .hsl-picker__slider-label {
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -263,7 +263,7 @@ function pickFromScreen() {
   height: 8px;
   appearance: none;
   background: var(--slider-track);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   outline: none;
 }
 
@@ -286,7 +286,7 @@ function pickFromScreen() {
   appearance: none;
   background: var(--app-surface);
   border: 3px solid rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
@@ -295,7 +295,7 @@ function pickFromScreen() {
   height: 18px;
   background: var(--app-surface);
   border: 3px solid rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
@@ -310,7 +310,7 @@ function pickFromScreen() {
   color: var(--app-text);
   background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
   border: 1px solid var(--app-border);
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   text-align: center;
   text-transform: uppercase;

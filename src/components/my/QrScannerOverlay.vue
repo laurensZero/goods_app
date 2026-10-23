@@ -100,7 +100,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
 .scanner-dialog {
   width: 100%;
   max-width: 360px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-glass-strong) 94%, var(--app-surface));
   border: 1px solid var(--app-glass-border);
   box-shadow:
@@ -119,7 +119,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
 }
 
 .scanner-dialog__title {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
   letter-spacing: -0.02em;
@@ -147,7 +147,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   position: relative;
   margin: 16px 20px;
   aspect-ratio: 1;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   background: #0f0f10;
 }
@@ -219,7 +219,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   margin: auto;
   align-self: center;
   background: transparent !important;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: visible;
   /* 挖孔：取景框透明，四周半透明压暗 */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.52);
@@ -275,10 +275,10 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   border-style: solid;
 }
 
-.scanner-corner--tl { top: 0; left: 0; border-width: 2.5px 0 0 2.5px; border-radius: 4px 0 0 0; }
-.scanner-corner--tr { top: 0; right: 0; border-width: 2.5px 2.5px 0 0; border-radius: 0 4px 0 0; }
-.scanner-corner--bl { bottom: 0; left: 0; border-width: 0 0 2.5px 2.5px; border-radius: 0 0 0 4px; }
-.scanner-corner--br { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; border-radius: 0 0 4px 0; }
+.scanner-corner--tl { top: 0; left: 0; border-width: 2.5px 0 0 2.5px; border-radius: var(--radius-xxs) 0 0 0; }
+.scanner-corner--tr { top: 0; right: 0; border-width: 2.5px 2.5px 0 0; border-radius: 0 var(--radius-xxs) 0 0; }
+.scanner-corner--bl { bottom: 0; left: 0; border-width: 0 0 2.5px 2.5px; border-radius: 0 0 0 var(--radius-xxs); }
+.scanner-corner--br { bottom: 0; right: 0; border-width: 0 2.5px 2.5px 0; border-radius: 0 0 var(--radius-xxs) 0; }
 
 .scanner-line {
   position: absolute;
@@ -299,7 +299,7 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
 
 .scanner-hint {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   text-align: center;
   margin: 0 20px 4px;
@@ -317,10 +317,10 @@ const emit = defineEmits(['update:modelValue', 'close', 'gallery-pick', 'video-r
   width: 100%;
   height: 46px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   letter-spacing: -0.02em;
   transition: background 0.16s ease;

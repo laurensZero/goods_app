@@ -1114,8 +1114,8 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 3px;
-  border-radius: 999px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-bg);
   flex: 1;
   min-width: 0;
@@ -1130,10 +1130,10 @@ onUnmounted(() => {
   min-height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -1171,7 +1171,7 @@ onUnmounted(() => {
   height: 40px;
   flex-shrink: 0;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text);
 }
@@ -1206,10 +1206,10 @@ onUnmounted(() => {
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   white-space: nowrap;
 }
 
@@ -1285,13 +1285,13 @@ onUnmounted(() => {
 
 .list-section__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .list-section__count {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   font-weight: 600;
 }
@@ -1304,11 +1304,11 @@ onUnmounted(() => {
   position: absolute;
   top: 8px;
   right: 8px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(47, 158, 94, 0.92);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1318,11 +1318,11 @@ onUnmounted(() => {
   position: absolute;
   bottom: 8px;
   left: 8px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(47, 127, 211, 0.92);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1331,17 +1331,17 @@ onUnmounted(() => {
   position: absolute;
   top: 8px;
   right: 8px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(227, 106, 46, 0.95);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 1.3;
 }
 
 .goods-card__sku-hint {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: #2070c0;
   display: -webkit-box;
   -webkit-line-clamp: 1;
@@ -1360,7 +1360,7 @@ onUnmounted(() => {
 
 .gift-section__label {
   margin: 0 0 4px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #e36a2e;
@@ -1369,14 +1369,14 @@ onUnmounted(() => {
 
 .gift-section__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .gift-section__desc {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -1453,22 +1453,22 @@ onUnmounted(() => {
 }
 
 .goods-card__wished {
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(194, 65, 90, 0.92);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
 }
 
 .goods-card__owned {
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(47, 127, 211, 0.92);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
@@ -1478,11 +1478,11 @@ onUnmounted(() => {
   position: absolute;
   top: 8px;
   right: 8px;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(227, 106, 46, 0.92);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1496,18 +1496,18 @@ onUnmounted(() => {
 }
 
 .goods-card__gift-end {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
   line-height: 1.3;
 }
 
 .goods-card__shop {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
 .goods-card__name {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   line-height: 1.35;
   color: var(--app-text);
@@ -1527,7 +1527,7 @@ onUnmounted(() => {
 }
 
 .price {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -1537,7 +1537,7 @@ onUnmounted(() => {
 }
 
 .sale-time {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -1600,13 +1600,13 @@ onUnmounted(() => {
 
 .sku-sheet__shop {
   margin: 0 0 4px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .sku-sheet__name {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.35;
   color: var(--app-text);
@@ -1614,7 +1614,7 @@ onUnmounted(() => {
 
 .sku-sheet__selected {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-chip-accent-text);
 }
@@ -1629,7 +1629,7 @@ onUnmounted(() => {
 
 .sku-sheet__hint {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -1647,7 +1647,7 @@ onUnmounted(() => {
   gap: 10px;
   min-height: 48px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .sku-sheet__error {
@@ -1662,7 +1662,7 @@ onUnmounted(() => {
 
 .sku-sheet__empty {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -1712,28 +1712,28 @@ onUnmounted(() => {
   flex-direction: column;
   align-items: flex-end;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   flex-shrink: 0;
 }
 
 .sku-chip__wished {
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1;
-  padding: 2px 5px;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: rgba(47, 158, 94, 0.14);
   color: #2f9e5e;
   white-space: nowrap;
 }
 
 .sku-chip__owned {
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 600;
   line-height: 1;
-  padding: 2px 5px;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: rgba(47, 127, 211, 0.14);
   color: #2f7fd3;
   white-space: nowrap;
@@ -1742,7 +1742,7 @@ onUnmounted(() => {
 .sku-chip__thumb {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   background: var(--app-surface-muted);
   flex-shrink: 0;
@@ -1762,7 +1762,7 @@ onUnmounted(() => {
 }
 
 .sku-chip__text {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   line-height: 1.3;
   display: -webkit-box;
@@ -1772,7 +1772,7 @@ onUnmounted(() => {
 }
 
 .sku-chip__price {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1.2;
   color: var(--app-text);
@@ -1793,7 +1793,7 @@ onUnmounted(() => {
   gap: 8px;
   min-height: 42px;
   border-radius: var(--radius-small);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1835,7 +1835,7 @@ onUnmounted(() => {
   border-radius: var(--radius-small);
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1878,14 +1878,14 @@ onUnmounted(() => {
 
 .state-card__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .state-card__desc {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   color: var(--app-text-secondary);
 }
@@ -1897,7 +1897,7 @@ onUnmounted(() => {
 .partial-note,
 .arrivals-note {
   margin: 14px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-tertiary);
 }
@@ -1921,7 +1921,7 @@ onUnmounted(() => {
 }
 
 .arrivals-page--tablet .goods-card__name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .arrivals-page--tablet .sku-chips {

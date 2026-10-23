@@ -213,11 +213,11 @@ defineExpose({
   height: 48px;
   margin-top: 8px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   padding: 0 16px;
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

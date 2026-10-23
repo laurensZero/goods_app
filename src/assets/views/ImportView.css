@@ -28,13 +28,13 @@
   min-height: 42px;
   padding: 0 16px;
   border: 1px solid var(--app-glass-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-glass) 92%, transparent);
   color: var(--app-text);
   box-shadow: var(--app-shadow);
   backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
   -webkit-backdrop-filter: blur(var(--app-frost-blur)) saturate(var(--app-frost-saturate));
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   pointer-events: auto;
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
@@ -57,7 +57,7 @@
   flex-wrap: wrap;
   padding: 6px 0 2px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -65,10 +65,10 @@
   min-height: 32px;
   padding: 0 12px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -110,7 +110,7 @@
   align-items: center;
   justify-content: center;
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -124,7 +124,7 @@
   flex: 1;
   min-width: 0;
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
   display: -webkit-box;
   overflow: hidden;
@@ -171,7 +171,7 @@
 }
 
 .url-hint {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
   margin-bottom: 8px;
 }
@@ -188,9 +188,9 @@
   min-height: 88px;
   padding: 10px 12px;
   border: 1px solid rgba(20, 20, 22, 0.1);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text);
   outline: none;
   transition: border-color 0.15s;
@@ -203,7 +203,7 @@
 
 .url-input::placeholder {
   color: var(--app-placeholder);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .url-input:focus {
@@ -220,7 +220,7 @@
   border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.12s;
@@ -256,7 +256,7 @@
 
 .parse-error {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #c74444;
   white-space: pre-line;
   line-height: 1.5;
@@ -322,7 +322,7 @@
 .batch-progress-text {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text);
   white-space: nowrap;
   overflow: hidden;
@@ -330,7 +330,7 @@
 }
 .batch-progress-err {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
   max-width: 120px;
   white-space: nowrap;
@@ -385,7 +385,7 @@
   display: block;
 }
 .batch-goods-initial {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   color: var(--app-text-tertiary);
   line-height: 1;
@@ -396,10 +396,10 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 .batch-goods-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text);
   line-height: 1.3;
@@ -420,11 +420,11 @@
 .batch-meta-tag {
   display: inline-flex;
   align-items: center;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--radius-xxs);
   background: rgba(60,60,67,0.08);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   white-space: nowrap;
 }
@@ -454,11 +454,11 @@
 
 .batch-saved-badge {
   flex-shrink: 0;
-  padding: 3px 10px;
-  border-radius: 8px;
+  padding: 4px 10px;
+  border-radius: var(--radius-tiny);
   background: rgba(40,167,69,0.12);
   color: #28a745;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -466,7 +466,7 @@
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: none;
   background: rgba(60,60,67,0.08);
   color: var(--app-text);
@@ -489,7 +489,7 @@
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: none;
   background: rgba(199,68,68,0.08);
   color: #c74444;
@@ -513,7 +513,7 @@
   background: none;
   border: none;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
   padding: 4px 0;
   text-decoration: underline;
@@ -540,13 +540,13 @@
 
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -573,7 +573,7 @@
 
 .field-label {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -588,14 +588,14 @@
   border: none;
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
 .variant-field-match {
   margin-top: -2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
@@ -609,7 +609,7 @@
   border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   padding: 0 14px;
   outline: none;
   transition: border-color 0.16s ease;
@@ -642,10 +642,10 @@
   width: 100%;
   height: 54px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-text);
   color: #fff;
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   letter-spacing: -0.02em;
@@ -666,11 +666,11 @@
 .auto-badge {
   display: inline-block;
   margin-left: 6px;
-  padding: 1px 7px;
+  padding: 2px 8px;
   border-radius: var(--radius-xxs);
   background: color-mix(in srgb, #4a7aec 12%, var(--app-surface-soft));
   color: color-mix(in srgb, #4a7aec 78%, var(--app-text));
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   vertical-align: middle;
 }
@@ -686,11 +686,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 5px 10px 5px 12px;
-  border-radius: 999px;
+  padding: 6px 10px 6px 12px;
+  border-radius: var(--radius-pill);
   background: #eef3ff;
   color: #2040a0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
 }
 
@@ -704,7 +704,7 @@
   border-radius: 50%;
   background: rgba(32, 64, 160, 0.12);
   color: #2040a0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1;
   cursor: pointer;
   padding: 0;
@@ -765,7 +765,7 @@
 .variant-img-wrap {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   background: var(--app-surface-soft);
 }
@@ -778,7 +778,7 @@
 }
 
 .variant-name {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text);
   line-height: 1.3;
@@ -804,7 +804,7 @@
   border-radius: 50%;
   background: #2070c0;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -818,11 +818,11 @@
   top: 6px;
   left: 6px;
   z-index: 2;
-  padding: 2px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 140, 0, 0.88);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 1.4;
   pointer-events: none;
@@ -831,7 +831,7 @@
 
 .variant-hint {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #2070c0;
   font-weight: 500;
 }
@@ -850,7 +850,7 @@
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
@@ -859,7 +859,7 @@
 .date-field:active { transform: scale(0.98); }
 .date-field span {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 .date-field__value--placeholder { color: var(--app-placeholder); }
 .date-field__icon {
@@ -887,7 +887,7 @@
   -webkit-tap-highlight-color: transparent;
 }
 .save-char-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text, #1c1c1e);
   line-height: 1.4;
   flex: 1;
@@ -897,7 +897,7 @@
   flex-shrink: 0;
   width: 44px;
   height: 26px;
-  border-radius: 13px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 12%, var(--app-surface-soft));
   position: relative;
   transition: background 0.22s;
@@ -937,7 +937,7 @@
   right: 0;
   z-index: 2001;
   background: var(--app-bg, #f2f2f7);
-  border-radius: 20px 20px 0 0;
+  border-radius: var(--radius-large) var(--radius-large) 0 0;
   padding: 12px 20px calc(env(safe-area-inset-bottom, 16px) + 12px);
   max-height: 85dvh;
   overflow-y: auto;
@@ -958,7 +958,7 @@
 }
 
 .batch-edit-title {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
   margin: 0 0 16px;
@@ -986,7 +986,7 @@
   border: none;
   background: rgba(60, 60, 67, 0.1);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 500;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.12s;
@@ -1004,7 +1004,7 @@
   border: none;
   background: var(--app-text);
   color: #fff;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   cursor: pointer;
   letter-spacing: 0.02em;
@@ -1201,7 +1201,7 @@ html.theme-dark .btn-float {
 
 .search-results-toolbar__hint {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -1213,11 +1213,11 @@ html.theme-dark .btn-float {
 }
 
 .search-results-toolbar__count {
-  padding: 3px 10px;
-  border-radius: 999px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-chip-accent-text) 12%, var(--app-surface-soft));
   color: var(--app-chip-accent-text);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -1225,10 +1225,10 @@ html.theme-dark .btn-float {
   min-height: 28px;
   padding: 0 10px;
   border: 1px solid var(--app-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -1245,7 +1245,7 @@ html.theme-dark .btn-float {
   width: 24px;
   height: 24px;
   padding: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-chip-accent-text) 10%, var(--app-surface));
   color: var(--app-chip-accent-text);
 }
@@ -1258,7 +1258,7 @@ html.theme-dark .btn-float {
 
 @media (max-width: 480px) {
   .search-result-card {
-    gap: 7px;
+    gap: 8px;
   }
 
   .search-result-queued {
@@ -1278,7 +1278,7 @@ html.theme-dark .btn-float {
 
 .import-queue-info {
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
@@ -1291,15 +1291,15 @@ html.theme-dark .btn-float {
 .info-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   /* 与上方 SKU 卡片「修改款式」按钮同尺寸，并靠右对齐 */
   margin-left: auto;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1317,9 +1317,9 @@ html.theme-dark .btn-float {
 
 .queue-owned-tag {
   flex-shrink: 0;
-  padding: 3px 8px;
-  border-radius: 8px;
-  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: var(--radius-tiny);
+  font-size: var(--font-caption);
   font-weight: 600;
 }
 
@@ -1341,10 +1341,10 @@ html.theme-dark .btn-float {
 .queue-mini-chip {
   max-width: 160px;
   padding: 2px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1370,7 +1370,7 @@ html.theme-dark .btn-float {
   align-items: center;
   gap: 12px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
@@ -1380,14 +1380,14 @@ html.theme-dark .btn-float {
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
   background: rgba(255, 59, 48, 0.1);
   color: #ff3b30;
 }
 
 .queue-parse-error__initial {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
@@ -1398,7 +1398,7 @@ html.theme-dark .btn-float {
 
 .queue-parse-error__title {
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1406,23 +1406,23 @@ html.theme-dark .btn-float {
 }
 
 .queue-parse-error__msg {
-  margin-top: 3px;
+  margin-top: 4px;
   color: #ff3b30;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
 .queue-parse-error__retry {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-shrink: 0;
-  padding: 7px 12px;
+  padding: 8px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-chip-accent-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -1439,7 +1439,7 @@ html.theme-dark .btn-float {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   cursor: pointer;
@@ -1464,10 +1464,10 @@ html.theme-dark .btn-float {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 11px 0;
+  padding: 12px 0;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }

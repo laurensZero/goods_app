@@ -47,7 +47,7 @@
 
 .pay-hero__label {
   margin: 0 0 2px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--app-text-tertiary);
@@ -55,7 +55,7 @@
 
 .pay-hero__title {
   margin: 0 0 4px;
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--app-text);
@@ -63,7 +63,7 @@
 
 .pay-hero__desc {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
   color: var(--app-text-secondary);
 }
@@ -76,9 +76,9 @@
 }
 
 .pay-hero__chip {
-  padding: 3px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   background: var(--app-surface-soft);
 }
@@ -95,7 +95,7 @@
 
 .pay-section__label {
   margin: 0 0 2px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--app-text-tertiary);
@@ -103,14 +103,14 @@
 
 .pay-section__title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .pay-section__desc {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
   color: var(--app-text-secondary);
 }
@@ -150,7 +150,7 @@
 
 .pay-card__title {
   margin: 0 0 6px;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -163,20 +163,20 @@
 
 .pay-body {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.7;
   color: var(--app-text-secondary);
 }
 
 .pay-muted {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .pay-code {
   font-family: ui-monospace, Menlo, Consolas, monospace;
-  font-size: 12px;
-  padding: 1px 6px;
+  font-size: var(--font-small);
+  padding: 2px 6px;
   border-radius: var(--radius-xxs);
   background: var(--app-surface-soft);
   color: var(--app-text);
@@ -193,7 +193,7 @@
 }
 
 .pay-amount__symbol {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   margin-right: 4px;
 }
@@ -212,7 +212,7 @@
   display: grid;
   grid-template-columns: 92px 1fr;
   gap: 8px 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .pay-dl dt {
@@ -234,7 +234,7 @@
 }
 
 .pay-money {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 650;
   color: var(--app-text);
 }
@@ -244,8 +244,8 @@
 .pay-chip {
   display: inline-block;
   padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-small);
   border: 1px solid var(--app-border);
   color: var(--app-text-secondary);
   background: var(--app-surface-soft);
@@ -270,7 +270,7 @@ html.theme-dark .pay-chip--pending {
 }
 
 .pay-granted {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #16a34a;
 }
 
@@ -314,8 +314,8 @@ html.theme-dark .pay-chip--pending {
 }
 
 .pay-btn--sm {
-  padding: 9px 16px;
-  font-size: 13px;
+  padding: 10px 16px;
+  font-size: var(--font-body);
   white-space: nowrap;
 }
 
@@ -344,21 +344,21 @@ html.theme-dark .pay-chip--pending {
 
 .pay-product__title {
   margin: 0 0 2px;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .pay-product__desc {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-secondary);
 }
 
 .pay-product__feature {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -370,15 +370,15 @@ html.theme-dark .pay-chip--pending {
 }
 
 .pay-product__price {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   color: var(--app-text);
   font-variant-numeric: tabular-nums;
 }
 
 .pay-product__price span {
-  font-size: 12px;
-  margin-right: 1px;
+  font-size: var(--font-small);
+  margin-right: 2px;
 }
 
 /* ── 权益标签 ── */
@@ -391,8 +391,8 @@ html.theme-dark .pay-chip--pending {
 
 .pay-tag {
   padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-body);
   color: var(--app-text);
   background: rgba(52, 199, 89, 0.12);
   border: 1px solid rgba(52, 199, 89, 0.28);
@@ -418,7 +418,7 @@ html.theme-dark .pay-chip--pending {
 
 .pay-order__no {
   margin: 0 0 2px;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-family: ui-monospace, Menlo, Consolas, monospace;
   color: var(--app-text-secondary);
   word-break: break-all;
@@ -426,7 +426,7 @@ html.theme-dark .pay-chip--pending {
 
 .pay-order__side {
   flex: none;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 650;
   color: var(--app-text);
   font-variant-numeric: tabular-nums;
@@ -439,7 +439,7 @@ html.theme-dark .pay-chip--pending {
   padding: 12px;
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-align: center;
   color: var(--app-text);
 }
@@ -451,14 +451,14 @@ html.theme-dark .pay-chip--pending {
 
 .pay-ack {
   margin: 12px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   word-break: break-all;
 }
 
 .pay-error {
   margin: 10px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
   word-break: break-all;
 }
@@ -476,7 +476,7 @@ html.theme-dark .pay-chip--pending {
 
 .pay-sheet__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--app-text);
@@ -485,9 +485,9 @@ html.theme-dark .pay-chip--pending {
 .pay-sheet__close {
   flex: none;
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-body);
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--app-border);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
@@ -499,7 +499,7 @@ html.theme-dark .pay-chip--pending {
   padding: 10px 12px;
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
   color: var(--app-text-secondary);
 }

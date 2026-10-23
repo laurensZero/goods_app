@@ -864,7 +864,7 @@ function resetSettings() {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -880,7 +880,7 @@ function resetSettings() {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -897,7 +897,7 @@ function resetSettings() {
 
 .settings-card {
   padding: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -908,7 +908,7 @@ function resetSettings() {
 
 .settings-card__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -916,7 +916,7 @@ function resetSettings() {
 .settings-card__title {
   margin: 4px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -934,7 +934,7 @@ function resetSettings() {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
@@ -968,7 +968,7 @@ function resetSettings() {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
 }
 
@@ -1039,7 +1039,7 @@ function resetSettings() {
 .settings-item__title {
   display: block;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1048,7 +1048,7 @@ function resetSettings() {
   display: block;
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
@@ -1076,7 +1076,7 @@ function resetSettings() {
   bottom: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -1129,10 +1129,10 @@ html.theme-dark .toggle-slider::before {
   flex: 1;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1160,10 +1160,10 @@ html.theme-dark .toggle-slider::before {
 .mihoyo-shop-chip {
   padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1183,7 +1183,7 @@ html.theme-dark .toggle-slider::before {
 .mihoyo-shop-hint {
   margin: 10px 0 0;
   color: #ff9500;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .settings-item--link {
@@ -1216,7 +1216,7 @@ html.theme-dark .toggle-slider::before {
   width: 36px;
   height: 36px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
   cursor: pointer;
@@ -1245,7 +1245,7 @@ html.theme-dark .toggle-slider::before {
   min-width: 32px;
   text-align: center;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -1260,14 +1260,14 @@ html.theme-dark .toggle-slider::before {
 
 .duration-value {
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .duration-unit {
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 /* Slider */
@@ -1281,7 +1281,7 @@ html.theme-dark .toggle-slider::before {
   height: 8px;
   appearance: none;
   background: color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   outline: none;
   cursor: pointer;
 }
@@ -1328,7 +1328,7 @@ html.theme-dark .toggle-slider::before {
   width: 100%;
   padding: 16px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
   color: var(--app-text);
   text-align: left;
@@ -1350,7 +1350,7 @@ html.theme-dark .toggle-slider::before {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: rgba(0, 122, 255, 0.12);
   color: #007aff;
   flex-shrink: 0;
@@ -1371,7 +1371,7 @@ html.theme-dark .toggle-slider::before {
 }
 
 .settings-action-btn__text {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

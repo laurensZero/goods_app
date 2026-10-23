@@ -1385,7 +1385,7 @@ onBeforeUnmount(() => {
   position: absolute;
   inset: 40px 16px auto;
   height: 220px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(80, 90, 120, 0.08);
   filter: blur(28px);
   pointer-events: none;
@@ -1431,7 +1431,7 @@ onBeforeUnmount(() => {
 
 .preview-copy-card__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1448,7 +1448,7 @@ onBeforeUnmount(() => {
 .preview-copy-card__desc {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
@@ -1487,7 +1487,7 @@ onBeforeUnmount(() => {
 .hero-panel__label,
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1508,7 +1508,7 @@ onBeforeUnmount(() => {
 .hero-panel__desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
@@ -1521,21 +1521,21 @@ onBeforeUnmount(() => {
 
 .metric-box {
   padding: 16px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
 }
 
 .metric-box__label {
   display: block;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .metric-box__value {
   display: block;
   margin-top: 8px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
 }
 
@@ -1562,7 +1562,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 8px;
   border: 1px solid color-mix(in srgb, var(--app-text) 6%, transparent);
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 78%, transparent);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--app-text) 8%, transparent);
   backdrop-filter: blur(18px) saturate(140%);
@@ -1592,10 +1592,10 @@ onBeforeUnmount(() => {
   min-height: 42px;
   padding: 0 16px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: transform 0.18s ease, background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
 }
@@ -1609,7 +1609,7 @@ onBeforeUnmount(() => {
 :deep(.tab-nav__badge) {
   width: 7px;
   height: 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: currentColor;
   box-shadow: 0 0 0 4px rgba(199, 68, 68, 0.12);
 }
@@ -1645,12 +1645,12 @@ onBeforeUnmount(() => {
 
 .section-title {
   margin-top: 4px;
-  font-size: 20px;
+  font-size: var(--font-title-xl);
 }
 
 .field-card {
   padding: 18px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
 }
 
 .field-grid {
@@ -1685,7 +1685,7 @@ onBeforeUnmount(() => {
 
 .field-label {
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1697,7 +1697,7 @@ onBeforeUnmount(() => {
   border: none;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   line-height: 1.2;
   padding: 0;
@@ -1719,7 +1719,7 @@ onBeforeUnmount(() => {
 .field-hint,
 .field-error {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .field-city-tag {
@@ -1728,10 +1728,10 @@ onBeforeUnmount(() => {
   gap: 6px;
   width: fit-content;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -1789,10 +1789,10 @@ onBeforeUnmount(() => {
   min-height: var(--input-height);
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
@@ -1846,13 +1846,13 @@ onBeforeUnmount(() => {
 
 .day-ticket-toggle__title {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .day-ticket-toggle__desc {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -1887,17 +1887,17 @@ onBeforeUnmount(() => {
 
 .day-ticket-inline-actions__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
 }
 
 .day-ticket-clear-btn {
   padding: 6px 10px;
   border: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 1;
   transition: transform 0.16s ease;
@@ -1911,13 +1911,13 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 8px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 90%, var(--app-surface));
 }
 
 .day-ticket-row__date {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1941,10 +1941,10 @@ onBeforeUnmount(() => {
   min-height: var(--input-height);
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   text-align: left;
 }
 
@@ -1969,7 +1969,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 82%, var(--app-surface));
   text-align: left;
 }
@@ -1977,7 +1977,7 @@ onBeforeUnmount(() => {
 .media-picker__preview {
   width: 88px;
   aspect-ratio: 4 / 4.6;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: linear-gradient(180deg, #2a2d35, #1d2028);
   flex-shrink: 0;
@@ -1989,7 +1989,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   background: linear-gradient(180deg, #2c2f38, #242731);
   color: rgba(255, 255, 255, 0.84);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
@@ -2007,13 +2007,13 @@ onBeforeUnmount(() => {
 
 .media-picker__copy strong {
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 700;
 }
 
 .media-picker__copy span {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
@@ -2040,21 +2040,21 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   gap: 10px;
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
 }
 
 .linked-goods__thumb {
   width: 42px;
   height: 42px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   object-fit: cover;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(180deg, #2c2f38, #242731);
   color: rgba(255, 255, 255, 0.84);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -2062,7 +2062,7 @@ onBeforeUnmount(() => {
 .linked-goods__name {
   flex: 1;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2075,7 +2075,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: var(--app-surface);
   color: var(--app-text-tertiary);
-  font-size: 16px;
+  font-size: var(--font-title);
   line-height: 1;
 }
 
@@ -2087,10 +2087,10 @@ onBeforeUnmount(() => {
   width: 100%;
   min-height: 48px;
   border: 1px dashed color-mix(in srgb, var(--app-border) 90%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -2130,7 +2130,7 @@ onBeforeUnmount(() => {
 .expense-section__hint {
   margin-top: 6px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -2143,7 +2143,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 10px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 90%, var(--app-surface));
 }
 
@@ -2158,16 +2158,16 @@ onBeforeUnmount(() => {
   min-height: 36px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(209, 83, 83, 0.1);
   color: #c54f4f;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
 .expense-section__empty {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -2180,7 +2180,7 @@ onBeforeUnmount(() => {
 .photo-upload__add,
 .photo-upload__item {
   aspect-ratio: 1;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -2220,7 +2220,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: color-mix(in srgb, var(--app-text) 72%, transparent);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .float-footer {
@@ -2231,10 +2231,10 @@ onBeforeUnmount(() => {
   width: 100%;
   height: var(--button-height);
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   box-shadow: var(--app-shadow);
   transition: transform 0.16s ease, opacity 0.16s ease;
@@ -2247,7 +2247,7 @@ onBeforeUnmount(() => {
 
 .btn-float {
   pointer-events: auto;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   box-shadow: 0 8px 24px color-mix(in srgb, var(--app-text) 28%, transparent);
 }
 

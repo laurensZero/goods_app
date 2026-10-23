@@ -131,7 +131,7 @@ const heroCollapsed = computed(() => aiChat.messages.length > 0)
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -147,7 +147,7 @@ const heroCollapsed = computed(() => aiChat.messages.length > 0)
 .hero-desc {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
@@ -166,7 +166,7 @@ const heroCollapsed = computed(() => aiChat.messages.length > 0)
 
 @media (max-width: 767px) {
   .hero-title {
-    font-size: 22px;
+    font-size: var(--font-display);
   }
 }
 </style>

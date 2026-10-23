@@ -147,10 +147,10 @@ const deleteEvent = computed(() => {
   min-height: 46px;
   padding: 8px 4px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-glass) 72%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.2;
@@ -201,7 +201,7 @@ const deleteEvent = computed(() => {
     width: min(100vw, 520px);
     padding: 10px var(--page-padding);
     border: 1px solid var(--app-glass-border);
-    border-radius: 22px;
+    border-radius: var(--radius-large);
     transform: translateX(-50%);
     flex-direction: row;
     gap: 8px;
@@ -213,9 +213,9 @@ const deleteEvent = computed(() => {
   }
 
   .sel-action-btn {
-    font-size: 12px;
+    font-size: var(--font-small);
     padding: 8px 2px;
-    gap: 3px;
+    gap: 4px;
     min-height: 48px;
   }
 }

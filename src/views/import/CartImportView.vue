@@ -769,7 +769,7 @@ async function doImport() {
 
 .info-qr-lead {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.6;
 }
@@ -785,7 +785,7 @@ async function doImport() {
   border: none;
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -794,7 +794,7 @@ async function doImport() {
 /* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -802,7 +802,7 @@ async function doImport() {
 .dialog-title {
   margin: 6px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -810,7 +810,7 @@ async function doImport() {
 .dialog-desc {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.65;
   white-space: pre-wrap;
 }
@@ -826,8 +826,8 @@ async function doImport() {
   min-width: 120px;
   padding: 0 18px;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -873,7 +873,7 @@ async function doImport() {
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 149, 0, 0.08);
 }
 
@@ -903,7 +903,7 @@ async function doImport() {
 }
 
 .info-title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0 0 8px;
@@ -914,11 +914,11 @@ async function doImport() {
   padding-left: 18px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 }
 
 .info-steps li {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
   line-height: 1.5;
 }
@@ -930,7 +930,7 @@ async function doImport() {
 }
 
 .field-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
@@ -939,10 +939,10 @@ async function doImport() {
   width: 100%;
   min-height: 120px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: 1.5px solid rgba(0, 0, 0, 0.08);
   background: var(--app-surface);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   color: var(--app-text);
   line-height: 1.5;
   resize: vertical;
@@ -951,7 +951,7 @@ async function doImport() {
 }
 
 .field-error {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #c74444;
   margin: 0;
 }
@@ -968,7 +968,7 @@ async function doImport() {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -983,7 +983,7 @@ async function doImport() {
   border: none;
   background: transparent;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   padding: 0;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -991,7 +991,7 @@ async function doImport() {
 
 .cookie-tip {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -1017,7 +1017,7 @@ async function doImport() {
   justify-content: center;
   background: rgba(90, 120, 250, 0.12);
   color: #4c7dff;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -1029,10 +1029,10 @@ async function doImport() {
   width: 100%;
   height: 52px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: #141416;
   color: #fff;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -1044,7 +1044,7 @@ async function doImport() {
 
 .loading-title,
 .done-title {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -1052,7 +1052,7 @@ async function doImport() {
 
 .loading-sub,
 .done-sub {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-secondary);
   margin: 0;
 }
@@ -1067,7 +1067,7 @@ async function doImport() {
   gap: 12px;
   margin-bottom: 10px;
   padding: 10px 12px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: rgba(255, 255, 255, 0.84);
   box-shadow: var(--app-shadow);
   backdrop-filter: blur(18px);
@@ -1077,7 +1077,7 @@ async function doImport() {
 .list-count {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.4;
   color: var(--app-text-secondary);
   margin: 0;
@@ -1087,7 +1087,7 @@ async function doImport() {
   display: inline-flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.06);
   flex-shrink: 0;
 }
@@ -1097,9 +1097,9 @@ async function doImport() {
   min-width: 72px;
   height: 36px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text-secondary);
 }
@@ -1123,7 +1123,7 @@ async function doImport() {
 }
 
 .shop-group {
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.05);
   /* 长列表：屏外店铺分组跳过布局/绘制，减轻首屏与切回时的重排 */
@@ -1167,7 +1167,7 @@ async function doImport() {
 }
 
 .shop-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -1181,12 +1181,12 @@ async function doImport() {
 }
 
 .shop-meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .goods-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 
@@ -1240,7 +1240,7 @@ async function doImport() {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: rgba(0, 0, 0, 0.06);
   display: flex;
@@ -1255,7 +1255,7 @@ async function doImport() {
 }
 
 .goods-initial {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: rgba(0, 0, 0, 0.3);
 }
@@ -1263,7 +1263,7 @@ async function doImport() {
 .meta-price,
 .meta-qty,
 .meta-tag {
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .meta-price {
@@ -1273,8 +1273,8 @@ async function doImport() {
 
 .meta-qty,
 .meta-tag {
-  padding: 1px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.06);
   color: var(--app-text-secondary);
 }
@@ -1361,7 +1361,7 @@ html.theme-dark .list-header-actions {
     flex: 1 1 52%;
     min-width: 48%;
     max-width: 58%;
-    font-size: 13px;
+    font-size: var(--font-body);
     line-height: 1.35;
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -1372,14 +1372,14 @@ html.theme-dark .list-header-actions {
 
   .list-header-actions {
     gap: 2px;
-    padding: 3px;
+    padding: 4px;
   }
 
   .text-btn {
     min-width: 0;
     height: 32px;
     padding: 0 8px;
-    font-size: 12px;
+    font-size: var(--font-small);
   }
 }
 

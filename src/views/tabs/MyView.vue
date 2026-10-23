@@ -1600,7 +1600,7 @@ onBeforeUnmount(() => {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1707,10 +1707,10 @@ onBeforeUnmount(() => {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: #ff3b30;
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 16px;
   text-align: center;
@@ -1730,7 +1730,7 @@ onBeforeUnmount(() => {
 .announcement-list-sheet__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -1771,7 +1771,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   padding: 48px 24px;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .announcement-list-sheet__empty-icon {
@@ -1814,7 +1814,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin: 0;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -1835,7 +1835,7 @@ onBeforeUnmount(() => {
 .announcement-list__item-desc {
   margin: 4px 0 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1846,7 +1846,7 @@ onBeforeUnmount(() => {
   display: inline-block;
   margin-top: 6px;
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 .announcement-list__item-chevron {
@@ -1866,7 +1866,7 @@ onBeforeUnmount(() => {
   margin: 0;
   padding: 10px 20px 4px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1895,20 +1895,20 @@ onBeforeUnmount(() => {
 
 .changelog-list__version {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .changelog-list__date {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 
 .changelog-list__notes {
   margin: 4px 0 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1917,7 +1917,7 @@ onBeforeUnmount(() => {
 /* ── 公告详情弹窗（外壳由 AppSheet 提供） ── */
 .announcement-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1926,7 +1926,7 @@ onBeforeUnmount(() => {
 .dialog-title {
   margin: 8px 0 0;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -1941,14 +1941,14 @@ onBeforeUnmount(() => {
 .announcement-body {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
 }
 
 .dialog-desc {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -1960,7 +1960,7 @@ onBeforeUnmount(() => {
   gap: 8px 12px;
   margin-top: 12px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .dialog-actions {
@@ -1975,7 +1975,7 @@ onBeforeUnmount(() => {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   cursor: pointer;
 }
@@ -2029,7 +2029,7 @@ onBeforeUnmount(() => {
 
 .markdown-body code {
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9em;
@@ -2038,7 +2038,7 @@ onBeforeUnmount(() => {
 .markdown-body pre {
   margin: 12px 0;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface-soft, rgba(0, 0, 0, 0.06));
   overflow-x: auto;
 }
@@ -2058,7 +2058,7 @@ onBeforeUnmount(() => {
 
 .markdown-body img {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
 }
 
 .markdown-body table {
@@ -2109,7 +2109,7 @@ onBeforeUnmount(() => {
 .account-panel::after {
   content: '';
   position: absolute;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   pointer-events: none;
 }
 
@@ -2161,7 +2161,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 4px;
   padding: 20px 16px 18px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 84%, transparent);
   box-shadow: var(--app-shadow);
   min-width: 0;
@@ -2176,7 +2176,7 @@ onBeforeUnmount(() => {
 
 .budget-compact__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -2184,7 +2184,7 @@ onBeforeUnmount(() => {
 .budget-compact__title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -2203,13 +2203,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   min-height: 0;
 }
 
 .budget-compact__meta strong {
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -2221,10 +2221,10 @@ onBeforeUnmount(() => {
   min-height: 32px;
   align-self: center;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1;
   flex-shrink: 0;
@@ -2253,7 +2253,7 @@ onBeforeUnmount(() => {
 .budget-compact__foot {
   margin-top: 6px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -2297,7 +2297,7 @@ onBeforeUnmount(() => {
 .detail-row__label,
 .insight-panel__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -2328,7 +2328,7 @@ onBeforeUnmount(() => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -2354,10 +2354,10 @@ onBeforeUnmount(() => {
   height: 46px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.16s ease;
   box-sizing: border-box;
@@ -2369,7 +2369,7 @@ onBeforeUnmount(() => {
 
 .rename-error {
   color: var(--app-danger, #c74444);
-  font-size: 13px;
+  font-size: var(--font-body);
   margin-bottom: 8px;
 }
 
@@ -2378,7 +2378,7 @@ onBeforeUnmount(() => {
 .summary-tile__desc,
 .detail-row__value {
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -2393,9 +2393,9 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   min-height: 34px;
-  padding: 0 13px;
-  border-radius: 999px;
-  font-size: 12px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -2430,10 +2430,10 @@ onBeforeUnmount(() => {
   min-height: 46px;
   padding: 0 16px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 90%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -2498,10 +2498,10 @@ onBeforeUnmount(() => {
   min-height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 92%, transparent);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2518,18 +2518,18 @@ onBeforeUnmount(() => {
 
 .budget-input-wrap__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .budget-input {
   width: 100%;
   height: 42px;
   padding: 0 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--app-text) 10%, transparent);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   outline: none;
 }
 
@@ -2542,7 +2542,7 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 10px;
   margin-top: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 8%, transparent);
   overflow: hidden;
 }
@@ -2552,7 +2552,7 @@ onBeforeUnmount(() => {
   left: 0;
   top: 0;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: linear-gradient(90deg, #4f9cff, #58c892);
 }
 
@@ -2577,7 +2577,7 @@ onBeforeUnmount(() => {
   right: 0;
   top: 0;
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(228, 91, 91, 0.42);
 }
 
@@ -2587,7 +2587,7 @@ onBeforeUnmount(() => {
 
 .shortcut-stack {
   overflow: hidden;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 90%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -2622,7 +2622,7 @@ onBeforeUnmount(() => {
   justify-content: center;
   width: 48px;
   height: 48px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
 }
 
 .shortcut-row__icon--sync {
@@ -2657,7 +2657,7 @@ onBeforeUnmount(() => {
 
 .shortcut-row__title {
   margin-top: 2px;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -2667,7 +2667,7 @@ onBeforeUnmount(() => {
 
 .shortcut-row__meta {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -2677,7 +2677,7 @@ onBeforeUnmount(() => {
 
 .detail-list,
 .content-side {
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 90%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -2702,7 +2702,7 @@ onBeforeUnmount(() => {
 .detail-row--clickable {
   cursor: pointer;
   transition: background 0.16s ease;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   margin: 0 -8px;
   padding-left: 8px;
   padding-right: 8px;
@@ -2714,7 +2714,7 @@ onBeforeUnmount(() => {
 
 .detail-row__value--error {
   color: #e53e3e;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .detail-row__value {
@@ -2726,7 +2726,7 @@ onBeforeUnmount(() => {
 
 .detail-row__value--mono {
   font-family: 'Consolas', 'SFMono-Regular', monospace;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .content-side {
@@ -2737,7 +2737,7 @@ onBeforeUnmount(() => {
 
 /* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .login-sheet__title {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--app-text);
@@ -2747,7 +2747,7 @@ onBeforeUnmount(() => {
 .login-sheet__status {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -2758,7 +2758,7 @@ onBeforeUnmount(() => {
 .login-sheet__error {
   margin-top: 10px;
   color: #d93025;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -2771,8 +2771,8 @@ onBeforeUnmount(() => {
 .login-sheet__button {
   min-height: 48px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -2795,10 +2795,10 @@ onBeforeUnmount(() => {
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: color-mix(in srgb, #c74444 12%, transparent);
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2812,10 +2812,10 @@ onBeforeUnmount(() => {
   min-height: 32px;
   padding: 0 12px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
 }
@@ -2828,7 +2828,7 @@ onBeforeUnmount(() => {
 .dialog-success {
   margin-top: 8px;
   color: #28c880;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .login-sheet__button--full {
@@ -2861,7 +2861,7 @@ onBeforeUnmount(() => {
 .account-manage-section__title {
   margin: 0 0 12px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -2869,11 +2869,11 @@ onBeforeUnmount(() => {
 
 .account-manage-empty {
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   padding: 12px;
   text-align: center;
   background: var(--app-surface-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .account-manage-item {
@@ -2883,7 +2883,7 @@ onBeforeUnmount(() => {
   padding: 12px;
   margin-bottom: 8px;
   background: var(--app-surface-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .account-manage-item__info {
@@ -2894,13 +2894,13 @@ onBeforeUnmount(() => {
 
 .account-manage-item__provider {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .account-manage-item__email {
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .auth-form {
@@ -2915,7 +2915,7 @@ onBeforeUnmount(() => {
 
 .auth-field__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .auth-input {
@@ -2923,10 +2923,10 @@ onBeforeUnmount(() => {
   height: 46px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.16s ease;
 }
@@ -2950,10 +2950,10 @@ onBeforeUnmount(() => {
   min-height: 48px;
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-text) 12%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s ease;
@@ -3044,7 +3044,7 @@ onBeforeUnmount(() => {
 
   .account-panel {
     padding: 20px;
-    border-radius: 28px;
+    border-radius: var(--radius-large);
   }
 
   .account-panel__main {
@@ -3102,7 +3102,7 @@ onBeforeUnmount(() => {
 /* scan toast */
 .scan-toast {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #e53e3e;
   text-align: right;
 }
@@ -3121,14 +3121,14 @@ onBeforeUnmount(() => {
 .web-login-confirm__title {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
 }
 
 .web-login-confirm__desc {
   margin: 0 0 20px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.5;
 }
 
@@ -3142,7 +3142,7 @@ onBeforeUnmount(() => {
   min-height: 44px;
   border-radius: var(--radius-small);
   border: 1px solid transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }

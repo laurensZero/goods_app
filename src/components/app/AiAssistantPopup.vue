@@ -126,7 +126,7 @@ defineExpose({ close })
 
 .ai-assistant-head__title {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 

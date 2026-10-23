@@ -507,7 +507,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
@@ -523,7 +523,7 @@ watch(() => shareResult.value?.code, (value) => {
   margin: 0 0 12px;
   background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   isolation: isolate;
 }
 
@@ -533,7 +533,7 @@ watch(() => shareResult.value?.code, (value) => {
   left: 6px;
   width: calc(50% - 10px);
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
   z-index: 0;
@@ -548,10 +548,10 @@ watch(() => shareResult.value?.code, (value) => {
   z-index: 1;
   height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary, #8e8e93);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: color 0.2s ease;
 }
@@ -580,7 +580,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .load-text {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-tertiary, #8e8e93);
   margin: 0;
 }
@@ -592,7 +592,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .error-text {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-danger, #e53e3e);
   margin: 0 0 12px;
 }
@@ -601,10 +601,10 @@ watch(() => shareResult.value?.code, (value) => {
   height: 40px;
   padding: 0 24px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -616,7 +616,7 @@ watch(() => shareResult.value?.code, (value) => {
   padding: 12px;
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   margin-bottom: 12px;
 }
 
@@ -628,7 +628,7 @@ watch(() => shareResult.value?.code, (value) => {
 .preview-thumb {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   border: 2px solid color-mix(in srgb, var(--app-surface) 90%, transparent);
   background: rgba(142, 142, 147, 0.15);
@@ -651,7 +651,7 @@ watch(() => shareResult.value?.code, (value) => {
   justify-content: center;
   width: 100%;
   height: 100%;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text-tertiary);
 }
@@ -659,13 +659,13 @@ watch(() => shareResult.value?.code, (value) => {
 .preview-more {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 2px solid color-mix(in srgb, var(--app-surface) 90%, transparent);
   background: rgba(142, 142, 147, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
   margin-left: -12px;
@@ -675,7 +675,7 @@ watch(() => shareResult.value?.code, (value) => {
 .preview-name {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -688,7 +688,7 @@ watch(() => shareResult.value?.code, (value) => {
 .share-card {
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 10px;
 }
@@ -702,7 +702,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .share-field-label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: var(--app-text-tertiary, #8e8e93);
   text-transform: uppercase;
@@ -720,12 +720,12 @@ watch(() => shareResult.value?.code, (value) => {
 .share-field-value {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-family: ui-monospace, 'SF Mono', 'Cascadia Code', monospace;
   color: var(--app-text-secondary, #636366);
   background: color-mix(in srgb, var(--app-surface-soft) 86%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   padding: 10px 12px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -734,7 +734,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .share-field-value.share-code {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: 0.12em;
   color: var(--app-text, #141416);
@@ -747,10 +747,10 @@ watch(() => shareResult.value?.code, (value) => {
   height: 34px;
   padding: 0 14px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   letter-spacing: -0.01em;
   transition: opacity 0.14s ease, transform 0.14s ease;
@@ -764,7 +764,7 @@ watch(() => shareResult.value?.code, (value) => {
 .poster-card {
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   padding: 12px;
   margin-bottom: 10px;
 }
@@ -778,7 +778,7 @@ watch(() => shareResult.value?.code, (value) => {
 }
 
 .poster-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;
@@ -788,8 +788,8 @@ watch(() => shareResult.value?.code, (value) => {
   height: 30px;
   padding: 0 10px;
   border: none;
-  border-radius: 10px;
-  font-size: 12px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-surface);
   background: var(--app-text);
@@ -801,7 +801,7 @@ watch(() => shareResult.value?.code, (value) => {
 
 .poster-loading,
 .poster-error {
-  font-size: 13px;
+  font-size: var(--font-body);
   margin: 0 0 10px;
 }
 
@@ -817,7 +817,7 @@ watch(() => shareResult.value?.code, (value) => {
   width: 100%;
   max-height: 50dvh;
   object-fit: contain;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
   display: block;
   margin-bottom: 10px;
@@ -828,10 +828,10 @@ watch(() => shareResult.value?.code, (value) => {
   height: 54px;
   width: 100%;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   display: flex;
@@ -844,8 +844,8 @@ watch(() => shareResult.value?.code, (value) => {
 
 .sheet-share-btn--sub {
   height: 46px;
-  font-size: 14px;
-  border-radius: 14px;
+  font-size: var(--font-body-lg);
+  border-radius: var(--radius-small);
   margin-bottom: 0;
   background: color-mix(in srgb, var(--app-text) 92%, #ffffff);
 }
@@ -863,10 +863,10 @@ watch(() => shareResult.value?.code, (value) => {
   gap: 6px;
   height: 44px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   letter-spacing: -0.02em;
   transition: background 0.16s ease;
@@ -908,9 +908,9 @@ watch(() => shareResult.value?.code, (value) => {
   margin-top: 12px;
   flex-shrink: 0;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   transition: background 0.14s ease;

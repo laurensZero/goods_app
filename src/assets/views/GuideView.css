@@ -74,7 +74,7 @@ html.theme-dark .guide-page {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -90,7 +90,7 @@ html.theme-dark .guide-page {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -106,10 +106,10 @@ html.theme-dark .guide-page {
   align-items: center;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -132,7 +132,7 @@ html.theme-dark .guide-page {
   gap: 8px;
   height: 44px;
   padding: 0 12px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   box-shadow: var(--app-shadow-sm);
@@ -162,7 +162,7 @@ html.theme-dark .guide-page {
   outline: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
 }
 
 .guide-search__input::placeholder {
@@ -198,7 +198,7 @@ html.theme-dark .guide-page {
 .guide-hits {
   margin-top: 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 /* ── 目录列表 ─────────────────────────────────── */
@@ -235,29 +235,29 @@ html.theme-dark .guide-page {
   justify-content: center;
   width: 30px;
   height: 30px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--guide-accent-soft);
   color: var(--guide-accent-strong);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 800;
 }
 
 .guide-index__copy {
   display: grid;
   min-width: 0;
-  gap: 3px;
+  gap: 4px;
 }
 
 .guide-index__title {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .guide-index__desc {
   color: var(--app-text-secondary);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -316,13 +316,13 @@ html.theme-dark .guide-page {
 .guide-empty__title {
   margin-top: 6px;
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
 .guide-empty__desc {
   color: var(--app-text-secondary);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
@@ -331,17 +331,17 @@ html.theme-dark .guide-page {
   height: 38px;
   padding: 0 20px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
 .guide-footnote {
   padding: 24px var(--page-padding) 8px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
   text-align: center;
 }
@@ -349,6 +349,6 @@ html.theme-dark .guide-page {
 .guide-mark {
   background: color-mix(in srgb, var(--guide-accent) 30%, transparent);
   color: inherit;
-  border-radius: 4px;
+  border-radius: var(--radius-xxs);
   padding: 0 2px;
 }

@@ -467,7 +467,7 @@ async function handleAddMembers() {
   gap: 12px;
   margin: 0 0 12px;
   padding: 8px 10px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
 }
@@ -494,7 +494,7 @@ async function handleAddMembers() {
 .folder-selection-bar__title {
   flex: 1;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
   text-align: center;
@@ -504,7 +504,7 @@ async function handleAddMembers() {
   border: none;
   background: transparent;
   color: var(--app-pending, #0e74e9);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   flex-shrink: 0;
@@ -519,7 +519,7 @@ async function handleAddMembers() {
 }
 
 .group-folder__name {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   overflow: hidden;
@@ -528,7 +528,7 @@ async function handleAddMembers() {
 }
 
 .group-folder__meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
@@ -570,10 +570,10 @@ async function handleAddMembers() {
   gap: 8px;
   margin: 12px 4px 0;
   padding: 14px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   border: 2px dashed color-mix(in srgb, var(--app-border) 78%, transparent);
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   cursor: pointer;
   width: calc(100% - 8px);

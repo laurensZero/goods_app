@@ -162,7 +162,7 @@ watch(() => props.modelValue, (val) => {
 .dialog-title {
   margin: 0 0 16px;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -170,13 +170,13 @@ watch(() => props.modelValue, (val) => {
 .dialog-error {
   margin-bottom: 12px;
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .dialog-success {
   margin-bottom: 12px;
   color: #28c880;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .dialog-actions {
@@ -192,7 +192,7 @@ watch(() => props.modelValue, (val) => {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   cursor: pointer;
 }
@@ -214,7 +214,7 @@ watch(() => props.modelValue, (val) => {
 
 .auth-field__label {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .auth-input {
@@ -225,7 +225,7 @@ watch(() => props.modelValue, (val) => {
   border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
   transition: border-color 0.16s ease;
 }
@@ -243,7 +243,7 @@ watch(() => props.modelValue, (val) => {
   min-height: 48px;
   border: none;
   border-radius: var(--radius-small);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   cursor: pointer;
 }
@@ -269,7 +269,7 @@ watch(() => props.modelValue, (val) => {
   border: none;
   background: none;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
   text-decoration: underline;
 }

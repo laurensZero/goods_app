@@ -600,7 +600,7 @@ onActivated(() => {
 }
 
 .lazy-image-fallback span {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;

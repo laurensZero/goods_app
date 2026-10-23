@@ -84,7 +84,7 @@ function toggle(img) {
 
 .field-label {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -142,11 +142,11 @@ function toggle(img) {
   position: absolute;
   bottom: 3px;
   left: 3px;
-  padding: 1px 5px;
-  border-radius: 5px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(0, 0, 0, 0.55);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 500;
 }
 
@@ -159,7 +159,7 @@ function toggle(img) {
   border-radius: 50%;
   background: #2070c0;
   color: #fff;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
   display: flex;
   align-items: center;
@@ -171,11 +171,11 @@ function toggle(img) {
   display: inline-block;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
+  padding: 0 6px;
+  border-radius: var(--radius-tiny);
   background: #2070c0;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   line-height: 18px;
   text-align: center;

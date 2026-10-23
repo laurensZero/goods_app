@@ -189,7 +189,7 @@ async function downloadQr() {
 
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -197,7 +197,7 @@ async function downloadQr() {
 .dialog-title {
   margin: 6px 0 0;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -253,7 +253,7 @@ async function downloadQr() {
 
 .qr-placeholder {
   color: #6b7280;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .qr-meta {
@@ -263,7 +263,7 @@ async function downloadQr() {
 
 .qr-node {
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -272,7 +272,7 @@ async function downloadQr() {
 .qr-desc {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
@@ -284,7 +284,7 @@ async function downloadQr() {
 
 .qr-link span {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -297,7 +297,7 @@ async function downloadQr() {
   border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   outline: none;
 }
@@ -314,7 +314,7 @@ async function downloadQr() {
   padding: 0 14px;
   border: none;
   border-radius: var(--radius-small);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 

@@ -89,7 +89,7 @@ function onRestart() {
 <style scoped>
 .sheet-title {
   margin: 0 0 6px;
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--app-text);
@@ -98,7 +98,7 @@ function onRestart() {
 
 .sheet-desc {
   margin: 0 0 18px;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.55;
   color: var(--app-text-secondary);
   text-align: center;
@@ -107,7 +107,7 @@ function onRestart() {
 .sheet-options {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   border-radius: var(--radius-card);
   background: var(--app-border);
   overflow: hidden;
@@ -142,7 +142,7 @@ function onRestart() {
   justify-content: center;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
   background: var(--app-surface-soft);
   color: var(--app-text);
@@ -164,14 +164,14 @@ function onRestart() {
 
 .option-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .option-desc {
   margin: 2px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   color: var(--app-text-secondary);
 }
@@ -184,7 +184,7 @@ function onRestart() {
   border-radius: var(--radius-card);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
   cursor: pointer;
 }

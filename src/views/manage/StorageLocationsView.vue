@@ -428,7 +428,7 @@ function cancelDeleteNode() {
 .hero-label,
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-title,
@@ -444,7 +444,7 @@ function cancelDeleteNode() {
 .section-desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -465,7 +465,7 @@ function cancelDeleteNode() {
 
 .summary-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .summary-value {
@@ -485,10 +485,10 @@ function cancelDeleteNode() {
   width: 100%;
   min-height: 48px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: #141416;
   color: #ffffff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

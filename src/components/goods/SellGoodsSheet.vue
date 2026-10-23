@@ -362,7 +362,7 @@ async function handleSubmit() {
 .sell-sheet__title {
   margin: 0 0 16px;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: -0.03em;
   text-align: left;
@@ -382,13 +382,13 @@ async function handleSubmit() {
 }
 
 .field-label {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-secondary);
 }
 
 .field-hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 0;
 }
@@ -397,10 +397,10 @@ async function handleSubmit() {
   width: 100%;
   height: 44px;
   padding: 0 14px;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   border: 1px solid transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   outline: none;
   box-sizing: border-box;
@@ -433,10 +433,10 @@ async function handleSubmit() {
   height: 34px;
   padding: 0 16px;
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
@@ -452,20 +452,20 @@ async function handleSubmit() {
   display: inline-flex;
   flex-direction: column;
   align-items: center;
-  gap: 1px;
+  gap: 2px;
   padding: 6px 12px;
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   cursor: pointer;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
 
 .unit-chip__status {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-tertiary);
 }
 
@@ -490,10 +490,10 @@ async function handleSubmit() {
   height: 28px;
   padding: 0 10px;
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
@@ -516,10 +516,10 @@ async function handleSubmit() {
   padding: 0 16px;
   box-sizing: border-box;
   border: none;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: #fff;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;

@@ -78,7 +78,7 @@ function apply() {
 
 /* 标题 */
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
@@ -89,7 +89,7 @@ function apply() {
 .sheet-options {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -104,7 +104,7 @@ function apply() {
 }
 
 .field-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -113,10 +113,10 @@ function apply() {
   width: 100%;
   height: 48px;
   border: 1px solid transparent;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   padding: 0 14px;
   outline: none;
   transition: border-color 0.16s ease, background 0.16s ease;
@@ -135,7 +135,7 @@ function apply() {
 /* ---- 作用范围说明 ---- */
 .sheet-hint {
   margin: 0 4px 12px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-tertiary, #8e8e93);
 }
@@ -145,10 +145,10 @@ function apply() {
   height: 54px;
   width: 100%;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
   transition: background 0.14s ease;
@@ -164,10 +164,10 @@ function apply() {
   height: 54px;
   width: 100%;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   transition: background 0.14s ease;

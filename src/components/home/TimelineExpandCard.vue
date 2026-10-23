@@ -98,7 +98,7 @@ const displayAcquiredAtText = computed(() => {
 .tl-expand-card {
   margin-top: 12px;
   background: var(--app-surface);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   padding: 14px;
   box-shadow: 0 4px 20px rgba(17, 20, 22, 0.08);
   border: 1px solid color-mix(in srgb, var(--app-text-tertiary) 10%, transparent);
@@ -120,7 +120,7 @@ const displayAcquiredAtText = computed(() => {
   width: 88px;
   height: 88px;
   object-fit: cover;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: block;
   background: var(--app-surface-soft);
 }
@@ -128,13 +128,13 @@ const displayAcquiredAtText = computed(() => {
 .tl-expand-img-empty {
   width: 88px;
   height: 88px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 .tl-expand-body {
@@ -142,13 +142,13 @@ const displayAcquiredAtText = computed(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
 }
 
 .tl-expand-name {
   margin: 0;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.35;
   overflow: hidden;
@@ -161,15 +161,15 @@ const displayAcquiredAtText = computed(() => {
 .tl-expand-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: 6px;
 }
 
 .tl-expand-chip {
-  padding: 3px 8px;
-  border-radius: 99px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
 }
 
@@ -197,29 +197,29 @@ const displayAcquiredAtText = computed(() => {
 
 .tl-expand-date {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .tl-expand-qty {
   padding: 2px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.08);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1.2;
 }
 
 .tl-expand-price {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
 }
 
 .tl-expand-note {
   margin: 0;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -231,10 +231,10 @@ const displayAcquiredAtText = computed(() => {
   align-self: flex-start;
   padding: 6px 14px;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s;

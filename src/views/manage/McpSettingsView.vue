@@ -462,7 +462,7 @@ onMounted(async () => {
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -478,7 +478,7 @@ onMounted(async () => {
 .hero-desc {
   margin-top: 10px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -501,7 +501,7 @@ onMounted(async () => {
 
 .settings-card {
   padding: 20px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -512,7 +512,7 @@ onMounted(async () => {
 
 .settings-card__label {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -520,7 +520,7 @@ onMounted(async () => {
 .settings-card__title {
   margin: 4px 0 0;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -538,7 +538,7 @@ onMounted(async () => {
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
@@ -562,7 +562,7 @@ onMounted(async () => {
   justify-content: center;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   flex-shrink: 0;
 }
 
@@ -618,7 +618,7 @@ onMounted(async () => {
 .settings-item__title {
   display: block;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   line-height: 1.3;
 }
@@ -627,13 +627,13 @@ onMounted(async () => {
   display: block;
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.4;
 }
 
 .tool-name {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 13.5px;
+  font-size: var(--font-body);
   color: #8a7aff;
 }
 
@@ -655,11 +655,11 @@ onMounted(async () => {
   align-items: center;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   color: var(--app-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+  font-size: var(--font-small);
   word-break: break-all;
 }
 
@@ -669,11 +669,11 @@ onMounted(async () => {
   margin: 0;
   padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   color: var(--app-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.55;
   white-space: pre-wrap;
   word-break: break-all;
@@ -685,10 +685,10 @@ onMounted(async () => {
   min-height: 38px;
   padding: 0 14px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -707,12 +707,12 @@ onMounted(async () => {
 .port-input {
   flex-shrink: 0;
   width: 96px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-text) 5%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-variant-numeric: tabular-nums;
   outline: none;
   text-align: right;
@@ -738,7 +738,7 @@ onMounted(async () => {
 .value-hint {
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -754,7 +754,7 @@ onMounted(async () => {
 .qr-box {
   align-self: center;
   padding: 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: #fff;
   box-shadow: var(--app-shadow);
 }
@@ -771,7 +771,7 @@ onMounted(async () => {
   gap: 10px;
   margin-top: 14px;
   padding: 12px 14px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: rgba(255, 149, 0, 0.1);
 }
 
@@ -779,7 +779,7 @@ onMounted(async () => {
   flex-shrink: 0;
   width: 18px;
   height: 18px;
-  margin-top: 1px;
+  margin-top: 2px;
   stroke: #ff9500;
   stroke-width: 2;
   stroke-linecap: round;
@@ -789,7 +789,7 @@ onMounted(async () => {
 .security-note p {
   margin: 0;
   color: #ff9500;
-  font-size: 12.5px;
+  font-size: var(--font-small);
   line-height: 1.55;
 }
 
@@ -797,7 +797,7 @@ onMounted(async () => {
   margin: 18px var(--page-padding) 0;
   text-align: center;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
 }
 
@@ -825,7 +825,7 @@ onMounted(async () => {
   bottom: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 

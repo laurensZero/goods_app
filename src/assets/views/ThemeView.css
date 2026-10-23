@@ -17,7 +17,7 @@
 .section-label,
 .custom-mode-kicker {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -32,7 +32,7 @@
 }
 
 .section-title {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
 }
 
@@ -43,7 +43,7 @@
 .section-desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -67,7 +67,7 @@
 .theme-card__state,
 .theme-card__meta {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -91,10 +91,10 @@
   align-items: center;
   min-height: 34px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -163,7 +163,7 @@
   flex-direction: column;
   min-height: 124px;
   padding: 12px;
-  border-radius: calc(var(--radius-card) - 4px);
+  border-radius: calc(var(--radius-card) - var(--radius-xxs));
   background: var(--theme-preview-bg);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--theme-preview-text) 8%, transparent);
 }
@@ -185,7 +185,7 @@
 .theme-card__pane--dual .theme-card__surface {
   height: 72px;
   padding: 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
 }
 
 .theme-card__badge,
@@ -198,7 +198,7 @@
 .custom-preview__line--short {
   position: absolute;
   left: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .theme-card__badge,
@@ -288,7 +288,7 @@
 .custom-preview__swatch {
   width: 12px;
   height: 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
@@ -318,7 +318,7 @@
 .mode-lock-title,
 .custom-mode-title {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
@@ -330,7 +330,7 @@
   justify-content: center;
   min-height: 28px;
   padding: 0 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
   transition:
@@ -342,7 +342,7 @@
 .ghost-button {
   min-height: 38px;
   padding: 0 14px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -419,7 +419,7 @@
   gap: 12px;
   min-height: 192px;
   padding: 16px;
-  border-radius: calc(var(--radius-large) - 6px);
+  border-radius: calc(var(--radius-large) - var(--radius-xxs));
   background:
     radial-gradient(circle at top right, color-mix(in srgb, var(--custom-preview-primary) 28%, transparent) 0%, transparent 36%),
     linear-gradient(160deg, color-mix(in srgb, var(--custom-preview-bg) 92%, white) 0%, color-mix(in srgb, var(--custom-preview-bg) 86%, black) 100%);
@@ -432,7 +432,7 @@
   position: relative;
   padding: 10px;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   isolation: isolate;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--custom-preview-bg) 90%, white) 0%, color-mix(in srgb, var(--custom-preview-primary) 16%, var(--custom-preview-bg)) 100%);
@@ -443,7 +443,7 @@
   content: '';
   position: absolute;
   inset: 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
 }
 
 .custom-preview__hero::before {
@@ -466,7 +466,7 @@
   position: relative;
   z-index: 1;
   height: 92px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--custom-preview-surface) 54%, transparent);
   backdrop-filter: blur(var(--custom-preview-blur)) saturate(var(--custom-preview-saturate));
   -webkit-backdrop-filter: blur(var(--custom-preview-blur)) saturate(var(--custom-preview-saturate));
@@ -514,7 +514,7 @@
   gap: 4px;
   min-height: 56px;
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--custom-tone-color) 86%, transparent);
   color: var(--custom-tone-ink);
   box-shadow:
@@ -528,14 +528,14 @@
 }
 
 .custom-preview__tone-label {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .custom-preview__tone-value {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   opacity: 0.88;
 }
@@ -565,7 +565,7 @@
 
 .custom-effect-card__kicker {
   color: var(--custom-blur-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -578,19 +578,19 @@
 
 .custom-effect-card__title {
   margin-top: 2px;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
 .custom-effect-card__value {
   min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--custom-blur-soft) 76%, transparent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   letter-spacing: 0.02em;
@@ -603,7 +603,7 @@
 
 .custom-effect-card__slider-label {
   color: var(--custom-blur-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -641,14 +641,14 @@
   width: 12px;
   height: 12px;
   flex-shrink: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
 }
 
 .custom-field__label,
 .custom-field__input,
 .theme-color-sheet__preview-value {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .custom-field__label {
@@ -658,7 +658,7 @@
 
 .custom-field__hint {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -679,7 +679,7 @@
   width: 34px;
   height: 34px;
   flex-shrink: 0;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
 }
 
@@ -717,7 +717,7 @@
 
 .theme-color-sheet__title {
   margin-top: 4px;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -732,7 +732,7 @@
   gap: 12px;
   margin-top: 16px;
   padding: 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--picker-preview-bg) 92%, transparent) 0%,
@@ -745,14 +745,14 @@
 
 .theme-color-sheet__preview-canvas {
   padding: 10px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--picker-preview-surface) 40%, transparent);
 }
 
 .theme-color-sheet__preview-surface {
   position: relative;
   height: 84px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--picker-preview-surface);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--picker-preview-text) 10%, transparent),
@@ -763,7 +763,7 @@
 .theme-color-sheet__preview-text {
   position: absolute;
   left: 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 
 .theme-color-sheet__preview-accent {
@@ -793,7 +793,7 @@
 
 .theme-color-sheet__preview-label {
   color: color-mix(in srgb, var(--picker-preview-text) 58%, transparent);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -813,7 +813,7 @@
   height: 8px;
   appearance: none;
   background: var(--slider-track);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   outline: none;
 }
 
@@ -823,7 +823,7 @@
   appearance: none;
   background: var(--app-surface);
   border: 3px solid rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
@@ -832,7 +832,7 @@
   height: 18px;
   background: var(--app-surface);
   border: 3px solid rgba(255, 255, 255, 0.88);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
 }
 
@@ -860,7 +860,7 @@
 }
 
 .mode-lock-title {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
 }
 
 :deep(.nav-bar) {

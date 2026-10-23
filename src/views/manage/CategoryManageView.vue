@@ -392,7 +392,7 @@ async function restoreDefaults() {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -404,10 +404,10 @@ async function restoreDefaults() {
   height: 44px;
   padding: 0 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   color: #fff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -450,7 +450,7 @@ async function restoreDefaults() {
   height: 26px;
   padding: 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: transparent;
   color: var(--app-text-tertiary);
   flex-shrink: 0;
@@ -486,13 +486,13 @@ async function restoreDefaults() {
 }
 
 .row-label {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .row-meta {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
@@ -559,18 +559,18 @@ async function restoreDefaults() {
   height: 38px;
   padding: 0 18px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--app-shadow);
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .count-hint,
 .empty-hint {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 
@@ -588,7 +588,7 @@ async function restoreDefaults() {
 }
 
 .edit-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -600,19 +600,19 @@ async function restoreDefaults() {
   border-radius: 50%;
   background: rgba(142, 142, 147, 0.15);
   color: var(--app-text-tertiary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
 .edit-caption {
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 
 .edit-error {
   margin-top: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: #d64545;
 }
 

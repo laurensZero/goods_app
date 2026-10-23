@@ -367,7 +367,7 @@ onBeforeUnmount(() => {
   display: -webkit-box;
   overflow: hidden;
   color: var(--app-text);
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.45;
   letter-spacing: -0.03em;
@@ -404,11 +404,11 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  padding: 5px 10px;
-  border-radius: 999px;
+  padding: 6px 10px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
 
 .event-card__price {
   color: var(--app-text-tertiary, #8e8e93);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;

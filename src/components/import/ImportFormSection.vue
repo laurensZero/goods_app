@@ -38,13 +38,13 @@ defineProps({
 
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }

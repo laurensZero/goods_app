@@ -865,7 +865,7 @@ onBeforeUnmount(() => {
   height: 100%;
   min-height: 44px;
   margin-right: 2px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 42%, transparent);
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--app-surface) 45%, transparent),
@@ -962,7 +962,7 @@ onBeforeUnmount(() => {
   right: 0;
   z-index: 1;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.02em;
@@ -1013,7 +1013,7 @@ onBeforeUnmount(() => {
   transform: translateY(-50%);
   min-width: 108px;
   padding: 14px 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface);
   border: 1px solid var(--app-border);
   box-shadow: var(--app-shadow-xl);
@@ -1043,7 +1043,7 @@ onBeforeUnmount(() => {
 }
 
 .tl-scrub-preview-year {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 650;
   color: var(--app-text-tertiary);
   letter-spacing: 0.04em;
@@ -1062,7 +1062,7 @@ onBeforeUnmount(() => {
 
 .tl-scrub-preview-meta {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
   transition: opacity 0.15s ease;
@@ -1070,7 +1070,7 @@ onBeforeUnmount(() => {
 
 @media (max-height: 640px) {
   .tl-scrub-preview-month {
-    font-size: 22px;
+    font-size: var(--font-display);
   }
 
   .tl-scrub-rail {
@@ -1080,7 +1080,7 @@ onBeforeUnmount(() => {
   }
 
   .tl-scrub-year-label {
-    font-size: 11px;
+    font-size: var(--font-caption);
   }
 }
 </style>

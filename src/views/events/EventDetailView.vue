@@ -977,8 +977,8 @@ function tryPlayLinkedGoodsBackHero() {
   align-items: center;
   min-height: 34px;
   padding: 0 14px;
-  border-radius: 999px;
-  font-size: 13px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-body);
   font-weight: 700;
 }
 
@@ -1017,13 +1017,13 @@ function tryPlayLinkedGoodsBackHero() {
 
 .hero-date {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-title {
   margin-top: 16px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: -0.04em;
@@ -1040,7 +1040,7 @@ function tryPlayLinkedGoodsBackHero() {
 }
 
 .hero-price__label {
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-price__value {
@@ -1052,7 +1052,7 @@ function tryPlayLinkedGoodsBackHero() {
 
 .hero-price__currency {
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
 }
 
@@ -1082,7 +1082,7 @@ function tryPlayLinkedGoodsBackHero() {
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1090,7 +1090,7 @@ function tryPlayLinkedGoodsBackHero() {
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   letter-spacing: -0.03em;
 }
@@ -1102,10 +1102,10 @@ function tryPlayLinkedGoodsBackHero() {
   height: 38px;
   padding: 0 14px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -1129,7 +1129,7 @@ function tryPlayLinkedGoodsBackHero() {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 12px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
 }
 
 .info-tile {
@@ -1137,17 +1137,17 @@ function tryPlayLinkedGoodsBackHero() {
   flex-direction: column;
   gap: 8px;
   padding: 18px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--app-surface-soft);
 }
 
 .info-label {
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .info-value {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.5;
   word-break: break-word;
@@ -1155,12 +1155,12 @@ function tryPlayLinkedGoodsBackHero() {
 
 .note-card {
   padding: 24px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
 }
 
 .note-body {
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.85;
   white-space: pre-wrap;
 }
@@ -1206,12 +1206,12 @@ function tryPlayLinkedGoodsBackHero() {
   font-weight: 700;
 }
 
-.note-body--markdown :deep(h1) { font-size: 22px; }
-.note-body--markdown :deep(h2) { font-size: 20px; }
-.note-body--markdown :deep(h3) { font-size: 18px; }
-.note-body--markdown :deep(h4) { font-size: 17px; }
+.note-body--markdown :deep(h1) { font-size: var(--font-display); }
+.note-body--markdown :deep(h2) { font-size: var(--font-title-xl); }
+.note-body--markdown :deep(h3) { font-size: var(--font-title-lg); }
+.note-body--markdown :deep(h4) { font-size: var(--font-title); }
 .note-body--markdown :deep(h5),
-.note-body--markdown :deep(h6) { font-size: 16px; }
+.note-body--markdown :deep(h6) { font-size: var(--font-title); }
 
 .note-body--markdown :deep(p) {
   white-space: pre-wrap;
@@ -1247,21 +1247,21 @@ function tryPlayLinkedGoodsBackHero() {
 .note-body--markdown :deep(blockquote) {
   padding: 10px 14px;
   border-left: 3px solid rgba(20, 20, 22, 0.14);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   background: rgba(20, 20, 22, 0.04);
   color: var(--app-text-secondary);
 }
 
 .note-body--markdown :deep(pre) {
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: rgba(20, 20, 22, 0.06);
   overflow-x: auto;
 }
 
 .note-body--markdown :deep(code) {
   padding: 0.15em 0.35em;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(20, 20, 22, 0.08);
   font-size: 0.95em;
 }
@@ -1290,7 +1290,7 @@ function tryPlayLinkedGoodsBackHero() {
 
 .expense-card {
   padding: 20px 22px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   display: grid;
   gap: 14px;
 }
@@ -1304,12 +1304,12 @@ function tryPlayLinkedGoodsBackHero() {
 
 .expense-card__summary span {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .expense-card__summary strong {
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -1325,7 +1325,7 @@ function tryPlayLinkedGoodsBackHero() {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 14px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-surface-soft) 92%, var(--app-surface));
 }
 
@@ -1335,14 +1335,14 @@ function tryPlayLinkedGoodsBackHero() {
 
 .expense-row__copy strong {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   word-break: break-word;
 }
 
 .expense-row__amount {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -1358,7 +1358,7 @@ function tryPlayLinkedGoodsBackHero() {
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   text-decoration: none;
   color: var(--app-text);
 }
@@ -1370,7 +1370,7 @@ function tryPlayLinkedGoodsBackHero() {
 .linked-goods-card__media {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   overflow: hidden;
 }
 
@@ -1378,7 +1378,7 @@ function tryPlayLinkedGoodsBackHero() {
 .linked-goods-card__placeholder {
   width: 100%;
   height: 100%;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
 }
 
 .linked-goods-card__img {
@@ -1393,12 +1393,12 @@ function tryPlayLinkedGoodsBackHero() {
   justify-content: center;
   background: var(--cover-tone);
   color: var(--cover-tone-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
 }
 
 .linked-goods-card__name {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1436,14 +1436,14 @@ function tryPlayLinkedGoodsBackHero() {
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
 .dialog-message {
   margin: 0 0 20px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -1456,10 +1456,10 @@ function tryPlayLinkedGoodsBackHero() {
   flex: 1;
   height: 46px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

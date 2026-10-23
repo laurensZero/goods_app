@@ -1327,7 +1327,7 @@ function getImageKindLabel(kind) {
 .cover-glow {
   position: absolute;
   inset: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.05);
   filter: blur(22px);
 }
@@ -1400,7 +1400,7 @@ function getImageKindLabel(kind) {
   max-width: 84px;
   padding: 0;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   box-shadow: none;
   overflow: hidden;
@@ -1417,7 +1417,7 @@ function getImageKindLabel(kind) {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
 }
@@ -1434,8 +1434,8 @@ function getImageKindLabel(kind) {
   z-index: 1;
   width: 84px;
   height: 84px;
-  padding: 5px;
-  border-radius: 18px;
+  padding: 6px;
+  border-radius: var(--radius-card);
   object-fit: cover;
 }
 
@@ -1445,11 +1445,11 @@ function getImageKindLabel(kind) {
   bottom: 10px;
   z-index: 2;
   max-width: calc(100% - 20px);
-  padding: 3px 7px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.92);
   color: #141416;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 1.2;
   white-space: nowrap;
@@ -1481,10 +1481,10 @@ function getImageKindLabel(kind) {
   align-items: center;
   min-height: 32px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: #141416;
   color: #fff;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -1525,13 +1525,13 @@ function getImageKindLabel(kind) {
 
 .hero-date {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-name {
   margin-top: 14px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.03em;
@@ -1546,17 +1546,17 @@ function getImageKindLabel(kind) {
   min-height: 44px;
   padding: 0 16px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: #141416;
   color: #ffffff;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   width: fit-content;
 }
 
 .price-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .price-value {
@@ -1568,7 +1568,7 @@ function getImageKindLabel(kind) {
 
 .price-currency {
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
 }
 
@@ -1582,23 +1582,23 @@ function getImageKindLabel(kind) {
 .price-points {
   margin-left: 6px;
   color: var(--app-text-tertiary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
   align-self: flex-end;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
 }
 
 .price-cny-hint {
   margin-left: 8px;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 400;
 }
 
 .price-hint {
   margin: 6px 0 0;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-head {
@@ -1607,13 +1607,13 @@ function getImageKindLabel(kind) {
 
 .section-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .section-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -1637,12 +1637,12 @@ function getImageKindLabel(kind) {
 
 .info-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .info-value {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   line-height: 1.4;
   word-break: break-word;
@@ -1651,7 +1651,7 @@ function getImageKindLabel(kind) {
 .info-cny-hint {
   display: block;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 400;
   margin-top: 2px;
 }
@@ -1663,7 +1663,7 @@ function getImageKindLabel(kind) {
 
 .note-body {
   color: var(--app-text-secondary);
-  font-size: 16px;
+  font-size: var(--font-title);
   line-height: 1.7;
   white-space: pre-wrap;
   -webkit-user-select: text;
@@ -1711,12 +1711,12 @@ function getImageKindLabel(kind) {
   font-weight: 700;
 }
 
-.note-body--markdown :deep(h1) { font-size: 22px; }
-.note-body--markdown :deep(h2) { font-size: 20px; }
-.note-body--markdown :deep(h3) { font-size: 18px; }
-.note-body--markdown :deep(h4) { font-size: 17px; }
+.note-body--markdown :deep(h1) { font-size: var(--font-display); }
+.note-body--markdown :deep(h2) { font-size: var(--font-title-xl); }
+.note-body--markdown :deep(h3) { font-size: var(--font-title-lg); }
+.note-body--markdown :deep(h4) { font-size: var(--font-title); }
 .note-body--markdown :deep(h5),
-.note-body--markdown :deep(h6) { font-size: 16px; }
+.note-body--markdown :deep(h6) { font-size: var(--font-title); }
 
 .note-body--markdown :deep(p) {
   white-space: pre-wrap;
@@ -1752,21 +1752,21 @@ function getImageKindLabel(kind) {
 .note-body--markdown :deep(blockquote) {
   padding: 10px 14px;
   border-left: 3px solid rgba(20, 20, 22, 0.14);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
   background: rgba(20, 20, 22, 0.04);
   color: var(--app-text-secondary);
 }
 
 .note-body--markdown :deep(pre) {
   padding: 12px 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: rgba(20, 20, 22, 0.06);
   overflow-x: auto;
 }
 
 .note-body--markdown :deep(code) {
   padding: 0.15em 0.35em;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(20, 20, 22, 0.08);
   font-size: 0.95em;
 }
@@ -1793,7 +1793,7 @@ function getImageKindLabel(kind) {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: rgba(199, 68, 68, 0.1);
   color: #c74444;
 }
@@ -1810,7 +1810,7 @@ function getImageKindLabel(kind) {
 .dialog-title {
   margin-top: 16px;
   color: var(--app-text);
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 600;
   letter-spacing: -0.03em;
 }
@@ -1818,7 +1818,7 @@ function getImageKindLabel(kind) {
 .dialog-desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -1832,8 +1832,8 @@ function getImageKindLabel(kind) {
 .dialog-btn {
   height: 48px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
   transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
 }
@@ -1872,10 +1872,10 @@ function getImageKindLabel(kind) {
 .sku-option {
   padding: 8px 16px;
   border: 2px solid var(--app-surface-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   cursor: pointer;
   transition: all 0.16s ease;
 }
@@ -2003,7 +2003,7 @@ html.theme-dark .detail-page .nav-icon-btn.danger {
   min-width: 170px;
   background: var(--app-glass-strong, rgba(255,255,255,0.72));
   border: 1px solid var(--app-glass-border, rgba(255,255,255,0.52));
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   overflow: hidden;
   box-shadow: 0 4px 24px rgba(0,0,0,0.14), 0 0 0 0.5px rgba(0,0,0,0.06);
   padding: 0;

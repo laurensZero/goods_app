@@ -51,10 +51,10 @@ defineEmits(['update:modelValue'])
   min-height: 36px;
   padding: 0 16px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-surface-soft) 78%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   white-space: nowrap;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 84%, transparent);

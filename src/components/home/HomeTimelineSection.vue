@@ -169,7 +169,7 @@ function qtyBadgeText(item) {
 }
 
 .tl-year-num {
-  font-size: 20px;
+  font-size: var(--font-title-xl);
   font-weight: 700;
   color: var(--app-text-secondary);
   letter-spacing: -0.02em;
@@ -177,7 +177,7 @@ function qtyBadgeText(item) {
 }
 
 .tl-year-meta {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }
@@ -243,7 +243,7 @@ function qtyBadgeText(item) {
 }
 
 .tl-month-label {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 650;
   color: var(--app-text);
   letter-spacing: -0.03em;
@@ -258,7 +258,7 @@ function qtyBadgeText(item) {
 
 .tl-month-count,
 .tl-month-spend {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: color-mix(in srgb, var(--app-text) 76%, var(--app-text-tertiary));
 }
@@ -311,7 +311,7 @@ function qtyBadgeText(item) {
 .tl-thumb-img-wrap {
   width: 100%;
   aspect-ratio: 1;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   overflow: hidden;
   background: var(--app-surface-soft, #eeeff2);
   box-shadow: 0 6px 16px rgba(17, 20, 22, 0.06);
@@ -335,7 +335,7 @@ function qtyBadgeText(item) {
   align-items: center;
   justify-content: center;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .tl-thumb-btn--active {
@@ -349,11 +349,11 @@ function qtyBadgeText(item) {
   right: 6px;
   bottom: 6px;
   z-index: 3;
-  padding: 2px 5px;
-  border-radius: 7px;
+  padding: 2px 6px;
+  border-radius: var(--radius-tiny);
   background: rgba(20, 20, 22, 0.72);
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-micro);
   font-weight: 700;
   line-height: 1.25;
   pointer-events: none;

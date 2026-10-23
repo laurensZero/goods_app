@@ -181,7 +181,7 @@ function handleBackClick() {
 }
 
 .nav-title {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: var(--app-text);
   margin: 0;

@@ -16,7 +16,7 @@
 }
 
 .hub-card {
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   padding: 14px;
   background: var(--app-surface, #fff);
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.2));
@@ -43,23 +43,23 @@
 
 .hub-card-title {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .hub-card-desc {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.6;
   color: var(--app-text-secondary);
 }
 
 .cookie-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   padding: 4px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-bg, rgba(120, 120, 128, 0.12));
   color: var(--app-chip-text, #666);
 }
@@ -100,7 +100,7 @@
 }
 
 .tb-account-avatar__fallback {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: #4c7dff;
 }
@@ -108,7 +108,7 @@
 .tb-account-name {
   margin: 0;
   min-width: 0;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: var(--app-text);
   overflow: hidden;
@@ -124,17 +124,17 @@
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--app-input-border, rgba(142, 142, 147, 0.28));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface, #fff);
   color: var(--app-text);
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
 .cookie-input {
   min-height: 92px;
-  font-size: 12px;
+  font-size: var(--font-small);
   resize: vertical;
   word-break: break-all;
 }
@@ -163,14 +163,14 @@
 
 .field-error {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: #c74444;
 }
 
 .field-hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -184,8 +184,8 @@
   min-height: 40px;
   padding: 0 16px;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
+  border-radius: var(--radius-xs);
+  font-size: var(--font-body-lg);
   font-weight: 600;
   display: inline-flex;
   align-items: center;
@@ -248,7 +248,7 @@
 .sku-group-name {
   display: block;
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
@@ -257,11 +257,11 @@
   align-items: center;
   gap: 6px;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
   background: var(--app-surface, #fff);
   color: var(--app-text);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .sku-chip--disabled {
@@ -271,7 +271,7 @@
 .sku-chip-img {
   width: 22px;
   height: 22px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   object-fit: cover;
   background: var(--app-surface-secondary, rgba(142, 142, 147, 0.12));
 }
@@ -284,7 +284,7 @@
 
 .sku-price {
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 /* 图片多选器 .img-picker-* 由 ImportImagePicker 组件自带（米游铺同款），不再重复定义 */
@@ -304,7 +304,7 @@
 
 .tbq-title {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -313,7 +313,7 @@
   border: none;
   background: none;
   padding: 2px 4px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -322,7 +322,7 @@
   align-items: center;
   gap: 10px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
   background: var(--app-surface, #fff);
   cursor: pointer;
@@ -338,7 +338,7 @@
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   overflow: hidden;
   background: var(--app-surface-soft, rgba(120, 120, 128, 0.1));
   display: flex;
@@ -353,7 +353,7 @@
 }
 
 .tbq-thumb-fallback {
-  font-size: 16px;
+  font-size: var(--font-title);
   color: var(--app-text-tertiary);
 }
 
@@ -370,7 +370,7 @@
 
 .tbq-name {
   margin: 0 0 2px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text);
   white-space: nowrap;
   overflow: hidden;
@@ -382,7 +382,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
   min-width: 0;
 }
@@ -399,7 +399,7 @@
   border: none;
   background: none;
   padding: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-primary, #ff5000);
   font-weight: 600;
 }
@@ -418,7 +418,7 @@
   align-items: center;
   justify-content: center;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: none;
   color: var(--app-text-tertiary);
 }
@@ -440,7 +440,7 @@
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   border: 1.5px solid var(--app-border, rgba(142, 142, 147, 0.28));
   background: var(--app-surface, #fff);
   overflow: visible;
@@ -460,7 +460,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
 }
 
 .tbq-strip-fallback {
@@ -469,7 +469,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text-tertiary);
 }
 
@@ -503,10 +503,10 @@
   justify-content: center;
   gap: 10px;
   padding: 22px 16px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface, #fff);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 /* ── 搜索 ─────────────────────────────────────────────── */
@@ -539,7 +539,7 @@
   align-items: center;
   gap: 6px;
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   line-height: 1.3;
   color: var(--app-text-tertiary);
   white-space: nowrap;
@@ -548,7 +548,7 @@
 
 .search-result-price {
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-chip-accent-text, #ff5000);
 }
@@ -564,7 +564,7 @@
 
 .search-result-go {
   flex-shrink: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   line-height: 1;
   color: var(--app-text-tertiary);
@@ -579,7 +579,7 @@
   margin: 0;
   padding: 4px 0;
   text-align: center;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary);
 }
 

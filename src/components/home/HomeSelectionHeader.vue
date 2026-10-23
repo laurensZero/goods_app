@@ -49,7 +49,7 @@ defineEmits(['back', 'toggle-all'])
   gap: 12px;
   width: min(100vw, 430px);
   padding: 10px var(--page-padding) 10px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   background: var(--app-glass-strong);
   border: 1px solid var(--app-glass-border);
   box-shadow: 0 10px 26px rgba(20, 20, 22, 0.08);
@@ -91,10 +91,10 @@ defineEmits(['back', 'toggle-all'])
   border: none;
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   min-width: 48px;
   cursor: pointer;
   flex-shrink: 0;
@@ -109,7 +109,7 @@ defineEmits(['back', 'toggle-all'])
   flex: 1;
   text-align: center;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
 }

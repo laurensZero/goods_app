@@ -373,7 +373,7 @@ defineExpose({ close })
 
 .coupon-hero__label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -388,7 +388,7 @@ defineExpose({ close })
 .coupon-hero__desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.6;
 }
 
@@ -412,7 +412,7 @@ defineExpose({ close })
 }
 
 .field-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -421,10 +421,10 @@ defineExpose({ close })
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid var(--app-input-border);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .field-input:focus {
@@ -435,7 +435,7 @@ defineExpose({ close })
 
 .field-error {
   color: #c74444;
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 /* ── 幽灵谷子（已退款，仅参与分摊）───────────────────────────── */
@@ -457,7 +457,7 @@ defineExpose({ close })
   border: none;
   background: transparent;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   text-align: left;
 }
@@ -470,11 +470,11 @@ defineExpose({ close })
 
 .ghost-toggle__badge {
   min-width: 20px;
-  padding: 1px 7px;
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   text-align: center;
 }
@@ -493,7 +493,7 @@ defineExpose({ close })
 
 .ghost-hint {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -514,7 +514,7 @@ defineExpose({ close })
 .ghost-row__amount,
 .ghost-row__qty {
   min-height: 42px;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .ghost-row__qty {
@@ -525,10 +525,10 @@ defineExpose({ close })
   width: 36px;
   height: 36px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   line-height: 1;
 }
 
@@ -536,10 +536,10 @@ defineExpose({ close })
   align-self: flex-start;
   padding: 8px 14px;
   border: 1px dashed var(--app-input-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -555,11 +555,11 @@ defineExpose({ close })
 
 .preview-item__tag {
   flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-xxs);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   vertical-align: middle;
 }
@@ -581,24 +581,24 @@ defineExpose({ close })
 }
 
 .preview-head__title {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
 .preview-head__live {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .preview-note {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
 .preview-empty {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
   padding: 12px 0;
 }
@@ -608,7 +608,7 @@ defineExpose({ close })
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
 }
 
@@ -616,14 +616,14 @@ defineExpose({ close })
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
 .preview-summary__row--strong {
   color: var(--app-text);
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 .preview-summary__discount {
@@ -647,7 +647,7 @@ defineExpose({ close })
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface);
 }
 
@@ -670,7 +670,7 @@ defineExpose({ close })
 }
 
 .preview-item__name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -679,7 +679,7 @@ defineExpose({ close })
 
 .preview-item__meta {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
@@ -693,12 +693,12 @@ defineExpose({ close })
 
 .preview-item__discount {
   color: #c7375d;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
 .preview-item__actual {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -711,8 +711,8 @@ defineExpose({ close })
 .confirm-btn {
   height: 48px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

@@ -54,7 +54,7 @@ defineEmits(['update:modelValue'])
   margin-bottom: 4px;
 }
 .sq-title {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   color: var(--van-text-color);
   margin: 0;
@@ -64,12 +64,12 @@ defineEmits(['update:modelValue'])
   font-weight: 700;
 }
 .sq-optional {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--van-text-color-3);
   font-weight: 400;
 }
 .sq-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--van-text-color-2);
   margin: 0 0 12px;
   line-height: 1.5;
@@ -85,7 +85,7 @@ defineEmits(['update:modelValue'])
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: var(--van-background);
   border: 1.5px solid var(--van-border-color);
   cursor: pointer;
@@ -124,7 +124,7 @@ defineEmits(['update:modelValue'])
   background: var(--van-primary-color);
 }
 .sq-radio-label {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--van-text-color);
   line-height: 1.4;
 }

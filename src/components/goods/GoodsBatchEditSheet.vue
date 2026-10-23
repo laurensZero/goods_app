@@ -754,7 +754,7 @@ defineExpose({
 
 .batch-edit-hero__label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -770,7 +770,7 @@ defineExpose({
 .batch-edit-hero__desc {
   margin-top: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -812,7 +812,7 @@ defineExpose({
 
 .mark-owned-desc {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 
@@ -859,7 +859,7 @@ defineExpose({
   border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -888,7 +888,7 @@ html.theme-dark .star-toggle-btn--active {
 
 .star-toggle-hint {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .field {
@@ -913,7 +913,7 @@ html.theme-dark .star-toggle-btn--active {
 
 .field-label {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -922,7 +922,7 @@ html.theme-dark .star-toggle-btn--active {
   border: none;
   background: transparent;
   color: #2070c0;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   padding: 0;
 }
@@ -936,10 +936,10 @@ html.theme-dark .star-toggle-btn--active {
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid var(--app-input-border);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   transition: border-color 0.18s ease, transform 0.16s ease, box-shadow 0.18s ease;
 }
 
@@ -959,14 +959,14 @@ html.theme-dark .star-toggle-btn--active {
 
 .field-error {
   color: #c74444;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.4;
 }
 
 .field-hint {
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
 }
 
@@ -978,7 +978,7 @@ html.theme-dark .star-toggle-btn--active {
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid var(--app-input-border);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
@@ -997,7 +997,7 @@ html.theme-dark .star-toggle-btn--active {
 
 .date-field span {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .date-field__value--placeholder {
@@ -1026,7 +1026,7 @@ html.theme-dark .star-toggle-btn--active {
   min-height: 48px;
   padding: 10px 14px;
   border: 1px solid var(--app-input-border);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
@@ -1052,7 +1052,7 @@ html.theme-dark .star-toggle-btn--active {
 
 .multi-select__placeholder {
   color: var(--app-placeholder);
-  font-size: 16px;
+  font-size: var(--font-title);
 }
 
 .multi-select__chips {
@@ -1067,10 +1067,10 @@ html.theme-dark .star-toggle-btn--active {
   gap: 6px;
   max-width: 100%;
   padding: 6px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-bg);
   color: var(--app-chip-text);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   line-height: 1.2;
 }
@@ -1085,7 +1085,7 @@ html.theme-dark .star-toggle-btn--active {
   border-radius: 50%;
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1;
 }
 
@@ -1131,7 +1131,7 @@ html.theme-dark .star-toggle-btn--active {
   border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   text-align: left;
   transition: background 0.16s ease, color 0.16s ease;
 }
@@ -1172,7 +1172,7 @@ html.theme-dark .star-toggle-btn--active {
 .multi-select__empty {
   padding: 14px 12px;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-align: center;
 }
 
@@ -1187,8 +1187,8 @@ html.theme-dark .star-toggle-btn--active {
 .confirm-btn {
   height: 48px;
   border: none;
-  border-radius: 16px;
-  font-size: 15px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-subtitle);
   font-weight: 600;
   transition: transform 0.16s ease, opacity 0.16s ease, background 0.16s ease;
 }

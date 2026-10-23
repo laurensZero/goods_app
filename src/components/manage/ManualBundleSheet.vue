@@ -221,14 +221,14 @@ async function handlePickLocalZip() {
 .dialog-title {
   margin: 0 0 8px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
 }
 
 .dialog-desc {
   margin: 0 0 16px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.5;
 }
 
@@ -249,7 +249,7 @@ async function handlePickLocalZip() {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   font-family: inherit;
   cursor: pointer;
@@ -281,13 +281,13 @@ async function handlePickLocalZip() {
 .manual-bundle-error {
   margin: 0 0 8px;
   color: var(--app-danger, #d64545);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .manual-bundle-status {
   margin: 0 0 8px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .manual-bundle-list {
@@ -327,20 +327,20 @@ async function handlePickLocalZip() {
 
 .manual-bundle-item__version {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
 .manual-bundle-item__meta {
   margin: 4px 0 0;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .manual-bundle-item__notes {
   margin: 6px 0 0;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
 }
 
@@ -354,17 +354,17 @@ async function handlePickLocalZip() {
 
 .manual-bundle-tag {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-bg);
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   white-space: nowrap;
 }
 
 .manual-bundle-empty {
   margin: 12px 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 

@@ -206,7 +206,7 @@ function formatMoney(value) {
 
 .birthday-kicker {
   color: var(--birthday-accent);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -215,7 +215,7 @@ function formatMoney(value) {
 .dialog-title {
   margin: 8px 0 0;
   color: var(--app-text);
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -227,12 +227,12 @@ function formatMoney(value) {
   gap: 8px;
   margin-top: 8px;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .birthday-meta__ip {
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   font-weight: 500;
@@ -241,7 +241,7 @@ function formatMoney(value) {
 .birthday-message {
   margin-top: 12px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
@@ -265,14 +265,14 @@ function formatMoney(value) {
 
 .birthday-stat__value {
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
 .birthday-stat__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
 }
 
 .birthday-wall {
@@ -356,7 +356,7 @@ function formatMoney(value) {
   padding: 0 18px;
   border: none;
   border-radius: var(--radius-xs);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
 }
 

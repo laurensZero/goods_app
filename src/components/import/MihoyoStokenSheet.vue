@@ -106,7 +106,7 @@ function submit() {
 .sheet-title {
   margin: 0 0 4px;
   text-align: center;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
 }
@@ -114,13 +114,13 @@ function submit() {
 .sheet-sub {
   margin: 0 0 8px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary, #8e8e93);
 }
 
 .sheet-hint {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.5;
   color: var(--app-text-secondary, #8e8e93);
 }
@@ -129,11 +129,11 @@ function submit() {
   width: 100%;
   min-height: 96px;
   border: 1px solid var(--app-border, rgba(142, 142, 147, 0.28));
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-surface, #fff);
   color: var(--app-text);
   padding: 10px 12px;
-  font-size: 12px;
+  font-size: var(--font-small);
   line-height: 1.45;
   font-family: monospace;
   resize: vertical;
@@ -142,7 +142,7 @@ function submit() {
 
 .field-error {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: #c74444;
 }
 
@@ -150,11 +150,11 @@ function submit() {
   width: 100%;
   margin-top: 10px;
   border: none;
-  border-radius: 14px;
-  padding: 13px 16px;
+  border-radius: var(--radius-small);
+  padding: 14px 16px;
   background: #141416;
   color: #fff;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -166,11 +166,11 @@ function submit() {
   width: 100%;
   margin-top: 8px;
   border: none;
-  border-radius: 14px;
-  padding: 13px 16px;
+  border-radius: var(--radius-small);
+  padding: 14px 16px;
   background: color-mix(in srgb, var(--app-glass) 80%, var(--app-surface));
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 500;
 }
 

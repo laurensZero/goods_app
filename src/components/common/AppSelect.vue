@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
   height: 48px;
   padding: 0 14px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: var(--app-surface);
   color: var(--app-text);
   text-align: left;
@@ -251,7 +251,7 @@ onBeforeUnmount(() => {
 .app-select__value {
   overflow: hidden;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -284,7 +284,7 @@ onBeforeUnmount(() => {
   width: 100%;
   padding: 8px;
   border: 1px solid rgba(20, 20, 22, 0.05);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
@@ -310,10 +310,10 @@ onBeforeUnmount(() => {
   min-height: 44px;
   padding: 0 12px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   text-align: left;
   transition: background 0.16s ease, transform 0.16s ease, color 0.16s ease;
 }
@@ -343,7 +343,7 @@ onBeforeUnmount(() => {
 .app-select__empty {
   padding: 14px 12px;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-align: center;
 }
 

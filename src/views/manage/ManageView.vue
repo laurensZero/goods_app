@@ -621,7 +621,7 @@ onBeforeRouteLeave((to) => {
 .detail-stat__label,
 .export-picker__label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -661,7 +661,7 @@ onBeforeRouteLeave((to) => {
 .settings-group__title {
   margin: 0;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.04em;
 }
@@ -680,7 +680,7 @@ onBeforeRouteLeave((to) => {
   width: 100%;
   padding: 14px;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--app-text);
   text-align: left;
@@ -700,8 +700,8 @@ onBeforeRouteLeave((to) => {
   flex-shrink: 0;
   width: 46px;
   height: 46px;
-  border-radius: 16px;
-  font-size: 18px;
+  border-radius: var(--radius-medium);
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -755,7 +755,7 @@ onBeforeRouteLeave((to) => {
 
 .settings-nav__title,
 .mobile-entry__title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
 }
 
@@ -765,12 +765,12 @@ onBeforeRouteLeave((to) => {
   justify-content: center;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
+  padding: 0 6px;
   margin-left: 6px;
-  border-radius: 9px;
+  border-radius: var(--radius-tiny);
   background: #e5484d;
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1;
   vertical-align: middle;
@@ -782,14 +782,14 @@ onBeforeRouteLeave((to) => {
 .export-picker__option-desc {
   margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.55;
 }
 
 .mobile-entry__desc {
   margin-top: 4px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.55;
   min-height: 2.4em;
 }
@@ -815,14 +815,14 @@ onBeforeRouteLeave((to) => {
 .settings-detail__icon {
   width: 64px;
   height: 64px;
-  border-radius: 22px;
+  border-radius: var(--radius-large);
   font-size: 24px;
 }
 
 .settings-detail__eyebrow {
   margin: 0 0 6px;
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
@@ -871,7 +871,7 @@ onBeforeRouteLeave((to) => {
   width: 40px;
   height: 40px;
   border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
   color: var(--app-text-secondary);
   cursor: pointer;
@@ -894,13 +894,13 @@ onBeforeRouteLeave((to) => {
 
 .settings-action-panel {
   padding: 22px;
-  border-radius: 24px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
 }
 
 .settings-action-panel__text {
   color: var(--app-text-secondary);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.7;
 }
 
@@ -972,7 +972,7 @@ onBeforeRouteLeave((to) => {
   width: 38px;
   height: 38px;
   margin-top: 2px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
   border: 1px solid color-mix(in srgb, var(--app-text) 8%, transparent);
   box-shadow: none;
@@ -1114,7 +1114,7 @@ onBeforeRouteLeave((to) => {
 
 .settings-sidebar::-webkit-scrollbar-thumb,
 .settings-detail::-webkit-scrollbar-thumb {
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--app-text) 16%, transparent);
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -1154,10 +1154,10 @@ onBeforeRouteLeave((to) => {
   min-height: 46px;
   padding: 0 18px;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   background: color-mix(in srgb, var(--app-surface-soft) 94%, transparent);
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -1174,7 +1174,7 @@ onBeforeRouteLeave((to) => {
 
 .mobile-group {
   padding: 18px;
-  border-radius: 28px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface) 94%, transparent);
   box-shadow: var(--app-shadow);
 }
@@ -1185,7 +1185,7 @@ onBeforeRouteLeave((to) => {
 
 .mobile-group__title {
   margin: 6px 0 0;
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 700;
 }
 
@@ -1196,7 +1196,7 @@ onBeforeRouteLeave((to) => {
 
 .mobile-entry__kicker {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1227,7 +1227,7 @@ onBeforeRouteLeave((to) => {
 
 .export-picker__title {
   margin: 4px 0 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
 }
 
@@ -1235,7 +1235,7 @@ onBeforeRouteLeave((to) => {
   display: grid;
   gap: 0;
   overflow: hidden;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
   border: 1px solid var(--app-border);
 }
@@ -1246,7 +1246,7 @@ onBeforeRouteLeave((to) => {
   justify-content: space-between;
   gap: 14px;
   width: 100%;
-  padding: 15px 16px;
+  padding: 16px 16px;
   border: none;
   border-radius: 0;
   background: transparent;
@@ -1264,7 +1264,7 @@ onBeforeRouteLeave((to) => {
 
 .export-picker__option-name {
   display: block;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 

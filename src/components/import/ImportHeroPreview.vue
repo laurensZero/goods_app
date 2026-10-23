@@ -121,13 +121,13 @@ const fallbackText = computed(() =>
 
 .hero-label {
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .hero-title {
   margin-top: 4px;
   color: var(--app-text);
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.02em;
@@ -142,7 +142,7 @@ const fallbackText = computed(() =>
 .hero-desc {
   margin-top: 6px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
 }
 </style>

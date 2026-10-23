@@ -125,7 +125,7 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
   flex-shrink: 0;
   width: 96px;
   height: 96px;
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   overflow: hidden;
   background: rgba(142, 142, 147, 0.15);
 }
@@ -137,19 +137,19 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
   color: var(--app-text-tertiary); font-size: 32px; font-weight: 700;
 }
 
-.sheet-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.sheet-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .sheet-name {
   margin: 0; color: var(--app-text); font-size: 16px; font-weight: 700;
   line-height: 1.3; letter-spacing: -0.02em;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
 }
 
-.sheet-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.sheet-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .sheet-chip {
-  padding: 3px 8px; border-radius: 99px;
+  padding: 4px 8px; border-radius: var(--radius-pill);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
-  font-size: 11px; font-weight: 500;
+  font-size: var(--font-caption); font-weight: 500;
 }
 .sheet-chip--ip {
   background: rgba(74, 122, 236, 0.12);
@@ -170,10 +170,10 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
 
 .sheet-date { color: var(--app-text-tertiary); font-size: 12px; }
 .sheet-qty {
-  padding: 2px 6px; border-radius: 999px;
+  padding: 2px 6px; border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.08);
   color: var(--app-text-secondary);
-  font-size: 11px; font-weight: 700; line-height: 1.2;
+  font-size: var(--font-caption); font-weight: 700; line-height: 1.2;
 }
 .sheet-price { color: var(--app-text); font-size: 14px; font-weight: 700; }
 
@@ -184,9 +184,9 @@ function openDetail() { emit('open-detail', props.item.sourceId || props.item.id
 }
 
 .sheet-action-btn {
-  height: 48px; width: 100%; border: none; border-radius: 14px;
+  height: 48px; width: 100%; border: none; border-radius: var(--radius-small);
   background: var(--app-text); color: var(--app-surface);
-  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  font-size: var(--font-subtitle); font-weight: 600; letter-spacing: -0.01em;
   margin-bottom: 0; transition: opacity 0.14s ease, transform 0.14s ease;
 }
 .sheet-action-btn:active { opacity: 0.88; transform: scale(0.985); }

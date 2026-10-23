@@ -410,7 +410,7 @@ function patchTheme(patch) {
 
 .bg-sheet__eyebrow {
   margin: 0 0 2px;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -419,7 +419,7 @@ function patchTheme(patch) {
 
 .bg-sheet__title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text);
   overflow-wrap: anywhere;
@@ -428,10 +428,10 @@ function patchTheme(patch) {
 .bg-sheet__count {
   flex-shrink: 0;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
 }
 
@@ -452,13 +452,13 @@ function patchTheme(patch) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 8px;
   padding: 12px 10px;
   border: 1px dashed color-mix(in srgb, var(--app-text) 20%, transparent);
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -482,7 +482,7 @@ function patchTheme(patch) {
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   text-align: center;
 }
 
@@ -532,11 +532,11 @@ function patchTheme(patch) {
   left: 6px;
   top: 6px;
   min-width: 18px;
-  padding: 1px 5px;
-  border-radius: 999px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
   background: rgba(20, 20, 22, 0.5);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
 }
 
@@ -545,7 +545,7 @@ function patchTheme(patch) {
   align-items: center;
   justify-content: space-between;
   gap: 2px;
-  padding: 4px 4px 5px;
+  padding: 4px 4px 6px;
   background: var(--app-surface);
 }
 
@@ -554,10 +554,10 @@ function patchTheme(patch) {
   min-width: 0;
   padding: 4px 0;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   background: none;
   color: var(--app-text-secondary);
-  font-size: 11px;
+  font-size: var(--font-caption);
 }
 
 .bg-tile__tools button:disabled {
@@ -575,7 +575,7 @@ function patchTheme(patch) {
 
 .bg-sheet__section-title {
   margin: 0 0 10px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   color: var(--app-text);
 }
@@ -588,7 +588,7 @@ function patchTheme(patch) {
 }
 
 .bg-sheet__field-label {
-  font-size: 12.5px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
@@ -635,7 +635,7 @@ function patchTheme(patch) {
   border-radius: var(--radius-xs);
   background: none;
   color: var(--app-text-secondary);
-  font-size: 12.5px;
+  font-size: var(--font-small);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -655,7 +655,7 @@ function patchTheme(patch) {
 }
 
 .bg-sheet__sub-label {
-  font-size: 12.5px;
+  font-size: var(--font-small);
   color: var(--app-text-secondary);
 }
 
@@ -670,7 +670,7 @@ function patchTheme(patch) {
 
 .bg-sheet__hint {
   margin: 0 0 6px;
-  font-size: 11.5px;
+  font-size: var(--font-caption);
   line-height: 1.45;
   color: var(--app-text-tertiary);
 }
@@ -685,12 +685,12 @@ function patchTheme(patch) {
 
 .bg-sheet__ghost {
   flex: 1;
-  padding: 13px 14px;
+  padding: 14px 14px;
   border: 1px solid var(--app-border);
   border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text);
-  font-size: 13.5px;
+  font-size: var(--font-body);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -699,12 +699,12 @@ function patchTheme(patch) {
 
 .bg-sheet__done {
   flex: 1;
-  padding: 13px 14px;
+  padding: 14px 14px;
   border: none;
   border-radius: var(--radius-small);
   background: var(--app-primary);
   color: var(--app-surface);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 700;
 }
 

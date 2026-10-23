@@ -211,7 +211,7 @@ const ariaLabel = computed(() =>
   justify-content: center;
   min-width: 92px;
   padding: 12px 16px;
-  border-radius: 20px;
+  border-radius: var(--radius-large);
   background: var(--cd-tone-bg, color-mix(in srgb, var(--app-surface-soft) 88%, transparent));
 }
 
@@ -230,8 +230,8 @@ const ariaLabel = computed(() =>
 }
 
 .cd-card__unit {
-  margin-top: 5px;
-  font-size: 12px;
+  margin-top: 6px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--cd-tone-soft, var(--app-text-tertiary));
 }
@@ -245,7 +245,7 @@ const ariaLabel = computed(() =>
 
 .cd-card__caption {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   color: var(--cd-tone-strong, var(--app-text-secondary));
 }
@@ -254,7 +254,7 @@ const ariaLabel = computed(() =>
   margin: 0;
   display: -webkit-box;
   overflow: hidden;
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 700;
   line-height: 1.4;
   letter-spacing: -0.03em;
@@ -268,7 +268,7 @@ const ariaLabel = computed(() =>
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 500;
   color: var(--app-text-tertiary);
 }

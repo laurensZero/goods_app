@@ -294,7 +294,7 @@ const chartOption = computed(() => {
 }
 .chart-title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
@@ -322,7 +322,7 @@ const chartOption = computed(() => {
   border-radius: 50%;
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
   cursor: pointer;
   transition: background var(--motion-fast) var(--motion-emphasis), transform var(--motion-fast) var(--motion-emphasis);
@@ -333,7 +333,7 @@ const chartOption = computed(() => {
   color: var(--app-surface);
 }
 .trend-nav-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   color: var(--app-text-secondary);
   white-space: nowrap;
@@ -342,17 +342,17 @@ const chartOption = computed(() => {
   display: flex;
   gap: 4px;
   padding: 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-chip-bg);
 }
 .mode-chip {
   flex-shrink: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 14px;
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: background var(--motion-fast) var(--motion-emphasis), color var(--motion-fast) var(--motion-emphasis);
 }
@@ -364,7 +364,7 @@ const chartOption = computed(() => {
 @media (max-width: 480px) {
   .trend-header { gap: 8px; }
   .trend-controls { gap: 6px; }
-  .mode-chip { padding: 5px 10px; font-size: 12px; }
-  .trend-nav-btn { width: 24px; height: 24px; font-size: 14px; }
+  .mode-chip { padding: 6px 10px; font-size: var(--font-small); }
+  .trend-nav-btn { width: 24px; height: 24px; font-size: var(--font-body-lg); }
 }
 </style>

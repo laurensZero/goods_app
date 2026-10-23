@@ -439,7 +439,7 @@ onBeforeUnmount(() => {
 }
 
 .header-title-text {
-  font-size: 17px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   overflow: hidden;
@@ -448,7 +448,7 @@ onBeforeUnmount(() => {
 }
 
 .header-title-count {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
@@ -465,20 +465,20 @@ onBeforeUnmount(() => {
 }
 
 .summary-label {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .summary-value {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   color: var(--app-text);
 }
 
 .summary-cny-hint {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
-  margin-top: 1px;
+  margin-top: 2px;
 }
 
 .group-detail-body {
@@ -492,10 +492,10 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin: 16px 0;
   padding: 14px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   border: 2px dashed color-mix(in srgb, var(--app-border) 78%, transparent);
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   cursor: pointer;
   width: 100%;

@@ -176,7 +176,7 @@ const monthPositions = computed(() => {
 }
 .chart-title {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text);
   white-space: nowrap;
@@ -189,11 +189,11 @@ const monthPositions = computed(() => {
 .year-chip {
   flex-shrink: 0;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 14px;
   background: var(--app-chip-bg);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   transition: background var(--motion-fast) var(--motion-emphasis), color var(--motion-fast) var(--motion-emphasis);
 }
@@ -206,7 +206,7 @@ const monthPositions = computed(() => {
   padding: 40px 0;
   text-align: center;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
 }
 
 /* Scroll container */
@@ -231,7 +231,7 @@ const monthPositions = computed(() => {
   .heatmap-grid-wrap { --hm-size: 16px; }
 }
 @media (min-width: 1200px) {
-  .heatmap-grid-wrap { --hm-size: 26px; --hm-gap: 5px; }
+  .heatmap-grid-wrap { --hm-size: 26px; --hm-gap: 6px; }
 }
 
 .heatmap-months {
@@ -242,7 +242,7 @@ const monthPositions = computed(() => {
   height: 20px;
 }
 .heatmap-month {
-  font-size: 11px;
+  font-size: var(--font-caption);
   color: var(--app-text-secondary);
   white-space: nowrap;
 }
@@ -254,7 +254,7 @@ const monthPositions = computed(() => {
 .heatmap-days {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
   flex-shrink: 0;
   width: 26px;
 }
@@ -263,7 +263,7 @@ const monthPositions = computed(() => {
   align-items: center;
   justify-content: flex-end;
   height: var(--hm-size);
-  font-size: 10px;
+  font-size: var(--font-micro);
   color: var(--app-text-tertiary);
 }
 
@@ -301,11 +301,11 @@ const monthPositions = computed(() => {
   margin-top: 8px;
 }
 .heatmap-legend-label {
-  font-size: 10px;
+  font-size: var(--font-micro);
   color: var(--app-text-tertiary);
 }
 @media (max-width: 480px) {
   .heatmap-header { gap: 8px; }
-  .year-chip { padding: 5px 10px; font-size: 12px; }
+  .year-chip { padding: 6px 10px; font-size: var(--font-small); }
 }
 </style>

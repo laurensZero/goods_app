@@ -290,7 +290,7 @@ function handleCancel() {
   gap: 12px;
   padding: 16px;
   background: var(--app-surface);
-  border-radius: var(--radius-large, 24px);
+  border-radius: var(--radius-large);
   box-shadow: var(--app-shadow, 0 8px 24px rgba(0, 0, 0, 0.06));
   overflow: hidden;
   overflow: clip;
@@ -308,7 +308,7 @@ function handleCancel() {
   width: 36px;
   height: 4px;
   margin: 0 auto 4px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-text-tertiary);
   opacity: 0.3;
 }
@@ -322,14 +322,14 @@ function handleCancel() {
 
 .collage-title h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text);
 }
 
 .collage-subtitle {
   margin: 4px 0 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-secondary);
 }
 
@@ -338,11 +338,11 @@ function handleCancel() {
   height: 36px;
   padding: 0 14px;
   border: none;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-surface-soft);
   color: var(--app-text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -373,14 +373,14 @@ function handleCancel() {
   gap: 4px;
   padding: 8px 10px;
   background: var(--app-surface-soft);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
 }
 
 .collage-snap-toggle {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
   color: var(--app-text);
   cursor: pointer;
@@ -425,7 +425,7 @@ function handleCancel() {
   width: 100%;
   height: 100%;
   min-height: 260px;
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   overflow: hidden;
   background:
     repeating-conic-gradient(rgba(0, 0, 0, 0.04) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
@@ -466,7 +466,7 @@ function handleCancel() {
   justify-content: center;
   pointer-events: none;
   color: var(--app-text-tertiary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   text-align: center;
   padding: 16px;
 }
@@ -488,12 +488,12 @@ function handleCancel() {
   gap: 8px;
   padding: 12px;
   background: var(--app-surface-soft);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
 }
 
 .collage-group__title {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 700;
   color: var(--app-text-secondary);
 }
@@ -508,11 +508,11 @@ function handleCancel() {
   min-height: 34px;
   padding: 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -532,7 +532,7 @@ function handleCancel() {
   width: 30px;
   height: 30px;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   box-shadow: inset 0 0 0 1px rgba(20, 20, 22, 0.12);
   cursor: pointer;
 }
@@ -547,11 +547,11 @@ function handleCancel() {
   min-height: 44px;
   padding: 0 14px;
   border: none;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-surface);
   color: var(--app-text);
   font: inherit;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 
@@ -572,17 +572,17 @@ function handleCancel() {
 
 .collage-meta {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
 }
 
 .collage-error {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: rgba(199, 68, 68, 0.08);
   color: #c74444;
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .collage-footer {
@@ -625,7 +625,7 @@ function handleCancel() {
   .collage-dialog {
     width: 100%;
     max-height: 94dvh;
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--radius-large) var(--radius-large) 0 0;
     padding: 12px 12px 0;
   }
 

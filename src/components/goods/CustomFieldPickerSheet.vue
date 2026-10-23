@@ -199,7 +199,7 @@ useDialogBackButton(close, () => props.modelValue)
 }
 
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
@@ -209,7 +209,7 @@ useDialogBackButton(close, () => props.modelValue)
 .sheet-options {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 10px;
   max-height: 46vh;
@@ -242,7 +242,7 @@ useDialogBackButton(close, () => props.modelValue)
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -264,14 +264,14 @@ useDialogBackButton(close, () => props.modelValue)
 }
 
 .option-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   margin: 0 0 2px;
 }
 
 .option-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary, #8e8e93);
   margin: 0;
 }
@@ -289,11 +289,11 @@ useDialogBackButton(close, () => props.modelValue)
 .sheet-empty {
   margin: 0 0 12px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   text-align: center;
 }
@@ -303,10 +303,10 @@ useDialogBackButton(close, () => props.modelValue)
   height: 54px;
   width: 100%;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   transition: background 0.14s ease;
@@ -350,10 +350,10 @@ useDialogBackButton(close, () => props.modelValue)
   height: 48px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 86%, var(--app-surface));
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   outline: none;
 }
 
@@ -370,10 +370,10 @@ useDialogBackButton(close, () => props.modelValue)
 .type-chip {
   height: 40px;
   border: 1px solid rgba(20, 20, 22, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--app-surface);
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 600;
 }
 
@@ -386,7 +386,7 @@ useDialogBackButton(close, () => props.modelValue)
 .sheet-error {
   margin: 0;
   color: var(--app-danger, #d64545);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 html.theme-dark .sheet-options,

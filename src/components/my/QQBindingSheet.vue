@@ -290,7 +290,7 @@ onUnmounted(stopPolling)
 /* 外壳由 AppSheet 提供；此处只保留内容样式 */
 .dialog-label {
   color: var(--app-text-tertiary);
-  font-size: 12px;
+  font-size: var(--font-small);
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -298,7 +298,7 @@ onUnmounted(stopPolling)
 .dialog-title {
   margin: 6px 0 0;
   color: var(--app-text);
-  font-size: 19px;
+  font-size: var(--font-title-lg);
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -306,7 +306,7 @@ onUnmounted(stopPolling)
 .dialog-desc {
   margin: 6px 0 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.55;
 }
 
@@ -375,13 +375,13 @@ onUnmounted(stopPolling)
 
 .qq-bound__label {
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 700;
 }
 
 .qq-bound__hint {
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .qq-toggle-row {
@@ -390,14 +390,14 @@ onUnmounted(stopPolling)
   justify-content: space-between;
   gap: 14px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
 .qq-toggle-row__title {
   display: block;
   color: var(--app-text);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
 }
 
@@ -405,7 +405,7 @@ onUnmounted(stopPolling)
   display: block;
   margin-top: 2px;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 /* 绑定步骤 */
@@ -420,7 +420,7 @@ onUnmounted(stopPolling)
   flex-direction: column;
   gap: 8px;
   color: var(--app-text-secondary);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   line-height: 1.6;
 }
 
@@ -442,7 +442,7 @@ onUnmounted(stopPolling)
   flex-direction: column;
   gap: 8px;
   padding: 14px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
 }
 
@@ -455,7 +455,7 @@ onUnmounted(stopPolling)
 .qq-code-card__label {
   flex-shrink: 0;
   color: var(--app-text-secondary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .qq-code-card__value {
@@ -465,13 +465,13 @@ onUnmounted(stopPolling)
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .qq-code-card__value--code {
-  font-size: 22px;
+  font-size: var(--font-display);
   font-weight: 800;
   letter-spacing: 0.12em;
   color: #12b7f5;
@@ -481,10 +481,10 @@ onUnmounted(stopPolling)
   flex-shrink: 0;
   padding: 6px 12px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-secondary);
-  font-size: 12px;
+  font-size: var(--font-small);
   font-weight: 600;
   cursor: pointer;
 }
@@ -506,7 +506,7 @@ onUnmounted(stopPolling)
   gap: 8px;
   margin: 0;
   color: var(--app-text-tertiary);
-  font-size: 13px;
+  font-size: var(--font-body);
 }
 
 .qq-waiting__dot {
@@ -546,7 +546,7 @@ onUnmounted(stopPolling)
   bottom: 0;
   background-color: var(--app-surface-muted, #e5e5ea);
   transition: background-color 0.25s ease;
-  border-radius: 31px;
+  border-radius: var(--radius-pill);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
@@ -601,7 +601,7 @@ html.theme-dark .toggle-slider::before {
   padding: 0 14px;
   border: none;
   border-radius: var(--radius-small);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
 }
 

@@ -335,7 +335,7 @@ function onTaobaoImport() {
 
 /* 标题 */
 .sheet-title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary, #8e8e93);
   text-align: center;
@@ -346,7 +346,7 @@ function onTaobaoImport() {
 .sheet-options {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   margin-bottom: 10px;
 }
@@ -378,7 +378,7 @@ function onTaobaoImport() {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -471,14 +471,14 @@ function onTaobaoImport() {
 }
 
 .option-title {
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   margin: 0 0 2px;
 }
 
 .option-desc {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-text-tertiary, #8e8e93);
   margin: 0;
   white-space: nowrap;
@@ -502,10 +502,10 @@ function onTaobaoImport() {
   height: 54px;
   width: 100%;
   border: none;
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--app-glass) 78%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   color: var(--app-text, #141416);
   transition: background 0.14s ease;
@@ -545,7 +545,7 @@ function onTaobaoImport() {
 }
 
 .share-title {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--app-text);
@@ -563,7 +563,7 @@ function onTaobaoImport() {
   gap: 12px;
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 18px;
+  border-radius: var(--radius-card);
   padding: 14px;
 }
 
@@ -571,7 +571,7 @@ function onTaobaoImport() {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: rgba(90, 120, 250, 0.12);
   display: flex;
   align-items: center;
@@ -600,9 +600,9 @@ function onTaobaoImport() {
   height: 44px;
   padding: 0 14px;
   border: 1px solid color-mix(in srgb, var(--app-border) 72%, transparent);
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--app-surface-soft) 86%, var(--app-surface));
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-family: 'SF Pro Display', 'PingFang SC', 'Avenir Next', 'Helvetica Neue', sans-serif;
   color: var(--app-text);
   outline: none;
@@ -619,10 +619,10 @@ function onTaobaoImport() {
   height: 44px;
   padding: 0 20px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -632,7 +632,7 @@ function onTaobaoImport() {
 }
 
 .share-error {
-  font-size: 13px;
+  font-size: var(--font-body);
   color: var(--app-danger, #e53e3e);
   margin: 8px 0 0;
 }
@@ -641,7 +641,7 @@ function onTaobaoImport() {
   margin: 0 4px 12px;
   padding: 10px 12px;
   border-radius: var(--radius-md, 10px);
-  font-size: 13px;
+  font-size: var(--font-body);
   line-height: 1.5;
   color: var(--app-warning, #d97706);
   background: color-mix(in srgb, var(--app-warning, #d97706) 10%, transparent);
@@ -667,7 +667,7 @@ function onTaobaoImport() {
 }
 
 .share-loading-text {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   color: var(--app-text-tertiary);
   margin: 0;
 }
@@ -678,7 +678,7 @@ function onTaobaoImport() {
 }
 
 .share-preview-count {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--app-text);
@@ -686,7 +686,7 @@ function onTaobaoImport() {
 }
 
 .share-preview-date {
-  font-size: 12px;
+  font-size: var(--font-small);
   color: var(--app-text-tertiary);
   margin: 2px 0 0;
 }
@@ -706,7 +706,7 @@ function onTaobaoImport() {
   padding: 10px 12px;
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   transition: opacity 0.2s ease;
 }
 
@@ -717,7 +717,7 @@ function onTaobaoImport() {
 .share-goods-thumb {
   width: 48px;
   height: 48px;
-  border-radius: 10px;
+  border-radius: var(--radius-xs);
   overflow: hidden;
   background: rgba(142, 142, 147, 0.15);
   flex-shrink: 0;
@@ -733,7 +733,7 @@ function onTaobaoImport() {
 }
 
 .share-goods-initial {
-  font-size: 18px;
+  font-size: var(--font-title-lg);
   font-weight: 700;
   color: var(--app-text-tertiary);
 }
@@ -744,10 +744,10 @@ function onTaobaoImport() {
 }
 
 .share-goods-name {
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   color: var(--app-text);
-  margin: 0 0 3px;
+  margin: 0 0 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -760,10 +760,10 @@ function onTaobaoImport() {
 }
 
 .share-meta-tag {
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   padding: 2px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-xxs);
   background: rgba(142, 142, 147, 0.12);
   color: var(--app-text-secondary);
 }
@@ -779,11 +779,11 @@ function onTaobaoImport() {
 
 .share-imported-badge {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
   color: #28c880;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xxs);
   background: rgba(40, 200, 128, 0.1);
 }
 
@@ -797,7 +797,7 @@ function onTaobaoImport() {
   margin: 0 0 12px;
   background: color-mix(in srgb, var(--app-glass) 74%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 74%, transparent);
-  border-radius: 16px;
+  border-radius: var(--radius-medium);
   isolation: isolate;
 }
 
@@ -807,7 +807,7 @@ function onTaobaoImport() {
   left: 6px;
   width: calc(50% - 10px);
   height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: var(--app-text);
   transition: transform 0.32s cubic-bezier(0.34, 1.3, 0.64, 1);
   z-index: 0;
@@ -822,10 +822,10 @@ function onTaobaoImport() {
   z-index: 1;
   height: 40px;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-xs);
   background: transparent;
   color: var(--app-text-tertiary, #8e8e93);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   transition: color 0.2s ease;
 }
@@ -843,10 +843,10 @@ function onTaobaoImport() {
   width: 100%;
   height: 48px;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   letter-spacing: -0.02em;
 }

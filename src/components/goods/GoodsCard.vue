@@ -542,7 +542,7 @@ const priceCNYHint = computed(() => {
   width: 28px;
   height: 28px;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-tiny);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -566,7 +566,7 @@ const priceCNYHint = computed(() => {
   right: 4px;
   width: 24px;
   height: 24px;
-  border-radius: 8px;
+  border-radius: var(--radius-tiny);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
@@ -607,11 +607,11 @@ const priceCNYHint = computed(() => {
   top: 7px;
   left: 7px;
   z-index: 2;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: rgba(211, 61, 87, 0.92);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: 0.02em;
@@ -622,8 +622,8 @@ const priceCNYHint = computed(() => {
 .wishlist-badge--compact {
   top: -6px;
   left: -6px;
-  padding: 2px 7px;
-  font-size: 10px;
+  padding: 2px 8px;
+  font-size: var(--font-micro);
   line-height: 1.2;
   background: rgba(211, 61, 87, 0.86);
   box-shadow: 0 4px 10px rgba(211, 61, 87, 0.16);
@@ -634,11 +634,11 @@ const priceCNYHint = computed(() => {
   top: 7px;
   left: 7px;
   z-index: 2;
-  padding: 3px 8px;
-  border-radius: 999px;
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
   background: var(--app-pending-bg);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: 0.02em;
@@ -649,8 +649,8 @@ const priceCNYHint = computed(() => {
 .pending-badge--compact {
   top: -6px;
   left: -6px;
-  padding: 2px 7px;
-  font-size: 10px;
+  padding: 2px 8px;
+  font-size: var(--font-micro);
   line-height: 1.2;
 }
 
@@ -695,9 +695,9 @@ const priceCNYHint = computed(() => {
   right: 7px;
   background: rgba(20, 20, 22, 0.7);
   color: #fff;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 600;
-  border-radius: 7px;
+  border-radius: var(--radius-tiny);
   padding: 2px 6px;
   line-height: 1.4;
   pointer-events: none;
@@ -713,7 +713,7 @@ const priceCNYHint = computed(() => {
   justify-content: center;
   overflow: hidden;
   padding: 10px;
-  border-radius: 14px;
+  border-radius: var(--radius-small);
   border: 1px solid color-mix(in srgb, var(--app-glass-border, rgba(0,0,0,0.06)) 78%, rgba(0,0,0,0.04));
   background: color-mix(in srgb, var(--app-surface-soft, #eeeff2) 92%, var(--app-surface, #ffffff));
   background-size: cover;
@@ -759,7 +759,7 @@ const priceCNYHint = computed(() => {
   display: -webkit-box;
   overflow: hidden;
   color: var(--app-text);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   line-height: 1.35;
   letter-spacing: -0.03em;
@@ -770,7 +770,7 @@ const priceCNYHint = computed(() => {
 
 .card-tags {
   display: flex;
-  gap: 5px;
+  gap: 6px;
   max-height: 28px;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -803,10 +803,10 @@ const priceCNYHint = computed(() => {
   align-items: center;
   flex: 0 0 auto;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.06);
   color: #3a3a3c;
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 500;
   white-space: nowrap;
   opacity: 1;
@@ -849,7 +849,7 @@ const priceCNYHint = computed(() => {
 .card-price {
   flex-shrink: 0;
   color: #8e8e93;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   letter-spacing: 0;
   line-height: 1.2;
@@ -857,13 +857,13 @@ const priceCNYHint = computed(() => {
 
 .card-price-cny {
   color: var(--app-text-tertiary);
-  font-size: 11px;
+  font-size: var(--font-caption);
   font-weight: 400;
 }
 
 .card-price-points {
   margin-left: 4px;
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 500;
   color: #8e8e93;
 }
@@ -871,7 +871,7 @@ const priceCNYHint = computed(() => {
 .card-days {
   overflow: hidden;
   color: #b0b0bc;
-  font-size: 11px;
+  font-size: var(--font-caption);
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -895,7 +895,7 @@ const priceCNYHint = computed(() => {
 }
 
 .goods-card--standard {
-  gap: 9px;
+  gap: 10px;
 }
 
 .goods-card--standard .card-cover {
@@ -917,13 +917,13 @@ const priceCNYHint = computed(() => {
 }
 
 .goods-card--standard .card-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.3;
   min-height: 2.6em;
 }
 
 .goods-card--comfortable {
-  gap: 9px;
+  gap: 10px;
 }
 
 .goods-card--comfortable .card-cover {
@@ -945,7 +945,7 @@ const priceCNYHint = computed(() => {
 }
 
 .goods-card--comfortable .card-name {
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   line-height: 1.3;
   min-height: 2.6em;
 }

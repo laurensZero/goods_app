@@ -93,7 +93,7 @@ async function handleCreate() {
 }
 
 .group-sheet__title {
-  font-size: 13px;
+  font-size: var(--font-body);
   font-weight: 500;
   color: var(--app-text-tertiary);
   text-align: center;
@@ -114,7 +114,7 @@ async function handleCreate() {
 
 .field-label {
   color: var(--app-text);
-  font-size: 14px;
+  font-size: var(--font-body-lg);
   font-weight: 600;
   padding: 0 2px;
 }
@@ -122,7 +122,7 @@ async function handleCreate() {
 .field-card {
   background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
   border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-  border-radius: var(--radius-card, 18px);
+  border-radius: var(--radius-card);
   padding: 0 14px;
 }
 
@@ -131,7 +131,7 @@ async function handleCreate() {
   height: var(--input-height, 48px);
   border: none;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--font-subtitle);
   color: var(--app-text);
   outline: none;
 }
@@ -143,10 +143,10 @@ async function handleCreate() {
 .group-sheet__submit {
   height: var(--button-height, 52px);
   border: none;
-  border-radius: var(--radius-small, 14px);
+  border-radius: var(--radius-small);
   background: var(--app-text);
   color: var(--app-surface);
-  font-size: 16px;
+  font-size: var(--font-title);
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.14s ease, opacity 0.14s ease;
