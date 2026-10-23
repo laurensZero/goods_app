@@ -448,7 +448,7 @@ async function handleLoginCookie(payload) {
 async function handleSwitchAccount(account) {
   const result = await switchAccount(account?.id)
   if (!result.ok) {
-    accountSheetRef.value?.setNotice?.(t('import.taobaoCookieExpired'))
+    accountSheetRef.value?.setNotice?.(t('import.taobaoCookieExpired'), 'error')
     return
   }
   showGlobalToast(t('import.currentAccount', { label: account?.label || '' }))

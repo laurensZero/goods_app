@@ -26,6 +26,13 @@ supabase-update.sql
 supabase-migration-*.sql
 scripts/mihoyo-checkout.mjs
 
+# 本地米游铺凭证测试文件（勿入库）
+stoken.txt
+cookie.txt
+mihoyo-qrcode*.png
+scripts/mihoyo-get-stoken.mjs
+scripts/mihoyo-stoken-test.mjs
+
 .local-bench/
 .profile/
 .bench/

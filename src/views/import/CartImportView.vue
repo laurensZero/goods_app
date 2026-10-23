@@ -37,11 +37,14 @@
       :accounts="accounts"
       :active-account-id="activeAccountId"
       :active-account-label="activeAccountLabel"
+      :refreshing-account-id="refreshingAccountId"
       @switch="onSwitchAccount"
       @remove="onRemoveAccount"
-      @logout="handleLogout"
       @login-native="onLoginNewNative"
       @login-cookie="onLoginNewCookie"
+      @refresh-account="onRefreshAccount"
+      :save-stoken="saveStokenForAccount"
+      :stoken-error-message="stokenErrorText"
     />
 
     <main class="page-body">
@@ -243,6 +246,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { canUseNativeMihoyoImport, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
+import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo/index'
 import {
   addMihoyoImportContextItem,
@@ -285,16 +289,18 @@ const {
   activeAccountId,
   activeAccountLabel,
   activeAccountAvatar,
+  refreshingAccountId,
   initializeCookieState,
   applySavedCookieToInput,
   applyCookieToNativeSession,
   persistCookieAfterSuccess,
   persistNativeCookieAfterSuccess,
   handleCookieFailure,
-  clearSavedCookie,
   switchAccount,
   removeAccount,
   refreshAccountProfiles,
+  refreshAccountWithStoken,
+  saveStokenForAccount,
   loginNewAccountNative,
   submitNewAccountCookie,
 } = useMihoyoCookieState()
@@ -521,10 +527,26 @@ async function bootstrapCookieState() {
   await startFetch({ silentCookieExpired: true })
 }
 
-async function handleLogout() {
-  await clearSavedCookie(true)
-  selectedSet.value = new Set()
-  step.value = 'cookie'
+function stokenErrorText(result) {
+  return stokenErrorMessage(t, result)
+}
+
+async function onRefreshAccount(account) {
+  try {
+    const result = await refreshAccountWithStoken(account?.id, { force: true })
+    if (result?.ok && !result.skipped) {
+      accountSheetRef.value?.setNotice?.(t('import.stokenRefreshSuccess'), 'success')
+      return
+    }
+    if (!result?.ok) {
+      accountSheetRef.value?.setNotice?.(stokenErrorText(result), 'error')
+    }
+  } catch (error) {
+    accountSheetRef.value?.setNotice?.(
+      String(error?.message || t('import.stokenRefreshFailed')),
+      'error'
+    )
+  }
 }
 
 async function onSwitchAccount(account) {

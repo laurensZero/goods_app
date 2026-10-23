@@ -28,14 +28,20 @@ import {
   clearMihoyoCookieState,
   formatMihoyoAccountLabel,
   getActiveMihoyoAccount,
+  getMihoyoStoken,
   listMihoyoAccounts,
   loadMihoyoCookieState,
+  markMihoyoAccountInvalid,
   markMihoyoCookieInvalid,
   parseMihoyoAccountId,
+  parseMihoyoAccountMid,
   removeMihoyoAccount,
+  removeMihoyoStoken,
   renameMihoyoAccount,
   saveMihoyoCookie,
+  saveMihoyoStoken,
   switchMihoyoAccount,
+  updateMihoyoAccountCookie,
   upsertMihoyoAccountProfile
 } from '../cookie'
 import { removeSecret } from '@/utils/platform/storage'
@@ -44,6 +50,7 @@ const STORAGE_KEY = 'mihoyo_cookie_state'
 const ACCOUNTS_KEY = 'mihoyo_accounts'
 const ACTIVE_ID_KEY = 'mihoyo_active_account_id'
 const NATIVE_STORAGE_KEY = 'mihoyo_native_session'
+const STOKENS_KEY = 'mihoyo_stokens'
 
 const COOKIE_A = 'account_id_v2=1111222233334444; ltoken_v2=aaa; cookie_token_v2=aaa'
 const COOKIE_B = 'ltuid_v2=5555666677778888; ltoken_v2=bbb; cookie_token_v2=bbb'
@@ -158,6 +165,96 @@ describe('save / list / switch 多账号', () => {
     const list = await listMihoyoAccounts()
     const b = list.find((item) => item.id === '5555666677778888')
     expect(b.invalidAt).toBeTruthy()
+  })
+})
+
+describe('stoken 保活存储', () => {
+  it('stoken 单独存储并同步 hasStoken', async () => {
+    await saveMihoyoCookie(COOKIE_A)
+    const saved = await saveMihoyoStoken('1111222233334444', {
+      stoken: 'v2_secret',
+      mid: 'mid_a',
+      stuid: '1111222233334444'
+    })
+    expect(saved.stoken).toBe('v2_secret')
+    expect(await getMihoyoStoken('1111222233334444')).toMatchObject({
+      stoken: 'v2_secret',
+      mid: 'mid_a'
+    })
+
+    const account = (await listMihoyoAccounts())[0]
+    expect(account.hasStoken).toBe(true)
+    expect(account.stokenUpdatedAt).toBeTruthy()
+    // stoken 不能混进账号列表 JSON
+    expect(state.secrets.get(ACCOUNTS_KEY)).not.toContain('v2_secret')
+  })
+
+  it('刷新替换 Cookie 时不切换当前账号', async () => {
+    await saveMihoyoCookie(COOKIE_A)
+    await saveMihoyoCookie(COOKIE_B)
+    expect((await getActiveMihoyoAccount()).id).toBe('5555666677778888')
+
+    const refreshed = 'account_id_v2=1111222233334444; ltoken=refreshed; cookie_token=refreshed'
+    const updated = await updateMihoyoAccountCookie('1111222233334444', refreshed)
+    expect(updated.cookie).toBe(refreshed)
+    expect((await getActiveMihoyoAccount()).id).toBe('5555666677778888')
+    expect((await loadMihoyoCookieState()).cookie).toBe(COOKIE_B)
+  })
+
+  it('auth 失败只标记账号，不丢 stoken 和旧 Cookie', async () => {
+    await saveMihoyoCookie(COOKIE_A)
+    await saveMihoyoStoken('1111222233334444', {
+      stoken: 'v2_secret',
+      mid: 'mid_a',
+      stuid: '1111222233334444'
+    })
+
+    await markMihoyoAccountInvalid('1111222233334444', 'stoken 已失效')
+    const account = (await listMihoyoAccounts())[0]
+    expect(account.invalidAt).toBeTruthy()
+    expect(account.cookie).toBe(COOKIE_A)
+    expect(account.hasStoken).toBe(true)
+    expect(await getMihoyoStoken('1111222233334444')).toMatchObject({ stoken: 'v2_secret' })
+  })
+
+  it('removeMihoyoStoken / removeMihoyoAccount 清理 stoken', async () => {
+    await saveMihoyoCookie(COOKIE_A)
+    await saveMihoyoStoken('1111222233334444', {
+      stoken: 'v2_secret',
+      mid: 'mid_a',
+      stuid: '1111222233334444'
+    })
+
+    expect(await removeMihoyoStoken('1111222233334444')).toBe(true)
+    expect(await getMihoyoStoken('1111222233334444')).toBe(null)
+    expect((await listMihoyoAccounts())[0].hasStoken).toBe(false)
+
+    await saveMihoyoStoken('1111222233334444', {
+      stoken: 'v2_secret2',
+      mid: 'mid_a',
+      stuid: '1111222233334444'
+    })
+    await removeMihoyoAccount('1111222233334444')
+    expect(await getMihoyoStoken('1111222233334444')).toBe(null)
+    expect(state.secrets.has(STOKENS_KEY)).toBe(false)
+  })
+
+  it('clear keepAccounts=false 时清理 stoken', async () => {
+    await saveMihoyoCookie(COOKIE_A)
+    await saveMihoyoStoken('1111222233334444', {
+      stoken: 'v2_secret',
+      mid: 'mid_a',
+      stuid: '1111222233334444'
+    })
+    await clearMihoyoCookieState({ keepAccounts: false })
+    expect(state.secrets.has(STOKENS_KEY)).toBe(false)
+  })
+
+  it('parseMihoyoAccountMid 支持 account_mid_v2 / ltmid_v2 / mid', () => {
+    expect(parseMihoyoAccountMid('account_mid_v2=mid_a; ltoken=1')).toBe('mid_a')
+    expect(parseMihoyoAccountMid('ltmid_v2=mid_b; ltoken=1')).toBe('mid_b')
+    expect(parseMihoyoAccountMid('mid=mid_c; stoken=1')).toBe('mid_c')
+    expect(parseMihoyoAccountMid('ltoken=1')).toBe('')
   })
 })
 

@@ -37,11 +37,14 @@
       :accounts="accounts"
       :active-account-id="activeAccountId"
       :active-account-label="activeAccountLabel"
+      :refreshing-account-id="refreshingAccountId"
       @switch="onSwitchAccount"
       @remove="onRemoveAccount"
-      @logout="handleLogout"
       @login-native="onLoginNewNative"
       @login-cookie="onLoginNewCookie"
+      @refresh-account="onRefreshAccount"
+      :save-stoken="saveStokenForAccount"
+      :stoken-error-message="stokenErrorText"
     />
 
     <main class="page-body">
@@ -315,6 +318,7 @@ import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
+import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
 import { fetchAllOrders, orderToGoodsList, resolveOrderDiscountCents } from '@/utils/mihoyo/index'
 import {
   addMihoyoImportContextItem,
@@ -359,16 +363,18 @@ const {
   activeAccountId,
   activeAccountLabel,
   activeAccountAvatar,
+  refreshingAccountId,
   initializeCookieState,
   applySavedCookieToInput,
   applyCookieToNativeSession,
   persistCookieAfterSuccess,
   persistNativeCookieAfterSuccess,
   handleCookieFailure,
-  clearSavedCookie,
   switchAccount,
   removeAccount,
   refreshAccountProfiles,
+  refreshAccountWithStoken,
+  saveStokenForAccount,
   loginNewAccountNative,
   submitNewAccountCookie,
 } = useMihoyoCookieState()
@@ -650,15 +656,6 @@ const mergedAllGoods = computed(() => {
 })
 
 // ── Actions ────────────────────────────────────────────────────
-async function handleLogout() {
-  await clearSavedCookie(true)
-  rawOrders.value = []
-  selectedSet.value = new Set()
-  expandedSet.value = new Set()
-  cappedWarning.value = false
-  step.value = 'cookie'
-}
-
 async function onSwitchAccount(account) {
   const result = await switchAccount(account?.id)
   if (!result.ok) {
@@ -678,6 +675,28 @@ async function onSwitchAccount(account) {
 
 async function onRemoveAccount(account) {
   await removeAccount(account?.id)
+}
+
+function stokenErrorText(result) {
+  return stokenErrorMessage(t, result)
+}
+
+async function onRefreshAccount(account) {
+  try {
+    const result = await refreshAccountWithStoken(account?.id, { force: true })
+    if (result?.ok && !result.skipped) {
+      accountSheetRef.value?.setNotice?.(t('import.stokenRefreshSuccess'), 'success')
+      return
+    }
+    if (!result?.ok) {
+      accountSheetRef.value?.setNotice?.(stokenErrorText(result), 'error')
+    }
+  } catch (error) {
+    accountSheetRef.value?.setNotice?.(
+      String(error?.message || t('import.stokenRefreshFailed')),
+      'error'
+    )
+  }
 }
 
 /** 登录/重登成功后：刷新订单（不只在切换账号时） */

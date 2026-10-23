@@ -6,6 +6,7 @@ const STORAGE_KEY = 'mihoyo_cookie_state'
 const ACCOUNTS_KEY = 'mihoyo_accounts'
 const ACTIVE_ID_KEY = 'mihoyo_active_account_id'
 const NATIVE_STORAGE_KEY = 'mihoyo_native_session'
+const STOKENS_KEY = 'mihoyo_stokens'
 
 /** 本地解析 Cookie，避免与 mihoyo/index 循环依赖 */
 function parseCookiePairs(cookieStr) {
@@ -54,6 +55,19 @@ export function parseMihoyoAccountId(cookie) {
   ).trim()
 }
 
+/** 从 Cookie 解析米游社 mid（stoken 换票时 Cookie 头需要） */
+export function parseMihoyoAccountMid(cookie) {
+  const parsed = parseCookiePairs(cookie)
+  return String(
+    parsed.account_mid_v2 ||
+    parsed.ltmid_v2 ||
+    parsed.account_mid ||
+    parsed.ltmid ||
+    parsed.mid ||
+    ''
+  ).trim()
+}
+
 /** 展示用标签：UID 前后各 4 位 */
 export function formatMihoyoAccountLabel(accountId, fallback = '') {
   const id = String(accountId || '').trim()
@@ -77,7 +91,13 @@ function normalizeAccount(raw) {
     cookie,
     updatedAt: String(raw.updatedAt || '').trim(),
     invalidAt: String(raw.invalidAt || '').trim(),
-    invalidReason: String(raw.invalidReason || '').trim()
+    invalidReason: String(raw.invalidReason || '').trim(),
+    hasStoken: Boolean(raw.hasStoken),
+    stokenUpdatedAt: String(raw.stokenUpdatedAt || '').trim(),
+    lastCheckedAt: String(raw.lastCheckedAt || '').trim(),
+    lastValidAt: String(raw.lastValidAt || '').trim(),
+    refreshError: String(raw.refreshError || '').trim(),
+    refreshErrorAt: String(raw.refreshErrorAt || '').trim()
   }
 }
 
@@ -190,6 +210,152 @@ async function writeActiveCookieState(state) {
   return next
 }
 
+// ── stoken 保活 ────────────────────────────────────────────────
+// stoken 单独存 secret map，不写进账号列表 JSON，避免 UI / 日志 / 导出带出长期凭证。
+
+async function readStokens() {
+  const value = await readSecret(STOKENS_KEY)
+  if (!value) return {}
+  try {
+    const parsed = JSON.parse(value)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {}
+    return parsed
+  } catch {
+    return {}
+  }
+}
+
+async function writeStokens(map) {
+  const entries = Object.entries(map || {}).filter(([id, item]) => (
+    String(id || '').trim() && String(item?.stoken || '').trim()
+  ))
+  if (entries.length === 0) {
+    await removeSecret(STOKENS_KEY)
+  } else {
+    await writeSecret(STOKENS_KEY, JSON.stringify(Object.fromEntries(entries)))
+  }
+}
+
+/** 读取某个账号的 stoken；不存在返回 null */
+export async function getMihoyoStoken(accountId) {
+  const id = String(accountId || '').trim()
+  if (!id) return null
+  const map = await readStokens()
+  const item = map[id]
+  if (!item?.stoken) return null
+  return {
+    stoken: String(item.stoken || '').trim(),
+    mid: String(item.mid || '').trim(),
+    stuid: String(item.stuid || '').trim(),
+    updatedAt: String(item.updatedAt || '').trim()
+  }
+}
+
+/** 保存 stoken，并同步账号记录的保活标记 */
+export async function saveMihoyoStoken(accountId, { stoken, mid = '', stuid = '' } = {}) {
+  const id = String(accountId || '').trim()
+  const value = String(stoken || '').trim()
+  if (!id || !value) return null
+  const map = await readStokens()
+  const now = new Date().toISOString()
+  map[id] = {
+    stoken: value,
+    mid: String(mid || '').trim(),
+    stuid: String(stuid || '').trim(),
+    updatedAt: now
+  }
+  await writeStokens(map)
+  await updateMihoyoAccountFields(id, {
+    hasStoken: true,
+    stokenUpdatedAt: now,
+    refreshError: '',
+    refreshErrorAt: ''
+  })
+  return map[id]
+}
+
+/** 删除某个账号的 stoken */
+export async function removeMihoyoStoken(accountId) {
+  const id = String(accountId || '').trim()
+  if (!id) return false
+  const map = await readStokens()
+  if (!map[id]) return false
+  delete map[id]
+  await writeStokens(map)
+  await updateMihoyoAccountFields(id, {
+    hasStoken: false,
+    stokenUpdatedAt: '',
+    lastCheckedAt: '',
+    lastValidAt: '',
+    refreshError: '',
+    refreshErrorAt: ''
+  })
+  return true
+}
+
+/**
+ * 按账号 id 局部更新账号字段，不改变当前激活账号。
+ * 用于后台刷新非当前账号、记录保活状态。
+ */
+async function updateMihoyoAccountFields(accountId, patch = {}) {
+  const id = String(accountId || '').trim()
+  if (!id) return null
+  const accounts = await migrateLegacyStateIfNeeded(await readAccounts())
+  const existing = accounts.find((item) => item.id === id)
+  if (!existing) return null
+
+  const nextAccount = normalizeAccount({ ...existing, ...patch })
+  if (!nextAccount) return null
+  const nextAccounts = accounts.map((item) => (item.id === id ? nextAccount : item))
+  await writeAccounts(nextAccounts)
+
+  const activeId = await readActiveAccountId()
+  if (activeId === id) {
+    await writeActiveCookieState(nextAccount)
+  }
+  return nextAccount
+}
+
+/** 刷新成功后原子替换账号 Cookie；不切换当前账号 */
+export async function updateMihoyoAccountCookie(accountId, cookie, patch = {}) {
+  const value = String(cookie || '').trim()
+  if (!value) return null
+  const now = new Date().toISOString()
+  return updateMihoyoAccountFields(accountId, {
+    cookie: value,
+    updatedAt: now,
+    invalidAt: '',
+    invalidReason: '',
+    lastValidAt: now,
+    lastCheckedAt: now,
+    refreshError: '',
+    refreshErrorAt: '',
+    ...patch
+  })
+}
+
+/** 记录一次检查结果（成功/临时失败都更新 lastCheckedAt） */
+export async function updateMihoyoAccountRefreshState(accountId, patch = {}) {
+  const now = new Date().toISOString()
+  return updateMihoyoAccountFields(accountId, {
+    lastCheckedAt: now,
+    ...patch
+  })
+}
+
+/** 按账号 id 标记失效（stoken 失效 / UID 不匹配） */
+export async function markMihoyoAccountInvalid(accountId, reason = '') {
+  const now = new Date().toISOString()
+  const message = String(reason || '').trim()
+  return updateMihoyoAccountFields(accountId, {
+    invalidAt: now,
+    invalidReason: message,
+    lastCheckedAt: now,
+    refreshError: message,
+    refreshErrorAt: now
+  })
+}
+
 /** 列出已保存的米游铺账号（保持保存顺序，不把当前号提前，避免选择时跳动） */
 export async function listMihoyoAccounts() {
   return migrateLegacyStateIfNeeded(await readAccounts())
@@ -215,10 +381,28 @@ export async function loadMihoyoCookieState() {
       accountId: active.accountId,
       accountLabel: active.label,
       accountAvatarUrl: active.avatarUrl || '',
-      accountIdKey: active.id
+      accountIdKey: active.id,
+      hasStoken: active.hasStoken,
+      stokenUpdatedAt: active.stokenUpdatedAt,
+      lastCheckedAt: active.lastCheckedAt,
+      lastValidAt: active.lastValidAt,
+      refreshError: active.refreshError,
+      refreshErrorAt: active.refreshErrorAt
     }
   }
-  return { ...getDefaultState(), accountId: '', accountLabel: '', accountAvatarUrl: '', accountIdKey: '' }
+  return {
+    ...getDefaultState(),
+    accountId: '',
+    accountLabel: '',
+    accountAvatarUrl: '',
+    accountIdKey: '',
+    hasStoken: false,
+    stokenUpdatedAt: '',
+    lastCheckedAt: '',
+    lastValidAt: '',
+    refreshError: '',
+    refreshErrorAt: ''
+  }
 }
 
 /**
@@ -245,6 +429,17 @@ export async function saveMihoyoCookie(cookie, options = {}) {
     || formatMihoyoAccountLabel(accountId, id)
   const avatarUrl = String(options.avatarUrl || existing?.avatarUrl || '').trim()
 
+  const stokenFields = existing
+    ? {
+        hasStoken: existing.hasStoken,
+        stokenUpdatedAt: existing.stokenUpdatedAt,
+        lastCheckedAt: existing.lastCheckedAt,
+        lastValidAt: existing.lastValidAt,
+        refreshError: '',
+        refreshErrorAt: ''
+      }
+    : {}
+
   const nextAccount = normalizeAccount({
     id,
     accountId,
@@ -253,7 +448,8 @@ export async function saveMihoyoCookie(cookie, options = {}) {
     cookie: value,
     updatedAt: now,
     invalidAt: '',
-    invalidReason: ''
+    invalidReason: '',
+    ...stokenFields
   })
 
   const nextAccounts = existing
@@ -297,7 +493,13 @@ export async function switchMihoyoAccount(accountId) {
     accountLabel: target.label,
     accountId: target.accountId,
     avatarUrl: target.avatarUrl || '',
-    id: target.id
+    id: target.id,
+    hasStoken: target.hasStoken,
+    stokenUpdatedAt: target.stokenUpdatedAt,
+    lastCheckedAt: target.lastCheckedAt,
+    lastValidAt: target.lastValidAt,
+    refreshError: target.refreshError,
+    refreshErrorAt: target.refreshErrorAt
   }
 }
 
@@ -354,6 +556,7 @@ export async function removeMihoyoAccount(accountId) {
   const accounts = await readAccounts()
   const next = accounts.filter((item) => item.id !== id)
   await writeAccounts(next)
+  await removeMihoyoStoken(id)
   const activeId = await readActiveAccountId()
   if (activeId === id) {
     await writeActiveAccountId('')
@@ -378,10 +581,17 @@ export async function markMihoyoCookieInvalid(cookie, reason = '') {
     id,
     accountId,
     label: existing?.label,
+    avatarUrl: existing?.avatarUrl,
     cookie: value,
     updatedAt: existing?.updatedAt || now,
     invalidAt: now,
-    invalidReason: String(reason || '').trim()
+    invalidReason: String(reason || '').trim(),
+    hasStoken: existing?.hasStoken || false,
+    stokenUpdatedAt: existing?.stokenUpdatedAt || '',
+    lastCheckedAt: existing?.lastCheckedAt || '',
+    lastValidAt: existing?.lastValidAt || '',
+    refreshError: String(reason || '').trim(),
+    refreshErrorAt: now
   })
 
   const nextAccounts = existing
@@ -409,6 +619,7 @@ export async function clearMihoyoCookieState(options = {}) {
   await writeActiveAccountId('')
   if (!keepAccounts) {
     await removeSecret(ACCOUNTS_KEY)
+    await removeSecret(STOKENS_KEY)
   }
   if (Capacitor.isNativePlatform()) {
     try { await Preferences.remove({ key: NATIVE_STORAGE_KEY }) } catch (e) { /* ignore */ }

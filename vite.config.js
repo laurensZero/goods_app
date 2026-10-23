@@ -310,6 +310,29 @@ export default defineConfig({
           })
         }
       },
+      // 米游社 Passport App 接口：stoken 换 ltoken / cookie_token。
+      // 浏览器不能设置 UA / Referer / Cookie，由代理补齐；原生端走 CapacitorHttp。
+      '/mihoyo-account-passport': {
+        target: 'https://passport-api.mihoyo.com',
+        changeOrigin: true,
+        agent: proxyAgent,
+        rewrite: (path) => path.replace(/^\/mihoyo-account-passport/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const forwardedCookie = req.headers['x-cookie-forward']
+            if (forwardedCookie) {
+              proxyReq.setHeader('cookie', decodeURIComponent(forwardedCookie))
+              proxyReq.removeHeader('x-cookie-forward')
+            }
+            proxyReq.removeHeader('origin')
+            proxyReq.setHeader(
+              'user-agent',
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2',
+            )
+            proxyReq.setHeader('referer', 'https://webstatic.mihoyo.com')
+          })
+        }
+      },
       '/netease-api': {
         target: 'https://music.163.com',
         changeOrigin: true,

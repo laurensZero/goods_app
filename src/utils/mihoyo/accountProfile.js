@@ -1,5 +1,6 @@
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { isMihoyoAuthHttpStatus, isMihoyoAuthRetcode } from '@/utils/mihoyo/authError'
 
 /**
  * 米游铺用户信息。
@@ -49,6 +50,11 @@ async function requestJson(url, proxyBase, path, cookie) {
       connectTimeout: 8000,
       readTimeout: 8000,
     })
+    if (Number(res.status) >= 400) {
+      const error = new Error(`请求失败（${res.status}）`)
+      error.status = Number(res.status)
+      throw error
+    }
     return typeof res.data === 'string' ? JSON.parse(res.data) : (res.data || {})
   }
 
@@ -61,6 +67,11 @@ async function requestJson(url, proxyBase, path, cookie) {
     headers: webHeaders,
     timeoutMs: 8000,
   })
+  if (!res.ok) {
+    const error = new Error(`请求失败（${res.status}）`)
+    error.status = Number(res.status)
+    throw error
+  }
   return res.json()
 }
 
@@ -86,6 +97,58 @@ export async function fetchMihoyoAccountProfile(cookie) {
     return pickProfile(json) || { nickname: '', avatarUrl: '', uid: '' }
   } catch {
     return { nickname: '', avatarUrl: '', uid: '' }
+  }
+}
+
+/**
+ * 严格校验 Cookie：返回完整结果，供 stoken 刷新流程判断是否允许替换旧 Cookie。
+ * 网络/代理失败归为 transient，只有明确鉴权错误才归为 auth。
+ * @param {string} cookie
+ * @returns {Promise<{ ok: boolean, kind: 'auth'|'transient'|'invalid', retcode: number|null, message: string, profile: object|null }>}
+ */
+export async function probeMihoyoUserInfo(cookie) {
+  const value = String(cookie || '').trim()
+  if (!value) {
+    return { ok: false, kind: 'auth', retcode: null, message: 'empty cookie', profile: null }
+  }
+
+  try {
+    const json = await requestJson(
+      `${USER_INFO.base}${USER_INFO.path}`,
+      USER_INFO.proxy,
+      USER_INFO.path,
+      value
+    )
+    const retcode = json?.retcode == null ? null : Number(json.retcode)
+    if (retcode != null && retcode !== 0) {
+      return {
+        ok: false,
+        kind: isMihoyoAuthRetcode(retcode) ? 'auth' : 'transient',
+        retcode,
+        message: String(json?.message || ''),
+        profile: null,
+      }
+    }
+
+    const profile = pickProfile(json)
+    if (!profile) {
+      return {
+        ok: false,
+        kind: 'invalid',
+        retcode,
+        message: 'user/info 返回为空',
+        profile: null,
+      }
+    }
+    return { ok: true, kind: 'ok', retcode, message: '', profile }
+  } catch (error) {
+    return {
+      ok: false,
+      kind: isMihoyoAuthHttpStatus(error?.status) ? 'auth' : 'transient',
+      retcode: null,
+      message: String(error?.message || error || '网络请求失败'),
+      profile: null,
+    }
   }
 }
 

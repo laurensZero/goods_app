@@ -3,17 +3,25 @@ import { isMihoyoCookieExpiredError, validateMihoyoCookie } from '@/utils/mihoyo
 import {
   clearMihoyoCookieState,
   getActiveMihoyoAccount,
+  getMihoyoStoken,
   isAutoMihoyoAccountLabel,
   listMihoyoAccounts,
   loadMihoyoCookieState,
+  markMihoyoAccountInvalid,
   markMihoyoCookieInvalid,
+  parseMihoyoAccountId,
+  parseMihoyoAccountMid,
   removeMihoyoAccount,
   renameMihoyoAccount,
   saveMihoyoCookie,
+  saveMihoyoStoken,
   switchMihoyoAccount,
+  updateMihoyoAccountCookie,
+  updateMihoyoAccountRefreshState,
   upsertMihoyoAccountProfile
 } from '@/utils/mihoyo/cookie'
 import { fetchMihoyoAccountProfile } from '@/utils/mihoyo/accountProfile'
+import { parseStokenInput, refreshMihoyoCookieWithStoken } from '@/utils/mihoyo/stokenRefresh'
 import {
   applyNativeMihoyoCookie,
   canUseNativeMihoyoImport,
@@ -24,6 +32,31 @@ import {
 } from '@/utils/mihoyo/nativeImport'
 
 const COOKIE_EXPIRED_MESSAGE = '已保存的 Cookie 可能已失效，请重新输入并更新。'
+/** 启动/切号时，超过这个间隔才自动检查 stoken；手动刷新不受限制 */
+const STALE_REFRESH_MS = 12 * 60 * 60 * 1000
+
+// 同一账号并发刷新复用同一个 Promise，避免启动检查 + 手动点击重复换票
+const refreshInFlight = new Map()
+let startupCheckPromise = null
+
+function isRefreshStale(account) {
+  const last = Date.parse(String(account?.lastCheckedAt || ''))
+  if (!Number.isFinite(last)) return true
+  return Date.now() - last >= STALE_REFRESH_MS
+}
+
+/** 给换票流程加硬超时，避免底层网络卡住导致按钮一直转圈 */
+function withTimeout(promise, ms, message) {
+  let timer = null
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), ms)
+    }),
+  ]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
 
 export function useMihoyoCookieState() {
   const cookieInput = ref('')
@@ -36,6 +69,7 @@ export function useMihoyoCookieState() {
   const activeAccountLabel = ref('')
   const activeAccountId = ref('')
   const activeAccountAvatar = ref('')
+  const refreshingAccountId = ref('')
 
   const cookieValid = computed(() => {
     const value = cookieInput.value.trim()
@@ -54,6 +88,185 @@ export function useMihoyoCookieState() {
     activeAccountId.value = String(active?.id || '')
     activeAccountLabel.value = String(active?.label || '')
     activeAccountAvatar.value = String(active?.avatarUrl || '')
+  }
+
+  /**
+   * 用 stoken 刷新指定账号的 Cookie。
+   * 成功才替换；鉴权失败才标记失效；网络失败只记录错误。
+   */
+  async function refreshAccountWithStoken(accountId, { force = false } = {}) {
+    const id = String(accountId || '').trim()
+    if (!id) return { ok: false, kind: 'missing-account', message: '账号不存在' }
+
+    if (refreshInFlight.has(id)) return refreshInFlight.get(id)
+
+    const promise = (async () => {
+      const list = await listMihoyoAccounts()
+      const account = list.find((item) => item.id === id)
+      if (!account) return { ok: false, kind: 'missing-account', message: '账号不存在' }
+
+      const stokenRecord = await getMihoyoStoken(id)
+      if (!stokenRecord?.stoken) return { ok: false, kind: 'no-stoken', message: '未配置 stoken' }
+      if (!force && !isRefreshStale(account)) return { ok: true, skipped: true }
+
+      const mid = stokenRecord.mid || parseMihoyoAccountMid(account.cookie)
+      const stuid = stokenRecord.stuid || account.accountId || parseMihoyoAccountId(account.cookie)
+      if (!mid) {
+        const result = {
+          ok: false,
+          kind: 'missing-mid',
+          message: '缺少 mid，请粘贴 stoken.txt 完整内容',
+        }
+        await updateMihoyoAccountRefreshState(id, {
+          refreshError: result.message,
+          refreshErrorAt: new Date().toISOString(),
+        })
+        await refreshAccounts()
+        return result
+      }
+
+      refreshingAccountId.value = id
+      try {
+        const result = await withTimeout(
+          refreshMihoyoCookieWithStoken({
+            stoken: stokenRecord.stoken,
+            mid,
+            stuid,
+          }),
+          35000,
+          '刷新超时，请检查网络后重试'
+        )
+        const now = new Date().toISOString()
+
+        if (result.ok) {
+          await updateMihoyoAccountCookie(id, result.cookie, {
+            hasStoken: true,
+            stokenUpdatedAt: stokenRecord.updatedAt || now,
+            lastValidAt: now,
+            lastCheckedAt: now,
+            refreshError: '',
+            refreshErrorAt: '',
+          })
+          if (result.profile?.nickname || result.profile?.avatarUrl) {
+            try {
+              await upsertMihoyoAccountProfile(id, result.profile)
+            } catch {
+              // 昵称/头像补拉失败不影响 Cookie 已刷新
+            }
+          }
+
+          const active = await getActiveMihoyoAccount()
+          if (active?.id === id) {
+            savedCookieValue.value = result.cookie
+            cookieInput.value = result.cookie
+            savedCookieInvalid.value = false
+            cookieWarningMessage.value = ''
+            hasSavedCookie.value = true
+            rememberCookie.value = true
+            try {
+              await applyCookieToNativeSession(result.cookie)
+            } catch {
+              // 原生会话写入失败时保留网页端已刷新的 Cookie
+            }
+          }
+
+          await refreshAccounts()
+          return { ...result, refreshed: true }
+        }
+
+        if (result.kind === 'auth' || result.kind === 'mismatch') {
+          await markMihoyoAccountInvalid(id, result.message || 'stoken 已失效')
+          const active = await getActiveMihoyoAccount()
+          if (active?.id === id) {
+            savedCookieInvalid.value = true
+            cookieWarningMessage.value = COOKIE_EXPIRED_MESSAGE
+          }
+        } else {
+          await updateMihoyoAccountRefreshState(id, {
+            refreshError: result.message || '刷新失败',
+            refreshErrorAt: now,
+          })
+        }
+
+        await refreshAccounts()
+        return result
+      } catch (error) {
+        const message = String(error?.message || error || '刷新失败')
+        await updateMihoyoAccountRefreshState(id, {
+          refreshError: message,
+          refreshErrorAt: new Date().toISOString(),
+        })
+        await refreshAccounts()
+        return { ok: false, kind: 'transient', message }
+      } finally {
+        if (refreshingAccountId.value === id) refreshingAccountId.value = ''
+      }
+    })()
+
+    refreshInFlight.set(id, promise)
+    try {
+      return await promise
+    } finally {
+      if (refreshInFlight.get(id) === promise) refreshInFlight.delete(id)
+    }
+  }
+
+  /** 保存/更新账号 stoken，并立即强制刷新一次 */
+  async function saveStokenForAccount(accountId, input) {
+    const id = String(accountId || '').trim()
+    const parsed = parseStokenInput(input)
+    if (!id) return { ok: false, kind: 'missing-account', message: '账号不存在' }
+    if (!parsed.stoken || parsed.stoken.length < 20 || /\s/.test(parsed.stoken)) {
+      return { ok: false, kind: 'invalid-stoken', message: 'stoken 格式不正确' }
+    }
+
+    const list = await listMihoyoAccounts()
+    const account = list.find((item) => item.id === id)
+    if (!account) return { ok: false, kind: 'missing-account', message: '账号不存在' }
+
+    const accountUid = String(account.accountId || parseMihoyoAccountId(account.cookie) || '').trim()
+    const accountMid = parseMihoyoAccountMid(account.cookie)
+    if (parsed.stuid && accountUid && parsed.stuid !== accountUid) {
+      return { ok: false, kind: 'mismatch', message: 'stoken 与当前账号不一致' }
+    }
+    if (parsed.mid && accountMid && parsed.mid !== accountMid) {
+      return { ok: false, kind: 'mismatch', message: 'stoken 与当前账号不一致' }
+    }
+
+    await saveMihoyoStoken(id, {
+      stoken: parsed.stoken,
+      mid: parsed.mid || accountMid,
+      stuid: parsed.stuid || accountUid,
+    })
+    await refreshAccounts()
+    return refreshAccountWithStoken(id, { force: true })
+  }
+
+  /** 手动刷新当前账号 */
+  async function refreshActiveAccount({ force = true } = {}) {
+    const active = await getActiveMihoyoAccount()
+    if (!active?.id) {
+      return { ok: false, kind: 'no-active-account', message: '当前没有登录账号' }
+    }
+    return refreshAccountWithStoken(active.id, { force })
+  }
+
+  /** App 启动 / 页面激活时检查当前账号；同一轮只跑一次 */
+  async function checkActiveAccountOnStartup() {
+    if (startupCheckPromise) return startupCheckPromise
+    startupCheckPromise = (async () => {
+      const active = await getActiveMihoyoAccount()
+      if (!active?.id) return { ok: true, skipped: true }
+      const record = await getMihoyoStoken(active.id)
+      if (!record?.stoken) return { ok: true, skipped: true }
+      if (!isRefreshStale(active)) return { ok: true, skipped: true }
+      return refreshAccountWithStoken(active.id, { force: false })
+    })()
+    try {
+      return await startupCheckPromise
+    } finally {
+      startupCheckPromise = null
+    }
   }
 
   /**
@@ -162,7 +375,18 @@ export function useMihoyoCookieState() {
     cookieInput.value = ''
     cookieWarningMessage.value = state.invalidAt ? COOKIE_EXPIRED_MESSAGE : ''
     await refreshAccounts()
-    void refreshAccountProfiles()
+    void (async () => {
+      try {
+        await checkActiveAccountOnStartup()
+      } catch {
+        // 保活失败不影响页面初始化
+      }
+      try {
+        await refreshAccountProfiles()
+      } catch {
+        // 资料补拉失败不影响页面
+      }
+    })()
   }
 
   function applySavedCookieToInput() {
@@ -319,6 +543,8 @@ export function useMihoyoCookieState() {
     activeAccountLabel.value = String(target.accountLabel || target.label || '')
     activeAccountAvatar.value = String(target.avatarUrl || target.accountAvatarUrl || '')
     await refreshAccounts()
+    // 切号后按需后台检查；失败不阻塞本次切换
+    void refreshAccountWithStoken(target.id, { force: false }).catch(() => {})
 
     return {
       ok: true,
@@ -362,6 +588,8 @@ export function useMihoyoCookieState() {
     cookieInput,
     rememberCookie,
     hasSavedCookie,
+    savedCookieValue,
+    savedCookieInvalid,
     mihoyoLoggedIn,
     cookieValid,
     cookieWarningMessage,
@@ -371,6 +599,7 @@ export function useMihoyoCookieState() {
     activeAccountLabel,
     activeAccountAvatar,
     hasMultipleAccounts,
+    refreshingAccountId,
     initializeCookieState,
     applySavedCookieToInput,
     applyCookieToNativeSession,
@@ -383,6 +612,10 @@ export function useMihoyoCookieState() {
     removeAccount,
     refreshAccounts,
     refreshAccountProfiles,
+    refreshAccountWithStoken,
+    refreshActiveAccount,
+    checkActiveAccountOnStartup,
+    saveStokenForAccount,
     loginNewAccountNative,
     submitNewAccountCookie
   }

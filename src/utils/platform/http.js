@@ -5,6 +5,7 @@ const DEFAULT_TIMEOUT_MS = 30000
 const DESKTOP_PROXY_RULES = Object.freeze([
   { prefix: '/mihoyo-api', target: 'https://api-mall.mihoyogift.com' },
   { prefix: '/mihoyo-passport', target: 'https://passport-api.mihoyogift.com' },
+  { prefix: '/mihoyo-account-passport', target: 'https://passport-api.mihoyo.com' },
   { prefix: '/mihoyo-static', target: 'https://sdk-webstatic.mihoyo.com' },
   { prefix: '/netease-api', target: 'https://music.163.com' },
   { prefix: '/qqmusic-api', target: 'https://u.y.qq.com' },
@@ -107,10 +108,46 @@ function createNativeResponse({ status = 0, headers = {}, body = '', url = '' })
   }
 }
 
+/**
+ * 浏览器 fetch 本身没有超时；调用方传了 timeoutMs 时必须显式中止，
+ * 否则代理/网络异常时请求会一直挂着。
+ */
+async function fetchWithTimeout(input, init = {}) {
+  const timeoutMs = Math.max(0, Number(init?.timeoutMs) || 0)
+  if (!timeoutMs || typeof AbortController === 'undefined') {
+    return fetch(input, init)
+  }
+
+  const externalSignal = init?.signal
+  if (externalSignal?.aborted) {
+    throw new DOMException('The operation was aborted.', 'AbortError')
+  }
+
+  const controller = new AbortController()
+  let abortHandler = null
+  if (externalSignal) {
+    abortHandler = () => controller.abort()
+    externalSignal.addEventListener('abort', abortHandler, { once: true })
+  }
+
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(input, { ...init, signal: controller.signal })
+  } catch (error) {
+    if (error?.name === 'AbortError' && !externalSignal?.aborted) {
+      throw new Error('请求超时，请检查网络连接')
+    }
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+    if (abortHandler) externalSignal.removeEventListener('abort', abortHandler)
+  }
+}
+
 export async function fetchWithPlatformBridge(input, init = {}) {
   const requestUrl = typeof input === 'string' ? input : String(input?.url || '')
   if (!shouldUseNativeHttp(requestUrl)) {
-    return fetch(input, init)
+    return fetchWithTimeout(input, init)
   }
 
   const method = String(init?.method || 'GET').toUpperCase()

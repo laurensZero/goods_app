@@ -152,3 +152,14 @@ describe('useMihoyoCookieState（安卓端粘贴 Cookie 同步原生会话）', 
     expect(mocks.saveMihoyoCookie).toHaveBeenCalledWith(COOKIE, expect.any(Object))
   })
 })
+
+describe('useMihoyoCookieState 对外状态', () => {
+  it('暴露 savedCookieValue / savedCookieInvalid 供结算页读取', () => {
+    const state = useMihoyoCookieState()
+
+    // 结算页会用 savedCookieValue.value 自动带入已保存 Cookie；
+    // 忘记从 composable 返回会直接抛 "reading 'value'"。
+    expect(state.savedCookieValue?.value).toBe('')
+    expect(state.savedCookieInvalid?.value).toBe(false)
+  })
+})
