@@ -59,6 +59,7 @@ import { useI18n } from 'vue-i18n'
 import { formatMonthLabel } from '@/utils/format'
 import { vibrate as hapticVibrate, HAPTIC_TICK } from '@/utils/platform/haptics'
 import { monthIndexFromRailRatio } from '@/utils/goods/timelineScrubber'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 
 const props = defineProps({
   months: { type: Array, required: true },
@@ -84,6 +85,8 @@ const TRACK_TOP = 88
 const TRACK_BOTTOM = 100
 
 const scrubbing = ref(false)
+// 月份滑条拖动是长距竖向手势，期间屏蔽顶部下拉唤起 AI 弹窗
+usePullDownBlock(scrubbing)
 const side = ref('right')
 const activeIndex = ref(0)
 const railEl = ref(null)
@@ -949,7 +952,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   min-height: 18px;
-  margin: 3px 0;
+  margin: 4px 0;
 }
 
 .tl-scrub-year-label {

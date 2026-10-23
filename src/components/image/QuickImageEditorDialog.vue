@@ -234,6 +234,7 @@ import { useEditorHistory } from '@/composables/image/useEditorHistory'
 import { useImageCutout, checkCloudCutoutPermission } from '@/composables/image/useImageCutout'
 import { useImageExport } from '@/composables/image/useImageExport'
 import { clamp } from '@/utils/image/frameRenderer'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 import '@/components/image/editor/editor-panels.css'
 
 const props = defineProps({
@@ -248,6 +249,9 @@ const props = defineProps({
 const emit = defineEmits(['update:show', 'save'])
 
 const { t } = useI18n()
+
+// 画布裁剪/抠图等大幅手势期间屏蔽全局下拉唤起 AI 弹窗
+usePullDownBlock(() => props.show)
 
 const imageRef = ref(null)
 const previewRef = ref(null)

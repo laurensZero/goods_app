@@ -1,4 +1,5 @@
 import { onBeforeUnmount, reactive } from 'vue'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 
 /**
  * 预设管理列表的拖动重排（参考活动曲目列表的拖拽手感）。
@@ -40,6 +41,9 @@ export function usePresetReorderDrag({
     startScrollY: 0
   })
   let autoScrollRafId = 0
+
+  // 拖动重排是长距竖向手势，期间屏蔽顶部下拉唤起 AI 弹窗
+  usePullDownBlock(() => drag.active)
 
   function isDragging(index) {
     return drag.active && drag.index === index

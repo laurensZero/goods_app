@@ -1,6 +1,7 @@
 // @ts-check
 import { onBeforeUnmount, reactive, ref } from 'vue'
 import { vibrate, HAPTIC_LIGHT } from '@/utils/platform/haptics'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 
 /**
  * 多选模式下从谷子封面右上角把手拖动重排。
@@ -66,6 +67,8 @@ export function useGoodsReorderDrag(options) {
 
   const dragActive = ref(false)
   const dragId = ref('')
+  // 长按拖动卡片是长距竖向手势，期间屏蔽顶部下拉唤起 AI 弹窗
+  usePullDownBlock(dragActive)
   const dragStyle = ref(/** @type {Record<string, string> | null} */ (null))
   const shiftMap = reactive(/** @type {Record<string, string>} */ ({}))
   const targetId = ref('')

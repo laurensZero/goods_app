@@ -249,6 +249,7 @@ import { parseTrackSourceInput } from '@/utils/music/trackSourceInput'
 import { fetchTrackMetaBySource } from '@/utils/music/trackMeta'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import TrackPagePickerSheet from '@/components/events/TrackPagePickerSheet.vue'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 
 const { t } = useI18n()
 
@@ -319,6 +320,9 @@ const drag = reactive({
   startScrollY: 0
 })
 let autoScrollRafId = 0
+
+// 曲目拖拽排序期间屏蔽顶部下拉唤起 AI 弹窗
+usePullDownBlock(() => drag.active)
 
 function isItemDragging(index) {
   return drag.active && drag.index === index

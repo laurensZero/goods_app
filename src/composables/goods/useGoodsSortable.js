@@ -1,6 +1,7 @@
 // @ts-check
-import { onBeforeUnmount } from 'vue'
+import { onBeforeUnmount, ref } from 'vue'
 import Sortable from 'sortablejs'
+import { usePullDownBlock } from '@/composables/usePullDownGesture'
 
 /**
  * 虚拟列表重排合并：把 DOM 上可见 goods 的新顺序写回它们在全量序列中的槽位。
@@ -95,6 +96,9 @@ export function useGoodsSortable(options) {
 
   /** @type {import('sortablejs').Sortable | null} */
   let sortable = null
+  const sortableDragging = ref(false)
+  // SortableJS 网格拖拽是长距竖向手势，期间屏蔽顶部下拉唤起 AI 弹窗
+  usePullDownBlock(sortableDragging)
   let syncing = false
   let markedGroupId = false
   /** @type {string} */
@@ -148,6 +152,7 @@ export function useGoodsSortable(options) {
 
   function beginDragMarking(draggedId) {
     currentDragId = draggedId
+    sortableDragging.value = true
     try { document.body.classList.add('goods-reorder-dragging') } catch {}
     if (draggedId) markDropTargets(draggedId)
     // 组限制模式：滚动加载新卡时补灰色遮罩
@@ -156,6 +161,7 @@ export function useGoodsSortable(options) {
 
   function endDragMarking() {
     currentDragId = ''
+    sortableDragging.value = false
     detachDragScrollWatch()
     try { document.body.classList.remove('goods-reorder-dragging') } catch {}
     clearDropTargets()

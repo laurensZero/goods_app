@@ -4,12 +4,30 @@
  *
  * 判定链：按下时页面在顶部（任意可滚动祖先的 scrollTop 都为 0）→
  * 单指下拉超过 thresholdPx（横向偏移受限）→ 手指基本不动保持 holdMs → 触发。
- * 全程 passive 监听、不拦截滚动；有弹窗（useDialogBackButton 的 overlayStack）
- * 或 enabled() 为 false 时不启用。每次触摸最多触发一次。
+ * 全程 passive 监听、不拦截滚动；有弹窗（useDialogBackButton 的 overlayStack）、
+ * 有 usePullDownBlock 注册的屏蔽或 enabled() 为 false 时不启用。每次触摸最多触发一次。
  */
 
-import { onBeforeUnmount, onMounted } from 'vue'
+import { onBeforeUnmount, onMounted, toValue, watch } from 'vue'
 import { hasOverlays } from '@/composables/useDialogBackButton'
+
+// 外部主动屏蔽下拉手势的注册表：地图平移、画布绘制、拖拽排序等
+// 大幅触摸交互进行中时注册，避免误触发 AI 助手弹窗。
+const externalBlockers = new Set()
+let blockerSeq = 0
+
+/**
+ * 在 active 为真期间屏蔽全局下拉手势（随组件卸载自动解除）。
+ * @param {import('vue').Ref<boolean> | (() => boolean)} active
+ */
+export function usePullDownBlock(active) {
+  const token = `blocker-${blockerSeq++}`
+  watch(() => !!toValue(active), (on) => {
+    if (on) externalBlockers.add(token)
+    else externalBlockers.delete(token)
+  }, { immediate: true })
+  onBeforeUnmount(() => externalBlockers.delete(token))
+}
 
 /**
  * @param {{
@@ -43,7 +61,7 @@ export function usePullDownGesture(options = {}) {
   /** @param {TouchEvent} event */
   function isActiveTouch(event) {
     if (triggered || !event.touches || event.touches.length !== 1) return false
-    if (hasOverlays() || !enabled()) return false
+    if (hasOverlays() || externalBlockers.size > 0 || !enabled()) return false
     const target = event.target
     if (target instanceof Element && target.closest('textarea, input, [contenteditable="true"]')) return false
     return true

@@ -215,8 +215,10 @@ useDeepLinks({
 })
 
 const aiAssistantVisible = ref(false)
+// 地图平移等页面有大幅竖向手势，容易误触顶部下拉唤起 AI，按路由屏蔽
+const pullDownDisabledRoutes = new Set(['event-map'])
 usePullDownGesture({
-  enabled: () => route.name !== 'manage-ai-chat' && !aiAssistantVisible.value && isPullDownGestureEnabled(),
+  enabled: () => !pullDownDisabledRoutes.has(String(route.name)) && route.name !== 'manage-ai-chat' && !aiAssistantVisible.value && isPullDownGestureEnabled(),
   onTrigger: () => {
     aiAssistantVisible.value = true
   }
