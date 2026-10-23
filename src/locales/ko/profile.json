@@ -17,6 +17,7 @@
   "profile.empty.description": "이 컬렉션에 해당하는 굿즈가 없습니다",
   "profile.empty.action": "추가하기",
   "profile.entry.open": "컬렉션 열기",
+  "profile.entry.openCharacter": "캐릭터 컬렉션 열기",
   "profile.entry.openNamed": "{name} 컬렉션 열기",
   "profile.background.title": "배경 사용자 지정",
   "profile.background.eyebrow": "개인화",

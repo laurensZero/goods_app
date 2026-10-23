@@ -17,6 +17,7 @@
   "profile.empty.description": "No items match this collection",
   "profile.empty.action": "Add items",
   "profile.entry.open": "Open collection",
+  "profile.entry.openCharacter": "Open character collection",
   "profile.entry.openNamed": "Open {name} collection",
   "profile.background.title": "Custom background",
   "profile.background.eyebrow": "Personalize",

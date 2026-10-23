@@ -35,7 +35,7 @@
             type="button"
             @click="$emit('open-profile', { kind: entry.kind, name: entry.name, ip: entry.ip })"
           >
-            {{ t('profile.entry.openNamed', { name: entry.displayName }) }}
+            {{ profileEntryLabel(entry) }}
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -392,7 +392,7 @@
                       type="button"
                       @click="$emit('open-profile', { kind: 'character', name: target.name, ip: target.ip })"
                     >
-                      {{ t('profile.entry.openNamed', { name: target.displayName }) }}
+                      {{ profileEntryLabel(target) }}
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M9 6l6 6-6 6" />
                       </svg>
@@ -572,9 +572,26 @@ const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters
 
 const PROFILE_ENTRY_LIMIT = 3
 
-/** 展示名：带上 IP，重名时才能区分 */
-function profileDisplayName(name, ip) {
-  return ip ? `${name} · ${ip}` : name
+/** 展示名：只有多 IP 重名时才带 IP，普通角色只显示名字 */
+function profileDisplayName(name, ip, ambiguous = false) {
+  return ambiguous && ip ? `${name} · ${ip}` : name
+}
+
+/** 入口按钮文案：普通角色给「进入角色收藏馆」，多 IP 重名才带上名字 + IP 区分 */
+function profileEntryLabel(entry) {
+  if (entry.kind === 'character' && !entry.ambiguous) return t('profile.entry.openCharacter')
+  return t('profile.entry.openNamed', { name: entry.displayName })
+}
+
+/** 同名角色是否落在多个 IP 下（多 IP 重名才需要在入口上标 IP） */
+function buildAmbiguousNameMatcher(targets) {
+  const ipsByName = new Map()
+  for (const target of targets) {
+    if (!target.ip) continue
+    if (!ipsByName.has(target.name)) ipsByName.set(target.name, new Set())
+    ipsByName.get(target.name).add(target.ip)
+  }
+  return (name) => (ipsByName.get(name)?.size || 0) > 1
 }
 
 /** 角色收藏馆候选：宿主给了 (ip, name) 目标就用它，否则退回只有名字的 characterOptions */
@@ -607,10 +624,17 @@ function buildProfileCandidates() {
   for (const option of props.ipOptions) {
     const name = String(option?.value || '').trim()
     if (!name || name === GOODS_FILTER_SPECIAL_VALUES.noIp) continue
-    candidates.push({ kind: 'ip', name, ip: '' })
+    candidates.push({ kind: 'ip', name, ip: '', ambiguous: false })
   }
-  for (const target of resolveCharacterProfileTargets()) {
-    candidates.push({ kind: 'character', name: target.name, ip: target.ip })
+  const targets = resolveCharacterProfileTargets()
+  const isAmbiguousName = buildAmbiguousNameMatcher(targets)
+  for (const target of targets) {
+    candidates.push({
+      kind: 'character',
+      name: target.name,
+      ip: target.ip,
+      ambiguous: isAmbiguousName(target.name)
+    })
   }
   return candidates
 }
@@ -657,7 +681,7 @@ const keywordProfileEntries = computed(() => {
       ...candidate,
       rank,
       key: `${candidate.kind}:${candidate.ip || ''}\u0000${candidate.name}`,
-      displayName: profileDisplayName(candidate.name, candidate.ip)
+      displayName: profileDisplayName(candidate.name, candidate.ip, candidate.ambiguous)
     })
   }
 
@@ -672,15 +696,25 @@ const keywordProfileEntries = computed(() => {
     .slice(0, PROFILE_ENTRY_LIMIT)
 })
 
-/** 单选一个角色 chip 时的收藏馆入口：同名跨 IP 时每个 IP 给一个 */
+/** 单选一个角色 chip 时的收藏馆入口：只有同名跨多个 IP 才拆成多个入口 */
 const selectedCharacterProfileTargets = computed(() => {
   if (!props.showProfileEntry) return []
   if (props.filters.characters?.length !== 1) return []
   const selected = String(props.filters.characters[0] || '').trim()
   if (!selected || selected === GOODS_FILTER_SPECIAL_VALUES.noCharacter) return []
-  return resolveCharacterProfileTargets()
+  const targets = resolveCharacterProfileTargets()
+  const isAmbiguousName = buildAmbiguousNameMatcher(targets)
+  return targets
     .filter((target) => target.name === selected)
-    .map((target) => ({ ...target, displayName: profileDisplayName(target.name, target.ip) }))
+    .map((target) => {
+      const ambiguous = isAmbiguousName(target.name)
+      return {
+        ...target,
+        kind: 'character',
+        ambiguous,
+        displayName: profileDisplayName(target.name, target.ip, ambiguous)
+      }
+    })
 })
 
 watch(showProxy, async (visible) => {

@@ -17,6 +17,7 @@
   "profile.empty.description": "このコレクションに一致するアイテムはありません",
   "profile.empty.action": "追加する",
   "profile.entry.open": "コレクションを開く",
+  "profile.entry.openCharacter": "キャラコレクションを開く",
   "profile.entry.openNamed": "「{name}」のコレクションを開く",
   "profile.background.title": "カスタム背景",
   "profile.background.eyebrow": "カスタマイズ",

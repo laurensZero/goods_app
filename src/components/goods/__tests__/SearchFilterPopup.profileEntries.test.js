@@ -82,6 +82,10 @@ const twoIps = [
   { name: '小樱', ip: 'IP-B' }
 ]
 
+const singleIp = [
+  { name: '小樱', ip: 'IP-A' }
+]
+
 beforeEach(() => {
   document.body.innerHTML = ''
 })
@@ -137,6 +141,42 @@ describe('SearchFilterPopup 收藏馆入口（角色重名跨 IP）', () => {
     wrapper.unmount()
   })
 
+  it('角色没有多 IP 重名时，入口不标 IP，直接进入角色收藏馆', async () => {
+    const wrapper = await mountPopup({
+      filters: { ...baseFilters, keyword: '小樱' },
+      characterProfileTargets: singleIp
+    })
+
+    const entries = entryNodes()
+    expect(entries).toHaveLength(1)
+    expect(entries[0].textContent).not.toContain('IP-A')
+    expect(entries[0].textContent).not.toContain('小樱')
+
+    clickOn(entries[0])
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('open-profile')[0]).toEqual([
+      { kind: 'character', name: '小樱', ip: 'IP-A' }
+    ])
+
+    wrapper.unmount()
+  })
+
+  it('单选一个角色 chip 且没有多 IP 重名时，只给一个「进入角色收藏馆」入口', async () => {
+    const wrapper = await mountPopup({
+      filters: { ...baseFilters, characters: ['小樱'] },
+      characterOptions: [{ label: '小樱', value: '小樱' }],
+      visibleCharacterOptions: [{ label: '小樱', value: '小樱' }],
+      characterProfileTargets: singleIp
+    })
+
+    const entries = entryNodes(document.querySelector('.filter-card'))
+    expect(entries).toHaveLength(1)
+    expect(entries[0].textContent).not.toContain('IP-A')
+    expect(entries[0].textContent).not.toContain('小樱')
+
+    wrapper.unmount()
+  })
+
   it('未提供 (ip,name) 目标时退回按名字生成入口（ip 为空）', async () => {
     const wrapper = await mountPopup({
       filters: { ...baseFilters, keyword: '小樱' },
@@ -145,8 +185,8 @@ describe('SearchFilterPopup 收藏馆入口（角色重名跨 IP）', () => {
 
     const entries = entryNodes()
     expect(entries).toHaveLength(1)
-    expect(entries[0].textContent).toContain('小樱')
     expect(entries[0].textContent).not.toContain('IP-')
+    expect(entries[0].textContent).not.toContain('小樱')
 
     clickOn(entries[0])
     await wrapper.vm.$nextTick()
