@@ -60,17 +60,49 @@ export function splitUnitPrices(totalCents, quantity) {
 }
 
 /**
+ * @param {Object} item
+ * @param {{ ghost?: boolean, fallbackId?: string }} [opts]
+ */
+function buildRow(item, { ghost = false, fallbackId = '' } = {}) {
+  const priceCents = toCents(item?.price)
+  const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1))
+  const listedCents = priceCents * qty
+  return {
+    id: String(item?.id || fallbackId),
+    name: String(item?.name || ''),
+    ghost,
+    price: priceCents / 100,
+    quantity: qty,
+    listedCents,
+    listedTotal: listedCents / 100,
+    discount: 0,
+    actualTotal: listedCents / 100,
+    actualPrice: toYuan(listedCents),
+    unitActualPriceList: splitUnitPrices(listedCents, qty),
+    eligible: priceCents > 0,
+    discountCents: 0,
+    actualCents: listedCents
+  }
+}
+
+/**
  * @param {Array<{ id: string, name?: string, price?: string|number, quantity?: number, currency?: string }>} items
  * @param {number|string} couponAmount - 优惠总额（元）
+ * @param {Array<{ id?: string, name?: string, price?: string|number, quantity?: number }>} [ghostItems]
+ *   已退掉/退款的「幽灵谷子」：不写回收藏，但按标价×数量参与分摊，让留在收藏里的谷子
+ *   保持与整单一致的分摊比例（退掉那件占用的优惠份额不会被剩下几件吃掉，也不会丢）。
  * @returns {{
  *   ok: boolean,
  *   reason?: string,
  *   couponAmount: number,
  *   totalListed: number,
  *   totalAllocated: number,
+ *   ghostListed: number,
+ *   ghostAllocated: number,
  *   rows: Array<{
  *     id: string,
  *     name: string,
+ *     ghost: boolean,
  *     price: number,
  *     quantity: number,
  *     listedTotal: number,
@@ -82,30 +114,15 @@ export function splitUnitPrices(totalCents, quantity) {
  *   }>
  * }}
  */
-export function allocateCouponByListedPrice(items, couponAmount) {
+export function allocateCouponByListedPrice(items, couponAmount, ghostItems = []) {
   const amountCents = toCents(couponAmount)
   const list = Array.isArray(items) ? items : []
+  const ghosts = Array.isArray(ghostItems) ? ghostItems : []
 
-  const rows = list.map((item) => {
-    const priceCents = toCents(item?.price)
-    const qty = Math.max(1, Math.floor(Number(item?.quantity) || 1))
-    const listedCents = priceCents * qty
-    return {
-      id: String(item?.id || ''),
-      name: String(item?.name || ''),
-      price: priceCents / 100,
-      quantity: qty,
-      listedCents,
-      listedTotal: listedCents / 100,
-      discount: 0,
-      actualTotal: listedCents / 100,
-      actualPrice: toYuan(listedCents),
-      unitActualPriceList: splitUnitPrices(listedCents, qty),
-      eligible: priceCents > 0,
-      discountCents: 0,
-      actualCents: listedCents
-    }
-  })
+  const rows = [
+    ...list.map((item) => buildRow(item)),
+    ...ghosts.map((item, index) => buildRow(item, { ghost: true, fallbackId: `ghost_${index}` }))
+  ]
 
   const eligibleIndexes = rows.map((r, i) => (r.eligible ? i : -1)).filter((i) => i >= 0)
   const weights = eligibleIndexes.map((i) => rows[i].listedCents)
@@ -118,6 +135,8 @@ export function allocateCouponByListedPrice(items, couponAmount) {
       couponAmount: 0,
       totalListed: totalListedCents / 100,
       totalAllocated: 0,
+      ghostListed: sumGhostCents(rows, (r) => r.listedCents) / 100,
+      ghostAllocated: 0,
       rows: rows.map(publicRow)
     }
   }
@@ -128,6 +147,8 @@ export function allocateCouponByListedPrice(items, couponAmount) {
       couponAmount: amountCents / 100,
       totalListed: 0,
       totalAllocated: 0,
+      ghostListed: 0,
+      ghostAllocated: 0,
       rows: rows.map(publicRow)
     }
   }
@@ -155,14 +176,22 @@ export function allocateCouponByListedPrice(items, couponAmount) {
     couponAmount: amountCents / 100,
     totalListed: totalListedCents / 100,
     totalAllocated: totalAllocated / 100,
+    ghostListed: sumGhostCents(rows, (r) => r.listedCents) / 100,
+    ghostAllocated: sumGhostCents(rows, (r) => r.discountCents) / 100,
     rows: rows.map(publicRow)
   }
+}
+
+/** 幽灵谷子的分项合计（行内均为分） */
+function sumGhostCents(rows, pick) {
+  return rows.reduce((sum, row) => (row.ghost ? sum + pick(row) : sum), 0)
 }
 
 function publicRow(row) {
   return {
     id: row.id,
     name: row.name,
+    ghost: row.ghost,
     price: row.price,
     quantity: row.quantity,
     listedTotal: row.listedTotal,

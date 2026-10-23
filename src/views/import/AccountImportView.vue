@@ -315,7 +315,7 @@ import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
-import { fetchAllOrders, orderToGoodsList } from '@/utils/mihoyo/index'
+import { fetchAllOrders, orderToGoodsList, resolveOrderDiscountCents } from '@/utils/mihoyo/index'
 import {
   addMihoyoImportContextItem,
   buildMihoyoImportContext,
@@ -602,8 +602,9 @@ const processedOrders = computed(() =>
         }
       }
       const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
-      const discountCents = Number(order.discounts?.total_discount)
-      const hasDiscount = Number.isFinite(discountCents) && discountCents > 0
+      // 与入手价分摊共用同一套优惠解析（含 discounts 缺失时按金额兜底）
+      const discountCents = resolveOrderDiscountCents(order)
+      const hasDiscount = discountCents > 0
       return {
         raw: order,
         orderNo: order.order_no || order.orderNo || '',

@@ -99,3 +99,59 @@ describe('allocateCouponByListedPrice', () => {
     expect(result.totalAllocated).toBeCloseTo(30, 2)
   })
 })
+
+describe('allocateCouponByListedPrice 幽灵谷子（已退款）', () => {
+  const real = [
+    { id: 'a', name: '徽章', price: '100', quantity: 1 },
+    { id: 'b', name: '立牌', price: '100', quantity: 1 }
+  ]
+
+  it('退掉的那件按幽灵参与分摊，剩余谷子维持整单比例', () => {
+    // 满 300 减 50：三件各 100 → 幽灵 C 仍占 16.66 优惠，A/B 维持 83.33
+    const result = allocateCouponByListedPrice(real, 50, [
+      { id: 'ghost-c', name: '退款挂件', price: '100', quantity: 1 }
+    ])
+    expect(result.ok).toBe(true)
+    expect(result.totalListed).toBeCloseTo(300, 2)
+    expect(result.totalAllocated).toBeCloseTo(50, 2)
+    expect(result.rows).toHaveLength(3)
+    expect(result.rows[0].actualPrice).toBe('83.33')
+    expect(result.rows[1].actualPrice).toBe('83.33')
+    expect(result.rows[2].ghost).toBe(true)
+    expect(result.rows[2].discount).toBeCloseTo(16.66, 2)
+    expect(result.ghostListed).toBeCloseTo(100, 2)
+    expect(result.ghostAllocated).toBeCloseTo(16.66, 2)
+  })
+
+  it('幽灵与真实谷子同权：退款额越大，剩余谷子分摊越少', () => {
+    const result = allocateCouponByListedPrice(real, 50, [{ price: '300' }])
+    // 标价合计 500，A/B 各 100/500 → 各摊 10，入手价 90
+    expect(result.rows[0].actualPrice).toBe('90.00')
+    expect(result.rows[1].actualPrice).toBe('90.00')
+  })
+
+  it('无标价的幽灵不参与分摊，也不占优惠份额', () => {
+    const result = allocateCouponByListedPrice(real, 50, [{ price: '' }, { price: '0' }])
+    expect(result.totalListed).toBeCloseTo(200, 2)
+    expect(result.ghostListed).toBe(0)
+    expect(result.rows[0].eligible).toBe(true)
+    expect(result.rows[2].eligible).toBe(false)
+    expect(result.rows[0].actualPrice).toBe('75.00')
+  })
+
+  it('幽灵与真实谷子一起封顶：优惠不超过含幽灵的标价合计', () => {
+    const result = allocateCouponByListedPrice(real, 999, [{ price: '100' }])
+    expect(result.totalListed).toBeCloseTo(300, 2)
+    expect(result.totalAllocated).toBeCloseTo(300, 2)
+    expect(result.rows[0].actualPrice).toBe('0.00')
+    expect(result.rows[2].actualPrice).toBe('0.00')
+  })
+
+  it('不传幽灵谷子时行为与旧版一致', () => {
+    const result = allocateCouponByListedPrice(real, 50)
+    expect(result.totalListed).toBeCloseTo(200, 2)
+    expect(result.rows).toHaveLength(2)
+    expect(result.rows.every((row) => row.ghost === false)).toBe(true)
+    expect(result.ghostListed).toBe(0)
+  })
+})

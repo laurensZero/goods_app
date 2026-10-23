@@ -32,6 +32,53 @@
             <span v-if="previewError" class="field-error">{{ previewError }}</span>
           </label>
 
+          <div class="ghost-block" :class="{ 'ghost-block--open': ghostPanelOpen }">
+            <button class="ghost-toggle" type="button" @click="ghostPanelOpen = !ghostPanelOpen">
+              <span class="ghost-toggle__label">
+                {{ t('goods.couponAllocate.ghostToggle') }}
+                <span v-if="ghostItems.length" class="ghost-toggle__badge">{{ ghostItems.length }}</span>
+              </span>
+              <svg class="ghost-toggle__chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+            <p class="ghost-hint">{{ t('goods.couponAllocate.ghostHint') }}</p>
+
+            <div v-if="ghostPanelOpen" class="ghost-panel">
+              <div v-for="(ghost, index) in ghostItems" :key="ghost.id" class="ghost-row">
+                <input
+                  :value="ghost.amount"
+                  class="field-input ghost-row__amount"
+                  type="text"
+                  inputmode="decimal"
+                  autocomplete="off"
+                  :placeholder="t('goods.couponAllocate.ghostAmountPlaceholder')"
+                  @keydown="preventNegative"
+                  @input="onGhostAmountInput(ghost, $event)"
+                />
+                <input
+                  :value="ghost.quantity"
+                  class="field-input ghost-row__qty"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  :aria-label="t('goods.couponAllocate.ghostQuantityLabel')"
+                  :placeholder="t('goods.couponAllocate.ghostQuantityLabel')"
+                  @input="onGhostQuantityInput(ghost, $event)"
+                />
+                <button
+                  class="ghost-row__remove"
+                  type="button"
+                  :aria-label="t('goods.couponAllocate.ghostRemove')"
+                  @click="removeGhost(index)"
+                >×</button>
+              </div>
+              <button class="ghost-add" type="button" @click="addGhost">
+                + {{ t('goods.couponAllocate.ghostAdd') }}
+              </button>
+            </div>
+          </div>
+
           <div class="preview-block">
             <div class="preview-head">
               <span class="preview-head__title">{{ t('goods.couponAllocate.previewTitle') }}</span>
@@ -46,22 +93,34 @@
               <div class="preview-summary">
                 <div class="preview-summary__row">
                   <span>{{ t('goods.couponAllocate.totalListed') }}</span>
-                  <span>¥{{ formatMoney(preview.totalListed) }}</span>
+                  <span>¥{{ formatMoney(summary.listed) }}</span>
                 </div>
                 <div class="preview-summary__row">
                   <span>{{ t('goods.couponAllocate.totalDiscount') }}</span>
-                  <span class="preview-summary__discount">-¥{{ formatMoney(preview.totalAllocated) }}</span>
+                  <span class="preview-summary__discount">-¥{{ formatMoney(summary.discount) }}</span>
+                </div>
+                <div v-if="summary.ghostCount > 0" class="preview-summary__row">
+                  <span>{{ t('goods.couponAllocate.ghostRefundTotal') }}</span>
+                  <span class="preview-summary__ghost">-¥{{ formatMoney(summary.ghostRefund) }}</span>
                 </div>
                 <div class="preview-summary__row preview-summary__row--strong">
                   <span>{{ t('goods.couponAllocate.totalPaid') }}</span>
-                  <span>¥{{ formatMoney(preview.totalListed - preview.totalAllocated) }}</span>
+                  <span>¥{{ formatMoney(summary.paid) }}</span>
                 </div>
               </div>
 
               <ul class="preview-list">
-                <li v-for="row in preview.rows" :key="row.id" class="preview-item" :class="{ 'preview-item--skip': !row.eligible }">
+                <li
+                  v-for="row in preview.rows"
+                  :key="row.id"
+                  class="preview-item"
+                  :class="{ 'preview-item--skip': !row.eligible, 'preview-item--ghost': row.ghost }"
+                >
                   <div class="preview-item__main">
-                    <span class="preview-item__name">{{ row.name }}</span>
+                    <span class="preview-item__title-row">
+                      <span class="preview-item__name">{{ row.name || t('goods.couponAllocate.ghostFallbackName') }}</span>
+                      <span v-if="row.ghost" class="preview-item__tag">{{ t('goods.couponAllocate.ghostTag') }}</span>
+                    </span>
                     <span class="preview-item__meta">
                       ¥{{ formatMoney(row.price) }} × {{ row.quantity }}
                       <template v-if="row.quantity >= 2 && row.unitActualPriceList.length">
@@ -115,6 +174,11 @@ const emit = defineEmits(['update:show', 'apply'])
 
 const amountInput = ref('')
 
+/** 已退款/退掉的「幽灵谷子」：不写回收藏，只参与分摊比例计算 */
+const ghostItems = ref([])
+const ghostPanelOpen = ref(false)
+let ghostSeq = 0
+
 const showProxy = computed({
   get: () => props.show,
   set: (value) => emit('update:show', value)
@@ -129,6 +193,16 @@ const eligibleItems = computed(() =>
 
 const skippedCount = computed(() => (props.items || []).length - eligibleItems.value.length)
 
+/** 幽灵行 → 分摊入参（金额为标价单价，数量默认 1） */
+const ghostsForAlloc = computed(() =>
+  ghostItems.value.map((ghost) => ({
+    id: ghost.id,
+    name: '',
+    price: parseAmountText(ghost.amount),
+    quantity: Math.max(1, Math.floor(Number(ghost.quantity) || 1))
+  }))
+)
+
 const parsedAmount = computed(() => {
   const raw = normalizeAmountText(amountInput.value)
   if (!raw || raw === '.') return NaN
@@ -139,7 +213,7 @@ const parsedAmount = computed(() => {
 const liveResult = computed(() => {
   const amount = parsedAmount.value
   if (!Number.isFinite(amount) || amount <= 0) return null
-  return allocateCouponByListedPrice(eligibleItems.value, amount)
+  return allocateCouponByListedPrice(eligibleItems.value, amount, ghostsForAlloc.value)
 })
 
 const preview = computed(() => (liveResult.value?.ok ? liveResult.value : null))
@@ -178,6 +252,12 @@ function normalizeAmountText(value) {
   return raw
 }
 
+/** 归一化后的金额文本（'' 表示未填） */
+function parseAmountText(value) {
+  const raw = normalizeAmountText(value)
+  return !raw || raw === '.' ? '' : raw
+}
+
 function preventNegative(event) {
   if (event.key === '-') event.preventDefault()
 }
@@ -190,14 +270,56 @@ function sanitizeAmount(event) {
   }
 }
 
+// ── 幽灵谷子（已退掉/退款，仅参与分摊）──────────────────────────
+function addGhost() {
+  ghostSeq += 1
+  ghostItems.value = [...ghostItems.value, { id: `ghost_${Date.now()}_${ghostSeq}`, amount: '', quantity: '1' }]
+  ghostPanelOpen.value = true
+}
+
+function removeGhost(index) {
+  ghostItems.value = ghostItems.value.filter((_, i) => i !== index)
+}
+
+function onGhostAmountInput(ghost, event) {
+  const next = normalizeAmountText(event?.target?.value ?? ghost.amount)
+  ghost.amount = next
+  if (event?.target && event.target.value !== next) {
+    event.target.value = next
+  }
+}
+
+function onGhostQuantityInput(ghost, event) {
+  const digits = String(event?.target?.value ?? ghost.quantity).replace(/[^\d]/g, '').slice(0, 2)
+  ghost.quantity = digits
+  if (event?.target && event.target.value !== digits) {
+    event.target.value = digits
+  }
+}
+
+/** 汇总（元）：含幽灵，便于对账（标价 - 优惠 - 幽灵退回 = 剩余实付） */
+const summary = computed(() => {
+  const rows = preview.value?.rows || []
+  const listed = rows.reduce((sum, row) => sum + Number(row.listedTotal || 0), 0)
+  const discount = rows.reduce((sum, row) => sum + Number(row.discount || 0), 0)
+  const ghostRefund = rows.reduce((sum, row) => (row.ghost ? sum + Number(row.actualTotal || 0) : sum), 0)
+  const paid = rows.reduce((sum, row) => (row.ghost ? sum : sum + Number(row.actualTotal || 0)), 0)
+  const ghostCount = rows.filter((row) => row.ghost).length
+  return { listed, discount, ghostRefund, paid, ghostCount }
+})
+
 const canConfirm = computed(() =>
-  Boolean(preview.value?.ok) && preview.value.rows.some((r) => r.eligible)
+  Boolean(preview.value?.ok) && preview.value.rows.some((r) => r.eligible && !r.ghost)
 )
 
 watch(
   () => props.show,
   (visible) => {
-    if (visible) amountInput.value = ''
+    if (visible) {
+      amountInput.value = ''
+      ghostItems.value = []
+      ghostPanelOpen.value = false
+    }
   }
 )
 
@@ -207,7 +329,8 @@ function close() {
 
 function confirm() {
   if (!canConfirm.value) return
-  const rows = preview.value.rows.filter((r) => r.eligible)
+  // 幽灵谷子不进收藏，只写回真实选中的谷子
+  const rows = preview.value.rows.filter((r) => r.eligible && !r.ghost)
   emit('apply', {
     couponAmount: preview.value.couponAmount,
     allocations: rows.map((r) => ({
@@ -315,6 +438,132 @@ defineExpose({ close })
   font-size: 12px;
 }
 
+/* ── 幽灵谷子（已退款，仅参与分摊）───────────────────────────── */
+.ghost-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: var(--radius-small);
+  background: var(--app-surface-soft);
+}
+
+.ghost-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ghost-toggle__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ghost-toggle__badge {
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.ghost-toggle__chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--app-text-tertiary);
+  transition: transform 180ms ease;
+}
+
+.ghost-block--open .ghost-toggle__chevron {
+  transform: rotate(180deg);
+}
+
+.ghost-hint {
+  color: var(--app-text-tertiary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ghost-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 2px;
+}
+
+.ghost-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 36px;
+  gap: 8px;
+  align-items: center;
+}
+
+.ghost-row__amount,
+.ghost-row__qty {
+  min-height: 42px;
+  font-size: 14px;
+}
+
+.ghost-row__qty {
+  text-align: center;
+}
+
+.ghost-row__remove {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ghost-add {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 1px dashed var(--app-input-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--app-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.preview-summary__ghost {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.preview-item--ghost {
+  border: 1px dashed var(--app-input-border);
+  background: transparent;
+}
+
+.preview-item__tag {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--app-surface-soft);
+  color: var(--app-text-tertiary);
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
 .preview-block {
   display: flex;
   flex-direction: column;
@@ -410,6 +659,13 @@ defineExpose({ close })
   display: flex;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+}
+
+.preview-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 

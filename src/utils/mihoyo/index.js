@@ -901,16 +901,6 @@ function centsToYuanString(cents) {
   return String(Math.round(n) / 100)
 }
 
-/** 读取可能是「分」的金额字段，返回非负有限数或 null */
-function readCents(...values) {
-  for (const value of values) {
-    if (value == null || value === '') continue
-    const n = Number(value)
-    if (Number.isFinite(n) && n >= 0) return n
-  }
-  return null
-}
-
 /** 整行入手价按份数均摊到逐份价（元字符串列表） */
 function splitActualPriceToUnits(actualPriceYuan, quantity) {
   const qty = Math.max(1, Math.floor(Number(quantity) || 1))
@@ -986,16 +976,30 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
   const coverUrl =
     goods.cover_url || goods.img_url || goods.cover ||
     goods.goods_img || goods.image || ''
+  // 原价只取标价类字段：actual_price / pay_price 是优惠后金额，不能回填「原价」，
+  // 否则券后价会被当成原价写进收藏。
   const rawPrice =
     goods.price ?? goods.sale_price ?? goods.current_price ??
-    goods.activity_price ?? goods.actual_price ?? 0
-  // 行实付（分）：订单/详情里平台分摊后的金额；有则优先进入手价
-  const linePaidCents = readCents(
+    goods.market_price ?? goods.activity_price ?? 0
+  const quantity = Math.max(
+    1,
+    Number(goods.quantity) ||
+    Number(goodsWrapper.quantity) ||
+    Number(goods.buy_num) ||
+    Number(goodsWrapper.buy_num) ||
+    1
+  )
+  // 行实付（分）：订单/详情里平台分摊后的金额；有则优先进入手价。
+  // total_price/pay_price/actual_pay_amount 是行合计，actual_price 是单件价，需乘数量。
+  const linePaidCents = readPositiveCents(
     goods.total_price,
     goodsWrapper.total_price,
     goods.pay_price,
-    goods.actual_pay_amount
-  )
+    goods.actual_pay_amount,
+  ) ?? (() => {
+    const unitPaidCents = readPositiveCents(goods.actual_price, goodsWrapper.actual_price)
+    return unitPaidCents == null ? null : unitPaidCents * quantity
+  })()
   const skuList =
     goods.sku_sales ||
     goods.sku_list ||
@@ -1079,19 +1083,13 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     ip: ip || '',
     characters,
     image: coverUrl,
+    // 原价（标价）
     price: String(Math.round(Number(rawPrice) / 100)),
-    // 行实付：total_price 等；无优惠时也可与标价一致
-    actualPrice: linePaidCents != null ? centsToYuanString(linePaidCents) : '',
+    // 行实付（优惠后）；最终是否可信由 applyOrderDiscountToActualPrices 校验
+    actualPrice: linePaidCents != null && linePaidCents > 0 ? centsToYuanString(linePaidCents) : '',
     acquiredAt,
     category: parseCategoryFromName(variant) || parseCategoryFromName(skuName) || parseCategoryFromName(sourceTitle) || parseCategoryFromName(name || rawName),
-    quantity: Math.max(
-      1,
-      Number(goods.quantity) ||
-      Number(goodsWrapper.quantity) ||
-      Number(goods.buy_num) ||
-      Number(goodsWrapper.buy_num) ||
-      1
-    ),
+    quantity,
     variant,
     note: `来自米游铺订单 #${orderNo}${isPointsOrder ? '（积分兑换）' : ''}`,
     // 元数据（不入库）
@@ -1102,6 +1100,8 @@ function metaToGoods(order, goods, index = 0, goodsWrapper = {}) {
     // 仅商品级别的独立状态（不含订单 fallback），用于单件状态徽章
     _wrapperStatus: itemStatusText,
     _coverUrl: coverUrl,
+    // 行实付原始分值：供 applyOrderDiscountToActualPrices 判断它是否真的低于标价小计
+    _linePaidCents: linePaidCents,
     // 保留原始米游铺商品 ID 供后续懒加载或识别使用
     goodsId: String(goodsId || ''),
   }
@@ -1126,33 +1126,90 @@ export function orderToGoodsList(order) {
 }
 
 /**
- * 订单导入入手价：
- * 1) 明细已有行实付（total_price）→ 按份数写 unitActualPriceList
- * 2) 仅有订单级优惠（discounts.total_discount，单位分）→ 按标价×数量比例分摊到 actualPrice
+ * 读取「优惠后金额（分）」：只接受正数，0/空都算没给。
+ * @param {...any} values
+ * @returns {number|null}
+ */
+function readPositiveCents(...values) {
+  for (const value of values) {
+    if (value == null || value === '') continue
+    const n = Number(value)
+    if (Number.isFinite(n) && n > 0) return n
+  }
+  return null
+}
+
+/**
+ * 订单级优惠总额（分）。优先取 discounts 里的正数；列表接口不返回 discounts 时，
+ * 用「商品总额 − 实付」兜底，避免有优惠却完全不写入手价。
+ * @param {Object} order
+ * @returns {number}
+ */
+export function resolveOrderDiscountCents(order) {
+  const discounts = order?.discounts || {}
+  const explicitTotal = readPositiveCents(discounts.total_discount)
+  if (explicitTotal != null) return explicitTotal
+
+  const parts = [
+    discounts.coupon_discount,
+    discounts.goods_discount,
+    discounts.shop_discount,
+  ].map((value) => readPositiveCents(value) || 0)
+  const explicitSum = parts.reduce((sum, value) => sum + value, 0)
+  if (explicitSum > 0) return explicitSum
+
+  const goodsCents = readPositiveCents(order?.goods_amount)
+  const paidCents = readPositiveCents(
+    order?.payment_info?.pay_amount,
+    order?.pay_amount,
+    order?.order_amount,
+  )
+  if (goodsCents != null && paidCents != null && goodsCents > paidCents) {
+    return goodsCents - paidCents
+  }
+  return 0
+}
+
+/**
+ * 订单导入入手价（优惠后金额），原价仍保留在 price 里：
+ * 1) 明细行实付可信（低于标价小计）→ 直接用作入手价，并按份数写 unitActualPriceList
+ * 2) 否则按订单级优惠（discounts，单位分）按标价×数量比例分摊
+ *
+ * total_price 在部分响应里表示「标价小计」而不是实付，因此不能无条件当入手价；
+ * 这里统一先清空行实付，再只接受「确实低于标价小计」的值。
  */
 function applyOrderDiscountToActualPrices(order, list) {
   if (!Array.isArray(list) || list.length === 0) return
 
-  const withLineActual = list.filter((g) => g.actualPrice !== '' && g.actualPrice != null)
-  if (withLineActual.length > 0) {
-    for (const item of withLineActual) {
-      const qty = Math.max(1, Number(item.quantity) || 1)
-      if (qty >= 2) {
-        item.unitActualPriceList = splitActualPriceToUnits(item.actualPrice, qty)
-      }
+  // 先清空：避免把 total_price=标价小计 或旧值误当成入手价
+  for (const item of list) {
+    item.actualPrice = ''
+    item.unitActualPriceList = []
+  }
+
+  const priced = list.filter((g) => Number(g.price) > 0)
+  if (priced.length === 0) return
+
+  const linePaidById = new Map()
+  for (const item of priced) {
+    const qty = Math.max(1, Number(item.quantity) || 1)
+    const listedCents = Math.round(Number(item.price) * 100) * qty
+    const paidCents = readPositiveCents(item._linePaidCents)
+    // 只有低于标价小计的行实付才可能是「优惠后」；等于/高于说明它是标价小计
+    if (paidCents != null && paidCents < listedCents) {
+      linePaidById.set(item._itemKey, paidCents)
+    }
+  }
+
+  if (linePaidById.size === priced.length) {
+    for (const item of priced) {
+      applyLineActual(item, linePaidById.get(item._itemKey))
     }
     return
   }
 
-  const discountCents = readCents(
-    order?.discounts?.total_discount,
-    order?.discounts?.coupon_discount,
-    order?.discounts?.shop_discount
-  )
+  const discountCents = resolveOrderDiscountCents(order)
   if (!discountCents || discountCents <= 0) return
-
-  const priced = list.filter((g) => Number(g.price) > 0)
-  if (priced.length === 0) return
 
   const result = allocateCouponByListedPrice(
     priced.map((g) => ({
@@ -1175,6 +1232,13 @@ function applyOrderDiscountToActualPrices(order, list) {
       )
     }
   }
+}
+
+/** 写入单行入手价，qty≥2 时同步逐份价 */
+function applyLineActual(item, paidCents) {
+  const qty = Math.max(1, Number(item.quantity) || 1)
+  item.actualPrice = centsToYuanString(paidCents)
+  item.unitActualPriceList = qty >= 2 ? splitActualPriceToUnits(item.actualPrice, qty) : []
 }
 
 /**

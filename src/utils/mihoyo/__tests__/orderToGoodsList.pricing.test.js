@@ -70,11 +70,81 @@ describe('mihoyo orderToGoodsList 入手价', () => {
     expect(list[1].actualPrice).toBe('7.5')
   })
 
+  it('total_discount 为 0 时仍会读取 coupon_discount 分摊', () => {
+    const list = orderToGoodsList(makeOrder({
+      discounts: { total_discount: 0, coupon_discount: 1000, shop_discount: 0, goods_discount: 0, shipping_coupon_discount: 0 },
+      goods_list: [
+        makeWrapper({ price: 3000, total_price: undefined, quantity: 1 }),
+        makeWrapper({ goods_id: 'g2', goods_name: '挂件', price: 1000, total_price: undefined, quantity: 1, sku_sales: [] })
+      ]
+    }))
+    expect(list[0].price).toBe('30')
+    expect(list[0].actualPrice).toBe('22.5')
+    expect(list[1].actualPrice).toBe('7.5')
+  })
+
+  it('列表接口不返回 discounts 时用「商品总额 − 实付」兜底分摊', () => {
+    const list = orderToGoodsList(makeOrder({
+      discounts: undefined,
+      goods_amount: 4000,
+      payment_info: { pay_time: 1780228938, pay_amount: 3000, paied: true },
+      goods_list: [
+        makeWrapper({ price: 3000, total_price: undefined, quantity: 1 }),
+        makeWrapper({ goods_id: 'g2', goods_name: '挂件', price: 1000, total_price: undefined, quantity: 1, sku_sales: [] })
+      ]
+    }))
+    expect(list[0].actualPrice).toBe('22.5')
+    expect(list[1].actualPrice).toBe('7.5')
+  })
+
+  it('total_price 等于标价小计时视为原价，改用订单优惠算入手价', () => {
+    const list = orderToGoodsList(makeOrder({
+      discounts: { total_discount: 1000, coupon_discount: 0, shop_discount: 0, goods_discount: 0, shipping_coupon_discount: 0 },
+      goods_list: [
+        makeWrapper({ price: 3000, total_price: 3000, quantity: 1 }),
+        makeWrapper({ goods_id: 'g2', goods_name: '挂件', price: 1000, total_price: 1000, quantity: 1, sku_sales: [] })
+      ]
+    }))
+    expect(list[0].actualPrice).toBe('22.5')
+    expect(list[1].actualPrice).toBe('7.5')
+  })
+
+  it('actual_price 是单件券后价：不写入原价，只按数量算入手价', () => {
+    const list = orderToGoodsList(makeOrder({
+      goods_list: [
+        // total_price=0 视作未提供，应回退到单件 actual_price × 数量
+        makeWrapper({ price: undefined, market_price: 2000, actual_price: 1500, quantity: 2, total_price: 0, sku_sales: [] })
+      ]
+    }))
+    expect(list[0].price).toBe('20')
+    expect(list[0].actualPrice).toBe('30')
+    expect(list[0].unitActualPriceList).toEqual(['15', '15'])
+  })
+
   it('无优惠且无行实付时 actualPrice 为空', () => {
     const list = orderToGoodsList(makeOrder({
       goods_list: [makeWrapper({ price: 2000, total_price: undefined })]
     }))
     expect(list[0].actualPrice).toBe('')
+  })
+
+  it('已退款的行作为幽灵仍参与分摊，剩余行维持整单比例（不重新吃满优惠）', () => {
+    const list = orderToGoodsList(makeOrder({
+      discounts: { total_discount: 5000, coupon_discount: 5000, shop_discount: 0, goods_discount: 0, shipping_coupon_discount: 0 },
+      goods_list: [
+        makeWrapper({ price: 10000, total_price: undefined }),
+        makeWrapper({ goods_id: 'g2', goods_name: '立牌', price: 10000, total_price: undefined, sku_sales: [] }),
+        makeWrapper({ goods_id: 'g3', goods_name: '挂件', price: 10000, total_price: undefined, sku_sales: [] }, { status_text: '已退款' })
+      ]
+    }))
+
+    expect(list).toHaveLength(3)
+    expect(list[0].actualPrice).toBe('83.33')
+    expect(list[1].actualPrice).toBe('83.33')
+    expect(list[2]._wrapperStatus).toBe('已退款')
+    // 幽灵吸收 16.66，三行实付合计仍等于整单实付 250
+    const sum = list.reduce((s, g) => s + Number(g.actualPrice), 0)
+    expect(sum).toBeCloseTo(250, 2)
   })
 
   it('qty≥2 时按份数均摊 unitActualPriceList', () => {
