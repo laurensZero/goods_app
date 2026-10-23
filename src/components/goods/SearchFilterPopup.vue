@@ -35,7 +35,7 @@
             type="button"
             @click="$emit('open-profile', { kind: entry.kind, name: entry.name, ip: entry.ip })"
           >
-            {{ profileEntryLabel(entry) }}
+            {{ t('profile.entry.openNamed', { name: entry.displayName }) }}
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path d="M9 6l6 6-6 6" />
             </svg>
@@ -392,7 +392,7 @@
                       type="button"
                       @click="$emit('open-profile', { kind: 'character', name: target.name, ip: target.ip })"
                     >
-                      {{ profileEntryLabel(target) }}
+                      {{ t('profile.entry.openNamed', { name: target.displayName }) }}
                       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <path d="M9 6l6 6-6 6" />
                       </svg>
@@ -577,12 +577,6 @@ function profileDisplayName(name, ip, ambiguous = false) {
   return ambiguous && ip ? `${name} · ${ip}` : name
 }
 
-/** 入口按钮文案：普通角色给「进入角色收藏馆」，多 IP 重名才带上名字 + IP 区分 */
-function profileEntryLabel(entry) {
-  if (entry.kind === 'character' && !entry.ambiguous) return t('profile.entry.openCharacter')
-  return t('profile.entry.openNamed', { name: entry.displayName })
-}
-
 /** 同名角色是否落在多个 IP 下（多 IP 重名才需要在入口上标 IP） */
 function buildAmbiguousNameMatcher(targets) {
   const ipsByName = new Map()
@@ -710,7 +704,6 @@ const selectedCharacterProfileTargets = computed(() => {
       const ambiguous = isAmbiguousName(target.name)
       return {
         ...target,
-        kind: 'character',
         ambiguous,
         displayName: profileDisplayName(target.name, target.ip, ambiguous)
       }

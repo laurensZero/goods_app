@@ -17,7 +17,6 @@
   "profile.empty.description": "该收藏馆暂无符合条件的谷子",
   "profile.empty.action": "去添加",
   "profile.entry.open": "进入收藏馆",
-  "profile.entry.openCharacter": "进入角色收藏馆",
   "profile.entry.openNamed": "进入「{name}」收藏馆",
   "profile.background.title": "自定义背景",
   "profile.background.eyebrow": "个性化",
