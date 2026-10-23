@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { readFileSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOTS = ['src', 'private/src']
 
 function collectVueFiles(dir) {
+  // private/src 只在私有构建里存在，公开仓库跑测试时直接跳过。
+  if (!existsSync(dir)) return []
   const result = []
   for (const name of readdirSync(dir)) {
     if (name === 'node_modules' || name === 'dist' || name.startsWith('.')) continue
@@ -25,8 +27,7 @@ function collectVueFiles(dir) {
  */
 describe('MihoyoAccountSheet 使用点接线', () => {
   it('所有使用点都传入 stoken 保存/刷新能力，且不再传未声明的 logout 事件', () => {
-    const usages = collectVueFiles(ROOTS[0])
-      .concat(collectVueFiles(ROOTS[1]))
+    const usages = ROOTS.flatMap(collectVueFiles)
       .map((file) => ({ file, source: readFileSync(file, 'utf8') }))
       .filter(({ source }) => /<MihoyoAccountSheet\b/.test(source))
 
