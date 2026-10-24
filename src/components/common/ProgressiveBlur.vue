@@ -1,19 +1,24 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({
   /** 贴附边缘：top / bottom */
   position: { type: String, default: 'top' },
-  /** 是否启用（滚动后翻 true；false 时整条 opacity 0，浏览器跳过合成） */
+  /** 常开模式（active=true 时 opacity 走 CSS 类） */
   active: { type: Boolean, default: false },
   /** 低端机/用户关闭时彻底不渲染 */
   disabled: { type: Boolean, default: false },
   /** 覆盖默认层级（默认顶缘 30 / 底缘 55，低于 TabBar 的 60） */
   zIndex: { type: Number, default: 0 },
-  /** 跳变（滚动恢复/回顶）时跳过淡入淡出，帧内生效 */
-  instant: { type: Boolean, default: false },
   /** 条带高度（Number px 或任意 CSS 长度字符串） */
-  height: { type: [Number, String], default: 128 },
+  height: { type: [Number, String], default: 96 },
+  /**
+   * 自管滚动侦听模式：rAF 逐帧读取滚动位置（双滚动源取最大），直接写
+   * fader 的 DOM opacity（0→RAMP 滚动距离线性映射）。不用 scroll 事件、
+   * 不经 Vue 渲染链——滚动位置恢复/钳位可静默发生，事件与响应式都会假死
+   * （曾出现"滚动不更新、resize 才出现"）。
+   */
+  auto: { type: Boolean, default: false },
 })
 
 // 低端机降 2 步：backdrop-filter 层数直接决定合成开销
@@ -23,7 +28,6 @@ const lowPerf = typeof navigator !== 'undefined' && (
 )
 
 // 模糊半径逐层翻倍 + 重叠 mask 带 → 近似 iOS 连续 progressive blur。
-// solid=纯模糊段(%)，fade=渐隐止点(%)。方向由 position 决定。
 const STEPS_4 = [
   { blur: 6, solid: 18, fade: 55 },
   { blur: 14, solid: 12, fade: 40 },
@@ -49,6 +53,56 @@ function layerStyle(index) {
   }
 }
 
+const RAMP_PX = 140
+
+const root = ref(null)
+const fader = ref(null)
+let rafId = 0
+let cleanupAuto = null
+
+function computeProgress() {
+  // 双滚动源：window（.page 仅 min-height 时 document 滚）+ 各页 .page-body
+  let top = window.scrollY
+  document.querySelectorAll('.page .page-body').forEach((el) => {
+    if (el.scrollTop > top) top = el.scrollTop
+  })
+  return Math.min(Math.max(top / RAMP_PX, 0), 1)
+}
+
+function applyProgress() {
+  if (fader.value) fader.value.style.opacity = String(computeProgress())
+}
+
+function loop() {
+  applyProgress()
+  rafId = requestAnimationFrame(loop)
+}
+
+function bindAuto() {
+  // 不用 scroll 事件：滚动位置恢复/钳位可以静默发生（不发事件），
+  // 事件驱动会停在旧状态。rAF 逐帧读取对齐渲染节拍，标签页隐藏时自动暂停。
+  applyProgress()
+  rafId = requestAnimationFrame(loop)
+  cleanupAuto = () => {
+    if (rafId) cancelAnimationFrame(rafId)
+    rafId = 0
+  }
+}
+
+onMounted(() => {
+  if (props.auto) bindAuto()
+  else if (fader.value) fader.value.style.opacity = props.active ? '1' : '0'
+})
+
+watch(() => props.active, (on) => {
+  if (!props.auto && fader.value) fader.value.style.opacity = on ? '1' : '0'
+})
+
+onBeforeUnmount(() => {
+  if (cleanupAuto) cleanupAuto()
+  cleanupAuto = null
+})
+
 const rootStyle = computed(() => ({
   height: typeof props.height === 'number' ? `${props.height}px` : props.height,
   ...(props.zIndex ? { zIndex: String(props.zIndex) } : null),
@@ -58,32 +112,41 @@ const rootStyle = computed(() => ({
 <template>
   <div
     v-if="!disabled"
+    ref="root"
     class="progressive-blur"
-    :class="[`progressive-blur--${position}`, { 'progressive-blur--active': active, 'progressive-blur--instant': instant }]"
+    :class="[`progressive-blur--${position}`, { 'progressive-blur--active': auto || active }]"
     :style="rootStyle"
     aria-hidden="true"
   >
-    <div
-      v-for="(step, i) in steps"
-      :key="i"
-      class="progressive-blur__layer"
-      :style="layerStyle(i)"
-    ></div>
-    <div class="progressive-blur__scrim"></div>
+    <div ref="fader" class="progressive-blur__fader">
+      <div
+        v-for="(step, i) in steps"
+        :key="i"
+        class="progressive-blur__layer"
+        :style="layerStyle(i)"
+      ></div>
+      <div class="progressive-blur__scrim"></div>
+    </div>
   </div>
 </template>
 
 <style scoped>
 /* 滚动边缘渐进模糊：多步 backdrop-filter + 重叠 mask 渐变近似 iOS progressive blur。
-   硬约束：只动整条 opacity（合成器友好），禁止动画 backdrop-filter 数值；
-   高度 ≤96px；层数 4（低端 2）；scrim 仅兜底，不再用背景色刷内容（廉价感来源）。 */
+   硬约束：整条 opacity 逐帧写样式（auto 模式直写 DOM），禁止动画 backdrop-filter
+   数值；高度 ≤128px；层数 4（低端 2）；scrim 仅兜底，不做底色 wash（廉价感来源）。 */
 .progressive-blur {
   position: fixed;
   left: 0;
   right: 0;
   pointer-events: none;
+}
+
+/* fader 的 opacity 由 JS 命令式写入：不能用 Vue 绑定——组件 patch 会用
+   vnode style 覆盖命令式值，导致"滚动不更新、重渲染才出现"的假死 */
+.progressive-blur__fader {
+  position: absolute;
+  inset: 0;
   opacity: 0;
-  transition: opacity 0.2s var(--motion-ease-default);
 }
 
 .progressive-blur--top {
@@ -101,10 +164,6 @@ const rootStyle = computed(() => ({
 
 .progressive-blur--active {
   opacity: 1;
-}
-
-.progressive-blur--instant {
-  transition: none;
 }
 
 .progressive-blur__layer {
