@@ -4,7 +4,6 @@
     :class="{ 'home-page--restoring': !homeDisplayReady, 'home-page--top-jump': topJumpMasking }"
     :style="HOME_MOTION_CSS_VARS"
   >
-    <ProgressiveBlur position="top" :active="topEdgeScrolled" />
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -376,8 +375,6 @@ import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
 import SearchFilterPopup from '@/components/goods/SearchFilterPopup.vue'
 import { STORAGE_FILTER_EVENT, STORAGE_FILTER_STORAGE_KEY } from '@/utils/storage/storageQr'
 import { showGlobalToast } from '@/utils/globalToast'
-import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
-import { useScrolledEdge } from '@/composables/scroll/useScrolledEdge'
 
 defineOptions({ name: 'HomeView' })
 const { t } = useI18n()
@@ -386,7 +383,6 @@ const store = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
 const pageBodyRef = ref(null)
-const topEdgeScrolled = useScrolledEdge(pageBodyRef)
 const goodsGridSectionRef = ref(null)
 const timelineSectionRef = ref(null)
 const timelineScrubberRef = ref(null)

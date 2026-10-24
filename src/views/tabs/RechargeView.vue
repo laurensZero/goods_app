@@ -1,6 +1,5 @@
 <template>
   <div class="page recharge-view-page">
-    <ProgressiveBlur position="top" :active="topEdgeScrolled" />
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!rechargeSelectionMode" class="hero-section">
         <div class="hero-copy">
@@ -57,8 +56,6 @@ import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref }
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
-import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
-import { useScrolledEdge } from '@/composables/scroll/useScrolledEdge'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -73,7 +70,6 @@ const HOME_MODE_EVENT = 'goods-app:home-mode-change'
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 
 const pageBodyRef = ref(null)
-const topEdgeScrolled = useScrolledEdge(pageBodyRef)
 const rechargeContentRef = ref(null)
 const rechargeSelectionMode = ref(false)
 const showScrollTopButton = ref(false)

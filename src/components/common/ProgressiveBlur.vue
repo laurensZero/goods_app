@@ -11,7 +11,7 @@ const props = defineProps({
   /** 覆盖默认层级（默认顶缘 30 / 底缘 55，低于 TabBar 的 60） */
   zIndex: { type: Number, default: 0 },
   /** 条带高度（Number px 或任意 CSS 长度字符串） */
-  height: { type: [Number, String], default: 96 },
+  height: { type: [Number, String], default: 128 },
 })
 
 // 低端机降 2 步：backdrop-filter 层数直接决定合成开销
