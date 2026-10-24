@@ -11,12 +11,13 @@ const props = defineProps({
   /** 覆盖默认层级（默认顶缘 30 / 底缘 55，低于 TabBar 的 60） */
   zIndex: { type: Number, default: 0 },
   /** 条带高度（Number px 或任意 CSS 长度字符串） */
-  height: { type: [Number, String], default: 96 },
+  height: { type: [Number, String], default: 128 },
   /**
-   * 自管滚动侦听模式：rAF 逐帧读取滚动位置（双滚动源取最大），直接写
-   * fader 的 DOM opacity（0→RAMP 滚动距离线性映射）。不用 scroll 事件、
-   * 不经 Vue 渲染链——滚动位置恢复/钳位可静默发生，事件与响应式都会假死
-   * （曾出现"滚动不更新、resize 才出现"）。
+   * 自管滚动侦听模式：scroll 事件 + 常驻 interval 双通道，直接写 fader 的
+   * DOM opacity 与各层 backdrop-filter 半径（0→RAMP 缓入映射）。不经 Vue
+   * 渲染链（patch 会抹掉命令式样式，假死成"resize 才出现"）；单用 scroll
+   * 事件会丢静默恢复，单用 rAF 会在窗口被遮挡时暂停假死。
+   * 半径生长是真渐进的关键：只渐变透明度 = 渐变"全模糊图层"的浓度，观感仍是突变。
    */
   auto: { type: Boolean, default: false },
 })
@@ -53,11 +54,12 @@ function layerStyle(index) {
   }
 }
 
-const RAMP_PX = 140
+const RAMP_PX = 300
 
 const root = ref(null)
 const fader = ref(null)
-let rafId = 0
+let pollId = 0
+let onScroll = null
 let cleanupAuto = null
 
 function computeProgress() {
@@ -66,26 +68,40 @@ function computeProgress() {
   document.querySelectorAll('.page .page-body').forEach((el) => {
     if (el.scrollTop > top) top = el.scrollTop
   })
-  return Math.min(Math.max(top / RAMP_PX, 0), 1)
+  const linear = Math.min(Math.max(top / RAMP_PX, 0), 1)
+  // 缓入曲线：刚离开顶部时模糊增长慢（"渐渐出现"），深滚后趋满档
+  return Math.pow(linear, 1.5)
 }
 
 function applyProgress() {
-  if (fader.value) fader.value.style.opacity = String(computeProgress())
-}
-
-function loop() {
-  applyProgress()
-  rafId = requestAnimationFrame(loop)
+  const p = computeProgress()
+  // 透明度先到位（150px 内到全显），模糊半径随 p 继续生长（300px 满档）——
+  // 只渐变透明度的话，图层是全强度半径，过半就"已经很糊"，观感仍是突变
+  if (fader.value) fader.value.style.opacity = String(Math.min(p * 1.4, 1))
+  if (lowPerf) return
+  const radiusScale = 0.35 + 0.65 * p
+  fader.value?.querySelectorAll('.progressive-blur__layer').forEach((el, i) => {
+    const step = steps.value[i]
+    const v = `blur(${(step.blur * radiusScale).toFixed(1)}px) saturate(160%)`
+    el.style.backdropFilter = v
+    el.style.setProperty('-webkit-backdrop-filter', v)
+  })
 }
 
 function bindAuto() {
-  // 不用 scroll 事件：滚动位置恢复/钳位可以静默发生（不发事件），
-  // 事件驱动会停在旧状态。rAF 逐帧读取对齐渲染节拍，标签页隐藏时自动暂停。
+  // 双通道：scroll 事件提供滚动中的逐帧平滑；常驻 interval 兜底
+  // 滚动位置恢复/钳位的静默写入（不发事件）。窗口被遮挡时 rAF 会暂停
+  // （visibilityState 仍是 visible，假死），interval 被节流到 1s 也能自愈。
+  onScroll = () => applyProgress()
+  document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+  window.addEventListener('scroll', onScroll, { passive: true })
+  pollId = setInterval(applyProgress, 250)
   applyProgress()
-  rafId = requestAnimationFrame(loop)
   cleanupAuto = () => {
-    if (rafId) cancelAnimationFrame(rafId)
-    rafId = 0
+    document.removeEventListener('scroll', onScroll, true)
+    window.removeEventListener('scroll', onScroll)
+    if (pollId) clearInterval(pollId)
+    pollId = 0
   }
 }
 
