@@ -240,6 +240,13 @@
   animation-delay: 0.15s;
 }
 
+/* 列表交错进场：条目上设 --stagger-i（0 起），只给静态首屏内容用；
+   虚拟化列表勿用——滚动回滚会重播动画。上限 12 档防长列表尾延迟。 */
+.stagger-item {
+  animation: page-fade-up 0.4s ease backwards;
+  animation-delay: calc(min(var(--stagger-i, 0), 12) * 0.05s);
+}
+
 /* 固定定位浮层（toast / 悬浮按钮）不参与进场动画：它们依赖自身
    translateX(-50%) 水平居中，page-fade-up 的 transform 会覆盖它，
    导致 toast 每次出现都先停在偏右位置再滑回居中（观感为「从右滑入」）。

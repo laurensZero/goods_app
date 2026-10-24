@@ -1,4 +1,5 @@
 <template>
+  <ProgressiveBlur position="bottom" :active="true" height="calc(88px + env(safe-area-inset-bottom))" />
   <nav class="tab-bar" :aria-label="t('common.aria.nav')" :style="tabBarStyle">
     <span class="tab-bar__indicator" aria-hidden="true" />
     <button
@@ -23,6 +24,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
 
 const { t } = useI18n()
 
@@ -321,6 +323,7 @@ onBeforeUnmount(() => {
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
 
+
 .tab-item--active {
   background: transparent;
   color: #ffffff;
@@ -337,6 +340,12 @@ onBeforeUnmount(() => {
   stroke-width: 1.7;
   stroke-linecap: round;
   stroke-linejoin: round;
+  /* 激活 spring 微弹：指示块只有位移，这里给图标一点弹性反馈 */
+  transition: transform 0.24s var(--motion-ease-spring);
+}
+
+.tab-item--active .tab-icon {
+  transform: translateY(-1px) scale(1.08);
 }
 
 .tab-label {

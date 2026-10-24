@@ -1,5 +1,6 @@
 <template>
   <div ref="pageRootRef" class="page profile-page" :style="[HOME_MOTION_CSS_VARS, profileThemeStyle]">
+    <ProgressiveBlur position="top" :active="topEdgeScrolled" :disabled="isLowPerfDevice" />
     <main
       ref="pageBodyRef"
       class="page-body profile-body"
@@ -22,14 +23,14 @@
 
       <section class="profile-stats">
         <div class="profile-cards">
-          <article class="stat-card">
+          <article class="stat-card stagger-item" :style="{ '--stagger-i': 0 }">
             <p class="stat-card__value">
               {{ stats.totalCount }}<span class="stat-card__unit">{{ t('profile.stats.unit') }}</span>
             </p>
             <p class="stat-card__label">{{ t('profile.stats.totalCount') }}</p>
           </article>
 
-          <article class="stat-card">
+          <article class="stat-card stagger-item" :style="{ '--stagger-i': 1 }">
             <div class="stat-card__value-row">
               <p class="stat-card__value">
                 {{ amountHidden ? '¥••••' : `¥${formattedValue}` }}
@@ -199,6 +200,8 @@ import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
+import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
+import { useScrolledEdge } from '@/composables/scroll/useScrolledEdge'
 import { createHomeSortOptions, isHomeSortDirectionLocked, sortHomeGoodsList } from '@/utils/goods/homeSort'
 import { resolveCharacterFilterShare } from '@/utils/goods/characterShare'
 import {
@@ -222,6 +225,7 @@ const profileStore = useCollectionProfileStore()
 
 const pageRootRef = ref(null)
 const pageBodyRef = ref(null)
+const topEdgeScrolled = useScrolledEdge(pageBodyRef)
 
 // 从商品详情返回时，hero 共享元素回退动画已经在演，内容块不再叠一层进场动画。
 // 必须在 setup 期同步取（onMounted 里 tryPlayNativeGoodsBackHero 会把 pending 标记消费掉）

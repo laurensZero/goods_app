@@ -1,5 +1,6 @@
 <template>
   <div class="page my-page">
+    <ProgressiveBlur position="top" :active="topEdgeScrolled" />
     <main ref="pageBodyRef" class="page-body">
       <section class="hero-section">
         <div class="hero-copy">
@@ -852,6 +853,8 @@
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRouter } from 'vue-router'
 import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
+import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
+import { useScrolledEdge } from '@/composables/scroll/useScrolledEdge'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
@@ -892,6 +895,7 @@ const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
 const qqStore = useQQBindingStore()
 const pageBodyRef = ref(null)
+const topEdgeScrolled = useScrolledEdge(pageBodyRef)
 
 // ── 页面滚动位置记录 ──
 // 我的页是 KeepAlive 页面：tab 切换、进入设置/同步等子页后返回时都恢复上次位置，

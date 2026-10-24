@@ -63,8 +63,21 @@ function handleBackClick() {
   padding: calc(env(safe-area-inset-top) + 10px) var(--page-padding) 6px;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--app-bg) 94%, transparent) 0%, color-mix(in srgb, var(--app-bg) 82%, transparent) 72%, rgba(245, 245, 247, 0) 100%);
+}
+
+/* 模糊放到 ::before 并用 mask 向下渐隐：整块 blur 在元素底边会形成一条
+   硬截断线，渐隐后毛玻璃自然融进页面内容（渐进模糊，同 TabBar 底缘）。
+   element 自带 stacking context（sticky + z-index），负 z 伪元素压在渐变之上、内容之下。 */
+.nav-bar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
 }
 
 .nav-bar__inner {

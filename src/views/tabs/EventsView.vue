@@ -4,6 +4,7 @@
     :class="{ 'events-page--restoring': !eventsDisplayReady, 'events-page--top-jump': topJumpMasking }"
     :style="HOME_MOTION_CSS_VARS"
   >
+    <ProgressiveBlur position="top" :active="topEdgeScrolled" />
     <main ref="pageBodyRef" class="page-body">
       <section v-if="!selectionMode" class="hero-section">
         <div class="hero-copy">
@@ -325,6 +326,8 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
+import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
+import { useScrolledEdge } from '@/composables/scroll/useScrolledEdge'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
@@ -360,6 +363,7 @@ const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
 const pageBodyRef = ref(null)
+const topEdgeScrolled = useScrolledEdge(pageBodyRef)
 const isEventsActive = ref(true)
 const eventsTimelineListRef = ref(null)
 const eventsTimelineScrubberRef = ref(null)

@@ -171,8 +171,41 @@ const resolvedTipsItems = computed(() => props.tipsItems || [
   t('home.summary.tip5')
 ])
 
-const intPart = computed(() => props.totalValue.split('.')[0])
-const decPart = computed(() => props.totalValue.split('.')[1] ?? '00')
+// 金额数字滚动：totalValue 变化时 400ms rAF 补间（easeOutCubic）。
+// reduced-motion / 金额隐藏态直接跳终值；解析失败原样显示。
+const reducedMotionQuery = typeof window !== 'undefined'
+  ? window.matchMedia?.('(prefers-reduced-motion: reduce)')
+  : null
+const displayValue = ref(props.totalValue)
+let countUpRafId = 0
+
+watch(() => props.totalValue, (next) => {
+  if (isHidden.value || reducedMotionQuery?.matches) {
+    cancelAnimationFrame(countUpRafId)
+    displayValue.value = next
+    return
+  }
+  const target = Number.parseFloat(next)
+  const from = Number.parseFloat(displayValue.value)
+  if (!Number.isFinite(target) || !Number.isFinite(from) || target === from) {
+    displayValue.value = next
+    return
+  }
+  cancelAnimationFrame(countUpRafId)
+  const durationMs = 400
+  const start = performance.now()
+  const tick = (now) => {
+    const progress = Math.min((now - start) / durationMs, 1)
+    const eased = 1 - Math.pow(1 - progress, 3)
+    displayValue.value = (from + (target - from) * eased).toFixed(2)
+    if (progress < 1) countUpRafId = requestAnimationFrame(tick)
+    else displayValue.value = next
+  }
+  countUpRafId = requestAnimationFrame(tick)
+})
+
+const intPart = computed(() => displayValue.value.split('.')[0])
+const decPart = computed(() => displayValue.value.split('.')[1] ?? '00')
 const isHidden = ref(localStorage.getItem(props.storageKey) === '1')
 const showTrendDetails = ref(false)
 const valueTipsRef = ref(null)
@@ -415,6 +448,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  cancelAnimationFrame(countUpRafId)
   clearValueTipsHideTimer()
   document.removeEventListener('pointerdown', handleOutsidePointerDown)
   window.removeEventListener('resize', updateValueTipsPosition)
@@ -429,6 +463,11 @@ watch(showValueTips, async (visible) => {
 
 watch(isHidden, (value) => {
   localStorage.setItem(props.storageKey, value ? '1' : '0')
+  // 显示/隐藏切换不走补间：隐藏时冻结在旧值即可，恢复显示直接跳当前终值
+  if (!value) {
+    cancelAnimationFrame(countUpRafId)
+    displayValue.value = props.totalValue
+  }
 }, { immediate: true })
 </script>
 
