@@ -1,7 +1,7 @@
 <template>
   <div class="app-wrapper">
     <!-- 全局顶缘渐进模糊：壳层单例，覆盖所有页面（capture 滚动监听 + 路由切换主动求值） -->
-    <ProgressiveBlur position="top" :active="globalTopEdgeActive" :height="128" />
+    <ProgressiveBlur position="top" :active="globalTopEdgeActive.active" :instant="globalTopEdgeActive.instant" :height="128" />
     <!-- key 只绑 route-stage：避免整页 remount 打断返回滑动动画 -->
     <div class="route-stage" :key="routeAliveKey">
       <RouterView v-slot="{ Component, route: currentRoute }">

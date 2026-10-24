@@ -10,6 +10,8 @@ const props = defineProps({
   disabled: { type: Boolean, default: false },
   /** 覆盖默认层级（默认顶缘 30 / 底缘 55，低于 TabBar 的 60） */
   zIndex: { type: Number, default: 0 },
+  /** 跳变（滚动恢复/回顶）时跳过淡入淡出，帧内生效 */
+  instant: { type: Boolean, default: false },
   /** 条带高度（Number px 或任意 CSS 长度字符串） */
   height: { type: [Number, String], default: 128 },
 })
@@ -57,7 +59,7 @@ const rootStyle = computed(() => ({
   <div
     v-if="!disabled"
     class="progressive-blur"
-    :class="[`progressive-blur--${position}`, { 'progressive-blur--active': active }]"
+    :class="[`progressive-blur--${position}`, { 'progressive-blur--active': active, 'progressive-blur--instant': instant }]"
     :style="rootStyle"
     aria-hidden="true"
   >
@@ -99,6 +101,10 @@ const rootStyle = computed(() => ({
 
 .progressive-blur--active {
   opacity: 1;
+}
+
+.progressive-blur--instant {
+  transition: none;
 }
 
 .progressive-blur__layer {
