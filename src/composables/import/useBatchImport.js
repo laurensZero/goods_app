@@ -10,6 +10,10 @@ import {
   resolveMihoyoImportDraft,
   resolveMihoyoVariantDraft,
 } from '@/utils/mihoyo/importResolver'
+import {
+  normalizeMihoyoVariantEntry,
+  normalizeMihoyoVariantList,
+} from '@/utils/mihoyo/goodsNormalize'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { showGlobalToast } from '@/utils/globalToast'
 
@@ -167,6 +171,21 @@ export function useBatchImport({
     return sum + (e.selectedSkus.length ? e.selectedSkus.length : 1)
   }, 0))
 
+  // ── 解析草稿的公共副作用：预设回填 + 历史标签上下文学习（入队/重试共用一处） ──
+  function seedPresetsFromDraft(draft) {
+    if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
+    if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
+  }
+
+  function learnTagContextFromEntry(entry) {
+    if (!entry?.info) return
+    updateHistoricalTagContextFromItem({
+      ip: entry.info.ip,
+      characters: entry.info.characters,
+      tags: entry.info.tags,
+    })
+  }
+
   // ── 把解析草稿回填到队列项（入队与重试共用） ──
   function fillEntryFromDraft(entry, draft, variants = [], groups = []) {
     entry.goodsId = String(
@@ -185,14 +204,10 @@ export function useBatchImport({
     })
     entry.baseImages = cloneImages(draft.baseParsedImages)
     entry.parsedImages = cloneImages(draft.parsedImages)
-    entry.variants = (variants.length ? variants : (draft.variants || []))
-      .filter((v) => v && v.key)
-      .map((v) => ({
-        text: String(v.text || v.key),
-        key: String(v.key),
-        cover_url: String(v.cover_url || v.img_url || ''),
-        price: v.price != null ? Number(v.price) : null,
-      }))
+    entry.variants = normalizeMihoyoVariantList(
+      variants.length ? variants : (draft.variants || []),
+      { fallbackCover: draft.image || '' },
+    )
     entry.variantsLoaded = true
     entry.loading = false
     entry.parseFailed = false
@@ -206,14 +221,13 @@ export function useBatchImport({
     entry.expanded = !entry.selectedSkus.length
   }
 
-  // 根据解析结果入队（带智能识别草稿 + 款式变体）
+  // 根据解析结果入队（带智能识别草稿 + 款式变体）；预设回填与标签学习集中在这里
   function enqueueFromDraft(result, { url = '', preferredCharacter = '', variants = [], groups = [] } = {}) {
     const draft = resolveMihoyoImportDraft(result, {
       context: ensureHistoricalTagContext(),
       preferredCharacter,
     })
-    if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
-    if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
+    seedPresetsFromDraft(draft)
 
     const entry = enqueueGoods({
       goodsId: '',
@@ -239,6 +253,7 @@ export function useBatchImport({
       }),
     }, { load: false })
     fillEntryFromDraft(entry, draft, variants, groups.length ? groups : (result?.skuGroups || []))
+    learnTagContextFromEntry(entry)
     return { entry, draft }
   }
 
@@ -271,8 +286,7 @@ export function useBatchImport({
         preferredCharacter: getSearchContext().preferredCharacter,
       }
     )
-    if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
-    if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
+    seedPresetsFromDraft(draft)
 
     const baseImages = normalizeMihoyoImageList(
       Array.isArray(draft.parsedImages) && draft.parsedImages.length
@@ -303,11 +317,7 @@ export function useBatchImport({
         characters: [...(draft.characters || [])],
       }),
     })
-    updateHistoricalTagContextFromItem({
-      ip: entry.info.ip,
-      characters: entry.info.characters,
-      tags: entry.info.tags,
-    })
+    learnTagContextFromEntry(entry)
     return entry
   }
 
@@ -322,14 +332,9 @@ export function useBatchImport({
       const draft = resolveMihoyoImportDraft(result, {
         context: ensureHistoricalTagContext(),
       })
-      if (draft.ip && !presets.ips.includes(draft.ip)) presets.addIp(draft.ip)
-      if (draft.category && !presets.categories.includes(draft.category)) presets.addCategory(draft.category)
+      seedPresetsFromDraft(draft)
       fillEntryFromDraft(entry, draft, variants, result.skuGroups || [])
-      updateHistoricalTagContextFromItem({
-        ip: entry.info.ip,
-        characters: entry.info.characters,
-        tags: entry.info.tags,
-      })
+      learnTagContextFromEntry(entry)
     } catch (e) {
       entry.parseError = e.message || t('import.linkParseFailed')
     } finally {
@@ -344,20 +349,19 @@ export function useBatchImport({
       const { skuCovers, skuPrices, skuVariants, skuGroups, coverUrl } = await fetchGoodsDetail(result.goodsId)
       if (Array.isArray(skuGroups) && skuGroups.length) result.skuGroups = skuGroups
       if (skuVariants.length) {
-        return skuVariants.map((v) => ({
-          ...v,
-          cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-          price: v.price ?? skuPrices[v.key] ?? null,
-        }))
+        return normalizeMihoyoVariantList(
+          skuVariants.map((v) => ({
+            ...v,
+            cover_url: skuCovers[v.key] || v.cover_url,
+            price: v.price ?? skuPrices[v.key] ?? null,
+          })),
+          { fallbackCover: coverUrl || '' },
+        )
       }
     } catch (_) {
       // 详情补全失败不影响基础数据
     }
-    return (result.variants || []).map((v) => ({
-      ...v,
-      cover_url: v.img_url || '',
-      price: v.price != null ? Number(v.price) : null,
-    }))
+    return normalizeMihoyoVariantList(result.variants)
   }
 
   // ── 批量解析：链接解析后逐个入队（xN 已由 parseBatchUrlEntries 展开为 N 个独立项） ──
@@ -390,16 +394,12 @@ export function useBatchImport({
             continue
           }
           const variants = await mergeVariants(result)
-          const { entry } = enqueueFromDraft(result, {
+          // 预设回填与标签学习在 enqueueFromDraft 内统一处理
+          enqueueFromDraft(result, {
             url,
             preferredCharacter: getSearchContext().preferredCharacter,
             variants,
             groups: result.skuGroups || [],
-          })
-          updateHistoricalTagContextFromItem({
-            ip: entry.info.ip,
-            characters: entry.info.characters,
-            tags: entry.info.tags,
           })
         } catch (e) {
           enqueueParseFailed(url, e?.message || t('import.linkParseFailed'))
@@ -478,7 +478,7 @@ export function useBatchImport({
       restoreDefaultImages(entry)
       restoreDefaultPrice(entry)
     } else {
-      entry.selectedSkus = [{ key: variant.key, text: variant.text, cover_url: variant.cover_url || '', price: variant.price != null ? Number(variant.price) : null }]
+      entry.selectedSkus = [normalizeMihoyoVariantEntry(variant)]
       applySkuInfo(entry, variant)
     }
   }
@@ -619,6 +619,11 @@ export function useBatchImport({
 
   return {
     ...queueState,
+    // 导入侧统一使用包装后的选择入口（单选语义 + 图片/价格联动），
+    // 覆盖共享队列的同名多选原语，避免调用方拿到两套语义（有货监控不受影响，走自己的实例）
+    selectSku: selectSingleSku,
+    setSelectedSkus: setEntrySkus,
+    selectWholeGoods,
     urlEntries,
     batchMode,
     batchParseButtonText,
@@ -636,7 +641,6 @@ export function useBatchImport({
     enqueueFromSearch,
     selectSingleSku,
     setEntrySkus,
-    selectWholeGoods,
   }
 }
 

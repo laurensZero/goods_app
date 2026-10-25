@@ -1,9 +1,12 @@
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { normalizeCharacterName, displayVariantText } from '@/utils/goods/variantText'
-import { pinyinIncludes } from '@/utils/pinyin'
 import { fetchGoodsDetail } from '@/utils/mihoyo/index'
-import { normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'
+import {
+  matchVariantsByHint,
+  normalizeMihoyoVariantEntry,
+  normalizeMihoyoVariantList,
+  normalizeSearchHintText,
+} from '@/utils/mihoyo/goodsNormalize'
 
 // 变体请求超时看门狗：接口偶发挂起/限流时卡片不能一直卡在「加载中」
 const VARIANT_LOAD_TIMEOUT_MS = 12000
@@ -84,14 +87,7 @@ export function useMihoyoGoodsQueue(options = {}) {
     if (activate) scrollDeckToActive()
     if (Array.isArray(groups) && groups.length) entry.skuGroups = groups
     if (Array.isArray(variants) && variants.length) {
-      entry.variants = variants
-        .filter((v) => v && v.key)
-        .map((v) => ({
-          text: String(v.text || v.key),
-          key: String(v.key),
-          cover_url: String(v.cover_url || v.img_url || ''),
-          price: v.price != null ? Number(v.price) : null,
-        }))
+      entry.variants = normalizeMihoyoVariantList(variants)
       entry.variantsLoaded = true
       entry.loading = false
       autoSelectSku(entry)
@@ -125,14 +121,12 @@ export function useMihoyoGoodsQueue(options = {}) {
       const skuCovers = result.skuCovers || {}
       const productCover = String(result.coverUrl || '')
       entry.skuGroups = Array.isArray(result.skuGroups) ? result.skuGroups : []
-      entry.variants = (result.skuVariants || [])
-        .filter((v) => v && v.key)
-        .map((v) => ({
-          text: String(v.text || v.key),
-          key: String(v.key),
-          cover_url: String(skuCovers[v.key] || v.cover_url || v.img_url || productCover),
-          price: v.price != null ? Number(v.price) : null,
-        }))
+      entry.variants = normalizeMihoyoVariantList(result.skuVariants, { fallbackCover: '' })
+        .map((v) => normalizeMihoyoVariantEntry(
+          { ...v, cover_url: skuCovers[v.key] || v.cover_url },
+          { fallbackCover: productCover },
+        ))
+        .filter(Boolean)
       autoSelectSku(entry)
       // 自动选中了具体款式则收起选择器；未命中时展开让用户自己选
       entry.expanded = !entry.selectedSkus.length
@@ -168,18 +162,11 @@ export function useMihoyoGoodsQueue(options = {}) {
       return
     }
 
-    const hint = normalizeSearchHintText(getHint()).toLowerCase()
-    if (!hint) return
+    // 统一匹配器（精确 → 包含 → 拼音三级）；仅唯一命中时自动选中
+    const hint = normalizeSearchHintText(getHint())
+    const matched = matchVariantsByHint(list, hint, { pinyin: true })
 
-    const matched = list.filter((v) => {
-      const text = String(v.text || '').trim().toLowerCase()
-      const display = displayVariantText(v.text).trim().toLowerCase()
-      const normalizedChar = normalizeCharacterName(v.text).trim().toLowerCase()
-      if (text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)) return true
-      return pinyinIncludes(v.text, hint) || pinyinIncludes(displayVariantText(v.text), hint)
-    })
-
-    if (matched.length === 1) {
+    if (hint && matched.length === 1) {
       entry.selectedSkus = [{ key: matched[0].key, text: matched[0].text, cover_url: matched[0].cover_url || '', price: matched[0].price != null ? Number(matched[0].price) : null }]
       onSkuSelected?.(entry, entry.selectedSkus[0])
     }
@@ -192,7 +179,7 @@ export function useMihoyoGoodsQueue(options = {}) {
     if (idx >= 0) {
       entry.selectedSkus.splice(idx, 1)
     } else {
-      entry.selectedSkus.push({ key: variant.key, text: variant.text, cover_url: variant.cover_url || '', price: variant.price != null ? Number(variant.price) : null })
+      entry.selectedSkus.push(normalizeMihoyoVariantEntry(variant))
       onSkuSelected?.(entry, variant)
     }
   }
@@ -206,14 +193,7 @@ export function useMihoyoGoodsQueue(options = {}) {
   function setSelectedSkus(entry, variants) {
     if (!entry) return
     const previousKeys = new Set(entry.selectedSkus.map((s) => s.key))
-    entry.selectedSkus = (Array.isArray(variants) ? variants : [])
-      .filter((v) => v && v.key)
-      .map((v) => ({
-        key: String(v.key),
-        text: String(v.text || v.key),
-        cover_url: String(v.cover_url || ''),
-        price: v.price != null ? Number(v.price) : null,
-      }))
+    entry.selectedSkus = normalizeMihoyoVariantList(variants)
     for (const sku of entry.selectedSkus) {
       if (!previousKeys.has(sku.key)) onSkuSelected?.(entry, sku)
     }

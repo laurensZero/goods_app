@@ -1,6 +1,5 @@
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch, getCurrentInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { normalizeCharacterName, displayVariantText } from '@/utils/goods/variantText'
 import { usePresetsStore } from '@/stores/presets'
 import {
   searchGoodsList,
@@ -10,14 +9,10 @@ import {
   getMihoyoShopCodeByIp,
   MIHOYO_ROLE_SHOP_CODES
 } from '@/utils/mihoyo/index'
+import { matchVariantsByHint, normalizeSearchHintText } from '@/utils/mihoyo/goodsNormalize'
 
-export function normalizeSearchHintText(value) {
-  return String(value || '')
-    .trim()
-    .replace(/[「」『』【】《》〈〉]/g, '')
-    .replace(/^["'""‘’]+|["'""‘’]+$/g, '')
-    .trim()
-}
+// 提示词规整已收敛到 utils/mihoyo/goodsNormalize.js，此处保留导出兼容旧导入方
+export { normalizeSearchHintText }
 
 /**
  * 米游铺商品搜索引擎（角色感知 + 关键词兜底 + 分页 + 款式封面增强）。
@@ -171,30 +166,11 @@ export function useMihoyoGoodsSearch(options = {}) {
   }
 
   function resolvePreferredVariantCover(variants, keyword) {
-    const hint = normalizeSearchHintText(keyword).toLowerCase()
-    if (!hint || !Array.isArray(variants) || variants.length <= 1) return ''
-
-    const exactCharMatches = variants.filter((variant) => (
-      normalizeCharacterName(variant?.text).trim().toLowerCase() === hint
-    ))
-    if (exactCharMatches.length) {
-      const target = exactCharMatches[exactCharMatches.length - 1]
-      return String(target?.cover_url || target?.img_url || '').trim()
-    }
-
-    const fuzzyMatches = variants.filter((variant) => {
-      const displayText = displayVariantText(variant?.text).trim().toLowerCase()
-      const normalizedChar = normalizeCharacterName(variant?.text).trim().toLowerCase()
-      const rawText = String(variant?.text || '').trim().toLowerCase()
-
-      return displayText.includes(hint) || normalizedChar.includes(hint) || rawText.includes(hint)
-    })
-    if (fuzzyMatches.length) {
-      const target = fuzzyMatches[fuzzyMatches.length - 1]
-      return String(target?.cover_url || target?.img_url || '').trim()
-    }
-
-    return ''
+    // 统一匹配器（搜索侧不启用拼音，保持现状）；命中多条时取末位（与旧行为一致）
+    const matched = matchVariantsByHint(variants, keyword)
+    if (!matched.length) return ''
+    const target = matched[matched.length - 1]
+    return String(target?.cover_url || target?.img_url || '').trim()
   }
 
   // 封面增强只做展示优化，不能抢满网络/桥接并发，否则用户首次点选的款式加载会被拖慢
@@ -503,15 +479,18 @@ export function useMihoyoGoodsSearch(options = {}) {
     }
   )
 
-  onMounted(() => {
-    bindSearchScrollListener()
-    void reconnectSearchObserver()
-  })
+  // 非组件环境（如单测）下跳过生命周期注册，与 useMihoyoGoodsQueue 保持一致
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      bindSearchScrollListener()
+      void reconnectSearchObserver()
+    })
 
-  onBeforeUnmount(() => {
-    disconnectSearchObserver()
-    unbindSearchScrollListener()
-  })
+    onBeforeUnmount(() => {
+      disconnectSearchObserver()
+      unbindSearchScrollListener()
+    })
+  }
 
   function resetSearchState() {
     searchKeyword.value = ''
