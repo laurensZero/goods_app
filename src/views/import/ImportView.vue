@@ -94,7 +94,7 @@
 
       <!-- ① URL 输入区（Tab 2：链接导入）；外层管显示，内层 v-memo 切 Tab 时跳过重建 -->
       <div v-show="activeTab === 'link'" class="url-section-wrap">
-      <section class="url-section" v-memo="[urlInput, parsing, parsingLinks, parseError, batchMode, batchParseButtonText, parseButtonText, urlHintText, urlPlaceholder]">
+      <section class="url-section" v-memo="[urlInput, parsingLinks, batchParseButtonText, urlHintText, urlPlaceholder]">
         <div class="url-card">
           <div class="url-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -122,16 +122,15 @@
               />
               <button
                 class="btn-parse"
-                :class="{ 'btn-parse--loading': parsing || parsingLinks }"
-                :disabled="parsing || parsingLinks"
+                :class="{ 'btn-parse--loading': parsingLinks }"
+                :disabled="parsingLinks"
                 @pointerdown="syncUrlInput()"
-                @click="batchMode ? handleBatchImport() : handleParse()"
+                @click="handleBatchImport()"
               >
-                <span v-if="!parsing && !parsingLinks">{{ batchMode ? batchParseButtonText : parseButtonText }}</span>
+                <span v-if="!parsingLinks">{{ batchParseButtonText }}</span>
                 <span v-else class="parse-spinner" />
               </button>
             </div>
-            <p v-if="parseError" class="parse-error">{{ parseError }}</p>
           </div>
         </div>
       </section>
@@ -263,24 +262,6 @@
                       <span class="field-label">IP</span>
                       <AppSelect v-model="entry.info.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
                     </label>
-                    <!-- 角色显示（智能识别，随选中款式联动） -->
-                    <div v-if="false" class="field">
-                      <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
-                      <div class="char-chips">
-                        <span
-                          v-for="char in entry.info.characters"
-                          :key="char"
-                          class="char-chip"
-                        >
-                          {{ char }}
-                          <button
-                            class="char-chip-del"
-                            type="button"
-                            @click="entry.info.characters = entry.info.characters.filter(c => c !== char)"
-                          >×</button>
-                        </span>
-                      </div>
-                    </div>
                     <!-- 智能识别建议（分类/IP/角色/标签） -->
                     <div class="field">
                       <span class="field-label">{{ t('common.character') }}</span>
@@ -380,193 +361,10 @@
         />
       </div>
 
-      <!-- ② 解析结果 / 编辑表单（解析成功后展示，仅单一模式） -->
-      <!-- v-memo：切 tab 等无关重渲染跳过整块表单；deps 覆盖表单全部字段，
-           tagSuggestions 兜底 applySuggestion 就地改 characters 的场景（建议同时清空） -->
-      <transition name="result-fade">
-        <div
-          v-if="parsed && !batchMode"
-          v-memo="[
-            form.name, form.category, form.ip, form.characters, form.images, form.image,
-            form.price, form.source, form.purchaseDate, form.notes,
-            formPriceError, tagSuggestions, parsedImages, parsedVariants,
-            selectedVariantKey, selectedVariantName,
-            variantSectionCollapsed, topCharactersPerIp, isWishlistMode,
-            presets.categories, presets.ips, locale
-          ]"
-          class="result-area"
-        >
-          <!-- 预览卡 -->
-          <ImportHeroPreview
-            :image="form.image"
-            :name="form.name"
-            :label="isWishlistMode ? t('import.fromMihoyoWishlist') : t('import.fromMihoyo')"
-            :desc="isWishlistMode ? t('import.wishlistDesc') : t('import.collectionDesc')"
-            :cover-tone="previewCoverTone"
-          />
-
-          <!-- 基础信息 -->
-          <ImportFormSection :label="t('import.recognizedInfo')" :title="t('import.goodsInfo')">
-            <div class="field-card">
-              <label class="field">
-                <span class="field-label">{{ t('common.name') }} <span class="required">*</span></span>
-                <input v-model="form.name" type="text" :placeholder="t('import.goodsName')" />
-              </label>
-              <label class="field">
-                <span class="field-label">{{ t('common.category') }}</span>
-                <AppSelect v-model="form.category" :options="presets.categories" :placeholder="t('import.selectCategory')" />
-              </label>
-              <label class="field">
-                <span class="field-label">IP</span>
-                <AppSelect v-model="form.ip" :options="presets.ips" :placeholder="t('import.selectIp')" />
-              </label>
-              <!-- 角色款式选择器：用户点选要买的那个 -->
-              <div v-if="parsedVariants.length > 0" class="field">
-                <div class="variant-field-head">
-                  <span class="field-label">
-                    {{ t('import.selectVariant') }}
-                    <span class="auto-badge">{{ t('import.variantCount', { count: parsedVariants.length }) }}</span>
-                  </span>
-                  <button
-                    v-if="selectedVariantKey"
-                    type="button"
-                    class="variant-field-toggle"
-                    @click="variantSectionCollapsed = !variantSectionCollapsed"
-                  >
-                    {{ variantSectionCollapsed ? t('import.expand') : t('import.collapse') }}
-                  </button>
-                </div>
-                <p v-if="variantSectionCollapsed && selectedVariantName" class="variant-field-match">
-                  {{ t('import.matched', { name: selectedVariantName }) }}
-                </p>
-                <MihoyoSkuPicker
-                  v-if="!variantSectionCollapsed"
-                  class="variant-levels"
-                  layout="card"
-                  :groups="parsedSkuGroups"
-                  :variants="parsedVariants"
-                  :model-value="selectedVariantKey ? [selectedVariantKey] : []"
-                  :suggested-keys="suggestedVariantItemKeys"
-                  :suggest-tag-text="t('import.guessYouWant')"
-                  @change="onFormVariantChange"
-                />
-              </div>
-              <!-- 角色显示（智能建议或已识别） -->
-              <div v-if="false" class="field">
-                <span class="field-label">{{ t('common.character') }} <span class="auto-badge">{{ t('import.autoRecognized') }}</span></span>
-                <div class="char-chips">
-                  <span
-                    v-for="char in form.characters"
-                    :key="char"
-                    class="char-chip"
-                  >
-                    {{ char }}
-                    <button class="char-chip-del" type="button" @click="form.characters = form.characters.filter(c => c !== char)">×</button>
-                  </span>
-                </div>
-              </div>
-              <div class="field">
-                <span class="field-label">{{ t('common.character') }}</span>
-                <ImportCharacterPicker v-model="form.characters" :ip="form.ip" />
-              </div>
-              <TagSuggestionPanel
-                :suggestions="tagSuggestions"
-                @apply="applySuggestion"
-                @ignore="handleIgnoreSuggestion"
-                @apply-all="applyAllSuggestions"
-              />
-              <label class="field">
-                <span class="field-label">{{ t('import.imageUrl') }}</span>
-                <input v-model="form.image" type="text" inputmode="url"
-                  autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"
-                  placeholder="https://..." />
-              </label>
-              <!-- 图片选择器：横向滚动所有可用图（支持多选） -->
-              <ImportImagePicker
-                v-if="parsedImages.length > 1"
-                :model-value="form.images"
-                :images="parsedImages"
-                thumb-query="?x-oss-process=image/resize,m_lfit,w_120,h_120,limit_1/format,webp"
-                @update:model-value="onFormImagesChange"
-              />
-            </div>
-          </ImportFormSection>
-
-          <!-- 购入信息 -->
-          <ImportFormSection
-            :label="isWishlistMode ? t('import.targetInfo') : t('import.purchaseRecord')"
-            :title="isWishlistMode ? t('import.budgetAndSource') : t('import.priceAndSource')"
-          >
-            <div class="field-card">
-              <label class="field">
-                <span class="field-label">{{ isWishlistMode ? t('import.targetPrice') : t('import.price') }}</span>
-                <input v-model.number="form.price" type="number" placeholder="0.00" min="0" step="1" />
-                <p v-if="formPriceError" class="parse-error">{{ formPriceError }}</p>
-              </label>
-              <label class="field">
-                <span class="field-label">{{ t('import.purchaseChannel') }}</span>
-                <input v-model="form.source" type="text" :placeholder="t('import.mihoyo')" />
-              </label>
-              <label class="field">
-                <span class="field-label">{{ isWishlistMode ? t('import.expectedDate') : t('import.purchaseDate') }}</span>
-                <button class="date-field" type="button" @click="openDatePicker">
-                  <span :class="{ 'date-field__value--placeholder': !form.purchaseDate }">
-                    {{ form.purchaseDate || (isWishlistMode ? t('import.optionalNoPlan') : t('import.selectDate')) }}
-                  </span>
-                  <svg class="date-field__icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <rect x="3" y="5" width="18" height="16" rx="3" />
-                    <path d="M8 3V7" />
-                    <path d="M16 3V7" />
-                    <path d="M3 10H21" />
-                  </svg>
-                </button>
-              </label>
-            </div>
-          </ImportFormSection>
-
-          <!-- 备注 -->
-          <ImportFormSection :label="t('import.extraInfo')" :title="t('common.note')">
-            <div class="field-card">
-              <label class="field">
-                <span class="field-label">{{ t('common.note') }}</span>
-                <textarea
-                  ref="notesTextareaRef"
-                  v-model="form.notes"
-                  class="markdown-textarea"
-                  :placeholder="t('import.notesPlaceholder')"
-                  rows="3"
-                />
-              </label>
-              <MarkdownPreviewCard :content="form.notes" :title="t('import.livePreview')" />
-            </div>
-          </ImportFormSection>
-        </div>
-      </transition>
-
       <!-- 批量导入结果列表已迁移到上方共享队列面板（MihoyoGoodsQueuePanel） -->
       <!-- 底部空白，防止内容被浮动按钮遮挡 -->
       <div style="height: 120px" />
     </main>
-
-    <!-- 浮动保存按钮（Teleport 到 body，避免 will-change 影响 fixed 定位） -->
-    <Teleport to="body">
-      <!-- 单条模式保存（仅链接导入 tab 展示，避免盖住队列） -->
-      <div v-if="parsed && !batchMode && activeTab === 'link'" class="float-footer">
-        <button class="btn-primary btn-float" @click="handleSave">{{ isWishlistMode ? t('import.addToWishlist') : t('import.saveGoods') }}</button>
-      </div>
-    </Teleport>
-
-    <!-- 日期选择器弹层（teleport 到 body 防止被 float-footer 遮挡） -->
-    <AppDatePicker
-      v-model:show="showDatePicker"
-      v-model="datePickerValue"
-      :z-index="2000"
-      :is-tablet="isTabletViewport"
-      :title="t('import.selectPurchaseDate')"
-      :min-date="minDate"
-      :max-date="maxDate"
-      @confirm="onDateConfirm"
-    />
 
     <!-- 队列项日期选择器 -->
     <AppDatePicker
@@ -583,55 +381,29 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, nextTick, onMounted, defineAsyncComponent } from 'vue'
+import { ref, reactive, computed, watch, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
-import { getCoverTone } from '@/utils/goods/coverTone'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import ImportPage from '@/components/import/ImportPage.vue'
 import ImportSearchCard from '@/components/import/ImportSearchCard.vue'
-import ImportHeroPreview from '@/components/import/ImportHeroPreview.vue'
-import ImportFormSection from '@/components/import/ImportFormSection.vue'
 import ImportImagePicker from '@/components/import/ImportImagePicker.vue'
 import ImportTabs from '@/components/import/ImportTabs.vue'
-import { runWithRouteTransition } from '@/utils/routeTransition'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
-import MarkdownPreviewCard from '@/components/common/MarkdownPreviewCard.vue'
 import TagInput from '@/components/common/TagInput.vue'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import {
-  parseMihoyoUrl,
-  isMihoyoGiftUrl,
-  fetchGoodsDetail,
-} from '@/utils/mihoyo/index'
-import { commitActiveInput } from '@/utils/commitActiveInput'
 import { showGlobalToast } from '@/utils/globalToast'
-import { validatePrice } from '@/utils/validate'
-import { resizeTextarea } from '@/utils/textarea'
-import {
-  displayVariantText,
-  normalizeCharacterName,
-} from '@/utils/goods/variantText'
 import {
   addMihoyoImportContextItem,
-  applyMihoyoVariantMedia,
   buildMihoyoImportContext,
-  getDefaultMihoyoImages,
-  normalizeMihoyoImageList,
-  resolveMihoyoImportDraft,
-  resolveMihoyoVariantDraft,
 } from '@/utils/mihoyo/importResolver'
 import { useMihoyoGoodsSearch, normalizeSearchHintText } from '@/composables/import/useMihoyoGoodsSearch'
 import { useBatchImport } from '@/composables/import/useBatchImport'
-import { pinyinIncludes } from '@/utils/pinyin'
-import { useSmartTagging } from '@/composables/goods/useSmartTagging'
 import { getSharedTaggingContext, warmTaggingContext } from '@/utils/tagging/taggingContextCache'
-import TagSuggestionPanel from '@/components/goods/TagSuggestionPanel.vue'
 import MihoyoSkuPickerCard from '@/components/my/mihoyoStock/MihoyoSkuPickerCard.vue'
-import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
 import MihoyoGoodsQueuePanel from '@/components/my/mihoyoStock/MihoyoGoodsQueuePanel.vue'
 import ImportQueueTagSuggestions from '@/components/import/ImportQueueTagSuggestions.vue'
 import ImportCharacterPicker from '@/components/import/ImportCharacterPicker.vue'
@@ -651,46 +423,11 @@ const AccountImportView = defineAsyncComponent({
   delay: 0,
 })
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const goodsStore = useGoodsStore()
 const presets = usePresetsStore()
-
-// 每个 IP 谷子数 top5 的角色集合（用于款式推荐）
-const topCharactersPerIp = computed(() => {
-  const countMap = goodsStore.characterCountMap
-  const ipBuckets = new Map()
-  for (const { name, ip } of presets.characters) {
-    if (!name) continue
-    const count = countMap.get(name) || 0
-    if (count <= 0) continue
-    const key = ip || ''
-    if (!ipBuckets.has(key)) ipBuckets.set(key, [])
-    ipBuckets.get(key).push({ name, count })
-  }
-  const result = new Set()
-  for (const bucket of ipBuckets.values()) {
-    bucket.sort((a, b) => b.count - a.count)
-    for (const { name } of bucket.slice(0, 5)) {
-      result.add(name)
-    }
-  }
-  return result
-})
-
-// 多级 SKU：维度项命中「猜你想要」（该 IP 的高频角色）时打标
-const suggestedVariantItemKeys = computed(() => {
-  const keys = []
-  for (const group of parsedSkuGroups.value) {
-    if (!Array.isArray(group?.content) || group.content.length <= 1) continue
-    for (const item of group.content) {
-      const name = normalizeCharacterName(item.text)
-      if (name && topCharactersPerIp.value.has(name)) keys.push(item.key)
-    }
-  }
-  return keys
-})
 
 const isWishlistMode = computed(() => route.query.mode === 'wishlist')
 const pageTitle = computed(() => isWishlistMode.value ? t('import.wishlistTitle') : t('import.mihoyo'))
@@ -712,17 +449,11 @@ const urlPlaceholder = computed(() =>
     ? t('import.wishlistUrlPlaceholder')
     : t('import.urlPlaceholder')
 )
-const parseButtonText = computed(() => t('import.parse'))
 
 const { isTabletViewport, updateViewport } = useTabletViewport()
 
 const urlInputRef = ref(null)
 const urlInput = ref('')
-const notesTextareaRef = ref(null)
-const parsing = ref(false)
-const parseError = ref('')
-const formPriceError = ref('')
-const parsed = ref(false)
 
 // ── Composables ──
 const search = useMihoyoGoodsSearch({ scrollRootSelector: '.import-page .page-body' })
@@ -733,7 +464,7 @@ const {
   getSearchResultCover, handleGoodsSearch, loadMoreSearchResults, toggleSearchExpanded, selectSearchResult,
 } = search
 
-// 队列项日期选择器（单件表单用 showDatePicker / datePickerValue）
+// 队列项日期选择器
 const queuePanelRef = ref(null)
 
 function getSearchContext() {
@@ -747,7 +478,7 @@ const {
   queue, activeUid, isQueued, getQueuedEntry,
   enqueueFromSearch, activateQueueEntry, onDeckScroll, removeFromQueue, clearQueue,
   selectWholeGoods, expandSkuPicker, collapseSkuPicker, retryLoadVariants,
-  batchMode, batchParseButtonText, parsingLinks, linkProgress,
+  batchParseButtonText, parsingLinks, linkProgress,
   savingAll, queueImportCount, isQueueItemOwned, queueSummary,
   handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue,
   setEntrySkus,
@@ -777,71 +508,17 @@ watch(activeTab, (tab) => {
     tabMounted[tab] = true
   })
 })
-// 批量链接解析的结果落在队列（搜索 tab），进度结束自动切过去
+// 链接解析（含单条）的结果统一落在队列（搜索 tab），进度结束自动切过去
 watch(parsingLinks, (now, was) => {
   if (was && !now) activeTab.value = 'search'
 })
 
-
-const parsedImages = ref([])  // 当前商品可用图
-const parsedBaseImages = ref([])  // 不区分款式的基础图
-const parsedVariants = ref([])  // SKU 变体对象 { text, key, img_url, cover_url? }
-const parsedSkuGroups = ref([])  // SKU 维度组（多级 SKU 用）
-const variantSectionCollapsed = ref(false)
-const selectedVariantKey = ref('')  // 当前选中的 SKU key
-const selectedVariantName = ref('')  // 选中款式清洗后的显示名
-const selectedCharacterName = ref('')  // 选中款式对应的角色名（会归并 A/B/C/D 尾缀）
-const saveAsCharacter = ref(false)  // 是否将选中款式记录为角色
-const resolvedBaseCharacters = ref([])
-
-// ── 日期选择器 ──
-const showDatePicker = ref(false)
+// ── 日期选择器（队列项编辑用） ──
 const showQueueDatePicker = ref(false)
 const minDate = new Date(2000, 0, 1)
 const maxDate = new Date(2100, 11, 31)
-const datePickerValue = ref(toDatePickerValue(''))
 const queueDatePickerValue = ref(toDatePickerValue(''))
 const queueDateEntry = ref(null) // 正在编辑日期的队列项
-
-const form = reactive({
-  name: '',
-  category: '',
-  ip: '',
-  goodsId: '',
-  image: '',
-  images: [],
-  price: '',
-  source: '米游铺',
-  purchaseDate: '',
-  notes: '',
-  characters: [],
-})
-
-const { tagSuggestions, applySuggestion, ignoreSuggestion, applyAllSuggestions } = useSmartTagging(form)
-
-const previewCoverTone = computed(() => (form.image ? null : getCoverTone(form.category)))
-
-function handleIgnoreSuggestion({ field }) {
-  if (field === 'characters') {
-    form.characters = []
-  }
-  ignoreSuggestion({ field })
-}
-
-watch(() => form.price, () => {
-  if (formPriceError.value) {
-    formPriceError.value = ''
-  }
-})
-
-watch(
-  () => form.notes,
-  async () => {
-    await nextTick()
-    resizeTextarea(notesTextareaRef.value)
-  },
-  { immediate: true }
-)
 
 const preferredSearchCharacterName = computed(() =>
   normalizeSearchHintText(selectedSearchCharacter.value || searchKeyword.value)
@@ -908,221 +585,13 @@ function onSearchResultClick(item) {
     priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
     coverUrl: getSearchResultCover(item) || item?.cover_url || '',
   })
-  parsed.value = false
 }
 
 // ── 图片多选变更（ImportImagePicker v-model） ──
-function onFormImagesChange(images) {
-  form.images = images
-  // 同步主图：始终以第一张选中的图为主图
-  form.image = images[0] || ''
-}
-
 function setQueueImages(entry, images) {
   if (!entry?.info) return
   entry.info.images = images
   entry.info.image = images[0] || ''
-}
-
-function applySelectedVariantMedia(variant) {
-  const media = applyMihoyoVariantMedia(variant, parsedBaseImages.value, form.image)
-  parsedImages.value = media.parsedImages
-  form.images = media.images
-  form.image = media.image
-
-  if (media.price != null) {
-    form.price = media.price
-  }
-}
-
-function autoSelectVariantByHint() {
-  const hint = normalizeSearchHintText(variantSearchHint.value).toLowerCase()
-  if (!hint || !parsedVariants.value.length || selectedVariantKey.value) return
-
-  const matched = parsedVariants.value.filter((variant) => {
-    const text = String(variant.text || '').trim().toLowerCase()
-    const display = displayVariantText(variant.text).trim().toLowerCase()
-    const normalizedChar = normalizeCharacterName(variant.text).trim().toLowerCase()
-    if (text.includes(hint) || display.includes(hint) || normalizedChar.includes(hint)) return true
-    return pinyinIncludes(variant.text, hint) || pinyinIncludes(displayVariantText(variant.text), hint)
-  })
-
-  if (matched.length === 1) {
-    handleVariantSelect(matched[0])
-    variantSectionCollapsed.value = true
-  }
-}
-
-function autoSelectSingleVariant() {
-  if (selectedVariantKey.value) return
-  if (!Array.isArray(parsedVariants.value) || parsedVariants.value.length !== 1) return
-
-  handleVariantSelect(parsedVariants.value[0])
-  variantSectionCollapsed.value = true
-}
-
-// ── 智能推算 ──
-// ── 取消款式选中：恢复基础图/角色 ──
-function clearVariantSelection() {
-  selectedVariantKey.value = ''
-  selectedVariantName.value = ''
-  selectedCharacterName.value = ''
-  saveAsCharacter.value = false
-  variantSectionCollapsed.value = false
-  parsedImages.value = [...parsedBaseImages.value]
-  form.images = getDefaultMihoyoImages(parsedBaseImages.value)
-  form.image = parsedBaseImages.value[0] || ''
-  form.characters = [...resolvedBaseCharacters.value]
-}
-
-// ── 用户选择款式：单选 + 自动匹配 SKU 专属图 ──
-function handleVariantSelect(v) {
-  if (selectedVariantKey.value === v.key) {
-    clearVariantSelection()
-    return
-  }
-  selectedVariantKey.value = v.key
-  const resolvedVariant = resolveMihoyoVariantDraft({
-    name: form.name,
-    variant: v,
-    context: ensureHistoricalTagContext(),
-    preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
-    currentCategory: form.category,
-  })
-  selectedVariantName.value = resolvedVariant.variantName
-  selectedCharacterName.value = resolvedVariant.selectedCharacterName
-
-  if (resolvedVariant.category) {
-    if (!presets.categories.includes(resolvedVariant.category)) presets.addCategory(resolvedVariant.category)
-    form.category = resolvedVariant.category
-  }
-
-  saveAsCharacter.value = Boolean(selectedCharacterName.value)
-  form.characters = selectedCharacterName.value ? [selectedCharacterName.value] : []
-  applySelectedVariantMedia(v)
-}
-
-// ── 多级 SKU 选择器变化：单选场景取唯一组合（无则取消选中） ──
-function onFormVariantChange(variants) {
-  const next = variants[variants.length - 1] || null
-  if (!next) {
-    if (selectedVariantKey.value) clearVariantSelection()
-    return
-  }
-  if (selectedVariantKey.value !== next.key) handleVariantSelect(next)
-}
-
-async function handleParse() {
-  // Android 上 v-model 可能滞后，直接从 DOM 同步最新值
-  syncUrlInput()
-  const url = urlInput.value.trim()
-  if (!url) return
-  if (!isMihoyoGiftUrl(url)) {
-    parseError.value = t('import.errorInvalidUrl')
-    return
-  }
-
-  parsing.value = true
-  parseError.value = ''
-  parsed.value = false
-  parsedVariants.value = []
-  parsedSkuGroups.value = []
-  variantSectionCollapsed.value = false
-  parsedImages.value = []
-  parsedBaseImages.value = []
-  resolvedBaseCharacters.value = []
-  form.images = []
-  selectedVariantKey.value = ''
-
-  try {
-    const result = await parseMihoyoUrl(url)
-    const draft = resolveMihoyoImportDraft(result, {
-      context: ensureHistoricalTagContext(),
-      preferredCharacter: selectedSearchCharacter.value ? preferredSearchCharacterName.value : '',
-    })
-
-    // 1. 填入基础字段
-    form.name = draft.name || ''
-    form.category = draft.category || ''
-    form.ip = draft.ip || ''
-    form.image = draft.image || ''
-    form.images = [...draft.images]
-    form.price = draft.price !== '' ? draft.price : ''
-    form.goodsId = draft.goodsId || ''
-    form.characters = [...draft.characters]
-    resolvedBaseCharacters.value = [...draft.characters]
-    parsedBaseImages.value = [...draft.baseParsedImages]
-    parsedImages.value = [...draft.parsedImages]
-    parsedVariants.value = [...draft.variants]
-    parsedSkuGroups.value = Array.isArray(result.skuGroups) ? result.skuGroups : []
-
-    if (form.ip && !presets.ips.includes(form.ip)) presets.addIp(form.ip)
-    if (form.category && !presets.categories.includes(form.category)) presets.addCategory(form.category)
-
-    // 异步补充 main_url 展示图 + SKU 专属封面（不阻塞显示）
-    if (result.goodsId) {
-      fetchGoodsDetail(result.goodsId).then(({ mainImages, skuCovers, skuPrices, skuVariants, skuGroups, coverUrl }) => {
-        if (Array.isArray(skuGroups) && skuGroups.length) parsedSkuGroups.value = skuGroups
-        const sourceVariants = skuVariants.length
-          ? skuVariants
-          : parsedVariants.value
-        // 把 SKU cover_url + price 回填到对应变体
-        parsedVariants.value = sourceVariants.map(v => ({
-          ...v,
-          cover_url: skuCovers[v.key] || v.cover_url || coverUrl || '',
-          price: v.price ?? skuPrices[v.key] ?? null,
-        }))
-        // 多款式商品不再把整组 main_url 当成同一件商品的图片，避免不同款式混图
-        if (!parsedVariants.value.length) {
-          const extras = mainImages
-            .map(u => (u || '').split('?')[0])
-            .filter(u => u && !parsedBaseImages.value.includes(u))
-          if (extras.length) {
-            parsedBaseImages.value = normalizeMihoyoImageList([...parsedBaseImages.value, ...extras])
-            parsedImages.value = [...parsedBaseImages.value]
-            if (!form.images.length) {
-              form.images = getDefaultMihoyoImages(parsedBaseImages.value)
-              form.image = form.images[0] || form.image
-            }
-          }
-        }
-        autoSelectSingleVariant()
-        autoSelectVariantByHint()
-        if (selectedVariantKey.value) {
-          const selected = parsedVariants.value.find(v => v.key === selectedVariantKey.value)
-          applySelectedVariantMedia(selected)
-        }
-      }).catch(() => {})
-    }
-
-    selectedVariantKey.value = ''  // 重置选中状态
-    autoSelectSingleVariant()
-    autoSelectVariantByHint()
-    updateHistoricalTagContextFromItem({
-      ip: form.ip,
-      characters: form.characters,
-      tags: [],
-    })
-
-    parsed.value = true
-  } catch (e) {
-    parseError.value = e.message || t('import.errorParseFailed')
-  } finally {
-    parsing.value = false
-  }
-}
-
-// ── 日期选择器逻辑 ──
-function openDatePicker() {
-  datePickerValue.value = toDatePickerValue(form.purchaseDate)
-  showDatePicker.value = true
-}
-
-function onDateConfirm({ selectedValues }) {
-  const [year, month, day] = normalizeDateParts(selectedValues.join('-'))
-  form.purchaseDate = `${year}-${month}-${day}`
-  datePickerValue.value = [year, month, day]
-  showDatePicker.value = false
 }
 
 // ── 队列项日期选择器 ──
@@ -1152,55 +621,6 @@ function normalizeDateParts(dateString) {
   if (!dateString) return [fy, fm, fd]
   const [year = fy, month = fm, day = fd] = `${dateString}`.split('-')
   return [year, month.padStart(2, '0'), day.padStart(2, '0')]
-}
-
-async function handleSave() {
-  formPriceError.value = ''
-  await commitActiveInput()
-  if (!form.name.trim()) {
-    parseError.value = t('import.errorNameRequired')
-    return
-  }
-
-  const priceValidation = validatePrice(form.price)
-  if (!priceValidation.valid) {
-    formPriceError.value = priceValidation.message
-    return
-  }
-
-  try {
-    // 把用户选中的角色加入预设（addCharacter 自带 (ip,name) 去重，重复调用幂等）
-    for (const charName of form.characters) {
-      presets.addCharacter(charName, form.ip || '')
-    }
-    await goodsStore.addGoods({
-      name: form.name.trim(),
-      category: form.category,
-      ip: form.ip,
-      goodsId: form.goodsId || '',
-      variant: selectedVariantName.value,
-      image: form.image,
-      images: form.images,
-      price: form.price === '' ? null : Number(form.price),
-      source: form.source,
-      purchaseDate: form.purchaseDate,
-      notes: form.notes,
-      characters: form.characters,
-      isWishlist: isWishlistMode.value,
-    })
-    updateHistoricalTagContextFromItem({
-      ip: form.ip,
-      characters: form.characters,
-      tags: [],
-    })
-    showGlobalToast(t(
-      isWishlistMode.value ? 'import.importedWishlistToast' : 'import.importedToast',
-      { count: 1 }
-    ))
-    runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
-  } catch (e) {
-    parseError.value = t('import.errorSaveFailed', { message: e.message })
-  }
 }
 
 onMounted(() => {

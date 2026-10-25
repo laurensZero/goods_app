@@ -577,27 +577,8 @@
   font-weight: 600;
 }
 
-.variant-field-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
 
-.variant-field-toggle {
-  border: none;
-  background: transparent;
-  color: var(--app-text-secondary);
-  font-size: var(--font-small);
-  font-weight: 600;
-}
 
-.variant-field-match {
-  margin-top: -2px;
-  color: var(--app-text-secondary);
-  font-size: var(--font-body);
-  line-height: 1.4;
-}
 
 .required { color: #c74444; }
 
@@ -633,10 +614,6 @@
 }
 
 /* ── 浮动保存按钮 ── */
-.float-footer {
-  --float-footer-z: 100;
-  pointer-events: auto;
-}
 
 .btn-primary {
   width: 100%;
@@ -652,10 +629,6 @@
   transition: opacity 0.15s, transform 0.12s;
 }
 
-.btn-float {
-  border-radius: var(--radius-card);
-  box-shadow: var(--app-shadow);
-}
 
 .btn-primary:active {
   transform: scale(0.98);
@@ -663,62 +636,12 @@
 }
 
 /* ── 自动识别角色 chips ── */
-.auto-badge {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 2px 8px;
-  border-radius: var(--radius-xxs);
-  background: color-mix(in srgb, #4a7aec 12%, var(--app-surface-soft));
-  color: color-mix(in srgb, #4a7aec 78%, var(--app-text));
-  font-size: var(--font-caption);
-  font-weight: 500;
-  vertical-align: middle;
-}
 
-.char-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
 
-.char-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 10px 6px 12px;
-  border-radius: var(--radius-pill);
-  background: #eef3ff;
-  color: #2040a0;
-  font-size: var(--font-body);
-  font-weight: 500;
-}
 
-.char-chip-del {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: none;
-  border-radius: 50%;
-  background: rgba(32, 64, 160, 0.12);
-  color: #2040a0;
-  font-size: var(--font-body-lg);
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  transition: background 0.15s;
-}
 
-.char-chip-del:active {
-  background: rgba(32, 64, 160, 0.24);
-}
 
 /* ── 变体（角色款式）选择器 ── */
-.variant-levels {
-  margin-top: 4px;
-}
 
 .variant-grid {
   display: grid;
@@ -1105,10 +1028,6 @@ html.theme-dark .variant-img-wrap {
     background: rgba(255, 255, 255, 0.06);
   }
 
-  html.theme-dark .auto-badge {
-    background: rgba(109, 157, 255, 0.14);
-    color: #bfd4ff;
-  }
 
 html.theme-dark .date-field {
     backdrop-filter: blur(var(--app-frost-soft-blur)) saturate(var(--app-frost-saturate));
@@ -1161,9 +1080,6 @@ html.theme-dark .btn-primary {
     color: #141416;
   }
 
-html.theme-dark .btn-float {
-    box-shadow: var(--app-shadow-lg);
-  }
 
 @media (max-width: 359px) {
   .variant-grid {
