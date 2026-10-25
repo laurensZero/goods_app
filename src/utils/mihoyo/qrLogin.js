@@ -8,13 +8,13 @@
  * 浏览器 CORS 仅放行 user.mihoyogift.com，网页端必须经 /mihoyo-passport 代理。
  * 代理会把 Set-Cookie 写入响应体 data.mihoyo_set_cookie（及响应头 x-mihoyo-set-cookie）。
  */
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import {
   buildMihoyoCookieFromPairs,
   extractMihoyoCookieFromQrPayload,
   parseSetCookiePairs,
   validateQrCookie,
 } from '@/utils/mihoyo/qrLoginCookie'
+import { passportRequest } from '@/utils/mihoyo/passportTransport'
 
 export {
   buildMihoyoCookieFromPairs,
@@ -88,77 +88,21 @@ function buildPassportHeaders(deviceId) {
   }
 }
 
-function safeJson(text) {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return {}
-  }
-}
-
-/**
- * 从响应头装配 Cookie。
- * 注意：fetch 的 res.headers 是 Headers 实例，必须用 .get()，
- * Object.entries(Headers) 永远是空数组。
- */
-function extractCookieFromHeaders(headers) {
-  if (!headers || typeof headers !== 'object') return ''
-
-  if (typeof headers.get === 'function') {
-    const forwarded = headers.get('x-mihoyo-set-cookie')
-    if (forwarded) {
-      return buildMihoyoCookieFromPairs(parseSetCookiePairs(forwarded))
-    }
-    const setCookie = headers.get('set-cookie')
-    if (setCookie) {
-      return buildMihoyoCookieFromPairs(parseSetCookiePairs(setCookie))
-    }
-    return ''
-  }
-
-  const lower = {}
-  for (const [key, value] of Object.entries(headers)) {
-    lower[String(key).toLowerCase()] = value
-  }
-  const forwarded = lower['x-mihoyo-set-cookie']
-  if (forwarded) {
-    return buildMihoyoCookieFromPairs(parseSetCookiePairs(forwarded))
-  }
-  const setCookie = lower['set-cookie']
-  if (setCookie) {
-    return buildMihoyoCookieFromPairs(parseSetCookiePairs(setCookie))
-  }
-  return ''
-}
-
 async function postPassport(path, data, headers) {
-  if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.request({
-      url: `${MIHOYO_PASSPORT_BASE}${path}`,
-      method: 'POST',
-      headers: {
-        Origin: 'https://user.mihoyogift.com',
-        Referer: 'https://user.mihoyogift.com/',
-        ...headers,
-      },
-      data,
-    })
-    const body = typeof res.data === 'string' ? safeJson(res.data) : (res.data || {})
-    return {
-      json: body,
-      cookie: extractMihoyoCookieFromQrPayload(body, res.headers) || extractCookieFromHeaders(res.headers),
-    }
-  }
-
-  const res = await fetch(`${MIHOYO_PASSPORT_PROXY}${path}`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
+  const { json, headers: resHeaders } = await passportRequest({
+    base: MIHOYO_PASSPORT_BASE,
+    proxy: MIHOYO_PASSPORT_PROXY,
+    path,
+    headers: {
+      Origin: 'https://user.mihoyogift.com',
+      Referer: 'https://user.mihoyogift.com/',
+      ...headers,
+    },
+    data,
   })
-  const json = await res.json()
   return {
     json,
-    cookie: extractMihoyoCookieFromQrPayload(json, res.headers) || extractCookieFromHeaders(res.headers),
+    cookie: extractMihoyoCookieFromQrPayload(json, resHeaders),
   }
 }
 

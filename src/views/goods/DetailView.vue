@@ -386,8 +386,7 @@ import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import { useI18n } from 'vue-i18n'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
-import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
-import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { getActiveMihoyoCookie, reportMihoyoCookieFailure } from '@/utils/mihoyo/sessionCookie'
 import { useAuthStore } from '@/stores/auth'
 import { useMihoyoStockMonitorStore } from '@/stores/mihoyoStockMonitor'
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
@@ -943,23 +942,10 @@ async function handleAddToCart() {
     return
   }
 
-  // 如果没有Cookie，尝试加载
+  // 统一入口取 Cookie（本地账号状态 → 原生插件会话）
   if (!mihoyoCookie.value) {
     try {
-      const cookieState = await loadMihoyoCookieState()
-      mihoyoCookie.value = cookieState.cookie || ''
-    } catch {
-      // ignore
-    }
-  }
-
-  // 安卓原生端：通过原生插件直接获取 Cookie
-  if (!mihoyoCookie.value) {
-    try {
-      const nativeCookie = await getNativeMihoyoCookie()
-      if (nativeCookie) {
-        mihoyoCookie.value = nativeCookie
-      }
+      mihoyoCookie.value = await getActiveMihoyoCookie()
     } catch {
       // ignore
     }
@@ -1034,9 +1020,15 @@ async function doAddToCart(skuId) {
       showToast(t('toast.addedToCart'))
       showCartDialog.value = false
     } else {
+      // 登录态失效时把账号标记为 invalid，导入页会看到失效提示
+      await reportMihoyoCookieFailure(
+        { retcode: result.retcode, message: result.message },
+        mihoyoCookie.value,
+      ).catch(() => {})
       showToast(t('toast.addToCartFailed', { error: result.message || t('toast.unknownError') }))
     }
   } catch (e) {
+    await reportMihoyoCookieFailure(e, mihoyoCookie.value).catch(() => {})
     showToast(t('toast.addToCartError', { error: e.message || t('toast.networkError') }))
   } finally {
     cartLoading.value = false

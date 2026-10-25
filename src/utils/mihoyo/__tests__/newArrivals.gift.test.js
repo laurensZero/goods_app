@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   fetchGiftActivityPublic: vi.fn(),
 }))
 
-vi.mock('@/utils/mihoyo/request', () => ({
+vi.mock('@/utils/mihoyo/request', async (importOriginal) => ({
+  ...(await importOriginal()),
   mihoyoRequest: mocks.mihoyoRequest,
 }))
 

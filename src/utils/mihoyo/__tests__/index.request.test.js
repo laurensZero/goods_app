@@ -2,12 +2,23 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   mihoyoRequest: vi.fn(),
+  mihoyoApi: vi.fn(),
 }))
 
-vi.mock('@/utils/mihoyo/request', () => ({
-  mihoyoRequest: mocks.mihoyoRequest,
-}))
+// mihoyoApi 与 mihoyoRequest 在同一模块内互相引用，必须分别 mock；
+// mihoyoApi 按真实实现包装被 mock 的 mihoyoRequest，保持 retcode 检查语义
+vi.mock('@/utils/mihoyo/request', async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    mihoyoRequest: mocks.mihoyoRequest,
+    mihoyoApi: mocks.mihoyoApi,
+  }
+})
 
+import {
+  MihoyoApiError,
+} from '../request'
 import {
   parseMihoyoUrl,
   fetchAllOrders,
@@ -21,14 +32,28 @@ import {
 // restoreMocks 不会重置 vi.fn() 的调用记录，需要手动清理
 beforeEach(() => {
   mocks.mihoyoRequest.mockReset()
+  mocks.mihoyoApi.mockReset()
+  mocks.mihoyoApi.mockImplementation(async (path, options) => {
+    const json = await mocks.mihoyoRequest(path, options)
+    if (!json || json.retcode !== 0) {
+      throw new MihoyoApiError(
+        json?.message || `接口错误 ${json?.retcode ?? 'unknown'}`,
+        { retcode: json?.retcode ?? null },
+      )
+    }
+    return json
+  })
 })
 
 describe('mihoyo 调用方行为锁（错误文案与降级返回值）', () => {
-  it('parseMihoyoUrl：retcode 非 0 时抛出「接口返回错误：xxx」并携带 Referer/x-rpc-language 头', async () => {
+  it('parseMihoyoUrl：retcode 非 0 时抛出携带 retcode 的 MihoyoApiError，并携带统一请求头', async () => {
     mocks.mihoyoRequest.mockResolvedValue({ retcode: 1, message: 'xxx' })
 
-    await expect(parseMihoyoUrl('https://www.mihoyogift.com/goods/1234567890123456789'))
-      .rejects.toThrow('接口返回错误：xxx')
+    const error = await parseMihoyoUrl('https://www.mihoyogift.com/goods/1234567890123456789')
+      .catch((e) => e)
+    expect(error).toBeInstanceOf(MihoyoApiError)
+    expect(error.message).toBe('xxx')
+    expect(error.retcode).toBe(1)
 
     const [path, options] = mocks.mihoyoRequest.mock.calls[0]
     expect(path).toContain('goods_id=1234567890123456789')
@@ -40,7 +65,9 @@ describe('mihoyo 调用方行为锁（错误文案与降级返回值）', () => 
 
   it('fetchAllOrders：retcode 非 0 时抛出 json.message（useMihoyoCookieState 依赖该文案匹配）', async () => {
     mocks.mihoyoRequest.mockResolvedValue({ retcode: -100, message: '登录失效' })
-    await expect(fetchAllOrders('a=b')).rejects.toThrow('登录失效')
+    const error = await fetchAllOrders('a=b').catch((e) => e)
+    expect(error.message).toBe('登录失效')
+    expect(error.retcode).toBe(-100)
   })
 
   it('fetchAllOrders：json.message 为空时抛出「接口错误 N」', async () => {

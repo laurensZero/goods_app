@@ -14,9 +14,13 @@
  */
 import { Capacitor } from '@capacitor/core'
 import { normalizeGoodsVariant } from '@/utils/goods/identity'
-import { mihoyoRequest } from '@/utils/mihoyo/request'
+import { buildMihoyoHeaders, mihoyoApi, mihoyoRequest } from '@/utils/mihoyo/request'
+import { parseCookiePairs } from '@/utils/mihoyo/cookie'
 import { allocateCouponByListedPrice } from '@/utils/goods/couponAllocate'
 import { createLogger } from '@/utils/logger'
+
+// isMihoyoCookieExpiredError 已收敛到 authError.js（retcode 优先、文案正则兜底），此处保留导出兼容旧调用方
+export { isMihoyoCookieExpiredError } from '@/utils/mihoyo/authError'
 
 // API 相对路径（域名/代理前缀由 mihoyoRequest 统一处理）
 const API_GOODS_DETAIL  = '/common/homeishop/v1/goods/get_goods_spu_detail'
@@ -318,19 +322,8 @@ export async function fetchGiftActivityPublic(activityId) {
       startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
     }
   }
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GIFT_ACTIVITY}?activity_id=${id}`, { headers: reqHeaders })
-    if (json.retcode !== 0) {
-      // 活动被删除/下线时接口返回非 0：调用方据此清理本地活动缓存
-      return {
-        ok: false, reason: 'not_found', activityId: id, name: '', shopCode: '',
-        startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
-      }
-    }
+    const json = await mihoyoApi(`${API_GIFT_ACTIVITY}?activity_id=${id}`, { headers: buildMihoyoHeaders() })
     const data = json?.data || {}
     const byGoodsId = new Map()
     for (const stage of (data.stages || [])) {
@@ -358,9 +351,11 @@ export async function fetchGiftActivityPublic(activityId) {
       outOfStock: Boolean(data.out_of_stock),
       gifts: [...byGoodsId.values()],
     }
-  } catch {
+  } catch (error) {
+    // 活动被删除/下线时接口返回非 0：调用方据此清理本地活动缓存
+    const reason = error?.retcode != null ? 'not_found' : 'network'
     return {
-      ok: false, reason: 'network', activityId: id, name: '', shopCode: '',
+      ok: false, reason, activityId: id, name: '', shopCode: '',
       startTime: 0, endTime: 0, status: -1, serverTime: 0, outOfStock: false, gifts: [],
     }
   }
@@ -372,12 +367,8 @@ export async function fetchGiftActivityPublic(activityId) {
 export async function fetchGoodsGiftActivityIds(goodsId) {
   const id = String(goodsId || '').trim()
   if (!id) return []
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${id}`, { headers: reqHeaders })
+    const json = await mihoyoApi(`${API_GOODS_ITEM_DETAIL}?goods_id=${id}`, { headers: buildMihoyoHeaders() })
     const promotion =
       json?.data?.goods?.promotion ||
       json?.data?.promotion ||
@@ -434,16 +425,7 @@ export async function parseMihoyoUrl(url) {
   const urlGoodsId = link.id
   if (!urlGoodsId) throw new Error('无法解析商品 ID，请检查链接')
 
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
-
-const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, { headers: reqHeaders })
-
-  if (json.retcode !== 0) {
-    throw new Error(`接口返回错误：${json.message || json.retcode}`)
-  }
+  const json = await mihoyoApi(`${API_GOODS_DETAIL}?goods_id=${urlGoodsId}`, { headers: buildMihoyoHeaders() })
 
   const detail = json?.data?.detail
   if (!detail || !detail.name) {
@@ -542,12 +524,8 @@ function cloneGoodsDetailResult(result) {
 }
 
 async function requestGoodsDetailOnce(goodsId) {
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
+    const json = await mihoyoApi(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: buildMihoyoHeaders() })
     const detail =
       json?.data?.goods?.detail ||
       json?.data?.detail ||
@@ -640,13 +618,8 @@ export async function fetchGoodsDetail(goodsId) {
  */
 export async function fetchGoodsVariants(goodsId) {
   if (!goodsId) return []
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
-    if (json.retcode !== 0) return []
+    const json = await mihoyoApi(`${API_GOODS_DETAIL}?goods_id=${goodsId}`, { headers: buildMihoyoHeaders() })
     const detail = json?.data?.detail
     return buildSaleAttrVariants(detail?.sale_attrs)
   } catch {
@@ -664,15 +637,8 @@ export async function fetchGoodsBrief(goodsId) {
   if (!id) {
     return { ok: false, goodsId: '', name: '', cover_url: '', price_cents: 0, sale_time: 0, point: 0 }
   }
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GOODS_DETAIL}?goods_id=${id}`, { headers: reqHeaders })
-    if (json.retcode !== 0) {
-      return { ok: false, goodsId: id, name: '', cover_url: '', price_cents: 0, sale_time: 0, point: 0 }
-    }
+    const json = await mihoyoApi(`${API_GOODS_DETAIL}?goods_id=${id}`, { headers: buildMihoyoHeaders() })
     const detail = json?.data?.detail || {}
     const rawPrice = Number(detail.price)
     const rawPoint = Number(detail.point ?? detail.points)
@@ -701,13 +667,11 @@ export async function fetchGoodsBrief(goodsId) {
 export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
   if (!keyword) return []
   const normalizedPage = Math.max(1, Number(page) || 1)
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
   try {
-    const json = await mihoyoRequest(`${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`, { headers: reqHeaders })
-    if (json.retcode !== 0) return []
+    const json = await mihoyoApi(
+      `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`,
+      { headers: buildMihoyoHeaders() },
+    )
     return (json.data?.list || []).map(item => ({
       goods_id:  item.goods_id,
       name:      item.name,
@@ -724,17 +688,9 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
 const API_ORDER_LIST = '/common/homeishop/v1/order/order_list'
 const API_CART_LIST = '/common/homeishop/v2/shop_car/get_shop_car_list'
 
-/** 解析 Cookie 字符串为 key-value 对象 */
+/** 解析 Cookie 字符串为 key-value 对象（与 cookie.js 的 parseCookiePairs 同源） */
 export function parseCookieString(cookieStr) {
-  const result = {}
-  cookieStr.split(';').forEach((part) => {
-    const idx = part.indexOf('=')
-    if (idx === -1) return
-    const key = part.slice(0, idx).trim()
-    const value = part.slice(idx + 1).trim()
-    if (key) result[key] = value
-  })
-  return result
+  return parseCookiePairs(cookieStr)
 }
 
 /** 检验 Cookie 是否包含米游社常见认证字段 */
@@ -745,22 +701,10 @@ export function validateMihoyoCookie(cookieStr) {
   return hasUid && hasToken
 }
 
-export function isMihoyoCookieExpiredError(error) {
-  const message = String(error?.message || error || '').trim()
-  if (!message) return false
-
-  return /cookie|token|ltoken|login|account|auth|unauthorized|forbidden|401|403|登录|失效|过期|无效|认证|鉴权/i.test(message)
-}
-
 async function fetchOrderPage(cookieStr, page, limit) {
-  const headers = {
-    'Cookie': cookieStr,
-    'Referer': 'https://mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-    'x-rpc-client_type': '5',
-  }
-  const json = await mihoyoRequest(`${API_ORDER_LIST}?limit=${limit}&page=${page}`, { headers })
-  if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
+  const json = await mihoyoApi(`${API_ORDER_LIST}?limit=${limit}&page=${page}`, {
+    headers: buildMihoyoHeaders({ authed: true, cookie: cookieStr }),
+  })
   return json.data
 }
 
@@ -803,16 +747,9 @@ export async function fetchAllOrders(cookieStr, onProgress) {
 }
 
 export async function fetchCartList(cookieStr) {
-  const headers = {
-    'Cookie': cookieStr,
-    'Referer': 'https://mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-    'x-rpc-client_type': '5',
-  }
-
-  const json = await mihoyoRequest(API_CART_LIST, { headers })
-
-  if (json.retcode !== 0) throw new Error(json.message || `接口错误 ${json.retcode}`)
+  const json = await mihoyoApi(API_CART_LIST, {
+    headers: buildMihoyoHeaders({ authed: true, cookie: cookieStr }),
+  })
   return json.data?.list || []
 }
 
@@ -1294,15 +1231,11 @@ export async function fetchGoodsCategoryList(shopCode) {
   const normalizedShopCode = String(shopCode || '').trim()
   if (!normalizedShopCode) return []
 
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
-
   try {
-    const json = await mihoyoRequest(`${API_CATEGORY_LIST}?shop_code=${encodeURIComponent(normalizedShopCode)}`, { headers: reqHeaders })
-
-    if (json.retcode !== 0) return []
+    const json = await mihoyoApi(
+      `${API_CATEGORY_LIST}?shop_code=${encodeURIComponent(normalizedShopCode)}`,
+      { headers: buildMihoyoHeaders() },
+    )
     return Array.isArray(json.data?.list) ? json.data.list : []
   } catch {
     return []
@@ -1345,14 +1278,15 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
     log.debug('cart:add:transport', { transport: Capacitor.isNativePlatform() ? 'capacitor-http' : 'fetch-proxy' })
     const json = await mihoyoRequest(API_CART_ADD, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        'Cookie': cookie,
-        'Referer': 'https://www.mihoyogift.com/',
-        'Origin': 'https://www.mihoyogift.com',
-        'x-rpc-language': 'zh-cn',
-        'x-rpc-mall-platform': 'web',
-      },
+      headers: buildMihoyoHeaders({
+        authed: true,
+        cookie,
+        extra: {
+          'Content-Type': 'application/json;charset=UTF-8',
+          'Origin': 'https://www.mihoyogift.com',
+          'x-rpc-mall-platform': 'web',
+        },
+      }),
       data: body
     })
 
@@ -1363,9 +1297,9 @@ export async function addToCart({ goodsId, skuId, shopCode, nums = 1, cookie }) 
       cartFull: json?.data?.code === 2
     })
 
-    // 外层 retcode 检查
+    // 外层 retcode 检查（携带 retcode，供调用方识别登录态失效）
     if (json.retcode !== 0) {
-      return { success: false, message: json.message || `错误码：${json.retcode}` }
+      return { success: false, message: json.message || `错误码：${json.retcode}`, retcode: json.retcode }
     }
 
     // 内层 data.code 检查：0=成功，2=购物车满
@@ -1392,14 +1326,9 @@ export async function fetchGoodsDetailForCart(goodsId) {
   if (!goodsId) return { shopCode: '', skus: [] }
   log.debug('goods-detail:cart:start', { goodsId })
 
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
-
   try {
     log.debug('goods-detail:cart:transport', { goodsId, transport: Capacitor.isNativePlatform() ? 'capacitor-http' : 'fetch-proxy' })
-    const json = await mihoyoRequest(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: reqHeaders })
+    const json = await mihoyoApi(`${API_GOODS_ITEM_DETAIL}?goods_id=${goodsId}`, { headers: buildMihoyoHeaders() })
 
     const detail = json?.data?.goods?.detail || json?.data?.detail || json?.data?.goods || null
     log.debug('goods-detail:cart:response', {
@@ -1458,11 +1387,6 @@ export async function searchGoodsSpuList({
     return []
   }
 
-  const reqHeaders = {
-    'Referer': 'https://www.mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-  }
-
   const query = new URLSearchParams({
     limit: String(pageSize),
     page: String(page),
@@ -1475,9 +1399,7 @@ export async function searchGoodsSpuList({
   })
 
   try {
-    const json = await mihoyoRequest(`${API_GOODS_SPU_LIST}?${query.toString()}`, { headers: reqHeaders })
-
-    if (json.retcode !== 0) return []
+    const json = await mihoyoApi(`${API_GOODS_SPU_LIST}?${query.toString()}`, { headers: buildMihoyoHeaders() })
 
     return (json.data?.list || []).map((item) => ({
       goods_id: item.goods_id,

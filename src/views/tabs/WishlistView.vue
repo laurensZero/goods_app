@@ -284,8 +284,7 @@ import { buildCustomSortRegenerateIds, getCustomSortRegenerateBaseMode } from '@
 import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 import { addToCart, fetchGoodsDetailForCart } from '@/utils/mihoyo/index'
-import { loadMihoyoCookieState } from '@/utils/mihoyo/cookie'
-import { getNativeMihoyoCookie } from '@/utils/mihoyo/nativeImport'
+import { getActiveMihoyoCookie, reportMihoyoCookieFailure } from '@/utils/mihoyo/sessionCookie'
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
@@ -1379,21 +1378,7 @@ const cartItemCount = ref(0)
 const isBatchAddingToCart = ref(false)
 
 async function getMihoyoCookie() {
-  // 先尝试 Web 端存储
-  try {
-    const cookieState = await loadMihoyoCookieState()
-    if (cookieState.cookie) return cookieState.cookie
-  } catch {
-    // ignore
-  }
-  // 再尝试安卓原生端
-  try {
-    const nativeCookie = await getNativeMihoyoCookie()
-    if (nativeCookie) return nativeCookie
-  } catch {
-    // ignore
-  }
-  return ''
+  return getActiveMihoyoCookie()
 }
 
 async function batchAddToCart() {
@@ -1454,9 +1439,15 @@ async function batchAddToCart() {
         cartFull = true
       } else {
         failCount++
+        // 登录态失效时把账号标记为 invalid，导入页会看到失效提示
+        await reportMihoyoCookieFailure(
+          { retcode: result.retcode, message: result.message },
+          cookie,
+        ).catch(() => {})
       }
-    } catch {
+    } catch (e) {
       failCount++
+      await reportMihoyoCookieFailure(e, cookie).catch(() => {})
     }
 
     // 避免请求太快，添加小延迟

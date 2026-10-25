@@ -6,7 +6,7 @@
 // 这里的 in_stock / last_checked_at 只是服务端最近一次检测的结果快照，供展示。
 
 import { getSupabaseClient } from '@/utils/sync/supabaseClient'
-import { mihoyoRequest } from '@/utils/mihoyo/request'
+import { buildMihoyoHeaders, mihoyoApi } from '@/utils/mihoyo/request'
 import { fetchGoodsDetail } from '@/utils/mihoyo'
 
 const MONITOR_TABLE = 'mihoyo_monitor_goods'
@@ -291,13 +291,9 @@ export function resolveSkuNameFromDetail(detail, skuKey = '') {
  */
 export async function checkGoodsAvailability(goodsId, skuKey = '') {
   try {
-    const json = await mihoyoRequest(`${GOODS_DETAIL_PATH}?goods_id=${goodsId}`, {
-      headers: {
-        'Referer': 'https://www.mihoyogift.com/',
-        'x-rpc-language': 'zh-cn',
-      },
+    const json = await mihoyoApi(`${GOODS_DETAIL_PATH}?goods_id=${goodsId}`, {
+      headers: buildMihoyoHeaders(),
     })
-    if (json?.retcode !== 0) return null
 
     const detail = json?.data?.goods?.detail ?? {}
     const goodsQuantity = json?.data?.goods?.quantity ?? detail?.quantity ?? {}

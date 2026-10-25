@@ -1,5 +1,4 @@
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
+import { buildMihoyoHeaders, mihoyoRequestWithResponse } from '@/utils/mihoyo/request'
 import { isMihoyoAuthHttpStatus, isMihoyoAuthRetcode } from '@/utils/mihoyo/authError'
 
 /**
@@ -7,11 +6,7 @@ import { isMihoyoAuthHttpStatus, isMihoyoAuthRetcode } from '@/utils/mihoyo/auth
  * GET https://api-mall.mihoyogift.com/common/homeishop/v1/user/info
  * → { retcode:0, data:{ uid, nickname, avatar_url, ... } }
  */
-const USER_INFO = {
-  base: 'https://api-mall.mihoyogift.com',
-  path: '/common/homeishop/v1/user/info',
-  proxy: '/mihoyo-api'
-}
+const USER_INFO_PATH = '/common/homeishop/v1/user/info'
 
 /** 解析 user/info 响应 → { nickname, avatarUrl, uid }；无效返回 null */
 export function pickProfile(json) {
@@ -34,45 +29,19 @@ export function pickProfile(json) {
   return { nickname, avatarUrl: avatar, uid }
 }
 
-async function requestJson(url, proxyBase, path, cookie) {
-  const headers = {
-    Cookie: cookie,
-    Referer: 'https://mihoyogift.com/',
-    'x-rpc-language': 'zh-cn',
-    'x-rpc-client_type': '5',
-  }
-
-  if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.request({
-      url,
-      method: 'GET',
-      headers,
-      connectTimeout: 8000,
-      readTimeout: 8000,
-    })
-    if (Number(res.status) >= 400) {
-      const error = new Error(`请求失败（${res.status}）`)
-      error.status = Number(res.status)
-      throw error
-    }
-    return typeof res.data === 'string' ? JSON.parse(res.data) : (res.data || {})
-  }
-
-  const webHeaders = { ...headers }
-  webHeaders['x-cookie-forward'] = encodeURIComponent(cookie)
-  delete webHeaders.Cookie
-
-  const res = await fetchWithPlatformBridge(`${proxyBase}${path}`, {
-    method: 'GET',
-    headers: webHeaders,
-    timeoutMs: 8000,
+async function requestUserInfoJson(cookie) {
+  const { json, response } = await mihoyoRequestWithResponse(USER_INFO_PATH, {
+    headers: buildMihoyoHeaders({ cookie, authed: true }),
+    connectTimeoutMs: 8000,
+    readTimeoutMs: 8000,
   })
-  if (!res.ok) {
-    const error = new Error(`请求失败（${res.status}）`)
-    error.status = Number(res.status)
+  // 原生路径不抛 HTTP 状态错误，这里统一补齐 401/403 → auth 的判定依据
+  if (response.status >= 400) {
+    const error = new Error(`请求失败（${response.status}）`)
+    error.status = response.status
     throw error
   }
-  return res.json()
+  return json
 }
 
 /**
@@ -85,12 +54,7 @@ export async function fetchMihoyoAccountProfile(cookie) {
   if (!value) return { nickname: '', avatarUrl: '', uid: '' }
 
   try {
-    const json = await requestJson(
-      `${USER_INFO.base}${USER_INFO.path}`,
-      USER_INFO.proxy,
-      USER_INFO.path,
-      value
-    )
+    const json = await requestUserInfoJson(value)
     if (json && json.retcode != null && Number(json.retcode) !== 0) {
       return { nickname: '', avatarUrl: '', uid: '' }
     }
@@ -113,12 +77,7 @@ export async function probeMihoyoUserInfo(cookie) {
   }
 
   try {
-    const json = await requestJson(
-      `${USER_INFO.base}${USER_INFO.path}`,
-      USER_INFO.proxy,
-      USER_INFO.path,
-      value
-    )
+    const json = await requestUserInfoJson(value)
     const retcode = json?.retcode == null ? null : Number(json.retcode)
     if (retcode != null && retcode !== 0) {
       return {

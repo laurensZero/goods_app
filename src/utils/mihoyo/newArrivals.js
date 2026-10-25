@@ -7,7 +7,7 @@
  * - 封面用列表 cover_url
  * 保留策略：开售后被挤出时靠本机缓存再留一段时间。
  */
-import { mihoyoRequest } from '@/utils/mihoyo/request'
+import { mihoyoRequest, buildMihoyoHeaders } from '@/utils/mihoyo/request'
 import {
   fetchGoodsGiftActivityIds,
   fetchGiftActivityPublic,
@@ -77,10 +77,7 @@ const GIFT_PROBE_MISS_TTL = 12 * 3600_000
 /** 探测缓存过期时间加一点随机抖动，避免同一批商品每次都在同一时刻集中重探 */
 const GIFT_PROBE_JITTER = 0.35
 
-const SHOP_HEADERS = {
-  Referer: 'https://www.mihoyogift.com/',
-  'x-rpc-language': 'zh-cn',
-}
+const SHOP_HEADERS = buildMihoyoHeaders()
 
 const POINT_HEADERS = {
   Referer: 'https://mihoyogift.com/m/point',

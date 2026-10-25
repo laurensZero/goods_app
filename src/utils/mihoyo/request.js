@@ -4,17 +4,63 @@
  *   - 原生：直连 api-mall.mihoyogift.com，Cookie 头原样发送
  *   - Web：走 /mihoyo-api 代理，Cookie 头转换为 x-cookie-forward（浏览器禁止 JS 设置 Cookie 头）
  * 并为两条路径统一补齐超时控制（连接 + 读取 + 总时长看门狗）。
- * 注意：本模块只负责传输与 JSON 解析，retcode 检查由各调用方自行处理（行为因调用方而异）。
+ * 注意：mihoyoRequest 只负责传输与 JSON 解析；业务调用统一走 mihoyoApi，
+ * 由它做 retcode 检查并抛出带 retcode 的 MihoyoApiError。
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { fetchWithPlatformBridge } from '@/utils/platform/http'
 
 export const MIHOYO_API_BASE = 'https://api-mall.mihoyogift.com'
+export const MIHOYO_REFERER = 'https://www.mihoyogift.com/'
 export const DEFAULT_CONNECT_TIMEOUT_MS = 15000
 export const DEFAULT_READ_TIMEOUT_MS = 30000
 // 与 platform/http.js 的超时提示保持一致；
 // 该文案绝不能命中 isMihoyoCookieExpiredError 的正则，否则超时会误判为 Cookie 失效
 export const MIHOYO_TIMEOUT_MESSAGE = '请求超时，请检查网络连接'
+
+/**
+ * 米游铺 API 通用请求头。
+ * @param {Object} [options]
+ * @param {string} [options.cookie=''] - 登录态 Cookie；传入后附带 x-rpc-client_type: 5
+ * @param {boolean} [options.authed=false] - 已登录接口（无 Cookie 也带 client_type 标记）
+ * @param {Object} [options.extra={}] - 额外头（Content-Type / Origin 等），覆盖默认值
+ */
+export function buildMihoyoHeaders({ cookie = '', authed = false, extra = {} } = {}) {
+  const headers = {
+    'Referer': MIHOYO_REFERER,
+    'x-rpc-language': 'zh-cn',
+  }
+  if (authed || cookie) {
+    headers['x-rpc-client_type'] = '5'
+    if (cookie) headers['Cookie'] = cookie
+  }
+  return { ...headers, ...extra }
+}
+
+/** 业务级错误：retcode 非 0（或 HTTP 4xx/5xx，带 status） */
+export class MihoyoApiError extends Error {
+  constructor(message, { retcode = null, status = null } = {}) {
+    super(message)
+    this.name = 'MihoyoApiError'
+    this.retcode = retcode
+    this.status = status
+  }
+}
+
+/**
+ * mihoyoRequest + 统一 retcode 检查。retcode 非 0 抛 MihoyoApiError（携带 retcode），
+ * 成功返回完整 JSON（含 retcode/data/message）。
+ */
+export async function mihoyoApi(path, options = {}) {
+  const json = await mihoyoRequest(path, options)
+  if (!json || json.retcode !== 0) {
+    throw new MihoyoApiError(
+      json?.message || `接口错误 ${json?.retcode ?? 'unknown'}`,
+      { retcode: json?.retcode ?? null },
+    )
+  }
+  return json
+}
 
 function buildResponseLike({ status = 0, headers = {}, body = '', url = '' }) {
   const normalizedHeaders = Object.entries(headers || {}).reduce((result, [key, value]) => {
@@ -149,7 +195,11 @@ export async function mihoyoRequestWithResponse(path, {
       signal: controller.signal,
       timeoutMs: totalTimeoutMs,
     })
-    if (!res.ok) throw new Error(`请求失败（${res.status}）`)
+    if (!res.ok) {
+      const error = new Error(`请求失败（${res.status}）`)
+      error.status = res.status
+      throw error
+    }
     return {
       json: await res.json(),
       response: res,

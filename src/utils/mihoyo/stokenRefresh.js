@@ -12,12 +12,11 @@
  *   3. 只有校验成功，调用方才允许替换旧 Cookie；
  *   4. 网络/代理失败不标记账号失效。
  */
-import { Capacitor, CapacitorHttp } from '@capacitor/core'
 import { md5 } from '@/utils/md5'
 import { readSecret, writeSecret } from '@/utils/platform/storage'
-import { fetchWithPlatformBridge } from '@/utils/platform/http'
 import { probeMihoyoUserInfo } from '@/utils/mihoyo/accountProfile'
 import { isMihoyoAuthHttpStatus, isMihoyoAuthRetcode } from '@/utils/mihoyo/authError'
+import { passportRequest, PROXY_UNAVAILABLE_CODE } from '@/utils/mihoyo/passportTransport'
 
 export const MIHOYO_ACCOUNT_PASSPORT_BASE = 'https://passport-api.mihoyo.com'
 export const MIHOYO_ACCOUNT_PASSPORT_PROXY = '/mihoyo-account-passport'
@@ -170,80 +169,22 @@ function buildPassportHeaders({ query, stoken, mid, clientType, deviceId, device
   return headers
 }
 
-function parseJsonPayload(data) {
-  if (data == null || data === '') return {}
-  return typeof data === 'string' ? JSON.parse(data) : data
-}
-
-function isHtmlPayload(text, contentType = '') {
-  const head = String(text || '').trimStart().slice(0, 200).toLowerCase()
-  return /text\/html/i.test(String(contentType || '')) ||
-    head.startsWith('<!doctype html') ||
-    head.startsWith('<html')
-}
-
-function createProxyUnavailableError() {
-  const error = new Error('当前环境没有可用的 stoken 换票代理')
-  error.code = 'proxy-unavailable'
-  return error
-}
-
 async function requestPassportJson(path, { query = '', headers = {} } = {}) {
-  const suffix = query ? `?${query}` : ''
-
-  if (Capacitor.isNativePlatform()) {
-    const res = await CapacitorHttp.request({
-      url: `${MIHOYO_ACCOUNT_PASSPORT_BASE}${path}${suffix}`,
-      method: 'GET',
-      headers,
-      connectTimeout: REQUEST_TIMEOUT_MS,
-      readTimeout: REQUEST_TIMEOUT_MS,
-    })
-    if (Number(res.status) >= 400) {
-      const error = new Error(`请求失败（${res.status}）`)
-      error.status = Number(res.status)
-      throw error
-    }
-    const contentType = res.headers?.['content-type'] || res.headers?.['Content-Type'] || ''
-    if (typeof res.data === 'string' && isHtmlPayload(res.data, contentType)) {
-      throw createProxyUnavailableError()
-    }
-    return parseJsonPayload(res.data)
-  }
-
-  const webHeaders = { ...headers }
-  webHeaders['x-cookie-forward'] = encodeURIComponent(webHeaders.Cookie || '')
-  delete webHeaders.Cookie
-  // 浏览器禁止设置 UA / Referer，由 Vite 代理补齐
-  delete webHeaders['User-Agent']
-  delete webHeaders.Referer
-
-  const res = await fetchWithPlatformBridge(`${MIHOYO_ACCOUNT_PASSPORT_PROXY}${path}${suffix}`, {
-    method: 'GET',
-    headers: webHeaders,
+  const { json } = await passportRequest({
+    base: MIHOYO_ACCOUNT_PASSPORT_BASE,
+    proxy: MIHOYO_ACCOUNT_PASSPORT_PROXY,
+    path,
+    query,
+    headers,
     timeoutMs: REQUEST_TIMEOUT_MS,
+    forwardCookie: true,
+    detectHtmlPayload: true,
   })
-  if (!res.ok) {
-    const error = new Error(`请求失败（${res.status}）`)
-    error.status = res.status
-    throw error
-  }
-
-  const contentType = res.headers?.get?.('content-type') || ''
-  const text = await res.text()
-  if (isHtmlPayload(text, contentType)) {
-    // 典型场景：生产网页没有 /mihoyo-account-passport 反代，Vite/SPA 回退成 index.html
-    throw createProxyUnavailableError()
-  }
-  try {
-    return text ? JSON.parse(text) : {}
-  } catch {
-    throw new Error(`响应不是 JSON：${text.slice(0, 120)}`)
-  }
+  return json
 }
 
 function classifyRequestError(error) {
-  if (error?.code === 'proxy-unavailable') return 'proxy'
+  if (error?.code === PROXY_UNAVAILABLE_CODE) return 'proxy'
   return isMihoyoAuthHttpStatus(error?.status) ? 'auth' : 'transient'
 }
 
