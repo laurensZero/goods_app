@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ensurePinyin } from '@/utils/pinyin'
+import { ensurePinyin, toPinyinSearchText } from '@/utils/pinyin'
 import {
   matchVariantsByHint,
   normalizeMihoyoGoodsSummary,
@@ -69,6 +69,8 @@ describe('matchVariantsByHint（三级匹配）', () => {
 
   it('第三级：拼音匹配仅在 pinyin 开关下生效', async () => {
     await ensurePinyin()
+    // pinyinIncludes 依赖拼音缓存，先预热被匹配文本
+    toPinyinSearchText('昔涟B')
     // xi lian 拼音命中「昔涟B」
     expect(matchVariantsByHint(VARIANTS, 'xilian')).toEqual([])
     expect(matchVariantsByHint(VARIANTS, 'xilian', { pinyin: true }).map((v) => v.key)).toEqual(['a'])
