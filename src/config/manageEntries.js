@@ -64,30 +64,6 @@ export function useManageEntries() {
       stats: [{ label: t('manage.statCategoryCount'), value: `${presets.categories.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
     },
     {
-      key: 'eventTypes', group: 'preset', title: t('manage.eventTypeManage'), kicker: t('manage.eventTypeKicker'),
-      meta: t('manage.eventTypeMeta', { count: presets.eventTypes.length }),
-      detail: t('manage.eventTypeDetail'),
-      summary: t('manage.eventTypeSummary'),
-      recommendation: t('manage.eventTypeRecommendation'),
-      primaryLabel: t('manage.eventTypePrimaryLabel'), secondaryLabel: '',
-      iconMode: 'svg', iconClass: 'event-icon',
-      iconPaths: ['M8 2v4', 'M16 2v4', 'M3 10h18', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
-      path: '/manage/event-types',
-      stats: [{ label: t('manage.statEventTypeCount'), value: `${presets.eventTypes.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statEventList') }]
-    },
-    {
-      key: 'customFields', group: 'preset', title: t('manage.customFields'), kicker: t('manage.customFieldKicker'),
-      meta: t('manage.customFieldMeta', { count: presets.customFieldDefs.length }),
-      detail: t('manage.customFieldDetail'),
-      summary: t('manage.customFieldSummary'),
-      recommendation: t('manage.customFieldRecommendation'),
-      primaryLabel: t('manage.customFieldPrimaryLabel'), secondaryLabel: '',
-      iconMode: 'svg', iconClass: 'custom-field-icon',
-      iconPaths: ['M4 6h16', 'M4 12h10', 'M4 18h7', 'M17 15l3 3', 'M20 15l-3 3'],
-      path: '/manage/custom-fields',
-      stats: [{ label: t('manage.statCustomFieldCount'), value: `${presets.customFieldDefs.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
-    },
-    {
       key: 'ips', group: 'preset', title: t('manage.ipManage'), kicker: t('manage.ipKicker'),
       meta: t('manage.ipMeta', { count: presets.ips.length }),
       detail: t('manage.ipDetail'),
@@ -110,6 +86,30 @@ export function useManageEntries() {
       iconPaths: ['M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2', 'M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
       path: '/manage/characters',
       stats: [{ label: t('manage.statCharacterCount'), value: `${presets.characters.length}` }, { label: t('manage.statRelatedField'), value: t('manage.statIpCollection') }]
+    },
+    {
+      key: 'customFields', group: 'preset', title: t('manage.customFields'), kicker: t('manage.customFieldKicker'),
+      meta: t('manage.customFieldMeta', { count: presets.customFieldDefs.length }),
+      detail: t('manage.customFieldDetail'),
+      summary: t('manage.customFieldSummary'),
+      recommendation: t('manage.customFieldRecommendation'),
+      primaryLabel: t('manage.customFieldPrimaryLabel'), secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'custom-field-icon',
+      iconPaths: ['M4 6h16', 'M4 12h10', 'M4 18h7', 'M17 15l3 3', 'M20 15l-3 3'],
+      path: '/manage/custom-fields',
+      stats: [{ label: t('manage.statCustomFieldCount'), value: `${presets.customFieldDefs.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statCollectionList') }]
+    },
+    {
+      key: 'eventTypes', group: 'preset', title: t('manage.eventTypeManage'), kicker: t('manage.eventTypeKicker'),
+      meta: t('manage.eventTypeMeta', { count: presets.eventTypes.length }),
+      detail: t('manage.eventTypeDetail'),
+      summary: t('manage.eventTypeSummary'),
+      recommendation: t('manage.eventTypeRecommendation'),
+      primaryLabel: t('manage.eventTypePrimaryLabel'), secondaryLabel: '',
+      iconMode: 'svg', iconClass: 'event-icon',
+      iconPaths: ['M8 2v4', 'M16 2v4', 'M3 10h18', 'M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
+      path: '/manage/event-types',
+      stats: [{ label: t('manage.statEventTypeCount'), value: `${presets.eventTypes.length}` }, { label: t('manage.statImpactScope'), value: t('manage.statEventList') }]
     },
     {
       key: 'storage', group: 'daily', title: t('manage.storageLocations'), kicker: t('manage.storageKicker'),
@@ -202,7 +202,7 @@ export function useManageEntries() {
       stats: [{ label: t('manage.statUsage'), value: t('manage.statShareManage') }, { label: t('manage.statDependency'), value: 'Supabase' }]
     },
     {
-      key: 'language', group: 'app', title: t('manage.language'), kicker: 'Language',
+      key: 'language', group: 'general', title: t('manage.language'), kicker: 'Language',
       meta: t('manage.languageDesc'),
       detail: t('manage.languageDesc'),
       summary: '',
@@ -214,7 +214,7 @@ export function useManageEntries() {
       stats: []
     },
     {
-      key: 'notifications', group: 'app', title: t('manage.notifications'), kicker: 'Notification',
+      key: 'notifications', group: 'general', title: t('manage.notifications'), kicker: 'Notification',
       meta: t('manage.notificationsDesc'),
       detail: t('manage.notificationsDesc'),
       summary: '',
@@ -226,7 +226,7 @@ export function useManageEntries() {
       stats: []
     },
     {
-      key: 'mihoyoFeatures', group: 'app', title: t('manage.mihoyoFeatures'), kicker: 'MiHoYo',
+      key: 'mihoyoFeatures', group: 'features', title: t('manage.mihoyoFeatures'), kicker: 'MiHoYo',
       meta: t('manage.mihoyoFeaturesDesc'),
       detail: t('manage.mihoyoFeaturesDesc'),
       summary: '',
@@ -238,7 +238,7 @@ export function useManageEntries() {
       stats: []
     },
     {
-      key: 'mcp', group: 'app', title: t('nav.mcpService'), kicker: 'MCP',
+      key: 'mcp', group: 'features', title: t('nav.mcpService'), kicker: 'MCP',
       meta: t('mcp.entryMeta'),
       detail: t('mcp.entryMeta'),
       summary: '',
@@ -250,7 +250,7 @@ export function useManageEntries() {
       stats: []
     },
     {
-      key: 'aiChat', group: 'app', title: t('nav.aiChat'), kicker: 'AI Chat',
+      key: 'aiChat', group: 'features', title: t('nav.aiChat'), kicker: 'AI Chat',
       meta: t('aiChat.entryMeta'),
       detail: t('aiChat.entryMeta'),
       summary: '',
@@ -264,7 +264,7 @@ export function useManageEntries() {
     // 支付模块「仅自己可见」（见 src/config/paymentsFeature.js）：
     // 关闭时不进入列表，普通用户在设置页看不到入口。
     ...(isPaymentsVisible() ? [{
-      key: 'payments', group: 'app', title: t('manage.paymentsTitle'), kicker: t('manage.paymentsEntryKicker'),
+      key: 'payments', group: 'features', title: t('manage.paymentsTitle'), kicker: t('manage.paymentsEntryKicker'),
       meta: t('manage.paymentsEntryMeta'),
       detail: t('manage.paymentsEntryDetail'),
       summary: '',
@@ -276,7 +276,7 @@ export function useManageEntries() {
       stats: []
     }] : []),
     {
-      key: 'feedback', group: 'app', title: t('about.feedback'), kicker: 'Feedback',
+      key: 'feedback', group: 'about', title: t('about.feedback'), kicker: 'Feedback',
       meta: t('about.feedbackInAppDesc'),
       detail: t('about.feedbackInAppDesc'),
       summary: '',
@@ -292,7 +292,7 @@ export function useManageEntries() {
       }
     },
     ...(surveyStore.availableSurveys.length > 0 ? [{
-      key: 'surveys', group: 'app', title: t('manage.surveys'), kicker: 'Survey',
+      key: 'surveys', group: 'about', title: t('manage.surveys'), kicker: 'Survey',
       meta: t('manage.surveyMeta'),
       detail: t('manage.surveyDesc'),
       summary: '',
@@ -304,7 +304,7 @@ export function useManageEntries() {
       stats: [{ label: t('statAvailable'), value: `${surveyStore.availableSurveys.length}` }]
     }] : []),
     {
-      key: 'about', group: 'app', title: t('manage.about'), kicker: t('manage.aboutKicker'),
+      key: 'about', group: 'about', title: t('manage.about'), kicker: t('manage.aboutKicker'),
       meta: t('manage.aboutMeta'),
       detail: t('manage.aboutDetail'),
       summary: t('manage.aboutSummary'),
@@ -323,7 +323,9 @@ export function useManageEntries() {
       { key: 'daily', label: 'Daily', title: t('manage.groupDaily') },
       { key: 'data', label: 'Data', title: t('manage.groupData') },
       { key: 'cloud', label: 'Cloud', title: t('manage.groupCloud') },
-      { key: 'app', label: 'App', title: t('manage.groupApp') }
+      { key: 'general', label: 'General', title: t('manage.groupGeneral') },
+      { key: 'features', label: 'Features', title: t('manage.groupFeatures') },
+      { key: 'about', label: 'About', title: t('manage.groupAbout') }
     ]
     return groups.map((group) => ({
       ...group,

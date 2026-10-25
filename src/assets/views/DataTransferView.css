@@ -297,6 +297,12 @@
   opacity: 0.9;
 }
 
+.transfer-action--secondary {
+  border: 1px solid var(--app-border);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+}
+
 @media (max-width: 640px) {
   .transfer-options--grid {
     grid-template-columns: minmax(0, 1fr);

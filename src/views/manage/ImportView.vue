@@ -50,7 +50,7 @@
         </div>
       </section>
 
-      <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.zip" hidden @change="handleImport" />
+      <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.xlsx,.xlsm,.zip" hidden @change="handleImport" />
 
       <AppToast :message="toastMsg" />
     </main>
@@ -70,7 +70,7 @@ const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const { importFileRef, triggerImport, handleImport } = useManageExport({ showToast })
 
-const supportedFormats = ['JSON', 'CSV', 'TSV', 'CSV · ZIP']
+const supportedFormats = ['JSON', 'CSV', 'TSV', 'XLSX', 'CSV · ZIP']
 </script>
 
 <style scoped src="@/assets/views/DataTransferView.css"></style>

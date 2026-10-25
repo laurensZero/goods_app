@@ -92,6 +92,21 @@
       <section class="settings-section">
         <div class="settings-card">
           <div class="settings-card__header">
+            <p class="settings-card__label">FINE EXPORT</p>
+            <h2 class="settings-card__title">{{ t('manage.fineExportTitle') }}</h2>
+          </div>
+
+          <p class="transfer-hint">{{ t('manage.fineExportDesc') }}</p>
+
+          <button class="transfer-action transfer-action--secondary" type="button" @click="showFineExport = true">
+            {{ t('manage.fineExportOpen') }}
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <div class="settings-card">
+          <div class="settings-card__header">
             <p class="settings-card__label">ACTIONS</p>
             <h2 class="settings-card__title">{{ t('manage.exportStart') }}</h2>
           </div>
@@ -106,14 +121,17 @@
 
       <AppToast :message="toastMsg" />
     </main>
+
+    <FineExportSheet v-model="showFineExport" />
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import FineExportSheet from '@/components/manage/FineExportSheet.vue'
 import { useToast } from '@/composables/useToast'
 import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
@@ -123,6 +141,7 @@ defineOptions({ name: 'ExportView' })
 const { t } = useI18n()
 const { toastMsg, showToast } = useToast()
 const { exportSummaryText } = useManageEntries()
+const showFineExport = ref(false)
 
 const {
   exportSelection,

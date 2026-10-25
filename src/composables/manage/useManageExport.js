@@ -14,6 +14,13 @@ import {
   parseAppCsvFiles,
   unpackAppCsvZip
 } from '@/utils/table/appDataCsv'
+import {
+  buildFineExportGoodsItems,
+  getFineExportUnknownCustomFieldNames,
+  inspectFineExportColumns,
+  readFineExportCsvTable,
+  readFineExportXlsxTable
+} from '@/utils/table/fineExportImport'
 
 const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5
@@ -145,7 +152,7 @@ function bytesToBase64(bytes) {
   return btoa(binary)
 }
 
-async function writeExportPayload(payload, filename) {
+export async function writeExportPayload(payload, filename, { mimeType = '' } = {}) {
   const isBinary = payload instanceof Uint8Array
   const data = isBinary ? bytesToBase64(payload) : payload
 
@@ -186,8 +193,10 @@ async function writeExportPayload(payload, filename) {
   }
 
   const blob = isBinary
-    ? new Blob([payload], { type: 'application/zip' })
-    : new Blob([payload], { type: filename.toLowerCase().endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/json' })
+    ? new Blob([payload], { type: mimeType || 'application/zip' })
+    : new Blob([payload], {
+      type: mimeType || (filename.toLowerCase().endsWith('.csv') ? 'text/csv;charset=utf-8' : 'application/json')
+    })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')
   link.href = url
@@ -438,7 +447,9 @@ export function useManageExport({ showToast, ensureEventsReady = async () => {} 
   async function importGoodsLike(items) {
     if (!Array.isArray(items) || items.length === 0) return 0
     const prepared = items.map(prepareGoodsImages)
-    const withId = prepared.filter((item) => item?.id)
+    const withId = prepared
+      .filter((item) => item?.id)
+      .map((item) => ({ ...item, updatedAt: item.updatedAt || Date.now() }))
     const withoutId = prepared.filter((item) => !item?.id).map((item) => ({ ...item, updatedAt: item.updatedAt || Date.now() }))
     let added = 0
     if (withId.length > 0) added += await goodsStore.importGoodsBackup(withId)
@@ -508,6 +519,72 @@ export function useManageExport({ showToast, ensureEventsReady = async () => {} 
     }
   }
 
+  async function importFineExportTable(table, {
+    filename = '',
+    title = '',
+    coverByRow = null
+  } = {}) {
+    if (!table?.headers?.length) return null
+
+    const initialCustomFieldCount = (presetsStore.customFieldDefs || []).length
+    let inspection = inspectFineExportColumns(table.headers, {
+      customDefs: presetsStore.customFieldDefs || [],
+      filename,
+      title
+    })
+    if (!inspection.isFineExport) return null
+
+    for (const name of getFineExportUnknownCustomFieldNames(inspection)) {
+      await presetsStore.addCustomFieldDef({ name, type: 'text' }).catch(() => null)
+    }
+
+    const customDefs = [...(presetsStore.customFieldDefs || [])]
+    if (customDefs.length !== initialCustomFieldCount) {
+      inspection = inspectFineExportColumns(table.headers, { customDefs, filename, title })
+    }
+
+    const items = buildFineExportGoodsItems(table, inspection, {
+      coverByRow: coverByRow || table.coverByRow || new Map()
+    })
+    const goods = await importGoodsLike(items)
+
+    const categories = new Set()
+    const ips = new Set()
+    const characters = new Map()
+    for (const item of items) {
+      const category = String(item.category || '').trim()
+      const ip = String(item.ip || '').trim()
+      if (category) categories.add(category)
+      if (ip) ips.add(ip)
+      for (const character of item.characters || []) {
+        const name = String(character || '').trim()
+        if (name) characters.set(`${ip}\u0000${name}`, { name, ip })
+      }
+    }
+    for (const category of categories) await presetsStore.addCategory(category)
+    for (const ip of ips) await presetsStore.addIp(ip)
+    for (const character of characters.values()) {
+      await presetsStore.addCharacter(character.name, character.ip)
+    }
+    await presetsStore.syncStorageLocationsFromPaths(
+      items.map((item) => item.storageLocation).filter(Boolean)
+    )
+
+    return {
+      goods,
+      customFieldsCreated: Math.max(0, customDefs.length - initialCustomFieldCount)
+    }
+  }
+
+  function showFineExportImportResult(result) {
+    if (!result) return
+    if (result.goods > 0) {
+      showToast(i18n.global.t('manage.importFineExportSuccess', { goods: result.goods }), 4200)
+      return
+    }
+    showToast(i18n.global.t('manage.importUpToDate'))
+  }
+
   async function handleImport(event) {
     await ensureEventsReady()
     const file = event.target.files?.[0]
@@ -535,27 +612,84 @@ export function useManageExport({ showToast, ensureEventsReady = async () => {} 
         return
       }
 
+      if (lower.endsWith('.xlsx') || lower.endsWith('.xlsm')) {
+        const bytes = await file.arrayBuffer()
+        const table = await readFineExportXlsxTable(bytes, {
+          customDefs: presetsStore.customFieldDefs || [],
+          filename: file.name
+        })
+        if (!table) {
+          showToast(i18n.global.t('manage.importUnsupportedFile'), 4200)
+          return
+        }
+
+        const result = await importFineExportTable(table, {
+          filename: file.name,
+          title: table.title,
+          coverByRow: table.coverByRow
+        })
+        if (!result) {
+          showToast(i18n.global.t('manage.importUnsupportedFile'), 4200)
+          return
+        }
+
+        appLog('info', 'fine-export-xlsx-import: done', result)
+        showFineExportImportResult(result)
+        return
+      }
+
       if (lower.endsWith('.csv') || lower.endsWith('.tsv')) {
         const text = await file.text()
-        let parsed
+        let parsedStandard = null
         try {
-          parsed = parseAppCsv(text, undefined, file.name)
+          parsedStandard = parseAppCsv(text, undefined, file.name)
         } catch (e) {
-          if (e?.message === 'CSV_UNSTANDARD') {
-            showToast(i18n.global.t('manage.importCsvUnstandard'), 4200)
+          if (e?.message !== 'CSV_UNSTANDARD') throw e
+        }
+
+        const table = readFineExportCsvTable(text)
+        const fineInspection = inspectFineExportColumns(table.headers, {
+          customDefs: presetsStore.customFieldDefs || [],
+          filename: file.name
+        })
+        const preferFineExport = fineInspection.isFineExport && (
+          fineInspection.filenameMatch ||
+          fineInspection.exclusiveBaseMatchCount > 0 ||
+          !parsedStandard
+        )
+
+        if (preferFineExport) {
+          const result = await importFineExportTable(table, { filename: file.name })
+          if (result) {
+            appLog('info', 'fine-export-csv-import: done', result)
+            showFineExportImportResult(result)
             return
           }
-          throw e
         }
-        const result = await importParsedAppCsv([{ filename: file.name, text }])
-        appLog('info', 'csv-import: done', { schema: parsed.schemaKey, ...result })
-        showToast(i18n.global.t('manage.importCsvSuccess', {
-          goods: result.goods,
-          trash: result.trash,
-          recharge: result.recharge,
-          newEvents: result.eventsAdded,
-          updatedEvents: result.eventsUpdated
-        }), 4200)
+
+        if (parsedStandard) {
+          const result = await importParsedAppCsv([{ filename: file.name, text }])
+          appLog('info', 'csv-import: done', { schema: parsedStandard.schemaKey, ...result })
+          showToast(i18n.global.t('manage.importCsvSuccess', {
+            goods: result.goods,
+            trash: result.trash,
+            recharge: result.recharge,
+            newEvents: result.eventsAdded,
+            updatedEvents: result.eventsUpdated
+          }), 4200)
+          return
+        }
+
+        if (fineInspection.isFineExport) {
+          const result = await importFineExportTable(table, { filename: file.name })
+          if (result) {
+            appLog('info', 'fine-export-csv-import: done', result)
+            showFineExportImportResult(result)
+            return
+          }
+        }
+
+        showToast(i18n.global.t('manage.importCsvUnstandard'), 4200)
         return
       }
 
