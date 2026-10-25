@@ -297,7 +297,7 @@ async function pruneBackupArtifacts() {
   ])
 }
 
-export function useManageExport({ showToast, ensureEventsReady } = {}) {
+export function useManageExport({ showToast, ensureEventsReady = async () => {} } = {}) {
   const goodsStore = useGoodsStore()
   const eventsStore = useEventsStore()
   const presetsStore = usePresetsStore()

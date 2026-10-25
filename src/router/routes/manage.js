@@ -65,6 +65,18 @@ export default [
     meta: { titleKey: 'nav.settings' }
   },
   {
+    path: '/manage/export',
+    name: 'manage-export',
+    component: () => import('@/views/manage/ExportView.vue'),
+    meta: { titleKey: 'manage.export' }
+  },
+  {
+    path: '/manage/import',
+    name: 'manage-import',
+    component: () => import('@/views/manage/ImportView.vue'),
+    meta: { titleKey: 'manage.import' }
+  },
+  {
     path: '/manage/sync',
     name: 'manage-sync',
     component: () => import('@/views/manage/SyncView.vue'),

@@ -1,0 +1,323 @@
+.data-transfer-page {
+  min-height: 100dvh;
+}
+
+.page-body {
+  padding-bottom: 40px;
+}
+
+.hero-section,
+.settings-section {
+  padding: 0 var(--page-padding);
+  margin-top: var(--section-gap);
+}
+
+.hero-card {
+  position: relative;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  border-radius: var(--radius-large);
+  background: var(--app-surface);
+  box-shadow: var(--app-shadow);
+  overflow: hidden;
+}
+
+.hero-card::before {
+  content: '';
+  position: absolute;
+  inset: auto -70px -90px auto;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(90, 120, 250, 0.18) 0%, rgba(90, 120, 250, 0) 72%);
+  pointer-events: none;
+}
+
+.data-transfer-page--export .hero-icon {
+  background: rgba(90, 120, 250, 0.12);
+  color: #5a78fa;
+}
+
+.data-transfer-page--import .hero-card::before {
+  background: radial-gradient(circle, rgba(50, 200, 140, 0.18) 0%, rgba(50, 200, 140, 0) 72%);
+}
+
+.data-transfer-page--import .hero-icon {
+  background: rgba(50, 200, 140, 0.12);
+  color: #28c880;
+}
+
+.hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-card);
+}
+
+.hero-icon svg {
+  width: 32px;
+  height: 32px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-label {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-title {
+  margin-top: 6px;
+  color: var(--app-text);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.hero-desc {
+  margin-top: 10px;
+  color: var(--app-text-secondary);
+  font-size: var(--font-body-lg);
+  line-height: 1.6;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  background: var(--app-surface-soft);
+  color: var(--app-text-secondary);
+  font-size: var(--font-body);
+  font-weight: 600;
+}
+
+.settings-card {
+  padding: 20px;
+  border-radius: var(--radius-large);
+  background: color-mix(in srgb, var(--app-surface) 94%, transparent);
+  box-shadow: var(--app-shadow);
+}
+
+.settings-card__header {
+  margin-bottom: 16px;
+}
+
+.settings-card__header--row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-card__label {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-caption);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-card__title {
+  margin: 4px 0 0;
+  color: var(--app-text);
+  font-size: var(--font-title-xl);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.transfer-options {
+  display: grid;
+  gap: 10px;
+}
+
+.transfer-options--grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.transfer-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-medium);
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+  color: var(--app-text);
+  text-align: left;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.transfer-option:active {
+  transform: scale(0.99);
+}
+
+.transfer-option--active {
+  border-color: color-mix(in srgb, var(--app-text) 26%, transparent);
+  background: color-mix(in srgb, var(--app-text) 5%, var(--app-surface));
+}
+
+.transfer-option__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.transfer-option__name {
+  color: var(--app-text);
+  font-size: var(--font-subtitle);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.transfer-option__desc {
+  color: var(--app-text-secondary);
+  font-size: var(--font-body);
+  line-height: 1.45;
+}
+
+.transfer-option__meta {
+  margin-top: 4px;
+  color: var(--app-text-tertiary);
+  font-size: var(--font-caption);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.transfer-option__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--app-text-secondary) 26%, transparent);
+  border-radius: 50%;
+  color: transparent;
+}
+
+.transfer-option__check svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.transfer-option--active .transfer-option__check {
+  background: var(--app-text);
+  border-color: var(--app-text);
+  color: var(--app-surface);
+}
+
+.transfer-toggle-all {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: color-mix(in srgb, var(--app-surface-soft) 94%, transparent);
+  color: var(--app-text-secondary);
+  font-size: var(--font-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease;
+}
+
+.transfer-toggle-all:active {
+  background: color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.transfer-hint {
+  margin: 0 0 14px;
+  color: var(--app-text-secondary);
+  font-size: var(--font-body-lg);
+  line-height: 1.65;
+}
+
+.transfer-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transfer-format {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
+  color: var(--app-text-secondary);
+  font-size: var(--font-body);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.transfer-action {
+  width: 100%;
+  min-height: 50px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius-medium);
+  background: var(--app-text);
+  color: var(--app-surface);
+  font-size: var(--font-body-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s ease, opacity 0.16s ease;
+}
+
+.transfer-action:active {
+  transform: scale(0.99);
+  opacity: 0.9;
+}
+
+@media (max-width: 640px) {
+  .transfer-options--grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-card__header--row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .transfer-toggle-all {
+    align-self: flex-start;
+  }
+}
+
+@media (min-width: 768px) {
+  .settings-card {
+    padding: 24px;
+  }
+
+  .transfer-option {
+    padding: 18px;
+  }
+}

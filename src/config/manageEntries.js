@@ -156,7 +156,7 @@ export function useManageEntries() {
       primaryLabel: t('manage.exportPrimaryLabel'), secondaryLabel: t('manage.exportSecondaryLabel'),
       iconMode: 'svg', iconClass: 'export-icon',
       iconPaths: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8L12 3L7 8', 'M12 3V15'],
-      action: 'export', secondaryAction: 'export-picker',
+      path: '/manage/export',
       stats: [
         { label: t('manage.statExportScope'), value: t('manage.statExportScopeValue') },
         { label: t('manage.statCurrentSize'), value: `${collectionCount.value + wishlistCount.value + eventCount.value + rechargeCount.value}` }
@@ -171,7 +171,7 @@ export function useManageEntries() {
       primaryLabel: t('manage.importPrimaryLabel'), secondaryLabel: '',
       iconMode: 'svg', iconClass: 'import-icon',
       iconPaths: ['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M7 10L12 15L17 10', 'M12 15V3'],
-      action: 'import',
+      path: '/manage/import',
       stats: [{ label: t('manage.statSupportedFormat'), value: t('manage.statJsonBackup') }, { label: t('manage.statApplicableScene'), value: t('manage.statMigrationRestore') }]
     },
     {

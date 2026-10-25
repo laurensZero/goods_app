@@ -33,7 +33,7 @@ function resolveLoader(router, path) {
  * 完全正常，所以这个 bug 只在平板上出现、极容易漏。
  */
 describe('设置页分屏：右面板组件自动解析', () => {
-  it('每个设置项都能从路由表解析出可嵌入组件（action 项由专属面板处理）', () => {
+  it('每个设置项都能从路由表解析出可嵌入组件', () => {
     setActivePinia(createPinia())
     const router = createRouter({
       history: createMemoryHistory(),
@@ -42,12 +42,18 @@ describe('设置页分屏：右面板组件自动解析', () => {
     const { manageEntries } = useManageEntries()
 
     const unresolved = manageEntries.value
-      // export / import 没有独立页面，由 ManageView 里的专属面板渲染
-      .filter((entry) => !entry.action)
       .filter((entry) => typeof resolveLoader(router, entry.path) !== 'function')
       .map((entry) => `${entry.key} → ${entry.path || '(缺少 path)'}`)
 
     expect(unresolved).toEqual([])
+  })
+
+  it('「导出 / 导入」是独立页面，而不是设置页内联面板', () => {
+    setActivePinia(createPinia())
+    const { manageEntries } = useManageEntries()
+
+    expect(manageEntries.value.find((entry) => entry.key === 'export')?.path).toBe('/manage/export')
+    expect(manageEntries.value.find((entry) => entry.key === 'import')?.path).toBe('/manage/import')
   })
 
   it('「支付」设置项已纳入校验（防止再次漏登记）', () => {

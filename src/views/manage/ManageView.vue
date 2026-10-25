@@ -53,105 +53,15 @@
             </div>
           </div>
 
-          <div v-if="activeManageEntry.key === 'export'" class="settings-action-panel">
-            <p class="settings-action-panel__text">{{ exportSummaryText }}</p>
-            <div class="settings-action-panel__inline-export" style="margin-top: 24px;">
-              <div class="export-picker__head">
-                <div>
-                  <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
-                  <h3 class="export-picker__title">{{ exportFormat === 'csv' ? t('manage.exportFormatCsvMeta') : t('manage.exportFormatJsonMeta') }}</h3>
-                </div>
-              </div>
-              <div class="export-picker__options" role="radiogroup" :aria-label="t('manage.exportFormat')">
-                <button
-                  type="button"
-                  role="radio"
-                  :aria-checked="exportFormat === 'csv'"
-                  :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'csv' }]"
-                  @click="setExportFormat('csv')"
-                >
-                  <div class="export-picker__option-body">
-                    <span class="export-picker__option-name">{{ t('manage.exportFormatCsv') }}</span>
-                    <span class="export-picker__option-desc">{{ t('manage.exportFormatCsvDesc') }}</span>
-                  </div>
-                  <span class="export-picker__check" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  :aria-checked="exportFormat === 'json'"
-                  :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'json' }]"
-                  @click="setExportFormat('json')"
-                >
-                  <div class="export-picker__option-body">
-                    <span class="export-picker__option-name">{{ t('manage.exportFormatJson') }}</span>
-                    <span class="export-picker__option-desc">{{ t('manage.exportFormatJsonDesc') }}</span>
-                  </div>
-                  <span class="export-picker__check" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-
-              <div class="export-picker__head" style="margin-top: 18px;">
-                <div>
-                  <p class="export-picker__label">{{ t('manage.exportCustom') }}</p>
-                  <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
-                </div>
-                <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
-                  {{ allExportSectionsSelected ? t('common.deselectAll') : t('common.selectAll') }}
-                </button>
-              </div>
-
-              <div class="export-picker__options">
-                <button
-                  v-for="option in exportSectionOptions"
-                  :key="option.key"
-                  type="button"
-                  :class="['export-picker__option', { 'export-picker__option--active': exportSelection[option.key] }]"
-                  @click="toggleExportSection(option.key)"
-                >
-                  <div class="export-picker__option-body">
-                    <span class="export-picker__option-name">{{ option.label }}</span>
-                    <span class="export-picker__option-desc">{{ option.desc }}</span>
-                  </div>
-                  <span class="export-picker__check" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" fill="none">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-              <div class="export-picker__actions" style="margin-top: 16px;">
-                <button class="export-picker__action" type="button" @click="confirmExportSelection" style="width: 100%;">
-                  {{ exportFormat === 'csv' ? t('manage.exportStartCsv') : t('manage.exportStartJson') }}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div v-else-if="activeManageEntry.key === 'import'" class="settings-action-panel">
-            <p class="settings-action-panel__text">{{ t('manage.importDescText') }}</p>
-            <div class="settings-action-panel__actions">
-              <button type="button" class="detail-action detail-action--primary" @click="triggerImport">{{ t('manage.importSelectFile') }}</button>
-            </div>
-          </div>
-
           <div
-            v-else-if="activeManageComponent"
+            v-if="activeManageComponent"
             :key="activeManageContentKey"
             :class="[
               'settings-embedded',
               {
                 'settings-embedded--about': activeManageContentKey === 'about',
-                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys'].includes(activeManageContentKey),
-                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'mihoyoFeatures', 'aiChat', 'feedback', 'surveys', 'payments', 'mihoyoStockMonitor', 'mihoyoNewArrivals'].includes(activeManageContentKey),
+                'settings-embedded--with-hero': ['sync', 'theme', 'trash', 'storage', 'shares', 'surveys', 'export', 'import'].includes(activeManageContentKey),
+                'settings-embedded--hero-trimmed': ['sync', 'theme', 'trash', 'storage', 'shares', 'language', 'notifications', 'mcp', 'mihoyoFeatures', 'aiChat', 'feedback', 'surveys', 'payments', 'mihoyoStockMonitor', 'mihoyoNewArrivals', 'export', 'import'].includes(activeManageContentKey),
                 'settings-embedded--hero-textless': ['theme', 'trash', 'storage'].includes(activeManageContentKey),
                 'settings-embedded--ai-chat': activeManageContentKey === 'aiChat'
               }
@@ -176,13 +86,6 @@
               type="button"
               class="mobile-entry"
               @click="runManageEntryPrimary(entry)"
-              @touchstart.passive="entry.key === 'export' ? startExportLongPress() : null"
-              @touchend="entry.key === 'export' ? cancelExportLongPress() : null"
-              @touchcancel="entry.key === 'export' ? cancelExportLongPress() : null"
-              @mousedown.left="entry.key === 'export' ? startExportLongPress() : null"
-              @mouseup="entry.key === 'export' ? cancelExportLongPress() : null"
-              @mouseleave="entry.key === 'export' ? cancelExportLongPress() : null"
-              @contextmenu.prevent="entry.key === 'export' ? openExportPicker() : null"
             >
               <span :class="['settings-icon', entry.iconClass]">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -205,96 +108,6 @@
         </div>
       </section>
 
-      <AppSheet
-        v-model="showExportPicker"
-        placement="auto"
-        sheet-class="picker-popup"
-      >
-        <div class="export-picker-body">
-          <div class="export-picker__head">
-            <div>
-              <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
-              <h3 class="export-picker__title">{{ exportFormat === 'csv' ? t('manage.exportFormatCsvMeta') : t('manage.exportFormatJsonMeta') }}</h3>
-            </div>
-          </div>
-          <div class="export-picker__options" role="radiogroup" :aria-label="t('manage.exportFormat')">
-            <button
-              type="button"
-              role="radio"
-              :aria-checked="exportFormat === 'csv'"
-              :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'csv' }]"
-              @click="setExportFormat('csv')"
-            >
-              <div class="export-picker__option-body">
-                <span class="export-picker__option-name">{{ t('manage.exportFormatCsv') }}</span>
-                <span class="export-picker__option-desc">{{ t('manage.exportFormatCsvDesc') }}</span>
-              </div>
-              <span class="export-picker__check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              :aria-checked="exportFormat === 'json'"
-              :class="['export-picker__option', { 'export-picker__option--active': exportFormat === 'json' }]"
-              @click="setExportFormat('json')"
-            >
-              <div class="export-picker__option-body">
-                <span class="export-picker__option-name">{{ t('manage.exportFormatJson') }}</span>
-                <span class="export-picker__option-desc">{{ t('manage.exportFormatJsonDesc') }}</span>
-              </div>
-              <span class="export-picker__check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </span>
-            </button>
-          </div>
-
-          <div class="export-picker__head" style="margin-top: 18px;">
-            <div>
-              <p class="export-picker__label">{{ t('manage.exportContent') }}</p>
-              <h3 class="export-picker__title">{{ t('manage.exportSelectData') }}</h3>
-            </div>
-            <button class="export-picker__toggle-all" type="button" @click="toggleExportAll">
-              {{ allExportSectionsSelected ? t('common.deselectAll') : t('common.selectAll') }}
-            </button>
-          </div>
-          <div class="export-picker__options">
-            <button
-              v-for="option in exportSectionOptions"
-              :key="option.key"
-              type="button"
-              :class="['export-picker__option', { 'export-picker__option--active': exportSelection[option.key] }]"
-              @click="toggleExportSection(option.key)"
-            >
-              <div class="export-picker__option-body">
-                <span class="export-picker__option-name">{{ option.label }}</span>
-                <span class="export-picker__option-desc">{{ option.desc }}</span>
-              </div>
-              <span class="export-picker__check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none">
-                  <path d="M20 6L9 17l-5-5" />
-                </svg>
-              </span>
-            </button>
-          </div>
-          <div class="export-picker__actions">
-            <button class="export-picker__action export-picker__action--ghost" type="button" @click="closeExportPicker">
-              {{ t('common.cancel') }}
-            </button>
-            <button class="export-picker__action" type="button" @click="confirmExportSelection">
-              {{ exportFormat === 'csv' ? t('manage.exportStartCsv') : t('manage.exportStartJson') }}
-            </button>
-          </div>
-        </div>
-      </AppSheet>
-
-      <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.zip" hidden @change="handleImport" />
-
       <AppToast :message="toastMsg" />
     </main>
   </div>
@@ -304,12 +117,11 @@
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
-import AppSheet from '@/components/common/AppSheet.vue'
 import { useToast } from '@/composables/useToast'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 
 const { t } = useI18n()
-import { useManageExport, exportSectionOptions } from '@/composables/manage/useManageExport'
+import { useManageExport } from '@/composables/manage/useManageExport'
 import { useManageEntries } from '@/config/manageEntries'
 import { runManageForwardNavigation } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
@@ -327,19 +139,12 @@ function goManageChild(path) {
   runManageForwardNavigation(() => router.push(path))
 }
 
-async function ensureEventsReady() {}
-
-// ---- entries & export (extracted composables) ----
-const { manageEntries, manageEntryGroups, exportSummaryText } = useManageEntries()
+// ---- entries ----
+const { manageEntries, manageEntryGroups } = useManageEntries()
 
 const {
-  importFileRef, showExportPicker, exportSelection, exportFormat, allExportSectionsSelected,
-  openExportPicker, closeExportPicker, setExportFormat, toggleExportSection, toggleExportAll,
-  startExportLongPress, cancelExportLongPress,
-  handleExportClick, confirmExportSelection,
-  triggerImport, handleImport,
   cleanupUnreferencedLocalImages, formatCompactSize, cleanupExportTimers
-} = useManageExport({ showToast, ensureEventsReady })
+} = useManageExport({ showToast })
 
 // ---- 右面板嵌入组件（自动解析，不再手写登记表）----
 //
@@ -379,8 +184,7 @@ const MANAGE_SUB_PAGE_ROUTES = {
 const manageComponentMap = computed(() => {
   const map = {}
   for (const entry of manageEntries.value) {
-    // export / import 没有路由，由下方专属面板渲染
-    if (entry.action || !entry.path) continue
+    if (!entry.path) continue
     const component = resolveEmbeddedComponent(entry.path)
     if (component) map[entry.key] = component
   }
@@ -494,8 +298,6 @@ provide('openManageSubPage', openManageSubPage)
 
 function runManageEntryPrimary(entry) {
   if (!entry) return
-  if (entry.action === 'export') { handleExportClick(); return }
-  if (entry.action === 'import') { triggerImport(); return }
   if (entry.path) goManageChild(entry.path)
 }
 
@@ -626,8 +428,7 @@ onBeforeRouteLeave((to) => {
 .settings-group__label,
 .mobile-group__label,
 .detail-summary__label,
-.detail-stat__label,
-.export-picker__label {
+.detail-stat__label {
   color: var(--app-text-tertiary);
   font-size: var(--font-small);
   letter-spacing: 0.12em;
@@ -755,8 +556,7 @@ onBeforeRouteLeave((to) => {
 .settings-nav__title,
 .mobile-entry__title,
 .settings-detail__title,
-.mobile-group__title,
-.export-picker__title {
+.mobile-group__title {
   color: var(--app-text);
   letter-spacing: -0.04em;
 }
@@ -786,8 +586,7 @@ onBeforeRouteLeave((to) => {
 
 .settings-nav__meta,
 .settings-detail__desc,
-.detail-summary__text,
-.export-picker__option-desc {
+.detail-summary__text {
   margin-top: 4px;
   color: var(--app-text-secondary);
   font-size: var(--font-body);
@@ -898,25 +697,6 @@ onBeforeRouteLeave((to) => {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-.settings-action-panel {
-  padding: 22px;
-  border-radius: var(--radius-large);
-  background: color-mix(in srgb, var(--app-surface-soft) 78%, transparent);
-}
-
-.settings-action-panel__text {
-  color: var(--app-text-secondary);
-  font-size: var(--font-subtitle);
-  line-height: 1.7;
-}
-
-.settings-action-panel__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 18px;
 }
 
 .settings-embedded {
@@ -1156,25 +936,6 @@ onBeforeRouteLeave((to) => {
   margin-top: 24px;
 }
 
-.detail-action,
-.export-picker__toggle-all,
-.export-picker__action {
-  min-height: 46px;
-  padding: 0 18px;
-  border: none;
-  border-radius: var(--radius-medium);
-  background: color-mix(in srgb, var(--app-surface-soft) 94%, transparent);
-  color: var(--app-text);
-  font-size: var(--font-body-lg);
-  font-weight: 600;
-}
-
-.detail-action--primary,
-.export-picker__action {
-  background: var(--app-text);
-  color: var(--app-surface);
-}
-
 .settings-mobile {
   display: grid;
   gap: 18px;
@@ -1216,104 +977,6 @@ onBeforeRouteLeave((to) => {
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
-}
-
-/* AppSheet 已提供表面/圆角/内边距 */
-.export-picker-body {
-  width: 100%;
-  color: var(--app-text);
-  background: transparent;
-}
-
-.export-picker__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
-}
-
-.export-picker__title {
-  margin: 4px 0 0;
-  font-size: var(--font-title-lg);
-  font-weight: 700;
-}
-
-.export-picker__options {
-  display: grid;
-  gap: 0;
-  overflow: hidden;
-  border-radius: var(--radius-large);
-  background: color-mix(in srgb, var(--app-surface-soft) 72%, transparent);
-  border: 1px solid var(--app-border);
-}
-
-.export-picker__option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  width: 100%;
-  padding: 16px 16px;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  color: var(--app-text);
-  text-align: left;
-}
-
-.export-picker__option:not(:last-child) {
-  border-bottom: 1px solid var(--app-border);
-}
-
-.export-picker__option--active {
-  background: color-mix(in srgb, var(--app-text) 4%, transparent);
-}
-
-.export-picker__option-name {
-  display: block;
-  font-size: var(--font-subtitle);
-  font-weight: 600;
-}
-
-.export-picker__check {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--app-text-secondary) 26%, transparent);
-  color: transparent;
-  flex-shrink: 0;
-}
-
-.export-picker__option--active .export-picker__check {
-  background: var(--app-text);
-  border-color: var(--app-text);
-  color: var(--app-surface);
-}
-
-.export-picker__check svg,
-.toast-fade-enter-active,
-.toast-fade-leave-active {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.export-picker__check svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-  stroke-width: 2.6;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.export-picker__actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 16px;
 }
 
 @media (max-width: 1199px) {
