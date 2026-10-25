@@ -46,7 +46,8 @@ function detectLocale() {
     if (stored && SUPPORTED_LOCALES.includes(stored)) return stored
   } catch {}
 
-  const deviceLang = navigator.language || navigator.userLanguage || ''
+  // Node 20 无全局 navigator（Node 21+ 才有），测试环境裸访问会在模块加载时崩
+  const deviceLang = (typeof navigator !== 'undefined' && (navigator.language || navigator.userLanguage)) || ''
   if (deviceLang.startsWith('zh-TW') || deviceLang.startsWith('zh-Hant')) return 'zh-TW'
   if (deviceLang.startsWith('zh')) return 'zh-CN'
   if (deviceLang.startsWith('en')) return 'en'
