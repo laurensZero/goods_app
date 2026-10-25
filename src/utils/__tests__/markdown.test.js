@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi } from 'vitest'
 import { renderMarkdown, detectMarkdownContent, mountBiliEmbedEnhancers } from '../markdown'
 import { fetchBilibiliVideoMeta } from '../music/bilibiliMusic'

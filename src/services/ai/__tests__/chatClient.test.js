@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { runChatCompletion, generateChatTitle, toOpenAiTools, normalizeBaseUrl, normalizeUsage, AiRequestError } from '../chatClient'
 

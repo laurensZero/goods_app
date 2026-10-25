@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // cache.js 顶层引入 Capacitor Filesystem 与平台 HTTP 桥；本测试只覆盖内存层，

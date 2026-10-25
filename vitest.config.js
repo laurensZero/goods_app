@@ -11,7 +11,9 @@ export default defineConfig({
     }
   },
   test: {
-    environment: 'happy-dom',
+    // 默认 node：纯逻辑测试不搭 DOM 环境（每个文件省约 1~2 秒环境初始化，全量提速 2~3 倍）。
+    // 需要浏览器环境的测试在文件头标注 // @vitest-environment happy-dom。
+    environment: 'node',
     environmentOptions: {
       happyDOM: {
         settings: {

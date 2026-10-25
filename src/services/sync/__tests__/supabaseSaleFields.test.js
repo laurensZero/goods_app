@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { describe, it, expect } from 'vitest'
 import { toGoodsRows } from '../../supabaseAdapter/helpers'
 import { toCamelCase } from '@/utils/sync/columnMapping'
