@@ -56,13 +56,6 @@
           <div v-if="activeManageEntry.key === 'export'" class="settings-action-panel">
             <p class="settings-action-panel__text">{{ exportSummaryText }}</p>
             <div class="settings-action-panel__inline-export" style="margin-top: 24px;">
-              <button class="export-picker__fine" type="button" data-testid="fine-export-entry" @click="openFineExport">
-                <span class="export-picker__option-body">
-                  <span class="export-picker__option-name">{{ t('manage.fineExportEntry') }}</span>
-                  <span class="export-picker__option-desc">{{ t('manage.fineExportEntryDesc') }}</span>
-                </span>
-                <span class="export-picker__fine-arrow" aria-hidden="true">›</span>
-              </button>
               <div class="export-picker__head">
                 <div>
                   <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
@@ -218,13 +211,6 @@
         sheet-class="picker-popup"
       >
         <div class="export-picker-body">
-          <button class="export-picker__fine" type="button" data-testid="fine-export-entry" @click="openFineExport">
-            <span class="export-picker__option-body">
-              <span class="export-picker__option-name">{{ t('manage.fineExportEntry') }}</span>
-              <span class="export-picker__option-desc">{{ t('manage.fineExportEntryDesc') }}</span>
-            </span>
-            <span class="export-picker__fine-arrow" aria-hidden="true">›</span>
-          </button>
           <div class="export-picker__head">
             <div>
               <p class="export-picker__label">{{ t('manage.exportFormat') }}</p>
@@ -307,8 +293,6 @@
         </div>
       </AppSheet>
 
-      <FineExportSheet v-model="showFineExport" :show-toast="showToast" />
-
       <input ref="importFileRef" type="file" accept=".json,.csv,.tsv,.zip" hidden @change="handleImport" />
 
       <AppToast :message="toastMsg" />
@@ -356,15 +340,6 @@ const {
   triggerImport, handleImport,
   cleanupUnreferencedLocalImages, formatCompactSize, cleanupExportTimers
 } = useManageExport({ showToast, ensureEventsReady })
-
-// ---- 精细导出（自选字段 + 范围筛选 + 嵌图 Excel）----
-const FineExportSheet = defineAsyncComponent(() => import('@/components/manage/FineExportSheet.vue'))
-const showFineExport = ref(false)
-
-function openFineExport() {
-  closeExportPicker()
-  showFineExport.value = true
-}
 
 // ---- 右面板嵌入组件（自动解析，不再手写登记表）----
 //
@@ -1256,28 +1231,6 @@ onBeforeRouteLeave((to) => {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
-}
-
-.export-picker__fine {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--app-accent) 32%, transparent);
-  border-radius: var(--radius-large);
-  background: color-mix(in srgb, var(--app-accent) 8%, transparent);
-  text-align: left;
-  cursor: pointer;
-}
-
-.export-picker__fine-arrow {
-  flex: none;
-  font-size: 20px;
-  line-height: 1;
-  color: var(--app-accent);
 }
 
 .export-picker__title {
