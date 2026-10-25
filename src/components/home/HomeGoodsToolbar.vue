@@ -1007,10 +1007,17 @@ onBeforeUnmount(() => {
   background: transparent;
   color: var(--app-text);
   text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
   transition: background 0.14s ease;
 }
 
+/* 行本身只用底色反馈按压；抵消全局 button:active 的即时缩放/降透明，
+   否则点开关时整行会瞬间一缩一弹，看起来像抽搐 */
 .hide-status-row:active {
+  transform: none;
+  opacity: 1;
   background: rgba(142, 142, 147, 0.12);
 }
 
@@ -1026,7 +1033,8 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   width: 46px;
   height: 28px;
-  padding: 4px;
+  /* 3px：22px 圆钮 + 上下各 3px = 28px，开态 18px 行程也刚好贴住内边距 */
+  padding: 3px;
   border-radius: var(--radius-pill);
   background: rgba(142, 142, 147, 0.28);
   transition: background 0.18s ease;
