@@ -353,7 +353,7 @@
                     type="button"
                     @click="$emit('open-profile', { kind: 'ip', name: filters.ips[0] })"
                   >
-                    {{ t('profile.entry.open') }}
+                    {{ t('profile.entry.openNamed', { name: filters.ips[0] }) }}
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       <path d="M9 6l6 6-6 6" />
                     </svg>

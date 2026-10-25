@@ -178,6 +178,26 @@ describe('SearchFilterPopup 收藏馆入口（角色重名跨 IP）', () => {
     wrapper.unmount()
   })
 
+  it('单选一个 IP chip 时，入口带上对应的 IP 名字', async () => {
+    const wrapper = await mountPopup({
+      filters: { ...baseFilters, ips: ['原神'] },
+      ipOptions: [{ label: '原神', value: '原神' }]
+    })
+
+    const card = document.querySelector('.filter-card')
+    const entries = entryNodes(card)
+    expect(entries).toHaveLength(1)
+    expect(entries[0].textContent).toContain('原神')
+
+    clickOn(entries[0])
+    await wrapper.vm.$nextTick()
+    expect(wrapper.emitted('open-profile')[0]).toEqual([
+      { kind: 'ip', name: '原神' }
+    ])
+
+    wrapper.unmount()
+  })
+
   it('未提供 (ip,name) 目标时退回按名字生成入口（ip 为空）', async () => {
     const wrapper = await mountPopup({
       filters: { ...baseFilters, keyword: '小樱' },
