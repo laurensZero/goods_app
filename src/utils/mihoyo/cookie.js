@@ -8,8 +8,8 @@ const ACTIVE_ID_KEY = 'mihoyo_active_account_id'
 const NATIVE_STORAGE_KEY = 'mihoyo_native_session'
 const STOKENS_KEY = 'mihoyo_stokens'
 
-/** 本地解析 Cookie，避免与 mihoyo/index 循环依赖 */
-function parseCookiePairs(cookieStr) {
+/** 本地解析 Cookie（纯函数）；index.js 的 parseCookieString 与本实现同源 */
+export function parseCookiePairs(cookieStr) {
   const result = {}
   String(cookieStr || '').split(';').forEach((part) => {
     const idx = part.indexOf('=')

@@ -1,3 +1,292 @@
+<script setup>
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import '@/assets/common/loading.css'
+import { useRoute, useRouter } from 'vue-router'
+import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
+import { useMihoyoImportSession } from '@/composables/import/useMihoyoImportSession'
+import { importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
+import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo/index'
+import {
+  addMihoyoImportContextItem,
+  buildMihoyoImportContext,
+  resolveMihoyoImportDraft,
+} from '@/utils/mihoyo/importResolver'
+import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
+import { buildGoodsIdentityKey } from '@/utils/goods/identity'
+import { runWithRouteTransition } from '@/utils/routeTransition'
+import { showGlobalToast } from '@/utils/globalToast'
+import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
+import EmptyState from '@/components/common/EmptyState.vue'
+import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
+import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
+
+defineOptions({ name: 'CartImportView' })
+
+// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  /** 当前是否为宿主激活的 tab（预挂载时不拉数据，激活后才 bootstrap） */
+  embeddedActive: { type: Boolean, default: false },
+})
+
+const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
+const store = useGoodsStore()
+const presets = usePresetsStore()
+
+const isWishlistMode = computed(() => route.query.mode === 'wishlist')
+const pageTitle = computed(() => isWishlistMode.value ? t('import.cartImportWishlistTitle') : t('import.cart'))
+const doneTargetPath = computed(() => (isWishlistMode.value ? '/wishlist' : '/home'))
+const targetList = computed(() => (isWishlistMode.value ? store.wishlistList : store.collectionList))
+
+// ── 步骤机私有状态 ──
+const step = ref('cookie')
+const rawGroups = ref([])
+const selectedSet = ref(new Set())
+const importedCount = ref(0)
+const importedTotalQty = ref(0)
+
+// ── 会话门（Cookie/账号/启动/拉取流程，与订单导入共用 useMihoyoImportSession） ──
+const {
+  canUseNativeImport,
+  scheduleBootstrap,
+  startFetch,
+  cookieInput,
+  rememberCookie,
+  cookieValid,
+  cookieWarningMessage,
+  accounts,
+  activeAccountId,
+  activeAccountLabel,
+  activeAccountAvatar,
+  refreshingAccountId,
+  showAccountSheet,
+  accountSheetRef,
+  showQrLogin,
+  cookiePrimaryDisabled,
+  onQrLoginSuccess,
+  showErrorDialog,
+  errorDialogTitle,
+  errorDialogMessage,
+  closeErrorDialog,
+  onRefreshAccount,
+  onSwitchAccount,
+  onRemoveAccount,
+  onLoginNewNative,
+  onLoginNewCookie,
+  saveStokenForAccount,
+  stokenErrorText,
+  openAccountSheet,
+} = useMihoyoImportSession({
+  listStepName: 'list',
+  fetchFailedKey: 'import.fetchCartFailed',
+  isEmbedded: () => props.embedded,
+  isEmbeddedActive: () => props.embeddedActive,
+  // 原生插件会话拉购物车；Web 端带 Cookie 拉接口
+  fetchNative: async () => await importMihoyoCartWithSession(),
+  fetchWeb: async (cookie) => await fetchCartList(cookie),
+  onList: (list) => {
+    rawGroups.value = list
+    initSelectionAfterFetch()
+  },
+})
+
+// 网页版：状态加载完且无任何会话/账号时自动弹扫码的逻辑在会话门内；
+// 这里只处理内嵌 tab 的延迟初始化
+let pendingSelectionInit = false
+
+watch(
+  () => props.embeddedActive,
+  (active) => {
+    if (active && pendingSelectionInit) {
+      pendingSelectionInit = false
+      // 仅列表就绪时补做初始化；其他状态（登出/失败回退）无需全选
+      if (step.value === 'list') initSelectionFromFetch()
+    }
+    if (active && props.embedded) scheduleBootstrap()
+  },
+  { immediate: true },
+)
+
+// ── 导入上下文与列表规整 ──
+
+const importedItemKeys = computed(() =>
+  new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
+)
+
+function createMihoyoImportContext() {
+  return buildMihoyoImportContext({
+    goodsList: store.list || [],
+    presetCharacters: presets.characters || [],
+    categories: presets.categories || [],
+    ips: presets.ips || [],
+    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
+    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
+  })
+}
+
+function normalizeMihoyoImportItem(item, context) {
+  const normalized = resolveMihoyoImportDraft(item, { context })
+  addMihoyoImportContextItem(context, normalized)
+  return normalized
+}
+
+const processedGroups = computed(() =>
+  {
+    const context = createMihoyoImportContext()
+    return rawGroups.value.map((group) => {
+      const map = new Map()
+      for (const item of cartShopToGoodsList(group)) {
+        const normalizedItem = normalizeMihoyoImportItem(item, context)
+
+        // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
+        // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
+        const key = buildGoodsIdentityKey(normalizedItem)
+        if (map.has(key)) {
+          const existing = map.get(key)
+          existing.quantity = (Number(existing.quantity) || 1) + (Number(normalizedItem.quantity) || 1)
+        } else {
+          map.set(key, normalizedItem)
+        }
+      }
+
+      return {
+        shopCode: String(group.shop_code || group.shopCode || ''),
+        shopName: String(group.shop_name || group.shopName || ''),
+        goods: Array.from(map.values())
+      }
+    })
+    .filter((group) => group.goods.length > 0)
+  }
+)
+
+const selectableGoods = computed(() =>
+  processedGroups.value.flatMap((group) => group.goods.filter((item) => isItemSelectable(item)))
+)
+
+const hasSelection = computed(() => selectedSet.value.size > 0)
+const isAllSelectableSelected = computed(() =>
+  selectableGoods.value.length > 0 && selectableGoods.value.every((item) => selectedSet.value.has(item._itemKey))
+)
+
+function isItemImported(item) {
+  return importedItemKeys.value.has(buildGoodsIdentityKey(item))
+}
+
+function isItemSelectable(item) {
+  if (isItemImported(item)) return false
+  return isWishlistMode.value || item._isEffective
+}
+
+function isShopSelectionDisabled(group) {
+  return group.goods.every((item) => !isItemSelectable(item))
+}
+
+function isShopFullySelected(group) {
+  const selectable = group.goods.filter((item) => isItemSelectable(item))
+  return selectable.length > 0 && selectable.every((item) => selectedSet.value.has(item._itemKey))
+}
+
+function isShopPartiallySelected(group) {
+  const selectable = group.goods.filter((item) => isItemSelectable(item))
+  return selectable.length > 0 && !isShopFullySelected(group) && selectable.some((item) => selectedSet.value.has(item._itemKey))
+}
+
+/** 数据到达后初始化全选状态（会触发 processedGroups 重算，可能较贵） */
+function initSelectionFromFetch() {
+  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+}
+
+/** 内嵌隐藏时推迟初始化，切回该 Tab 再执行，避免后台重算拖累当前可见 Tab */
+function initSelectionAfterFetch() {
+  if (props.embedded && !props.embeddedActive) {
+    pendingSelectionInit = true
+    return
+  }
+  initSelectionFromFetch()
+}
+
+// ── 选择与导入 ──
+
+function selectAll() {
+  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+}
+
+function deselectAll() {
+  selectedSet.value = new Set()
+}
+
+function toggleShopSelect(group) {
+  if (isShopSelectionDisabled(group)) return
+  const selectable = group.goods.filter((item) => isItemSelectable(item))
+  const next = new Set(selectedSet.value)
+
+  if (isShopFullySelected(group)) {
+    selectable.forEach((item) => next.delete(item._itemKey))
+  } else {
+    selectable.forEach((item) => next.add(item._itemKey))
+  }
+
+  selectedSet.value = next
+}
+
+function toggleItem(itemKey) {
+  const item = processedGroups.value.flatMap((group) => group.goods).find((entry) => entry._itemKey === itemKey)
+  if (!item || !isItemSelectable(item)) return
+
+  const next = new Set(selectedSet.value)
+  if (next.has(itemKey)) next.delete(itemKey)
+  else next.add(itemKey)
+  selectedSet.value = next
+}
+
+const importing = ref(false)
+
+async function doImport() {
+  if (importing.value) return
+  const selectedItems = processedGroups.value
+    .flatMap((group) => group.goods)
+    .filter((item) => selectedSet.value.has(item._itemKey) && isItemSelectable(item))
+    .map((item) => ({ ...item, isWishlist: isWishlistMode.value }))
+
+  if (!selectedItems.length) return
+
+  importing.value = true
+  try {
+    await store.addMultipleGoods(selectedItems)
+
+    // 预设去重后并行写入：逐条 await 串行持久化会把 done 页无谓拖慢（大批量时明显）
+    const ipSet = new Set()
+    const characterPairs = new Map()
+    for (const item of selectedItems) {
+      if (item.ip) ipSet.add(item.ip)
+      for (const character of (item.characters || [])) {
+        if (!character) continue
+        characterPairs.set(JSON.stringify([item.ip || '', character]), { ip: item.ip || '', character })
+      }
+    }
+    await Promise.all([
+      ...[...ipSet].map((ip) => presets.addIp(ip)),
+      ...[...characterPairs.values()].map(({ ip, character }) => presets.addCharacter(character, ip)),
+    ])
+
+    importedCount.value = selectedItems.length
+    importedTotalQty.value = selectedItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
+    step.value = 'done'
+  } catch (err) {
+    console.warn('[cart-import] save failed', err)
+    showGlobalToast(err?.message || t('import.importFailed'))
+  } finally {
+    importing.value = false
+  }
+}
+</script>
+
 <template>
   <div class="page cart-import-page" :class="{ 'cart-import-page--embedded': embedded }">
     <NavBar v-if="!embedded" :title="pageTitle" show-back>
@@ -237,1189 +526,4 @@
   </div>
 </template>
 
-<script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import '@/assets/common/loading.css'
-import { useRoute, useRouter } from 'vue-router'
-import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
-import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
-import { canUseNativeMihoyoImport, importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
-import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
-import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo/index'
-import {
-  addMihoyoImportContextItem,
-  buildMihoyoImportContext,
-  resolveMihoyoImportDraft,
-} from '@/utils/mihoyo/importResolver'
-import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
-import { buildGoodsIdentityKey } from '@/utils/goods/identity'
-import { runWithRouteTransition } from '@/utils/routeTransition'
-import { showGlobalToast } from '@/utils/globalToast'
-import NavBar from '@/components/common/NavBar.vue'
-import AppSheet from '@/components/common/AppSheet.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
-import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
-import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
-import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
-
-defineOptions({ name: 'CartImportView' })
-
-// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
-const props = defineProps({
-  embedded: { type: Boolean, default: false },
-  /** 当前是否为宿主激活的 tab（预挂载时不拉数据，激活后才 bootstrap） */
-  embeddedActive: { type: Boolean, default: false },
-})
-
-const { t } = useI18n()
-const route = useRoute()
-const router = useRouter()
-const store = useGoodsStore()
-const presets = usePresetsStore()
-const {
-  cookieInput,
-  rememberCookie,
-  hasSavedCookie,
-  cookieValid,
-  cookieWarningMessage,
-  canAutoSubmitSavedCookie,
-  accounts,
-  activeAccountId,
-  activeAccountLabel,
-  activeAccountAvatar,
-  refreshingAccountId,
-  initializeCookieState,
-  applySavedCookieToInput,
-  applyCookieToNativeSession,
-  persistCookieAfterSuccess,
-  persistNativeCookieAfterSuccess,
-  handleCookieFailure,
-  switchAccount,
-  removeAccount,
-  refreshAccountProfiles,
-  refreshAccountWithStoken,
-  saveStokenForAccount,
-  loginNewAccountNative,
-  submitNewAccountCookie,
-} = useMihoyoCookieState()
-
-const showAccountSheet = ref(false)
-const accountSheetRef = ref(null)
-const showQrLogin = ref(false)
-
-async function onQrLoginSuccess({ cookie } = {}) {
-  const value = String(cookie || '').trim()
-  if (!value) return
-  cookieInput.value = value
-  rememberCookie.value = true
-  try {
-    await submitNewAccountCookie(value, true)
-  } catch {
-    // 账号列表写入失败不阻断
-  }
-  await startFetch({ silentCookieExpired: true })
-}
-const cartFetchRunning = ref(false)
-
-function openAccountSheet() {
-  showAccountSheet.value = true
-  void refreshAccountProfiles()
-}
-
-const isWishlistMode = computed(() => route.query.mode === 'wishlist')
-const pageTitle = computed(() => isWishlistMode.value ? t('import.cartImportWishlistTitle') : t('import.cart'))
-const doneTargetPath = computed(() => (isWishlistMode.value ? '/wishlist' : '/home'))
-const targetList = computed(() => (isWishlistMode.value ? store.wishlistList : store.collectionList))
-
-const step = ref('cookie')
-const rawGroups = ref([])
-const selectedSet = ref(new Set())
-const importedCount = ref(0)
-const importedTotalQty = ref(0)
-const canUseNativeImport = canUseNativeMihoyoImport()
-/** Cookie/账号状态是否已从本地加载完成 */
-const cookieStateReady = ref(false)
-const autoOpenedQr = ref(false)
-
-/**
- * 网页端必须填有效 Cookie 才能继续；
- * 安卓端留空表示走原生 WebView 登录，填了则必须是有效 Cookie。
- */
-const cookiePrimaryDisabled = computed(() => {
-  if (!canUseNativeImport) return !cookieValid.value
-  return Boolean(cookieInput.value.trim()) && !cookieValid.value
-})
-
-/** 网页版：状态加载完且无任何会话/账号时，才自动弹扫码 */
-watch(
-  () => [
-    step.value,
-    canUseNativeImport,
-    cookieStateReady.value,
-    cookieValid.value,
-    hasSavedCookie.value,
-    accounts.value,
-  ],
-  ([nextStep, native, ready, valid, saved, accountList]) => {
-    if (native) return
-    const hasSession = valid || saved || (Array.isArray(accountList) && accountList.length > 0)
-    if (hasSession) {
-      if (autoOpenedQr.value) {
-        showQrLogin.value = false
-        autoOpenedQr.value = false
-      }
-      return
-    }
-    if (!ready) return
-    if (nextStep !== 'cookie') return
-    if (showQrLogin.value) return
-    showQrLogin.value = true
-    autoOpenedQr.value = true
-  },
-  { immediate: true },
-)
-const showErrorDialog = ref(false)
-const errorDialogTitle = ref('')
-const errorDialogMessage = ref('')
-
-function openErrorDialog(title, message) {
-  errorDialogTitle.value = title
-  errorDialogMessage.value = String(message || '').trim() || t('import.unknownError')
-  showErrorDialog.value = true
-}
-
-function closeErrorDialog() {
-  showErrorDialog.value = false
-}
-
-const importedItemKeys = computed(() =>
-  new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
-)
-
-function createMihoyoImportContext() {
-  return buildMihoyoImportContext({
-    goodsList: store.list || [],
-    presetCharacters: presets.characters || [],
-    categories: presets.categories || [],
-    ips: presets.ips || [],
-    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
-    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
-  })
-}
-
-function normalizeMihoyoImportItem(item, context) {
-  const normalized = resolveMihoyoImportDraft(item, { context })
-  addMihoyoImportContextItem(context, normalized)
-  return normalized
-}
-
-const processedGroups = computed(() =>
-  {
-    const context = createMihoyoImportContext()
-    return rawGroups.value.map((group) => {
-      const map = new Map()
-      for (const item of cartShopToGoodsList(group)) {
-        const normalizedItem = normalizeMihoyoImportItem(item, context)
-
-        // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
-        // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
-        const key = buildGoodsIdentityKey(normalizedItem)
-        if (map.has(key)) {
-          const existing = map.get(key)
-          existing.quantity = (Number(existing.quantity) || 1) + (Number(normalizedItem.quantity) || 1)
-        } else {
-          map.set(key, normalizedItem)
-        }
-      }
-
-      return {
-        shopCode: String(group.shop_code || group.shopCode || ''),
-        shopName: String(group.shop_name || group.shopName || ''),
-        goods: Array.from(map.values())
-      }
-    })
-    .filter((group) => group.goods.length > 0)
-  }
-)
-
-const selectableGoods = computed(() =>
-  processedGroups.value.flatMap((group) => group.goods.filter((item) => isItemSelectable(item)))
-)
-
-const hasSelection = computed(() => selectedSet.value.size > 0)
-const isAllSelectableSelected = computed(() =>
-  selectableGoods.value.length > 0 && selectableGoods.value.every((item) => selectedSet.value.has(item._itemKey))
-)
-
-function isItemImported(item) {
-  return importedItemKeys.value.has(buildGoodsIdentityKey(item))
-}
-
-function isItemSelectable(item) {
-  if (isItemImported(item)) return false
-  return isWishlistMode.value || item._isEffective
-}
-
-function isShopSelectionDisabled(group) {
-  return group.goods.every((item) => !isItemSelectable(item))
-}
-
-function isShopFullySelected(group) {
-  const selectable = group.goods.filter((item) => isItemSelectable(item))
-  return selectable.length > 0 && selectable.every((item) => selectedSet.value.has(item._itemKey))
-}
-
-function isShopPartiallySelected(group) {
-  const selectable = group.goods.filter((item) => isItemSelectable(item))
-  return selectable.length > 0 && !isShopFullySelected(group) && selectable.some((item) => selectedSet.value.has(item._itemKey))
-}
-
-let didBootstrap = false
-
-function scheduleBootstrap() {
-  if (didBootstrap) return
-  didBootstrap = true
-  // 先让 Tab 显示切换完成首帧绘制，再读本地状态/拉数据
-  requestAnimationFrame(() => {
-    void bootstrapCookieState()
-  })
-}
-
-onMounted(() => {
-  // 独立页面：挂载即拉；内嵌预挂载：等宿主把 Tab 激活后再拉，避免进导入页就打接口
-  if (!props.embedded) scheduleBootstrap()
-})
-
-let pendingSelectionInit = false
-
-watch(
-  () => props.embeddedActive,
-  (active) => {
-    if (active && pendingSelectionInit) {
-      pendingSelectionInit = false
-      // 仅列表就绪时补做初始化；其他状态（登出/失败回退）无需全选
-      if (step.value === 'list') initSelectionFromFetch()
-    }
-    if (active && props.embedded) scheduleBootstrap()
-  },
-  { immediate: true },
-)
-
-async function bootstrapCookieState() {
-  if (canUseNativeImport) {
-    // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
-    await initializeCookieState()
-    // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
-    rememberCookie.value = true
-    cookieStateReady.value = true
-    await startFetch({ silentCookieExpired: true })
-    return
-  }
-
-  await initializeCookieState()
-  cookieStateReady.value = true
-
-  if (!canAutoSubmitSavedCookie.value) return
-
-  applySavedCookieToInput()
-  await startFetch({ silentCookieExpired: true })
-}
-
-function stokenErrorText(result) {
-  return stokenErrorMessage(t, result)
-}
-
-async function onRefreshAccount(account) {
-  try {
-    const result = await refreshAccountWithStoken(account?.id, { force: true })
-    if (result?.ok && !result.skipped) {
-      accountSheetRef.value?.setNotice?.(t('import.stokenRefreshSuccess'), 'success')
-      return
-    }
-    if (!result?.ok) {
-      accountSheetRef.value?.setNotice?.(stokenErrorText(result), 'error')
-    }
-  } catch (error) {
-    accountSheetRef.value?.setNotice?.(
-      String(error?.message || t('import.stokenRefreshFailed')),
-      'error'
-    )
-  }
-}
-
-async function onSwitchAccount(account) {
-  const result = await switchAccount(account?.id)
-  if (!result.ok) {
-    openErrorDialog(t('import.switchAccount'), t('import.switchAccountFailed'))
-    return
-  }
-
-  // 原生端 Cookie 未写入插件时：不要自动 startFetch（会用空/旧会话失败并误标失效）
-  if (canUseNativeImport && !result.nativeApplied) {
-    openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
-    return
-  }
-
-  cookieInput.value = result.cookie
-  // 直接进 loading 拉新账号数据，避免 cookie 空页/清列表造成的白屏闪烁
-  await startFetch({ silentCookieExpired: true })
-}
-
-async function onRemoveAccount(account) {
-  await removeAccount(account?.id)
-}
-
-/** 登录/重登成功后：刷新购物车（不只在切换账号时） */
-async function refreshAfterMihoyoLogin(nextCookie) {
-  cookieInput.value = String(nextCookie || '').trim()
-  if (!cookieInput.value) {
-    step.value = 'cookie'
-    return
-  }
-  await startFetch({ silentCookieExpired: true })
-}
-
-async function onLoginNewNative() {
-  const result = await loginNewAccountNative()
-  accountSheetRef.value?.closeAll?.()
-  if (!result.ok) {
-    if (result.cancelled) return
-    openErrorDialog(t('import.loginNewAccount'), result.unsupported
-      ? t('import.loginNewAccountUnsupported')
-      : (result.message || t('import.loginNewAccountFailed')))
-    return
-  }
-  await refreshAfterMihoyoLogin(result.cookie)
-}
-
-async function onLoginNewCookie({ cookie, remember } = {}) {
-  const result = await submitNewAccountCookie(cookie, remember)
-  if (!result.ok) {
-    openErrorDialog(t('import.loginNewAccount'), t('import.loginNewAccountFailed'))
-    return
-  }
-  accountSheetRef.value?.closeAll?.()
-  if (canUseNativeImport && result.nativeApplied === false) {
-    // Cookie 只进了账号列表、没进原生会话：继续走原生导入会用到旧会话
-    openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
-    return
-  }
-  await refreshAfterMihoyoLogin(result.cookie)
-}
-
-// 安卓原生端导入成功后，同步 Cookie 到多账号存储
-async function syncNativeCookieToWeb() {
-  await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
-}
-
-/** 数据到达后初始化全选状态（会触发 processedGroups 重算，可能较贵） */
-function initSelectionFromFetch() {
-  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
-}
-
-/** 内嵌隐藏时推迟初始化，切回该 Tab 再执行，避免后台重算拖累当前可见 Tab */
-function initSelectionAfterFetch() {
-  if (props.embedded && !props.embeddedActive) {
-    pendingSelectionInit = true
-    return
-  }
-  initSelectionFromFetch()
-}
-
-const startFetch = async (options = {}) => {
-  if (cartFetchRunning.value) return
-  cartFetchRunning.value = true
-  if (canUseNativeImport) {
-    step.value = 'loading'
-
-    // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉购物车；
-    // 留空则插件按自己的流程拉起 WebView 登录。
-    if (cookieInput.value.trim()) {
-      const applied = await applyCookieToNativeSession(cookieInput.value)
-      if (!applied.applied) {
-        cartFetchRunning.value = false
-        step.value = 'cookie'
-        openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
-        return
-      }
-    }
-
-    try {
-      const { list = [] } = await importMihoyoCartWithSession()
-      rawGroups.value = Array.isArray(list) ? list : []
-      initSelectionAfterFetch()
-      step.value = 'list'
-      // 同步 Cookie 到 Web 端存储
-      await syncNativeCookieToWeb()
-    } catch (error) {
-      openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.confirmLoginRetry'))
-      step.value = 'cookie'
-    } finally {
-      cartFetchRunning.value = false
-    }
-    return
-  }
-
-  const { silentCookieExpired = false } = options
-  step.value = 'loading'
-
-  try {
-    const nextGroups = await fetchCartList(cookieInput.value.trim())
-    rawGroups.value = Array.isArray(nextGroups) ? nextGroups : []
-    await persistCookieAfterSuccess()
-    initSelectionAfterFetch()
-    step.value = 'list'
-  } catch (error) {
-    const cookieExpired = await handleCookieFailure(error)
-    if (cookieExpired) {
-      step.value = 'cookie'
-      if (!silentCookieExpired) {
-        openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
-      }
-      return
-    }
-
-    openErrorDialog(t('import.fetchCartFailed'), error?.message || t('import.retryLater'))
-    step.value = 'cookie'
-  } finally {
-    cartFetchRunning.value = false
-  }
-}
-
-function selectAll() {
-  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
-}
-
-function deselectAll() {
-  selectedSet.value = new Set()
-}
-
-function toggleShopSelect(group) {
-  if (isShopSelectionDisabled(group)) return
-  const selectable = group.goods.filter((item) => isItemSelectable(item))
-  const next = new Set(selectedSet.value)
-
-  if (isShopFullySelected(group)) {
-    selectable.forEach((item) => next.delete(item._itemKey))
-  } else {
-    selectable.forEach((item) => next.add(item._itemKey))
-  }
-
-  selectedSet.value = next
-}
-
-function toggleItem(itemKey) {
-  const item = processedGroups.value.flatMap((group) => group.goods).find((entry) => entry._itemKey === itemKey)
-  if (!item || !isItemSelectable(item)) return
-
-  const next = new Set(selectedSet.value)
-  if (next.has(itemKey)) next.delete(itemKey)
-  else next.add(itemKey)
-  selectedSet.value = next
-}
-
-const importing = ref(false)
-
-async function doImport() {
-  if (importing.value) return
-  const selectedItems = processedGroups.value
-    .flatMap((group) => group.goods)
-    .filter((item) => selectedSet.value.has(item._itemKey) && isItemSelectable(item))
-    .map((item) => ({ ...item, isWishlist: isWishlistMode.value }))
-
-  if (!selectedItems.length) return
-
-  importing.value = true
-  try {
-    await store.addMultipleGoods(selectedItems)
-
-    // 预设去重后并行写入：逐条 await 串行持久化会把 done 页无谓拖慢（大批量时明显）
-    const ipSet = new Set()
-    const characterPairs = new Map()
-    for (const item of selectedItems) {
-      if (item.ip) ipSet.add(item.ip)
-      for (const character of (item.characters || [])) {
-        if (!character) continue
-        characterPairs.set(JSON.stringify([item.ip || '', character]), { ip: item.ip || '', character })
-      }
-    }
-    await Promise.all([
-      ...[...ipSet].map((ip) => presets.addIp(ip)),
-      ...[...characterPairs.values()].map(({ ip, character }) => presets.addCharacter(character, ip)),
-    ])
-
-    importedCount.value = selectedItems.length
-    importedTotalQty.value = selectedItems.reduce((sum, item) => sum + (Number(item.quantity) || 1), 0)
-    step.value = 'done'
-  } catch (err) {
-    console.warn('[cart-import] save failed', err)
-    showGlobalToast(err?.message || t('import.importFailed'))
-  } finally {
-    importing.value = false
-  }
-}
-</script>
-
-<style scoped>
-.cart-import-page {
-  min-height: 100dvh;
-}
-
-.info-qr-lead {
-  margin: 4px 0 0;
-  font-size: var(--font-body);
-  color: var(--app-text-secondary);
-  line-height: 1.6;
-}
-
-.qr-cta {
-  margin-bottom: 8px;
-  text-align: center;
-}
-
-.qr-cta__btn {
-  width: auto;
-  padding: 6px 0;
-  border: none;
-  background: transparent;
-  color: var(--app-text-secondary);
-  font-size: var(--font-body);
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* 外壳由 AppSheet 提供；此处只保留内容样式 */
-.dialog-label {
-  color: var(--app-text-tertiary);
-  font-size: var(--font-small);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.dialog-title {
-  margin: 6px 0 0;
-  color: var(--app-text);
-  font-size: var(--font-title-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-}
-
-.dialog-desc {
-  margin-top: 12px;
-  color: var(--app-text-secondary);
-  font-size: var(--font-body-lg);
-  line-height: 1.65;
-  white-space: pre-wrap;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 20px;
-}
-
-.dialog-btn {
-  min-height: 42px;
-  min-width: 120px;
-  padding: 0 18px;
-  border: none;
-  border-radius: var(--radius-xs);
-  font-size: var(--font-body-lg);
-  font-weight: 600;
-}
-
-.dialog-btn--primary {
-  background: var(--app-text);
-  color: var(--app-bg);
-}
-
-.page-body {
-  padding: var(--section-gap) var(--page-padding) calc(80px + max(env(safe-area-inset-bottom), 12px));
-}
-
-/* 内嵌在导入页 tab：去掉自身页面壳与滚动容器，间距交给宿主 */
-.cart-import-page--embedded {
-  display: contents;
-}
-
-.cart-import-page--embedded .page-body {
-  flex: none;
-  overflow: visible;
-  padding: 0;
-}
-
-.step-section {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.step-section--center {
-  align-items: center;
-  justify-content: center;
-  min-height: 50dvh;
-  gap: 12px;
-}
-
-.step-section--list {
-  gap: 0;
-  padding-bottom: calc(88px + max(env(safe-area-inset-bottom), 16px));
-}
-
-.info-card {
-  display: flex;
-  gap: 14px;
-  padding: 16px;
-  border-radius: var(--radius-card);
-  background: rgba(255, 149, 0, 0.08);
-}
-
-.info-icon {
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ff9500;
-}
-
-.info-icon svg,
-.done-icon svg {
-  width: 24px;
-  height: 24px;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.info-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.info-title {
-  font-size: var(--font-body-lg);
-  font-weight: 600;
-  color: var(--app-text);
-  margin: 0 0 8px;
-}
-
-.info-steps {
-  margin: 0;
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.info-steps li {
-  font-size: var(--font-body);
-  color: var(--app-text-secondary);
-  line-height: 1.5;
-}
-
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field-label {
-  font-size: var(--font-body-lg);
-  font-weight: 500;
-  color: var(--app-text-secondary);
-}
-
-.cookie-textarea {
-  width: 100%;
-  min-height: 120px;
-  padding: 14px;
-  border-radius: var(--radius-small);
-  border: 1.5px solid rgba(0, 0, 0, 0.08);
-  background: var(--app-surface);
-  font-size: var(--font-small);
-  color: var(--app-text);
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.field-error {
-  font-size: var(--font-body);
-  color: #c74444;
-  margin: 0;
-}
-
-.cookie-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.remember-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  font-size: var(--font-body);
-  color: var(--app-text-secondary);
-}
-
-.remember-checkbox {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: #141416;
-}
-
-.cookie-clear-btn {
-  border: none;
-  background: transparent;
-  color: var(--app-text-tertiary);
-  font-size: var(--font-body);
-  padding: 0;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.cookie-tip {
-  margin: 0;
-  font-size: var(--font-body);
-  line-height: 1.5;
-}
-
-.cookie-tip--account {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--app-text-secondary);
-}
-
-.account-chip-avatar,
-.account-chip-fallback {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  object-fit: cover;
-}
-
-.account-chip-fallback {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(90, 120, 250, 0.12);
-  color: #4c7dff;
-  font-size: var(--font-small);
-  font-weight: 600;
-}
-
-.cookie-tip--warn {
-  color: #c74444;
-}
-
-.primary-btn {
-  width: 100%;
-  height: 52px;
-  border: none;
-  border-radius: var(--radius-medium);
-  background: #141416;
-  color: #fff;
-  font-size: var(--font-title);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.primary-btn:disabled {
-  opacity: 0.32;
-  pointer-events: none;
-}
-
-.loading-title,
-.done-title {
-  font-size: var(--font-title-xl);
-  font-weight: 600;
-  color: var(--app-text);
-  margin: 0;
-}
-
-.loading-sub,
-.done-sub {
-  font-size: var(--font-body-lg);
-  color: var(--app-text-secondary);
-  margin: 0;
-}
-
-.list-header {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: var(--app-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-}
-
-.list-count {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--font-body-lg);
-  line-height: 1.4;
-  color: var(--app-text-secondary);
-  margin: 0;
-}
-
-.list-header-actions {
-  display: inline-flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: var(--radius-pill);
-  background: rgba(20, 20, 22, 0.06);
-  flex-shrink: 0;
-}
-
-.text-btn {
-  border: none;
-  min-width: 72px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  font-size: var(--font-body);
-  font-weight: 600;
-  color: var(--app-text-secondary);
-}
-
-.text-btn--active {
-  background: #141416;
-  color: #ffffff;
-}
-
-.shop-list,
-.goods-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.shop-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.shop-group {
-  border-radius: var(--radius-card);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.05);
-  /* 长列表：屏外店铺分组跳过布局/绘制，减轻首屏与切回时的重排 */
-  content-visibility: auto;
-  contain-intrinsic-size: auto 320px;
-}
-
-.shop-row,
-.goods-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  background: var(--app-surface);
-}
-
-.shop-row--disabled,
-.goods-item--disabled {
-  opacity: 0.5;
-}
-
-.goods-item {
-  border-top: 1px solid rgba(0, 0, 0, 0.04);
-  cursor: pointer;
-}
-
-.goods-item--selected {
-  background: rgba(20, 20, 22, 0.04);
-}
-
-.shop-copy,
-.goods-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.shop-name,
-.goods-name {
-  margin: 0;
-  color: var(--app-text);
-}
-
-.shop-name {
-  font-size: var(--font-subtitle);
-  font-weight: 600;
-}
-
-.shop-meta,
-.goods-meta {
-  margin-top: 4px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-}
-
-.shop-meta {
-  font-size: var(--font-small);
-  color: var(--app-text-tertiary);
-}
-
-.goods-name {
-  font-size: var(--font-body-lg);
-  font-weight: 500;
-}
-
-.goods-leading,
-.check-btn {
-  flex-shrink: 0;
-}
-
-.check-btn {
-  border: none;
-  background: transparent;
-  padding: 0;
-}
-
-.check-dot {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 1.5px solid rgba(0, 0, 0, 0.2);
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.check-dot--sm {
-  width: 17px;
-  height: 17px;
-}
-
-.check-dot--on {
-  background: #141416;
-  border-color: #141416;
-}
-
-.check-dot--partial {
-  background: rgba(20, 20, 22, 0.2);
-  border-color: rgba(20, 20, 22, 0.4);
-}
-
-.check-dot svg {
-  width: 12px;
-  height: 12px;
-  stroke: #fff;
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.goods-thumb {
-  flex-shrink: 0;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-xs);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.goods-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.goods-initial {
-  font-size: var(--font-title-lg);
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.3);
-}
-
-.meta-price,
-.meta-qty,
-.meta-tag {
-  font-size: var(--font-small);
-}
-
-.meta-price {
-  color: var(--app-text-secondary);
-  font-weight: 500;
-}
-
-.meta-qty,
-.meta-tag {
-  padding: 2px 8px;
-  border-radius: var(--radius-pill);
-  background: rgba(0, 0, 0, 0.06);
-  color: var(--app-text-secondary);
-}
-
-.meta-tag--ip {
-  background: rgba(28, 53, 88, 0.08);
-  color: #1c3558;
-}
-
-.meta-tag--imported {
-  background: rgba(40, 200, 128, 0.1);
-  color: #1a8f4c;
-}
-
-.meta-tag--disabled {
-  background: rgba(199, 68, 68, 0.1);
-  color: #c74444;
-}
-
-.bottom-bar {
-  position: fixed;
-  bottom: max(env(safe-area-inset-bottom), 12px);
-  left: 50%;
-  width: min(calc(100% - 32px), calc(430px - 32px));
-  transform: translateX(-50%);
-  padding: 0;
-  z-index: 50;
-}
-
-.empty-wrap {
-  padding-top: 32px;
-}
-
-.done-icon {
-  width: 68px;
-  height: 68px;
-  border-radius: 50%;
-  background: rgba(40, 200, 128, 0.12);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #1a8f4c;
-  margin-bottom: 8px;
-}
-
-.step-fade-enter-active,
-.step-fade-leave-active {
-  transition: opacity 0.22s ease, transform 0.22s ease;
-}
-
-.step-fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.step-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-html.theme-dark .primary-btn,
-  html.theme-dark .text-btn--active {
-    background: #f5f5f7;
-    color: #141416;
-  }
-
-html.theme-dark .list-header {
-    background: var(--app-glass-strong);
-    border: 1px solid var(--app-glass-border);
-  }
-
-html.theme-dark .list-header-actions {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-/* 手机端：左侧统计最多两行，右侧按钮压缩 */
-@media (max-width: 520px) {
-  .list-header {
-    gap: 8px;
-    padding: 8px 10px;
-  }
-
-  .list-count {
-    flex: 1 1 52%;
-    min-width: 48%;
-    max-width: 58%;
-    font-size: var(--font-body);
-    line-height: 1.35;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .list-header-actions {
-    gap: 2px;
-    padding: 4px;
-  }
-
-  .text-btn {
-    min-width: 0;
-    height: 32px;
-    padding: 0 8px;
-    font-size: var(--font-small);
-  }
-}
-
-html.theme-dark .shop-group {
-    background: rgba(255, 255, 255, 0.04);
-  }
-
-html.theme-dark .shop-row,
-  html.theme-dark .goods-item {
-    background: rgba(24, 24, 28, 0.82);
-  }
-
-html.theme-dark .goods-item--selected {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-html.theme-dark .meta-tag,
-  html.theme-dark .meta-qty {
-    background: rgba(255, 255, 255, 0.08);
-  }
-
-html.theme-dark .meta-tag--ip {
-    background: rgba(138, 180, 248, 0.12);
-    color: #8ab4f8;
-  }
-
-html.theme-dark .goods-thumb {
-    background: rgba(255, 255, 255, 0.06);
-  }
-
-html.theme-dark .check-dot--on {
-    background: #f5f5f7;
-    border-color: #f5f5f7;
-  }
-
-html.theme-dark .check-dot--on svg {
-    stroke: #141416;
-  }
-
-html.theme-dark .bottom-bar {
-    background: none;
-  }
-</style>
+<style scoped src="@/assets/views/CartImportView.css"></style>

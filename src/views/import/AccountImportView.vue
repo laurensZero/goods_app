@@ -1,3 +1,422 @@
+<script setup>
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import '@/assets/common/loading.css'
+import { useGoodsStore } from '@/stores/goods'
+import { usePresetsStore } from '@/stores/presets'
+import { useRouter } from 'vue-router'
+import { Capacitor } from '@capacitor/core'
+import { useMihoyoImportSession } from '@/composables/import/useMihoyoImportSession'
+import { importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
+import { fetchAllOrders, orderToGoodsList, resolveOrderDiscountCents } from '@/utils/mihoyo/index'
+import {
+  addMihoyoImportContextItem,
+  buildMihoyoImportContext,
+  resolveMihoyoImportDraft,
+} from '@/utils/mihoyo/importResolver'
+import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
+import {
+  buildGoodsIdentityKey,
+  buildOrderImportIdentity,
+  buildOrderImportImportedKeys,
+  isOrderItemImported,
+} from '@/utils/goods/identity'
+import { runWithRouteTransition } from '@/utils/routeTransition'
+import NavBar from '@/components/common/NavBar.vue'
+import AppSheet from '@/components/common/AppSheet.vue'
+import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
+import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
+import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
+
+defineOptions({ name: 'AccountImportView' })
+
+// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
+const props = defineProps({
+  embedded: { type: Boolean, default: false },
+  /** 当前是否为宿主激活的 tab（预挂载时不拉数据，激活后才 bootstrap） */
+  embeddedActive: { type: Boolean, default: false },
+})
+
+const { t } = useI18n()
+const router = useRouter()
+const store = useGoodsStore()
+const presets = usePresetsStore()
+
+// ── State ──────────────────────────────────────────────────────
+const step = ref('cookie')        // 'cookie' | 'loading' | 'orders' | 'done'
+const loadedCount = ref(0)
+const totalCount = ref(0)
+const rawOrders = ref([])         // 原始 API 订单列表
+const expandedSet = ref(new Set()) // 已展开的订单 order_no
+const selectedSet = ref(new Set()) // 已选择的商品 _itemKey
+const cappedWarning = ref(false)
+const importedCount = ref(0)
+const importedTotalQty = ref(0)
+
+// ── 会话门（Cookie/账号/启动/拉取流程，与购物车导入共用 useMihoyoImportSession） ──
+const {
+  canUseNativeImport,
+  scheduleBootstrap,
+  startFetch,
+  cookieInput,
+  rememberCookie,
+  cookieValid,
+  cookieWarningMessage,
+  accounts,
+  activeAccountId,
+  activeAccountLabel,
+  activeAccountAvatar,
+  refreshingAccountId,
+  showAccountSheet,
+  accountSheetRef,
+  showQrLogin,
+  cookiePrimaryDisabled,
+  onQrLoginSuccess,
+  showErrorDialog,
+  errorDialogTitle,
+  errorDialogMessage,
+  closeErrorDialog,
+  onRefreshAccount,
+  onSwitchAccount,
+  onRemoveAccount,
+  onLoginNewNative,
+  onLoginNewCookie,
+  saveStokenForAccount,
+  stokenErrorText,
+  openAccountSheet,
+} = useMihoyoImportSession({
+  listStepName: 'orders',
+  fetchFailedKey: 'import.fetchOrdersFailed',
+  isEmbedded: () => props.embedded,
+  isEmbeddedActive: () => props.embeddedActive,
+  fetchNative: fetchOrdersNative,
+  fetchWeb: fetchOrdersWeb,
+  onList: (list) => {
+    rawOrders.value = list
+    selectedSet.value = new Set()
+  },
+})
+
+/** 原生插件会话拉订单：注册进度事件，结束时移除 */
+async function fetchOrdersNative() {
+  loadedCount.value = 0
+  totalCount.value = 0
+
+  let progressHandle = null
+  if (Capacitor.isNativePlatform()) {
+    progressHandle = await Capacitor.addListener('MihoyoSessionImport', 'importProgress', (event) => {
+      // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
+      if (props.embedded && !props.embeddedActive) return
+      loadedCount.value = event.loaded ?? loadedCount.value
+      totalCount.value = event.total ?? totalCount.value
+    })
+  }
+
+  try {
+    const { list = [], capped = false, total = 0 } = await importMihoyoOrdersWithSession()
+    cappedWarning.value = Boolean(capped)
+    loadedCount.value = Array.isArray(list) ? list.length : 0
+    totalCount.value = Number(total) || loadedCount.value
+    return { list, capped, total }
+  } finally {
+    progressHandle?.remove()
+  }
+}
+
+/** Web 端带 Cookie 拉订单：fetchAllOrders 自带进度回调 */
+async function fetchOrdersWeb(cookie) {
+  loadedCount.value = 0
+  totalCount.value = 0
+  const { list, capped } = await fetchAllOrders(cookie, (loaded, total_) => {
+    // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
+    if (props.embedded && !props.embeddedActive) return
+    loadedCount.value = loaded
+    totalCount.value = total_
+  })
+  cappedWarning.value = Boolean(capped)
+  return { list, capped }
+}
+
+// 内嵌 tab 的 bootstrap（独立页面挂载即拉）由会话门内部处理；这里只保留展开/选择逻辑
+
+// 已导入索引：goodsId 优先（订单号/支付日 + 款式软匹配），无 goodsId 回退名称
+const importedItemKeys = computed(() =>
+  buildOrderImportImportedKeys(store.collectionList)
+)
+
+function isItemImported(item) {
+  return isOrderItemImported(item, importedItemKeys.value)
+}
+
+/** 订单内合并键：优先 goodsId 身份，缺字段回退名称+款式 */
+function getOrderLineMergeKey(item) {
+  return buildOrderImportIdentity(item) || buildGoodsIdentityKey(item)
+}
+// 订单是否已全部导入（所有非退款商品均已导入）
+function isOrderImported(po) {
+  const nonRefunded = po.goods.filter((g) => !isItemRefundedOrCancelled(g))
+  return nonRefunded.length > 0 && nonRefunded.every((g) => isItemImported(g))
+}
+function getItemStatusText(item) {
+  return item._wrapperStatus || item._statusText || ''
+}
+const CLOSED_ORDER_PATTERNS = [
+  /交易关闭/,
+  /订单关闭/,
+  /关闭订单/,
+]
+const REFUND_STATUS_PATTERNS = [
+  /退款/,
+  /退货/,
+  /售后/,
+  /已取消/,
+  /取消订单/,
+]
+// 商品是否已退款/取消
+function isItemRefundedOrCancelled(item) {
+  const statusText = getItemStatusText(item).trim()
+  return REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(statusText))
+}
+function isOrderClosed(po) {
+  const statusText = String(po?.statusText || '').trim()
+  return CLOSED_ORDER_PATTERNS.some((pattern) => pattern.test(statusText))
+}
+
+// 商品是否有展示价值的非常规状态（山不是「已完成」类气泰状态）
+const SKIP_STATUS_SET = new Set(['交易完成', '交易成功', '已完成', '已成功', '收货成功', '已收货', '已结束'])
+function getSelectableGoods(po) {
+  if (isOrderClosed(po)) return []
+  return po.goods.filter((g) => !isItemImported(g) && !isItemRefundedOrCancelled(g))
+}
+
+function isOrderSelectionDisabled(po) {
+  return isOrderClosed(po) || isOrderImported(po) || getSelectableGoods(po).length === 0
+}
+
+function isItemSelectable(item, po) {
+  return !isOrderSelectionDisabled(po) && !isItemImported(item) && !isItemRefundedOrCancelled(item)
+}
+
+function isItemStatusWorthy(item) {
+  const statusText = getItemStatusText(item)
+  return statusText.length > 0 && !SKIP_STATUS_SET.has(statusText)
+}
+
+function createMihoyoImportContext() {
+  return buildMihoyoImportContext({
+    goodsList: store.list || [],
+    presetCharacters: presets.characters || [],
+    categories: presets.categories || [],
+    ips: presets.ips || [],
+    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
+    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
+  })
+}
+
+function normalizeMihoyoImportItem(item, context) {
+  const normalized = resolveMihoyoImportDraft(item, { context })
+  addMihoyoImportContextItem(context, normalized)
+  return normalized
+}
+
+function hasActualPrice(item) {
+  return item?.actualPrice !== '' && item?.actualPrice != null && Number.isFinite(Number(item.actualPrice))
+}
+
+/** 入手价与原价一致时不展示「入手」，避免重复价格噪音 */
+function shouldShowActualPrice(item) {
+  if (!hasActualPrice(item)) return false
+  const actual = Number(item.actualPrice)
+  const listed = Number(item.price)
+  if (!Number.isFinite(listed)) return true
+  return Math.abs(actual - listed) >= 0.005
+}
+
+function formatImportMoney(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n)) return '0'
+  return String(Math.round(n * 100) / 100)
+}
+
+function centsToDisplay(cents) {
+  const n = Number(cents)
+  if (!Number.isFinite(n) || n < 0) return ''
+  return formatImportMoney(n / 100)
+}
+
+/** 同名合并时累加入手价与逐份价 */
+function mergeImportGoodsLine(target, incoming) {
+  target.quantity = (Number(target.quantity) || 1) + (Number(incoming.quantity) || 1)
+  const tHas = hasActualPrice(target)
+  const iHas = hasActualPrice(incoming)
+  if (tHas && iHas) {
+    target.actualPrice = formatImportMoney(Number(target.actualPrice) + Number(incoming.actualPrice))
+  } else if (iHas) {
+    target.actualPrice = incoming.actualPrice
+  }
+  const tUnits = Array.isArray(target.unitActualPriceList) ? target.unitActualPriceList : []
+  const iUnits = Array.isArray(incoming.unitActualPriceList) ? incoming.unitActualPriceList : []
+  if (tUnits.length || iUnits.length) {
+    target.unitActualPriceList = [...tUnits, ...iUnits]
+  }
+}
+
+// ── Computed ───────────────────────────────────────────────────
+/** 按订单分组，每组含该订单所有商品（同名项合并数量） */
+const processedOrders = computed(() =>
+  {
+    const context = createMihoyoImportContext()
+    return rawOrders.value.map((order) => {
+      const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
+      // 同一订单内：精确身份相同或（缺字段时）名称+款式相同的商品合并数量
+      const nameMap = new Map()
+      for (const g of rawGoods) {
+        const key = getOrderLineMergeKey(g)
+        if (nameMap.has(key)) {
+          mergeImportGoodsLine(nameMap.get(key), g)
+        } else {
+          nameMap.set(key, { ...g })
+        }
+      }
+      const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
+      // 与入手价分摊共用同一套优惠解析（含 discounts 缺失时按金额兜底）
+      const discountCents = resolveOrderDiscountCents(order)
+      const hasDiscount = discountCents > 0
+      return {
+        raw: order,
+        orderNo: order.order_no || order.orderNo || '',
+        goods: Array.from(nameMap.values()),
+        statusText: order.status_text || order.manage_status_text || '',
+        shopName: order.shop?.shop_name || '',
+        hasDiscount: hasDiscount || (
+          Number.isFinite(paidCents)
+          && Number.isFinite(Number(order.goods_amount))
+          && paidCents < Number(order.goods_amount)
+        ),
+        paidText: centsToDisplay(paidCents),
+        discountText: hasDiscount ? centsToDisplay(discountCents) : ''
+      }
+    })
+    .filter((po) => po.goods.length > 0)
+  }
+)
+
+/** 所有商品展平后的列表（用于全选/计数/导入） */
+const allGoods = computed(() => processedOrders.value.flatMap((po) => po.goods))
+const selectableGoods = computed(() =>
+  processedOrders.value.flatMap((po) => getSelectableGoods(po))
+)
+const hasSelection = computed(() => selectedSet.value.size > 0)
+const isAllSelectableSelected = computed(() =>
+  selectableGoods.value.length > 0 && selectedSet.value.size === selectableGoods.value.length
+)
+
+// 按名称+角色去重：同名同款式的商品合并，数量累加
+const mergedAllGoods = computed(() => {
+  const map = new Map()
+  for (const g of allGoods.value) {
+    const key = buildGoodsIdentityKey(g)
+    if (map.has(key)) {
+      const ex = map.get(key)
+      ex.quantity = (Number(ex.quantity) || 1) + (Number(g.quantity) || 1)
+    } else {
+      map.set(key, { ...g })
+    }
+  }
+  return Array.from(map.values())
+})
+
+// ── 选择与导入 ─────────────────────────────────────────────────
+function isOrderFullySelected(po) {
+  const selectable = getSelectableGoods(po)
+  return selectable.length > 0 && selectable.every((g) => selectedSet.value.has(g._itemKey))
+}
+function isOrderPartiallySelected(po) {
+  const selectable = getSelectableGoods(po)
+  return selectable.length > 0 && !isOrderFullySelected(po) && selectable.some((g) => selectedSet.value.has(g._itemKey))
+}
+function toggleOrderSelect(po) {
+  if (isOrderSelectionDisabled(po)) return
+  const selectable = getSelectableGoods(po)
+  if (selectable.length === 0) return
+  const next = new Set(selectedSet.value)
+  if (isOrderFullySelected(po)) {
+    selectable.forEach((g) => next.delete(g._itemKey))
+  } else {
+    selectable.forEach((g) => next.add(g._itemKey))
+  }
+  selectedSet.value = next
+}
+function toggleExpand(orderNo) {
+  const next = new Set(expandedSet.value)
+  if (next.has(orderNo)) next.delete(orderNo)
+  else next.add(orderNo)
+  expandedSet.value = next
+}
+
+function selectAll() {
+  selectedSet.value = new Set(
+    selectableGoods.value.map((g) => g._itemKey)
+  )
+}
+
+function deselectAll() {
+  selectedSet.value = new Set()
+}
+
+function toggleItem(itemKey, po) {
+  const item = allGoods.value.find((g) => g._itemKey === itemKey)
+  if (!item || !isItemSelectable(item, po)) return
+  const next = new Set(selectedSet.value)
+  if (next.has(itemKey)) next.delete(itemKey)
+  else next.add(itemKey)
+  selectedSet.value = next
+}
+
+async function doImport() {
+  const selected = allGoods.value.filter((g) =>
+    selectedSet.value.has(g._itemKey) &&
+    !isItemImported(g) &&
+    !isItemRefundedOrCancelled(g)
+  )
+  if (selected.length === 0) return
+
+  // 按精确身份（缺字段回退名称+款式）去重，数量叠加
+  const nameMap = new Map()
+  for (const item of selected) {
+    const key = getOrderLineMergeKey(item)
+    if (nameMap.has(key)) {
+      mergeImportGoodsLine(nameMap.get(key), item)
+    } else {
+      nameMap.set(key, { ...item })
+    }
+  }
+  const toImport = Array.from(nameMap.values())
+
+  await store.addMultipleGoods(toImport)
+  // 同步 IP 和角色到 presets（与手动导入行为一致）
+  for (const g of toImport) {
+    if (g.ip) await presets.addIp(g.ip)
+    for (const charName of (g.characters || [])) {
+      if (charName) await presets.addCharacter(charName, g.ip || '')
+    }
+  }
+  importedCount.value = toImport.length
+  importedTotalQty.value = toImport.reduce((s, g) => s + (Number(g.quantity) || 1), 0)
+
+  step.value = 'done'
+}
+
+function getStatusClass(text) {
+  if (!text) return ''
+  if (text.includes('成功') || text.includes('已收货')) return 'status--done'
+  if (text.includes('待收货') || text.includes('待签收')) return 'status--shipping'
+  if (REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(text))) return 'status--refund'
+  return ''
+}
+
+</script>
+
 <template>
   <div class="page account-import-page" :class="{ 'account-import-page--embedded': embedded }">
     <NavBar v-if="!embedded" :title="t('import.account')" show-back>
@@ -307,654 +726,5 @@
     </div>
   </div>
 </template>
-
-<script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import { useI18n } from 'vue-i18n'
-import '@/assets/common/loading.css'
-import { useGoodsStore } from '@/stores/goods'
-import { usePresetsStore } from '@/stores/presets'
-import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
-import { useRouter } from 'vue-router'
-import { Capacitor } from '@capacitor/core'
-import { canUseNativeMihoyoImport, importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
-import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
-import { fetchAllOrders, orderToGoodsList, resolveOrderDiscountCents } from '@/utils/mihoyo/index'
-import {
-  addMihoyoImportContextItem,
-  buildMihoyoImportContext,
-  resolveMihoyoImportDraft,
-} from '@/utils/mihoyo/importResolver'
-import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
-import {
-  buildGoodsIdentityKey,
-  buildOrderImportIdentity,
-  buildOrderImportImportedKeys,
-  isOrderItemImported,
-} from '@/utils/goods/identity'
-import { runWithRouteTransition } from '@/utils/routeTransition'
-import NavBar from '@/components/common/NavBar.vue'
-import AppSheet from '@/components/common/AppSheet.vue'
-import MihoyoAccountSheet from '@/components/import/MihoyoAccountSheet.vue'
-import MihoyoAccountNavBtn from '@/components/import/MihoyoAccountNavBtn.vue'
-import MihoyoQrLoginSheet from '@/components/import/MihoyoQrLoginSheet.vue'
-
-defineOptions({ name: 'AccountImportView' })
-
-// 内嵌在米游铺导入页 tab 里时隐藏 NavBar，布局随宿主流动
-const props = defineProps({
-  embedded: { type: Boolean, default: false },
-  /** 当前是否为宿主激活的 tab（预挂载时不拉数据，激活后才 bootstrap） */
-  embeddedActive: { type: Boolean, default: false },
-})
-
-const { t } = useI18n()
-const router = useRouter()
-const store = useGoodsStore()
-const presets = usePresetsStore()
-const {
-  cookieInput,
-  rememberCookie,
-  hasSavedCookie,
-  cookieValid,
-  cookieWarningMessage,
-  canAutoSubmitSavedCookie,
-  accounts,
-  activeAccountId,
-  activeAccountLabel,
-  activeAccountAvatar,
-  refreshingAccountId,
-  initializeCookieState,
-  applySavedCookieToInput,
-  applyCookieToNativeSession,
-  persistCookieAfterSuccess,
-  persistNativeCookieAfterSuccess,
-  handleCookieFailure,
-  switchAccount,
-  removeAccount,
-  refreshAccountProfiles,
-  refreshAccountWithStoken,
-  saveStokenForAccount,
-  loginNewAccountNative,
-  submitNewAccountCookie,
-} = useMihoyoCookieState()
-
-const showAccountSheet = ref(false)
-const showQrLogin = ref(false)
-
-async function onQrLoginSuccess({ cookie } = {}) {
-  const value = String(cookie || '').trim()
-  if (!value) return
-  cookieInput.value = value
-  rememberCookie.value = true
-  try {
-    await submitNewAccountCookie(value, true)
-  } catch {
-    // 账号列表写入失败不阻断
-  }
-  await startFetch({ silentCookieExpired: true })
-}
-const accountSheetRef = ref(null)
-const ordersFetchRunning = ref(false)
-
-function openAccountSheet() {
-  showAccountSheet.value = true
-  void refreshAccountProfiles()
-}
-
-// ── State ──────────────────────────────────────────────────────
-const step = ref('cookie')        // 'cookie' | 'loading' | 'orders' | 'done'
-const loadedCount = ref(0)
-const totalCount = ref(0)
-const rawOrders = ref([])         // 原始 API 订单列表
-const expandedSet = ref(new Set()) // 已展开的订单 order_no
-const selectedSet = ref(new Set()) // 已选择的商品 _itemKey
-const cappedWarning = ref(false)
-const importedCount = ref(0)
-const importedTotalQty = ref(0)
-const canUseNativeImport = canUseNativeMihoyoImport()
-/** Cookie/账号状态是否已从本地加载完成 */
-const cookieStateReady = ref(false)
-const autoOpenedQr = ref(false)
-
-/**
- * 网页端必须填有效 Cookie 才能继续；
- * 安卓端留空表示走原生 WebView 登录，填了则必须是有效 Cookie。
- */
-const cookiePrimaryDisabled = computed(() => {
-  if (!canUseNativeImport) return !cookieValid.value
-  return Boolean(cookieInput.value.trim()) && !cookieValid.value
-})
-
-/** 网页版：状态加载完且无任何会话/账号时，才自动弹扫码 */
-watch(
-  () => [
-    step.value,
-    canUseNativeImport,
-    cookieStateReady.value,
-    cookieValid.value,
-    hasSavedCookie.value,
-    accounts.value,
-  ],
-  ([nextStep, native, ready, valid, saved, accountList]) => {
-    if (native) return
-    const hasSession = valid || saved || (Array.isArray(accountList) && accountList.length > 0)
-    if (hasSession) {
-      if (autoOpenedQr.value) {
-        showQrLogin.value = false
-        autoOpenedQr.value = false
-      }
-      return
-    }
-    if (!ready) return
-    if (nextStep !== 'cookie') return
-    if (showQrLogin.value) return
-    showQrLogin.value = true
-    autoOpenedQr.value = true
-  },
-  { immediate: true },
-)
-const showErrorDialog = ref(false)
-const errorDialogTitle = ref('')
-const errorDialogMessage = ref('')
-
-function openErrorDialog(title, message) {
-  errorDialogTitle.value = title
-  errorDialogMessage.value = String(message || '').trim() || t('import.unknownError')
-  showErrorDialog.value = true
-}
-
-function closeErrorDialog() {
-  showErrorDialog.value = false
-}
-
-// 已导入索引：goodsId 优先（订单号/支付日 + 款式软匹配），无 goodsId 回退名称
-const importedItemKeys = computed(() =>
-  buildOrderImportImportedKeys(store.collectionList)
-)
-
-function isItemImported(item) {
-  return isOrderItemImported(item, importedItemKeys.value)
-}
-
-/** 订单内合并键：优先 goodsId 身份，缺字段回退名称+款式 */
-function getOrderLineMergeKey(item) {
-  return buildOrderImportIdentity(item) || buildGoodsIdentityKey(item)
-}
-// 订单是否已全部导入（所有非退款商品均已导入）
-function isOrderImported(po) {
-  const nonRefunded = po.goods.filter((g) => !isItemRefundedOrCancelled(g))
-  return nonRefunded.length > 0 && nonRefunded.every((g) => isItemImported(g))
-}
-function getItemStatusText(item) {
-  return item._wrapperStatus || item._statusText || ''
-}
-const CLOSED_ORDER_PATTERNS = [
-  /交易关闭/,
-  /订单关闭/,
-  /关闭订单/,
-]
-const REFUND_STATUS_PATTERNS = [
-  /退款/,
-  /退货/,
-  /售后/,
-  /已取消/,
-  /取消订单/,
-]
-// 商品是否已退款/取消
-function isItemRefundedOrCancelled(item) {
-  const statusText = getItemStatusText(item).trim()
-  return REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(statusText))
-}
-function isOrderClosed(po) {
-  const statusText = String(po?.statusText || '').trim()
-  return CLOSED_ORDER_PATTERNS.some((pattern) => pattern.test(statusText))
-}
-
-// 商品是否有展示价值的非常规状态（山不是「已完成」类气泰状态）
-const SKIP_STATUS_SET = new Set(['交易完成', '交易成功', '已完成', '已成功', '收货成功', '已收货', '已结束'])
-function getSelectableGoods(po) {
-  if (isOrderClosed(po)) return []
-  return po.goods.filter((g) => !isItemImported(g) && !isItemRefundedOrCancelled(g))
-}
-
-function isOrderSelectionDisabled(po) {
-  return isOrderClosed(po) || isOrderImported(po) || getSelectableGoods(po).length === 0
-}
-
-function isItemSelectable(item, po) {
-  return !isOrderSelectionDisabled(po) && !isItemImported(item) && !isItemRefundedOrCancelled(item)
-}
-
-function isItemStatusWorthy(item) {
-  const statusText = getItemStatusText(item)
-  return statusText.length > 0 && !SKIP_STATUS_SET.has(statusText)
-}
-
-function createMihoyoImportContext() {
-  return buildMihoyoImportContext({
-    goodsList: store.list || [],
-    presetCharacters: presets.characters || [],
-    categories: presets.categories || [],
-    ips: presets.ips || [],
-    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
-    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
-  })
-}
-
-function normalizeMihoyoImportItem(item, context) {
-  const normalized = resolveMihoyoImportDraft(item, { context })
-  addMihoyoImportContextItem(context, normalized)
-  return normalized
-}
-
-function hasActualPrice(item) {
-  return item?.actualPrice !== '' && item?.actualPrice != null && Number.isFinite(Number(item.actualPrice))
-}
-
-/** 入手价与原价一致时不展示「入手」，避免重复价格噪音 */
-function shouldShowActualPrice(item) {
-  if (!hasActualPrice(item)) return false
-  const actual = Number(item.actualPrice)
-  const listed = Number(item.price)
-  if (!Number.isFinite(listed)) return true
-  return Math.abs(actual - listed) >= 0.005
-}
-
-function formatImportMoney(value) {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return '0'
-  return String(Math.round(n * 100) / 100)
-}
-
-function centsToDisplay(cents) {
-  const n = Number(cents)
-  if (!Number.isFinite(n) || n < 0) return ''
-  return formatImportMoney(n / 100)
-}
-
-/** 同名合并时累加入手价与逐份价 */
-function mergeImportGoodsLine(target, incoming) {
-  target.quantity = (Number(target.quantity) || 1) + (Number(incoming.quantity) || 1)
-  const tHas = hasActualPrice(target)
-  const iHas = hasActualPrice(incoming)
-  if (tHas && iHas) {
-    target.actualPrice = formatImportMoney(Number(target.actualPrice) + Number(incoming.actualPrice))
-  } else if (iHas) {
-    target.actualPrice = incoming.actualPrice
-  }
-  const tUnits = Array.isArray(target.unitActualPriceList) ? target.unitActualPriceList : []
-  const iUnits = Array.isArray(incoming.unitActualPriceList) ? incoming.unitActualPriceList : []
-  if (tUnits.length || iUnits.length) {
-    target.unitActualPriceList = [...tUnits, ...iUnits]
-  }
-}
-
-// ── Computed ───────────────────────────────────────────────────
-/** 按订单分组，每组含该订单所有商品（同名项合并数量） */
-const processedOrders = computed(() =>
-  {
-    const context = createMihoyoImportContext()
-    return rawOrders.value.map((order) => {
-      const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
-      // 同一订单内：精确身份相同或（缺字段时）名称+款式相同的商品合并数量
-      const nameMap = new Map()
-      for (const g of rawGoods) {
-        const key = getOrderLineMergeKey(g)
-        if (nameMap.has(key)) {
-          mergeImportGoodsLine(nameMap.get(key), g)
-        } else {
-          nameMap.set(key, { ...g })
-        }
-      }
-      const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
-      // 与入手价分摊共用同一套优惠解析（含 discounts 缺失时按金额兜底）
-      const discountCents = resolveOrderDiscountCents(order)
-      const hasDiscount = discountCents > 0
-      return {
-        raw: order,
-        orderNo: order.order_no || order.orderNo || '',
-        goods: Array.from(nameMap.values()),
-        statusText: order.status_text || order.manage_status_text || '',
-        shopName: order.shop?.shop_name || '',
-        hasDiscount: hasDiscount || (
-          Number.isFinite(paidCents)
-          && Number.isFinite(Number(order.goods_amount))
-          && paidCents < Number(order.goods_amount)
-        ),
-        paidText: centsToDisplay(paidCents),
-        discountText: hasDiscount ? centsToDisplay(discountCents) : ''
-      }
-    })
-    .filter((po) => po.goods.length > 0)
-  }
-)
-
-/** 所有商品展平后的列表（用于全选/计数/导入） */
-const allGoods = computed(() => processedOrders.value.flatMap((po) => po.goods))
-const selectableGoods = computed(() =>
-  processedOrders.value.flatMap((po) => getSelectableGoods(po))
-)
-const hasSelection = computed(() => selectedSet.value.size > 0)
-const isAllSelectableSelected = computed(() =>
-  selectableGoods.value.length > 0 && selectedSet.value.size === selectableGoods.value.length
-)
-
-// 按名称+角色去重：同名同款式的商品合并，数量累加
-const mergedAllGoods = computed(() => {
-  const map = new Map()
-  for (const g of allGoods.value) {
-    const key = buildGoodsIdentityKey(g)
-    if (map.has(key)) {
-      const ex = map.get(key)
-      ex.quantity = (Number(ex.quantity) || 1) + (Number(g.quantity) || 1)
-    } else {
-      map.set(key, { ...g })
-    }
-  }
-  return Array.from(map.values())
-})
-
-// ── Actions ────────────────────────────────────────────────────
-async function onSwitchAccount(account) {
-  const result = await switchAccount(account?.id)
-  if (!result.ok) {
-    openErrorDialog(t('import.switchAccount'), t('import.switchAccountFailed'))
-    return
-  }
-
-  if (canUseNativeImport && !result.nativeApplied) {
-    openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
-    return
-  }
-
-  cookieInput.value = result.cookie
-  // 不清列表/不回 cookie 步，直接 loading，避免切号白屏
-  await startFetch({ silentCookieExpired: true })
-}
-
-async function onRemoveAccount(account) {
-  await removeAccount(account?.id)
-}
-
-function stokenErrorText(result) {
-  return stokenErrorMessage(t, result)
-}
-
-async function onRefreshAccount(account) {
-  try {
-    const result = await refreshAccountWithStoken(account?.id, { force: true })
-    if (result?.ok && !result.skipped) {
-      accountSheetRef.value?.setNotice?.(t('import.stokenRefreshSuccess'), 'success')
-      return
-    }
-    if (!result?.ok) {
-      accountSheetRef.value?.setNotice?.(stokenErrorText(result), 'error')
-    }
-  } catch (error) {
-    accountSheetRef.value?.setNotice?.(
-      String(error?.message || t('import.stokenRefreshFailed')),
-      'error'
-    )
-  }
-}
-
-/** 登录/重登成功后：刷新订单（不只在切换账号时） */
-async function refreshAfterMihoyoLogin(nextCookie) {
-  cookieInput.value = String(nextCookie || '').trim()
-  if (!cookieInput.value) {
-    step.value = 'cookie'
-    return
-  }
-  await startFetch({ silentCookieExpired: true })
-}
-
-async function onLoginNewNative() {
-  const result = await loginNewAccountNative()
-  accountSheetRef.value?.closeAll?.()
-  if (!result.ok) {
-    if (result.cancelled) return
-    openErrorDialog(t('import.loginNewAccount'), result.unsupported
-      ? t('import.loginNewAccountUnsupported')
-      : (result.message || t('import.loginNewAccountFailed')))
-    return
-  }
-  await refreshAfterMihoyoLogin(result.cookie)
-}
-
-async function onLoginNewCookie({ cookie, remember } = {}) {
-  const result = await submitNewAccountCookie(cookie, remember)
-  if (!result.ok) {
-    openErrorDialog(t('import.loginNewAccount'), t('import.loginNewAccountFailed'))
-    return
-  }
-  accountSheetRef.value?.closeAll?.()
-  if (canUseNativeImport && result.nativeApplied === false) {
-    // Cookie 只进了账号列表、没进原生会话：继续走原生导入会用到旧会话
-    openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
-    return
-  }
-  await refreshAfterMihoyoLogin(result.cookie)
-}
-
-let didBootstrap = false
-
-function scheduleBootstrap() {
-  if (didBootstrap) return
-  didBootstrap = true
-  // 先让 Tab 显示切换完成首帧绘制，再读本地状态/拉数据
-  requestAnimationFrame(() => {
-    void bootstrapCookieState()
-  })
-}
-
-onMounted(() => {
-  // 独立页面：挂载即拉；内嵌预挂载：等宿主把 Tab 激活后再拉，避免进导入页就打接口
-  if (!props.embedded) scheduleBootstrap()
-})
-
-watch(
-  () => props.embeddedActive,
-  (active) => {
-    if (active && props.embedded) scheduleBootstrap()
-  },
-  { immediate: true },
-)
-
-async function bootstrapCookieState() {
-  if (canUseNativeImport) {
-    // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
-    await initializeCookieState()
-    // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
-    rememberCookie.value = true
-    cookieStateReady.value = true
-    await startFetch({ silentCookieExpired: true })
-    return
-  }
-
-  await initializeCookieState()
-  cookieStateReady.value = true
-
-  if (!canAutoSubmitSavedCookie.value) return
-
-  applySavedCookieToInput()
-  await startFetch({ silentCookieExpired: true })
-}
-
-const startFetch = async (options = {}) => {
-  if (ordersFetchRunning.value) return
-  ordersFetchRunning.value = true
-  if (canUseNativeImport) {
-    step.value = 'loading'
-    loadedCount.value = 0
-    totalCount.value = 0
-
-    // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉订单；
-    // 留空则插件按自己的流程拉起 WebView 登录。
-    if (cookieInput.value.trim()) {
-      const applied = await applyCookieToNativeSession(cookieInput.value)
-      if (!applied.applied) {
-        ordersFetchRunning.value = false
-        step.value = 'cookie'
-        openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
-        return
-      }
-    }
-
-    let progressHandle = null
-    if (Capacitor.isNativePlatform()) {
-      progressHandle = await Capacitor.addListener('MihoyoSessionImport', 'importProgress', (event) => {
-        // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
-        if (props.embedded && !props.embeddedActive) return
-        loadedCount.value = event.loaded ?? loadedCount.value
-        totalCount.value = event.total ?? totalCount.value
-      })
-    }
-
-    try {
-      const { list = [], capped = false, total = 0 } = await importMihoyoOrdersWithSession()
-      rawOrders.value = Array.isArray(list) ? list : []
-      cappedWarning.value = Boolean(capped)
-      loadedCount.value = rawOrders.value.length
-      totalCount.value = Number(total) || rawOrders.value.length
-      selectedSet.value = new Set()
-      step.value = 'orders'
-      await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
-    } catch (err) {
-      openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.confirmLoginRetry'))
-      step.value = 'cookie'
-    } finally {
-      progressHandle?.remove()
-      ordersFetchRunning.value = false
-    }
-    return
-  }
-
-  const { silentCookieExpired = false } = options
-  step.value = 'loading'
-  loadedCount.value = 0
-  totalCount.value = 0
-
-  try {
-    const { list, capped } = await fetchAllOrders(
-      cookieInput.value.trim(),
-      (loaded, total_) => {
-        // 内嵌隐藏时跳过进度 UI 更新，避免高频小重渲染拖累当前可见 Tab
-        if (props.embedded && !props.embeddedActive) return
-        loadedCount.value = loaded
-        totalCount.value = total_
-      }
-    )
-    cappedWarning.value = capped
-    rawOrders.value = list
-    await persistCookieAfterSuccess()
-    selectedSet.value = new Set()
-    step.value = 'orders'
-  } catch (err) {
-    const cookieExpired = await handleCookieFailure(err)
-    if (cookieExpired) {
-      step.value = 'cookie'
-      if (!silentCookieExpired) {
-        openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
-      }
-      return
-    }
-
-    openErrorDialog(t('import.fetchOrdersFailed'), err?.message || t('import.retryLater'))
-    step.value = 'cookie'
-  } finally {
-    ordersFetchRunning.value = false
-  }
-}
-
-function isOrderFullySelected(po) {
-  const selectable = getSelectableGoods(po)
-  return selectable.length > 0 && selectable.every((g) => selectedSet.value.has(g._itemKey))
-}
-function isOrderPartiallySelected(po) {
-  const selectable = getSelectableGoods(po)
-  return selectable.length > 0 && !isOrderFullySelected(po) && selectable.some((g) => selectedSet.value.has(g._itemKey))
-}
-function toggleOrderSelect(po) {
-  if (isOrderSelectionDisabled(po)) return
-  const selectable = getSelectableGoods(po)
-  if (selectable.length === 0) return
-  const next = new Set(selectedSet.value)
-  if (isOrderFullySelected(po)) {
-    selectable.forEach((g) => next.delete(g._itemKey))
-  } else {
-    selectable.forEach((g) => next.add(g._itemKey))
-  }
-  selectedSet.value = next
-}
-function toggleExpand(orderNo) {
-  const next = new Set(expandedSet.value)
-  if (next.has(orderNo)) next.delete(orderNo)
-  else next.add(orderNo)
-  expandedSet.value = next
-}
-
-function selectAll() {
-  selectedSet.value = new Set(
-    selectableGoods.value.map((g) => g._itemKey)
-  )
-}
-
-function deselectAll() {
-  selectedSet.value = new Set()
-}
-
-function toggleItem(itemKey, po) {
-  const item = allGoods.value.find((g) => g._itemKey === itemKey)
-  if (!item || !isItemSelectable(item, po)) return
-  const next = new Set(selectedSet.value)
-  if (next.has(itemKey)) next.delete(itemKey)
-  else next.add(itemKey)
-  selectedSet.value = next
-}
-
-async function doImport() {
-  const selected = allGoods.value.filter((g) =>
-    selectedSet.value.has(g._itemKey) &&
-    !isItemImported(g) &&
-    !isItemRefundedOrCancelled(g)
-  )
-  if (selected.length === 0) return
-
-  // 按精确身份（缺字段回退名称+款式）去重，数量叠加
-  const nameMap = new Map()
-  for (const item of selected) {
-    const key = getOrderLineMergeKey(item)
-    if (nameMap.has(key)) {
-      mergeImportGoodsLine(nameMap.get(key), item)
-    } else {
-      nameMap.set(key, { ...item })
-    }
-  }
-  const toImport = Array.from(nameMap.values())
-
-  await store.addMultipleGoods(toImport)
-  // 同步 IP 和角色到 presets（与手动导入行为一致）
-  for (const g of toImport) {
-    if (g.ip) await presets.addIp(g.ip)
-    for (const charName of (g.characters || [])) {
-      if (charName) await presets.addCharacter(charName, g.ip || '')
-    }
-  }
-  importedCount.value = toImport.length
-  importedTotalQty.value = toImport.reduce((s, g) => s + (Number(g.quantity) || 1), 0)
-
-  step.value = 'done'
-}
-
-function getStatusClass(text) {
-  if (!text) return ''
-  if (text.includes('成功') || text.includes('已收货')) return 'status--done'
-  if (text.includes('待收货') || text.includes('待签收')) return 'status--shipping'
-  if (REFUND_STATUS_PATTERNS.some((pattern) => pattern.test(text))) return 'status--refund'
-  return ''
-}
-
-</script>
 
 <style scoped src="@/assets/views/AccountImportView.css"></style>

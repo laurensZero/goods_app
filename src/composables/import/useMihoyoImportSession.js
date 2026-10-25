@@ -1,0 +1,375 @@
+import { computed, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
+import { canUseNativeMihoyoImport } from '@/utils/mihoyo/nativeImport'
+import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
+
+/**
+ * 米游铺导入会话门：购物车导入（CartImportView）与订单导入（AccountImportView）
+ * 共用的 Cookie/账号/启动/拉取流程。
+ *
+ * 两个视图的差异点通过 options 注入：
+ * - fetchNative / fetchWeb：各自的数据源（原生插件会话 vs Web 接口），
+ *   返回 { list, ...meta }（纯数组也兼容）；进度计数等视图私有状态由视图在闭包里自己维护
+ * - onList：数据到达后的视图私有处理（赋值 raw 列表、初始化全选等）
+ * - listStepName：成功后的步骤名（购物车 'list' / 订单 'orders'）
+ * - fetchFailedKey：拉取失败弹窗标题的 i18n key
+ * - isEmbedded / isEmbeddedActive：内嵌 tab 模式判定（延迟 bootstrap 用）
+ */
+export function useMihoyoImportSession({
+  fetchNative,
+  fetchWeb,
+  onList,
+  listStepName = 'list',
+  fetchFailedKey = 'import.fetchCartFailed',
+  isEmbedded = () => false,
+  isEmbeddedActive = () => true,
+} = {}) {
+  const { t } = useI18n()
+
+  const canUseNativeImport = canUseNativeMihoyoImport()
+
+  // ── 步骤机：cookie → loading → (list|orders) → done ──
+  const step = ref('cookie')
+  const fetchRunning = ref(false)
+  /** Cookie/账号状态是否已从本地加载完成 */
+  const cookieStateReady = ref(false)
+  const autoOpenedQr = ref(false)
+
+  const {
+    cookieInput,
+    rememberCookie,
+    hasSavedCookie,
+    cookieValid,
+    cookieWarningMessage,
+    canAutoSubmitSavedCookie,
+    accounts,
+    activeAccountId,
+    activeAccountLabel,
+    activeAccountAvatar,
+    refreshingAccountId,
+    initializeCookieState,
+    applySavedCookieToInput,
+    applyCookieToNativeSession,
+    persistCookieAfterSuccess,
+    persistNativeCookieAfterSuccess,
+    handleCookieFailure,
+    switchAccount,
+    removeAccount,
+    refreshAccountProfiles,
+    refreshAccountWithStoken,
+    saveStokenForAccount,
+    loginNewAccountNative,
+    submitNewAccountCookie,
+  } = useMihoyoCookieState()
+
+  // ── 会话相关 UI 状态 ──
+  const showAccountSheet = ref(false)
+  const accountSheetRef = ref(null)
+  const showQrLogin = ref(false)
+
+  function openAccountSheet() {
+    showAccountSheet.value = true
+    void refreshAccountProfiles()
+  }
+
+  async function onQrLoginSuccess({ cookie } = {}) {
+    const value = String(cookie || '').trim()
+    if (!value) return
+    cookieInput.value = value
+    rememberCookie.value = true
+    try {
+      await submitNewAccountCookie(value, true)
+    } catch {
+      // 账号列表写入失败不阻断
+    }
+    await startFetch({ silentCookieExpired: true })
+  }
+
+  /**
+   * 网页端必须填有效 Cookie 才能继续；
+   * 安卓端留空表示走原生 WebView 登录，填了则必须是有效 Cookie。
+   */
+  const cookiePrimaryDisabled = computed(() => {
+    if (!canUseNativeImport) return !cookieValid.value
+    return Boolean(cookieInput.value.trim()) && !cookieValid.value
+  })
+
+  /** 网页版：状态加载完且无任何会话/账号时，才自动弹扫码 */
+  watch(
+    () => [
+      step.value,
+      canUseNativeImport,
+      cookieStateReady.value,
+      cookieValid.value,
+      hasSavedCookie.value,
+      accounts.value,
+    ],
+    ([nextStep, native, ready, valid, saved, accountList]) => {
+      if (native) return
+      const hasSession = valid || saved || (Array.isArray(accountList) && accountList.length > 0)
+      if (hasSession) {
+        if (autoOpenedQr.value) {
+          showQrLogin.value = false
+          autoOpenedQr.value = false
+        }
+        return
+      }
+      if (!ready) return
+      if (nextStep !== 'cookie') return
+      if (showQrLogin.value) return
+      showQrLogin.value = true
+      autoOpenedQr.value = true
+    },
+    { immediate: true },
+  )
+
+  // ── 错误弹窗 ──
+  const showErrorDialog = ref(false)
+  const errorDialogTitle = ref('')
+  const errorDialogMessage = ref('')
+
+  function openErrorDialog(title, message) {
+    errorDialogTitle.value = title
+    errorDialogMessage.value = String(message || '').trim() || t('import.unknownError')
+    showErrorDialog.value = true
+  }
+
+  function closeErrorDialog() {
+    showErrorDialog.value = false
+  }
+
+  // ── 启动：独立页面挂载即拉；内嵌预挂载等宿主激活 ──
+  let didBootstrap = false
+
+  function scheduleBootstrap() {
+    if (didBootstrap) return
+    didBootstrap = true
+    // 先让 Tab 显示切换完成首帧绘制，再读本地状态/拉数据
+    requestAnimationFrame(() => {
+      void bootstrapCookieState()
+    })
+  }
+
+  onMounted(() => {
+    if (!isEmbedded()) scheduleBootstrap()
+  })
+
+  async function bootstrapCookieState() {
+    if (canUseNativeImport) {
+      // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
+      await initializeCookieState()
+      // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
+      rememberCookie.value = true
+      cookieStateReady.value = true
+      await startFetch({ silentCookieExpired: true })
+      return
+    }
+
+    await initializeCookieState()
+    cookieStateReady.value = true
+
+    if (!canAutoSubmitSavedCookie.value) return
+
+    applySavedCookieToInput()
+    await startFetch({ silentCookieExpired: true })
+  }
+
+  // ── 账号面板动作 ──
+  function stokenErrorText(result) {
+    return stokenErrorMessage(t, result)
+  }
+
+  async function onRefreshAccount(account) {
+    try {
+      const result = await refreshAccountWithStoken(account?.id, { force: true })
+      if (result?.ok && !result.skipped) {
+        accountSheetRef.value?.setNotice?.(t('import.stokenRefreshSuccess'), 'success')
+        return
+      }
+      if (!result?.ok) {
+        accountSheetRef.value?.setNotice?.(stokenErrorText(result), 'error')
+      }
+    } catch (error) {
+      accountSheetRef.value?.setNotice?.(
+        String(error?.message || t('import.stokenRefreshFailed')),
+        'error'
+      )
+    }
+  }
+
+  async function onSwitchAccount(account) {
+    const result = await switchAccount(account?.id)
+    if (!result.ok) {
+      openErrorDialog(t('import.switchAccount'), t('import.switchAccountFailed'))
+      return
+    }
+
+    // 原生端 Cookie 未写入插件时：不要自动 startFetch（会用空/旧会话失败并误标失效）
+    if (canUseNativeImport && !result.nativeApplied) {
+      openErrorDialog(t('import.switchAccount'), t('import.switchAccountNativeHint'))
+      return
+    }
+
+    cookieInput.value = result.cookie
+    // 直接进 loading 拉新账号数据，避免 cookie 空页/清列表造成的白屏闪烁
+    await startFetch({ silentCookieExpired: true })
+  }
+
+  async function onRemoveAccount(account) {
+    await removeAccount(account?.id)
+  }
+
+  /** 登录/重登成功后：刷新当前数据源（不只在切换账号时） */
+  async function refreshAfterMihoyoLogin(nextCookie) {
+    cookieInput.value = String(nextCookie || '').trim()
+    if (!cookieInput.value) {
+      step.value = 'cookie'
+      return
+    }
+    await startFetch({ silentCookieExpired: true })
+  }
+
+  async function onLoginNewNative() {
+    const result = await loginNewAccountNative()
+    accountSheetRef.value?.closeAll?.()
+    if (!result.ok) {
+      if (result.cancelled) return
+      openErrorDialog(t('import.loginNewAccount'), result.unsupported
+        ? t('import.loginNewAccountUnsupported')
+        : (result.message || t('import.loginNewAccountFailed')))
+      return
+    }
+    await refreshAfterMihoyoLogin(result.cookie)
+  }
+
+  async function onLoginNewCookie({ cookie, remember } = {}) {
+    const result = await submitNewAccountCookie(cookie, remember)
+    if (!result.ok) {
+      openErrorDialog(t('import.loginNewAccount'), t('import.loginNewAccountFailed'))
+      return
+    }
+    accountSheetRef.value?.closeAll?.()
+    if (canUseNativeImport && result.nativeApplied === false) {
+      // Cookie 只进了账号列表、没进原生会话：继续走原生导入会用到旧会话
+      openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+      return
+    }
+    await refreshAfterMihoyoLogin(result.cookie)
+  }
+
+  // ── 拉取：统一原生/Web 分支、Cookie 失效处理与持久化 ──
+
+  function normalizeFetchResult(result) {
+    if (Array.isArray(result)) return { list: result, meta: {} }
+    return { list: Array.isArray(result?.list) ? result.list : [], meta: result || {} }
+  }
+
+  const startFetch = async (options = {}) => {
+    if (fetchRunning.value) return
+    fetchRunning.value = true
+    step.value = 'loading'
+
+    if (canUseNativeImport) {
+      // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉数据；
+      // 留空则插件按自己的流程拉起 WebView 登录。
+      if (cookieInput.value.trim()) {
+        const applied = await applyCookieToNativeSession(cookieInput.value)
+        if (!applied.applied) {
+          fetchRunning.value = false
+          step.value = 'cookie'
+          openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+          return
+        }
+      }
+
+      try {
+        const { list, meta } = normalizeFetchResult(await fetchNative())
+        onList?.(list, meta)
+        step.value = listStepName
+        // 原生端导入成功后，同步 Cookie 到多账号存储
+        await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
+      } catch (error) {
+        openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
+        step.value = 'cookie'
+      } finally {
+        fetchRunning.value = false
+      }
+      return
+    }
+
+    const { silentCookieExpired = false } = options
+
+    try {
+      const { list, meta } = normalizeFetchResult(await fetchWeb(cookieInput.value.trim()))
+      onList?.(list, meta)
+      await persistCookieAfterSuccess()
+      step.value = listStepName
+    } catch (error) {
+      const cookieExpired = await handleCookieFailure(error)
+      if (cookieExpired) {
+        step.value = 'cookie'
+        if (!silentCookieExpired) {
+          openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
+        }
+        return
+      }
+
+      openErrorDialog(t(fetchFailedKey), error?.message || t('import.retryLater'))
+      step.value = 'cookie'
+    } finally {
+      fetchRunning.value = false
+    }
+  }
+
+  return {
+    // 步骤机
+    step,
+    fetchRunning,
+    cookieStateReady,
+    canUseNativeImport,
+    bootstrapCookieState,
+    scheduleBootstrap,
+    startFetch,
+    // Cookie/账号状态（useMihoyoCookieState 透传）
+    cookieInput,
+    rememberCookie,
+    hasSavedCookie,
+    cookieValid,
+    cookieWarningMessage,
+    canAutoSubmitSavedCookie,
+    accounts,
+    activeAccountId,
+    activeAccountLabel,
+    activeAccountAvatar,
+    refreshingAccountId,
+    applyCookieToNativeSession,
+    initializeCookieState,
+    applySavedCookieToInput,
+    handleCookieFailure,
+    switchAccount,
+    removeAccount,
+    refreshAccountWithStoken,
+    saveStokenForAccount,
+    loginNewAccountNative,
+    submitNewAccountCookie,
+    openAccountSheet,
+    // 会话 UI
+    showAccountSheet,
+    accountSheetRef,
+    showQrLogin,
+    cookiePrimaryDisabled,
+    onQrLoginSuccess,
+    showErrorDialog,
+    errorDialogTitle,
+    errorDialogMessage,
+    openErrorDialog,
+    closeErrorDialog,
+    onRefreshAccount,
+    onSwitchAccount,
+    onRemoveAccount,
+    onLoginNewNative,
+    onLoginNewCookie,
+    stokenErrorText,
+  }
+}
