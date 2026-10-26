@@ -432,7 +432,7 @@ import {
 } from '@/utils/mihoyo/newArrivals'
 import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName, getMihoyoIpByShopCode } from '@/utils/mihoyo'
 import { resolveMihoyoImportDraft, buildMihoyoImportContext } from '@/utils/mihoyo/importResolver'
-import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
+import { getSharedTaggingContext, warmTaggingContext } from '@/utils/tagging/taggingContextCache'
 import { normalizeGoodsVariant, getGoodsVariant } from '@/utils/goods/identity'
 import { normalizeCharacterName, isLikelyCharName } from '@/utils/goods/variantText'
 import { variantItemKeys } from '@/utils/mihoyo/skuSelection'
@@ -866,6 +866,8 @@ function openSkuSheet(item) {
   selectedSkuKeys.value = []
   lastSelectedSkuKey.value = ''
   sheetOpen.value = true
+  // 用户看款式时就把上下文算好，点「加入心愿单」时不再现算
+  scheduleImportContextWarmup()
   void loadVariants(item)
 }
 
@@ -949,6 +951,57 @@ function getImportContext() {
   return importContextCache
 }
 
+// 冷启动首次「加入心愿单」原本要现做两件重活：建导入上下文（全库扫角色/标签/学习词）
+// 和首轮标签学习。全部挪到进页空闲期预热，点击路径直接命中缓存，不再有一次性长任务。
+let cancelTagWarmup = null
+let warmIdleHandle = 0
+let warmTimeoutHandle = 0
+let unmounted = false
+
+function runImportContextWarmup() {
+  warmIdleHandle = 0
+  warmTimeoutHandle = 0
+  if (unmounted) return
+  try {
+    getImportContext()
+  } catch (error) {
+    console.warn('[mihoyo] 预热导入上下文失败', error)
+  }
+}
+
+function scheduleImportContextWarmup() {
+  if (unmounted) return
+  cancelScheduledContextWarmup()
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+    warmIdleHandle = window.requestIdleCallback(runImportContextWarmup, { timeout: 800 })
+    return
+  }
+  warmTimeoutHandle = window.setTimeout(runImportContextWarmup, 0)
+}
+
+function cancelScheduledContextWarmup() {
+  if (warmIdleHandle && typeof window.cancelIdleCallback === 'function') {
+    window.cancelIdleCallback(warmIdleHandle)
+  }
+  warmIdleHandle = 0
+  if (warmTimeoutHandle) {
+    window.clearTimeout(warmTimeoutHandle)
+    warmTimeoutHandle = 0
+  }
+}
+
+function warmImportContext() {
+  const tagging = getSharedTaggingContext(presetsStore, goodsStore)
+  cancelTagWarmup = warmTaggingContext(presetsStore, goodsStore, { timeout: 250 })
+  // 等首轮标签学习完成再建上下文：否则 learned 引用一变，刚建好的上下文立刻作废，
+  // 下次点击又要在主线程同步重扫全库。eager=false 让上面的空闲预热决定何时开始，
+  // 进页第一帧不被标签重建抢占；学习失败/取消也会 settle。
+  const ready = typeof tagging.waitForLearned === 'function'
+    ? tagging.waitForLearned({ eager: false })
+    : Promise.resolve()
+  Promise.resolve(ready).then(scheduleImportContextWarmup, scheduleImportContextWarmup)
+}
+
 function buildWishlistPayload(item, sku = null) {
   const { ip: parsedIp, name: nameFromTitle } = parseTitleIpName(item.name)
   const name = cleanGoodsName(nameFromTitle || item.name)
@@ -1022,6 +1075,11 @@ async function addToWishlist(item, skus) {
   if (!item || adding.value) return false
   adding.value = true
   try {
+    // 用户点得很快、预热还没跑完时，先让出一拍把按钮 spinner 画出来，
+    // 再同步建上下文，避免点击后整页看起来没有响应。
+    if (!importContextCache) {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    }
     const list = Array.isArray(skus) ? skus : (skus ? [skus] : [null])
     const payloads = list.map((sku) => buildWishlistPayload(item, sku))
     if (payloads.length === 1) {
@@ -1055,9 +1113,15 @@ onMounted(() => {
     nowTick.value = Date.now()
   }, 60_000)
   void loadCatalog(activeCatalog.value)
+  // 首帧之后再预热：进页时先保证列表/滚动先响应，空闲期再算标签与导入上下文
+  warmImportContext()
 })
 
 onUnmounted(() => {
+  unmounted = true
+  cancelTagWarmup?.()
+  cancelTagWarmup = null
+  cancelScheduledContextWarmup()
   if (nowTimer) {
     window.clearInterval(nowTimer)
     nowTimer = null

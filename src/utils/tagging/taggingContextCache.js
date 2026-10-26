@@ -22,6 +22,9 @@ const cacheByGoodsStore = new WeakMap()
 const QUIET_MS = 2500
 const MAX_STALE_MS = 30_000
 const REBUILD_SLICE_MS = 8
+// 冷启动快照必须是稳定引用：调用方（导入/上新上下文）会把它当缓存 key，
+// 每次 new [] 会让缓存永远命中不了，等于每次都在主线程重扫全库。
+const EMPTY_LEARNED_KEYWORDS = Object.freeze([])
 
 // 商品稳定 key：优先业务 id（同步重拉后同 id 新对象可被增量跳过），退化用对象引用
 const goodsKeyOf = (item) => (item?.id != null ? `id:${item.id}` : item)
@@ -86,8 +89,18 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
     // 增量学习聚合器：冷启动/预设变化时全量重建，之后商品列表变化走增量同步
     agg: null,
     needsFullLearn: true,
+    // 首轮学习完成前挂起的等待者：供页面预热「导入上下文」时等标签稳定后再建，
+    // 避免建完立刻因 learned 引用变化作废、把全库扫描又丢回点击路径。
+    learnedWaiters: new Set(),
   }
   cacheByGoodsStore.set(goodsStore, entry)
+
+  const resolveLearnedWaiters = () => {
+    if (entry.learnedWaiters.size === 0) return
+    const learned = entry.learned || EMPTY_LEARNED_KEYWORDS
+    for (const resolve of entry.learnedWaiters) resolve(learned)
+    entry.learnedWaiters.clear()
+  }
 
   const finishBuild = (token, snapshot) => {
     if (token !== entry.buildToken) return
@@ -99,6 +112,7 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
       entry.needsFullLearn = true
     } finally {
       entry.building = false
+      resolveLearnedWaiters()
     }
 
     const listChanged = goodsStore?.list !== snapshot.list
@@ -211,6 +225,8 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
         entry.needsFullLearn = true
         scheduleRebuild()
       }
+      // 构建失败也要 settle，否则预热导入上下文的 Promise 会一直挂着
+      resolveLearnedWaiters()
     }
   }
 
@@ -257,6 +273,7 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
       // 构建失败时保留旧缓存，标记仍脏等下次机会
       entry.dirty = true
     }
+    resolveLearnedWaiters()
   }
 
   // 浅层失效信号：list 引用替换 / 长度增减 / 预设角色、分类变化。
@@ -310,7 +327,24 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
   entry.getLearnedKeywordsSnapshot = () => {
     const staleTooLong = entry.lastBuildAt > 0 && Date.now() - entry.lastBuildAt >= MAX_STALE_MS
     if (entry.dirty || staleTooLong) scheduleRebuild(0)
-    return entry.learned || []
+    return entry.learned || EMPTY_LEARNED_KEYWORDS
+  }
+
+  /**
+   * 等待首轮标签学习完成（已完成后立即返回）。
+   * 页面预热导入上下文时先 await 它，保证上下文只建一次。
+   * 分片重建失败或同步重建接管时也会 resolve，不会把调用方永久挂住。
+   * eager=false 时由调用方负责排队重建（如 warmTaggingContext 的空闲预热），
+   * 避免进页第一帧就和列表渲染抢主线程。
+   */
+  entry.waitForLearned = ({ eager = true } = {}) => {
+    if (entry.learned || entry.lastBuildAt > 0) {
+      return Promise.resolve(entry.learned || EMPTY_LEARNED_KEYWORDS)
+    }
+    if (eager && !entry.building && !entry.refreshTimer) scheduleRebuild(0)
+    return new Promise((resolve) => {
+      entry.learnedWaiters.add(resolve)
+    })
   }
 
   entry.rebuildNow = rebuildNowSync
@@ -332,6 +366,9 @@ export function warmTaggingContext(presetsStore, goodsStore, { timeout = 8000 } 
   const start = () => {
     timer = 0
     if (cancelled) return
+    // 空闲回调真正执行时，别的读取方（如 waitForLearned）可能已经触发或完成了重建：
+    // 此时再排一轮只会白白多跑一次全量/增量聚合，直接跳过。
+    if (entry.building || (entry.learned && !entry.dirty)) return
     entry.scheduleRebuild(0)
   }
 
