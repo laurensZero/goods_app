@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/assets/common/loading.css'
 import { useRoute, useRouter } from 'vue-router'
@@ -91,31 +91,39 @@ const {
   fetchWeb: async (cookie) => await fetchCartList(cookie),
   onList: (list) => {
     rawGroups.value = list
-    initSelectionAfterFetch()
+    resetPrepare()
+    // 先切到列表步展示（整理在后台分片进行），避免 loading 期间同步做完整表规整
+    step.value = 'list'
+    requestPrepare()
   },
 })
 
-// 网页版：状态加载完且无任何会话/账号时自动弹扫码的逻辑在会话门内；
-// 这里只处理内嵌 tab 的延迟初始化
-let pendingSelectionInit = false
+// ── 导入上下文与列表规整（分片异步） ──
+//
+// 拉取结果到达后要做「建导入上下文 + 逐条 resolve」。原来放在 computed 里，
+// onList 阶段同步算完才切到 list，主线程会被占住几秒；用户正是在这个「还在
+// loading」的窗口里切 tab，点击排队 → 表现为卡死/像炸掉。
+// 现在改为分片：每片 ≤8ms 就让出主线程；切走时暂停，切回从断点继续。
 
-watch(
-  () => props.embeddedActive,
-  (active) => {
-    if (active && pendingSelectionInit) {
-      pendingSelectionInit = false
-      // 仅列表就绪时补做初始化；其他状态（登出/失败回退）无需全选
-      if (step.value === 'list') initSelectionFromFetch()
-    }
-  },
-  { immediate: true },
-)
+const processedGroups = ref([])
+const preparing = ref(false)
+let prepareTask = null
+let prepareToken = 0
+let prepareDone = false
+let selectionTouched = false
 
-// ── 导入上下文与列表规整 ──
+function yieldToMain() {
+  return new Promise((resolve) => setTimeout(resolve, 0))
+}
 
-const importedItemKeys = computed(() =>
-  new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
-)
+function resetPrepare() {
+  prepareToken += 1
+  prepareTask = null
+  prepareDone = false
+  preparing.value = false
+  processedGroups.value = []
+  selectionTouched = false
+}
 
 function createMihoyoImportContext() {
   return buildMihoyoImportContext({
@@ -134,33 +142,114 @@ function normalizeMihoyoImportItem(item, context) {
   return normalized
 }
 
-const processedGroups = computed(() =>
-  {
-    const context = createMihoyoImportContext()
-    return rawGroups.value.map((group) => {
-      const map = new Map()
-      for (const item of cartShopToGoodsList(group)) {
-        const normalizedItem = normalizeMihoyoImportItem(item, context)
+function buildProcessedGroup(group, context) {
+  const map = new Map()
+  for (const item of cartShopToGoodsList(group)) {
+    const normalizedItem = normalizeMihoyoImportItem(item, context)
 
-        // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
-        // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
-        const key = buildGoodsIdentityKey(normalizedItem)
-        if (map.has(key)) {
-          const existing = map.get(key)
-          existing.quantity = (Number(existing.quantity) || 1) + (Number(normalizedItem.quantity) || 1)
-        } else {
-          map.set(key, normalizedItem)
-        }
-      }
-
-      return {
-        shopCode: String(group.shop_code || group.shopCode || ''),
-        shopName: String(group.shop_name || group.shopName || ''),
-        goods: Array.from(map.values())
-      }
-    })
-    .filter((group) => group.goods.length > 0)
+    // 不再把售罄视为不可导入；售罄仅作为信息保留在 `._soldOut`
+    // `_isEffective` 的判定已在 `cartItemToGoods` 中调整为忽略售罄字段
+    const key = buildGoodsIdentityKey(normalizedItem)
+    if (map.has(key)) {
+      const existing = map.get(key)
+      existing.quantity = (Number(existing.quantity) || 1) + (Number(normalizedItem.quantity) || 1)
+    } else {
+      map.set(key, normalizedItem)
+    }
   }
+
+  return {
+    shopCode: String(group.shop_code || group.shopCode || ''),
+    shopName: String(group.shop_name || group.shopName || ''),
+    goods: Array.from(map.values()),
+  }
+}
+
+async function runPrepare() {
+  if (!prepareTask) {
+    if (!rawGroups.value.length) {
+      processedGroups.value = []
+      prepareDone = true
+      preparing.value = false
+      return
+    }
+    prepareTask = {
+      token: prepareToken,
+      context: createMihoyoImportContext(),
+      index: 0,
+      result: [],
+      groups: rawGroups.value,
+    }
+  }
+
+  const task = prepareTask
+  preparing.value = true
+  // 先让出一拍：列表首帧/切 tab 点击优先，不做同步大计算
+  await yieldToMain()
+  if (task.token !== prepareToken) return
+
+  let sliceStart = performance.now()
+  while (task.index < task.groups.length) {
+    if (task.token !== prepareToken) return
+    if (props.embedded && !props.embeddedActive) {
+      // 切走了：暂停并保留已算好的部分，切回继续
+      preparing.value = false
+      return
+    }
+
+    const group = buildProcessedGroup(task.groups[task.index], task.context)
+    task.index += 1
+    if (group.goods.length > 0) task.result.push(group)
+
+    if (performance.now() - sliceStart > 8) {
+      processedGroups.value = task.result.slice()
+      await yieldToMain()
+      if (task.token !== prepareToken) return
+      sliceStart = performance.now()
+    }
+  }
+
+  processedGroups.value = task.result.slice()
+  prepareTask = null
+  prepareDone = true
+  preparing.value = false
+  // 用户在整理过程中手动改过勾选就不再覆盖
+  if (!selectionTouched) {
+    selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
+  }
+}
+
+function requestPrepare() {
+  if (props.embedded && !props.embeddedActive) return
+  // 已经整理完/没有数据时不重复整表重算
+  if (!prepareTask && (prepareDone || !rawGroups.value.length)) return
+  void runPrepare()
+}
+
+watch(
+  () => props.embeddedActive,
+  (active) => {
+    if (!active) return
+    // 切回该 Tab：列表已就绪但还没整理完（或整理被暂停）则继续
+    if (step.value === 'list' && !preparing.value) requestPrepare()
+  },
+  { immediate: true },
+)
+
+// 重新拉取时清掉上一轮列表/整理任务，避免旧任务继续占用主线程
+watch(step, (value) => {
+  if (value === 'loading') resetPrepare()
+})
+
+onBeforeUnmount(() => {
+  prepareToken += 1
+  prepareTask = null
+})
+
+// ── 导入上下文与列表规整 ──
+
+const importedItemKeys = computed(() =>
+  new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
 )
 
 const selectableGoods = computed(() =>
@@ -195,32 +284,21 @@ function isShopPartiallySelected(group) {
   return selectable.length > 0 && !isShopFullySelected(group) && selectable.some((item) => selectedSet.value.has(item._itemKey))
 }
 
-/** 数据到达后初始化全选状态（会触发 processedGroups 重算，可能较贵） */
-function initSelectionFromFetch() {
-  selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
-}
-
-/** 内嵌隐藏时推迟初始化，切回该 Tab 再执行，避免后台重算拖累当前可见 Tab */
-function initSelectionAfterFetch() {
-  if (props.embedded && !props.embeddedActive) {
-    pendingSelectionInit = true
-    return
-  }
-  initSelectionFromFetch()
-}
-
 // ── 选择与导入 ──
 
 function selectAll() {
+  selectionTouched = true
   selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
 }
 
 function deselectAll() {
+  selectionTouched = true
   selectedSet.value = new Set()
 }
 
 function toggleShopSelect(group) {
   if (isShopSelectionDisabled(group)) return
+  selectionTouched = true
   const selectable = group.goods.filter((item) => isItemSelectable(item))
   const next = new Set(selectedSet.value)
 
@@ -237,6 +315,7 @@ function toggleItem(itemKey) {
   const item = processedGroups.value.flatMap((group) => group.goods).find((entry) => entry._itemKey === itemKey)
   if (!item || !isItemSelectable(item)) return
 
+  selectionTouched = true
   const next = new Set(selectedSet.value)
   if (next.has(itemKey)) next.delete(itemKey)
   else next.add(itemKey)
@@ -428,7 +507,15 @@ async function doImport() {
             </div>
           </div>
 
-          <div v-if="processedGroups.length === 0" class="empty-wrap">
+          <div v-if="preparing && processedGroups.length === 0" class="prepare-wrap">
+            <div class="loading-anim" :aria-label="t('common.loading')">
+              <div class="loading-ring" />
+            </div>
+            <p class="loading-title">{{ t('import.preparingCart') }}</p>
+            <p class="loading-sub">{{ t('import.pleaseWait') }}</p>
+          </div>
+
+          <div v-else-if="processedGroups.length === 0" class="empty-wrap">
             <EmptyState
               icon="✦"
               :title="t('import.cartEmptyTitle')"
@@ -516,7 +603,7 @@ async function doImport() {
       </Transition>
     </main>
 
-    <div v-if="step === 'list' && (!embedded || embeddedActive) && processedGroups.length > 0" class="bottom-bar">
+    <div v-if="step === 'list' && (!embedded || embeddedActive) && !preparing && processedGroups.length > 0" class="bottom-bar">
       <button class="primary-btn" type="button" :disabled="selectedSet.size === 0 || importing" @click="doImport">
         {{ t('import.confirmImport') }}
       </button>

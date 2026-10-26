@@ -543,6 +543,17 @@
   padding-top: 32px;
 }
 
+/* 列表规整分片进行时的占位（避免把「正在整理」误显示成空购物车） */
+.prepare-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40dvh;
+  padding: 24px 0;
+}
+
 .done-icon {
   width: 68px;
   height: 68px;

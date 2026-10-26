@@ -7,6 +7,7 @@ import { useMihoyoImportSession } from '../useMihoyoImportSession'
 const state = vi.hoisted(() => ({
   native: false,
   applyNativeThrows: false,
+  canAuto: false,
   calls: { initialize: 0, native: 0, web: 0 },
   initDeferred: null,
   webDeferred: null,
@@ -25,7 +26,7 @@ vi.mock('@/composables/import/useMihoyoCookieState', async () => {
       hasSavedCookie: vueRef(false),
       cookieValid: computed(() => true),
       cookieWarningMessage: vueRef(''),
-      canAutoSubmitSavedCookie: computed(() => false),
+      canAutoSubmitSavedCookie: computed(() => state.canAuto),
       accounts: vueRef([]),
       activeAccountId: vueRef(''),
       activeAccountLabel: vueRef(''),
@@ -70,6 +71,7 @@ describe('useMihoyoImportSession', () => {
   beforeEach(() => {
     state.native = false
     state.applyNativeThrows = false
+    state.canAuto = false
     state.calls = { initialize: 0, native: 0, web: 0 }
     state.initDeferred = null
     state.webDeferred = null
@@ -78,7 +80,7 @@ describe('useMihoyoImportSession', () => {
     session = null
   })
 
-  function mountHarness() {
+  function mountHarness(onSession) {
     return mount({
       setup() {
         session = useMihoyoImportSession({
@@ -96,6 +98,7 @@ describe('useMihoyoImportSession', () => {
           isEmbedded: () => true,
           isEmbeddedActive: () => active.value,
         })
+        onSession?.(session)
         return {}
       },
       template: '<div />',
@@ -213,5 +216,44 @@ describe('useMihoyoImportSession', () => {
     expect(session.step.value).toBe('cookie')
 
     rafSpy.mockRestore()
+  })
+
+  it('另一个导入正在拉取时，激活的 tab 不并发发起第二次自动拉取', async () => {
+    state.canAuto = true
+    let resolveWeb
+    state.webDeferred = new Promise((resolve) => {
+      resolveWeb = resolve
+    })
+
+    // 第一个视图：手动拉取，挂起中（模拟购物车还在加载）
+    const wrapperA = mountHarness()
+    const pending = session.startFetch()
+    expect(state.calls.web).toBe(1)
+
+    // 第二个视图被激活：bootstrap 读到已保存 Cookie，但不该并发再拉
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    let second = null
+    const wrapperB = mountHarness((s) => {
+      second = s
+    })
+    active.value = true
+    await nextTick()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(state.calls.web).toBe(1)
+    expect(second.step.value).toBe('cookie')
+
+    // 第一次拉取结束后，自动拉取不再被拦（下一次激活可正常开始）
+    resolveWeb()
+    await pending
+    expect(session.fetchRunning.value).toBe(false)
+
+    rafSpy.mockRestore()
+    wrapperA.unmount()
+    wrapperB.unmount()
   })
 })

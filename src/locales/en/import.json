@@ -157,6 +157,7 @@
   "import.fetchCartFailed": "Failed to read cart",
   "import.fetchOrdersFailed": "Failed to fetch orders",
   "import.fetchingCart": "Reading cart...",
+  "import.preparingCart": "Preparing cart...",
   "import.fetchingOrders": "Fetching orders...",
   "import.fetchingShareData": "Fetching share data...",
   "import.fileParseFailed": "File parse failed",

@@ -5,6 +5,13 @@ import { canUseNativeMihoyoImport } from '@/utils/mihoyo/nativeImport'
 import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
 
 /**
+ * 进程内正在进行的导入拉取数（购物车 + 订单共用）。
+ * 安卓插件内部是单线程执行器，且大 payload 回传/解析都在主线程；
+ * 两个内嵌 tab 同时拉取会把等待时间叠在一起，用户切 tab 时看起来像卡死。
+ */
+let runningImportFetches = 0
+
+/**
  * 米游铺导入会话门：购物车导入（CartImportView）与订单导入（AccountImportView）
  * 共用的 Cookie/账号/启动/拉取流程。
  *
@@ -200,7 +207,8 @@ export function useMihoyoImportSession({
       // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
       rememberCookie.value = true
       cookieStateReady.value = true
-      await startFetch({ silentCookieExpired: true })
+      if (runningImportFetches > 0) return
+      await startFetch({ silentCookieExpired: true, fromBootstrap: true })
       return
     }
 
@@ -209,9 +217,13 @@ export function useMihoyoImportSession({
     cookieStateReady.value = true
 
     if (!canAutoSubmitSavedCookie.value) return
-
     applySavedCookieToInput()
-    await startFetch({ silentCookieExpired: true })
+    // 另一个导入视图正在拉取（例如购物车还没加载完就切到账号页）：
+    // 不再并发发起第二次原生导入。安卓插件用单线程执行器，两次大 payload
+    // 同时回传会把主线程压住；保留已填好的 Cookie，等用户点按钮再拉。
+    if (runningImportFetches > 0) return
+
+    await startFetch({ silentCookieExpired: true, fromBootstrap: true })
   }
 
   // ── 账号面板动作 ──
@@ -306,7 +318,10 @@ export function useMihoyoImportSession({
 
   const startFetch = async (options = {}) => {
     if (fetchRunning.value || disposed) return
+    // 自动 bootstrap 不并发：用户切 tab 时另一个导入可能还在拉，等手动触发
+    if (options.fromBootstrap && runningImportFetches > 0) return
     fetchRunning.value = true
+    runningImportFetches += 1
     step.value = 'loading'
     const { silentCookieExpired = false } = options
 
@@ -365,6 +380,7 @@ export function useMihoyoImportSession({
     } finally {
       // 任何分支（含 applyCookieToNativeSession 抛错）都必须解锁，否则按钮永久无响应
       fetchRunning.value = false
+      runningImportFetches = Math.max(0, runningImportFetches - 1)
     }
   }
 

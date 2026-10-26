@@ -157,6 +157,7 @@
   "import.fetchCartFailed": "カートの読み取りに失敗しました",
   "import.fetchOrdersFailed": "注文の取得に失敗しました",
   "import.fetchingCart": "カートを読み取り中...",
+  "import.preparingCart": "カートを整理中...",
   "import.fetchingOrders": "注文を取得中...",
   "import.fetchingShareData": "共有データを取得中...",
   "import.fileParseFailed": "ファイル解析失敗",

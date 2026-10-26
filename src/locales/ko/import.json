@@ -157,6 +157,7 @@
   "import.fetchCartFailed": "장바구니 읽기에 실패했습니다",
   "import.fetchOrdersFailed": "주문 가져오기에 실패했습니다",
   "import.fetchingCart": "장바구니 읽는 중...",
+  "import.preparingCart": "장바구니 정리 중...",
   "import.fetchingOrders": "주문 가져오는 중...",
   "import.fetchingShareData": "공유 데이터 가져오는 중...",
   "import.fileParseFailed": "파일 분석 실패",
