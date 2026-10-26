@@ -40,7 +40,7 @@ export function useMihoyoImportSession({
   // ── 步骤机：cookie → loading → (list|orders) → done ──
   const step = ref('cookie')
   const fetchRunning = ref(false)
-  /** 上次原生拉取失败/会话失效：抑制 tab 激活时的自动重拉（插件无 Cookie 会拉起登录 Activity） */
+  /** 上次原生拉取失败/会话失效：抑制 tab 激活自动重拉；bootstrap 会先尝试 stoken 续期 */
   const nativeCookieExpired = ref(false)
   /** Cookie/账号状态是否已从本地加载完成 */
   const cookieStateReady = ref(false)
@@ -69,6 +69,7 @@ export function useMihoyoImportSession({
     removeAccount,
     refreshAccountProfiles,
     refreshAccountWithStoken,
+    refreshCookieAfterExpiry,
     saveStokenForAccount,
     loginNewAccountNative,
     submitNewAccountCookie,
@@ -211,9 +212,19 @@ export function useMihoyoImportSession({
       // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
       rememberCookie.value = true
       cookieStateReady.value = true
-      // 上次已确认失效：不要每次激活 tab 都再拉一次（插件无 Cookie 时会拉起登录 Activity，
-      // 把主应用切到后台，内存紧张时容易被系统杀掉，回来像「整个 App 重载」）
-      if (savedCookieInvalid.value || nativeCookieExpired.value) {
+      // 上次已确认失效：先用 stoken 静默换票，换到新 Cookie 就直接拉取；
+      // 换不到再停在 Cookie 步，避免每次激活都去拉起登录 Activity
+      if (savedCookieInvalid.value) {
+        const refreshed = await refreshCookieAfterExpiry()
+        if (disposed) return
+        if (!refreshed?.ok || !refreshed.cookie) {
+          step.value = 'cookie'
+          return
+        }
+        cookieInput.value = refreshed.cookie
+        nativeCookieExpired.value = false
+      }
+      if (nativeCookieExpired.value) {
         step.value = 'cookie'
         return
       }
@@ -225,6 +236,15 @@ export function useMihoyoImportSession({
     await initializeCookieState()
     if (disposed) return
     cookieStateReady.value = true
+
+    // 网页端同样先尝试 stoken 自动续期；成功后 savedCookieValue/savedCookieInvalid 会同步更新
+    if (savedCookieInvalid.value) {
+      const refreshed = await refreshCookieAfterExpiry()
+      if (disposed) return
+      if (refreshed?.ok && refreshed.cookie) {
+        cookieInput.value = refreshed.cookie
+      }
+    }
 
     if (!canAutoSubmitSavedCookie.value) return
     applySavedCookieToInput()
@@ -336,73 +356,96 @@ export function useMihoyoImportSession({
     if (!options.fromBootstrap) nativeCookieExpired.value = false
     step.value = 'loading'
     const { silentCookieExpired = false } = options
+    let refreshedAfterExpiry = false
 
     try {
-      if (canUseNativeImport) {
-        // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉数据；
-        // 留空则插件按自己的流程拉起 WebView 登录。
-        if (cookieInput.value.trim()) {
-          const applied = await applyCookieToNativeSession(cookieInput.value)
-          if (disposed) return
-          if (!applied.applied) {
-            step.value = 'cookie'
-            openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+      // 最多拉两轮：第一轮 Cookie 失效时先用 stoken 静默换票，换到新 Cookie 再拉一次。
+      // 只重试一次，避免 stoken 换出的 Cookie 仍被接口拒绝时无限循环。
+      for (;;) {
+        try {
+          if (canUseNativeImport) {
+            // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉数据；
+            // 留空则插件按自己的流程拉起 WebView 登录。
+            if (cookieInput.value.trim()) {
+              const applied = await applyCookieToNativeSession(cookieInput.value)
+              if (disposed) return
+              if (!applied.applied) {
+                step.value = 'cookie'
+                openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+                return
+              }
+            }
+
+            // 卸载后不要再调插件：无 Cookie 时插件会拉起全屏登录 Activity
+            if (disposed) return
+            const { list, meta } = normalizeFetchResult(await fetchNative())
+            if (disposed) return
+            onList?.(list, meta)
+            step.value = listStepName
+            nativeCookieExpired.value = false
+            // 原生端导入成功后，同步 Cookie 到多账号存储
+            await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
             return
           }
-        }
 
-        // 卸载后不要再调插件：无 Cookie 时插件会拉起全屏登录 Activity
-        if (disposed) return
-        const { list, meta } = normalizeFetchResult(await fetchNative())
-        if (disposed) return
-        onList?.(list, meta)
-        step.value = listStepName
-        nativeCookieExpired.value = false
-        // 原生端导入成功后，同步 Cookie 到多账号存储
-        await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
-        return
-      }
-
-      const { list, meta } = normalizeFetchResult(await fetchWeb(cookieInput.value.trim()))
-      // 结果到达时视图可能已经卸载：跳过整表规整/落盘，避免拖住当前页面
-      if (disposed) return
-      onList?.(list, meta)
-      await persistCookieAfterSuccess()
-      step.value = listStepName
-    } catch (error) {
-      if (disposed) return
-      // 原生分支：插件在 Cookie 失效时不再自动拉起登录 Activity，而是带 code 拒绝，
-      // 这里回到 Cookie 步并提示；标记失效，避免下次激活又自动重拉。
-      if (canUseNativeImport) {
-        if (isMihoyoCookieExpiredError(error)) {
-          nativeCookieExpired.value = true
-          await handleCookieFailure(error)
+          const { list, meta } = normalizeFetchResult(await fetchWeb(cookieInput.value.trim()))
+          // 结果到达时视图可能已经卸载：跳过整表规整/落盘，避免拖住当前页面
           if (disposed) return
-          step.value = 'cookie'
-          if (!silentCookieExpired) {
-            openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
+          onList?.(list, meta)
+          await persistCookieAfterSuccess()
+          step.value = listStepName
+          return
+        } catch (error) {
+          if (disposed) return
+
+          // Cookie 失效：原生插件只 reject 不再弹登录页，这里用 stoken 静默续期后自动重试。
+          // 换票失败（无 stoken / stoken 也失效 / 网络故障）再走原来的登录提示。
+          if (!refreshedAfterExpiry && isMihoyoCookieExpiredError(error)) {
+            const refreshed = await refreshCookieAfterExpiry()
+            if (disposed) return
+            if (refreshed?.ok && refreshed.cookie) {
+              cookieInput.value = refreshed.cookie
+              nativeCookieExpired.value = false
+              refreshedAfterExpiry = true
+              continue
+            }
           }
+
+          // 原生分支：插件在 Cookie 失效时会清掉本地会话并带 code 拒绝；
+          // 标记失效，避免下次激活又自动重拉登录 Activity。
+          if (canUseNativeImport) {
+            if (isMihoyoCookieExpiredError(error)) {
+              nativeCookieExpired.value = true
+              await handleCookieFailure(error)
+              if (disposed) return
+              step.value = 'cookie'
+              if (!silentCookieExpired) {
+                openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
+              }
+              return
+            }
+            openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
+            step.value = 'cookie'
+            // 失败（含用户取消登录 Activity）后不再让 tab 激活自动重拉登录页
+            nativeCookieExpired.value = true
+            return
+          }
+
+          const cookieExpired = await handleCookieFailure(error)
+          if (disposed) return
+          if (cookieExpired) {
+            step.value = 'cookie'
+            if (!silentCookieExpired) {
+              openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
+            }
+            return
+          }
+
+          openErrorDialog(t(fetchFailedKey), error?.message || t('import.retryLater'))
+          step.value = 'cookie'
           return
         }
-        openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
-        step.value = 'cookie'
-        // 失败（含用户取消登录 Activity）后不再让 tab 激活自动重拉登录页
-        nativeCookieExpired.value = true
-        return
       }
-
-      const cookieExpired = await handleCookieFailure(error)
-      if (disposed) return
-      if (cookieExpired) {
-        step.value = 'cookie'
-        if (!silentCookieExpired) {
-          openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
-        }
-        return
-      }
-
-      openErrorDialog(t(fetchFailedKey), error?.message || t('import.retryLater'))
-      step.value = 'cookie'
     } finally {
       // 任何分支（含 applyCookieToNativeSession 抛错）都必须解锁，否则按钮永久无响应
       fetchRunning.value = false

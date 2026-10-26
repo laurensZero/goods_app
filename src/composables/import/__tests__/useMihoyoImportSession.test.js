@@ -8,9 +8,14 @@ const state = vi.hoisted(() => ({
   native: false,
   applyNativeThrows: false,
   canAuto: false,
-  calls: { initialize: 0, native: 0, web: 0 },
+  savedCookieInvalid: false,
+  calls: { initialize: 0, native: 0, web: 0, refresh: 0 },
   initDeferred: null,
   webDeferred: null,
+  webErrors: [],
+  nativeErrors: [],
+  refreshResult: { ok: false, kind: 'no-active-account' },
+  cookieInput: null,
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -20,38 +25,49 @@ vi.mock('vue-i18n', () => ({
 vi.mock('@/composables/import/useMihoyoCookieState', async () => {
   const { ref: vueRef, computed } = await import('vue')
   return {
-    useMihoyoCookieState: () => ({
-      cookieInput: vueRef('cookie-value'),
-      rememberCookie: vueRef(false),
-      hasSavedCookie: vueRef(false),
-      cookieValid: computed(() => true),
-      cookieWarningMessage: vueRef(''),
-      canAutoSubmitSavedCookie: computed(() => state.canAuto),
-      accounts: vueRef([]),
-      activeAccountId: vueRef(''),
-      activeAccountLabel: vueRef(''),
-      activeAccountAvatar: vueRef(''),
-      refreshingAccountId: vueRef(''),
-      initializeCookieState: async () => {
-        state.calls.initialize += 1
-        if (state.initDeferred) await state.initDeferred
-      },
-      applySavedCookieToInput: () => {},
-      applyCookieToNativeSession: async () => {
-        if (state.applyNativeThrows) throw new Error('native session unavailable')
-        return { applied: true, unsupported: false }
-      },
-      persistCookieAfterSuccess: async () => {},
-      persistNativeCookieAfterSuccess: async () => {},
-      handleCookieFailure: async () => false,
-      switchAccount: vi.fn(),
-      removeAccount: vi.fn(),
-      refreshAccountProfiles: vi.fn(),
-      refreshAccountWithStoken: vi.fn(),
-      saveStokenForAccount: vi.fn(),
-      loginNewAccountNative: vi.fn(),
-      submitNewAccountCookie: vi.fn(),
-    }),
+    useMihoyoCookieState: () => {
+      const cookieInput = vueRef('cookie-value')
+      state.cookieInput = cookieInput
+      return {
+        cookieInput,
+        rememberCookie: vueRef(false),
+        hasSavedCookie: vueRef(false),
+        cookieValid: computed(() => true),
+        cookieWarningMessage: vueRef(''),
+        canAutoSubmitSavedCookie: computed(() => state.canAuto),
+        savedCookieInvalid: vueRef(state.savedCookieInvalid),
+        accounts: vueRef([]),
+        activeAccountId: vueRef(''),
+        activeAccountLabel: vueRef(''),
+        activeAccountAvatar: vueRef(''),
+        refreshingAccountId: vueRef(''),
+        initializeCookieState: async () => {
+          state.calls.initialize += 1
+          if (state.initDeferred) await state.initDeferred
+        },
+        applySavedCookieToInput: () => {},
+        applyCookieToNativeSession: async () => {
+          if (state.applyNativeThrows) throw new Error('native session unavailable')
+          return { applied: true, unsupported: false }
+        },
+        persistCookieAfterSuccess: async () => {},
+        persistNativeCookieAfterSuccess: async () => {},
+        handleCookieFailure: async () => false,
+        switchAccount: vi.fn(),
+        removeAccount: vi.fn(),
+        refreshAccountProfiles: vi.fn(),
+        refreshAccountWithStoken: vi.fn(),
+        refreshCookieAfterExpiry: async () => {
+          state.calls.refresh += 1
+          const result = state.refreshResult
+          if (result?.ok && result.cookie) cookieInput.value = result.cookie
+          return result
+        },
+        saveStokenForAccount: vi.fn(),
+        loginNewAccountNative: vi.fn(),
+        submitNewAccountCookie: vi.fn(),
+      }
+    },
   }
 })
 
@@ -68,13 +84,22 @@ describe('useMihoyoImportSession', () => {
   let onList
   let session
 
+  function expiredError() {
+    return Object.assign(new Error('登录状态已失效'), { code: 'COOKIE_EXPIRED' })
+  }
+
   beforeEach(() => {
     state.native = false
     state.applyNativeThrows = false
     state.canAuto = false
-    state.calls = { initialize: 0, native: 0, web: 0 }
+    state.savedCookieInvalid = false
+    state.calls = { initialize: 0, native: 0, web: 0, refresh: 0 }
     state.initDeferred = null
     state.webDeferred = null
+    state.webErrors = []
+    state.nativeErrors = []
+    state.refreshResult = { ok: false, kind: 'no-active-account' }
+    state.cookieInput = null
     active = ref(false)
     onList = vi.fn()
     session = null
@@ -86,11 +111,15 @@ describe('useMihoyoImportSession', () => {
         session = useMihoyoImportSession({
           fetchNative: async () => {
             state.calls.native += 1
+            const error = state.nativeErrors.shift()
+            if (error) throw error
             return [{ shop_code: 'native' }]
           },
           fetchWeb: async () => {
             state.calls.web += 1
             if (state.webDeferred) await state.webDeferred
+            const error = state.webErrors.shift()
+            if (error) throw error
             return [{ shop_code: 'web' }]
           },
           onList,
@@ -133,6 +162,100 @@ describe('useMihoyoImportSession', () => {
     expect(onList).toHaveBeenCalledWith([{ shop_code: 'web' }], {})
     expect(session.fetchRunning.value).toBe(false)
 
+    wrapper.unmount()
+  })
+
+  it('Web 拉取 Cookie 失效：stoken 静默换票后自动重试一次', async () => {
+    state.webErrors.push(expiredError())
+    state.refreshResult = { ok: true, cookie: 'fresh-cookie' }
+    const wrapper = mountHarness()
+
+    await session.startFetch()
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.web).toBe(2)
+    expect(state.cookieInput.value).toBe('fresh-cookie')
+    expect(session.step.value).toBe('list')
+    expect(session.fetchRunning.value).toBe(false)
+    expect(onList).toHaveBeenCalledWith([{ shop_code: 'web' }], {})
+
+    wrapper.unmount()
+  })
+
+  it('安卓原生拉取 Cookie 失效：stoken 静默换票后自动重试一次', async () => {
+    state.native = true
+    state.nativeErrors.push(expiredError())
+    state.refreshResult = { ok: true, cookie: 'fresh-cookie' }
+    const wrapper = mountHarness()
+
+    await session.startFetch()
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.native).toBe(2)
+    expect(state.cookieInput.value).toBe('fresh-cookie')
+    expect(session.step.value).toBe('list')
+    expect(session.fetchRunning.value).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('stoken 也换不到新 Cookie 时回 Cookie 步，不重复换票', async () => {
+    state.native = true
+    state.nativeErrors.push(expiredError())
+    state.refreshResult = { ok: false, kind: 'no-stoken' }
+    const wrapper = mountHarness()
+
+    await session.startFetch()
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.native).toBe(1)
+    expect(session.step.value).toBe('cookie')
+
+    wrapper.unmount()
+  })
+
+  it('安卓端已标记失效的 Cookie：bootstrap 先用 stoken 换票再拉取', async () => {
+    state.native = true
+    state.savedCookieInvalid = true
+    state.refreshResult = { ok: true, cookie: 'fresh-cookie' }
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    active.value = true
+    const wrapper = mountHarness()
+
+    await vi.waitFor(() => {
+      expect(session.step.value).toBe('list')
+    })
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.native).toBe(1)
+    expect(state.cookieInput.value).toBe('fresh-cookie')
+
+    rafSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('安卓端已标记失效且 stoken 换票失败：bootstrap 停在 Cookie 步', async () => {
+    state.native = true
+    state.savedCookieInvalid = true
+    state.refreshResult = { ok: false, kind: 'no-stoken' }
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    active.value = true
+    const wrapper = mountHarness()
+
+    await vi.waitFor(() => {
+      expect(state.calls.refresh).toBe(1)
+    })
+
+    expect(state.calls.native).toBe(0)
+    expect(session.step.value).toBe('cookie')
+
+    rafSpy.mockRestore()
     wrapper.unmount()
   })
 

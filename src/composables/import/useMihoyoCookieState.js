@@ -98,7 +98,14 @@ export function useMihoyoCookieState() {
     const id = String(accountId || '').trim()
     if (!id) return { ok: false, kind: 'missing-account', message: '账号不存在' }
 
-    if (refreshInFlight.has(id)) return refreshInFlight.get(id)
+    // 同一账号并发刷新复用同一个 Promise。
+    // 但自动检查可能因为「未到 12 小时」直接 skipped：此时 Cookie 已经被接口判定失效，
+    // 强制刷新必须等它结束后再真正换一次，不能被 skipped 结果挡住。
+    const inFlight = refreshInFlight.get(id)
+    if (inFlight) {
+      const existing = await inFlight
+      if (!force || (existing?.ok && existing?.cookie)) return existing
+    }
 
     const promise = (async () => {
       const list = await listMihoyoAccounts()
@@ -249,6 +256,22 @@ export function useMihoyoCookieState() {
       return { ok: false, kind: 'no-active-account', message: '当前没有登录账号' }
     }
     return refreshAccountWithStoken(active.id, { force })
+  }
+
+  /**
+   * 拉取时发现 Cookie 失效：先用当前账号的 stoken 静默换一张新 Cookie。
+   * 换票失败不抛错，由调用方决定回退到登录流程还是提示重试。
+   */
+  async function refreshCookieAfterExpiry() {
+    try {
+      return await refreshActiveAccount({ force: true })
+    } catch (error) {
+      return {
+        ok: false,
+        kind: 'transient',
+        message: String(error?.message || error || '刷新失败'),
+      }
+    }
   }
 
   /** App 启动 / 页面激活时检查当前账号；同一轮只跑一次 */
@@ -614,6 +637,7 @@ export function useMihoyoCookieState() {
     refreshAccountProfiles,
     refreshAccountWithStoken,
     refreshActiveAccount,
+    refreshCookieAfterExpiry,
     checkActiveAccountOnStartup,
     saveStokenForAccount,
     loginNewAccountNative,
