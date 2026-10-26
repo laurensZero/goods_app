@@ -9,12 +9,13 @@ const state = vi.hoisted(() => ({
   applyNativeThrows: false,
   canAuto: false,
   savedCookieInvalid: false,
-  calls: { initialize: 0, native: 0, web: 0, refresh: 0 },
+  calls: { initialize: 0, native: 0, web: 0, refresh: 0, login: 0 },
   initDeferred: null,
   webDeferred: null,
   webErrors: [],
   nativeErrors: [],
   refreshResult: { ok: false, kind: 'no-active-account' },
+  loginResult: { ok: false, cancelled: true },
   cookieInput: null,
 }))
 
@@ -64,7 +65,12 @@ vi.mock('@/composables/import/useMihoyoCookieState', async () => {
           return result
         },
         saveStokenForAccount: vi.fn(),
-        loginNewAccountNative: vi.fn(),
+        loginNewAccountNative: async () => {
+          state.calls.login += 1
+          const result = state.loginResult
+          if (result?.ok && result.cookie) cookieInput.value = result.cookie
+          return result
+        },
         submitNewAccountCookie: vi.fn(),
       }
     },
@@ -93,12 +99,13 @@ describe('useMihoyoImportSession', () => {
     state.applyNativeThrows = false
     state.canAuto = false
     state.savedCookieInvalid = false
-    state.calls = { initialize: 0, native: 0, web: 0, refresh: 0 }
+    state.calls = { initialize: 0, native: 0, web: 0, refresh: 0, login: 0 }
     state.initDeferred = null
     state.webDeferred = null
     state.webErrors = []
     state.nativeErrors = []
     state.refreshResult = { ok: false, kind: 'no-active-account' }
+    state.loginResult = { ok: false, cancelled: true }
     state.cookieInput = null
     active = ref(false)
     onList = vi.fn()
@@ -199,17 +206,38 @@ describe('useMihoyoImportSession', () => {
     wrapper.unmount()
   })
 
-  it('stoken 也换不到新 Cookie 时回 Cookie 步，不重复换票', async () => {
+  it('stoken 也换不到新 Cookie 时自动拉起登录；用户取消后回 Cookie 步', async () => {
     state.native = true
     state.nativeErrors.push(expiredError())
     state.refreshResult = { ok: false, kind: 'no-stoken' }
+    state.loginResult = { ok: false, cancelled: true }
     const wrapper = mountHarness()
 
     await session.startFetch()
 
     expect(state.calls.refresh).toBe(1)
+    expect(state.calls.login).toBe(1)
     expect(state.calls.native).toBe(1)
     expect(session.step.value).toBe('cookie')
+
+    wrapper.unmount()
+  })
+
+  it('没有 stoken 时自动拉起登录，登录成功后自动重试导入', async () => {
+    state.native = true
+    state.nativeErrors.push(expiredError())
+    state.refreshResult = { ok: false, kind: 'no-stoken' }
+    state.loginResult = { ok: true, cookie: 'login-cookie' }
+    const wrapper = mountHarness()
+
+    await session.startFetch()
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.login).toBe(1)
+    expect(state.calls.native).toBe(2)
+    expect(state.cookieInput.value).toBe('login-cookie')
+    expect(session.step.value).toBe('list')
+    expect(session.fetchRunning.value).toBe(false)
 
     wrapper.unmount()
   })
@@ -237,7 +265,7 @@ describe('useMihoyoImportSession', () => {
     wrapper.unmount()
   })
 
-  it('安卓端已标记失效且 stoken 换票失败：bootstrap 停在 Cookie 步', async () => {
+  it('安卓端已标记失效但插件会话仍可用：stoken 失败后直接拉取，不弹登录', async () => {
     state.native = true
     state.savedCookieInvalid = true
     state.refreshResult = { ok: false, kind: 'no-stoken' }
@@ -249,11 +277,63 @@ describe('useMihoyoImportSession', () => {
     const wrapper = mountHarness()
 
     await vi.waitFor(() => {
-      expect(state.calls.refresh).toBe(1)
+      expect(session.step.value).toBe('list')
     })
 
-    expect(state.calls.native).toBe(0)
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.login).toBe(0)
+    expect(state.calls.native).toBe(1)
+
+    rafSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('安卓端已标记失效且插件会话也失效：自动拉起登录，取消后停在 Cookie 步', async () => {
+    state.native = true
+    state.savedCookieInvalid = true
+    state.refreshResult = { ok: false, kind: 'no-stoken' }
+    state.nativeErrors.push(expiredError())
+    state.loginResult = { ok: false, cancelled: true }
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    active.value = true
+    const wrapper = mountHarness()
+
+    await vi.waitFor(() => {
+      expect(state.calls.login).toBe(1)
+    })
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.native).toBe(1)
     expect(session.step.value).toBe('cookie')
+
+    rafSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('安卓端已标记失效且插件会话也失效：自动登录成功后继续拉取', async () => {
+    state.native = true
+    state.savedCookieInvalid = true
+    state.refreshResult = { ok: false, kind: 'no-stoken' }
+    state.nativeErrors.push(expiredError())
+    state.loginResult = { ok: true, cookie: 'login-cookie' }
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    active.value = true
+    const wrapper = mountHarness()
+
+    await vi.waitFor(() => {
+      expect(session.step.value).toBe('list')
+    })
+
+    expect(state.calls.refresh).toBe(1)
+    expect(state.calls.login).toBe(1)
+    expect(state.calls.native).toBe(2)
+    expect(state.cookieInput.value).toBe('login-cookie')
 
     rafSpy.mockRestore()
     wrapper.unmount()

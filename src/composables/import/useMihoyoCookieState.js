@@ -297,9 +297,9 @@ export function useMihoyoCookieState() {
    * - 原生：拉起 WebView 登录（需插件 login()）
    * - 网页：账号面板优先扫码（MihoyoQrLoginSheet）；也可粘贴 Cookie，提交后走 submitNewAccountCookie
    */
-  async function loginNewAccountNative() {
+  async function loginNewAccountNative({ preserveCurrent = true } = {}) {
     // 先把当前会话写入账号列表，避免切换登录时丢失
-    if (savedCookieValue.value) {
+    if (preserveCurrent && savedCookieValue.value) {
       try { await saveMihoyoCookie(savedCookieValue.value) } catch { /* ignore */ }
     }
     const result = await loginMihoyoNativeNewAccount()

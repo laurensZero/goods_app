@@ -13,6 +13,25 @@ import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
 let runningImportFetches = 0
 
 /**
+ * stoken 换票失败后是否自动拉起原生登录页。
+ * 只有「拿不到可用登录态」才弹；网络/代理等临时失败留在当前页等用户重试。
+ */
+const AUTO_LOGIN_FAILURE_KINDS = new Set([
+  'no-stoken',
+  'no-active-account',
+  'missing-account',
+  'missing-mid',
+  'auth',
+  'mismatch',
+  'invalid',
+])
+
+function shouldAutoLoginAfterStokenFailure(result) {
+  if (!result || result.ok) return false
+  return AUTO_LOGIN_FAILURE_KINDS.has(String(result.kind || ''))
+}
+
+/**
  * 米游铺导入会话门：购物车导入（CartImportView）与订单导入（AccountImportView）
  * 共用的 Cookie/账号/启动/拉取流程。
  *
@@ -213,23 +232,32 @@ export function useMihoyoImportSession({
       rememberCookie.value = true
       cookieStateReady.value = true
       // 上次已确认失效：先用 stoken 静默换票，换到新 Cookie 就直接拉取；
-      // 换不到再停在 Cookie 步，避免每次激活都去拉起登录 Activity
+      // 换不到也继续走一次拉取：插件里若还有可用会话就直接用，
+      // 真的失效时由 startFetch 的失效处理自动拉起登录页。
+      let stokenRefreshAttempted = false
+      let stokenRefreshFailure = null
       if (savedCookieInvalid.value) {
+        stokenRefreshAttempted = true
         const refreshed = await refreshCookieAfterExpiry()
         if (disposed) return
-        if (!refreshed?.ok || !refreshed.cookie) {
-          step.value = 'cookie'
-          return
+        if (refreshed?.ok && refreshed.cookie) {
+          cookieInput.value = refreshed.cookie
+          nativeCookieExpired.value = false
+        } else {
+          stokenRefreshFailure = refreshed
         }
-        cookieInput.value = refreshed.cookie
-        nativeCookieExpired.value = false
       }
       if (nativeCookieExpired.value) {
         step.value = 'cookie'
         return
       }
       if (runningImportFetches > 0) return
-      await startFetch({ silentCookieExpired: true, fromBootstrap: true })
+      await startFetch({
+        silentCookieExpired: true,
+        fromBootstrap: true,
+        stokenRefreshAttempted,
+        stokenRefreshFailure,
+      })
       return
     }
 
@@ -339,6 +367,33 @@ export function useMihoyoImportSession({
     await refreshAfterMihoyoLogin(result.cookie)
   }
 
+  /**
+   * Cookie 失效且没有可用 stoken 时，恢复旧版行为：自动拉起原生 WebView 登录页。
+   * 登录成功返回新 Cookie；取消/失败返回 ok=false，由调用方停在 Cookie 步。
+   */
+  async function autoLoginNativeAfterExpiry() {
+    nativeCookieExpired.value = true
+    // 当前 Cookie 已失效，不需要再把它写回账号列表（会把 invalidAt 清掉）
+    const result = await loginNewAccountNative({ preserveCurrent: false })
+    if (disposed) return { ok: false, cookie: '' }
+    if (result?.ok && result.cookie) {
+      cookieInput.value = result.cookie
+      nativeCookieExpired.value = false
+      return { ok: true, cookie: result.cookie }
+    }
+
+    step.value = 'cookie'
+    if (!result?.cancelled) {
+      openErrorDialog(
+        t('import.loginNewAccount'),
+        result?.unsupported
+          ? t('import.loginNewAccountUnsupported')
+          : (result?.message || t('import.loginNewAccountFailed'))
+      )
+    }
+    return { ok: false, cookie: '' }
+  }
+
   // ── 拉取：统一原生/Web 分支、Cookie 失效处理与持久化 ──
 
   function normalizeFetchResult(result) {
@@ -356,7 +411,9 @@ export function useMihoyoImportSession({
     if (!options.fromBootstrap) nativeCookieExpired.value = false
     step.value = 'loading'
     const { silentCookieExpired = false } = options
-    let refreshedAfterExpiry = false
+    let refreshedAfterExpiry = Boolean(options.stokenRefreshAttempted)
+    let autoLoginAttempted = false
+    let lastRefreshFailure = options.stokenRefreshFailure || null
 
     try {
       // 最多拉两轮：第一轮 Cookie 失效时先用 stoken 静默换票，换到新 Cookie 再拉一次。
@@ -398,8 +455,8 @@ export function useMihoyoImportSession({
         } catch (error) {
           if (disposed) return
 
-          // Cookie 失效：原生插件只 reject 不再弹登录页，这里用 stoken 静默续期后自动重试。
-          // 换票失败（无 stoken / stoken 也失效 / 网络故障）再走原来的登录提示。
+          // Cookie 失效：原生插件只 reject 不再弹登录页，这里先用 stoken 静默续期后自动重试。
+          // 没有可用 stoken 时自动拉起原生登录页；网络/代理失败才留在 Cookie 步提示重试。
           if (!refreshedAfterExpiry && isMihoyoCookieExpiredError(error)) {
             const refreshed = await refreshCookieAfterExpiry()
             if (disposed) return
@@ -409,6 +466,7 @@ export function useMihoyoImportSession({
               refreshedAfterExpiry = true
               continue
             }
+            lastRefreshFailure = refreshed
           }
 
           // 原生分支：插件在 Cookie 失效时会清掉本地会话并带 code 拒绝；
@@ -416,6 +474,23 @@ export function useMihoyoImportSession({
           if (canUseNativeImport) {
             if (isMihoyoCookieExpiredError(error)) {
               nativeCookieExpired.value = true
+
+              // 没有可用 stoken（或 stoken 也失效）：恢复旧版行为，自动拉起登录页
+              if (!autoLoginAttempted && shouldAutoLoginAfterStokenFailure(lastRefreshFailure)) {
+                autoLoginAttempted = true
+                const login = await autoLoginNativeAfterExpiry()
+                if (disposed) return
+                if (login.ok) {
+                  // 登录成功，直接重试本次导入；不再对刚登录的 Cookie 走 stoken
+                  refreshedAfterExpiry = true
+                  continue
+                }
+                // 取消/失败：登录态仍不可用，标记失效，避免下次激活又自动重拉
+                await handleCookieFailure(error)
+                if (disposed) return
+                return
+              }
+
               await handleCookieFailure(error)
               if (disposed) return
               step.value = 'cookie'

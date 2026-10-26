@@ -155,7 +155,7 @@ public class MihoyoSessionImportPlugin extends Plugin {
                 if (MihoyoSessionImportActivity.isCookieExpiredError(message)) {
                     // 不在这里拉起全屏登录 Activity：后台/已切走的拉取突然弹登录页会把
                     // 主应用切到后台，内存紧张时容易被系统杀掉，回来就像「整个 App 重载」。
-                    // 清掉失效会话后 reject，由 JS 先用 stoken 静默换票；换不到再提示重新登录。
+                    // 清掉失效会话后 reject，由 JS 先用 stoken 静默换票；换不到再自动拉起登录页。
                     clearSavedCookie();
                     call.reject(
                         message.isEmpty() ? "登录状态已失效，请重新登录" : message,
