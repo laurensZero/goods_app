@@ -4,8 +4,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.os.Handler;
-import android.os.Looper;
 
 import androidx.activity.result.ActivityResult;
 
@@ -155,9 +153,14 @@ public class MihoyoSessionImportPlugin extends Plugin {
             } catch (Exception error) {
                 String message = error.getMessage() != null ? error.getMessage() : "";
                 if (MihoyoSessionImportActivity.isCookieExpiredError(message)) {
-                    // Cookie expired or unauthenticated — clear it, then launch WebView for re-login
+                    // 不在这里拉起全屏登录 Activity：后台/已切走的拉取突然弹登录页会把
+                    // 主应用切到后台，内存紧张时容易被系统杀掉，回来就像「整个 App 重载」。
+                    // 清掉失效会话后 reject，由 JS 回到 Cookie 步并提示用户点按钮重新登录。
                     clearSavedCookie();
-                    new Handler(Looper.getMainLooper()).post(() -> launchImport(call, mode));
+                    call.reject(
+                        message.isEmpty() ? "登录状态已失效，请重新登录" : message,
+                        "COOKIE_EXPIRED"
+                    );
                 } else {
                     call.reject(message.isEmpty() ? "获取数据失败" : message);
                 }
@@ -341,8 +344,62 @@ public class MihoyoSessionImportPlugin extends Plugin {
         response.put("mode", mode);
         response.put("capped", payload.optBoolean("capped", false));
         response.put("total", payload.optInt("total", 0));
-        response.put("list", convertArray(payload.optJSONArray("list")));
+        JSONArray list = payload.optJSONArray("list");
+        // 购物车只要展示/落库用的字段。接口原始对象往往带大量嵌套 SKU/活动信息，
+        // 原样递归转成 JSObject 再序列化过桥，会明显拖慢主线程并抬高内存峰值。
+        if (MihoyoSessionImportActivity.MODE_CART.equals(mode)) {
+            list = trimCartList(list);
+        }
+        response.put("list", convertArray(list));
         return response;
+    }
+
+    private static final String[] CART_ITEM_KEYS = new String[] {
+        "goods_id", "goodsId", "goods_name", "name",
+        "sale_attr_val", "sale_attr", "sku_id",
+        "sku_name", "sku_title", "sku_desc",
+        "nums", "quantity_buy", "quantity",
+        "new_price_fee", "price_fee", "old_price_fee",
+        "cover_url", "sold_out_status", "is_effect", "noneffecttive_reason"
+    };
+
+    private JSONArray trimCartList(JSONArray shops) throws JSONException {
+        JSONArray result = new JSONArray();
+        if (shops == null) return result;
+
+        for (int i = 0; i < shops.length(); i += 1) {
+            JSONObject shop = shops.optJSONObject(i);
+            if (shop == null) continue;
+
+            JSONObject trimmedShop = new JSONObject();
+            copyIfPresent(shop, trimmedShop, "shop_code");
+            copyIfPresent(shop, trimmedShop, "shopCode");
+            copyIfPresent(shop, trimmedShop, "shop_name");
+            copyIfPresent(shop, trimmedShop, "shopName");
+
+            JSONArray items = shop.optJSONArray("list");
+            JSONArray trimmedItems = new JSONArray();
+            if (items != null) {
+                for (int j = 0; j < items.length(); j += 1) {
+                    JSONObject item = items.optJSONObject(j);
+                    if (item == null) continue;
+                    JSONObject trimmedItem = new JSONObject();
+                    for (String key : CART_ITEM_KEYS) {
+                        copyIfPresent(item, trimmedItem, key);
+                    }
+                    trimmedItems.put(trimmedItem);
+                }
+            }
+            trimmedShop.put("list", trimmedItems);
+            result.put(trimmedShop);
+        }
+        return result;
+    }
+
+    private void copyIfPresent(JSONObject source, JSONObject target, String key) throws JSONException {
+        if (!source.has(key)) return;
+        Object value = source.opt(key);
+        if (value != null) target.put(key, value);
     }
 
     private JSArray convertArray(JSONArray array) {

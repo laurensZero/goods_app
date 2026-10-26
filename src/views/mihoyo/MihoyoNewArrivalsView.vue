@@ -926,11 +926,14 @@ async function loadVariants(item) {
 let importContextCache = null
 let importContextKey = null
 function getImportContext() {
+  // 与导入链路一致：只取快照，冷/脏时后台分片重建，不在主路径同步全扫
+  const learnedCategories = getSharedTaggingContext(presetsStore, goodsStore).getLearnedKeywordsSnapshot()
   const key = [
     goodsStore.list,
     presetsStore.characters,
     presetsStore.categories,
     presetsStore.ips,
+    learnedCategories,
   ]
   if (importContextCache && importContextKey && key.every((value, i) => value === importContextKey[i])) {
     return importContextCache
@@ -941,7 +944,7 @@ function getImportContext() {
     presetCharacters: presetsStore.characters || [],
     categories: presetsStore.categories || [],
     ips: presetsStore.ips || [],
-    learnedCategories: getSharedTaggingContext(presetsStore, goodsStore).getLearnedKeywords(),
+    learnedCategories,
   })
   return importContextCache
 }

@@ -31,6 +31,7 @@ export function isMihoyoAuthHttpStatus(status) {
  */
 export function isMihoyoCookieExpiredError(error) {
   if (error && typeof error === 'object') {
+    if (error.code === 'COOKIE_EXPIRED') return true
     if (isMihoyoAuthRetcode(error.retcode)) return true
     if (isMihoyoAuthHttpStatus(error.status)) return true
   }

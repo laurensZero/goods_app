@@ -206,6 +206,18 @@ export function createCategoryKeywordAggregator(options = {}) {
     }
   }
 
+  /** 单条增量同步：供调用方按 8ms 分片处理，避免整表新增时一次卡住主线程 */
+  const syncEntry = (key, item) => {
+    const input = contributionInput(item)
+    const prev = snap.get(key)
+    if (prev && prev.input === input) return
+    removeKey(key)
+    upsertKey(key, item)
+  }
+
+  /** 当前已收录的商品 key，供调用方分片清理失效项 */
+  const keys = () => [...snap.keys()]
+
   /** 从聚合状态产出结果；顺序与语义与原全量实现一致 */
   const finalize = () => {
     const result = []
@@ -235,7 +247,7 @@ export function createCategoryKeywordAggregator(options = {}) {
     return result.map(({ keyword, value }) => ({ keyword, value }))
   }
 
-  return { rebuild, syncList, finalize, removeKey, upsertKey }
+  return { rebuild, syncList, syncEntry, keys, finalize, removeKey, upsertKey }
 }
 
 /**

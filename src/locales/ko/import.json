@@ -159,6 +159,7 @@
   "import.fetchingCart": "장바구니 읽는 중...",
   "import.preparingCart": "장바구니 정리 중...",
   "import.fetchingOrders": "주문 가져오는 중...",
+  "import.preparingOrders": "주문을 정리하는 중...",
   "import.fetchingShareData": "공유 데이터 가져오는 중...",
   "import.fileParseFailed": "파일 분석 실패",
   "import.goodsCount": "{count}개",

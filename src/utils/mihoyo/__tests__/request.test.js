@@ -180,5 +180,7 @@ describe('超时文案与 Cookie 失效判定的兼容锁', () => {
     expect(isMihoyoCookieExpiredError(new Error(MIHOYO_TIMEOUT_MESSAGE))).toBe(false)
     expect(isMihoyoCookieExpiredError(new Error('请求失败（401）'))).toBe(true)
     expect(isMihoyoCookieExpiredError(new Error('请求失败（403）'))).toBe(true)
+    // 原生插件 Cookie 失效时带 code 拒绝（不再自动拉起登录 Activity）
+    expect(isMihoyoCookieExpiredError({ code: 'COOKIE_EXPIRED', message: '登录状态已失效' })).toBe(true)
   })
 })

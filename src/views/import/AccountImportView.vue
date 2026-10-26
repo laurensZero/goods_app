@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/assets/common/loading.css'
 import { useGoodsStore } from '@/stores/goods'
@@ -7,6 +7,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useRouter } from 'vue-router'
 import { Capacitor } from '@capacitor/core'
 import { useMihoyoImportSession } from '@/composables/import/useMihoyoImportSession'
+import { useChunkedImportPreparation } from '@/composables/import/useChunkedImportPreparation'
 import { importMihoyoOrdersWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchAllOrders, orderToGoodsList, resolveOrderDiscountCents } from '@/utils/mihoyo/index'
 import {
@@ -41,7 +42,6 @@ const { t } = useI18n()
 const router = useRouter()
 const store = useGoodsStore()
 const presets = usePresetsStore()
-
 // ── State ──────────────────────────────────────────────────────
 const loadedCount = ref(0)
 const totalCount = ref(0)
@@ -93,6 +93,9 @@ const {
   onList: (list) => {
     rawOrders.value = list
     selectedSet.value = new Set()
+    // 先让订单列表出现首帧，再分片做整表规整
+    resetPrepareOrders()
+    requestPrepareOrders()
   },
 })
 
@@ -207,8 +210,8 @@ function createMihoyoImportContext() {
     presetCharacters: presets.characters || [],
     categories: presets.categories || [],
     ips: presets.ips || [],
-    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
-    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
+    // n-gram 关键词学习走共享缓存；导入链路只取快照，冷启动也不在主线程全扫
+    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywordsSnapshot(),
   })
 }
 
@@ -260,45 +263,69 @@ function mergeImportGoodsLine(target, incoming) {
   }
 }
 
-// ── Computed ───────────────────────────────────────────────────
-/** 按订单分组，每组含该订单所有商品（同名项合并数量） */
-const processedOrders = computed(() =>
-  {
-    const context = createMihoyoImportContext()
-    return rawOrders.value.map((order) => {
-      const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
-      // 同一订单内：精确身份相同或（缺字段时）名称+款式相同的商品合并数量
-      const nameMap = new Map()
-      for (const g of rawGoods) {
-        const key = getOrderLineMergeKey(g)
-        if (nameMap.has(key)) {
-          mergeImportGoodsLine(nameMap.get(key), g)
-        } else {
-          nameMap.set(key, { ...g })
-        }
-      }
-      const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
-      // 与入手价分摊共用同一套优惠解析（含 discounts 缺失时按金额兜底）
-      const discountCents = resolveOrderDiscountCents(order)
-      const hasDiscount = discountCents > 0
-      return {
-        raw: order,
-        orderNo: order.order_no || order.orderNo || '',
-        goods: Array.from(nameMap.values()),
-        statusText: order.status_text || order.manage_status_text || '',
-        shopName: order.shop?.shop_name || '',
-        hasDiscount: hasDiscount || (
-          Number.isFinite(paidCents)
-          && Number.isFinite(Number(order.goods_amount))
-          && paidCents < Number(order.goods_amount)
-        ),
-        paidText: centsToDisplay(paidCents),
-        discountText: hasDiscount ? centsToDisplay(discountCents) : ''
-      }
-    })
-    .filter((po) => po.goods.length > 0)
+// ── 规整（分片异步） ─────────────────────────────────────────────
+// 原先 processedOrders 是 computed：首次读取时同步建上下文 + resolve 整表，
+// 在安卓上会占住主线程数秒（切 tab 卡死/像重载）。改为分片任务，
+// 完成时一次性发布结果。
+
+function buildProcessedOrder(order, context) {
+  const rawGoods = orderToGoodsList(order).map((item) => normalizeMihoyoImportItem(item, context))
+  // 同一订单内：精确身份相同或（缺字段时）名称+款式相同的商品合并数量
+  const nameMap = new Map()
+  for (const g of rawGoods) {
+    const key = getOrderLineMergeKey(g)
+    if (nameMap.has(key)) {
+      mergeImportGoodsLine(nameMap.get(key), g)
+    } else {
+      nameMap.set(key, { ...g })
+    }
   }
+  const goods = Array.from(nameMap.values())
+  if (goods.length === 0) return null
+
+  const paidCents = Number(order.payment_info?.pay_amount ?? order.order_amount)
+  // 与入手价分摊共用同一套优惠解析（含 discounts 缺失时按金额兜底）
+  const discountCents = resolveOrderDiscountCents(order)
+  const hasDiscount = discountCents > 0
+  return {
+    raw: order,
+    orderNo: order.order_no || order.orderNo || '',
+    goods,
+    statusText: order.status_text || order.manage_status_text || '',
+    shopName: order.shop?.shop_name || '',
+    hasDiscount: hasDiscount || (
+      Number.isFinite(paidCents)
+      && Number.isFinite(Number(order.goods_amount))
+      && paidCents < Number(order.goods_amount)
+    ),
+    paidText: centsToDisplay(paidCents),
+    discountText: hasDiscount ? centsToDisplay(discountCents) : '',
+  }
+}
+
+const {
+  result: processedOrders,
+  preparing: preparingOrders,
+  request: requestPrepareOrders,
+  reset: resetPrepareOrders,
+} = useChunkedImportPreparation({
+  getSources: () => rawOrders.value,
+  createContext: createMihoyoImportContext,
+  processSource: buildProcessedOrder,
+  isActive: () => !props.embedded || props.embeddedActive,
+})
+
+watch(
+  () => props.embeddedActive,
+  (active) => {
+    if (active && step.value === 'orders') requestPrepareOrders()
+  },
+  { immediate: true },
 )
+
+watch(step, (value) => {
+  if (value === 'loading') resetPrepareOrders()
+})
 
 /** 所有商品展平后的列表（用于全选/计数/导入） */
 const allGoods = computed(() => processedOrders.value.flatMap((po) => po.goods))
@@ -550,6 +577,15 @@ function getStatusClass(text) {
         <section v-else-if="step === 'orders'" key="orders" class="step-section step-section--list">
           <!-- 内嵌隐藏时跳过整棵列表渲染/重算：拉取结果在后台到达也不拖累其它 Tab -->
           <template v-if="!embedded || embeddedActive">
+          <div v-if="preparingOrders" class="prepare-wrap">
+            <div class="loading-anim" :aria-label="t('common.loading')">
+              <div class="loading-ring" />
+            </div>
+            <p class="loading-title">{{ t('import.preparingOrders') }}</p>
+            <p class="loading-sub">{{ t('import.pleaseWait') }}</p>
+          </div>
+
+          <template v-else>
           <div class="list-header">
             <p class="list-count">{{ t('import.orderCount', { orders: processedOrders.length, types: mergedAllGoods.length, total: allGoods.length }) }}</p>
             <div class="list-header-actions">
@@ -692,6 +728,7 @@ function getStatusClass(text) {
             </li>
           </ul>
           </template>
+          </template>
 
         </section>
 
@@ -713,7 +750,7 @@ function getStatusClass(text) {
 
     </main>
 
-    <div v-if="step === 'orders'" class="bottom-bar">
+    <div v-if="step === 'orders' && !preparingOrders" class="bottom-bar">
       <button
         class="primary-btn"
         type="button"

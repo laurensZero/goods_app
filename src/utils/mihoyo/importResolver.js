@@ -88,23 +88,109 @@ function addUniqueValue(list, value) {
   list.push(normalized)
 }
 
-function createCategoryBlocklist(categories = [], extraCategories = []) {
-  return new Set(
-    uniqueList([
-      ...STATIC_CATEGORY_NAMES,
-      ...(Array.isArray(categories) ? categories : []),
-      ...(Array.isArray(extraCategories) ? extraCategories : []),
-    ])
-      .map(normalizeNameKey)
-      .filter(Boolean)
-  )
-}
+// 静态分类黑名单只算一次。历史上每个商品都会把「预设分类 + 学到的关键词」
+// 重新 normalize 成一个 Set，几千条收藏 × 上千个学习词时会在主线程上卡数秒。
+const STATIC_CATEGORY_KEYS = uniqueList(STATIC_CATEGORY_NAMES).map(normalizeNameKey).filter(Boolean)
+
+// 角色名规范化（去掉年份/周年/品类词）与文本无关，按原始字符串缓存，
+// 避免逐条商品、逐条角色重复跑正则和品类词扫描。
+const baseCharacterNameCache = new Map()
+const BASE_CHARACTER_CACHE_LIMIT = 4000
 
 /** 取上下文中学到的分类关键词列表（学到的关键词也不应被当作角色） */
-function learnedKeywordList(contextData) {
-  return (contextData?.learnedCategories || [])
+function learnedKeywordList(context) {
+  if (!context) return []
+  if (context.__learnedKeywordList) return context.__learnedKeywordList
+  const list = (context.learnedCategories || [])
     .map((item) => item?.keyword)
     .filter(Boolean)
+  context.__learnedKeywordList = list
+  context.__learnedKeywordKeys = list.map(normalizeNameKey).filter(Boolean)
+  return list
+}
+
+/** 上下文的基础分类黑名单：静态分类 + 预设分类 + 学习词。只构建一次，分类增长时增量维护。 */
+function getBaseCategoryBlocklist(context) {
+  if (!context) return new Set(STATIC_CATEGORY_KEYS)
+  if (context.__baseCategoryBlocklist) return context.__baseCategoryBlocklist
+  const set = new Set(STATIC_CATEGORY_KEYS)
+  for (const category of context.categories || []) {
+    const key = normalizeNameKey(category)
+    if (key) set.add(key)
+  }
+  learnedKeywordList(context)
+  for (const key of context.__learnedKeywordKeys || []) set.add(key)
+  context.__baseCategoryBlocklist = set
+  return set
+}
+
+/**
+ * 在基础黑名单上追加少量本次条目的分类词。
+ * 绝大多数 extra 已经在基础集合里，直接复用；只有真正新增时才复制一份并缓存。
+ */
+function getExtendedCategoryBlocklist(context, extras = []) {
+  const base = getBaseCategoryBlocklist(context)
+  const extraKeys = []
+  for (const extra of extras) {
+    const key = normalizeNameKey(extra)
+    if (key && !base.has(key) && !extraKeys.includes(key)) extraKeys.push(key)
+  }
+  if (extraKeys.length === 0) return base
+
+  let cache = context.__categoryBlocklistExtras
+  if (!cache) cache = context.__categoryBlocklistExtras = new Map()
+  const cacheKey = extraKeys.sort().join('\u0001')
+  let set = cache.get(cacheKey)
+  if (!set) {
+    set = new Set(base)
+    for (const key of extraKeys) set.add(key)
+    cache.set(cacheKey, set)
+  }
+  return set
+}
+
+/** 分类增长时同步维护缓存，避免下一条又从头 normalize 全量分类 */
+function addContextCategory(context, value) {
+  if (!context) return
+  if (!Array.isArray(context.categories)) context.categories = []
+  const before = context.categories.length
+  addUniqueValue(context.categories, value)
+  if (context.categories.length === before) return
+
+  const normalized = normalizeText(value)
+  if (context.__taggingCategories && normalized) context.__taggingCategories.push(normalized)
+  const key = normalizeNameKey(normalized)
+  if (key && context.__baseCategoryBlocklist) context.__baseCategoryBlocklist.add(key)
+  // 旧扩展集合里没有刚加进来的分类，清掉缓存，后续按新基础集合重建
+  context.__categoryBlocklistExtras = null
+}
+
+/** 传给标签引擎的分类池（预设分类 + 学习词），每条只准备一次 */
+function getTaggingCategories(context) {
+  if (!context) return []
+  if (context.__taggingCategories) return context.__taggingCategories
+  const list = [...(context.categories || [])]
+  for (const item of context.learnedCategories || []) {
+    const keyword = item?.keyword
+    if (!keyword) continue
+    list.push({
+      keyword,
+      value: item.value,
+      _lowerKeyword: String(keyword).toLowerCase(),
+    })
+  }
+  context.__taggingCategories = list
+  return list
+}
+
+function getContextTags(context) {
+  if (!context) return []
+  if (Array.isArray(context.tags)) return context.tags
+  if (context.tags instanceof Set) {
+    if (!context.__tagsArray) context.__tagsArray = [...context.tags]
+    return context.__tagsArray
+  }
+  return []
 }
 
 function isCategoryName(value, categoryBlocklist) {
@@ -112,13 +198,32 @@ function isCategoryName(value, categoryBlocklist) {
   return Boolean(key && categoryBlocklist?.has(key))
 }
 
+/** 与上下文无关的角色名规范化（年份/周年/品类词过滤） */
+function normalizeCharacterCandidateBase(value) {
+  const raw = normalizeText(value)
+  if (!raw) return ''
+  if (baseCharacterNameCache.has(raw)) return baseCharacterNameCache.get(raw)
+
+  const normalized = normalizeCharacterName(raw)
+  let result = ''
+  if (
+    normalized
+    && !/\d{4}年?/.test(normalized)
+    && !/周年/.test(normalized)
+    && !hasMerchandiseWord(normalized)
+  ) {
+    result = normalized
+  }
+
+  if (baseCharacterNameCache.size >= BASE_CHARACTER_CACHE_LIMIT) baseCharacterNameCache.clear()
+  baseCharacterNameCache.set(raw, result)
+  return result
+}
+
 function normalizeCharacterCandidate(value, categoryBlocklist = null) {
-  const normalized = normalizeCharacterName(value)
-  if (!normalized || /\d{4}年?/.test(normalized) || /周年/.test(normalized)) return ''
+  const normalized = normalizeCharacterCandidateBase(value)
+  if (!normalized) return ''
   if (isCategoryName(normalized, categoryBlocklist)) return ''
-  // 分类黑名单是「整词精确匹配」，而 SKU/款式文案常是「品类词 + 修饰」，
-  // 如「印花毛巾」「Q版应援扇」；这里再做一次包含式判断，避免整条被当成角色。
-  if (hasMerchandiseWord(normalized)) return ''
   return normalized
 }
 
@@ -131,20 +236,40 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+// 单字角色名的三种证据正则只和角色名有关：后缀表编译一次，角色图案按名缓存。
+// 原实现每个商品×每个单字角色都会新建 4 个 RegExp，角色多时是纯浪费。
+const SHORT_CHARACTER_SUFFIX_PATTERN = SHORT_CHARACTER_SUFFIXES.map(escapeRegExp).join('|')
+const shortCharacterPatternCache = new Map()
+const SHORT_CHARACTER_PATTERN_CACHE_LIMIT = 200
+
+function getShortCharacterPatterns(name) {
+  const cached = shortCharacterPatternCache.get(name)
+  if (cached) return cached
+
+  const escaped = escapeRegExp(name)
+  const patterns = [
+    new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})${escaped}($|${SHORT_CHARACTER_BOUNDARY})`, 'i'),
+    new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})${escaped}(?:${SHORT_CHARACTER_SUFFIX_PATTERN})(?=$|${SHORT_CHARACTER_BOUNDARY})`, 'i'),
+    new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})(?:角色|款式|人物)\\s*[:：]?\\s*${escaped}($|${SHORT_CHARACTER_BOUNDARY})`, 'i'),
+  ]
+
+  if (shortCharacterPatternCache.size >= SHORT_CHARACTER_PATTERN_CACHE_LIMIT) {
+    shortCharacterPatternCache.clear()
+  }
+  shortCharacterPatternCache.set(name, patterns)
+  return patterns
+}
+
 function isShortCharacterName(value) {
-  const normalized = normalizeCharacterCandidate(value)
-  return normalized && Array.from(normalized).length <= 1
+  const normalized = normalizeCharacterCandidateBase(value)
+  return Boolean(normalized) && Array.from(normalized).length <= 1
 }
 
 function hasStrictShortCharacterMention(character, texts = []) {
-  const normalized = normalizeCharacterCandidate(character)
+  const normalized = normalizeCharacterCandidateBase(character)
   if (!normalized) return false
 
-  const escaped = escapeRegExp(normalized)
-  const suffixPattern = SHORT_CHARACTER_SUFFIXES.map(escapeRegExp).join('|')
-  const standalonePattern = new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})${escaped}($|${SHORT_CHARACTER_BOUNDARY})`, 'i')
-  const suffixPatternRegex = new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})${escaped}(?:${suffixPattern})(?=$|${SHORT_CHARACTER_BOUNDARY})`, 'i')
-  const labelPattern = new RegExp(`(^|${SHORT_CHARACTER_BOUNDARY})(?:角色|款式|人物)\\s*[:：]?\\s*${escaped}($|${SHORT_CHARACTER_BOUNDARY})`, 'i')
+  const [standalonePattern, suffixPatternRegex, labelPattern] = getShortCharacterPatterns(normalized)
 
   return (Array.isArray(texts) ? texts : [texts]).some((text) => {
     const source = normalizeText(text)
@@ -156,19 +281,39 @@ function hasStrictShortCharacterMention(character, texts = []) {
   })
 }
 
-function filterDynamicCharactersForText(characters, evidenceTexts = [], categoryBlocklist = null) {
+/** 上下文里的角色名只规范化一次；每条商品只做按分类黑名单过滤和短名证据判断 */
+function getNormalizedCharacterMap(context) {
+  if (!context) return {}
+  if (context.__normalizedCharacters) return context.__normalizedCharacters
+
+  const map = {}
+  for (const [ip, list] of Object.entries(context.characters || {})) {
+    const seen = new Set()
+    const entries = []
+    for (const value of Array.isArray(list) ? list : []) {
+      const name = normalizeCharacterCandidateBase(value)
+      if (!name || seen.has(name)) continue
+      seen.add(name)
+      entries.push({ name, short: Array.from(name).length <= 1 })
+    }
+    if (entries.length) map[ip] = entries
+  }
+  context.__normalizedCharacters = map
+  return map
+}
+
+function filterDynamicCharactersForText(context, evidenceTexts = [], categoryBlocklist = null) {
+  const normalizedCharacters = getNormalizedCharacterMap(context)
   const nextCharacters = {}
 
-  for (const [ip, list] of Object.entries(characters || {})) {
-    const filtered = normalizeCharacterList(list, categoryBlocklist)
-      .filter((character) => (
-        !isShortCharacterName(character)
-        || hasStrictShortCharacterMention(character, evidenceTexts)
-      ))
-
-    if (filtered.length) {
-      nextCharacters[ip] = filtered
+  for (const [ip, entries] of Object.entries(normalizedCharacters)) {
+    const filtered = []
+    for (const { name, short } of entries) {
+      if (isCategoryName(name, categoryBlocklist)) continue
+      if (short && !hasStrictShortCharacterMention(name, evidenceTexts)) continue
+      filtered.push(name)
     }
+    if (filtered.length) nextCharacters[ip] = filtered
   }
 
   return nextCharacters
@@ -192,6 +337,7 @@ function addCharacterToContext(context, character, ip = '', categoryBlocklist = 
   if (!context.characters[key]) context.characters[key] = []
   if (!context.characters[key].includes(normalized)) {
     context.characters[key].push(normalized)
+    context.__normalizedCharacters = null
   }
 }
 
@@ -199,7 +345,11 @@ function addTagsToContext(context, tags) {
   if (!Array.isArray(tags)) return
   for (const tag of tags) {
     const value = normalizeText(tag)
-    if (value) context.tags.add(value)
+    if (value) {
+      const size = context.tags.size
+      context.tags.add(value)
+      if (context.tags.size !== size) context.__tagsArray = null
+    }
   }
 }
 
@@ -225,12 +375,14 @@ export function buildMihoyoImportContext({
         categories,
         characters: presetCharacters,
       })
-  const learnedKeywords = learnedKeywordList(context)
-  const baseCategoryBlocklist = createCategoryBlocklist(context.categories, learnedKeywords)
+
+  // 基础黑名单只构建一次：以前每个商品都会重新 normalize 全部分类 + 学习词，
+  // 几千条收藏时本身就是一次主线程长任务。这里按分类缓存扩展结果。
+  const baseCategoryBlocklist = getBaseCategoryBlocklist(context)
 
   for (const item of Array.isArray(goodsList) ? goodsList : []) {
     const ip = normalizeText(item?.ip) || UNKNOWN_IP
-    const itemCategoryBlocklist = createCategoryBlocklist(context.categories, [item?.category, ...learnedKeywords])
+    const itemCategoryBlocklist = getExtendedCategoryBlocklist(context, [item?.category])
     for (const character of normalizeCharacterList(item?.characters, itemCategoryBlocklist)) {
       addCharacterToContext(context, character, ip, itemCategoryBlocklist)
     }
@@ -247,9 +399,9 @@ export function buildMihoyoImportContext({
 export function addMihoyoImportContextItem(context, item) {
   if (!context) return context
   const ip = normalizeText(item?.ip) || UNKNOWN_IP
-  addUniqueValue(context.categories, item?.category)
+  addContextCategory(context, item?.category)
   addUniqueValue(context.ips, item?.ip)
-  const categoryBlocklist = createCategoryBlocklist(context.categories, [item?.category, ...learnedKeywordList(context)])
+  const categoryBlocklist = getExtendedCategoryBlocklist(context, [item?.category])
   for (const character of normalizeCharacterList(item?.characters, categoryBlocklist)) {
     addCharacterToContext(context, character, ip, categoryBlocklist)
   }
@@ -257,34 +409,25 @@ export function addMihoyoImportContextItem(context, item) {
   return context
 }
 
-function normalizeContext(context = {}) {
-  const tags = context.tags instanceof Set
-    ? [...context.tags]
-    : (Array.isArray(context.tags) ? context.tags : [])
-
-  return {
-    categories: Array.isArray(context.categories) ? context.categories : [],
-    learnedCategories: Array.isArray(context.learnedCategories) ? context.learnedCategories : [],
-    ips: Array.isArray(context.ips) ? context.ips : [],
-    characters: context.characters && typeof context.characters === 'object' ? context.characters : {},
-    tags,
-  }
-}
-
 function getTaggingResult({ name, note = '', chars = [] }, context, options = {}) {
-  const dynamicContext = normalizeContext(context)
+  const filteredCharacters = filterDynamicCharactersForText(
+    context,
+    options.evidenceTexts || [name, note],
+    options.categoryBlocklist
+  )
+  // 扁平角色列表在标签引擎里按条商品展开；这里直接给出去，省掉重复 Object.entries
+  const flatCharacters = []
+  for (const list of Object.values(filteredCharacters)) flatCharacters.push(...list)
+
   return getTaggingSuggestions(
     { name, note, chars },
     staticDictionaries,
     {
-      categories: [...dynamicContext.categories, ...dynamicContext.learnedCategories],
-      ips: dynamicContext.ips,
-      characters: filterDynamicCharactersForText(
-        dynamicContext.characters,
-        options.evidenceTexts || [name, note],
-        options.categoryBlocklist
-      ),
-      tags: dynamicContext.tags,
+      categories: getTaggingCategories(context),
+      ips: Array.isArray(context?.ips) ? context.ips : [],
+      characters: filteredCharacters,
+      tags: getContextTags(context),
+      _flatCharacters: flatCharacters,
     }
   )
 }
@@ -380,13 +523,11 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     ? normalizeText(variants.map((v) => v?.text).filter(Boolean).join(' / '))
     : ''
   const note = normalizeText(source?.note || source?.notes)
-  const contextData = normalizeContext(context)
   const preliminaryCategory = parseCategoryFromName(`${name} ${variant || skuText}`)
   const evidenceTexts = [name, variant || skuText, note]
-  const initialCategoryBlocklist = createCategoryBlocklist(contextData.categories, [
+  const initialCategoryBlocklist = getExtendedCategoryBlocklist(context, [
     source?.category,
     preliminaryCategory,
-    ...learnedKeywordList(contextData),
   ])
   const explicitCharacters = collectExplicitCharacters({ ...source, variants, variant }, preferredCharacter, initialCategoryBlocklist)
   const taggingResult = getTaggingResult({
@@ -403,12 +544,11 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     currentCategory: source?.category,
     taggingResult,
   })
-  const categoryBlocklist = createCategoryBlocklist(contextData.categories, [
+  const categoryBlocklist = getExtendedCategoryBlocklist(context, [
     source?.category,
     preliminaryCategory,
     category,
     taggingResult.categorySuggestion?.value,
-    ...learnedKeywordList(contextData),
   ])
   const imageCandidates = resolveImageCandidates({ ...source, variants })
   const defaultImages = getDefaultMihoyoImages(imageCandidates)
@@ -452,13 +592,11 @@ export function resolveMihoyoVariantDraft({
   currentCategory = '',
 } = {}) {
   const variantName = displayVariantText(variant?.text)
-  const contextData = normalizeContext(context)
   const preliminaryCategory = parseCategoryFromName(`${name} ${variantName}`)
   const evidenceTexts = [name, variantName]
-  const initialCategoryBlocklist = createCategoryBlocklist(contextData.categories, [
+  const initialCategoryBlocklist = getExtendedCategoryBlocklist(context, [
     currentCategory,
     preliminaryCategory,
-    ...learnedKeywordList(contextData),
   ])
   const preferred = resolvePreferredCharacter(preferredCharacter, [variant], initialCategoryBlocklist)
   const explicitCharacters = preferred ? [preferred] : []
@@ -475,12 +613,11 @@ export function resolveMihoyoVariantDraft({
     currentCategory: '',
     taggingResult,
   })
-  const categoryBlocklist = createCategoryBlocklist(contextData.categories, [
+  const categoryBlocklist = getExtendedCategoryBlocklist(context, [
     currentCategory,
     preliminaryCategory,
     category,
     taggingResult.categorySuggestion?.value,
-    ...learnedKeywordList(contextData),
   ])
   const characters = resolveCharacters({ explicitCharacters, taggingResult, categoryBlocklist, evidenceTexts })
 

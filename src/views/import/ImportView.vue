@@ -500,9 +500,8 @@ const importTabs = computed(() => [
 // 购物车/账号是独立视图，首次切到时才挂载（避免进页就拉账号/Cookie 状态）
 const tabMounted = reactive({ search: true, link: true, cart: false, account: false })
 let tabMountRaf = 0
-// 卸载后要停掉的延迟任务：隐藏挂载、历史标签上下文预热、共享缓存空闲预热
+// 卸载后要停掉的延迟任务：隐藏挂载、共享缓存空闲预热
 let unmounted = false
-let tagSeedTimer = 0
 let cancelTagWarmup = null
 watch(activeTab, (tab) => {
   if (tabMounted[tab]) return
@@ -536,8 +535,8 @@ function seedHistoricalTagContextFromGoods() {
     presetCharacters: presets.characters || [],
     categories: presets.categories || [],
     ips: presets.ips || [],
-    // n-gram 关键词学习走共享缓存，避免再做一次全量扫描
-    learnedCategories: getSharedTaggingContext(presets, goodsStore).getLearnedKeywords(),
+    // n-gram 关键词学习走共享缓存；导入链路只取快照，冷启动也不在主线程全扫
+    learnedCategories: getSharedTaggingContext(presets, goodsStore).getLearnedKeywordsSnapshot(),
   })
   return historicalTagContextCache
 }
@@ -631,23 +630,13 @@ onMounted(() => {
   updateViewport()
   // 预挂载购物车/账号：双 rAF 等首帧画完 → 等 chunk 下载完 → 立刻隐藏挂载。
   // 不再用 idle timeout:2500（进页头几秒点购物车/账号仍走首挂，会卡死）。
-  // 历史标签上下文预热再往后推，避开用户连点 Tab 的窗口。
+  // 历史标签上下文不再做 4s 预热：真正用到时 ensureHistoricalTagContext 会懒建。
   const preMount = async () => {
     await Promise.allSettled([cartChunkWarm, accountChunkWarm])
-    // 等 chunk 期间用户可能已经离开：不要再挂隐藏视图/排预热任务，
-    // 否则整表上下文构建会落在别的页面上，主线程被占住表现为卡死
+    // 等 chunk 期间用户可能已经离开：不要再挂隐藏视图，避免整表构建落在别的页面上
     if (unmounted) return
     tabMounted.cart = true
     if (!isWishlistMode.value) tabMounted.account = true
-    tagSeedTimer = setTimeout(() => {
-      tagSeedTimer = 0
-      if (unmounted) return
-      try {
-        seedHistoricalTagContextFromGoods()
-      } catch {
-        // 预热失败不影响后续懒建
-      }
-    }, 4000)
   }
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -663,10 +652,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   unmounted = true
   cancelAnimationFrame(tabMountRaf)
-  if (tagSeedTimer) {
-    clearTimeout(tagSeedTimer)
-    tagSeedTimer = 0
-  }
   // 离开页面就取消待执行的空闲预热，别再抢占下一个页面的主线程
   cancelTagWarmup?.()
   cancelTagWarmup = null

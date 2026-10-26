@@ -80,6 +80,16 @@
   gap: 0;
 }
 
+.prepare-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40dvh;
+  padding: 24px 0;
+}
+
 
 /* ── Info card ─────────────────────────────────────────────── */
 .info-card {

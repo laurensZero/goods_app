@@ -22,6 +22,25 @@ function getConfidenceRating(score) {
 }
 
 /**
+ * 静态规则正则只编译一次。
+ * 之前每条商品、每个字段都会 new RegExp，购物车/订单导入上千条时正则编译本身
+ * 就是主线程长任务（安卓 WebView 上尤其明显）。
+ */
+const ruleRegexCache = new Map()
+
+function getRuleRegex(key) {
+  if (ruleRegexCache.has(key)) return ruleRegexCache.get(key)
+  let regex = null
+  try {
+    regex = new RegExp(key, 'i')
+  } catch {
+    console.warn('无效的正规表达式规则:', key)
+  }
+  ruleRegexCache.set(key, regex)
+  return regex
+}
+
+/**
  * 执行匹配规则库（提取出候选项）
  * @param {string} text - 输入文本
  * @param {Array} rules - 静态正则匹配规则集 [{key, value, weight, ...}]
@@ -42,7 +61,7 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
       const keyword = isObject ? entry.keyword : entry
       const value = isObject ? entry.value : entry
       if (!keyword) continue
-      const lowerKeyword = String(keyword).toLowerCase()
+      const lowerKeyword = entry._lowerKeyword ?? String(keyword).toLowerCase()
       if (text.includes(lowerKeyword)) {
         matches.push({
           value,
@@ -58,23 +77,20 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
   if (rules && rules.length > 0) {
     for (const rule of rules) {
       if (!rule.key || !rule.value) continue
-      
-      try {
-        const regex = new RegExp(rule.key, 'i')
-        const match = text.match(regex)
-        
-        if (match) {
-          const ruleWeight = rule.weight || 1.0
-          matches.push({
-            value: rule.value,
-            score: ruleWeight * fieldWeight,
-            reasons: [`在 ${source} 中匹配到规则: ${rule.value} (${match[0]})`],
-            ip: rule.ip, // 对于角色规则可能带有所属ip信息
-            decisive: Boolean(rule.decisive)
-          })
-        }
-      } catch (e) {
-        console.warn('无效的正规表达式规则:', rule.key)
+
+      const regex = getRuleRegex(rule.key)
+      if (!regex) continue
+      const match = text.match(regex)
+
+      if (match) {
+        const ruleWeight = rule.weight || 1.0
+        matches.push({
+          value: rule.value,
+          score: ruleWeight * fieldWeight,
+          reasons: [`在 ${source} 中匹配到规则: ${rule.value} (${match[0]})`],
+          ip: rule.ip, // 对于角色规则可能带有所属ip信息
+          decisive: Boolean(rule.decisive)
+        })
       }
     }
   }
@@ -251,11 +267,14 @@ export function getTaggingSuggestions(inputContext, staticDictionaries, dynamicP
   const dynamicIps = dynamicPresets?.ips || []
   const dynamicCategories = dynamicPresets?.categories || []
   const dynamicTags = dynamicPresets?.tags || []
-  // 扁平化角色库用于匹配
-  const dynamicCharacters = []
-  if (dynamicPresets?.characters) {
-    for (const [, chars] of Object.entries(dynamicPresets.characters)) {
-      chars.forEach(c => dynamicCharacters.push(c))
+  // 扁平化角色库用于匹配。调用方已经扁平化时直接复用，避免每条商品重复展开。
+  let dynamicCharacters = dynamicPresets?._flatCharacters
+  if (!Array.isArray(dynamicCharacters)) {
+    dynamicCharacters = []
+    if (dynamicPresets?.characters) {
+      for (const [, chars] of Object.entries(dynamicPresets.characters)) {
+        chars.forEach(c => dynamicCharacters.push(c))
+      }
     }
   }
 

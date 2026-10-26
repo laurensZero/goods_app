@@ -36,18 +36,28 @@ describe('米游铺导入视图与 useMihoyoImportSession 的步骤机接线', (
     }
   })
 
-  it('购物车列表规整保持分片执行，不在 onList 里同步整表重算', () => {
+  it('购物车/订单列表规整走分片任务，不在 onList 里同步整表重算', () => {
     const cart = read('src/views/import/CartImportView.vue')
+    const account = read('src/views/import/AccountImportView.vue')
+    const scheduler = read('src/composables/import/useChunkedImportPreparation.js')
 
-    // 重型规整结果是普通 ref，由分片任务填充；不能退回 computed（读取即同步算全表）
-    expect(cart).toContain('const processedGroups = ref([])')
+    // 重型规整结果由分片任务填充；不能退回 computed（读取即同步算全表）
+    expect(cart).toContain('useChunkedImportPreparation')
+    expect(account).toContain('useChunkedImportPreparation')
     expect(cart).not.toMatch(/const processedGroups = computed\(/)
+    expect(account).not.toMatch(/const processedOrders = computed\(/)
 
     // onList 只落数据 + 切步，然后异步整理
     expect(cart).toMatch(/onList:\s*\(list\)\s*=>\s*\{[\s\S]*?step\.value = 'list'[\s\S]*?requestPrepare\(\)/)
-    expect(cart).toContain('function yieldToMain()')
-    // 切走时暂停，避免隐藏 tab 继续占主线程
-    expect(cart).toMatch(/if \(props\.embedded && !props\.embeddedActive\) \{[\s\S]*?preparing\.value = false[\s\S]*?return/)
+
+    // 分片任务：先让出、按预算让出、切走暂停、完成才发布
+    expect(scheduler).toContain('await yieldToMain()')
+    expect(scheduler).toMatch(/if \(!isActive\(\)\) \{/)
+    expect(scheduler).toMatch(/result\.value = current\.results/)
+
+    // 导入链路只读标签缓存快照，冷启动不在主线程做 n-gram 全扫
+    expect(cart).toContain('getLearnedKeywordsSnapshot()')
+    expect(account).toContain('getLearnedKeywordsSnapshot()')
   })
 
   it('自动 bootstrap 不与其他导入的拉取并发', () => {

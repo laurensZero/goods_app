@@ -52,6 +52,30 @@ describe('createCategoryKeywordAggregator (incremental)', () => {
     expect(agg.finalize()).toEqual([])
   })
 
+  it('syncEntry + keys/removeKey 分片路径与 syncList 等价', () => {
+    const list1 = [
+      { id: 1, name: '胶片卡', category: '卡片' },
+      { id: 2, name: '胶片卡 随机', category: '卡片' },
+      { id: 3, name: '芙宁娜 徽章', category: '徽章' },
+    ]
+    const agg = createCategoryKeywordAggregator(options)
+    agg.rebuild(list1, goodsKeyOf)
+
+    const list2 = [
+      { id: 2, name: '胶片卡 随机', category: '卡片' },
+      { id: 4, name: '烫金卡', category: '卡片' },
+      { id: 5, name: '烫金卡 限定', category: '卡片' },
+      { id: 6, name: '烫金卡 限定', category: '徽章' },
+    ]
+    const presentKeys = new Set(list2.map(goodsKeyOf))
+    for (const item of list2) agg.syncEntry(goodsKeyOf(item), item)
+    for (const key of agg.keys()) {
+      if (!presentKeys.has(key)) agg.removeKey(key)
+    }
+
+    expect(agg.finalize()).toEqual(learnCategoryKeywords(list2, options))
+  })
+
   it('does not recompute unchanged items (fingerprint skip keeps identical output)', () => {
     const list = [
       { id: 1, name: '胶片卡', category: '卡片' },

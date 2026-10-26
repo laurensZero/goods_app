@@ -159,6 +159,7 @@
   "import.fetchingCart": "カートを読み取り中...",
   "import.preparingCart": "カートを整理中...",
   "import.fetchingOrders": "注文を取得中...",
+  "import.preparingOrders": "注文を整理中...",
   "import.fetchingShareData": "共有データを取得中...",
   "import.fileParseFailed": "ファイル解析失敗",
   "import.goodsCount": "{count}件",

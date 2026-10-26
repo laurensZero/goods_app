@@ -1,11 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import '@/assets/common/loading.css'
 import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { useMihoyoImportSession } from '@/composables/import/useMihoyoImportSession'
+import { useChunkedImportPreparation } from '@/composables/import/useChunkedImportPreparation'
 import { importMihoyoCartWithSession } from '@/utils/mihoyo/nativeImport'
 import { fetchCartList, cartShopToGoodsList } from '@/utils/mihoyo/index'
 import {
@@ -49,6 +50,7 @@ const rawGroups = ref([])
 const selectedSet = ref(new Set())
 const importedCount = ref(0)
 const importedTotalQty = ref(0)
+let selectionTouched = false
 
 // ── 会话门（Cookie/账号/启动/拉取流程，与订单导入共用 useMihoyoImportSession） ──
 const {
@@ -103,27 +105,8 @@ const {
 // 拉取结果到达后要做「建导入上下文 + 逐条 resolve」。原来放在 computed 里，
 // onList 阶段同步算完才切到 list，主线程会被占住几秒；用户正是在这个「还在
 // loading」的窗口里切 tab，点击排队 → 表现为卡死/像炸掉。
-// 现在改为分片：每片 ≤8ms 就让出主线程；切走时暂停，切回从断点继续。
-
-const processedGroups = ref([])
-const preparing = ref(false)
-let prepareTask = null
-let prepareToken = 0
-let prepareDone = false
-let selectionTouched = false
-
-function yieldToMain() {
-  return new Promise((resolve) => setTimeout(resolve, 0))
-}
-
-function resetPrepare() {
-  prepareToken += 1
-  prepareTask = null
-  prepareDone = false
-  preparing.value = false
-  processedGroups.value = []
-  selectionTouched = false
-}
+// 现在改用 useChunkedImportPreparation：首帧后建上下文、每 8ms 让出主线程、
+// 切走暂停、切回续算，完成时一次性发布结果。
 
 function createMihoyoImportContext() {
   return buildMihoyoImportContext({
@@ -131,8 +114,8 @@ function createMihoyoImportContext() {
     presetCharacters: presets.characters || [],
     categories: presets.categories || [],
     ips: presets.ips || [],
-    // n-gram 关键词学习走共享缓存，避免每次重算都做全量扫描
-    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywords(),
+    // n-gram 关键词学习走共享缓存；导入链路只取快照，冷启动也不在主线程全扫
+    learnedCategories: getSharedTaggingContext(presets, store).getLearnedKeywordsSnapshot(),
   })
 }
 
@@ -165,65 +148,32 @@ function buildProcessedGroup(group, context) {
   }
 }
 
-async function runPrepare() {
-  if (!prepareTask) {
-    if (!rawGroups.value.length) {
-      processedGroups.value = []
-      prepareDone = true
-      preparing.value = false
-      return
+const {
+  result: processedGroups,
+  preparing,
+  request: requestPrepare,
+  reset: resetPreparation,
+} = useChunkedImportPreparation({
+  getSources: () => rawGroups.value,
+  createContext: createMihoyoImportContext,
+  processSource: buildProcessedGroup,
+  isActive: () => !props.embedded || props.embeddedActive,
+  beforePublish(processed) {
+    // 用户在整理过程中手动改过勾选就不再覆盖
+    if (selectionTouched) return
+    const keys = []
+    for (const group of processed) {
+      for (const item of group.goods) {
+        if (isItemSelectable(item)) keys.push(item._itemKey)
+      }
     }
-    prepareTask = {
-      token: prepareToken,
-      context: createMihoyoImportContext(),
-      index: 0,
-      result: [],
-      groups: rawGroups.value,
-    }
-  }
+    selectedSet.value = new Set(keys)
+  },
+})
 
-  const task = prepareTask
-  preparing.value = true
-  // 先让出一拍：列表首帧/切 tab 点击优先，不做同步大计算
-  await yieldToMain()
-  if (task.token !== prepareToken) return
-
-  let sliceStart = performance.now()
-  while (task.index < task.groups.length) {
-    if (task.token !== prepareToken) return
-    if (props.embedded && !props.embeddedActive) {
-      // 切走了：暂停并保留已算好的部分，切回继续
-      preparing.value = false
-      return
-    }
-
-    const group = buildProcessedGroup(task.groups[task.index], task.context)
-    task.index += 1
-    if (group.goods.length > 0) task.result.push(group)
-
-    if (performance.now() - sliceStart > 8) {
-      processedGroups.value = task.result.slice()
-      await yieldToMain()
-      if (task.token !== prepareToken) return
-      sliceStart = performance.now()
-    }
-  }
-
-  processedGroups.value = task.result.slice()
-  prepareTask = null
-  prepareDone = true
-  preparing.value = false
-  // 用户在整理过程中手动改过勾选就不再覆盖
-  if (!selectionTouched) {
-    selectedSet.value = new Set(selectableGoods.value.map((item) => item._itemKey))
-  }
-}
-
-function requestPrepare() {
-  if (props.embedded && !props.embeddedActive) return
-  // 已经整理完/没有数据时不重复整表重算
-  if (!prepareTask && (prepareDone || !rawGroups.value.length)) return
-  void runPrepare()
+function resetPrepare() {
+  selectionTouched = false
+  resetPreparation()
 }
 
 watch(
@@ -231,7 +181,7 @@ watch(
   (active) => {
     if (!active) return
     // 切回该 Tab：列表已就绪但还没整理完（或整理被暂停）则继续
-    if (step.value === 'list' && !preparing.value) requestPrepare()
+    if (step.value === 'list') requestPrepare()
   },
   { immediate: true },
 )
@@ -240,13 +190,6 @@ watch(
 watch(step, (value) => {
   if (value === 'loading') resetPrepare()
 })
-
-onBeforeUnmount(() => {
-  prepareToken += 1
-  prepareTask = null
-})
-
-// ── 导入上下文与列表规整 ──
 
 const importedItemKeys = computed(() =>
   new Set(targetList.value.map((item) => buildGoodsIdentityKey(item)))
@@ -495,7 +438,7 @@ async function doImport() {
         <section v-else-if="step === 'list'" key="list" class="step-section step-section--list">
           <!-- 内嵌隐藏时跳过整棵列表渲染/重算：拉取结果在后台到达也不拖累其它 Tab -->
           <template v-if="!embedded || embeddedActive">
-          <div class="list-header">
+          <div v-if="!preparing" class="list-header">
             <p class="list-count">{{ t('import.cartCount', { shops: processedGroups.length, items: selectableGoods.length }) }}</p>
             <div class="list-header-actions">
               <button :class="['text-btn', isAllSelectableSelected && 'text-btn--active']" type="button" @click="selectAll">
@@ -507,7 +450,7 @@ async function doImport() {
             </div>
           </div>
 
-          <div v-if="preparing && processedGroups.length === 0" class="prepare-wrap">
+          <div v-if="preparing" class="prepare-wrap">
             <div class="loading-anim" :aria-label="t('common.loading')">
               <div class="loading-ring" />
             </div>

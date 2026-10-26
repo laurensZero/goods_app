@@ -159,6 +159,7 @@
   "import.fetchingCart": "正在讀取購物車...",
   "import.preparingCart": "正在整理購物車...",
   "import.fetchingOrders": "正在獲取订單...",
+  "import.preparingOrders": "正在整理訂單...",
   "import.fetchingShareData": "正在獲取分享數據...",
   "import.fileParseFailed": "文件解析失敗",
   "import.goodsCount": "{count} 件商品",

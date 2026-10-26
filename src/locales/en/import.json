@@ -159,6 +159,7 @@
   "import.fetchingCart": "Reading cart...",
   "import.preparingCart": "Preparing cart...",
   "import.fetchingOrders": "Fetching orders...",
+  "import.preparingOrders": "Preparing orders...",
   "import.fetchingShareData": "Fetching share data...",
   "import.fileParseFailed": "File parse failed",
   "import.goodsCount": "{count} items",

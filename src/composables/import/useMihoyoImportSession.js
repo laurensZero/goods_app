@@ -2,6 +2,7 @@ import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } 
 import { useI18n } from 'vue-i18n'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { canUseNativeMihoyoImport } from '@/utils/mihoyo/nativeImport'
+import { isMihoyoCookieExpiredError } from '@/utils/mihoyo/authError'
 import { stokenErrorMessage } from '@/utils/mihoyo/stokenMessages'
 
 /**
@@ -39,6 +40,8 @@ export function useMihoyoImportSession({
   // ── 步骤机：cookie → loading → (list|orders) → done ──
   const step = ref('cookie')
   const fetchRunning = ref(false)
+  /** 上次原生拉取失败/会话失效：抑制 tab 激活时的自动重拉（插件无 Cookie 会拉起登录 Activity） */
+  const nativeCookieExpired = ref(false)
   /** Cookie/账号状态是否已从本地加载完成 */
   const cookieStateReady = ref(false)
   const autoOpenedQr = ref(false)
@@ -50,6 +53,7 @@ export function useMihoyoImportSession({
     cookieValid,
     cookieWarningMessage,
     canAutoSubmitSavedCookie,
+    savedCookieInvalid,
     accounts,
     activeAccountId,
     activeAccountLabel,
@@ -207,6 +211,12 @@ export function useMihoyoImportSession({
       // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
       rememberCookie.value = true
       cookieStateReady.value = true
+      // 上次已确认失效：不要每次激活 tab 都再拉一次（插件无 Cookie 时会拉起登录 Activity，
+      // 把主应用切到后台，内存紧张时容易被系统杀掉，回来像「整个 App 重载」）
+      if (savedCookieInvalid.value || nativeCookieExpired.value) {
+        step.value = 'cookie'
+        return
+      }
       if (runningImportFetches > 0) return
       await startFetch({ silentCookieExpired: true, fromBootstrap: true })
       return
@@ -322,6 +332,8 @@ export function useMihoyoImportSession({
     if (options.fromBootstrap && runningImportFetches > 0) return
     fetchRunning.value = true
     runningImportFetches += 1
+    // 用户手动重试/重新登录时允许再走一次原生登录；自动 bootstrap 不清标记
+    if (!options.fromBootstrap) nativeCookieExpired.value = false
     step.value = 'loading'
     const { silentCookieExpired = false } = options
 
@@ -345,6 +357,7 @@ export function useMihoyoImportSession({
         if (disposed) return
         onList?.(list, meta)
         step.value = listStepName
+        nativeCookieExpired.value = false
         // 原生端导入成功后，同步 Cookie 到多账号存储
         await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
         return
@@ -358,10 +371,23 @@ export function useMihoyoImportSession({
       step.value = listStepName
     } catch (error) {
       if (disposed) return
-      // 原生分支没有 Cookie 失效握手，直接报拉取失败
+      // 原生分支：插件在 Cookie 失效时不再自动拉起登录 Activity，而是带 code 拒绝，
+      // 这里回到 Cookie 步并提示；标记失效，避免下次激活又自动重拉。
       if (canUseNativeImport) {
+        if (isMihoyoCookieExpiredError(error)) {
+          nativeCookieExpired.value = true
+          await handleCookieFailure(error)
+          if (disposed) return
+          step.value = 'cookie'
+          if (!silentCookieExpired) {
+            openErrorDialog(t('import.cookieExpired'), t('import.cookieExpiredDesc'))
+          }
+          return
+        }
         openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
         step.value = 'cookie'
+        // 失败（含用户取消登录 Activity）后不再让 tab 激活自动重拉登录页
+        nativeCookieExpired.value = true
         return
       }
 
@@ -400,6 +426,7 @@ export function useMihoyoImportSession({
     cookieValid,
     cookieWarningMessage,
     canAutoSubmitSavedCookie,
+    savedCookieInvalid,
     accounts,
     activeAccountId,
     activeAccountLabel,
