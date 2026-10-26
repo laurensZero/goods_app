@@ -43,7 +43,6 @@ const store = useGoodsStore()
 const presets = usePresetsStore()
 
 // ── State ──────────────────────────────────────────────────────
-const step = ref('cookie')        // 'cookie' | 'loading' | 'orders' | 'done'
 const loadedCount = ref(0)
 const totalCount = ref(0)
 const rawOrders = ref([])         // 原始 API 订单列表
@@ -55,8 +54,8 @@ const importedTotalQty = ref(0)
 
 // ── 会话门（Cookie/账号/启动/拉取流程，与购物车导入共用 useMihoyoImportSession） ──
 const {
+  step,
   canUseNativeImport,
-  scheduleBootstrap,
   startFetch,
   cookieInput,
   rememberCookie,

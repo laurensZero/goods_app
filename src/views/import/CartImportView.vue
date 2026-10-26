@@ -44,8 +44,7 @@ const pageTitle = computed(() => isWishlistMode.value ? t('import.cartImportWish
 const doneTargetPath = computed(() => (isWishlistMode.value ? '/wishlist' : '/home'))
 const targetList = computed(() => (isWishlistMode.value ? store.wishlistList : store.collectionList))
 
-// ── 步骤机私有状态 ──
-const step = ref('cookie')
+// ── 会话门状态 ──
 const rawGroups = ref([])
 const selectedSet = ref(new Set())
 const importedCount = ref(0)
@@ -53,8 +52,8 @@ const importedTotalQty = ref(0)
 
 // ── 会话门（Cookie/账号/启动/拉取流程，与订单导入共用 useMihoyoImportSession） ──
 const {
+  step,
   canUseNativeImport,
-  scheduleBootstrap,
   startFetch,
   cookieInput,
   rememberCookie,
@@ -108,7 +107,6 @@ watch(
       // 仅列表就绪时补做初始化；其他状态（登出/失败回退）无需全选
       if (step.value === 'list') initSelectionFromFetch()
     }
-    if (active && props.embedded) scheduleBootstrap()
   },
   { immediate: true },
 )

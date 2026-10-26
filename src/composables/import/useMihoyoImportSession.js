@@ -155,6 +155,17 @@ export function useMihoyoImportSession({
     if (!isEmbedded()) scheduleBootstrap()
   })
 
+  // 内嵌 tab：预挂载时不拉数据，宿主激活后再 bootstrap。
+  // 必须放在会话门里统一处理，否则新接入的视图很容易漏掉这个 watch
+  // （账号导入页就曾因此一直停在 cookie 步、账号列表不加载）。
+  watch(
+    () => isEmbeddedActive(),
+    (active) => {
+      if (active && isEmbedded()) scheduleBootstrap()
+    },
+    { immediate: true }
+  )
+
   async function bootstrapCookieState() {
     if (canUseNativeImport) {
       // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
@@ -269,43 +280,41 @@ export function useMihoyoImportSession({
     if (fetchRunning.value) return
     fetchRunning.value = true
     step.value = 'loading'
+    const { silentCookieExpired = false } = options
 
-    if (canUseNativeImport) {
-      // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉数据；
-      // 留空则插件按自己的流程拉起 WebView 登录。
-      if (cookieInput.value.trim()) {
-        const applied = await applyCookieToNativeSession(cookieInput.value)
-        if (!applied.applied) {
-          fetchRunning.value = false
-          step.value = 'cookie'
-          openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
-          return
+    try {
+      if (canUseNativeImport) {
+        // 安卓端粘贴了 Cookie：先写进原生会话，再让插件用这份会话拉数据；
+        // 留空则插件按自己的流程拉起 WebView 登录。
+        if (cookieInput.value.trim()) {
+          const applied = await applyCookieToNativeSession(cookieInput.value)
+          if (!applied.applied) {
+            step.value = 'cookie'
+            openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
+            return
+          }
         }
-      }
 
-      try {
         const { list, meta } = normalizeFetchResult(await fetchNative())
         onList?.(list, meta)
         step.value = listStepName
         // 原生端导入成功后，同步 Cookie 到多账号存储
         await persistNativeCookieAfterSuccess({ remember: rememberCookie.value })
-      } catch (error) {
-        openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
-        step.value = 'cookie'
-      } finally {
-        fetchRunning.value = false
+        return
       }
-      return
-    }
 
-    const { silentCookieExpired = false } = options
-
-    try {
       const { list, meta } = normalizeFetchResult(await fetchWeb(cookieInput.value.trim()))
       onList?.(list, meta)
       await persistCookieAfterSuccess()
       step.value = listStepName
     } catch (error) {
+      // 原生分支没有 Cookie 失效握手，直接报拉取失败
+      if (canUseNativeImport) {
+        openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
+        step.value = 'cookie'
+        return
+      }
+
       const cookieExpired = await handleCookieFailure(error)
       if (cookieExpired) {
         step.value = 'cookie'
@@ -318,6 +327,7 @@ export function useMihoyoImportSession({
       openErrorDialog(t(fetchFailedKey), error?.message || t('import.retryLater'))
       step.value = 'cookie'
     } finally {
+      // 任何分支（含 applyCookieToNativeSession 抛错）都必须解锁，否则按钮永久无响应
       fetchRunning.value = false
     }
   }
