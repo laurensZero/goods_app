@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useMihoyoCookieState } from '@/composables/import/useMihoyoCookieState'
 import { canUseNativeMihoyoImport } from '@/utils/mihoyo/nativeImport'
@@ -141,12 +141,25 @@ export function useMihoyoImportSession({
 
   // ── 启动：独立页面挂载即拉；内嵌预挂载等宿主激活 ──
   let didBootstrap = false
+  /**
+   * 视图已卸载：之后不再发起原生/网络拉取，也不再回调 onList。
+   * 用户常在「加载中」直接退出，若继续跑，结果会在别的页面里做整表规整
+   * （建导入上下文、全选、落盘），主线程被占住，表现为所有页面卡住划不动；
+   * 安卓端还可能把登录 Activity 拉起到已经离开的页面上。
+   */
+  let disposed = false
+  if (getCurrentInstance()) {
+    onBeforeUnmount(() => {
+      disposed = true
+    })
+  }
 
   function scheduleBootstrap() {
     if (didBootstrap) return
     didBootstrap = true
     // 先让 Tab 显示切换完成首帧绘制，再读本地状态/拉数据
     requestAnimationFrame(() => {
+      if (disposed) return
       void bootstrapCookieState()
     })
   }
@@ -158,10 +171,23 @@ export function useMihoyoImportSession({
   // 内嵌 tab：预挂载时不拉数据，宿主激活后再 bootstrap。
   // 必须放在会话门里统一处理，否则新接入的视图很容易漏掉这个 watch
   // （账号导入页就曾因此一直停在 cookie 步、账号列表不加载）。
+  // 切离时顺手关掉弹层：内嵌视图的 AppSheet 会 Teleport 到 body，
+  // 不跟着 tab 隐藏，留着会挡住整个页面（看起来像划不动）。
+  function closeSessionOverlays() {
+    showQrLogin.value = false
+    showAccountSheet.value = false
+    showErrorDialog.value = false
+  }
+
   watch(
     () => isEmbeddedActive(),
     (active) => {
-      if (active && isEmbedded()) scheduleBootstrap()
+      if (!isEmbedded()) return
+      if (active) {
+        scheduleBootstrap()
+      } else {
+        closeSessionOverlays()
+      }
     },
     { immediate: true }
   )
@@ -170,6 +196,7 @@ export function useMihoyoImportSession({
     if (canUseNativeImport) {
       // 原生会话由插件管理；本地账号列表仍要读，切号面板与「记住 Cookie」才有状态
       await initializeCookieState()
+      if (disposed) return
       // 原生登录本来就会持久化会话，默认勾选「记住」，登录后直接进账号列表
       rememberCookie.value = true
       cookieStateReady.value = true
@@ -178,6 +205,7 @@ export function useMihoyoImportSession({
     }
 
     await initializeCookieState()
+    if (disposed) return
     cookieStateReady.value = true
 
     if (!canAutoSubmitSavedCookie.value) return
@@ -277,7 +305,7 @@ export function useMihoyoImportSession({
   }
 
   const startFetch = async (options = {}) => {
-    if (fetchRunning.value) return
+    if (fetchRunning.value || disposed) return
     fetchRunning.value = true
     step.value = 'loading'
     const { silentCookieExpired = false } = options
@@ -288,6 +316,7 @@ export function useMihoyoImportSession({
         // 留空则插件按自己的流程拉起 WebView 登录。
         if (cookieInput.value.trim()) {
           const applied = await applyCookieToNativeSession(cookieInput.value)
+          if (disposed) return
           if (!applied.applied) {
             step.value = 'cookie'
             openErrorDialog(t('import.loginNewAccount'), t('import.cookieNativeUnsupported'))
@@ -295,7 +324,10 @@ export function useMihoyoImportSession({
           }
         }
 
+        // 卸载后不要再调插件：无 Cookie 时插件会拉起全屏登录 Activity
+        if (disposed) return
         const { list, meta } = normalizeFetchResult(await fetchNative())
+        if (disposed) return
         onList?.(list, meta)
         step.value = listStepName
         // 原生端导入成功后，同步 Cookie 到多账号存储
@@ -304,10 +336,13 @@ export function useMihoyoImportSession({
       }
 
       const { list, meta } = normalizeFetchResult(await fetchWeb(cookieInput.value.trim()))
+      // 结果到达时视图可能已经卸载：跳过整表规整/落盘，避免拖住当前页面
+      if (disposed) return
       onList?.(list, meta)
       await persistCookieAfterSuccess()
       step.value = listStepName
     } catch (error) {
+      if (disposed) return
       // 原生分支没有 Cookie 失效握手，直接报拉取失败
       if (canUseNativeImport) {
         openErrorDialog(t(fetchFailedKey), error?.message || t('import.confirmLoginRetry'))
@@ -316,6 +351,7 @@ export function useMihoyoImportSession({
       }
 
       const cookieExpired = await handleCookieFailure(error)
+      if (disposed) return
       if (cookieExpired) {
         step.value = 'cookie'
         if (!silentCookieExpired) {

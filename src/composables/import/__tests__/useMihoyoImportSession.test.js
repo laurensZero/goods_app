@@ -8,6 +8,8 @@ const state = vi.hoisted(() => ({
   native: false,
   applyNativeThrows: false,
   calls: { initialize: 0, native: 0, web: 0 },
+  initDeferred: null,
+  webDeferred: null,
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -31,6 +33,7 @@ vi.mock('@/composables/import/useMihoyoCookieState', async () => {
       refreshingAccountId: vueRef(''),
       initializeCookieState: async () => {
         state.calls.initialize += 1
+        if (state.initDeferred) await state.initDeferred
       },
       applySavedCookieToInput: () => {},
       applyCookieToNativeSession: async () => {
@@ -68,6 +71,8 @@ describe('useMihoyoImportSession', () => {
     state.native = false
     state.applyNativeThrows = false
     state.calls = { initialize: 0, native: 0, web: 0 }
+    state.initDeferred = null
+    state.webDeferred = null
     active = ref(false)
     onList = vi.fn()
     session = null
@@ -83,6 +88,7 @@ describe('useMihoyoImportSession', () => {
           },
           fetchWeb: async () => {
             state.calls.web += 1
+            if (state.webDeferred) await state.webDeferred
             return [{ shop_code: 'web' }]
           },
           onList,
@@ -139,5 +145,73 @@ describe('useMihoyoImportSession', () => {
     expect(state.calls.native).toBe(0)
 
     wrapper.unmount()
+  })
+
+  it('切离内嵌 tab 时关闭会话弹层（AppSheet 会 Teleport 到 body，不跟 tab 隐藏）', async () => {
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    active.value = true
+    const wrapper = mountHarness()
+
+    session.showQrLogin.value = true
+    session.showAccountSheet.value = true
+    session.showErrorDialog.value = true
+
+    active.value = false
+    await nextTick()
+
+    expect(session.showQrLogin.value).toBe(false)
+    expect(session.showAccountSheet.value).toBe(false)
+    expect(session.showErrorDialog.value).toBe(false)
+
+    rafSpy.mockRestore()
+    wrapper.unmount()
+  })
+
+  it('加载中卸载：到达的拉取结果不再回调 onList（避免在别的页面做整表规整）', async () => {
+    const wrapper = mountHarness()
+    let resolveWeb
+    state.webDeferred = new Promise((resolve) => {
+      resolveWeb = resolve
+    })
+
+    const pending = session.startFetch()
+    expect(session.step.value).toBe('loading')
+
+    wrapper.unmount()
+    resolveWeb()
+    await pending
+
+    expect(onList).not.toHaveBeenCalled()
+    expect(session.step.value).not.toBe('list')
+    expect(session.fetchRunning.value).toBe(false)
+  })
+
+  it('加载中卸载：未完成的激活 bootstrap 不再发起原生拉取', async () => {
+    state.native = true
+    active.value = true
+    const rafSpy = vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
+      cb()
+      return 1
+    })
+    let resolveInit
+    state.initDeferred = new Promise((resolve) => {
+      resolveInit = resolve
+    })
+
+    const wrapper = mountHarness()
+    expect(state.calls.initialize).toBe(1)
+
+    wrapper.unmount()
+    resolveInit()
+    await nextTick()
+    await Promise.resolve()
+
+    expect(state.calls.native).toBe(0)
+    expect(session.step.value).toBe('cookie')
+
+    rafSpy.mockRestore()
   })
 })

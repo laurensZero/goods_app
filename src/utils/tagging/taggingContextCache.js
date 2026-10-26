@@ -159,6 +159,7 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
 /**
  * 静默预热：提前把共享推导算好，避免用户首次读取时在主线程上同步重扫。
  * 默认宽松（启动级）；进入页面时传较短 timeout，让重建尽快抢在首个读取前完成。
+ * @returns {() => void} 取消尚未执行预热（页面已离开时用，避免抢占下一页面主线程）
  */
 export function warmTaggingContext(presetsStore, goodsStore, { timeout = 8000 } = {}) {
   const run = () => {
@@ -170,8 +171,15 @@ export function warmTaggingContext(presetsStore, goodsStore, { timeout = 8000 } 
     }
   }
   if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(run, { timeout })
-  } else {
-    setTimeout(run, Math.min(timeout, 300))
+    const id = requestIdleCallback(run, { timeout })
+    return () => {
+      try {
+        cancelIdleCallback(id)
+      } catch {
+        // ignore
+      }
+    }
   }
+  const id = setTimeout(run, Math.min(timeout, 300))
+  return () => clearTimeout(id)
 }

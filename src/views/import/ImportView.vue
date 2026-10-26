@@ -381,7 +381,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, defineAsyncComponent } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onBeforeUnmount, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate } from '@/utils/format'
@@ -500,6 +500,10 @@ const importTabs = computed(() => [
 // 购物车/账号是独立视图，首次切到时才挂载（避免进页就拉账号/Cookie 状态）
 const tabMounted = reactive({ search: true, link: true, cart: false, account: false })
 let tabMountRaf = 0
+// 卸载后要停掉的延迟任务：隐藏挂载、历史标签上下文预热、共享缓存空闲预热
+let unmounted = false
+let tagSeedTimer = 0
+let cancelTagWarmup = null
 watch(activeTab, (tab) => {
   if (tabMounted[tab]) return
   // 先让 Tab 切换本身完成绘制，再挂载重型子视图；同步首挂会把 button.import-tab 的 INP 拉到秒级
@@ -630,9 +634,14 @@ onMounted(() => {
   // 历史标签上下文预热再往后推，避开用户连点 Tab 的窗口。
   const preMount = async () => {
     await Promise.allSettled([cartChunkWarm, accountChunkWarm])
+    // 等 chunk 期间用户可能已经离开：不要再挂隐藏视图/排预热任务，
+    // 否则整表上下文构建会落在别的页面上，主线程被占住表现为卡死
+    if (unmounted) return
     tabMounted.cart = true
     if (!isWishlistMode.value) tabMounted.account = true
-    setTimeout(() => {
+    tagSeedTimer = setTimeout(() => {
+      tagSeedTimer = 0
+      if (unmounted) return
       try {
         seedHistoricalTagContextFromGoods()
       } catch {
@@ -642,12 +651,25 @@ onMounted(() => {
   }
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
+      if (unmounted) return
       void preMount()
     })
   })
   // 标签共享缓存只在进入本页时算（不随 App 启动算）：空闲期静默预热，
   // timeout 250 抢在首个建议读取（~300ms 防抖）前完成；期间读旧值也不会重复全扫
-  warmTaggingContext(presets, goodsStore, { timeout: 250 })
+  cancelTagWarmup = warmTaggingContext(presets, goodsStore, { timeout: 250 })
+})
+
+onBeforeUnmount(() => {
+  unmounted = true
+  cancelAnimationFrame(tabMountRaf)
+  if (tagSeedTimer) {
+    clearTimeout(tagSeedTimer)
+    tagSeedTimer = 0
+  }
+  // 离开页面就取消待执行的空闲预热，别再抢占下一个页面的主线程
+  cancelTagWarmup?.()
+  cancelTagWarmup = null
 })
 </script>
 
