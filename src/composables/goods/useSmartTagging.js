@@ -3,7 +3,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
 import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
-import staticDictionaries from '@/constants/tagging-dictionaries.json'
+import staticDictionaries from '@/constants/taggingDictionaries'
 
 export function useSmartTagging(form) {
   const presetsStore = usePresetsStore()

@@ -3,6 +3,8 @@
  * 融合静态词典映射与动态预设池进行文本分析打分
  */
 
+import { hasMerchandiseWord } from '@/utils/goods/variantText'
+
 /**
  * 清洗和文本规范化
  */
@@ -27,6 +29,18 @@ function getConfidenceRating(score) {
  * 就是主线程长任务（安卓 WebView 上尤其明显）。
  */
 const ruleRegexCache = new Map()
+
+// 学习词是否为「明确品类词」只和关键词本身有关，缓存避免每条商品重复扫品类表
+const merchandiseKeywordCache = new Map()
+
+function isMerchandiseKeyword(keyword) {
+  let cached = merchandiseKeywordCache.get(keyword)
+  if (cached === undefined) {
+    cached = hasMerchandiseWord(keyword)
+    merchandiseKeywordCache.set(keyword, cached)
+  }
+  return cached
+}
 
 function getRuleRegex(key) {
   if (ruleRegexCache.has(key)) return ruleRegexCache.get(key)
@@ -65,7 +79,9 @@ function matchRules(text, rules, dynamicKeywords, fieldWeight, source) {
       if (text.includes(lowerKeyword)) {
         matches.push({
           value,
-          score: 1.0 * fieldWeight, // 动态完全匹配基础分是1.0
+          // 明确品类词（票根/徽章…）比系列名学习词更可信：用户把「票根」都归到自建分类后，
+          // 不应被同系列的活动名/系列名学习词叠分顶掉。
+          score: (isMerchandiseKeyword(keyword) ? 1.2 : 1.0) * fieldWeight,
           reasons: [`在 ${source} 中匹配到已知项: ${keyword}`],
           decisive: false
         })

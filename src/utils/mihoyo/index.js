@@ -18,6 +18,7 @@ import { buildMihoyoHeaders, mihoyoApi, mihoyoRequest } from '@/utils/mihoyo/req
 import { parseCookiePairs } from '@/utils/mihoyo/cookie'
 import { allocateCouponByListedPrice } from '@/utils/goods/couponAllocate'
 import { createLogger } from '@/utils/logger'
+import { CATEGORY_KEYWORDS } from '@/constants/categoryDefinitions'
 
 // isMihoyoCookieExpiredError 已收敛到 authError.js（retcode 优先、文案正则兜底），此处保留导出兼容旧调用方
 export { isMihoyoCookieExpiredError } from '@/utils/mihoyo/authError'
@@ -758,22 +759,8 @@ export async function fetchCartList(cookieStr) {
  * @param {Object} order - API 返回的单个订单对象
  * @returns {Object|null}
  */
-const CATEGORY_KEYWORDS = [
-  { keywords: ['满赠', '赠品'], category: '满赠' },
-  { keywords: ['手办'], category: '手办' },
-  // 只有明确写出「立牌」才归入立牌；「亚克力挂件」应由下一条归入挂件。
-  { keywords: ['立牌'], category: '立牌' },
-  { keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], category: '挂件' },
-  { keywords: ['徽章', '马口铁', '胸章', 'Pin', 'pin'], category: '徽章' },
-  { keywords: ['明信片'], category: '明信片' },
-  { keywords: ['卡片', '胶片卡', '随机卡', '收藏卡', '可换卡', '卡组', '闪卡', '镭射卡'], category: '卡片' },
-  { keywords: ['CD', '专辑', '唱片', 'OST'], category: 'CD/专辑' },
-  { keywords: ['色纸', '签板'], category: '色纸' },
-  { keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰'], category: '服饰' },
-  { keywords: ['镭射票', '镭射'], category: '镭射票' },
-]
 
-/** 从商品名关键词推断分类 */
+/** 从商品名关键词推断分类（关键词表见 constants/categoryDefinitions.js） */
 export function parseCategoryFromName(name) {
   if (!name) return ''
   const match = CATEGORY_KEYWORDS.find(({ keywords }) => keywords.some((keyword) => name.includes(keyword)))

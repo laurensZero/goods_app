@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getTaggingSuggestions } from '../suggestTags'
-import staticDictionaries from '@/constants/tagging-dictionaries.json'
+import staticDictionaries from '@/constants/taggingDictionaries'
 
 describe('getTaggingSuggestions dynamic category matching', () => {
   it('matches a learned { keyword, value } object to the category value', () => {
@@ -56,8 +56,7 @@ describe('getTaggingSuggestions dynamic category matching', () => {
   })
 })
 
-describe('getTaggingSuggestions decisive product-type keywords', () => {
-  // 复现：华风茶语联动餐厅系列把活动名片段学成徽章，叠分顶掉明信片
+describe('getTaggingSuggestions decisive product-type keywords', () => {  // 复现：华风茶语联动餐厅系列把活动名片段学成徽章，叠分顶掉明信片
   const learnedCollabNoise = {
     categories: [
       { keyword: '华风茶语', value: '徽章' },
@@ -121,5 +120,48 @@ describe('getTaggingSuggestions decisive product-type keywords', () => {
       {}
     )
     expect(result.categorySuggestion.value).toBe('明信片')
+  })
+
+  it('recognizes 丝巾 as 服饰 even when a series keyword was learned as another category', () => {
+    const result = getTaggingSuggestions(
+      { name: '角色印象系列丝巾' },
+      staticDictionaries,
+      { categories: [{ keyword: '角色印象', value: '手办' }] }
+    )
+    expect(result.categorySuggestion.value).toBe('服饰')
+    expect(result.categorySuggestion.decisive).toBe(true)
+  })
+
+  it('learns a user-created 装饰品 category for 票根 names', () => {
+    const result = getTaggingSuggestions(
+      { name: '花绪之约系列亚克力票根' },
+      staticDictionaries,
+      {
+        categories: [
+          { keyword: '票根', value: '装饰品' },
+          { keyword: '花绪之约', value: '立牌' },
+        ],
+      }
+    )
+    // 明确品类词「票根」比系列名学习词更可信，应归到用户自建的装饰品
+    expect(result.categorySuggestion.value).toBe('装饰品')
+  })
+
+  it('produces no category for 票根 until the user teaches one', () => {
+    const result = getTaggingSuggestions(
+      { name: '花绪之约系列亚克力票根' },
+      staticDictionaries,
+      {}
+    )
+    expect(result.categorySuggestion).toBeNull()
+  })
+
+  it('still prefers an explicit decisive category on a 票根 name', () => {
+    const result = getTaggingSuggestions(
+      { name: '花绪之约系列镭射票根' },
+      staticDictionaries,
+      { categories: [{ keyword: '花绪之约', value: '立牌' }] }
+    )
+    expect(result.categorySuggestion.value).toBe('镭射票')
   })
 })

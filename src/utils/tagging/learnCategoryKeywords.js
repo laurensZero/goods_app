@@ -14,6 +14,9 @@
 
 const HAN_REGEX = /[一-鿿]/
 
+// 材质词不能当成分类关键词学习：否则「亚克力票根/亚克力摆件」会被学成「亚克力→立牌」，
+// 反过来又污染其它亚克力制品（材质≠品类）。
+const MATERIAL_GRAM_BLOCKLIST = new Set(['亚克力'])
 function normalizeKey(text) {
   return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim()
 }
@@ -105,6 +108,9 @@ export function createCategoryKeywordAggregator(options = {}) {
   /** 噪音过滤：汉字/空格/分类名/角色名片段（等价于旧的双向 includes 扫描） */
   const isBlockedGram = (gram) => {
     if (!HAN_REGEX.test(gram) || gram.includes(' ')) return true
+    for (const material of MATERIAL_GRAM_BLOCKLIST) {
+      if (gram.includes(material)) return true
+    }
     if (catNames.has(gram)) return true
     if (charNameSubstrings.has(gram)) return true
     const gramChars = Array.from(gram)

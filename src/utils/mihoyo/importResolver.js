@@ -1,6 +1,6 @@
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
 import { learnCategoryKeywords } from '@/utils/tagging/learnCategoryKeywords'
-import staticDictionaries from '@/constants/tagging-dictionaries.json'
+import staticDictionaries from '@/constants/taggingDictionaries'
 import { parseCategoryFromName } from '@/utils/mihoyo/index'
 import {
   displayVariantText,

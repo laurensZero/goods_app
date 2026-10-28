@@ -15,6 +15,14 @@ describe('learnCategoryKeywords', () => {
     expect(result).toEqual([])
   })
 
+  it('never learns material words such as 亚克力 as category keywords', () => {
+    const result = learnCategoryKeywords([
+      { name: '芙宁娜 亚克力立牌', category: '立牌' },
+      { name: '流萤 亚克力立牌', category: '立牌' },
+    ])
+    expect(result.some((item) => item.keyword.includes('亚克力'))).toBe(false)
+  })
+
   it('recommends the majority category when a keyword maps to several', () => {
     const result = learnCategoryKeywords([
       { name: '胶片卡', category: '满赠' },

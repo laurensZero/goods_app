@@ -1,3 +1,5 @@
+import { CATEGORY_TYPE_WORDS } from '@/constants/categoryDefinitions'
+
 // ── 展示用：只去【】括号和尾款，保留周年对应信息 ──
 // 例："二周年贺图款" → "二周年贺图"   "兹白【预售，5月初】" → "兹白"
 export function cleanVariantText(text) {
@@ -70,7 +72,9 @@ export function preserveGenderQualifier(cleanedText, originalText) {
 // 常见谷子类型词：出现在 SKU / 款式文案里时代表品类而非角色名。
 // 例：SKU 文本「毛巾A」→「毛巾」、「镭射闪卡」→ 都不应被当成角色。
 // importResolver 复用它把这类词加入分类黑名单（同样用于 skuCharacters 兜底路径）。
-export const MERCHANDISE_TYPE_WORDS = [
+// 固定品类的关键词从 categoryDefinitions 自动汇入，新增品类不必再改这里。
+export const MERCHANDISE_TYPE_WORDS = [...new Set([
+  ...CATEGORY_TYPE_WORDS,
   '毛巾', '抱枕', '挂布', '毯子', '眼罩', '雨伞', '雨衣',
   '水杯', '杯子', '保温杯', '马克杯', '鼠标垫', '桌垫', '杯垫', '餐垫',
   '项链', '手链', '戒指', '耳钉', '耳环', '发夹', '发绳', '发饰', '胸针',
@@ -78,10 +82,10 @@ export const MERCHANDISE_TYPE_WORDS = [
   '摆件', '手办', '玩偶', '公仔', '毛绒', '冰箱贴', '立牌', '亚克力', '色纸',
   '明信片', '拍立得', '闪卡', '卡套', '卡砖', '贴纸', '海报', '挂画', '拼图',
   '文件夹', '笔记本', '便签', '台历', '帆布袋', '手提袋', '斜挎包', '背包',
-  '口罩', '帽子', '围巾', '手套', '袜子',
+  '口罩', '帽子', '围巾', '手套', '袜子', '丝巾', '披肩', '领带', '领结', '袖套',
   // 常见盲盒 / 应援 / 卡牌类
   '盲袋', '应援', '扇子', '挂毯', '卡册', '卡包', '票根', '镭射',
-]
+])]
 
 // 系列名（不是品类词，但同样不应被当成角色）
 export const MERCHANDISE_SERIES_WORDS = [

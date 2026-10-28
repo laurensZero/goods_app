@@ -14,6 +14,55 @@ describe('mihoyo import resolver', () => {
     expect(parseCategoryFromName('流萤 亚克力立牌')).toBe('立牌')
   })
 
+  it('recognizes apparel words and does not treat 亚克力 as a category', () => {
+    expect(parseCategoryFromName('角色印象系列丝巾')).toBe('服饰')
+    expect(parseCategoryFromName('花绪之约系列亚克力票根')).toBe('')
+  })
+
+  it('lets an explicit apparel word beat a learned series keyword', () => {
+    const context = buildMihoyoImportContext({
+      categories: ['手办', '服饰'],
+      learnedCategories: [{ keyword: '角色印象', value: '手办' }],
+    })
+    const draft = resolveMihoyoImportDraft({ name: '角色印象系列丝巾' }, { context })
+    expect(draft.category).toBe('服饰')
+  })
+
+  it('does not learn 亚克力 as a category keyword (material, not a category)', () => {
+    const context = buildMihoyoImportContext({
+      goodsList: [
+        { name: '芙宁娜 亚克力立牌', category: '立牌' },
+        { name: '流萤 亚克力挂件', category: '挂件' },
+      ],
+      categories: ['立牌', '挂件', '装饰品'],
+    })
+    expect(context.learnedCategories).not.toContainEqual({ keyword: '亚克力', value: '立牌' })
+
+    const draft = resolveMihoyoImportDraft({ name: '花绪之约系列亚克力票根' }, { context })
+    expect(draft.category).toBe('')
+  })
+
+  it('learns a user-created 装饰品 category for 票根 goods', () => {
+    const context = buildMihoyoImportContext({
+      goodsList: [
+        { name: '花绪之约系列亚克力票根', category: '装饰品' },
+        { name: '花绪之约系列票根', category: '装饰品' },
+      ],
+      categories: ['立牌', '装饰品'],
+    })
+    expect(context.learnedCategories).toContainEqual({ keyword: '票根', value: '装饰品' })
+
+    const draft = resolveMihoyoImportDraft({ name: '花绪之约系列亚克力票根' }, { context })
+    expect(draft.category).toBe('装饰品')
+
+    const variantDraft = resolveMihoyoVariantDraft({
+      name: '花绪之约系列亚克力票根',
+      variant: { text: '票根' },
+      context,
+    })
+    expect(variantDraft.category).toBe('装饰品')
+  })
+
   it('selects only the first image by default while keeping all candidates', () => {
     const draft = resolveMihoyoImportDraft({
       name: '原神 角色徽章',
