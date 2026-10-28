@@ -1,5 +1,6 @@
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
 import { learnCategoryKeywords } from '@/utils/tagging/learnCategoryKeywords'
+import { createCategoryNeighborIndex } from '@/utils/tagging/categoryNeighbors'
 import staticDictionaries from '@/constants/taggingDictionaries'
 import { parseCategoryFromName } from '@/utils/mihoyo/index'
 import {
@@ -367,6 +368,13 @@ export function buildMihoyoImportContext({
     tags: new Set(),
   }
 
+  // 相似商品兜底按需构建：绝大多数导入项会被规则/学习词命中，没必要每次都建索引
+  let categoryNeighbors = null
+  context.getCategoryNeighbors = () => {
+    if (!categoryNeighbors) categoryNeighbors = createCategoryNeighborIndex(goodsList)
+    return categoryNeighbors
+  }
+
   // 先学习「名称关键词 → 分类」，学到的关键词用于角色过滤：分类词不应再当作角色。
   // 传入外部共享缓存（learnedCategories）时直接复用，避免重复全量扫描
   context.learnedCategories = Array.isArray(learnedCategories)
@@ -436,11 +444,17 @@ function getScoredSuggestion(suggestion, minScore) {
   return suggestion && suggestion.score >= minScore ? normalizeText(suggestion.value) : ''
 }
 
-function resolveCategory({ name, variant, currentCategory, taggingResult }) {
-  return normalizeText(currentCategory)
+function resolveCategory({ name, variant, currentCategory, taggingResult, context }) {
+  const ruleCategory = normalizeText(currentCategory)
     || parseCategoryFromName(variant)
     || parseCategoryFromName(name)
-    || getScoredSuggestion(taggingResult.categorySuggestion, MIN_CATEGORY_SCORE)
+  if (ruleCategory) return ruleCategory
+
+  const scored = getScoredSuggestion(taggingResult.categorySuggestion, MIN_CATEGORY_SCORE)
+  if (scored) return scored
+
+  // 规则/学习词都没命中时，用已入库商品做相似度兜底（新品类词、系列名标题）
+  return context?.getCategoryNeighbors?.()?.query(`${name} ${variant || ''}`)?.category || ''
 }
 
 function resolveIp({ currentIp, taggingResult }) {
@@ -543,6 +557,7 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     variant: variant || skuText,
     currentCategory: source?.category,
     taggingResult,
+    context,
   })
   const categoryBlocklist = getExtendedCategoryBlocklist(context, [
     source?.category,
@@ -612,6 +627,7 @@ export function resolveMihoyoVariantDraft({
     variant: variantName,
     currentCategory: '',
     taggingResult,
+    context,
   })
   const categoryBlocklist = getExtendedCategoryBlocklist(context, [
     currentCategory,

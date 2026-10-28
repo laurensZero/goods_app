@@ -63,6 +63,29 @@ describe('mihoyo import resolver', () => {
     expect(variantDraft.category).toBe('装饰品')
   })
 
+  it('falls back to the most similar stored goods for a newly seen type word', () => {
+    const context = buildMihoyoImportContext({
+      goodsList: [
+        { id: 'p1', name: '花绪之约系列亚克力票根', category: '装饰品' },
+        { id: 'p2', name: '花绪之约系列亚克力立牌', category: '立牌' },
+        { id: 'p3', name: '花绪之约系列亚克力挂件', category: '挂件' },
+      ],
+      categories: ['立牌', '挂件', '装饰品'],
+    })
+
+    // 「票根」只出现过 1 次，学习词不会学；规则里也没有「票根」。
+    // 这里靠相似商品兜底：一次人工归类就应该让下一次识别生效。
+    const draft = resolveMihoyoImportDraft({ name: '花绪之约系列亚克力票根 第二弹' }, { context })
+    expect(draft.category).toBe('装饰品')
+
+    const variantDraft = resolveMihoyoVariantDraft({
+      name: '花绪之约系列亚克力票根',
+      variant: { text: '第二弹' },
+      context,
+    })
+    expect(variantDraft.category).toBe('装饰品')
+  })
+
   it('selects only the first image by default while keeping all candidates', () => {
     const draft = resolveMihoyoImportDraft({
       name: '原神 角色徽章',

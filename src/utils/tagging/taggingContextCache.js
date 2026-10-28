@@ -1,5 +1,6 @@
 import { watch, effectScope } from 'vue'
 import { createCategoryKeywordAggregator } from './learnCategoryKeywords'
+import { createCategoryNeighborIndex } from './categoryNeighbors'
 
 /**
  * 全应用共享的「商品列表 → 标签上下文」推导缓存。
@@ -81,6 +82,8 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
     presets: presetsStore,
     derived: null,
     learned: null,
+    // 相似商品分类索引：按需构建，商品/分类重建时作废
+    categoryIndex: null,
     dirty: true,
     lastBuildAt: 0,
     refreshTimer: 0,
@@ -139,6 +142,8 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
 
     entry.building = true
     entry.dirty = false
+    // 商品/分类可能要变了，先丢掉旧的相似度索引，下次查询时重建
+    entry.categoryIndex = null
     const token = ++entry.buildToken
     const snapshot = {
       list: goodsStore?.list,
@@ -249,6 +254,7 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
     // 取消排队/进行中的分片重建，改为一次性同步算完（仅编辑器等必须同步的读取方使用）
     entry.buildToken += 1
     entry.building = false
+    entry.categoryIndex = null
     if (entry.refreshTimer) {
       clearTimeout(entry.refreshTimer)
       entry.refreshTimer = 0
@@ -318,6 +324,14 @@ export function getSharedTaggingContext(presetsStore, goodsStore) {
 
   entry.getGoodsDerived = () => read(() => entry.derived)
   entry.getLearnedKeywords = () => read(() => entry.learned)
+
+  // 相似商品分类索引：首次查询时同步构建，之后复用；重建学习词时上面已置空
+  entry.getCategoryNeighborIndex = () => {
+    if (!entry.categoryIndex) {
+      entry.categoryIndex = createCategoryNeighborIndex(goodsStore?.list || [])
+    }
+    return entry.categoryIndex
+  }
 
   /**
    * 导入链路专用：绝不同步全扫。

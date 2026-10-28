@@ -3,6 +3,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { getTaggingSuggestions } from '@/utils/tagging/suggestTags'
 import { getSharedTaggingContext } from '@/utils/tagging/taggingContextCache'
+import { buildNeighborCategorySuggestion } from '@/utils/tagging/categoryNeighbors'
 import staticDictionaries from '@/constants/taggingDictionaries'
 
 export function useSmartTagging(form) {
@@ -72,6 +73,15 @@ export function useSmartTagging(form) {
     }
 
     const result = getTaggingSuggestions({ name, note, chars }, staticDictionaries, dynamicPresets)
+
+    // 规则/学习词都没给出分类时，用相似商品兜底（新品类词、系列名标题）
+    if (!result.categorySuggestion && name) {
+      const neighborSuggestion = buildNeighborCategorySuggestion(
+        sharedTagContext.getCategoryNeighborIndex?.(),
+        name
+      )
+      if (neighborSuggestion) result.categorySuggestion = neighborSuggestion
+    }
 
     // 应用那些没有被忽略且原表单字段为空的项
     if (ignoredFields.value.category || form.category) result.categorySuggestion = null
