@@ -1,7 +1,7 @@
 <template>
   <div class="app-wrapper">
     <!-- 全局顶缘渐进模糊：壳层单例，覆盖所有页面（capture 滚动监听 + 路由切换主动求值） -->
-    <ProgressiveBlur position="top" auto :height="128" />
+    <ProgressiveBlur position="top" auto :height="128" :disabled="!themeStore.progressiveBlurEnabled" />
     <!-- key 只绑 route-stage：避免整页 remount 打断返回滑动动画 -->
     <div class="route-stage" :key="routeAliveKey">
       <RouterView v-slot="{ Component, route: currentRoute }">
@@ -54,6 +54,7 @@ import { useAppStartup } from '@/composables/useAppStartup'
 import { useGoodsStore } from '@/stores/goods'
 import { useWebUpdateStore } from '@/stores/webUpdate'
 import { useAppUpdateStore } from '@/stores/appUpdate'
+import { useThemeStore } from '@/stores/theme'
 import { useAppNotify } from '@/composables/useAppNotify'
 import { usePullDownGesture } from '@/composables/usePullDownGesture'
 import { isPullDownGestureEnabled } from '@/utils/ai/assistantPrefs'
@@ -125,6 +126,7 @@ const syncStore = useSyncStore()
 const goodsStore = useGoodsStore()
 const webUpdateStore = useWebUpdateStore()
 const appUpdateStore = useAppUpdateStore()
+const themeStore = useThemeStore()
 
 const { notifications: appNotifyList, dismiss: appNotifyDismiss, push: pushNotify, start: startAppNotify } = useAppNotify(goodsStore, syncStore, webUpdateStore, appUpdateStore)
 startAppNotify()

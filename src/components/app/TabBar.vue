@@ -1,5 +1,10 @@
 <template>
-  <ProgressiveBlur position="bottom" :active="true" height="calc(88px + env(safe-area-inset-bottom))" />
+  <ProgressiveBlur
+    position="bottom"
+    :active="true"
+    height="calc(88px + env(safe-area-inset-bottom))"
+    :disabled="!themeStore.progressiveBlurEnabled"
+  />
   <nav class="tab-bar" :aria-label="t('common.aria.nav')" :style="tabBarStyle">
     <span class="tab-bar__indicator" aria-hidden="true" />
     <button
@@ -25,6 +30,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import ProgressiveBlur from '@/components/common/ProgressiveBlur.vue'
+import { useThemeStore } from '@/stores/theme'
 
 const { t } = useI18n()
 
@@ -35,6 +41,7 @@ const COLLECTION_TAB_EVENT = 'goods-app:collection-tab-change'
 
 const route = useRoute()
 const router = useRouter()
+const themeStore = useThemeStore()
 const homeMode = ref('goods')
 const collectionTab = ref(readStoredCollectionTab())
 

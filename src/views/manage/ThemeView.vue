@@ -231,6 +231,31 @@
       <section class="content-section">
         <div class="section-head">
           <div>
+            <p class="section-label">Edge Effects</p>
+            <h2 class="section-title">{{ t('theme.edgeEffects') }}</h2>
+            <p class="section-desc">{{ t('theme.edgeEffectsDesc') }}</p>
+          </div>
+        </div>
+
+        <article class="mode-card effect-card">
+          <div class="mode-copy">
+            <p class="mode-name">{{ t('theme.progressiveBlur') }}</p>
+            <p class="mode-desc">{{ t('theme.progressiveBlurDesc') }}</p>
+          </div>
+          <label class="toggle-switch" :aria-label="t('theme.progressiveBlur')">
+            <input
+              type="checkbox"
+              :checked="themeStore.progressiveBlurEnabled"
+              @change="handleProgressiveBlurChange"
+            />
+            <span class="toggle-slider" />
+          </label>
+        </article>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
+          <div>
             <p class="section-label">Animation</p>
             <h2 class="section-title">{{ t('theme.heroAnimMode') }}</h2>
             <p class="section-desc">{{ t('theme.heroAnimDesc') }}</p>
@@ -534,6 +559,10 @@ function getPickerPreviewStyle() {
 
 function handleCustomBlurSlider(mode, event) {
   void themeStore.updateCustomEffects(mode, { blur: Number(event.target.value) })
+}
+
+function handleProgressiveBlurChange(event) {
+  void themeStore.setProgressiveBlurEnabled(event.target.checked)
 }
 
 function resetPageScrollTop() {

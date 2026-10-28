@@ -14,6 +14,7 @@ const STORAGE_KEY_THEME_ID = 'goods_theme_id'
 const STORAGE_KEY_APPEARANCE = 'goods_theme_appearance'
 const STORAGE_KEY_CUSTOM_COLORS = 'goods_custom_theme_colors'
 const STORAGE_KEY_CUSTOM_EFFECTS = 'goods_custom_theme_effects'
+const STORAGE_KEY_PROGRESSIVE_BLUR = 'goods_progressive_blur_enabled'
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
 const CUSTOM_THEME_MODES = ['light', 'dark']
 const CUSTOM_THEME_KEYS = ['bg', 'surface', 'text', 'primary']
@@ -273,6 +274,8 @@ export const useThemeStore = defineStore('theme', () => {
 
   const customColors = ref(cloneDefaultCustomColors())
   const customEffects = ref(cloneDefaultCustomEffects())
+  // 滚动边缘渐进模糊：关闭后顶缘/底缘组件彻底不渲染，省掉多步 backdrop-filter 合成开销
+  const progressiveBlurEnabled = ref(true)
 
   let mediaQueryList = null
   let removeSystemListener = null
@@ -455,12 +458,15 @@ export const useThemeStore = defineStore('theme', () => {
 
     bindSystemListener()
 
-    const [storedThemeId, storedAppearance, storedCustomColors, storedCustomEffects] = await Promise.all([
+    const [storedThemeId, storedAppearance, storedCustomColors, storedCustomEffects, storedProgressiveBlur] = await Promise.all([
       readPersisted(STORAGE_KEY_THEME_ID, THEME_IDS.mist),
       readPersisted(STORAGE_KEY_APPEARANCE, APPEARANCE_PREFERENCES.system),
       readPersisted(STORAGE_KEY_CUSTOM_COLORS, null),
-      readPersisted(STORAGE_KEY_CUSTOM_EFFECTS, null)
+      readPersisted(STORAGE_KEY_CUSTOM_EFFECTS, null),
+      readPersisted(STORAGE_KEY_PROGRESSIVE_BLUR, null)
     ])
+
+    progressiveBlurEnabled.value = storedProgressiveBlur !== 'false'
 
     if (storedCustomColors) {
       try {
@@ -502,6 +508,11 @@ export const useThemeStore = defineStore('theme', () => {
 
     applyTheme()
     await writePersisted(STORAGE_KEY_APPEARANCE, appearancePreference.value)
+  }
+
+  async function setProgressiveBlurEnabled(enabled) {
+    progressiveBlurEnabled.value = Boolean(enabled)
+    await writePersisted(STORAGE_KEY_PROGRESSIVE_BLUR, progressiveBlurEnabled.value ? 'true' : 'false')
   }
 
   async function updateCustomColors(mode, colors) {
@@ -587,6 +598,7 @@ export const useThemeStore = defineStore('theme', () => {
     themeDefinition,
     customColors,
     customEffects,
+    progressiveBlurEnabled,
     updateCustomColors,
     updateCustomEffects,
     resetCustomColors,
@@ -596,6 +608,7 @@ export const useThemeStore = defineStore('theme', () => {
     syncSystemAppearance,
     setTheme,
     setAppearancePreference,
+    setProgressiveBlurEnabled,
     teardown
   }
 })
