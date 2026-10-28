@@ -22,9 +22,17 @@ const DEFAULT_OPTIONS = {
   minTopSimilarity: 0.55,
   // 最近邻与「不同分类的第二名」差距小于该值时视为歧义，留空
   minMargin: 0.08,
+  // 要求名称末尾的品类尾词一致，避免「同系列不同品类」被系列名带跑
+  requireTailMatch: true,
 }
 
 const IGNORED_CATEGORIES = new Set(['', '其他'])
+
+// 名称末尾的通用词不提供品类信息，不能用来做「同品类」判断
+const GENERIC_TAILS = [
+  '系列', '周边', '联名', '限定', '特典', '预售', '现货',
+  '再版', '复刻', '版本', '款', '版',
+]
 
 /** 统一名称：去掉【】噪音、标点/空白和常见批次后缀，保留品类词 */
 export function normalizeNeighborName(value) {
@@ -34,6 +42,37 @@ export function normalizeNeighborName(value) {
     .replace(/[\s\p{P}\p{S}]+/gu, '')
     // 「第二弹 / 异色版 / 预售」这类批次文案不参与相似度，否则会把同一个商品判成不够像
     .replace(/(?:第[一二三四五六七八九十\d]+[弹批期版]|(?:异色|限定|特典|再|复刻|初回|通常|豪华|典藏)版|再版|复刻|预售|现货|周边)+$/g, '')
+}
+
+/**
+ * 取名称末尾的「品类尾词」：先剥掉英文/数字和通用后缀，再取最后 2 个字。
+ * 例：「花绪之约系列亚克力票根 第二弹」→「票根」；「角色立绘系列手机支架 Genshin」→「支架」。
+ * 剥完不足 2 字或只剩通用词时返回空串，表示这条名称没有可靠的品类尾词。
+ */
+export function categoryTailOf(value) {
+  let text = normalizeNeighborName(value).replace(/[a-z0-9]+$/g, '')
+  let changed = true
+  while (changed) {
+    changed = false
+    for (const word of GENERIC_TAILS) {
+      if (text.endsWith(word)) {
+        text = text.slice(0, -word.length)
+        changed = true
+      }
+    }
+    const stripped = text.replace(/[a-z0-9]+$/g, '')
+    if (stripped !== text) {
+      text = stripped
+      changed = true
+    }
+  }
+  return text.length >= 2 ? text.slice(-2) : ''
+}
+
+/** 尾词相同，或至少最后一个字相同（如「镭射收藏票」与「镭射票」） */
+function tailsCompatible(left, right) {
+  if (!left || !right) return false
+  return left === right || left.slice(-1) === right.slice(-1)
 }
 
 /** 商品名 → gram → 该 gram 最后一次出现的结束位置（用于末尾加权） */
@@ -86,6 +125,7 @@ export function createCategoryNeighborIndex(goodsList, options = {}) {
       name: String(item?.name || ''),
       category,
       length: Array.from(normalized).length,
+      tail: categoryTailOf(normalized),
       gramPositions: positions,
       norm: 1,
     }
@@ -133,6 +173,7 @@ export function createCategoryNeighborIndex(goodsList, options = {}) {
     if (positions.size === 0) return null
 
     const length = Array.from(normalized).length
+    const queryTail = categoryTailOf(normalized)
     const exclude = normalizeExcludeKeys(queryOptions.excludeKeys)
     const scores = new Map()
     let querySquared = 0
@@ -154,6 +195,7 @@ export function createCategoryNeighborIndex(goodsList, options = {}) {
 
     const ranked = []
     for (const [doc, dot] of scores) {
+      if (config.requireTailMatch && !tailsCompatible(queryTail, doc.tail)) continue
       const similarity = dot / (queryNorm * doc.norm)
       if (similarity < config.minSimilarity) continue
       ranked.push({

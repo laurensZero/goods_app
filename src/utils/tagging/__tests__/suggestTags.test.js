@@ -96,7 +96,7 @@ describe('getTaggingSuggestions decisive product-type keywords', () => {  // 复
 
   it('still uses learned keywords when no decisive product-type word appears', () => {
     const result = getTaggingSuggestions(
-      { name: '华风茶语联动餐厅 Hanser杯垫' },
+      { name: '华风茶语联动餐厅 Hanser杯套' },
       staticDictionaries,
       learnedCollabNoise
     )

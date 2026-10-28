@@ -17,10 +17,15 @@ import { CATEGORY_KEYWORDS } from '../src/constants/categoryDefinitions.js'
 
 const IGNORED_CATEGORIES = new Set(['', '其他'])
 
-function parseCategoryByRules(name) {
-  const text = String(name || '')
-  if (!text) return ''
-  return CATEGORY_KEYWORDS.find(({ keywords }) => keywords.some((keyword) => text.includes(keyword)))?.category || ''
+function parseCategoryByRules(item) {
+  // 与 resolveCategory 一致：款式/SKU 文本优先于商品名（系列名往往不含品类词）
+  const texts = [item?.variant, item?.name].map((value) => String(value || ''))
+  for (const text of texts) {
+    if (!text) continue
+    const matched = CATEGORY_KEYWORDS.find(({ keywords }) => keywords.some((keyword) => text.includes(keyword)))
+    if (matched) return matched.category
+  }
+  return ''
 }
 
 function percent(value) {
@@ -60,7 +65,7 @@ async function main() {
   let ruleMissTotal = 0
 
   for (const item of goods) {
-    const ruleCategory = parseCategoryByRules(item.name)
+    const ruleCategory = parseCategoryByRules(item)
     if (ruleCategory) {
       ruleHit += 1
       if (ruleCategory === item.category) ruleCorrect += 1
@@ -68,6 +73,7 @@ async function main() {
       ruleMissTotal += 1
     }
 
+    // 索引文档只用商品名构建，查询也用商品名；SKU 里的品类词由规则层负责
     const neighbor = index.query(item.name, { excludeKeys: [`id:${item.id}`] })
     if (neighbor) {
       knnCovered += 1

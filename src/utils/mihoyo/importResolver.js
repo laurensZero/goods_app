@@ -453,8 +453,9 @@ function resolveCategory({ name, variant, currentCategory, taggingResult, contex
   const scored = getScoredSuggestion(taggingResult.categorySuggestion, MIN_CATEGORY_SCORE)
   if (scored) return scored
 
-  // 规则/学习词都没命中时，用已入库商品做相似度兜底（新品类词、系列名标题）
-  return context?.getCategoryNeighbors?.()?.query(`${name} ${variant || ''}`)?.category || ''
+  // 规则/学习词都没命中时，用已入库商品做相似度兜底（新品类词、系列名标题）。
+  // 索引文档只用商品名构建，这里也只查商品名；款式/SKU 里的品类词已由上面的规则层处理。
+  return context?.getCategoryNeighbors?.()?.query(name)?.category || ''
 }
 
 function resolveIp({ currentIp, taggingResult }) {

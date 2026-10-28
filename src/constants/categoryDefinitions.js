@@ -19,8 +19,8 @@
 export const CATEGORY_DEFINITIONS = [
   { category: '满赠', keywords: ['满赠', '赠品'], weight: 0.8 },
   { category: '手办', keywords: ['手办', '雕像'], weight: 1.0, decisive: true },
-  { category: '立牌', keywords: ['立牌'], weight: 1.0, decisive: true },
-  { category: '挂件', keywords: ['挂件', '挂饰', '吊件', '钥匙扣'], weight: 0.8, decisive: true },
+  { category: '立牌', keywords: ['立牌', '手机支架', '收藏画'], weight: 1.0, decisive: true },
+  { category: '挂件', keywords: ['挂件', '挂饰', '吊件', '钥匙扣', '杯垫'], weight: 0.8, decisive: true },
   { category: '徽章', keywords: ['徽章', '吧唧', '马口铁', '铁口', '胸章', 'Pin', 'pin'], weight: 1.0, decisive: true },
   { category: '明信片', keywords: ['明信片'], weight: 1.0, decisive: true },
   {
@@ -33,17 +33,18 @@ export const CATEGORY_DEFINITIONS = [
   { category: '色纸', keywords: ['色纸', '签板', '签绘'], weight: 1.0, decisive: true },
   {
     category: '服饰',
-    keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰', '丝巾', '围巾', '披肩', '领带', '领结', '袖套', '帽子', '袜子', '手套', '口罩'],
+    keywords: ['上衣', 'T恤', '衬衫', '外套', '卫衣', '服饰', '丝巾', '围巾', '披肩', '领带', '领结', '袖套', '帽子', '袜子', '手套', '口罩', '手帕', '戒指'],
     weight: 1.0,
     decisive: true,
   },
-  { category: '镭射票', keywords: ['镭射票', '特典票'], weight: 1.0, decisive: true },
+  { category: '镭射票', keywords: ['镭射票', '特典票', '门票', '纪念票'], weight: 1.0, decisive: true },
 
   // 原先只存在于打分规则里的品类，追加在末尾，保持既有品类的命中优先级不变
   { category: '拍立得', keywords: ['拍立得', 'pld'], weight: 1.0, decisive: true },
   { category: '摆件', keywords: ['流沙', '麻将', '摆件'], weight: 0.7 },
-  { category: '画册', keywords: ['画集', '设定集', '画册'], weight: 1.0, decisive: true },
-  { category: '毛绒', keywords: ['毛绒', '娃娃', '公仔', '抱枕', '玩偶'], weight: 1.0, decisive: true },
+  { category: '画册', keywords: ['画集', '设定集', '画册', '纪念册'], weight: 1.0, decisive: true },
+  { category: '毛绒', keywords: ['毛绒', '娃娃', '公仔', '抱枕', '玩偶', '娃衣'], weight: 1.0, decisive: true },
+  { category: '海报', keywords: ['海报'], weight: 1.0, decisive: true },
 ]
 
 function escapeRegExp(value) {
