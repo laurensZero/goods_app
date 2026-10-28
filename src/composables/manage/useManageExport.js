@@ -21,6 +21,11 @@ import {
   readFineExportCsvTable,
   readFineExportXlsxTable
 } from '@/utils/table/fineExportImport'
+import {
+  rebaseEventExportItem,
+  rebaseGoodsExportItem,
+  rebaseRechargeExportRecord
+} from '@/utils/sync/exportImageUrls'
 
 const BACKUP_DIR = 'GoodsAppBackup'
 const BACKUP_RETENTION_COUNT = 5
@@ -784,28 +789,28 @@ export function useManageExport({ showToast, ensureEventsReady = async () => {} 
     }
 
     const goodsList = includeGoods
-      ? await sanitizeSequential(
+      ? (await sanitizeSequential(
         goodsStore.list.filter((item) => !item?.isWishlist),
         lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : []
+      )).map(rebaseGoodsExportItem) : []
     const wishlistList = includeWishlist
-      ? await sanitizeSequential(
+      ? (await sanitizeSequential(
         goodsStore.list.filter((item) => item?.isWishlist),
         lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : []
+      )).map(rebaseGoodsExportItem) : []
     const trashList = includeTrash
-      ? await sanitizeSequential(
+      ? (await sanitizeSequential(
         goodsStore.trashList,
         lightweight ? safeSanitizeGoodsItemLight : safeSanitizeGoodsItemForExport
-      ) : []
+      )).map(rebaseGoodsExportItem) : []
     const rechargeRecords = includeRecharge
-      ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: false })
+      ? rechargeStore.exportBackup({ includeDeleted: false, stripImage: false }).map(rebaseRechargeExportRecord)
       : []
     const eventsList = includeEvents
-      ? await sanitizeSequential(
+      ? (await sanitizeSequential(
         eventsStore.list.filter((event) => !event?.deleted),
         lightweight ? safeSanitizeEventLight : safeSanitizeEventForExport
-      ) : []
+      )).map(rebaseEventExportItem) : []
 
     let groupList = []
     let groupItemList = []

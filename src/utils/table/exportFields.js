@@ -3,6 +3,7 @@
 import i18n from '@/locales'
 import { buildSearchText, GOODS_FILTER_COLLECT_STATUS_OPTIONS } from '@/utils/goods/filters'
 import { getPrimaryGoodsImage } from '@/utils/goods/images'
+import { rebaseExportImageUrl } from '@/utils/sync/exportImageUrls'
 import {
   DEFAULT_CUSTOM_FIELD_SCOPES,
   isCustomFieldInScope,
@@ -68,14 +69,14 @@ export function resolveFineExportCover(item) {
   if (!primary?.uri) {
     const fallbackUri = stringValue(item?.coverImage || item?.image)
     return {
-      uri: fallbackUri,
+      uri: rebaseExportImageUrl(fallbackUri),
       localPath: images.find((entry) => stringValue(entry?.uri) === fallbackUri)?.localPath || ''
     }
   }
 
   const matched = images.find((entry) => stringValue(entry?.uri) === primary.uri)
   return {
-    uri: primary.uri,
+    uri: rebaseExportImageUrl(primary.uri),
     localPath: stringValue(primary.localPath || matched?.localPath)
   }
 }
@@ -88,13 +89,13 @@ export function collectFineExportImageUris(item) {
 
   const images = Array.isArray(item?.images) ? item.images : []
   for (const entry of images) {
-    const uri = stringValue(typeof entry === 'string' ? entry : entry?.uri)
+    const uri = rebaseExportImageUrl(stringValue(typeof entry === 'string' ? entry : entry?.uri))
     if (uri) uris.push(uri)
   }
 
   if (images.length === 0) {
     for (const value of [item?.coverImage, item?.image]) {
-      const uri = stringValue(value)
+      const uri = rebaseExportImageUrl(stringValue(value))
       if (uri) uris.push(uri)
     }
   }
