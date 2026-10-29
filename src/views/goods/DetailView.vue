@@ -1065,6 +1065,17 @@ async function markAsOwned() {
 
   const targetPath = '/home'
   syncCollectionContextForPath(targetPath)
+  // 时间线/日历等 detail-fade 入口：返回时不播 hero 动画，保持纯转场
+  if (getPendingDetailTransitionKind() === 'detail-fade') {
+    runWithRouteTransition(() => router.replace(targetPath), {
+      direction: 'back',
+      preferFallback: true,
+      detailTransitionKind: 'detail-fade'
+    })
+    clearPendingDetailTransitionKind()
+    return
+  }
+
   prepareGoodsHeroBack({
     goodsId: props.id,
     sourceEl: coverCardRef.value,

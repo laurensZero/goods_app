@@ -1853,7 +1853,7 @@ function openDetail(id) {
   const goodsId = payload.id
   saveScrollPosition(true, `home:openDetail:${goodsId}`)
   primeActivatedRestoreWindow(getStoredScrollState())
-  if (displayDensity.value === 'timeline') {
+  if (displayDensity.value === 'timeline' || displayDensity.value === 'calendar') {
     clearRouteTransitionFallback()
     runWithRouteTransition(
       () => router.push(`/detail/${goodsId}`).catch(() => {
@@ -1930,8 +1930,12 @@ function handleTimelineTap(item) {
 }
 
 function handleTimelinePopupDetail(id) {
+  // 先让弹窗播放关闭动画，再发起详情页转场，避免关闭动画被导航吃掉
   showTimelinePopup.value = false
-  openDetail(id)
+  nextTick(() => {
+    if (Date.now() - lastDetailNavigationTime < 320) return
+    openDetail(id)
+  })
 }
 
 function setDisplayDensityWithFlip(mode) {
