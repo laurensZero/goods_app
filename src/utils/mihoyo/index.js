@@ -61,7 +61,7 @@ export function getMihoyoIpByShopCode(code) {
 
 // 常出现在【】中但不属于 IP 的词缀（营销/渠道标注）
 const NOISE_TITLE_PREFIX_SET = new Set([
-  '赠品', '礼品', '礼包', '福袋', '特典', '随机', '加购', '满赠',
+  '赠品', '店铺赠品', '礼品', '礼包', '福袋', '特典', '随机', '加购', '满赠',
   '积分兑换', '积分', '兑换', '限定商品', '限定', '预售', '现货', '包邮', '周边'
 ])
 
@@ -412,7 +412,7 @@ export async function parseMihoyoUrl(url) {
       shopCode: activity.shopCode,
       raw: first.name,
       name: cleanedName,
-      ip: ip || SHOP_CODE_TO_IP[activity.shopCode] || '',
+      ip: SHOP_CODE_TO_IP[activity.shopCode] || ip || '',
       price: 0,
       image: first.cover_url || '',
       banners: [],
@@ -439,15 +439,9 @@ export async function parseMihoyoUrl(url) {
 
   const { ip: parsedIpFromTitle, name: rawName } = parseTitleIpName(detail.name)
 
-  // 若标题中未明确标注 IP，则尝试从返回的 detail/shop 字段里读取 shop_code 并反查 IP
-  let ip = parsedIpFromTitle || ''
-  if (!ip) {
-    const shopCode = String(detail?.shop_code || detail?.shop?.shop_code || json?.data?.goods?.shop_code || json?.data?.goods?.shop?.shop_code || '').trim()
-    if (shopCode) {
-      const mapped = SHOP_CODE_TO_IP[shopCode]
-      if (mapped) ip = mapped
-    }
-  }
+  // 以实际店铺为准反查 IP，标题前缀只做兜底（米游铺标题常带【店铺赠品】等非 IP 词缀）
+  const detailShopCode = String(detail?.shop_code || detail?.shop?.shop_code || json?.data?.goods?.shop_code || json?.data?.goods?.shop?.shop_code || '').trim()
+  const ip = SHOP_CODE_TO_IP[detailShopCode] || parsedIpFromTitle || ''
   // 去掉标题中的预售标注
   const name = cleanGoodsName(rawName)
 
@@ -808,6 +802,8 @@ export function cleanGoodsName(str) {
     .replace(/^(?:(?:预售|预计|现货)[^-—:：]*?(?:到仓|发货|补款|开售|现货)?\s*[-—:：]\s*)+/g, '')
     .replace(/[（(【\[]?现货[】\])）]?/g, '')
     .replace(/\s*(?:(?:第?\d+|[一二三四五六七八九十两]+)\s*(?:批|批次|期)\s*)?(?:预售|预计|现货|补款|尾款|发货|到仓|开售)(?:[^\s（）()【】\[\]]*)?$/g, '')
+    // 末尾预售日期：「菲林斯27年1月下」「立牌2027年1月下旬」「26年12月底」
+    .replace(/\s*\d{2,4}年\d{1,2}月(?:上旬|中旬|下旬|[上中下底末])?$/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
 }

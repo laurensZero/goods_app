@@ -17,7 +17,7 @@ describe('parseTitleIpName', () => {
   })
 
   it('does not treat other marketing prefixes as IP', () => {
-    for (const prefix of ['赠品', '满赠', '预售', '现货', '包邮', '周边', '限定', '福袋']) {
+    for (const prefix of ['赠品', '店铺赠品', '满赠', '预售', '现货', '包邮', '周边', '限定', '福袋']) {
       const result = parseTitleIpName(`【${prefix}】某周边`)
       expect(result.ip).toBe('')
     }
@@ -43,5 +43,17 @@ describe('cleanGoodsName + parseTitleIpName mihoyo flow', () => {
     expect(cleanGoodsName('【一批次预售】流萤立牌')).toBe('流萤立牌')
     expect(cleanGoodsName('流萤立牌【二批次预售】')).toBe('流萤立牌')
     expect(cleanGoodsName('流萤立牌一批次预售')).toBe('流萤立牌')
+  })
+
+  it('strips trailing presale date from product names', () => {
+    expect(cleanGoodsName('极光派对系列徽章菲林斯27年1月下')).toBe('极光派对系列徽章菲林斯')
+    expect(cleanGoodsName('极光派对系列徽章菲林斯2027年1月下旬')).toBe('极光派对系列徽章菲林斯')
+    expect(cleanGoodsName('流萤立牌26年12月底')).toBe('流萤立牌')
+  })
+
+  it('full flow: shop-gift title keeps name only, without IP or presale date', () => {
+    const { ip, name: rawName } = parseTitleIpName('【店铺赠品】极光派对系列徽章+亚克力摆件菲林斯27年1月下')
+    expect(ip).toBe('')
+    expect(cleanGoodsName(rawName)).toBe('极光派对系列徽章+亚克力摆件菲林斯')
   })
 })

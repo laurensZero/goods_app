@@ -1014,8 +1014,8 @@ function buildWishlistPayload(item, sku = null) {
     : null
   const priceYuan = skuPriceYuan ?? listPriceYuan
   const detail = itemDetailMap[item.goods_id]
-  // 标题没解析出 IP 时，按店铺 code 回填「规范 IP 名称」，避免落到本地化店铺简称（如「星穹铁道」）
-  const ip = parsedIp || getMihoyoIpByShopCode(item.shop_code) || shopLabel(item.shop_code)
+  // IP 按实际店铺回填优先，标题前缀只做兜底（米游铺标题常带【店铺赠品】等非 IP 词缀）
+  const ip = getMihoyoIpByShopCode(item.shop_code) || parsedIp || shopLabel(item.shop_code)
 
   const notes = []
   if (item.catalog === 'point' && item.point > 0) {
