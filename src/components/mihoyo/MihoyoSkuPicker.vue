@@ -1,8 +1,10 @@
 <!--
   MihoyoSkuPicker.vue
   米游铺多级 SKU 选择器：按 sale_attrs 维度分组展示，每个维度一行可选 chips。
+    - 多层级时：第一层固定单选（定位款式），更深层级在 multi=true 时多选（自动展开为
+      所选值的全部有效组合）；切换某层选择时清空更深层级的已选（层级间不残留、不联动）。
     - 单选（multi=false）：每个维度选一个，点同层其它项即切换；定位到唯一组合。
-    - 多选（multi=true）：维度内可多选，自动展开为所选值的全部有效组合。
+    - 单层级（无维度信息的退化列表）：保持 multi 原语义，可一次勾多个款式。
     - layout="card"：有图的层级按「大图卡片」展示（对齐旧版款式卡片）；无图层级仍是 chips。
     - 多个层级时，第一级只用文字（地区等限定维度图片无意义），其余层级才展示图片。
   v-model 统一为「选中的 variant key 数组」。
@@ -24,7 +26,7 @@
           type="button"
           class="mh-sku-card"
           :class="{ 'mh-sku-card--selected': isChosen(level, item) }"
-          @click="onToggle(level, item)"
+          @click="onToggle(level, item, position)"
         >
           <span class="mh-sku-card__img-wrap">
             <img
@@ -58,7 +60,7 @@
           type="button"
           class="mh-sku-opt"
           :class="{ 'mh-sku-opt--selected': isChosen(level, item) }"
-          @click="onToggle(level, item)"
+          @click="onToggle(level, item, position)"
         >
           <span v-if="levelShowsImage(position) && coverOf(item)" class="mh-sku-opt__thumb">
             <img :src="coverOf(item)" :alt="item.text" loading="lazy" decoding="async" />
@@ -86,7 +88,7 @@ import {
   resolveSelectedVariantsFromEntries,
   selectionFromVariantKeys,
   isSelectableGroup,
-  toggleSelection,
+  toggleLevelSelection,
   variantItemKeys,
   sameKeySet,
   entryMatchesSelection,
@@ -168,6 +170,13 @@ function levelShowsImage(position) {
   return levels.value.length <= 1 || position > 0
 }
 
+// 层级选择模式：多层级时第一层固定单选（定位款式），更深层按 multi 决定单/多选；
+// 单层级（退化扁平列表）保持 multi 原语义（可一次勾多个款式）
+function levelIsMulti(position) {
+  if (levels.value.length <= 1) return props.multi
+  return props.multi && position > 0
+}
+
 function isChosen(level, item) {
   return (selection.value[level.index] || []).includes(item.key)
 }
@@ -228,8 +237,14 @@ function isOwned(item) {
   return ownedSet.value.has(item.key)
 }
 
-function onToggle(level, item) {
-  selection.value = toggleSelection(selection.value, level.index, item.key, props.multi)
+function onToggle(level, item, position) {
+  selection.value = toggleLevelSelection(
+    levels.value,
+    selection.value,
+    level.index,
+    item.key,
+    levelIsMulti(position),
+  )
   emit('update:modelValue', resolvedKeys.value)
   emit('change', resolvedVariants.value)
 }

@@ -87,15 +87,14 @@ function variantMatches(variantKeys, levels, selection) {
 
 /**
  * 由 selection 解析出选中的 variant 列表：
- *   - 单选场景：必须每个层级都选满，才返回唯一组合；否则返回 []。
- *   - 多选场景：某个层级未选 = 不约束该维度（自动展开为所选值的全部有效组合）；
- *     所有层级都未选时返回 []。
+ *   - 必须每个层级都有选择才返回组合（单选返回唯一组合，多选按所选值展开为多个组合）；
+ *     某层级没选 = 「还没选完」，不自动展开为该层全部值（层级间不联动）。
  */
 export function resolveSelectedVariants(variants, levels, selection, multi) {
   const list = Array.isArray(variants) ? variants : []
   if (!levels.length) return []
   if (!hasAnySelection(levels, selection)) return []
-  if (!multi && !hasFullSelection(levels, selection)) return []
+  if (!hasFullSelection(levels, selection)) return []
 
   return list.filter((variant) => variantMatches(variantKeySet(variant), levels, selection))
 }
@@ -132,6 +131,23 @@ export function toggleSelection(selection, levelIndex, itemKey, multi) {
       : [...current, itemKey]
   } else {
     next[levelIndex] = current.includes(itemKey) ? [] : [itemKey]
+  }
+  return next
+}
+
+/**
+ * 点击维度项（带层级级联）：在 toggleSelection 基础上，
+ * 清空展示顺序里更深层级的已选项 —— 上级切换后，下级必须在新的上下文里重选，
+ * 不允许跨层级残留（例：第二层已勾两项，第一层切到另一个值 → 这两项清空）。
+ * @param {Array} levels buildPickerLevels 的层级列表（顺序即展示顺序）
+ */
+export function toggleLevelSelection(levels, selection, levelIndex, itemKey, multi) {
+  const next = toggleSelection(selection, levelIndex, itemKey, multi)
+  const position = levels.findIndex((level) => level.index === levelIndex)
+  if (position >= 0) {
+    for (let i = position + 1; i < levels.length; i++) {
+      next[levels[i].index] = []
+    }
   }
   return next
 }
@@ -190,7 +206,8 @@ export function buildAvailabilityMap(entries, itemLevelIndex, levels, selection)
 export function resolveSelectedVariantsFromEntries(entries, levels, selection, multi) {
   if (!levels.length) return []
   if (!hasAnySelection(levels, selection)) return []
-  if (!multi && !hasFullSelection(levels, selection)) return []
+  // 与 resolveSelectedVariants 同口径：层级选满才出组合，未选层级不自动展开
+  if (!hasFullSelection(levels, selection)) return []
   return entries
     .filter((entry) => entryMatchesSelection(entry, levels, selection))
     .map((entry) => entry.variant)

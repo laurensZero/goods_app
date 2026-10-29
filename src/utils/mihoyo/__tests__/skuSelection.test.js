@@ -11,6 +11,7 @@ import {
   resolveSelectedVariantsFromEntries,
   isLevelValueAvailable,
   toggleSelection,
+  toggleLevelSelection,
   sameKeySet,
   buildVariantEntries,
   buildAvailabilityMap,
@@ -101,7 +102,7 @@ describe('mihoyo skuSelection', () => {
     expect(picked.map((v) => v.key)).toEqual(['a1_b2_c1'])
   })
 
-  it('多选：维度内多选自动展开为全部有效组合；未选层级不约束', () => {
+  it('多选：各层级都选满时按所选值展开为全部有效组合', () => {
     const levels = buildPickerLevels(TWO_LEVEL_GROUPS)
     const both = resolveSelectedVariants(
       TWO_LEVEL_VARIANTS,
@@ -111,8 +112,39 @@ describe('mihoyo skuSelection', () => {
     )
     expect(both.map((v) => v.key).sort()).toEqual(['a1_b1_c1', 'a2_b1_c1'])
 
-    const unconstrained = resolveSelectedVariants(TWO_LEVEL_VARIANTS, levels, { 1: ['b1'] }, true)
-    expect(unconstrained.map((v) => v.key).sort()).toEqual(['a1_b1_c1', 'a2_b1_c1'])
+    const expanded = resolveSelectedVariants(
+      TWO_LEVEL_VARIANTS,
+      levels,
+      { 0: ['a1'], 1: ['b1', 'b2'] },
+      true,
+    )
+    expect(expanded.map((v) => v.key).sort()).toEqual(['a1_b1_c1', 'a1_b2_c1'])
+  })
+
+  it('多选：层级未选满 = 还没选完，不自动展开为该层全部值（层级间不联动）', () => {
+    const levels = buildPickerLevels(TWO_LEVEL_GROUPS)
+    // 只选了第二层：不解析
+    expect(resolveSelectedVariants(TWO_LEVEL_VARIANTS, levels, { 1: ['b1'] }, true)).toEqual([])
+    // 选了第一层但第二层被清空：不解析
+    expect(resolveSelectedVariants(TWO_LEVEL_VARIANTS, levels, { 0: ['a2'], 1: [] }, true)).toEqual([])
+  })
+
+  it('toggleLevelSelection：切换上级时清空更深层级的已选', () => {
+    const levels = buildPickerLevels(TWO_LEVEL_GROUPS)
+    // 单选：第二层已选，第一层从 a1 切到 a2 → 第二层清空
+    const next = toggleLevelSelection(levels, { 0: ['a1'], 1: ['b1', 'b2'] }, 0, 'a2', false)
+    expect(next[0]).toEqual(['a2'])
+    expect(next[1]).toEqual([])
+
+    // 多选（仅单层级场景使用）：末层内追加不影响自己
+    const added = toggleLevelSelection(levels, { 0: ['a1'], 1: ['b1'] }, 1, 'b2', true)
+    expect(added[0]).toEqual(['a1'])
+    expect(added[1]).toEqual(['b1', 'b2'])
+
+    // 下级选择不影响上级
+    const step3 = toggleLevelSelection(levels, { 0: ['a1'], 1: ['b1'] }, 1, 'b2', false)
+    expect(step3[0]).toEqual(['a1'])
+    expect(step3[1]).toEqual(['b2'])
   })
 
   it('hasAnySelection / hasFullSelection', () => {
