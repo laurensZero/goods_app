@@ -69,7 +69,7 @@
         <button
           v-if="showTimelineToggle"
           type="button"
-          :class="['timeline-toggle', { 'timeline-toggle--active': displayDensity === 'timeline', 'timeline-toggle--animating': timelinePulsing }]"
+          :class="['timeline-toggle', { 'timeline-toggle--active': isTimelineFamily, 'timeline-toggle--animating': timelinePulsing }]"
           :aria-label="t('home.toolbar.timelineAria')"
           @click="handleTimelineClick"
         >
@@ -83,7 +83,7 @@
       </div>
 
       <div
-        v-if="displayDensity !== 'timeline'"
+        v-if="!isTimelineFamily"
         class="density-switch"
         :style="densitySwitchStyle"
         :aria-label="t('home.toolbar.densityAria')"
@@ -97,6 +97,24 @@
           @click="$emit('set-density', mode.value)"
         >
           {{ mode.label }}
+        </button>
+      </div>
+
+      <div
+        v-else
+        class="density-switch view-family-switch"
+        :style="familySwitchStyle"
+        :aria-label="t('home.toolbar.viewFamilyAria')"
+      >
+        <span class="density-switch__indicator" aria-hidden="true" />
+        <button
+          v-for="option in familySwitchOptions"
+          :key="option.value"
+          type="button"
+          :class="['density-switch__option', { 'density-switch__option--active': displayDensity === option.value }]"
+          @click="$emit('set-timeline-family-mode', option.value)"
+        >
+          {{ option.label }}
         </button>
       </div>
     </div>
@@ -286,7 +304,7 @@ const props = defineProps({
   hiddenStatusOptions: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-sort-mode', 'set-group-display-mode', 'toggle-hidden-status', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
+const emit = defineEmits(['toggle-sort', 'toggle-timeline', 'set-density', 'set-timeline-family-mode', 'set-sort-mode', 'set-group-display-mode', 'toggle-hidden-status', 'open-daily-rec', 'open-arrivals', 'regenerate-custom-sort', 'reverse-custom-sort'])
 
 const showSortSheet = ref(false)
 const showRegenerateSheet = ref(false)
@@ -377,6 +395,17 @@ const activeDensityIndex = computed(() => {
 const densitySwitchStyle = computed(() => ({
   '--density-switch-count': densityModeCount.value,
   '--density-switch-index': activeDensityIndex.value
+}))
+
+// 时间线 / 日历 两档分段控件（时间线家族模式下替换密度切换）
+const isTimelineFamily = computed(() => props.displayDensity === 'timeline' || props.displayDensity === 'calendar')
+const familySwitchOptions = computed(() => [
+  { value: 'timeline', label: t('home.toolbar.timelineView') },
+  { value: 'calendar', label: t('home.calendar.title') }
+])
+const familySwitchStyle = computed(() => ({
+  '--density-switch-count': familySwitchOptions.value.length,
+  '--density-switch-index': familySwitchOptions.value.findIndex((option) => option.value === props.displayDensity)
 }))
 
 function clearSortLongPressTimer() {

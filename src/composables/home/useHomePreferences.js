@@ -22,6 +22,13 @@ export const GROUP_DISPLAY_MODES = {
   hidden: 'hidden'
 }
 
+// 时间线家族模式：日历是时间线的升级视图，二者共享进入/退出逻辑
+export const TIMELINE_FAMILY_MODES = new Set(['timeline', 'calendar'])
+
+function isTimelineFamilyMode(mode) {
+  return TIMELINE_FAMILY_MODES.has(mode)
+}
+
 const DEFAULT_DENSITY_MODES = [
   { value: 'comfortable', label: '舒适', columns: 2 },
   { value: 'standard', label: '标准', columns: 3 },
@@ -109,7 +116,7 @@ export function useHomePreferences(windowWidth, options = {}) {
 
   function toggleTimelineMode() {
     if (!allowTimeline) return
-    if (displayDensity.value === 'timeline') {
+    if (isTimelineFamilyMode(displayDensity.value)) {
       displayDensity.value = densityColumnsMap[lastNonTimelineDensity] ? lastNonTimelineDensity : 'comfortable'
       return
     }
@@ -118,6 +125,15 @@ export function useHomePreferences(windowWidth, options = {}) {
       lastNonTimelineDensity = displayDensity.value
     }
     displayDensity.value = 'timeline'
+  }
+
+  function setTimelineFamilyMode(mode) {
+    if (!allowTimeline || !isTimelineFamilyMode(mode) || displayDensity.value === mode) return
+
+    if (!isTimelineFamilyMode(displayDensity.value) && densityColumnsMap[displayDensity.value]) {
+      lastNonTimelineDensity = displayDensity.value
+    }
+    displayDensity.value = mode
   }
 
   function triggerSortAnimation() {
@@ -157,12 +173,12 @@ export function useHomePreferences(windowWidth, options = {}) {
 
   function restoreDisplayDensity() {
     const storedDisplayMode = localStorage.getItem(displayModeStorageKey)
-    if (allowTimeline && storedDisplayMode === 'timeline') {
+    if (allowTimeline && isTimelineFamilyMode(storedDisplayMode)) {
       const storedGridDensity = localStorage.getItem(storageKeys.gridDensity)
       if (storedGridDensity && DEFAULT_DENSITY_MODES.find((mode) => mode.value === storedGridDensity)) {
         lastNonTimelineDensity = storedGridDensity
       }
-      displayDensity.value = 'timeline'
+      displayDensity.value = storedDisplayMode
       return
     }
 
@@ -214,7 +230,7 @@ export function useHomePreferences(windowWidth, options = {}) {
 
   watch(displayDensity, (value) => {
     localStorage.setItem(displayModeStorageKey, value)
-    if (value === 'timeline') return
+    if (isTimelineFamilyMode(value)) return
     lastNonTimelineDensity = value
     localStorage.setItem(storageKeys.gridDensity, value)
   })
@@ -256,6 +272,7 @@ export function useHomePreferences(windowWidth, options = {}) {
     getResponsiveCols,
     setDisplayDensity,
     toggleTimelineMode,
+    setTimelineFamilyMode,
     toggleSortDirection,
     triggerSortAnimation,
     setSortMode,

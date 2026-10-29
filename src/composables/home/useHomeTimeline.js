@@ -18,7 +18,7 @@ function getLatestTimelineDateTimestamp(list) {
   return list.reduce((latest, value) => Math.max(latest, parseTimelineDateTimestamp(value)), 0)
 }
 
-function getTimelineSourceDates(item) {
+export function getTimelineSourceDates(item) {
   const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
   const acquiredAt = normalizeTimelineDate(item?.acquiredAt)
   const explicitDates = Array.isArray(item?.unitAcquiredAtList)

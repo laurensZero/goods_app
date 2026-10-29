@@ -82,6 +82,7 @@
         @regenerate-custom-sort="onRegenerateCustomSort"
         @reverse-custom-sort="reverseCustomSortOrder"
         @toggle-timeline="toggleTimelineMode"
+        @set-timeline-family-mode="setTimelineFamilyMode"
         @set-density="setDisplayDensityWithFlip"
         @set-group-display-mode="setGroupDisplayMode"
       />
@@ -90,7 +91,7 @@
         <GoodsListSkeleton v-if="!store.isReady" key="skeleton" />
 
         <GoodsCardGridSection
-          v-else-if="displayList.length > 0 && displayDensity !== 'timeline'"
+          v-else-if="displayList.length > 0 && displayDensity !== 'timeline' && displayDensity !== 'calendar'"
           key="grid"
           ref="goodsGridSectionRef"
           :items="visibleDisplayList"
@@ -116,6 +117,17 @@
           @open-detail="openDetail"
           @open-group="openGroupDetail"
         />
+
+        <section
+          v-else-if="displayDensity === 'calendar'"
+          key="calendar"
+          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+        >
+          <HomeCalendarView
+            :day-data="calendarDayData"
+            @tap-item="handleTimelineTap"
+          />
+        </section>
 
         <section
           v-else-if="goodsList.length > 0"
@@ -330,6 +342,7 @@ import { useGoodsSortable, GOODS_SORTABLE_CSS } from '@/composables/goods/useGoo
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
 import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
 import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
+import { useHomeCalendar } from '@/composables/home/useHomeCalendar'
 import { useHomeGoodsList } from '@/composables/home/useHomeGoodsList'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
@@ -367,6 +380,7 @@ import GroupFolderSheet from '@/components/goods/GroupFolderSheet.vue'
 import ShareSheet from '@/components/goods/ShareSheet.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeTimelineSection from '@/components/home/HomeTimelineSection.vue'
+import HomeCalendarView from '@/components/home/HomeCalendarView.vue'
 import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import HomeViewModeSwitch from '@/components/home/HomeViewModeSwitch.vue'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -548,6 +562,7 @@ const {
   getResponsiveCols,
   setDisplayDensity,
   toggleTimelineMode,
+  setTimelineFamilyMode,
   toggleSortDirection,
   triggerSortAnimation,
   setSortMode,
@@ -614,7 +629,7 @@ function handleResetFilters() {
 const translatedSortOptions = computed(() => createHomeSortOptions(t))
 const timelineSortOptions = computed(() => translatedSortOptions.value.filter((option) => option.value === 'acquiredAt'))
 const toolbarSortOptions = computed(() => (
-  displayDensity.value === 'timeline'
+  (displayDensity.value === 'timeline' || displayDensity.value === 'calendar')
     ? (timelineSortOptions.value.length ? timelineSortOptions.value : translatedSortOptions.value)
     : translatedSortOptions.value
 ))
@@ -1734,6 +1749,8 @@ const {
   getInitialVisibleTimelineMonths,
   offsetOfMonth: timelineMetrics.offsetOfMonth
 })
+// 吃谷日历：按日聚合花费（数据口径与时间线一致，跟随当前筛选/分组）
+const { calendarDayData } = useHomeCalendar({ displayList, displayDensity })
 const goodsGridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${getResponsiveCols(displayDensity.value)}, minmax(0, 1fr))`
 }))
