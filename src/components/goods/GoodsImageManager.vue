@@ -50,6 +50,16 @@
     <div v-if="images.length > 0" class="image-manager__gallery">
       <div class="image-manager__gallery-head">
         <p class="image-manager__section-hint">{{ t('goods.image.switchHint') }}</p>
+        <div class="image-manager__gallery-actions">
+          <button
+            v-if="goodsId && itemId && mihoyoFeaturesStore.enabled"
+            type="button"
+            class="image-manager__refresh-btn"
+            :disabled="isSyncingMihoyoImages"
+            @click="syncMihoyoImages"
+          >
+            {{ isSyncingMihoyoImages ? t('goods.image.syncingMihoyo') : t('goods.image.syncMihoyo') }}
+          </button>
         <button
           type="button"
           class="image-manager__refresh-btn"
@@ -59,6 +69,7 @@
         >
           {{ isRefreshingImages ? t('goods.image.refreshing') : t('goods.image.refresh') }}
         </button>
+        </div>
       </div>
 
       <div class="image-manager__thumb-strip">
@@ -193,6 +204,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import { useToast } from '@/composables/useToast'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { pickLinkedLocalImage, readLocalImageAsDataUrl, saveLocalImage, deleteManagedLocalImages } from '@/utils/image/localImage'
 import {
   forgetImageEditState,
@@ -201,18 +213,22 @@ import {
 } from '@/utils/image/imageEdit'
 import { invalidateCachedImage, signalImageCacheRefresh } from '@/utils/image/cache'
 import { trackEditorSessionLocalImage } from '@/composables/goods/useGoodsEditorForm'
+import { refreshGoodsDetail } from '@/utils/mihoyo'
 
 const { t } = useI18n()
 
 const props = defineProps({
   modelValue: { type: Array, default: () => [] },
   hint: { type: String, default: '' },
-  goodsId: { type: String, default: '' }
+  goodsId: { type: String, default: '' },
+  itemId: { type: String, default: '' }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const { toastMsg, showToast } = useToast()
+const goodsStore = useGoodsStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 
 const remotePickerRef = ref(null)
 const draftRemoteUrl = ref('')
@@ -224,6 +240,7 @@ let pickingLocalLock = false
 let lastLocalPickerFinishedAt = 0
 const isPreparingEdit = ref(false)
 const isRefreshingImages = ref(false)
+const isSyncingMihoyoImages = ref(false)
 const galleryRefreshKey = ref(0)
 const activeImageId = ref('')
 const showQuickEditor = ref(false)
@@ -654,6 +671,92 @@ async function refreshImages() {
   }
 }
 
+function normalizeSkuMatchText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[\s\-‐‑‒–—_/·•,，。.!！?？:：;；()[\]{}「」『』【】《》〈〉]/g, '')
+}
+
+function getSkuMatchHints(item) {
+  const values = [...(item?.characters || [])]
+  const variant = String(item?.variant || '').trim()
+  if (variant) values.push(...variant.split(/[\/／|｜,，、]/))
+  return [...new Set(values.map(normalizeSkuMatchText).filter((value) => value.length >= 2))]
+}
+
+async function syncMihoyoImages() {
+  if (isSyncingMihoyoImages.value || !props.goodsId || !props.itemId || !mihoyoFeaturesStore.enabled) return
+  isSyncingMihoyoImages.value = true
+  try {
+    const result = await refreshGoodsDetail(props.goodsId)
+    if (!result?.ok) throw new Error('mihoyo detail unavailable')
+    const item = goodsStore.getById(props.itemId)
+    if (!item) throw new Error('goods item unavailable')
+    const latestVariants = result.skuVariants || []
+    const itemHints = getSkuMatchHints(item)
+    const matchedVariant = latestVariants.find((variant) => {
+      const skuText = normalizeSkuMatchText(variant.text)
+      return skuText && itemHints.some((hint) => skuText.includes(hint) || hint.includes(skuText))
+    })
+    const latestPrimary = matchedVariant
+      ? (result.skuCovers?.[matchedVariant.key] || matchedVariant.cover_url || matchedVariant.img_url || '')
+      : ''
+    // 谷子对应一个 SKU：只替换该 SKU 的封面，不把米游铺商品轮播详情图导入图库。
+    const uniqueLatest = [...new Set([latestPrimary].filter(Boolean))]
+    if (!uniqueLatest.length) throw new Error('mihoyo images unavailable')
+
+    const current = images.value
+    const matchingOldImage = itemHints.length
+      ? current.find((image) => {
+          const label = normalizeSkuMatchText(image.label)
+          return label && itemHints.some((hint) => label.includes(hint) || hint.includes(label))
+        })
+      : null
+    const replaceableOldImage = matchingOldImage || (itemHints.length === 0 && current.length === 1 ? current[0] : null)
+    const preservePrimary = current.find((image) => image.isPrimary)
+    let nextImages = current.filter((image) => !uniqueLatest.includes(image.uri))
+    if (replaceableOldImage && !uniqueLatest.includes(replaceableOldImage.uri)) {
+      nextImages = nextImages.filter((image) => image.id !== replaceableOldImage.id)
+    }
+    const primarySource = replaceableOldImage || preservePrimary
+    const additions = uniqueLatest.map((uri, index) => ({
+      ...(index === 0 && primarySource ? {
+        ...primarySource,
+        edit: undefined,
+        editSourceUri: '',
+        editSourceCloudFileName: '',
+      } : {}),
+      id: index === 0 && primarySource ? primarySource.id : createGoodsImageId(),
+      uri,
+      kind: index === 0 && (primarySource || !preservePrimary) ? 'primary' : 'detail',
+      label: index === 0 ? (primarySource?.label || '') : '',
+      storageMode: 'remote',
+      localPath: '',
+      cloudFileName: '',
+      mimeType: '',
+      fileSize: 0,
+      isPrimary: index === 0 && (primarySource || !preservePrimary)
+    }))
+    if (preservePrimary && !primarySource) {
+      nextImages = nextImages.map((image) => image.id === preservePrimary.id
+        ? { ...image, isPrimary: true, kind: 'primary' }
+        : { ...image, isPrimary: false, kind: image.kind === 'primary' ? 'custom' : image.kind })
+    }
+    const normalized = normalizeGoodsImageList([...additions, ...nextImages])
+    emit('update:modelValue', normalized)
+    await goodsStore.updateGoods(props.itemId, { images: normalized })
+    await Promise.all(uniqueLatest.map((uri) => invalidateCachedImage(uri, { deletePersistent: true })))
+    signalImageCacheRefresh('force')
+    galleryRefreshKey.value += 1
+    showToast(t('goods.image.syncMihoyoDone', { count: uniqueLatest.length }))
+  } catch (error) {
+    console.error('[image-manager] 米游铺图片同步失败', error)
+    showToast(t('goods.image.syncMihoyoFailed'))
+  } finally {
+    isSyncingMihoyoImages.value = false
+  }
+}
+
 function removeImage(targetId) {
   const nextImages = images.value.filter((image) => image.id !== targetId)
   // 图片没了，它的二次编辑配方与底图文件也没有意义了
@@ -748,6 +851,13 @@ function getSourceLabel(storageMode) {
   gap: 12px;
 }
 
+.image-manager__gallery-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .image-manager__subtext,
 .image-manager__section-hint,
 .image-manager__empty-desc {
@@ -766,6 +876,7 @@ function getSourceLabel(storageMode) {
   color: var(--app-text-secondary);
   font-size: var(--font-small);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .image-manager__refresh-btn:disabled {

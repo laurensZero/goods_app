@@ -612,6 +612,19 @@ export async function fetchGoodsDetail(goodsId) {
   return cloneGoodsDetailResult(await promise)
 }
 
+/** 强制重新请求米游铺商品详情，忽略本会话的商品详情缓存。 */
+export async function refreshGoodsDetail(goodsId) {
+  const id = String(goodsId || '').trim()
+  if (!id) {
+    return { mainImages: [], skuCovers: {}, skuPrices: {}, skuVariants: [], skuGroups: [], coverUrl: '', ok: false }
+  }
+  goodsDetailCache.delete(id)
+  goodsDetailInflight.delete(id)
+  const result = await requestGoodsDetailOnce(id)
+  if (result?.ok) goodsDetailCache.set(id, result)
+  return cloneGoodsDetailResult(result)
+}
+
 /**
  * 获取指定商品的所有 SKU 变体（含角色封面图）
  * @param {string} goodsId
