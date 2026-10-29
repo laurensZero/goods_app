@@ -121,7 +121,7 @@
         <section
           v-else-if="displayDensity === 'calendar'"
           key="calendar"
-          :class="['goods-section', 'goods-view-pane', { 'goods-view-pane--sorting': isSortAnimating }]"
+          class="goods-section goods-view-pane"
         >
           <HomeCalendarView
             :day-data="calendarDayData"

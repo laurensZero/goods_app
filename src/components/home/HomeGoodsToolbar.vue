@@ -35,6 +35,7 @@
         </button>
 
         <button
+          v-if="displayDensity !== 'calendar'"
           type="button"
           :class="[
             'sort-toggle',

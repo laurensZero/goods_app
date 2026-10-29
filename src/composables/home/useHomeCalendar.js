@@ -69,6 +69,11 @@ export function buildCalendarDayData(goodsList) {
     }
   }
 
+  // 日内条目按 id 固定排序：首页排序方式变化不该让同一天的缩略图重挂载抖动
+  for (const dayData of dayMap.values()) {
+    dayData.items.sort((a, b) => String(a.item.id).localeCompare(String(b.item.id)))
+  }
+
   return dayMap
 }
 
