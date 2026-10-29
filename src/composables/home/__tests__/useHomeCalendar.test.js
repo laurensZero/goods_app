@@ -49,6 +49,24 @@ describe('buildCalendarDayData', () => {
     expect(dayData.get('2026-10-02').items[0].isExcluded).toBe(false)
   })
 
+  it('records zero-spend days that still have goods (exited copies)', () => {
+    const goodsList = [
+      {
+        id: 'a',
+        quantity: 1,
+        acquiredAt: '2026-10-01',
+        actualPrice: '50',
+        collectStatus: '已出'
+      }
+    ]
+
+    const dayData = buildCalendarDayData(goodsList)
+
+    expect(dayData.get('2026-10-01').total).toBe(0)
+    expect(dayData.get('2026-10-01').items).toHaveLength(1)
+    expect(dayData.get('2026-10-01').items[0].isExcluded).toBe(true)
+  })
+
   it('skips wishlist items and items without any acquired date', () => {
     const goodsList = [
       { id: 'wish', isWishlist: true, quantity: 1, acquiredAt: '2026-10-01', actualPrice: '10' },

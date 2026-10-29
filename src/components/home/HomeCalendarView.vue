@@ -64,8 +64,9 @@
               :aria-label="cellAriaLabel(cell)"
               @click="selectDate(cell.dateKey)"
             >
-              <span class="cal-cell-day">{{ cell.day }}</span>
-              <span v-if="cell.total > 0" class="cal-cell-amount">{{ formatCompactAmount(cell.total) }}</span>
+          <span class="cal-cell-day">{{ cell.day }}</span>
+          <span v-if="cell.total > 0" class="cal-cell-amount">{{ formatCompactAmount(cell.total) }}</span>
+          <span v-else-if="cell.hasGoods" class="cal-cell-zero-dot" aria-hidden="true" />
             </button>
             <span v-for="blank in monthView.trailingBlanks" :key="`tail-${blank}`" class="cal-cell cal-cell--blank" aria-hidden="true" />
           </div>
@@ -242,11 +243,14 @@ function buildMonthView(yearMonth, { isFirst, isLast }) {
   const cells = []
   for (let day = 1; day <= daysInMonth; day++) {
     const dateKey = `${yearMonth}-${String(day).padStart(2, '0')}`
-    const total = props.dayData.get(dateKey)?.total || 0
+    const dayInfo = props.dayData.get(dateKey)
+    const total = dayInfo?.total || 0
     cells.push({
       dateKey,
       day,
       total,
+      // 0 元但有谷（白嫖/已出）也要在日历上留痕
+      hasGoods: (dayInfo?.items.length || 0) > 0,
       level: resolveHeatLevel(total, maxTotal),
       isFuture: dateKey > todayKey
     })
@@ -584,6 +588,15 @@ function hasMonthData(year, month) {
   border-radius: 50%;
   background: currentColor;
   opacity: 0.7;
+}
+
+/* 0 元但有谷的日子：小圆点标记 */
+.cal-cell-zero-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.45;
 }
 
 .cal-cell-day {
