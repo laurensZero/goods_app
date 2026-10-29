@@ -89,6 +89,7 @@ import {
   toggleSelection,
   variantItemKeys,
   sameKeySet,
+  entryMatchesSelection,
 } from '@/utils/mihoyo/skuSelection'
 
 defineOptions({ name: 'MihoyoSkuPicker' })
@@ -171,7 +172,8 @@ function isChosen(level, item) {
   return (selection.value[level.index] || []).includes(item.key)
 }
 
-// 维度项封面：优先自身 cover_url，其次从包含它的 variant 里取一张代表图
+// 维度项封面：优先自身 cover_url，其次按当前其它层级的选中值取代表图（第二级小图跟随第一级联动），
+// 最后回退到全局第一张包含它的 variant 图
 const itemCoverMap = computed(() => {
   const map = new Map()
   for (const variant of props.variants) {
@@ -184,8 +186,33 @@ const itemCoverMap = computed(() => {
   return map
 })
 
+// 按当前 selection（去掉该项自身所在层级的约束）取每个维度项的联动封面
+const contextualCoverMap = computed(() => {
+  const map = new Map()
+  if (levels.value.length <= 1) return map
+  for (const level of levels.value) {
+    const constrained = {}
+    for (const other of levels.value) {
+      if (other.index === level.index) continue
+      const selected = selection.value[other.index]
+      if (selected && selected.length) constrained[other.index] = selected
+    }
+    for (const item of level.content) {
+      if (!item?.key || map.has(item.key)) continue
+      const hit = entries.value.find((entry) =>
+        entry.keys.has(item.key) && entryMatchesSelection(entry, levels.value, constrained))
+      const cover = hit?.variant?.cover_url || hit?.variant?.img_url
+      if (cover) map.set(item.key, cover)
+    }
+  }
+  return map
+})
+
 function coverOf(item) {
-  return item?.cover_url || item?.img_url || itemCoverMap.value.get(item?.key) || ''
+  return item?.cover_url || item?.img_url
+    || contextualCoverMap.value.get(item?.key)
+    || itemCoverMap.value.get(item?.key)
+    || ''
 }
 
 const suggestedSet = computed(() => new Set(props.suggestedKeys))
