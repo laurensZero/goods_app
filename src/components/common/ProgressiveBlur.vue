@@ -28,6 +28,19 @@ const lowPerf = typeof navigator !== 'undefined' && (
   || (navigator.deviceMemory && navigator.deviceMemory <= 4)
 )
 
+// 平板/宽屏同样降 2 步：模糊合成开销 ∝ 条带宽度 × 层数，.app-wrapper 在
+// ≥600px 放宽到 680px（≥900px 全宽），4 层大半径 backdrop-filter 逐帧重算
+// 会把平板 GPU 拖垮（实测平板首页滑动掉帧）。核数/内存判断不出平板——
+// 现代平板 8 核 8G 全被误判成高性能设备。2 层 12/48 档是低端机已验证的近似观感。
+const wideMql = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+  ? window.matchMedia('(min-width: 600px)')
+  : null
+const isWideViewport = ref(Boolean(wideMql && wideMql.matches))
+
+function handleWideChange(event) {
+  isWideViewport.value = event.matches
+}
+
 // 模糊半径逐层翻倍 + 重叠 mask 带 → 近似 iOS 连续 progressive blur。
 const STEPS_4 = [
   { blur: 6, solid: 18, fade: 55 },
@@ -40,7 +53,7 @@ const STEPS_2 = [
   { blur: 48, solid: 6, fade: 20 },
 ]
 
-const steps = computed(() => (lowPerf ? STEPS_2 : STEPS_4))
+const steps = computed(() => (lowPerf || isWideViewport.value ? STEPS_2 : STEPS_4))
 
 function layerStyle(index) {
   const step = steps.value[index]
@@ -61,11 +74,21 @@ const fader = ref(null)
 let pollId = 0
 let onScroll = null
 let cleanupAuto = null
+let scrollSources = []
+let scrollSourcesAt = -Infinity
 
 function computeProgress() {
-  // 双滚动源：window（.page 仅 min-height 时 document 滚）+ 各页 .page-body
+  // 双滚动源：window（.page 仅 min-height 时 document 滚）+ 各页 .page-body。
+  // 全树 querySelectorAll 不能每帧跑（首页节点上千），TTL 内复用缓存，
+  // 路由切换后 ≤TTL 自愈；KeepAlive 复用同一元素实例，缓存失活期间
+  // scrollTop 依旧连续。
   let top = window.scrollY
-  document.querySelectorAll('.page .page-body').forEach((el) => {
+  const now = performance.now()
+  if (now - scrollSourcesAt >= 250) {
+    scrollSources = Array.from(document.querySelectorAll('.page .page-body'))
+    scrollSourcesAt = now
+  }
+  scrollSources.forEach((el) => {
     if (el.scrollTop > top) top = el.scrollTop
   })
   const linear = Math.min(Math.max(top / RAMP_PX, 0), 1)
@@ -106,6 +129,7 @@ function bindAuto() {
 }
 
 onMounted(() => {
+  wideMql?.addEventListener?.('change', handleWideChange)
   if (props.auto) bindAuto()
   else if (fader.value) fader.value.style.opacity = props.active ? '1' : '0'
 })
@@ -114,7 +138,14 @@ watch(() => props.active, (on) => {
   if (!props.auto && fader.value) fader.value.style.opacity = on ? '1' : '0'
 })
 
+// 断点翻转（转屏/分屏）后层数变化：Vue patch 会把命令式样式抹回静态全半径，
+// post flush 里再直写一次，避免 auto 模式等到下一次滚动才恢复
+watch(steps, () => {
+  if (props.auto) applyProgress()
+}, { flush: 'post' })
+
 onBeforeUnmount(() => {
+  wideMql?.removeEventListener?.('change', handleWideChange)
   if (cleanupAuto) cleanupAuto()
   cleanupAuto = null
 })
