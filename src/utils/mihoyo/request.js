@@ -17,6 +17,9 @@ export const DEFAULT_READ_TIMEOUT_MS = 30000
 // 与 platform/http.js 的超时提示保持一致；
 // 该文案绝不能命中 isMihoyoCookieExpiredError 的正则，否则超时会误判为 Cookie 失效
 export const MIHOYO_TIMEOUT_MESSAGE = '请求超时，请检查网络连接'
+// 网关/风控限流时返回纯文本 "Too Many Requests"，不能直接 JSON.parse；
+// 单独归一成带 status 的错误，调用方才能识别为可重试，而不是误判成登录失效
+export const MIHOYO_RATE_LIMIT_MESSAGE = '请求过于频繁（429），请稍后重试'
 
 /**
  * 米游铺 API 通用请求头。
@@ -164,16 +167,33 @@ export async function mihoyoRequestWithResponse(path, {
           timeoutId = setTimeout(() => reject(new Error(MIHOYO_TIMEOUT_MESSAGE)), totalTimeoutMs)
         }),
       ])
-      // 与旧实现保持一致：原生端不检查 HTTP 状态码，仅由调用方检查 retcode
+      const status = Number(res.status || 0)
+      const body = res.data
       const response = buildResponseLike({
-        status: Number(res.status || 0),
+        status,
         headers: res.headers || {},
-        body: res.data,
+        body,
         url: `${MIHOYO_API_BASE}${path}`,
       })
-      return {
-        json: typeof res.data === 'string' ? JSON.parse(res.data) : res.data,
-        response,
+
+      // 原生端仍以 retcode 为准，但 429/网关纯文本必须先给出可读错误。
+      // 直接 JSON.parse("Too Many Requests") 会抛 "Unexpected token 'T'..."，
+      // 这个文案里的 token 会被上层鉴权正则误判成 Cookie 失效。
+      if (status === 429) {
+        throw new MihoyoApiError(MIHOYO_RATE_LIMIT_MESSAGE, { status })
+      }
+      if (typeof body !== 'string') return { json: body ?? {}, response }
+      if (body === '') return { json: {}, response }
+      try {
+        return { json: JSON.parse(body), response }
+      } catch {
+        if (status === 429 || /too many requests/i.test(body)) {
+          throw new MihoyoApiError(MIHOYO_RATE_LIMIT_MESSAGE, { status: status || 429 })
+        }
+        if (status && (status < 200 || status >= 300)) {
+          throw new MihoyoApiError(`请求失败（${status}）`, { status })
+        }
+        throw new MihoyoApiError(`响应解析失败（${status || 'unknown'}）`, { status: status || null })
       }
     } catch (error) {
       if (isTimeoutLikeError(error)) throw new Error(MIHOYO_TIMEOUT_MESSAGE)
@@ -200,9 +220,13 @@ export async function mihoyoRequestWithResponse(path, {
       error.status = res.status
       throw error
     }
-    return {
-      json: await res.json(),
-      response: res,
+    try {
+      return {
+        json: await res.json(),
+        response: res,
+      }
+    } catch {
+      throw new MihoyoApiError(`响应解析失败（${res.status || 'unknown'}）`, { status: res.status || null })
     }
   } catch (error) {
     if (isTimeoutLikeError(error)) throw new Error(MIHOYO_TIMEOUT_MESSAGE)

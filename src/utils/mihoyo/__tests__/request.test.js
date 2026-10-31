@@ -17,7 +17,9 @@ vi.mock('@/utils/platform/http', () => ({
 
 import {
   mihoyoRequest,
+  MihoyoApiError,
   MIHOYO_API_BASE,
+  MIHOYO_RATE_LIMIT_MESSAGE,
   MIHOYO_TIMEOUT_MESSAGE,
   DEFAULT_CONNECT_TIMEOUT_MS,
   DEFAULT_READ_TIMEOUT_MS,
@@ -74,6 +76,36 @@ describe('mihoyoRequest 原生分支', () => {
     const payload = { retcode: 0, data: { list: [] } }
     mocks.request.mockResolvedValue({ data: payload })
     await expect(mihoyoRequest('/p')).resolves.toBe(payload)
+  })
+
+  it('原生 429 纯文本响应：归一成带 status 的限流错误，而不是 JSON 语法错误', async () => {
+    mockNative()
+    mocks.request.mockResolvedValue({ status: 429, data: 'Too Many Requests' })
+
+    const error = await mihoyoRequest('/p').catch((e) => e)
+
+    expect(error).toBeInstanceOf(MihoyoApiError)
+    expect(error.status).toBe(429)
+    expect(error.message).toBe(MIHOYO_RATE_LIMIT_MESSAGE)
+    expect(error.message).not.toContain('Unexpected token')
+  })
+
+  it('原生 200 但响应不是 JSON 时：抛出可读的解析失败错误', async () => {
+    mockNative()
+    mocks.request.mockResolvedValue({ status: 200, data: '<html>proxy error</html>' })
+
+    const error = await mihoyoRequest('/p').catch((e) => e)
+
+    expect(error).toBeInstanceOf(MihoyoApiError)
+    expect(error.status).toBe(200)
+    expect(error.message).toContain('响应解析失败')
+  })
+
+  it('原生空 body：返回空对象，避免调用方读 retcode 时 TypeError', async () => {
+    mockNative()
+    mocks.request.mockResolvedValue({ status: 204, data: null })
+
+    await expect(mihoyoRequest('/p')).resolves.toEqual({})
   })
 
   it('支持按调用覆盖 connectTimeoutMs / readTimeoutMs', async () => {
@@ -134,6 +166,20 @@ describe('mihoyoRequest Web 分支', () => {
     await expect(mihoyoRequest('/p')).rejects.toThrow('请求失败（500）')
   })
 
+  it('200 但响应不是 JSON 时抛出可读的解析失败错误', async () => {
+    mockWeb()
+    mocks.fetchWithPlatformBridge.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => { throw new SyntaxError('Unexpected token') },
+    })
+
+    const error = await mihoyoRequest('/p').catch((e) => e)
+
+    expect(error).toBeInstanceOf(MihoyoApiError)
+    expect(error.message).toContain('响应解析失败')
+  })
+
   it('Cookie 头转换为 x-cookie-forward，无 Cookie 时不添加', async () => {
     mockWeb()
     mocks.fetchWithPlatformBridge.mockResolvedValue(webResponse({ json: { retcode: 0 } }))
@@ -178,6 +224,27 @@ describe('超时文案与 Cookie 失效判定的兼容锁', () => {
   it('超时文案绝不能命中 isMihoyoCookieExpiredError，401/403 保持命中', () => {
     // 若此断言失败，说明超时文案被改成了会误判 Cookie 失效的内容
     expect(isMihoyoCookieExpiredError(new Error(MIHOYO_TIMEOUT_MESSAGE))).toBe(false)
+    // JSON 语法错误文案里的 token 不能被当成登录态失效
+    expect(isMihoyoCookieExpiredError(new Error('Unexpected token \'T\', "Too Many Requests" is not valid JSON'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('请求过于频繁（429），请稍后重试'))).toBe(false)
+    // 业务失败不能清登录态：裸的 失效/过期/无效 不再算鉴权错误
+    expect(isMihoyoCookieExpiredError(new Error('商品已失效，无法下单'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('优惠券已过期'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('收货地址已失效'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('订单已过期'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('参数无效'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('该账号限购 1 件'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('account balance is insufficient'))).toBe(false)
+    expect(isMihoyoCookieExpiredError(new Error('实名认证失败'))).toBe(false)
+    // 真正的鉴权文案仍然命中
+    expect(isMihoyoCookieExpiredError(new Error('登录已过期'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('Cookie 已失效'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('stoken 已失效'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('会话已过期'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('账号已失效'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('认证失败'))).toBe(true)
+    expect(isMihoyoCookieExpiredError(new Error('account login required'))).toBe(true)
+    expect(isMihoyoCookieExpiredError({ status: 429, message: '认证失败' })).toBe(false)
     expect(isMihoyoCookieExpiredError(new Error('请求失败（401）'))).toBe(true)
     expect(isMihoyoCookieExpiredError(new Error('请求失败（403）'))).toBe(true)
     // 原生插件 Cookie 失效时带 code 拒绝（不再自动拉起登录 Activity）
