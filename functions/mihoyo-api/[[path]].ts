@@ -56,7 +56,13 @@ export async function onRequest(context) {
     const responseHeaders = new Headers()
     const contentTypeOut = upstream.headers.get('content-type')
     if (contentTypeOut) responseHeaders.set('content-type', contentTypeOut)
+    // 429 诊断需要读取上游已有的 trace/风控头；不额外发请求。
+    for (const name of ['x-trace-id', 'x-rpc-aigis']) {
+      const value = upstream.headers.get(name)
+      if (value) responseHeaders.set(name, value)
+    }
     responseHeaders.set('access-control-allow-origin', '*')
+    responseHeaders.set('access-control-expose-headers', 'X-Rpc-Aigis, X-Trace-Id')
     responseHeaders.set('cache-control', 'no-store')
 
     return new Response(upstream.body, {

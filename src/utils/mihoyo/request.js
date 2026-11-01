@@ -139,6 +139,32 @@ export async function mihoyoRequest(path, {
   return json
 }
 
+function readHeader(headers, name) {
+  if (!headers) return ''
+  if (typeof headers.get === 'function') return headers.get(name) || ''
+  const target = String(name).toLowerCase()
+  for (const [key, value] of Object.entries(headers)) {
+    if (String(key).toLowerCase() === target) return String(value || '')
+  }
+  return ''
+}
+
+function attachRateLimitDetails(error, response, url) {
+  error.status = Number(response?.status || 0) || 429
+  error.traceId = readHeader(response?.headers, 'x-trace-id')
+  error.aigis = readHeader(response?.headers, 'x-rpc-aigis')
+  error.url = url || ''
+  return error
+}
+
+function createRateLimitError(response, url) {
+  return attachRateLimitDetails(
+    new MihoyoApiError(MIHOYO_RATE_LIMIT_MESSAGE, { status: Number(response?.status || 0) || 429 }),
+    response,
+    url,
+  )
+}
+
 export async function mihoyoRequestWithResponse(path, {
   method = 'GET',
   headers = {},
@@ -180,7 +206,7 @@ export async function mihoyoRequestWithResponse(path, {
       // 直接 JSON.parse("Too Many Requests") 会抛 "Unexpected token 'T'..."，
       // 这个文案里的 token 会被上层鉴权正则误判成 Cookie 失效。
       if (status === 429) {
-        throw new MihoyoApiError(MIHOYO_RATE_LIMIT_MESSAGE, { status })
+        throw createRateLimitError(response, `${MIHOYO_API_BASE}${path}`)
       }
       if (typeof body !== 'string') return { json: body ?? {}, response }
       if (body === '') return { json: {}, response }
@@ -188,7 +214,7 @@ export async function mihoyoRequestWithResponse(path, {
         return { json: JSON.parse(body), response }
       } catch {
         if (status === 429 || /too many requests/i.test(body)) {
-          throw new MihoyoApiError(MIHOYO_RATE_LIMIT_MESSAGE, { status: status || 429 })
+          throw createRateLimitError(response, `${MIHOYO_API_BASE}${path}`)
         }
         if (status && (status < 200 || status >= 300)) {
           throw new MihoyoApiError(`请求失败（${status}）`, { status })
@@ -216,6 +242,12 @@ export async function mihoyoRequestWithResponse(path, {
       timeoutMs: totalTimeoutMs,
     })
     if (!res.ok) {
+      if (res.status === 429) {
+        throw createRateLimitError(
+          { status: res.status, headers: res.headers },
+          `${MIHOYO_API_BASE}${path}`,
+        )
+      }
       const error = new Error(`请求失败（${res.status}）`)
       error.status = res.status
       throw error
