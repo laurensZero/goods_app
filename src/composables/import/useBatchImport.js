@@ -638,6 +638,7 @@ export function useBatchImport({
     toggleQueueImage,
     enqueueFromSearch,
     selectEntrySku,
+    selectSingleSku: selectEntrySku,
     setEntrySkus,
   }
 }
