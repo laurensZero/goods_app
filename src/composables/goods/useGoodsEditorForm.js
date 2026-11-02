@@ -18,7 +18,7 @@ import { syncFieldValue, syncFieldValueNextFrame } from '@/utils/sync/fieldValue
 import { validateName as validateTextName, validatePrice as validateNumericPrice } from '@/utils/validate'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
-import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries } from '@/utils/goods/statusTimeline'
+import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries, foldOrphanUnitTimelineEntries } from '@/utils/goods/statusTimeline'
 import { nextGoodsId } from '@/utils/goods/id'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
@@ -730,6 +730,9 @@ export function useGoodsEditorForm(options = {}) {
         unitSaleInfoList: form.unitSaleInfoList
       })
 
+      // 数量改小时,归属越界的逐件条目收拢为整批——不把孤儿归属写进库
+      form.statusTimeline = foldOrphanUnitTimelineEntries(form.statusTimeline, qty)
+
       const updatedId = await store.updateGoods(editId, { ...form })
       if (!updatedId) {
         showGlobalToast(t('goods.editor.saveFailedMissing'))
@@ -776,6 +779,8 @@ export function useGoodsEditorForm(options = {}) {
         unitStatuses: Array.isArray(form.unitCollectStatusList) ? form.unitCollectStatusList : [],
         unitSaleInfoList: form.unitSaleInfoList
       })
+      // 数量改小时,归属越界的逐件条目收拢为整批——不把孤儿归属写进库
+      form.statusTimeline = foldOrphanUnitTimelineEntries(form.statusTimeline, quantityNumber.value)
 
       const motionId = nextGoodsId()
       const addPromise = store.addGoods({ ...form, id: motionId })

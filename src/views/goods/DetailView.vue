@@ -1096,11 +1096,13 @@ async function toggleStarred() {
 async function markAsReceived() {
   if (!item.value) return
 
+  const qty = Math.max(1, Number(item.value.quantity) || 1)
   const unitList = Array.isArray(item.value.unitCollectStatusList) ? [...item.value.unitCollectStatusList] : []
   const updates = {}
 
-  if (unitList.length > 0) {
+  if (qty >= 2 && unitList.length > 0) {
     // 逐件商品:只签收「待发货」的件,逐件写时间线,不追加会重置其它件持有起点的汇总条目
+    // qty<2 时必须走整批:单件商品写逐件条目会让时间线拆出「整批+第1件」且编辑器无法修正归属
     const newUnitList = unitList.map(s => s === '待发货' ? '已拥有' : s)
     updates.unitCollectStatusList = newUnitList
     updates.collectStatus = resolvePrimaryCollectStatus({

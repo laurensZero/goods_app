@@ -5,7 +5,9 @@ import {
   ensureInitialTimeline,
   computeEditedTimeline,
   timelineSnapshotDiffers,
-  getHoldingDaysFromDate
+  getHoldingDaysFromDate,
+  foldOrphanUnitTimelineEntries,
+  maintainTimelineOnGoodsUpdate
 } from '../statusTimeline'
 
 function localToday() {
@@ -201,6 +203,67 @@ describe('computeEditedTimeline', () => {
       newUnitStatuses: ['待发货', '待发货', '待发货']
     })
     expect(result).toEqual([{ status: '待发货', at: '2026-01-01' }])
+  })
+})
+
+describe('foldOrphanUnitTimelineEntries', () => {
+  it('qty=1 把逐件条目归整批（截图场景：整批待发货 + 第1件已拥有）', () => {
+    const timeline = [
+      { status: '待发货', at: '2026-07-22' },
+      { status: '已拥有', at: '2026-07-25', unitIndex: 0 }
+    ]
+    expect(foldOrphanUnitTimelineEntries(timeline, 1)).toEqual([
+      { status: '待发货', at: '2026-07-22' },
+      { status: '已拥有', at: '2026-07-25' }
+    ])
+  })
+
+  it('qty=1 归整批后与既有整批条目同 status+at 时合并，保留首个非空 note', () => {
+    const timeline = [
+      { status: '已拥有', at: '2026-07-25' },
+      { status: '已拥有', at: '2026-07-25', unitIndex: 0, note: '补录' }
+    ]
+    expect(foldOrphanUnitTimelineEntries(timeline, 1)).toEqual([
+      { status: '已拥有', at: '2026-07-25', note: '补录' }
+    ])
+  })
+
+  it('qty=2 缩短超界归属（unitIndexes 越界件剔除）', () => {
+    const timeline = [{ status: '已拥有', at: '2026-01-01', unitIndexes: [0, 1, 2] }]
+    expect(foldOrphanUnitTimelineEntries(timeline, 2)).toEqual([
+      { status: '已拥有', at: '2026-01-01', unitIndexes: [0, 1] }
+    ])
+  })
+
+  it('qty=2 全部归属越界时归整批', () => {
+    const timeline = [{ status: '已拥有', at: '2026-01-01', unitIndex: 3 }]
+    expect(foldOrphanUnitTimelineEntries(timeline, 2)).toEqual([
+      { status: '已拥有', at: '2026-01-01' }
+    ])
+  })
+
+  it('归属合法时原样返回（同一引用，不动数据）', () => {
+    const timeline = [
+      { status: '已拥有', at: '2026-01-01' },
+      { status: '已出', at: '2026-06-01', unitIndex: 1 }
+    ]
+    expect(foldOrphanUnitTimelineEntries(timeline, 3)).toBe(timeline)
+  })
+})
+
+describe('maintainTimelineOnGoodsUpdate quantity decrease', () => {
+  it('程序化改小数量时折叠孤儿归属，数量未变时不触碰', () => {
+    const previous = {
+      quantity: 3,
+      collectStatus: '已拥有',
+      acquiredAt: '2026-01-01',
+      statusTimeline: [{ status: '已拥有', at: '2026-01-01', unitIndex: 2 }]
+    }
+    const decreased = maintainTimelineOnGoodsUpdate(previous, { quantity: 1 })
+    expect(decreased.statusTimeline).toEqual([{ status: '已拥有', at: '2026-01-01' }])
+
+    const untouched = maintainTimelineOnGoodsUpdate(previous, { note: 'x' })
+    expect(untouched).toEqual({ note: 'x' })
   })
 })
 

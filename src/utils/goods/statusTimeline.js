@@ -571,6 +571,59 @@ export function buildTimelineUnitSections(timeline) {
 }
 
 /**
+ * 修正数量与归属不匹配的逐件条目（数量改小后残留的孤儿归属，
+ * 或 qty<2 时走了逐件写入路径——这类条目会让详情页拆出「整批 + 第 1 件」
+ * 且编辑器隐藏归属控件后无法修正）：
+ * qty<=1 时逐件条目全部归整批；qty>=2 时剔除归属里超出 [0, qty-1] 的件，
+ * 全部超界也归整批。归并产生的同 status+at+归属 重复条目合并为一条
+ * （保留首个非空 note）。无孤儿条目时原样返回入裂数组。
+ * @param {import('@/types/models').StatusTimelineEntry[]} timeline
+ * @param {number} quantity
+ * @returns {import('@/types/models').StatusTimelineEntry[]}
+ */
+export function foldOrphanUnitTimelineEntries(timeline, quantity) {
+  const list = Array.isArray(timeline) ? timeline : []
+  const qty = Math.max(1, Number(quantity) || 1)
+  let changed = false
+
+  const folded = list.map((entry) => {
+    if (!entry || typeof entry !== 'object') return entry
+    const scope = getEntryUnitIndexes(entry)
+    if (scope === null) return entry
+    if (qty <= 1 || scope.every((u) => u >= qty)) {
+      changed = true
+      const { unitIndex, unitIndexes, ...rest } = entry
+      return rest
+    }
+    const inRange = scope.filter((u) => u < qty)
+    if (inRange.length === scope.length) return entry
+    changed = true
+    return { ...omitUnitScopeFields(entry), ...makeUnitScopeFields(inRange) }
+  })
+
+  if (!changed) return list
+
+  const byKey = new Map()
+  const result = []
+  for (const entry of folded) {
+    const key = JSON.stringify([entry?.status ?? '', entry?.at ?? '', getEntryUnitIndexes(entry)])
+    const existing = byKey.get(key)
+    if (!existing) {
+      byKey.set(key, entry)
+      result.push(entry)
+      continue
+    }
+    if (!existing.note && entry.note) existing.note = entry.note
+  }
+  return result
+}
+
+function omitUnitScopeFields(entry) {
+  const { unitIndex, unitIndexes, ...rest } = entry
+  return rest
+}
+
+/**
  * 标准化时间线日期字符串
  * @param {string} value
  * @returns {string}
@@ -976,6 +1029,12 @@ export function maintainTimelineOnGoodsUpdate(previous, data) {
     unitStatuses: qty >= 2 ? padStatuses(data.unitCollectStatusList ?? previous.unitCollectStatusList, newStatusFallback) : [],
     unitSaleInfoList: data.unitSaleInfoList ?? previous.unitSaleInfoList ?? []
   })
+
+  // 数量改小时,归属越界的逐件条目收拢为整批——程序化改数量(MCP/AI)同样不写孤儿归属
+  const previousQty = Math.max(1, Number(previous.quantity) || 1)
+  if (qty < previousQty) {
+    timeline = foldOrphanUnitTimelineEntries(timeline, qty)
+  }
 
   return { ...data, statusTimeline: timeline }
 }
