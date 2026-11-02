@@ -211,7 +211,7 @@
                   :show-remove="queue.length > 1"
                   :counter="queue.length > 1 ? `${queue.indexOf(entry) + 1} / ${queue.length}` : ''"
                   :label="t('import.selectVariant')"
-                  :multi-select="false"
+                  :multi-select="true"
                   :show-whole="false"
                   :large-thumb="true"
                   @select-skus="setEntrySkus(entry, $event)"

@@ -1,2 +1,2 @@
-export { createPageScrollRestore } from './usePageScrollRestore'
+export { createPageScrollRestore, resetPageScrollToTop } from './usePageScrollRestore'
 export { usePageScrollBinder } from './usePageScrollBinder'

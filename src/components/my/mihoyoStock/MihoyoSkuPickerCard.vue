@@ -107,7 +107,7 @@ const props = defineProps({
   counter: { type: String, default: '' },
   // 顶部提示文案（监控页=选择要监控的款式；导入页=选择款式）
   label: { type: String, default: '' },
-  // 是否多选款式（有货监控多选；导入页单选）
+  // 是否多选款式（有货监控与导入页均多选，可一次勾多个款式分条入库）
   multiSelect: { type: Boolean, default: true },
   // 导入页要求明确选择 SKU；有货监控仍保留「整件商品」
   showWhole: { type: Boolean, default: true },

@@ -11,10 +11,10 @@ import {
   resolveMihoyoVariantDraft,
 } from '@/utils/mihoyo/importResolver'
 import {
-  normalizeMihoyoVariantEntry,
   normalizeMihoyoVariantList,
 } from '@/utils/mihoyo/goodsNormalize'
 import { runWithRouteTransition } from '@/utils/routeTransition'
+import { resetPageScrollToTop } from '@/composables/scroll'
 import { showGlobalToast } from '@/utils/globalToast'
 
 // 解析接口偶发只返回商品详情、不带 goodsId；链接本身仍然是可靠的数据源。
@@ -468,31 +468,27 @@ export function useBatchImport({
     entry.info.price = entry.priceCents > 0 ? String(entry.priceCents / 100) : ''
   }
 
-  // 单选款式（导入侧）：点选切换为唯一选中，再点同一款回到「整件商品」。
-  // 有货监控侧保持多选（共用 useMihoyoGoodsQueue 的 selectSku，不受影响）
-  function selectSingleSku(entry, variant) {
+  // 款式点选（导入侧，多选）：新增款式回填分类/角色/价格；全部取消时恢复默认主图/价格。
+  // 与有货监控同一套多选交互（共用 useMihoyoGoodsQueue 的 selectSku）
+  function selectEntrySku(entry, variant) {
     if (!entry || !variant || entry.parseFailed) return
-    const idx = entry.selectedSkus.findIndex((s) => s.key === variant.key)
-    if (idx >= 0) {
-      entry.selectedSkus = []
+    const exists = entry.selectedSkus.some((s) => s.key === variant.key)
+    queueState.selectSku(entry, variant)
+    if (exists && !entry.selectedSkus.length) {
       restoreDefaultImages(entry)
       restoreDefaultPrice(entry)
-    } else {
-      entry.selectedSkus = [normalizeMihoyoVariantEntry(variant)]
-      applySkuInfo(entry, variant)
     }
   }
 
-  // 多级 SKU 选择器（导入单选）：用完整选择覆盖当前款式，并联动分类/角色/图片
+  // 多级 SKU 选择器（导入多选）：用完整选择覆盖当前款式；
+  // 新增款式的分类/角色/价格回填由 queueState.setSelectedSkus 的 onSkuSelected 逐款触发
   function setEntrySkus(entry, variants) {
     if (!entry || entry.parseFailed) return
     queueState.setSelectedSkus(entry, variants)
     if (!entry.selectedSkus.length) {
       restoreDefaultImages(entry)
       restoreDefaultPrice(entry)
-      return
     }
-    applySkuInfo(entry, entry.selectedSkus[0])
   }
 
   // 整件商品：清空选中款式并恢复默认主图（图片区为空时）。
@@ -609,6 +605,8 @@ export function useBatchImport({
         isWishlistMode.value ? 'import.importedWishlistToast' : 'import.importedToast',
         { count: rows.length }
       ))
+      // 保存是「完成型」导航：目标页回到顶部，不恢复离开时的旧滚动位置
+      resetPageScrollToTop(isWishlistMode.value ? 'wishlist' : 'home')
       runWithRouteTransition(() => router.replace(isWishlistMode.value ? '/wishlist' : '/home'), { direction: 'back', fallbackTransitionKind: 'detail-fade' })
     } catch (e) {
       showGlobalToast(t('import.errorSaveFailed', { message: e.message || '' }))
@@ -619,9 +617,9 @@ export function useBatchImport({
 
   return {
     ...queueState,
-    // 导入侧统一使用包装后的选择入口（单选语义 + 图片/价格联动），
-    // 覆盖共享队列的同名多选原语，避免调用方拿到两套语义（有货监控不受影响，走自己的实例）
-    selectSku: selectSingleSku,
+    // 导入侧统一使用包装后的选择入口（多选 + 图片/价格联动），
+    // 覆盖共享队列的同名原语，避免调用方拿到两套语义（有货监控不受影响，走自己的实例）
+    selectSku: selectEntrySku,
     setSelectedSkus: setEntrySkus,
     selectWholeGoods,
     urlEntries,
@@ -639,7 +637,7 @@ export function useBatchImport({
     confirmImportQueue,
     toggleQueueImage,
     enqueueFromSearch,
-    selectSingleSku,
+    selectEntrySku,
     setEntrySkus,
   }
 }

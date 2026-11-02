@@ -13,6 +13,20 @@ export function createPageScrollRestore(pageName, selector) {
   })
 }
 
+/**
+ * 把某个页面的滚动恢复状态重置为「回到顶部」。
+ * 用于导入确认这类「完成型」导航：目标页（KeepAlive 缓存）重新激活时
+ * 按既定恢复流程落到顶部，而不是恢复离开时的旧位置。
+ * 写入 top=0 + pending 而不是直接删 key：复用视图自身的恢复流程，
+ * 连同虚拟列表可视区同步（syncVisibleGoodsCount 等）一起走，避免列表渲染错位。
+ */
+export function resetPageScrollToTop(pageName) {
+  try {
+    sessionStorage.setItem(`${pageName}-scroll`, JSON.stringify({ top: 0, source: 'element' }))
+    sessionStorage.setItem(`${pageName}-scroll-restore-pending`, '1')
+  } catch {}
+}
+
 export function usePageScrollRestore(pageBodyRef, options = {}) {
   const {
     storageKey = 'page-scroll-state',
