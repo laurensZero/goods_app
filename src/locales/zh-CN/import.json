@@ -89,6 +89,8 @@
   "import.clearQueue": "清空",
   "import.confirmImportCount": "确认导入（{count} 件）",
   "import.editInfo": "修改信息",
+  "import.splitSkuHint": "已选 {count} 个款式，拆成独立队列后可分别编辑每个款式的信息。",
+  "import.splitSkuAction": "拆分为 {count} 个独立谷子",
   "import.collapseInfo": "收起信息",
   "import.linkParseFailed": "链接解析失败",
   "import.skuSingleSelectHint": "选择款式（单选）",

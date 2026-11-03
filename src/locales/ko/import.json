@@ -89,6 +89,8 @@
   "import.clearQueue": "비우기",
   "import.confirmImportCount": "가져오기 ({count}개)",
   "import.editInfo": "정보 수정",
+  "import.splitSkuHint": "{count}개의 스타일을 선택했습니다. 독립된 큐로 분리하면 스타일마다 정보를 개별 편집할 수 있습니다.",
+  "import.splitSkuAction": "{count}개의 독립 굿즈로 분리",
   "import.collapseInfo": "정보 접기",
   "import.linkParseFailed": "링크 파싱 실패",
   "import.skuSingleSelectHint": "款式 선택 (단일)",

@@ -88,6 +88,27 @@ describe('mihoyo 调用方行为锁（错误文案与降级返回值）', () => 
     ])
   })
 
+  it('searchGoodsList：清理【原神】前缀与末尾英文 IP，并保留识别出的 IP', async () => {
+    mocks.mihoyoRequest.mockResolvedValue({
+      retcode: 0,
+      data: {
+        list: [{
+          goods_id: '2',
+          name: '【原神】角色PV系列 相卡及相簿 Genshin',
+          cover_url: 'https://example.com/b.png',
+        }],
+      },
+    })
+    await expect(searchGoodsList('原神')).resolves.toEqual([
+      {
+        goods_id: '2',
+        name: '角色PV系列 相卡及相簿',
+        ip: '原神',
+        cover_url: 'https://example.com/b.png',
+      },
+    ])
+  })
+
   it('addToCart：data.code === 2 时返回购物车已满', async () => {
     mocks.mihoyoRequest.mockResolvedValue({ retcode: 0, data: { code: 2 } })
 

@@ -89,6 +89,8 @@
   "import.clearQueue": "Clear",
   "import.confirmImportCount": "Import ({count} items)",
   "import.editInfo": "Edit info",
+  "import.splitSkuHint": "{count} variants selected. Split them into separate queue cards to edit each one individually.",
+  "import.splitSkuAction": "Split into {count} goods",
   "import.collapseInfo": "Collapse info",
   "import.linkParseFailed": "Failed to parse link",
   "import.skuSingleSelectHint": "Choose a variant (single)",

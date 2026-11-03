@@ -680,12 +680,16 @@ export async function searchGoodsList(keyword, pageSize = 5, page = 1) {
       `${API_GOODS_SEARCH}?name=${encodeURIComponent(keyword)}&limit=${pageSize}&page=${normalizedPage}`,
       { headers: buildMihoyoHeaders() },
     )
-    return (json.data?.list || []).map(item => ({
-      goods_id:  item.goods_id,
-      name:      item.name,
-      cover_url: item.cover_url || '',
-      ...(item.price != null ? { price: item.price / 100 } : {}),
-    }))
+    return (json.data?.list || []).map(item => {
+      const { ip, name } = cleanMihoyoGoodsTitle(item.name)
+      return {
+        goods_id:  item.goods_id,
+        name,
+        cover_url: item.cover_url || '',
+        ...(ip ? { ip } : {}),
+        ...(item.price != null ? { price: item.price / 100 } : {}),
+      }
+    })
   } catch {
     return []
   }
@@ -791,11 +795,14 @@ function shopToIp(shopName) {
   return match?.ip || ''
 }
 
+// 标题末尾常附带的英文 IP 名（「【原神】角色PV系列 相卡及相簿 Genshin」→ 去掉 Genshin）
+const TRAILING_IP_ALIAS_PATTERN = /\s*(?:Genshin(?:\s*Impact)?|Honkai:?\s*Star\s*Rail|Zenless\s*Zone\s*Zero|Honkai\s*Impact(?:\s*3rd)?)\s*$/i
+
 /** 去除 sku 属性值中的所有括号前缀（角色名等应为纯文本）
  *  同时去除末尾常见变体字母 A-E（如 "昔涟B" → "昔涟"，"叶瞬光A" → "叶瞬光"）
  */
 export function cleanGoodsName(str) {
-  return stripNoiseTitlePrefixes(String(str || ''))
+  const cleaned = stripNoiseTitlePrefixes(String(str || ''))
     .replace(/【[^】]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^】]*】/g, '')
     .replace(/（[^）]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^）]*）/g, '')
     .replace(/\([^)]*(?:预售|预计|现货|补款|尾款|发货|到仓|开售)[^)]*\)/g, '')
@@ -806,6 +813,23 @@ export function cleanGoodsName(str) {
     .replace(/\s*\d{2,4}年\d{1,2}月(?:上旬|中旬|下旬|[上中下底末])?$/g, '')
     .replace(/\s{2,}/g, ' ')
     .trim()
+
+  // 只有去掉英文 IP 后仍有商品名时才清理，避免把「Genshin Impact」这种纯 IP 名清空
+  const withoutIpAlias = cleaned.replace(TRAILING_IP_ALIAS_PATTERN, '').trim()
+  return withoutIpAlias || cleaned
+}
+
+/** 米游铺搜索/列表标题 → 干净商品名 + IP
+ *  搜索接口返回的标题同样带「【原神】」前缀与末尾英文 IP，入库前统一清理。
+ */
+export function cleanMihoyoGoodsTitle(title) {
+  const raw = String(title || '').trim()
+  if (!raw) return { ip: '', name: '' }
+  const { ip, name } = parseTitleIpName(cleanGoodsName(raw))
+  return {
+    ip: ip || '',
+    name: cleanGoodsName(name) || raw,
+  }
 }
 
 function cleanAttrValue(str) {
@@ -1397,14 +1421,19 @@ export async function searchGoodsSpuList({
   try {
     const json = await mihoyoApi(`${API_GOODS_SPU_LIST}?${query.toString()}`, { headers: buildMihoyoHeaders() })
 
-    return (json.data?.list || []).map((item) => ({
-      goods_id: item.goods_id,
-      name: item.name,
-      cover_url: item.cover_url || '',
-      price: item.price != null ? item.price / 100 : null,
-      shop_code: normalizedShopCode,
-      category_id: normalizedCategoryId,
-    }))
+    return (json.data?.list || []).map((item) => {
+      const { ip: titleIp, name } = cleanMihoyoGoodsTitle(item.name)
+      const ip = getMihoyoIpByShopCode(normalizedShopCode) || titleIp
+      return {
+        goods_id: item.goods_id,
+        name,
+        cover_url: item.cover_url || '',
+        price: item.price != null ? item.price / 100 : null,
+        shop_code: normalizedShopCode,
+        category_id: normalizedCategoryId,
+        ...(ip ? { ip } : {}),
+      }
+    })
   } catch {
     return []
   }

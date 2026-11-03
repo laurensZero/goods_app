@@ -45,6 +45,8 @@ vi.mock('@/utils/mihoyo/index', () => ({
   fetchGoodsDetail: mocks.fetchGoodsDetail,
   // importResolver 会从该模块引入 parseCategoryFromName，测试里返回空即可
   parseCategoryFromName: vi.fn(() => ''),
+  cleanGoodsName: (value) => String(value || '').trim(),
+  parseTitleIpName: (value) => ({ ip: '', name: String(value || '').trim() }),
 }))
 
 vi.mock('@/utils/routeTransition', () => ({
@@ -172,5 +174,62 @@ describe('useBatchImport 图片联动：选中带专属封面的款式后，不�
     expect(rows).toHaveLength(1)
     expect(rows[0].image).toBe('https://sku-a-cover.jpg')
     expect(rows[0].images).toEqual(['https://sku-a-cover.jpg'])
+  })
+})
+
+describe('多选款式拆分为独立队列项（复用链接导入的队列结构）', () => {
+  beforeEach(() => {
+    mocks.parseMihoyoUrl.mockReset()
+    mocks.fetchGoodsDetail.mockReset()
+    mocks.addGoodsBatch.mockReset()
+    mocks.addGoodsBatch.mockResolvedValue(undefined)
+  })
+
+  it('每个款式成为一张独立卡片，可分别改信息并各自入库', async () => {
+    const bi = createBatchImport()
+    const entry = bi.enqueueFromSearch({
+      goodsId: '1001',
+      name: '测试商品',
+      coverUrl: 'https://cover.jpg',
+    })
+    const variants = [
+      { key: 'a', text: '芙宁娜', cover_url: 'https://a.jpg', price: 10 },
+      { key: 'b', text: '胡桃', cover_url: 'https://b.jpg', price: 20 },
+    ]
+    entry.variants = variants
+    entry.variantsLoaded = true
+
+    bi.setEntrySkus(entry, variants)
+    expect(entry.selectedSkus).toHaveLength(2)
+
+    bi.splitEntrySkus(entry)
+
+    expect(bi.queue.value).toHaveLength(2)
+    expect(bi.queue.value.map((e) => e.selectedSkus[0].text)).toEqual(['芙宁娜', '胡桃'])
+    expect(bi.queue.value.every((e) => e.skuLocked)).toBe(true)
+
+    const [first, second] = bi.queue.value
+    first.name = '芙宁娜款'
+    second.name = '胡桃款'
+    first.info.characters = ['芙宁娜']
+    second.info.characters = ['胡桃']
+    expect(first.name).toBe('芙宁娜款')
+    expect(second.name).toBe('胡桃款')
+
+    await bi.confirmImportQueue()
+    const rows = mocks.addGoodsBatch.mock.calls[0][0]
+    expect(rows).toHaveLength(2)
+    expect(rows.find((r) => r.variant === '芙宁娜')).toMatchObject({
+      name: '芙宁娜款',
+      characters: ['芙宁娜'],
+      image: 'https://a.jpg',
+      price: 10,
+    })
+    expect(rows.find((r) => r.variant === '胡桃')).toMatchObject({
+      name: '胡桃款',
+      characters: ['胡桃'],
+      image: 'https://b.jpg',
+      price: 20,
+    })
   })
 })

@@ -211,7 +211,7 @@
                   :show-remove="queue.length > 1"
                   :counter="queue.length > 1 ? `${queue.indexOf(entry) + 1} / ${queue.length}` : ''"
                   :label="t('import.selectVariant')"
-                  :multi-select="true"
+                  :multi-select="!entry.skuLocked"
                   :show-whole="false"
                   :large-thumb="true"
                   @select-skus="setEntrySkus(entry, $event)"
@@ -246,6 +246,16 @@
                         <polyline points="6 9 12 15 18 9" />
                       </svg>
                       <span>{{ entry.infoExpanded ? t('import.collapseInfo') : t('import.editInfo') }}</span>
+                    </button>
+                  </div>
+
+                  <!-- 多选款式：拆成独立队列项，每项复用下方同一套信息表单（与链接导入 xN 一致） -->
+                  <div v-if="entry.selectedSkus.length > 1 && !entry.skuLocked" class="queue-split-bar">
+                    <span class="queue-split-bar__text">
+                      {{ t('import.splitSkuHint', { count: entry.selectedSkus.length }) }}
+                    </span>
+                    <button type="button" class="queue-split-bar__btn" @click="splitEntrySkus(entry)">
+                      {{ t('import.splitSkuAction', { count: entry.selectedSkus.length }) }}
                     </button>
                   </div>
 
@@ -481,7 +491,7 @@ const {
   batchParseButtonText, parsingLinks, linkProgress,
   savingAll, queueImportCount, isQueueItemOwned, queueSummary,
   handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue,
-  setEntrySkus,
+  setEntrySkus, splitEntrySkus,
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
   ensureHistoricalTagContext, updateHistoricalTagContextFromItem,
@@ -585,6 +595,7 @@ function onSearchResultClick(item) {
   enqueueFromSearch({
     goodsId: mihoyoGoodsId,
     name: item?.name || '',
+    ip: item?.ip || '',
     priceCents: priceYuan > 0 ? Math.round(priceYuan * 100) : 0,
     coverUrl: getSearchResultCover(item) || item?.cover_url || '',
   })

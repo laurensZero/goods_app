@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
-import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail } from '@/utils/mihoyo/index'
+import { parseMihoyoUrl, isMihoyoGiftUrl, fetchGoodsDetail, parseTitleIpName, cleanGoodsName } from '@/utils/mihoyo/index'
 import { useMihoyoGoodsQueue } from '@/composables/import/useMihoyoGoodsQueue'
 import {
   normalizeMihoyoImageList,
@@ -11,6 +11,7 @@ import {
   resolveMihoyoVariantDraft,
 } from '@/utils/mihoyo/importResolver'
 import {
+  normalizeMihoyoVariantEntry,
   normalizeMihoyoVariantList,
 } from '@/utils/mihoyo/goodsNormalize'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -156,6 +157,89 @@ export function useBatchImport({
     return goodsId ? ownedGoodsIds.value.has(String(goodsId)) : false
   }
 
+  // ── 多选款式：每款先自动识别一份信息，避免「最后点选的款式」覆盖前面的款式 ──
+  function hasField(object, field) {
+    return Boolean(object) && Object.prototype.hasOwnProperty.call(object, field)
+  }
+
+  // 款式自动识别（分类/角色/价格）只算一次；商品名变化后重新计算
+  function deriveSkuInfo(entry, sku) {
+    if (!entry || !sku) return {}
+    const cacheKey = `${sku.key}::${entry.name || ''}`
+    if (!entry.skuDerived) entry.skuDerived = {}
+    if (hasField(entry.skuDerived, cacheKey)) return entry.skuDerived[cacheKey]
+
+    const resolved = resolveMihoyoVariantDraft({
+      name: entry.name,
+      variant: sku,
+      context: ensureHistoricalTagContext(),
+      preferredCharacter: getSearchContext().preferredCharacter,
+    })
+    const derived = {}
+    if (resolved.category) derived.category = resolved.category
+    if (resolved.selectedCharacterName) derived.characters = [resolved.selectedCharacterName]
+    if (sku.price != null && Number.isFinite(Number(sku.price))) {
+      derived.price = String(Number(sku.price))
+    }
+    entry.skuDerived[cacheKey] = derived
+    return derived
+  }
+
+  // 把多选款式拆成 N 个独立队列项（与链接导入 xN 相同的队列结构）：
+  // 每项只保留一个款式，并带上该款式自动识别的信息，之后各自用现有表单修改即可。
+  function splitEntrySkus(entry) {
+    if (!entry || entry.skuLocked) return
+    const skus = Array.isArray(entry.selectedSkus) ? entry.selectedSkus.slice() : []
+    if (skus.length < 2) return
+    const index = queue.value.indexOf(entry)
+    if (index < 0) return
+
+    const created = skus.map((sku) => {
+      const derived = deriveSkuInfo(entry, sku)
+      const shared = entry.info || {}
+      const skuCover = sku.cover_url || ''
+      const images = skuCover
+        ? [skuCover, ...(shared.images || []).filter((url) => url && url !== skuCover)]
+        : cloneImages(shared.images)
+
+      const next = queueState.createQueueEntry({
+        goodsId: entry.goodsId,
+        name: entry.name,
+        priceCents: sku.price != null && Number.isFinite(Number(sku.price))
+          ? Math.round(Number(sku.price) * 100)
+          : entry.priceCents,
+        coverUrl: skuCover || entry.coverUrl,
+        url: entry.url,
+        parseFailed: false,
+        parseError: '',
+        infoExpanded: true,
+        skuLocked: true,
+        baseImages: cloneImages(entry.baseImages),
+        parsedImages: cloneImages(entry.parsedImages),
+        selectedSkus: [normalizeMihoyoVariantEntry(sku)].filter(Boolean),
+        info: reactive({
+          category: derived.category || shared.category || '',
+          ip: shared.ip || '',
+          image: skuCover || shared.image || '',
+          images,
+          price: derived.price != null ? derived.price : (shared.price ?? ''),
+          purchaseDate: shared.purchaseDate || '',
+          notes: shared.notes || '',
+          tags: cloneImages(shared.tags),
+          characters: cloneImages(derived.characters || shared.characters),
+        }),
+      })
+      next.variants = normalizeMihoyoVariantList(entry.variants, { fallbackCover: next.coverUrl })
+      next.skuGroups = Array.isArray(entry.skuGroups) ? entry.skuGroups : []
+      next.variantsLoaded = true
+      next.loading = false
+      return next
+    })
+
+    queue.value.splice(index, 1, ...created)
+    if (created[0]) queueState.activateQueueEntry(created[0].uid)
+  }
+
   // 平板端队列卡片摘要：整件 / 单款式名 / 已选 N 款
   function queueSummary(entry) {
     if (entry.parseFailed) return t('import.linkParseFailed')
@@ -278,9 +362,14 @@ export function useBatchImport({
   }
 
   // 搜索结果入队（多选）：预填完整 info 结构（分类/IP/角色/图片），款式变体按需懒加载
-  function enqueueFromSearch({ goodsId, name = '', priceCents = 0, coverUrl = '' }) {
+  function enqueueFromSearch({ goodsId, name = '', ip = '', priceCents = 0, coverUrl = '' }) {
+    // 搜索结果标题在搜索层已清理为裸商品名；这里再兜底清理一次，并补回标题里的 IP
+    const cleanedName = cleanGoodsName(name)
+    const { ip: titleIp, name: titleName } = parseTitleIpName(cleanedName)
+    const displayName = cleanGoodsName(titleName) || cleanedName || String(name || '').trim()
+
     const draft = resolveMihoyoImportDraft(
-      { goodsId, name, image: coverUrl, coverImage: coverUrl, variants: [] },
+      { goodsId, name: displayName, ip: titleIp || ip, image: coverUrl, coverImage: coverUrl, variants: [] },
       {
         context: ensureHistoricalTagContext(),
         preferredCharacter: getSearchContext().preferredCharacter,
@@ -296,7 +385,7 @@ export function useBatchImport({
     const priceYuan = Number(priceCents) > 0 ? String(Number(priceCents) / 100) : ''
     const entry = enqueueGoods({
       goodsId: String(goodsId || '').trim(),
-      name: String(name || '').trim() || t('mihoyoStock.unnamed'),
+      name: displayName || t('mihoyoStock.unnamed'),
       priceCents: Number(priceCents) || 0,
       coverUrl: baseImages[0] || String(coverUrl || '').trim(),
       url: '',
@@ -307,7 +396,7 @@ export function useBatchImport({
       parsedImages: [...baseImages],
       info: reactive({
         category: draft.category || '',
-        ip: draft.ip || '',
+        ip: draft.ip || titleIp || ip || '',
         image: baseImages[0] || '',
         images: [...(Array.isArray(draft.images) && draft.images.length ? draft.images : baseImages.slice(0, 1))],
         price: priceYuan || (draft.price !== '' && draft.price != null ? String(draft.price) : ''),
@@ -428,6 +517,20 @@ export function useBatchImport({
       context: ensureHistoricalTagContext(),
       preferredCharacter: getSearchContext().preferredCharacter,
     })
+
+    // 多选：每个款式各存一份识别结果，避免「最后点选的款式」覆盖前面的款式
+    if ((entry.selectedSkus || []).length > 1) {
+      if (!entry.skuInfo) entry.skuInfo = {}
+      if (!entry.skuInfo[sku.key]) entry.skuInfo[sku.key] = {}
+      const target = entry.skuInfo[sku.key]
+      if (resolved.category) target.category = resolved.category
+      if (resolved.selectedCharacterName) target.characters = [resolved.selectedCharacterName]
+      if (sku.price != null && Number.isFinite(Number(sku.price))) {
+        target.price = String(Number(sku.price))
+      }
+      return
+    }
+
     if (resolved.category) entry.info.category = resolved.category
     if (resolved.selectedCharacterName) {
       entry.info.characters = [resolved.selectedCharacterName]
@@ -474,9 +577,14 @@ export function useBatchImport({
     if (!entry || !variant || entry.parseFailed) return
     const exists = entry.selectedSkus.some((s) => s.key === variant.key)
     queueState.selectSku(entry, variant)
-    if (exists && !entry.selectedSkus.length) {
-      restoreDefaultImages(entry)
-      restoreDefaultPrice(entry)
+    if (exists) {
+      if (!entry.selectedSkus.length) {
+        restoreDefaultImages(entry)
+        restoreDefaultPrice(entry)
+      } else if (entry.selectedSkus.length === 1) {
+        // 从多选退回单选：把该款式重新回填到共用表单
+        applySkuInfo(entry, entry.selectedSkus[0])
+      }
     }
   }
 
@@ -484,10 +592,15 @@ export function useBatchImport({
   // 新增款式的分类/角色/价格回填由 queueState.setSelectedSkus 的 onSkuSelected 逐款触发
   function setEntrySkus(entry, variants) {
     if (!entry || entry.parseFailed) return
+    // 拆分出的独立卡片必须保留一个款式，避免点空后变成「整件商品」
+    if (entry.skuLocked && (!Array.isArray(variants) || !variants.length)) return
     queueState.setSelectedSkus(entry, variants)
     if (!entry.selectedSkus.length) {
       restoreDefaultImages(entry)
       restoreDefaultPrice(entry)
+    } else if (entry.selectedSkus.length === 1) {
+      // 从多选退回单选：把该款式重新回填到共用表单
+      applySkuInfo(entry, entry.selectedSkus[0])
     }
   }
 
@@ -516,18 +629,50 @@ export function useBatchImport({
   // ── 生成一条入库数据（选中款式 → 每款一条；未选款式 → 整件一条） ──
   function buildGoodsRow(entry, sku) {
     const info = entry.info || {}
-    // 款式选择时已经通过 applySkuInfo 回填角色；保存阶段必须以表单值为准，
-    // 否则用户忽略或删除自动识别的角色后会被再次写回。
-    const characters = cloneImages(info.characters)
+    const override = sku && entry.skuInfo ? (entry.skuInfo[sku.key] || {}) : {}
+    const derived = sku ? deriveSkuInfo(entry, sku) : {}
+
+    // 取值优先级：用户为这个款式单独改过的值 → 款式自动识别值 → 全部款式共用值
+    const pick = (field, fallback) => {
+      if (hasField(override, field)) return override[field]
+      if (hasField(derived, field)) return derived[field]
+      return fallback
+    }
+
+    const name = String((hasField(override, 'name') ? override.name : entry.name) || '').trim()
+    const characters = cloneImages(pick('characters', info.characters))
+    const tags = cloneImages(pick('tags', info.tags))
+    const category = pick('category', info.category || '')
+    const ip = pick('ip', info.ip || '')
+    const notes = pick('notes', info.notes || '')
+    const purchaseDate = pick('purchaseDate', info.purchaseDate || defaultPurchaseDate())
+
+    // 图片：款式有专属封面时默认以它为主图（与单选行为一致）；
+    // 用户单独改过图片则完全按该款式的选择来。
     const skuCover = sku?.cover_url || ''
-    const image = skuCover || info.image || ''
-    const images = skuCover
-      ? [skuCover, ...(info.images || []).filter((u) => u && u !== skuCover)]
-      : cloneImages(info.images)
-    const skuPrice = sku?.price != null ? Number(sku.price) : null
-    const price = skuPrice != null
-      ? skuPrice
-      : (info.price === '' || info.price == null ? null : Number(info.price))
+    let images
+    if (hasField(override, 'images')) {
+      images = cloneImages(override.images)
+    } else if (skuCover) {
+      images = [skuCover, ...(info.images || []).filter((url) => url && url !== skuCover)]
+    } else {
+      images = cloneImages(info.images)
+    }
+    let image = hasField(override, 'image')
+      ? String(override.image || '')
+      : (skuCover || info.image || '')
+    if (image && !images.includes(image)) images = [image, ...images]
+    if (!image) image = images[0] || ''
+
+    // 价格：款式单独改过优先；否则用 SKU 专属价；最后回退共用价格
+    let price
+    if (hasField(override, 'price')) {
+      price = override.price === '' || override.price == null ? null : Number(override.price)
+    } else if (sku?.price != null && Number.isFinite(Number(sku.price))) {
+      price = Number(sku.price)
+    } else {
+      price = info.price === '' || info.price == null ? null : Number(info.price)
+    }
 
     const goodsId = String(
       entry.goodsId || entry.goods_id || entry._goodsId ||
@@ -535,17 +680,17 @@ export function useBatchImport({
     ).trim()
 
     return {
-      name: String(entry.name || '').trim(),
-      category: info.category || '',
-      ip: info.ip || '',
+      name,
+      category,
+      ip,
       goodsId,
       image,
       images,
       price,
       source: '米游铺',
-      purchaseDate: info.purchaseDate || defaultPurchaseDate(),
-      notes: info.notes || '',
-      tags: cloneImages(info.tags),
+      purchaseDate,
+      notes,
+      tags,
       characters,
       variant: sku ? String(sku.text || '') : '',
       isWishlist: isWishlistMode.value,
@@ -640,6 +785,7 @@ export function useBatchImport({
     selectEntrySku,
     selectSingleSku: selectEntrySku,
     setEntrySkus,
+    splitEntrySkus,
   }
 }
 

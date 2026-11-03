@@ -108,11 +108,12 @@ export function useSmartTagging(form) {
     if (field === 'category') form.category = value
     else if (field === 'ip') form.ip = value
     else if (field === 'characters') {
-      if (!form.characters) form.characters = []
+      const next = Array.isArray(form.characters) ? [...form.characters] : []
       const newChars = Array.isArray(value) ? value : [value]
       newChars.forEach(c => {
-        if (!form.characters.includes(c)) form.characters.push(c)
+        if (!next.includes(c)) next.push(c)
       })
+      form.characters = next
     }
 
     // 应用完后从面板中移除

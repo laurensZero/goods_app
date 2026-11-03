@@ -69,6 +69,10 @@ export function useMihoyoGoodsQueue(options = {}) {
       variants: [],
       skuGroups: [],
       selectedSkus: [],
+      // 多选款式拆分出的独立队列项：锁定为单选款式，避免再次拆分/重复
+      skuLocked: false,
+      // 款式自动识别结果缓存（按 sku.key::商品名）
+      skuDerived: {},
       loading: false,
       variantsLoaded: false,
       variantLoadFailed: false,

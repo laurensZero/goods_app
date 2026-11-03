@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cleanGoodsName, parseTitleIpName } from '../index'
+import { cleanGoodsName, cleanMihoyoGoodsTitle, parseTitleIpName } from '../index'
 
 describe('parseTitleIpName', () => {
   it('extracts a real IP from bracket prefix', () => {
@@ -55,5 +55,18 @@ describe('cleanGoodsName + parseTitleIpName mihoyo flow', () => {
     const { ip, name: rawName } = parseTitleIpName('【店铺赠品】极光派对系列徽章+亚克力摆件菲林斯27年1月下')
     expect(ip).toBe('')
     expect(cleanGoodsName(rawName)).toBe('极光派对系列徽章+亚克力摆件菲林斯')
+  })
+})
+
+describe('cleanMihoyoGoodsTitle（搜索接口标题清理）', () => {
+  it('removes IP bracket prefix and trailing English IP alias', () => {
+    expect(cleanMihoyoGoodsTitle('【原神】角色PV系列 相卡及相簿 Genshin')).toEqual({
+      ip: '原神',
+      name: '角色PV系列 相卡及相簿',
+    })
+  })
+
+  it('keeps names that are only an English IP alias', () => {
+    expect(cleanGoodsName('Genshin Impact')).toBe('Genshin Impact')
   })
 })

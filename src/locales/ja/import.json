@@ -89,6 +89,8 @@
   "import.clearQueue": "クリア",
   "import.confirmImportCount": "インポート（{count} 件）",
   "import.editInfo": "情報を編集",
+  "import.splitSkuHint": "{count} 個の款式を選択中。独立したキューに分割すると、款式ごとに情報を編集できます。",
+  "import.splitSkuAction": "{count} 個の独立したグッズに分割",
   "import.collapseInfo": "情報を閉じる",
   "import.linkParseFailed": "リンクの解析に失敗しました",
   "import.skuSingleSelectHint": "款式を選択（単一選択）",

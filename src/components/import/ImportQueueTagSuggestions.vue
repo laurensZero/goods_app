@@ -74,8 +74,8 @@ function handleApply(payload) {
 }
 
 function handleIgnore({ field }) {
-  if (field === 'characters' && entry.info) {
-    entry.info.characters = []
+  if (field === 'characters') {
+    form.characters = []
   }
   ignoreSuggestion({ field })
 }
