@@ -44,7 +44,11 @@ const form = reactive({
     return entry.info?.characters ?? []
   },
   set characters(value) {
-    if (entry.info) entry.info.characters = value
+    if (entry.info) {
+      entry.info.characters = value
+      // 用户点「应用」采纳角色建议，保存时以表单为准
+      entry.charactersEdited = true
+    }
   },
   get category() {
     return entry.info?.category ?? ''

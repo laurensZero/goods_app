@@ -483,10 +483,52 @@ function resolvePreferredCharacter(preferredCharacter, variants, categoryBlockli
   return variants.some((variant) => variantMatchesCharacter(variant, preferred)) ? preferred : ''
 }
 
+/**
+ * 从一段文本（通常是款式/SKU 文案）里找出角色库中明确出现的角色名。
+ *
+ * 用于「名称 + SKU 综合判断」：商品标题里可能带系列词（例如「三明治香气的梦想系列」），
+ * 而系列词恰好和角色库里的某个角色同名（「三明治」）。只看标题时会把系列词当成角色。
+ * SKU 里写的角色名证据更强，应优先采用。
+ *
+ * 先找「独立出现」的名字（前后有分隔符、后面跟「款」、或「角色：xxx」这类标签），
+ * 找不到再用包含式匹配兜底，避免系列词片段误伤。
+ */
+function findKnownCharactersInText(text, context, categoryBlocklist = null) {
+  const source = normalizeText(text)
+  if (!source || !context) return []
 
-function collectExplicitCharacters(source, preferredCharacter = '', categoryBlocklist = null) {
+  const normalizedCharacters = getNormalizedCharacterMap(context)
+  const lowerSource = source.toLowerCase()
+  const strong = []
+  const weak = []
+
+  for (const entries of Object.values(normalizedCharacters)) {
+    for (const { name, short } of entries) {
+      if (!name || isCategoryName(name, categoryBlocklist)) continue
+      if (hasStrictShortCharacterMention(name, [source])) {
+        strong.push(name)
+      } else if (!short && lowerSource.includes(name.toLowerCase())) {
+        // 单字角色名不做包含式兜底，避免「卡」命中「卡片」这类品类词
+        weak.push(name)
+      }
+    }
+  }
+
+  // 长名优先：同段文本里同时命中短名和更长的名字时先取长的
+  const matched = strong.length ? strong : weak
+  return uniqueList(matched).sort((a, b) => b.length - a.length)
+}
+
+function collectExplicitCharacters(source, preferredCharacter = '', categoryBlocklist = null, context = null) {
   const directCharacters = normalizeCharacterList(source?.characters, categoryBlocklist)
   if (directCharacters.length) return directCharacters
+
+  // 已选款式（SKU）里明确写出的角色名优先于标题里的系列词/模糊匹配
+  const variantText = normalizeText(source?.variant || source?.selectedVariantName)
+  if (variantText) {
+    const variantCharacters = findKnownCharactersInText(variantText, context, categoryBlocklist)
+    if (variantCharacters.length) return variantCharacters
+  }
 
   const preferred = resolvePreferredCharacter(preferredCharacter, source?.variants, categoryBlocklist)
   if (preferred) return [preferred]
@@ -544,7 +586,12 @@ export function resolveMihoyoImportDraft(source, { context, preferredCharacter =
     source?.category,
     preliminaryCategory,
   ])
-  const explicitCharacters = collectExplicitCharacters({ ...source, variants, variant }, preferredCharacter, initialCategoryBlocklist)
+  const explicitCharacters = collectExplicitCharacters(
+    { ...source, variants, variant },
+    preferredCharacter,
+    initialCategoryBlocklist,
+    context,
+  )
   const taggingResult = getTaggingResult({
     name: [name, variant].filter(Boolean).join(' '),
     note,
@@ -615,7 +662,12 @@ export function resolveMihoyoVariantDraft({
     preliminaryCategory,
   ])
   const preferred = resolvePreferredCharacter(preferredCharacter, [variant], initialCategoryBlocklist)
-  const explicitCharacters = preferred ? [preferred] : []
+  // SKU 文案里明确写出的角色名优先：标题里的系列词可能和角色库里的角色同名
+  const variantCharacters = findKnownCharactersInText(variantName, context, initialCategoryBlocklist)
+  const explicitCharacters = uniqueList([
+    ...variantCharacters,
+    ...(preferred ? [preferred] : []),
+  ])
   const taggingResult = getTaggingResult({
     name: [name, variantName].filter(Boolean).join(' '),
     chars: explicitCharacters,

@@ -214,6 +214,8 @@ export function useBatchImport({
         parseError: '',
         infoExpanded: true,
         skuLocked: true,
+        // 拆分前用户手动改过角色时，各款式沿用该修改，不再被自动识别覆盖
+        charactersEdited: Boolean(entry.charactersEdited),
         baseImages: cloneImages(entry.baseImages),
         parsedImages: cloneImages(entry.parsedImages),
         selectedSkus: [normalizeMihoyoVariantEntry(sku)].filter(Boolean),
@@ -226,7 +228,9 @@ export function useBatchImport({
           purchaseDate: shared.purchaseDate || '',
           notes: shared.notes || '',
           tags: cloneImages(shared.tags),
-          characters: cloneImages(derived.characters || shared.characters),
+          characters: cloneImages(
+            entry.charactersEdited ? shared.characters : (derived.characters || shared.characters)
+          ),
         }),
       })
       next.variants = normalizeMihoyoVariantList(entry.variants, { fallbackCover: next.coverUrl })
@@ -278,6 +282,8 @@ export function useBatchImport({
     entry.name = String(draft.name || '').trim() || t('mihoyoStock.unnamed')
     entry.priceCents = draft.price !== '' && draft.price != null ? Math.round(Number(draft.price) * 100) : 0
     entry.coverUrl = String(draft.image || '').trim()
+    // 重新解析出的草稿会重置角色编辑标记，允许自动识别结果重新回填
+    entry.charactersEdited = false
     Object.assign(entry.info, {
       category: draft.category || '',
       ip: draft.ip || '',
@@ -534,6 +540,8 @@ export function useBatchImport({
     if (resolved.category) entry.info.category = resolved.category
     if (resolved.selectedCharacterName) {
       entry.info.characters = [resolved.selectedCharacterName]
+      // 款式自动回填角色后，保存时重新以款式识别结果为准
+      entry.charactersEdited = false
     }
     if (sku.price != null && Number.isFinite(Number(sku.price))) {
       entry.info.price = String(Number(sku.price))
@@ -594,12 +602,14 @@ export function useBatchImport({
     if (!entry || entry.parseFailed) return
     // 拆分出的独立卡片必须保留一个款式，避免点空后变成「整件商品」
     if (entry.skuLocked && (!Array.isArray(variants) || !variants.length)) return
+    const beforeKeys = (entry.selectedSkus || []).map((sku) => sku.key).join('\u0000')
     queueState.setSelectedSkus(entry, variants)
+    const afterKeys = (entry.selectedSkus || []).map((sku) => sku.key).join('\u0000')
     if (!entry.selectedSkus.length) {
       restoreDefaultImages(entry)
       restoreDefaultPrice(entry)
-    } else if (entry.selectedSkus.length === 1) {
-      // 从多选退回单选：把该款式重新回填到共用表单
+    } else if (entry.selectedSkus.length === 1 && beforeKeys !== afterKeys) {
+      // 从多选退回单选：把该款式重新回填到共用表单（款式未变时不覆盖用户改过的信息）
       applySkuInfo(entry, entry.selectedSkus[0])
     }
   }
@@ -626,6 +636,13 @@ export function useBatchImport({
     entry.info.image = images[0] || ''
   }
 
+  // 用户手动改角色（角色选择器 / 智能建议）：记录编辑标记，保存时优先于款式自动识别
+  function setEntryCharacters(entry, characters) {
+    if (!entry?.info) return
+    entry.info.characters = Array.isArray(characters) ? characters : []
+    entry.charactersEdited = true
+  }
+
   // ── 生成一条入库数据（选中款式 → 每款一条；未选款式 → 整件一条） ──
   function buildGoodsRow(entry, sku) {
     const info = entry.info || {}
@@ -640,7 +657,11 @@ export function useBatchImport({
     }
 
     const name = String((hasField(override, 'name') ? override.name : entry.name) || '').trim()
-    const characters = cloneImages(pick('characters', info.characters))
+    // 角色被用户手动改过时以表单为准：款式自动识别只在用户未改动时生效，
+    // 否则改完角色一保存又被识别结果（如标题里的系列词）覆盖。
+    const characters = cloneImages(
+      entry.charactersEdited ? info.characters : pick('characters', info.characters)
+    )
     const tags = cloneImages(pick('tags', info.tags))
     const category = pick('category', info.category || '')
     const ip = pick('ip', info.ip || '')
@@ -781,6 +802,7 @@ export function useBatchImport({
     retryParseLink,
     confirmImportQueue,
     toggleQueueImage,
+    setEntryCharacters,
     enqueueFromSearch,
     selectEntrySku,
     selectSingleSku: selectEntrySku,

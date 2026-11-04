@@ -275,7 +275,11 @@
                     <!-- 智能识别建议（分类/IP/角色/标签） -->
                     <div class="field">
                       <span class="field-label">{{ t('common.character') }}</span>
-                      <ImportCharacterPicker v-model="entry.info.characters" :ip="entry.info.ip" />
+                      <ImportCharacterPicker
+                        :model-value="entry.info.characters"
+                        :ip="entry.info.ip"
+                        @update:model-value="(value) => setEntryCharacters(entry, value)"
+                      />
                     </div>
                     <ImportQueueTagSuggestions :entry="entry" />
                     <label class="field">
@@ -491,7 +495,7 @@ const {
   batchParseButtonText, parsingLinks, linkProgress,
   savingAll, queueImportCount, isQueueItemOwned, queueSummary,
   handleBatchImport, stopBatchParsing, retryParseLink, confirmImportQueue,
-  setEntrySkus, splitEntrySkus,
+  setEntrySkus, splitEntrySkus, setEntryCharacters,
 } = useBatchImport({
   urlInput, urlInputRef, syncUrlInput, isWishlistMode,
   ensureHistoricalTagContext, updateHistoricalTagContextFromItem,

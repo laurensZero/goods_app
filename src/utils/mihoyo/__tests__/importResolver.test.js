@@ -330,6 +330,43 @@ describe('mihoyo import resolver', () => {
     }
   })
 
+  it('prefers the character written in the SKU over a same-named series word in the title', () => {
+    const context = buildMihoyoImportContext({
+      presetCharacters: [
+        { name: '三明治', ip: '测试IP' },
+        { name: '阿尔法', ip: '测试IP' },
+      ],
+      categories: ['立牌'],
+      ips: ['测试IP'],
+    })
+    const name = '三明治香气的梦想系列 Q版mini立牌'
+
+    // 款式路径：标题里的「三明治」是系列词，SKU 才是真正角色
+    const variantDraft = resolveMihoyoVariantDraft({
+      name,
+      variant: { text: '阿尔法', key: 'k1' },
+      context,
+    })
+    expect(variantDraft.selectedCharacterName).toBe('阿尔法')
+
+    // 款式文案里同时带系列名和角色名：仍以独立出现的角色名为准
+    const combinedDraft = resolveMihoyoVariantDraft({
+      name,
+      variant: { text: '三明治香气 / 阿尔法款', key: 'k2' },
+      context,
+    })
+    expect(combinedDraft.selectedCharacterName).toBe('阿尔法')
+
+    // 导入草稿路径：带已选款式时同样优先 SKU 角色
+    const draft = resolveMihoyoImportDraft({
+      name,
+      variant: '阿尔法',
+      variants: [{ text: '阿尔法', key: 'k1' }],
+      ip: '测试IP',
+    }, { context })
+    expect(draft.characters).toEqual(['阿尔法'])
+  })
+
   it('auto-matches a known character from shared context (上新加入心愿单的行为)', () => {
     const context = buildMihoyoImportContext({
       presetCharacters: [{ name: '兹白', ip: '原神' }],
