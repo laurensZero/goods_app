@@ -144,6 +144,37 @@ describe('getItemSpendEntries', () => {
     expect(entries[0].price).toBe(0)
     expect(entries[1].price).toBe(50)
   })
+
+  it('counts only the owned copy when the item was gifted then restocked', () => {
+    const entries = getItemSpendEntries(makeItem({
+      quantity: 2,
+      actualPrice: '100',
+      acquiredAt: '2026-08-10',
+      unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+      unitActualPriceList: ['60', '40'],
+      unitCollectStatusList: ['已赠出', '已拥有'],
+      collectStatus: '已赠出'
+    }))
+    expect(entries).toHaveLength(1)
+    expect(entries[0].price).toBe(40)
+    expect(entries[0].date.getMonth()).toBe(10)
+  })
+
+  it('treats unmarked trailing copies as owned when restocking a gifted item', () => {
+    // 合并补货后逐份状态可能只有 ['已赠出']：新份未标注，按已拥有计
+    const entries = getItemSpendEntries(makeItem({
+      quantity: 2,
+      actualPrice: '100',
+      acquiredAt: '2026-08-10',
+      unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+      unitActualPriceList: [],
+      unitCollectStatusList: ['已赠出'],
+      collectStatus: '已赠出'
+    }))
+    expect(entries).toHaveLength(1)
+    expect(entries[0].price).toBeCloseTo(50)
+    expect(entries[0].date.getMonth()).toBe(10)
+  })
 })
 
 describe('parseShippingEvents / getTotalShippingFee', () => {
@@ -225,5 +256,20 @@ describe('calcPeriodSpend', () => {
     }
     const october = calcPeriodSpend([withLaterShipping], (d) => d.getFullYear() === 2026 && d.getMonth() === 9)
     expect(october).toBeCloseTo(10)
+  })
+
+  it('drops gifted copies from period spend but keeps restocked owned copies', () => {
+    const giftedThenRestocked = {
+      ...restockedGoods,
+      collectStatus: '已赠出',
+      unitCollectStatusList: [
+        ...Array.from({ length: 11 }, () => '已赠出'),
+        ...Array.from({ length: 3 }, () => '')
+      ]
+    }
+    const august = calcPeriodSpend([giftedThenRestocked], (d) => d.getFullYear() === 2026 && d.getMonth() === 7)
+    const september = calcPeriodSpend([giftedThenRestocked], (d) => d.getFullYear() === 2026 && d.getMonth() === 8)
+    expect(august).toBe(0)
+    expect(september).toBeCloseTo(30)
   })
 })

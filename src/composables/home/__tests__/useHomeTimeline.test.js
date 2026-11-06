@@ -239,6 +239,53 @@ describe('useHomeTimeline', () => {
     expect(timeline.timelineYearGroups.value[0].yearTotal).toBe(108)
   })
 
+  it('does not gray or zero the restock month of a gifted-then-rebought item', () => {
+    const item = {
+      id: 'gifted-restock',
+      name: '赠出后回购',
+      quantity: 2,
+      acquiredAt: '2026-08-10',
+      unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+      unitActualPriceList: ['60', '40'],
+      unitCollectStatusList: ['已赠出', '已拥有'],
+      collectStatus: '已赠出',
+      actualPrice: '100'
+    }
+    const timeline = setupTimeline([item])
+    const months = timeline.allTimelineMonthList.value
+    const august = months.find((m) => m.yearMonth === '2026-08').items[0]
+    const november = months.find((m) => m.yearMonth === '2026-11').items[0]
+
+    // 旧月份：那份已赠出 → 置灰、金额 0
+    expect(august.isExcludedFromValue).toBe(true)
+    expect(august.totalValueNumber).toBe(0)
+    // 补货月份：新份已拥有 → 不置灰、金额计入月合计
+    expect(november.isExcludedFromValue).toBe(false)
+    expect(november.totalValueNumber).toBe(40)
+    expect(months.find((m) => m.yearMonth === '2026-11').totalSpend).toBe(40)
+  })
+
+  it('treats an unmarked restocked copy as owned for graying and spend', () => {
+    // 合并补货后逐份状态只有 ['已赠出']：新份未标注，按已拥有计
+    const item = {
+      id: 'gifted-restock-unmarked',
+      name: '赠出后回购（未标注状态）',
+      quantity: 2,
+      acquiredAt: '2026-08-10',
+      unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+      unitActualPriceList: [],
+      unitCollectStatusList: ['已赠出'],
+      collectStatus: '已赠出',
+      actualPrice: '100'
+    }
+    const timeline = setupTimeline([item])
+    const months = timeline.allTimelineMonthList.value
+    const november = months.find((m) => m.yearMonth === '2026-11').items[0]
+
+    expect(november.isExcludedFromValue).toBe(false)
+    expect(november.totalValueNumber).toBeCloseTo(50)
+  })
+
   it('merges later shipping into an existing month without inflating its count', () => {
     const shipped = {
       id: 'ship-oct-merge',

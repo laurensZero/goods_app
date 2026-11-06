@@ -2,6 +2,32 @@ import { getHoldingPeriod } from '@/utils/goods/statusTimeline'
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
+/**
+ * 逐份口径的「不计花费」份下标集合。
+ * - 有逐份状态列表：只剔除显式标注 已出/已赠出/丢失 的份；未标注的份按已拥有计
+ *   （与 normalizeCollectStatus 默认一致），支持「整件已赠出后又补货」的场景。
+ * - 无逐份状态列表：沿用整件顶层状态，已出/已赠出/丢失时整件剔除。
+ * @param {object} item
+ * @returns {Set<number>|null} null 表示无需剔除任何份
+ */
+function getExcludedUnitIndexSet(item) {
+  const qty = Math.max(1, Number(item.quantityNumber || item.quantity) || 1)
+  const unitStatuses = Array.isArray(item.unitCollectStatusList) ? item.unitCollectStatusList : []
+  if (unitStatuses.length === 0) {
+    return EXCLUDED_VALUE_STATUSES.has(String(item.collectStatus || '').trim())
+      ? new Set(Array.from({ length: qty }, (_, i) => i))
+      : null
+  }
+
+  const unitCount = Math.max(qty, unitStatuses.length)
+  const excluded = new Set()
+  for (let i = 0; i < unitCount; i++) {
+    const status = String(unitStatuses[i] || '').trim()
+    if (status && EXCLUDED_VALUE_STATUSES.has(status)) excluded.add(i)
+  }
+  return excluded.size > 0 ? excluded : null
+}
+
 function safeDate(str) {
   if (!str) return null
   const d = new Date(String(str).trim())
@@ -136,7 +162,11 @@ function attachShippingToEntries(goodsEntries, item) {
   return standaloneEntries.length > 0 ? [...updatedEntries, ...standaloneEntries] : updatedEntries
 }
 
-function getItemDatesAndPrices(item) {
+/**
+ * @param {object} item
+ * @param {Set<number>|null} [excludedIndexes] 需要剔除的份下标（已出/已赠出/丢失的份）
+ */
+function getItemDatesAndPrices(item, excludedIndexes = null) {
   const qty = Math.max(1, Number(item.quantityNumber || item.quantity) || 1)
   const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
   // 优先视图层折算后的逐件 CNY 价,回退原始逐件价(与聚合字段口径一致)
@@ -177,11 +207,25 @@ function getItemDatesAndPrices(item) {
     }
     const perUnitShare = holeCount > 0 ? Math.max(0, (totalAmount - filledSum) / holeCount) : 0
     goodsEntries = resolved
+      .map((entry, index) => {
+        if (!entry || (excludedIndexes && excludedIndexes.has(index))) return null
+        return { date: entry.date, price: entry.price ?? perUnitShare }
+      })
       .filter(Boolean)
-      .map(({ date, price }) => ({ date, price: price ?? perUnitShare }))
   } else {
     const d = safeDate(item.acquiredAt)
-    goodsEntries = d ? [{ date: d, price: totalAmount }] : []
+    if (!d) {
+      goodsEntries = []
+    } else if (excludedIndexes && excludedIndexes.size > 0) {
+      // 无逐份日期时无法按份拆分：按未剔除份数比例折算整件金额
+      const unitCount = Math.max(qty, excludedIndexes.size)
+      const includedCount = unitCount - excludedIndexes.size
+      goodsEntries = includedCount > 0
+        ? [{ date: d, price: totalAmount * (includedCount / unitCount) }]
+        : []
+    } else {
+      goodsEntries = [{ date: d, price: totalAmount }]
+    }
   }
 
   return attachShippingToEntries(goodsEntries, item)
@@ -189,15 +233,14 @@ function getItemDatesAndPrices(item) {
 
 /**
  * 官方花费明细（预算 / 时间线月合计 / 统计 / MCP 唯一口径）。
- * 排除愿望单与 已出/已赠出/丢失。
+ * 排除愿望单与已出/已赠出/丢失的份数（逐份口径：整件已赠出后补货的新份照常计入）。
  * 运费：shippingEvents 每笔挂各自日期月；否则整笔挂最晚入手月。
  * @param {object} item
  * @returns {{ date: Date, price: number }[]}
  */
 export function getItemSpendEntries(item) {
   if (item?.isWishlist) return []
-  if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) return []
-  return getItemDatesAndPrices(item)
+  return getItemDatesAndPrices(item, getExcludedUnitIndexSet(item))
 }
 
 /**
@@ -244,9 +287,9 @@ export function buildHeatmapData(list) {
 
   for (const item of list) {
     if (item?.isWishlist) continue
-    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
 
-    const pairs = getItemDatesAndPrices(item)
+    // 逐份口径：已出/已赠出/丢失的份不计入，与花费口径一致
+    const pairs = getItemSpendEntries(item)
     for (const { date } of pairs) {
       const key = toDateKey(date)
       map.set(key, (map.get(key) || 0) + 1)
@@ -287,9 +330,7 @@ export function buildSpendingTrendData(list, mode = 'year', options = {}) {
     const years = new Set()
     for (const item of list) {
       if (item?.isWishlist) continue
-      if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
-      const pairs = getItemDatesAndPrices(item)
-      for (const { date } of pairs) {
+      for (const { date } of getItemSpendEntries(item)) {
         years.add(date.getFullYear())
       }
     }
@@ -325,9 +366,8 @@ export function buildSpendingTrendData(list, mode = 'year', options = {}) {
 
   for (const item of list) {
     if (item?.isWishlist) continue
-    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
 
-    const pairs = getItemDatesAndPrices(item)
+    const pairs = getItemSpendEntries(item)
     for (const { date, price } of pairs) {
       let bucketKey = null
 
@@ -451,14 +491,16 @@ export function buildOverviewStats(list) {
 
   for (const item of list) {
     if (item?.isWishlist) continue
-    if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
 
+    const excludedIndexes = getExcludedUnitIndexSet(item)
     const qty = Math.max(1, Number(item.quantityNumber || item.quantity) || 1)
-    totalQuantity += qty
+    const includedQty = excludedIndexes ? Math.max(0, qty - excludedIndexes.size) : qty
+    if (includedQty <= 0) continue
+
+    totalQuantity += includedQty
     itemCount += 1
 
-    const pairs = getItemDatesAndPrices(item)
-    for (const { price } of pairs) {
+    for (const { price } of getItemSpendEntries(item)) {
       totalSpent += price
     }
 

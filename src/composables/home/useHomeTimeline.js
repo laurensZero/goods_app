@@ -143,11 +143,15 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
       // 官方口径：该月花费直接取 getItemSpendEntries 按月汇总
       const monthTotal = spendByMonth.get(yearMonth) || 0
 
-      // Per-copy status graying: only exclude if ALL copies in this month group have exited statuses
-      let monthIsExcluded = false
-      const monthStatuses = monthPairs.map((p) => String(p.status || '').trim()).filter(Boolean)
-      if (monthStatuses.length > 0) {
-        monthIsExcluded = monthStatuses.every((s) => EXCLUDED_VALUE_STATUSES.has(s))
+      // 灰显按份判断：该月每一份都显式标注 已出/已赠出/丢失 才置灰；
+      // 未标注状态的份（如整件已赠出后补货的新份）按已拥有计，与
+      // normalizeCollectStatus 的默认一致。无逐份状态列表时回退整件状态。
+      let monthIsExcluded
+      if (unitStatuses.length > 0) {
+        monthIsExcluded = monthPairs.every((p) => {
+          const status = String(p.status || '').trim()
+          return status !== '' && EXCLUDED_VALUE_STATUSES.has(status)
+        })
       } else {
         monthIsExcluded = itemIsExcluded
       }
@@ -161,6 +165,7 @@ function buildTimelineEntries(goodsList, sortDirection = 'desc') {
         quantity: monthDates.length,
         timelineYearMonth: yearMonth,
         timelineQuantity: monthDates.length,
+        // !hasSpendEntries：整件无任何花费记录（如全部未填价）时兜底置灰
         isExcludedFromValue: monthIsExcluded || !hasSpendEntries,
         priceNumber: monthDates.length > 0 ? monthTotal / monthDates.length : 0,
         totalValueNumber: monthTotal,

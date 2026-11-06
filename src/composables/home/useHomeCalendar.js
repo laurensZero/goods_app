@@ -16,7 +16,8 @@ function toLocalDateKey(date) {
  * - 金额：官方花费口径 getItemSpendEntries（与时间线月合计/预算/统计一致），
  *   逐份日期各自计入对应日期；无同月入手记录的独立运费条目没有明确日期，不计入任何一天。
  * - 条目：逐份入手日期（getTimelineSourceDates），同一商品同一天多份只出一条，
- *   份数信息由 dayItem.qty 提供；当天所有份数均为已出/已赠出/丢失时置灰（isExcluded）。
+ *   份数信息由 dayItem.qty 提供；当天所有份数均显式标注已出/已赠出/丢失时置灰
+ *   （isExcluded），未标注状态的份按已拥有计。
  * @param {object[]} goodsList
  * @returns {Map<string, { total: number, items: Array<{ item: object, qty: number, isExcluded: boolean }> }>}
  */
@@ -46,12 +47,18 @@ export function buildCalendarDayData(goodsList) {
       const date = dates[i]
       let bucket = copiesByDate.get(date)
       if (!bucket) {
-        bucket = { qty: 0, statuses: [] }
+        bucket = { qty: 0, statuses: [], hasUnnamed: false }
         copiesByDate.set(date, bucket)
       }
       bucket.qty += 1
       const status = String(unitStatuses[i] || '').trim()
-      if (status) bucket.statuses.push(status)
+      if (status) {
+        bucket.statuses.push(status)
+      } else if (unitStatuses.length > 0) {
+        // 有逐份状态列表但这一份没标注：按已拥有计；
+        // 整个列表都缺失时走下面的顶层状态回退
+        bucket.hasUnnamed = true
+      }
     }
 
     for (const [date, bucket] of copiesByDate) {
@@ -62,9 +69,16 @@ export function buildCalendarDayData(goodsList) {
       }
 
       dayData.total += spendByDate.get(date) || 0
-      const isExcluded = bucket.statuses.length > 0
-        ? bucket.statuses.every((status) => EXCLUDED_VALUE_STATUSES.has(status))
-        : EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())
+      // 未标注状态的份按已拥有计（与 normalizeCollectStatus 默认一致）：
+      // 整件已赠出后补货的新份不该被置灰
+      let isExcluded
+      if (bucket.hasUnnamed) {
+        isExcluded = false
+      } else if (bucket.statuses.length > 0) {
+        isExcluded = bucket.statuses.every((status) => EXCLUDED_VALUE_STATUSES.has(status))
+      } else {
+        isExcluded = EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())
+      }
       dayData.items.push({ item, qty: bucket.qty, isExcluded })
     }
   }

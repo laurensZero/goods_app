@@ -67,6 +67,30 @@ describe('buildCalendarDayData', () => {
     expect(dayData.get('2026-10-01').items[0].isExcluded).toBe(true)
   })
 
+  it('does not gray the restock day of a gifted-then-rebought item', () => {
+    const goodsList = [
+      {
+        id: 'a',
+        quantity: 2,
+        acquiredAt: '2026-08-10',
+        unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+        unitActualPriceList: ['60', '40'],
+        unitCollectStatusList: ['已赠出', '已拥有'],
+        actualPrice: '100',
+        collectStatus: '已赠出'
+      }
+    ]
+
+    const dayData = buildCalendarDayData(goodsList)
+
+    // 旧的那天：已赠出 → 置灰、金额 0
+    expect(dayData.get('2026-08-10').items[0].isExcluded).toBe(true)
+    expect(dayData.get('2026-08-10').total).toBe(0)
+    // 补货那天：新份已拥有 → 不置灰、金额计入
+    expect(dayData.get('2026-11-01').items[0].isExcluded).toBe(false)
+    expect(dayData.get('2026-11-01').total).toBe(40)
+  })
+
   it('skips wishlist items and items without any acquired date', () => {
     const goodsList = [
       { id: 'wish', isWishlist: true, quantity: 1, acquiredAt: '2026-10-01', actualPrice: '10' },
