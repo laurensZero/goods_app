@@ -8,6 +8,11 @@ const { admin, logout } = useAdminAuth()
 
 const githubSet = computed(() => !!getGithubToken())
 const serviceKeySet = computed(() => !!getSupabaseConfig().serviceKey)
+// 会话里缓存的凭据形态：legacy JWT（eyJ 开头，过渡期）或新版 admin-api 共享口令
+const legacyServiceKey = computed(() => {
+  const key = getSupabaseConfig().serviceKey
+  return !!key && key.startsWith('eyJ')
+})
 </script>
 
 <template>
@@ -51,10 +56,17 @@ const serviceKeySet = computed(() => !!getSupabaseConfig().serviceKey)
       </div>
       <div class="cred-card">
         <div class="cred-head">
-          <span class="cred-name">Supabase Service Role Key</span>
-          <StatusPill :status="serviceKeySet ? 'ok' : 'warn'" :label="serviceKeySet ? '已下发' : '未配置'" />
+          <span class="cred-name">Supabase 管理口令</span>
+          <StatusPill
+            :status="serviceKeySet ? (legacyServiceKey ? 'warn' : 'ok') : 'warn'"
+            :label="serviceKeySet ? (legacyServiceKey ? '过渡期 legacy JWT' : '已下发') : '未配置'"
+          />
         </div>
-        <p class="cred-desc">用于管理台直连 Supabase REST（数据读写）</p>
+        <p class="cred-desc">
+          {{ legacyServiceKey
+            ? '旧版凭据（过渡期兼容，仍可用）。重新登录后换发为 admin-api 共享口令。'
+            : '经 admin-api Edge Function 代理读写 Supabase 数据面（REST / GoTrue / Storage），本口令不直接访问数据面。' }}
+        </p>
       </div>
     </div>
 
