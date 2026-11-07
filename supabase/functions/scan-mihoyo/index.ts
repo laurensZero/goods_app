@@ -23,6 +23,7 @@
 // 通知：每轮每目录聚合消息，发给 active+enabled 且开启了 mihoyo_enabled 的用户；
 //       消息内容按用户自选的店铺集合（user_qq_bindings.mihoyo_shops，空=全不选）过滤——
 //       用户只收到所选店铺的新品；同店铺集合的用户共用同一份消息，条数超限则分多条发送。
+//       扫描范围同样按订阅收缩：只扫有订阅用户的店铺并集，无人订阅的店不发起外部请求。
 //       事件键 mihoyo:<catalog>:<批次哈希>:<序号> 兜底防重（ON CONFLICT DO NOTHING）。
 //
 // 请求预算（本函数每天上千次调用，逐商品读写 seen 是 Supabase 日志摄取的大头）：
@@ -55,8 +56,8 @@ const POINT_HEADERS = {
 }
 
 // 商店「即将上架」与积分商城监听店铺：清单见 src/utils/mihoyo/shops.js
+// 实际每轮只扫「绑定用户 mihoyo_shops 并集」内的店铺，无人订阅自动跳过
 const SHOP_CODES = MIHOYO_NEW_ARRIVAL_SHOPS
-const POINT_SHOP_CODES = MIHOYO_NEW_ARRIVAL_SHOPS
 
 const PAGE_SIZE = 50
 const MAX_EMPTY_PAGES = 5
@@ -282,6 +283,38 @@ async function makeBatchKey(catalog: string, newItems: Record<string, any>[]): P
   return `${catalog}:${hash}`
 }
 
+// ---------- 订阅店铺（决定本轮扫哪些店） ----------
+
+// 只扫有人订阅的店铺：绑定用户 mihoyo_shops 勾选集合的并集 ∩ 店铺清单。
+// 无人订阅的店跳过（省外部请求与 seen 读写）；全部为空则整目录跳过。
+// 返回 users 供 enqueueBatch 复用（避免同一次调用里查两遍绑定表）。
+// 查询失败返回 null：调用方退回全量扫描（宁可多扫也不漏，入队侧自行降级）。
+// 副作用说明：被跳过的店 seen 停止续命，TTL 到点被清；重新订阅后的第一轮
+// 会把当时仍在列表里的商品当「新品」聚合成一条摘要推送（一次一条，不是刷屏）。
+async function loadSubscribedShops(
+  admin: ReturnType<typeof createClient>,
+): Promise<{ shops: string[]; users: Record<string, any>[] } | null> {
+  try {
+    const { data: users, error } = await admin
+      .from("user_qq_bindings")
+      .select("user_id, mihoyo_shops")
+      .eq("status", "active")
+      .eq("enabled", true)
+      .eq("mihoyo_enabled", true)
+    if (error) return null
+    const union = new Set<string>()
+    for (const u of users ?? []) {
+      const shops = Array.isArray(u.mihoyo_shops)
+        ? u.mihoyo_shops.map(String).filter(Boolean)
+        : []
+      for (const s of shops) union.add(s)
+    }
+    return { shops: SHOP_CODES.filter((c) => union.has(c)), users: users ?? [] }
+  } catch {
+    return null
+  }
+}
+
 // ---------- 入队（广播给所有活跃 QQ 绑定用户，一目录可多条消息） ----------
 
 async function enqueueBatch(
@@ -289,16 +322,21 @@ async function enqueueBatch(
   catalog: string,
   newItems: Record<string, any>[],
   batchKey: string,
+  preloadedUsers?: Record<string, any>[],
 ) {
   // 只推给主动开启了「米游铺上新」的用户（mihoyo_enabled，默认关闭），
   // 并按用户自选的店铺集合（mihoyo_shops，空 = 全不选）过滤新品
-  const { data: users } = await admin
-    .from("user_qq_bindings")
-    .select("user_id, mihoyo_shops")
-    .eq("status", "active")
-    .eq("enabled", true)
-    .eq("mihoyo_enabled", true)
-  if (!users?.length) return { users: 0, notified_users: 0, jobs: 0 }
+  let users = preloadedUsers
+  if (!users) {
+    const { data } = await admin
+      .from("user_qq_bindings")
+      .select("user_id, mihoyo_shops")
+      .eq("status", "active")
+      .eq("enabled", true)
+      .eq("mihoyo_enabled", true)
+    users = data ?? []
+  }
+  if (!users.length) return { users: 0, notified_users: 0, jobs: 0 }
 
   // 按「所选店铺集合」分组，同一集合的用户共用同一份消息，避免逐用户重复拼
   const groups = new Map<string, { shops: Set<string>; userIds: string[] }>()
@@ -426,6 +464,7 @@ async function scanCatalog(
   admin: ReturnType<typeof createClient>,
   catalog: string,
   shopCodes: string[],
+  preloadedUsers?: Record<string, any>[],
 ) {
   const nowIso = new Date().toISOString()
   const newItems: Record<string, any>[] = []
@@ -484,7 +523,7 @@ async function scanCatalog(
   if (newItems.length > 0) {
     // 按认领集合生成键：正常一轮全部合并；并发子集各入队，不丢商品
     const batchKey = await makeBatchKey(catalog, newItems)
-    enqueued = await enqueueBatch(admin, catalog, newItems, batchKey)
+    enqueued = await enqueueBatch(admin, catalog, newItems, batchKey, preloadedUsers)
   }
 
   return { catalog, shops: shopCodes.length, scanned, new_items: newItems.length, errors, enqueued }
@@ -499,6 +538,7 @@ async function scanCatalog(
 async function scanGiftCatalog(
   admin: ReturnType<typeof createClient>,
   shopCodes: string[],
+  preloadedUsers?: Record<string, any>[],
 ) {
   const nowIso = new Date().toISOString()
   const newActivities: Record<string, any>[] = []
@@ -600,7 +640,7 @@ async function scanGiftCatalog(
   let enqueued = { users: 0, jobs: 0 }
   if (newActivities.length > 0) {
     const batchKey = await makeBatchKey("gift", newActivities)
-    enqueued = await enqueueBatch(admin, "gift", newActivities, batchKey)
+    enqueued = await enqueueBatch(admin, "gift", newActivities, batchKey, preloadedUsers)
   }
 
   return {
@@ -632,13 +672,32 @@ serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceKey)
 
+  // 本轮只扫有订阅用户的店铺（并集）；绑定查询失败退回全量，宁可多扫也不漏
+  const subscribed = await loadSubscribedShops(admin)
+  const shopScope = subscribed ? subscribed.shops : [...SHOP_CODES]
+  const preloadedUsers = subscribed?.users
+
+  const skipResult = (catalog: string) => ({
+    catalog,
+    shops: 0,
+    scanned: 0,
+    new_items: 0,
+    errors: [] as string[],
+    enqueued: { users: 0, notified_users: 0, jobs: 0 },
+    skipped: "no_subscribers",
+  })
+
   const results = []
   for (const catalog of catalogs) {
-    if (catalog === "gift") {
-      results.push(await scanGiftCatalog(admin, SHOP_CODES))
+    if (!shopScope.length) {
+      results.push(skipResult(catalog))
       continue
     }
-    results.push(await scanCatalog(admin, catalog, catalog === "point" ? POINT_SHOP_CODES : SHOP_CODES))
+    if (catalog === "gift") {
+      results.push(await scanGiftCatalog(admin, shopScope, preloadedUsers))
+      continue
+    }
+    results.push(await scanCatalog(admin, catalog, shopScope, preloadedUsers))
   }
   return json({ ok: true, results })
 })
