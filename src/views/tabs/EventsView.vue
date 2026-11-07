@@ -59,7 +59,7 @@
               </div>
 
               <p class="summary-value">
-                <span class="summary-count">{{ eventsStore.activeList.length }}</span>
+                <span class="summary-count">{{ filteredEvents.length }}</span>
                 <span class="summary-unit">{{ t('events.eventsUnit') }}</span>
               </p>
             </div>
@@ -67,7 +67,7 @@
             <div class="summary-metrics">
               <div class="metric-chip">
                 <span class="metric-chip__label">{{ t('events.ticketTotal') }}</span>
-                <strong>{{ formatPrice(eventsStore.totalTicketAll) }}</strong>
+                <strong>{{ formatPrice(filteredTicketTotal) }}</strong>
               </div>
               <div class="metric-chip">
                 <span class="metric-chip__label">{{ t('events.linkedGoodsCount') }}</span>
@@ -639,16 +639,20 @@ const sortedEvents = computed(() => {
   return result
 })
 
-// Merged: totalLinkedGoods + totalPhotos in a single pass
+// Merged: totalLinkedGoods + totalPhotos in a single pass（跟随搜索筛选）
 const _eventTotals = computed(() => {
   let linkedGoods = 0
   let photos = 0
-  for (const event of eventsStore.activeList) {
+  for (const event of filteredEvents.value) {
     linkedGoods += Array.isArray(event.linkedGoodsIds) ? event.linkedGoodsIds.length : 0
     photos += Array.isArray(event.photos) ? event.photos.length : 0
   }
   return { linkedGoods, photos }
 })
+
+const filteredTicketTotal = computed(() => (
+  filteredEvents.value.reduce((sum, event) => sum + (Number.parseFloat(event.ticketPrice) || 0), 0)
+))
 
 const totalLinkedGoods = computed(() => _eventTotals.value.linkedGoods)
 const totalPhotos = computed(() => _eventTotals.value.photos)

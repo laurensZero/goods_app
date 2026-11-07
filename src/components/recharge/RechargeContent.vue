@@ -14,7 +14,7 @@
       label="RECHARGE VALUE"
       storage-key="goods-app:recharge-total-value-hidden"
       :show-tips="false"
-      :trend-items="activeRecords"
+      :trend-items="filteredRecords"
       trend-date-field="chargedAt"
     />
   </section>
@@ -253,7 +253,8 @@ let scrollListenerCleanup = null
 const GAME_ORDER = ['原神', '星穹铁道', '绝区零']
 
 const activeRecords = computed(() => rechargeStore.sortedRecords)
-const totalAmountText = computed(() => rechargeStore.totalAmount.toFixed(2))
+// 总金额跟随游戏/搜索筛选：无筛选时 filteredRecords 即全量记录
+const totalAmountText = computed(() => filteredTotalAmount.value.toFixed(2))
 const hasFilters = computed(() => Boolean(keyword.value.trim() || gameFilter.value))
 
 const hasMonthCardData = computed(() => activeRecords.value.some((record) => {
