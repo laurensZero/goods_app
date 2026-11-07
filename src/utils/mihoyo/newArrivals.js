@@ -12,12 +12,13 @@ import {
   fetchGoodsGiftActivityIds,
   fetchGiftActivityPublic,
 } from '@/utils/mihoyo'
+import { MIHOYO_NEW_ARRIVAL_SHOPS } from '@/utils/mihoyo/shops'
 import { Capacitor } from '@capacitor/core'
 
 const SHOP_LIST_PATH = '/common/homeishop/v1/goods/search_goods_spu_list'
 const POINT_LIST_PATH = '/common/hm_app/v1/goods/point_goods_list'
 
-export const MIHOYO_NEW_ARRIVAL_SHOPS = ['ys', 'xqtd', 'bh3', 'zzz']
+export { MIHOYO_NEW_ARRIVAL_SHOPS }
 
 /** 商店：开售后 / 掉出列表后，本机再保留的天数 */
 const SHOP_RELEASED_DAYS = 7

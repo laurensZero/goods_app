@@ -292,19 +292,12 @@
                   <span class="settings-item__desc">{{ t('notifySettings.mihoyoShopsDesc') }}</span>
                 </div>
               </div>
-              <div class="mihoyo-shop-picker">
-                <button
-                  v-for="shop in mihoyoShopOptions"
-                  :key="shop.code"
-                  type="button"
-                  class="mihoyo-shop-chip"
-                  :class="{ 'mihoyo-shop-chip--active': isShopSelected(shop.code) }"
-                  :disabled="!qqStore.isMihoyoEnabled"
-                  @click="toggleShop(shop.code)"
-                >
-                  {{ shop.label }}
-                </button>
-              </div>
+              <MihoyoShopPicker
+                :selected="qqStore.mihoyoShops"
+                :disabled="!qqStore.isMihoyoEnabled"
+                class="mihoyo-shop-picker"
+                @toggle="toggleShop"
+              />
               <p
                 v-if="qqStore.isMihoyoEnabled && qqStore.mihoyoShops.length === 0"
                 class="mihoyo-shop-hint"
@@ -598,6 +591,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import NavBar from '@/components/common/NavBar.vue'
 import AppToast from '@/components/common/AppToast.vue'
+import MihoyoShopPicker from '@/components/mihoyo/MihoyoShopPicker.vue'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { useToast } from '@/composables/useToast'
 import { useNotifySettingsStore } from '@/stores/notifySettings'
@@ -690,17 +684,8 @@ async function onMihoyoPushChange(e) {
   }
 }
 
-// 米游铺监听店铺选项（与 scan-mihoyo 的 SHOP_CODES 保持一致）
-const mihoyoShopOptions = computed(() => [
-  { code: 'ys', label: t('notifySettings.mihoyoShopYs') },
-  { code: 'xqtd', label: t('notifySettings.mihoyoShopXqtd') },
-  { code: 'bh3', label: t('notifySettings.mihoyoShopBh3') },
-  { code: 'zzz', label: t('notifySettings.mihoyoShopZzz') },
-])
-
-function isShopSelected(code) {
-  return qqStore.mihoyoShops.includes(code)
-}
+// 米游铺监听店铺（与 scan-mihoyo 共用 src/utils/mihoyo/shops.js 清单，
+// 同时决定上新速览页 Tab 显示；选择器组件 MihoyoShopPicker）
 
 // 切换某个店铺的监听（同步到服务端 user_qq_bindings.mihoyo_shops）
 async function toggleShop(code) {

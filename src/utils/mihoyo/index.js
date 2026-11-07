@@ -19,6 +19,11 @@ import { parseCookiePairs } from '@/utils/mihoyo/cookie'
 import { allocateCouponByListedPrice } from '@/utils/goods/couponAllocate'
 import { createLogger } from '@/utils/logger'
 import { CATEGORY_KEYWORDS } from '@/constants/categoryDefinitions'
+import {
+  MIHOYO_SHOP_CODE_BY_IP,
+  MIHOYO_SHOP_IP_BY_CODE,
+  MIHOYO_ROLE_SHOP_CODES,
+} from '@/utils/mihoyo/shops'
 
 // isMihoyoCookieExpiredError 已收敛到 authError.js（retcode 优先、文案正则兜底），此处保留导出兼容旧调用方
 export { isMihoyoCookieExpiredError } from '@/utils/mihoyo/authError'
@@ -33,26 +38,14 @@ const API_CART_ADD = '/common/homeishop/v1/shop_car/add_goods_to_shop_car'
 const API_GIFT_ACTIVITY = '/common/homeishop/v1/activity/gift'
 const log = createLogger('mihoyo')
 
-const MIHOYO_SHOP_CODE_BY_IP = {
-  '原神': 'ys',
-  '崩坏：星穹铁道': 'xqtd',
-  '绝区零': 'zzz'
-}
-
 export function getMihoyoShopCodeByIp(ip) {
   return MIHOYO_SHOP_CODE_BY_IP[String(ip || '').trim()] || ''
 }
 
-export const MIHOYO_ROLE_SHOP_CODES = Object.values(MIHOYO_SHOP_CODE_BY_IP)
+export { MIHOYO_ROLE_SHOP_CODES }
 
-// 反向索引：shop_code -> IP 名称，便于快速查表
-// 额外补上「崩坏3」店铺（不在 MIHOYO_SHOP_CODE_BY_IP 里，但上新页会按店铺回填 IP）
-const SHOP_CODE_TO_IP = {
-  ...Object.fromEntries(
-    Object.entries(MIHOYO_SHOP_CODE_BY_IP).map(([ipName, code]) => [String(code || '').trim(), ipName])
-  ),
-  bh3: '崩坏3',
-}
+// 反向索引：shop_code -> IP 名称（店铺清单见 shops.js；含崩坏3 等非角色店铺）
+const SHOP_CODE_TO_IP = MIHOYO_SHOP_IP_BY_CODE
 
 /** 由米游铺店铺 code 取规范 IP 名称（与预设 IP 对齐；未知店铺返回 ''） */
 export function getMihoyoIpByShopCode(code) {

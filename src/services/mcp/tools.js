@@ -22,8 +22,8 @@ import { resolveEventDates } from '../../utils/events/eventDates'
 import {
   fetchMihoyoNewArrivals,
   fetchMihoyoGiftArrivals,
-  MIHOYO_NEW_ARRIVAL_SHOPS
 } from '../../utils/mihoyo/newArrivals'
+import { MIHOYO_NEW_ARRIVAL_SHOPS, MIHOYO_SHOP_IP_BY_CODE } from '../../utils/mihoyo/shops'
 
 /**
  * @typedef {Object} McpDbApi
@@ -39,13 +39,8 @@ import {
 const NOTE_MAX_LENGTH = 500
 const TIMELINE_MAX_ENTRIES = 20
 
-/** 米游铺店铺展示名（给 AI 直接用的中文，不走 i18n） */
-const MIHOYO_SHOP_LABELS = Object.freeze({
-  ys: '原神',
-  xqtd: '崩坏：星穹铁道',
-  bh3: '崩坏3',
-  zzz: '绝区零'
-})
+/** 米游铺店铺展示名（给 AI 直接用的中文，不走 i18n；清单见 utils/mihoyo/shops.js） */
+const MIHOYO_SHOP_LABELS = MIHOYO_SHOP_IP_BY_CODE
 
 /** sale_time 是 UTC unix 秒；展示口径与上新页一致（UTC+8） */
 function formatMihoyoSaleDate(unixSec) {

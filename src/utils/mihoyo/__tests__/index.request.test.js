@@ -131,11 +131,14 @@ describe('mihoyo 调用方行为锁（错误文案与降级返回值）', () => 
 })
 
 describe('getMihoyoIpByShopCode（按店铺回填规范 IP 名称）', () => {
-  it('四个店铺都映射到与预设一致的规范 IP 全称', () => {
+  it('各店铺都映射到与预设一致的规范 IP 全称', () => {
     expect(getMihoyoIpByShopCode('ys')).toBe('原神')
     expect(getMihoyoIpByShopCode('xqtd')).toBe('崩坏：星穹铁道')
     expect(getMihoyoIpByShopCode('bh3')).toBe('崩坏3')
     expect(getMihoyoIpByShopCode('zzz')).toBe('绝区零')
+    expect(getMihoyoIpByShopCode('bh2')).toBe('崩坏学园2nd')
+    expect(getMihoyoIpByShopCode('wd')).toBe('未定事件簿')
+    expect(getMihoyoIpByShopCode('xbgd')).toBe('星布谷地')
   })
 
   it('未知店铺返回空串', () => {

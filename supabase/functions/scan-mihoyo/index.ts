@@ -7,7 +7,7 @@
 //   GET .../scan-mihoyo?catalog=shop    商店「即将上架」(show_sale_type=2) —— 全天每 20 分钟
 //                                          + 北京 12:01-12:05 / 18:01-18:05 每分钟补扫
 //                                          （补扫从 1 分起，避开与常规扫整点双开）
-//   GET .../scan-mihoyo?catalog=point   积分商城（7 店，需手机头）          —— 每小时
+//   GET .../scan-mihoyo?catalog=point   积分商城（需手机头）                    —— 每小时
 //   GET .../scan-mihoyo?catalog=gift    满赠复核（12 点 / 18 点上新波次）
 //   GET .../scan-mihoyo?catalog=all     全量（手动/补数据）
 //
@@ -37,6 +37,8 @@
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+// 店铺清单唯一数据源（与客户端共用；纯数据零依赖，存 _shared 因打包器只收 supabase/ 目录）
+import { MIHOYO_NEW_ARRIVAL_SHOPS } from "../_shared/mihoyo-shops.js"
 
 const MIHOYO_BASE = "https://api-mall.mihoyogift.com"
 const SHOP_LIST_PATH = "/common/homeishop/v1/goods/search_goods_spu_list"
@@ -52,9 +54,9 @@ const POINT_HEADERS = {
   "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
 }
 
-// 商店「即将上架」与积分商城监听店铺：原神 / 星穹铁道 / 崩坏3 / 绝区零
-const SHOP_CODES = ["ys", "xqtd", "bh3", "zzz"]
-const POINT_SHOP_CODES = ["ys", "xqtd", "bh3", "zzz"]
+// 商店「即将上架」与积分商城监听店铺：清单见 src/utils/mihoyo/shops.js
+const SHOP_CODES = MIHOYO_NEW_ARRIVAL_SHOPS
+const POINT_SHOP_CODES = MIHOYO_NEW_ARRIVAL_SHOPS
 
 const PAGE_SIZE = 50
 const MAX_EMPTY_PAGES = 5

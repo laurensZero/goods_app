@@ -48,7 +48,7 @@
             {{ t('mihoyoNew.allShops') }}
           </button>
           <button
-            v-for="shop in SHOPS"
+            v-for="shop in visibleShops"
             :key="shop.code"
             type="button"
             class="shop-chip"
@@ -56,6 +56,18 @@
             @click="setShop(shop.code)"
           >
             {{ t(shop.labelKey) }}
+          </button>
+          <button
+            type="button"
+            class="shop-chip shop-chip--edit"
+            :aria-label="t('mihoyoNew.editShops')"
+            @click="shopSheetOpen = true"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            </svg>
+            {{ t('mihoyoNew.editShops') }}
           </button>
         </div>
       </section>
@@ -402,6 +414,25 @@
       </div>
     </AppSheet>
 
+    <!-- 编辑店铺：与推送订阅共用 mihoyo_shops，勾选即时保存 -->
+    <AppSheet
+      v-model="shopSheetOpen"
+      size="wide"
+      sheet-class="arrival-shop-sheet"
+    >
+      <div class="shop-sheet">
+        <h2 class="shop-sheet__title">{{ t('mihoyoNew.editShopsTitle') }}</h2>
+        <p class="shop-sheet__hint">{{ t('mihoyoNew.editShopsHint') }}</p>
+        <MihoyoShopPicker
+          :selected="qqStore.mihoyoShops"
+          @toggle="toggleShopSubscription"
+        />
+        <p v-if="!qqStore.isBound" class="shop-sheet__hint shop-sheet__hint--warn">
+          {{ t('mihoyoNew.editShopsNeedBind') }}
+        </p>
+      </div>
+    </AppSheet>
+
     <AppToast :message="toastMsg" />
 
     <PhotoPreviewViewer
@@ -412,7 +443,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
@@ -420,16 +451,19 @@ import AppToast from '@/components/common/AppToast.vue'
 import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import PhotoPreviewViewer from '@/components/image/PhotoPreviewViewer.vue'
 import MihoyoSkuPicker from '@/components/mihoyo/MihoyoSkuPicker.vue'
+import MihoyoShopPicker from '@/components/mihoyo/MihoyoShopPicker.vue'
 import { useToast } from '@/composables/useToast'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
+import { useQQBindingStore } from '@/stores/qqBinding'
 import {
   MIHOYO_NEW_ARRIVAL_SHOPS,
   fetchMihoyoNewArrivals,
   fetchMihoyoGiftArrivals,
 } from '@/utils/mihoyo/newArrivals'
+import { MIHOYO_SHOP_TABS } from '@/utils/mihoyo/shops'
 import { fetchGoodsDetail, parseTitleIpName, parseCategoryFromName, cleanGoodsName, getMihoyoIpByShopCode } from '@/utils/mihoyo'
 import { resolveMihoyoImportDraft, buildMihoyoImportContext } from '@/utils/mihoyo/importResolver'
 import { getSharedTaggingContext, warmTaggingContext } from '@/utils/tagging/taggingContextCache'
@@ -444,6 +478,7 @@ const { toastMsg, showToast } = useToast()
 const { isTabletViewport, updateViewport } = useTabletViewport()
 const goodsStore = useGoodsStore()
 const presetsStore = usePresetsStore()
+const qqStore = useQQBindingStore()
 
 const CATALOG_TABS = [
   { value: 'shop', labelKey: 'mihoyoNew.tabShop' },
@@ -451,12 +486,27 @@ const CATALOG_TABS = [
   { value: 'gift', labelKey: 'mihoyoNew.tabGift' },
 ]
 
-const SHOPS = [
-  { code: 'ys', labelKey: 'mihoyoNew.shopYs' },
-  { code: 'xqtd', labelKey: 'mihoyoNew.shopXqtd' },
-  { code: 'bh3', labelKey: 'mihoyoNew.shopBh3' },
-  { code: 'zzz', labelKey: 'mihoyoNew.shopZzz' },
-]
+// 店铺清单唯一来源见 src/utils/mihoyo/shops.js
+const SHOPS = MIHOYO_SHOP_TABS
+
+/**
+ * 可见店铺：与推送订阅共用同一份 user_qq_bindings.mihoyo_shops。
+ * 未登录 / 未绑定 / 还没勾选过 → 回落显示全部店铺；配置过后严格跟随勾选。
+ */
+const visibleShops = computed(() => {
+  const selected = qqStore.mihoyoShops
+  if (!qqStore.isBound || !selected.length) return SHOPS
+  return SHOPS.filter((shop) => selected.includes(shop.code))
+})
+
+const visibleShopCodes = computed(() => new Set(visibleShops.value.map((shop) => shop.code)))
+
+// 当前选中店铺被取消勾选时回落「全部」，避免停留在一个已隐藏的 Tab 上
+watch(visibleShopCodes, (codes) => {
+  if (activeShop.value && !codes.has(activeShop.value)) {
+    activeShop.value = ''
+  }
+})
 
 const activeCatalog = ref('shop')
 const activeShop = ref('')
@@ -472,6 +522,10 @@ const nowTick = ref(Date.now())
 let nowTimer = null
 const sheetOpen = ref(false)
 const activeItem = ref(null)
+/** 「编辑店铺」弹层：与推送订阅共用 mihoyo_shops（MihoyoShopPicker 即时生效） */
+const shopSheetOpen = ref(false)
+/** 店铺订阅保存中（失败回滚由 qqBinding store 处理，这里仅控制 toast） */
+const shopToggling = ref(false)
 /** 多选 SKU key，按点击顺序 */
 const selectedSkuKeys = ref([])
 const lastSelectedSkuKey = ref('')
@@ -480,8 +534,9 @@ const adding = ref(false)
 
 const filteredItems = computed(() => {
   const list = itemsByCatalog[activeCatalog.value] || []
-  if (!activeShop.value) return list
-  return list.filter((item) => !item.shop_code || item.shop_code === activeShop.value)
+  if (activeShop.value) return list.filter((item) => !item.shop_code || item.shop_code === activeShop.value)
+  // 「全部」也排除已隐藏店铺的商品（无店铺信息的商品保留）
+  return list.filter((item) => !item.shop_code || visibleShopCodes.value.has(item.shop_code))
 })
 
 const giftItems = computed(() => {
@@ -755,10 +810,28 @@ function openSheetPreview() {
 }
 
 useDialogBackButton(closeSkuSheet, sheetOpen)
+useDialogBackButton(() => { shopSheetOpen.value = false }, shopSheetOpen)
 
 function shopLabel(code) {
   const hit = SHOPS.find((s) => s.code === code)
   return hit ? t(hit.labelKey) : String(code || '')
+}
+
+/** 切换某店铺的订阅（同时决定本页 Tab 显示与上新推送范围） */
+async function toggleShopSubscription(code) {
+  if (shopToggling.value) return
+  const current = qqStore.mihoyoShops
+  const next = current.includes(code)
+    ? current.filter((c) => c !== code)
+    : [...current, code]
+  shopToggling.value = true
+  try {
+    await qqStore.toggleMihoyoShops(next)
+  } catch (err) {
+    showToast(err.message || t('common.failed'))
+  } finally {
+    shopToggling.value = false
+  }
 }
 
 function formatYuan(cents) {
@@ -1112,6 +1185,8 @@ onMounted(() => {
   nowTimer = window.setInterval(() => {
     nowTick.value = Date.now()
   }, 60_000)
+  // 幂等：绑定用户先读缓存再后台刷新，Tab 尽快收敛到已订阅店铺，避免闪现全量
+  qqStore.init().catch(() => {})
   void loadCatalog(activeCatalog.value)
   // 首帧之后再预热：进页时先保证列表/滚动先响应，空闲期再算标签与导入上下文
   warmImportContext()
@@ -1254,18 +1329,12 @@ onUnmounted(() => {
 
 .shop-filters {
   display: flex;
-  justify-content: flex-start;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
-  overflow-x: auto;
-  scrollbar-width: none;
   width: 100%;
-  max-width: 440px;
   box-sizing: border-box;
   flex-shrink: 0;
-}
-
-.shop-filters::-webkit-scrollbar {
-  display: none;
 }
 
 .shop-chip {
@@ -1285,6 +1354,43 @@ onUnmounted(() => {
   border-color: var(--app-text);
   color: var(--app-surface);
   font-weight: 600;
+}
+
+/* 编辑店铺入口 chip：图标 + 文案的弱化样式 */
+.shop-chip--edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-style: dashed;
+  color: var(--app-text-secondary);
+}
+
+.shop-chip--edit svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── 编辑店铺弹层 ── */
+.shop-sheet {
+  padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+}
+
+.shop-sheet__title {
+  margin: 0;
+  font-size: var(--font-title);
+  font-weight: 700;
+  color: var(--app-text);
+}
+
+.shop-sheet__hint {
+  margin: 8px 0 14px;
+  color: var(--app-text-secondary);
+  font-size: var(--font-small);
+}
+
+.shop-sheet__hint--warn {
+  margin: 14px 0 0;
+  color: #ff9500;
 }
 
 /* ── 白底列表容器 ── */

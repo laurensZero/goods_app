@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { createMcpToolHandlers, createMcpServer } from '../tools'
 import { MCP_TOOL_DEFINITIONS } from '../toolDefinitions'
+import { MIHOYO_NEW_ARRIVAL_SHOPS } from '@/utils/mihoyo/shops'
 
 const {
   fetchTrackLyricsMock, searchNeteaseMock, searchQQMock, searchBiliMock, fetchNeteaseCoverMapMock,
@@ -23,8 +24,7 @@ vi.mock('@/utils/music/qqMusic', () => ({ searchQQSongs: searchQQMock }))
 vi.mock('@/utils/music/bilibiliMusic', () => ({ searchBilibiliVideos: searchBiliMock }))
 vi.mock('@/utils/mihoyo/newArrivals', () => ({
   fetchMihoyoNewArrivals: fetchMihoyoNewArrivalsMock,
-  fetchMihoyoGiftArrivals: fetchMihoyoGiftArrivalsMock,
-  MIHOYO_NEW_ARRIVAL_SHOPS: ['ys', 'xqtd', 'bh3', 'zzz']
+  fetchMihoyoGiftArrivals: fetchMihoyoGiftArrivalsMock
 }))
 
 /** 内存假 db：固定数据集，覆盖单位价、多币种、愿望单、回收站等分支 */
@@ -464,7 +464,7 @@ describe('mcp tool handlers', () => {
     const handlers = createMcpToolHandlers(createFakeDb())
     const result = await handlers.mihoyo_new_arrivals({ catalog: 'shop', query: '芙宁娜' })
 
-    expect(fetchMihoyoNewArrivalsMock).toHaveBeenCalledWith('shop', ['ys', 'xqtd', 'bh3', 'zzz'])
+    expect(fetchMihoyoNewArrivalsMock).toHaveBeenCalledWith('shop', MIHOYO_NEW_ARRIVAL_SHOPS)
     expect(result.total).toBe(1)
     expect(result.items[0]).toMatchObject({
       goodsId: '1001',
