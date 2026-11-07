@@ -8,12 +8,14 @@
 //
 // 鉴权：
 //   - 本函数 verify_jwt=false（config.toml），调用方必须携带
-//     `Authorization: Bearer <serviceKey>`，且等于配置的
-//     LEGACY_SERVICE_ROLE_KEY（或 SUPABASE_SERVICE_ROLE_KEY）。
+//     `Authorization: Bearer <serviceKey>`，且等于 ADMIN_PANEL_SECRET
+//     （过渡期兼容 LEGACY_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY，
+//     存量登录会话在面板重新登录前不掉线）。
 //     与管理台 admin-login 下发到浏览器的 serviceKey 一致。
 //   - 转发到 VPS 时附加 `X-Backup-Secret` 头（BACKUP_WEBHOOK_SECRET 环境变量）。
 //
 // 环境变量（supabase secrets set）：
+//   ADMIN_PANEL_SECRET      管理台共享口令（随机串，legacy JWT 退役后的鉴权凭据）
 //   BACKUP_VPS_URL          VPS webhook 基地址（公网地址，如 http://<VPS_IP>/backup-webhook）
 //   BACKUP_WEBHOOK_SECRET   与 VPS config.json 中 secret 相同的共享密钥
 //   BACKUP_RESTORE_PASSWORD 回档二级密码（回档操作必须携带，默认未设置则拒绝回档）
@@ -42,10 +44,12 @@ const corsHeaders = {
 const VPS_URL = (Deno.env.get("BACKUP_VPS_URL") || "").replace(/\/+$/, "")
 const WEBHOOK_SECRET = Deno.env.get("BACKUP_WEBHOOK_SECRET") || ""
 const RESTORE_PASSWORD = Deno.env.get("BACKUP_RESTORE_PASSWORD") || ""
-const ADMIN_KEY =
-  Deno.env.get("LEGACY_SERVICE_ROLE_KEY") ||
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-  ""
+// 鉴权口令（Bearer 相等校验用）与数据面密钥（createClient 用）分离：
+// legacy JWT 退役后，鉴权走 ADMIN_PANEL_SECRET，数据面永远用平台注入的 sb_secret_
+const ADMIN_PANEL_SECRET = Deno.env.get("ADMIN_PANEL_SECRET") || ""
+const LEGACY_SERVICE_ROLE_KEY = Deno.env.get("LEGACY_SERVICE_ROLE_KEY") || ""
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+const AUTHORIZED_KEYS = [ADMIN_PANEL_SECRET, LEGACY_SERVICE_ROLE_KEY, SERVICE_ROLE_KEY].filter((k) => k !== "")
 
 const DOWNLOAD_TTL_MS = 60 * 60 * 1000 // 下载链接 1 小时有效
 
@@ -72,7 +76,7 @@ function error(code: string, message: string, status = 400): Response {
 function isAuthorized(req: Request): boolean {
   const header = req.headers.get("authorization") || ""
   const key = header.replace(/^Bearer\s+/i, "").trim()
-  return ADMIN_KEY !== "" && key !== "" && key === ADMIN_KEY
+  return key !== "" && AUTHORIZED_KEYS.includes(key)
 }
 
 function notConfigured(): boolean {
@@ -121,7 +125,7 @@ async function hmacSign(message: string, ttlMs: number): Promise<string> {
 }
 
 function readLogsClient() {
-  return createClient(Deno.env.get("SUPABASE_URL")!, ADMIN_KEY, {
+  return createClient(Deno.env.get("SUPABASE_URL")!, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }
@@ -146,7 +150,7 @@ serve(async (req) => {
       ok: true,
       configured: !notConfigured(),
       vpsUrl: VPS_URL || null,
-      adminKeySet: ADMIN_KEY !== "",
+      adminKeySet: AUTHORIZED_KEYS.length > 0,
       note: notConfigured()
         ? "缺少 BACKUP_VPS_URL 或 BACKUP_WEBHOOK_SECRET 环境变量"
         : "配置就绪",

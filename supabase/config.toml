@@ -69,6 +69,13 @@ verify_jwt = false
 [functions.backup-api]
 verify_jwt = false
 
+# 管理台 privileged 数据面通用代理：面板的 /rest/v1、/auth/v1、/storage/v1 管理
+# 调用统一经本函数转发（浏览器不再直持服务端 key，见 functions/admin-api/index.ts）。
+# 调用方需携带 Authorization: Bearer <ADMIN_PANEL_SECRET 或过渡期 legacy serviceKey>。
+# 需配置 Secret：ADMIN_PANEL_SECRET
+[functions.admin-api]
+verify_jwt = false
+
 [functions.storage-admin]
 verify_jwt = false
 

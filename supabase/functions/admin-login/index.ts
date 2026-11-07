@@ -12,8 +12,8 @@
 //     "tokens": {
 //       "github":        "ghp_xxx（触发 GitHub Actions 工作流）",
 //       "supabaseUrl":   "<SUPABASE_URL>",
-//       "supabaseKey":   "<SUPABASE_ANON_KEY>",
-//       "serviceKey":    "<LEGACY_SERVICE_ROLE_KEY，浏览器可直连的 legacy JWT>"
+//       "supabaseKey":   "<sb_publishable_...，公开的 Publishable Key>",
+//       "serviceKey":    "<ADMIN_PANEL_SECRET，面板与 functions 间的共享口令>"
 //     }
 //   }
 //
@@ -21,6 +21,14 @@
 // secret key，浏览器直连会被网关 401 拦截。因此优先使用自定义 secret
 // LEGACY_SERVICE_ROLE_KEY（Dashboard 的 legacy service_role JWT，无浏览器限制），
 // 未配置时回退到自动注入的 SUPABASE_SERVICE_ROLE_KEY。
+//
+// 注意：内置 env SUPABASE_ANON_KEY 是 legacy anon JWT，2027 年初退役。
+// 下发/校验用的数据面 key 改为 Publishable Key（公开凭据，直接内联即可），
+// 平台退役内置 env 后本函数不受影响。
+//
+// 注意：serviceKey 改发 ADMIN_PANEL_SECRET（随机口令，legacy JWT 退役后仍有效）。
+// 面板 privileged 数据面调用已改走 admin-api 代理（见 functions/admin-api/index.ts），
+// 过渡期函数端同时接受 legacy JWT / 平台 sb_secret_，存量会话不掉线。
 //
 // 首次授权（尚无任何管理员时）：在 SQL Editor 里执行
 //   INSERT INTO feature_whitelist (feature, user_id)
@@ -44,6 +52,9 @@ const corsHeaders = {
 }
 
 const ADMIN_FEATURE = "admin"
+
+// 公开的 Publishable Key（与前端 src/config/supabase.js、admin/src/config/sections.js 同源）
+const PUBLISHABLE_KEY = "sb_publishable_YXn2nWzXZWF2OEBPcUbOWQ_5y-C6zqn"
 
 const RATE_WINDOW_MS = 60_000
 const RATE_MAX_ATTEMPTS = 10
@@ -92,10 +103,10 @@ serve(async (req) => {
   }
 
   try {
-    // 1. 用 anon key 校验邮箱 + 密码，拿到登录用户
+    // 1. 用 publishable key 校验邮箱 + 密码，拿到登录用户
     const anon = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      PUBLISHABLE_KEY,
       { auth: { persistSession: false, autoRefreshToken: false } },
     )
     const { data: signIn, error: signInError } = await anon.auth.signInWithPassword({
@@ -134,8 +145,9 @@ serve(async (req) => {
       tokens: {
         github: Deno.env.get("GITHUB_TOKEN") || "",
         supabaseUrl: Deno.env.get("SUPABASE_URL") || "",
-        supabaseKey: Deno.env.get("SUPABASE_ANON_KEY") || "",
+        supabaseKey: PUBLISHABLE_KEY,
         serviceKey:
+          Deno.env.get("ADMIN_PANEL_SECRET") ||
           Deno.env.get("LEGACY_SERVICE_ROLE_KEY") ||
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
           "",

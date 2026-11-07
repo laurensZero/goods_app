@@ -215,4 +215,5 @@ export const SECTIONS = [
 ]
 
 export const DEFAULT_SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
-export const DEFAULT_SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXppY2ltb3dmcXNoZ2pzcnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjE3NzEsImV4cCI6MjA5Mzk5Nzc3MX0.AZQhPIv79WKtF1bhreMhM89CvOJ8p-1wizNiRgmnRzI'
+// 新版 Publishable Key（sb_publishable_ 前缀），替代 2027 年初退役的 legacy anon JWT
+export const DEFAULT_SUPABASE_KEY = 'sb_publishable_YXn2nWzXZWF2OEBPcUbOWQ_5y-C6zqn'

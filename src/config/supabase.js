@@ -1,5 +1,5 @@
 // src/config/supabase.js
-// Supabase 项目配置（公开的 Anon Key，安全靠 RLS 策略）
+// Supabase 项目配置（公开的 Publishable Key，安全靠 RLS 策略）
 
 export const SUPABASE_URL = 'https://zvqzicimowfqshgjsrri.supabase.co'
 /**
@@ -16,7 +16,12 @@ export const SUPABASE_BACKUP_URL = 'https://api.goodsapp.de5.net'
  * 示例：'https://cf.goodsapp.de5.net'
  */
 export const SUPABASE_CF_URL = 'https://cf.goodsapp.de5.net'
-export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXppY2ltb3dmcXNoZ2pzcnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0MjE3NzEsImV4cCI6MjA5Mzk5Nzc3MX0.AZQhPIv79WKtF1bhreMhM89CvOJ8p-1wizNiRgmnRzI'
+/**
+ * 新版 Publishable Key（sb_publishable_ 前缀，2027 年初起替代 legacy anon JWT）。
+ * supabase-js v2 与 REST/Auth/Storage 的 apikey 头均直接兼容，安全仍靠 RLS。
+ * 保持 SUPABASE_ANON_KEY 命名：与同步设置里用户自存的 sync_supabase_anon_key 语义一致。
+ */
+export const SUPABASE_ANON_KEY = 'sb_publishable_YXn2nWzXZWF2OEBPcUbOWQ_5y-C6zqn'
 
 /**
  * Auth 邮件回调用的 Web 入口覆盖（注册验证、魔法链接、OAuth；OTP 重置密码不需要）。

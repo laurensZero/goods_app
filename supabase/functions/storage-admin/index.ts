@@ -28,7 +28,9 @@
 //   POST /orphans   计算可回收对象（孤儿 + 重复图，dry-run，不删除）
 //   POST /gc        全量回收（物理删除）
 //
-// 环境变量：SUPABASE_URL 由平台注入；LEGACY_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY 用于鉴权。
+// 环境变量：SUPABASE_URL 由平台注入；鉴权用 ADMIN_PANEL_SECRET（过渡期兼容
+// LEGACY_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY），数据面建客户端一律用
+// 平台注入的 SUPABASE_SERVICE_ROLE_KEY（sb_secret_，自动迁移）。
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
@@ -49,10 +51,12 @@ const DELETE_BATCH_SIZE = 500
 // 重复图副本：`xxx (1).jpg` / `xxx(2).png` / `xxx (1)`（浏览器/手工上传重名常见）
 const DUPLICATE_SUFFIX_RE = /^(.*?)\s*\((\d+)\)(\.[^./]+)?$/
 
-const ADMIN_KEY =
-  Deno.env.get("LEGACY_SERVICE_ROLE_KEY") ||
-  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ||
-  ""
+// 鉴权口令（Bearer 相等校验用）与数据面密钥（createClient 用）分离：
+// legacy JWT 退役后，鉴权走 ADMIN_PANEL_SECRET，数据面永远用平台注入的 sb_secret_
+const ADMIN_PANEL_SECRET = Deno.env.get("ADMIN_PANEL_SECRET") || ""
+const LEGACY_SERVICE_ROLE_KEY = Deno.env.get("LEGACY_SERVICE_ROLE_KEY") || ""
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
+const AUTHORIZED_KEYS = [ADMIN_PANEL_SECRET, LEGACY_SERVICE_ROLE_KEY, SERVICE_ROLE_KEY].filter((k) => k !== "")
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -68,11 +72,11 @@ function error(code: string, message: string, status = 400): Response {
 function isAuthorized(req: Request): boolean {
   const header = req.headers.get("authorization") || ""
   const key = header.replace(/^Bearer\s+/i, "").trim()
-  return ADMIN_KEY !== "" && key !== "" && key === ADMIN_KEY
+  return key !== "" && AUTHORIZED_KEYS.includes(key)
 }
 
 function adminClient() {
-  return createClient(Deno.env.get("SUPABASE_URL")!, ADMIN_KEY, {
+  return createClient(Deno.env.get("SUPABASE_URL")!, SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
 }

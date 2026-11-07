@@ -1,3 +1,5 @@
+import { supabaseRequest } from './supabase'
+
 export function normalizeHttpsUrl(value) {
   const raw = String(value || '').trim()
   if (!raw) return ''
@@ -109,9 +111,6 @@ let usersFetchPromise = null
 export async function fetchUsersList() {
   if (cachedUsers.length) return cachedUsers
   if (usersFetchPromise) return usersFetchPromise
-  const { getSupabaseConfig } = await import('./supabase')
-  const config = getSupabaseConfig()
-  const serviceKey = config.serviceKey || config.key
 
   usersFetchPromise = (async () => {
     try {
@@ -120,14 +119,10 @@ export async function fetchUsersList() {
       const perPage = 200
       // 翻页拉全量（GoTrue 返回 next_page 字段；不足一页即结束）
       for (;;) {
-        const res = await fetch(`${config.url}/auth/v1/admin/users?page=${page}&per_page=${perPage}`, {
-          headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }
+        // 经 admin-api 代理转发（GoTrue Admin 在数据面上，浏览器不能直持 sb_secret_）
+        const payload = await supabaseRequest('/auth/v1/admin/users', {
+          params: { page: String(page), per_page: String(perPage) }
         })
-        if (!res.ok) {
-          const detail = await res.text().catch(() => '')
-          throw new Error(`获取用户列表失败（${res.status}）${detail ? '：' + detail : ''}`)
-        }
-        const payload = await res.json()
         const list = Array.isArray(payload?.users) ? payload.users : []
         all.push(...list)
         const next = payload?.next_page

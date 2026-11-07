@@ -62,10 +62,11 @@ export async function pruneOldBundles(channel) {
 
   for (const bundle of toDelete) {
     if (bundle.storage_path) {
-      await fetch(`${config.url}/storage/v1/object/ota-releases/${encodeURIComponent(bundle.storage_path)}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${config.serviceKey}` }
-      }).catch(() => {})
+      // 经 admin-api 代理转发（Storage 对象删除在数据面上，浏览器不能直持 sb_secret_）
+      await supabaseRequest(
+        `/storage/v1/object/ota-releases/${encodeURIComponent(bundle.storage_path)}`,
+        { method: 'DELETE' }
+      ).catch(() => {})
     }
     await supabaseRequest(
       `/rest/v1/ota_releases?id=eq.${encodeURIComponent(bundle.id)}`,
