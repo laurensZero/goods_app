@@ -86,6 +86,19 @@ function deserializeItems(items) {
   }))
 }
 
+/**
+ * 草稿图片展示地址：本机有本地文件时优先本地（秒开、可再编辑），
+ * 云端引用仅作为其他设备 / 本地文件缺失时的回退。
+ * @param {{ imageUri?: string, localImageUri?: string } | null | undefined} item
+ * @returns {string}
+ */
+export function draftDisplayImageUri(item) {
+  if (!item) return ''
+  const local = String(item.localImageUri || '').trim()
+  if (local && isLocalImageUri(local)) return local
+  return String(item.imageUri || '').trim()
+}
+
 function cancelPersistTimer() {
   if (persistTimer != null) {
     clearTimeout(persistTimer)
@@ -584,7 +597,8 @@ async function saveAll(goodsStore) {
     const images = cloudFileName
       ? [{
           id: item.id,
-          uri: item.imageUri || buildCloudImageUri(cloudFileName),
+          // 本地副本在下方统一删除，goods 侧必须落云端引用而非 imageUri（草稿阶段 imageUri 指向本地文件）
+          uri: buildCloudImageUri(cloudFileName),
           cloudFileName,
           storageMode: item.storageMode || 'remote'
         }]
@@ -730,7 +744,8 @@ export async function markBatchDraftImagesAsRemote(updates) {
         if (!remote?.cloudFileName) return item
         return {
           ...item,
-          imageUri: remote.imageUri || buildCloudImageUri(remote.cloudFileName),
+          // imageUri 保持本地文件引用：草稿阶段展示/编辑都优先本地（秒开），
+          // 上传结果只记 cloudFileName 账，云端引用等 saveAll 归商品时再落
           cloudFileName: remote.cloudFileName,
           storageMode: remote.storageMode || 'cloud-local'
           // localImageUri 保留：clearDraft / 保存失败重试仍依赖本地文件
@@ -763,7 +778,7 @@ export async function markBatchDraftImagesAsRemote(updates) {
           if (!remote?.cloudFileName) return item
           return {
             ...item,
-            imageUri: remote.imageUri || buildCloudImageUri(remote.cloudFileName),
+            // 同上：只记云端账，imageUri 留在本地文件，避免编辑中图片突然切云端 URL 重载
             cloudFileName: remote.cloudFileName,
             storageMode: remote.storageMode || 'cloud-local'
           }

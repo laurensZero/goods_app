@@ -56,7 +56,7 @@
             @click="editItem(item.id)"
           >
             <div class="batch-queue-item__image">
-              <LazyCachedImage v-if="item.imageUri" :src="item.imageUri" :lazy="false" class="batch-queue-item__img" />
+              <LazyCachedImage v-if="draftDisplayImageUri(item)" :src="draftDisplayImageUri(item)" :lazy="false" class="batch-queue-item__img" />
               <span v-else class="batch-queue-item__placeholder">?</span>
             </div>
             <div class="batch-queue-item__info">
@@ -67,7 +67,7 @@
                 <span v-if="item.category" class="batch-queue-item__chip">{{ item.category }}</span>
               </div>
             </div>
-            <span v-if="!item.imageUri" class="batch-queue-item__tag batch-queue-item__tag--warn">{{ t('goods.batch.imageMissing') }}</span>
+            <span v-if="!draftDisplayImageUri(item)" class="batch-queue-item__tag batch-queue-item__tag--warn">{{ t('goods.batch.imageMissing') }}</span>
             <span v-else-if="item.name?.trim()" class="batch-queue-item__tag">{{ t('common.done') }}</span>
             <span v-else class="batch-queue-item__tag batch-queue-item__tag--missing">{{ t('goods.batch.nameMissing') }}</span>
             <button class="batch-queue-item__delete" type="button" @click.stop="removeItem(item.id)">&times;</button>
@@ -135,7 +135,7 @@ import { usePresetsStore } from '@/stores/presets'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
-import { useBatchQueue, flushBatchDraft, slotForWishlist } from '@/composables/batch/useBatchQueue'
+import { useBatchQueue, flushBatchDraft, slotForWishlist, draftDisplayImageUri } from '@/composables/batch/useBatchQueue'
 import { useToast } from '@/composables/useToast'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { showGlobalToast } from '@/utils/globalToast'

@@ -12,8 +12,8 @@
         <div class="batch-edit-image-area">
           <div class="batch-edit-image-card">
             <LazyCachedImage
-              v-if="currentItem.imageUri"
-              :src="currentItem.imageUri"
+              v-if="displayImageUri"
+              :src="displayImageUri"
               :lazy="false"
               class="batch-edit-image__img"
             />
@@ -27,7 +27,7 @@
               </svg>
               {{ t('common.replace') }}
             </button>
-            <button class="batch-edit-img-btn" type="button" :disabled="!currentItem.imageUri" @click="openEditor">
+            <button class="batch-edit-img-btn" type="button" :disabled="!displayImageUri" @click="openEditor">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                 <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                 <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -165,7 +165,7 @@ import AppSelect from '@/components/common/AppSelect.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
 import { usePresetsStore } from '@/stores/presets'
-import { useBatchQueue, flushBatchDraft } from '@/composables/batch/useBatchQueue'
+import { useBatchQueue, flushBatchDraft, draftDisplayImageUri } from '@/composables/batch/useBatchQueue'
 import { pickLinkedLocalImages, readLocalImageAsDataUrl } from '@/utils/image/localImage'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { runWithRouteTransition } from '@/utils/routeTransition'
@@ -189,6 +189,8 @@ const {
 
 const itemId = computed(() => route.params.id)
 const currentItem = computed(() => getItem(itemId.value))
+// 展示/编辑优先本地文件：后台同步上传完成后 imageUri 仍指向本地，不切云端 URL 重载
+const displayImageUri = computed(() => draftDisplayImageUri(currentItem.value))
 const currentIndex = computed(() => queue.value.findIndex((i) => i.id === itemId.value))
 
 const form = reactive({
@@ -340,9 +342,9 @@ async function swapImage() {
 }
 
 async function openEditor() {
-  if (!currentItem.value?.imageUri) return
+  if (!displayImageUri.value) return
   try {
-    const dataUrl = await readLocalImageAsDataUrl(currentItem.value.imageUri)
+    const dataUrl = await readLocalImageAsDataUrl(displayImageUri.value)
     if (!dataUrl) return
     // 转换为 File 对象
     const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
