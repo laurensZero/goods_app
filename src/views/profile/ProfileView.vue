@@ -188,7 +188,7 @@ import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { useProfileBackground } from '@/composables/profile/useProfileBackground'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { showGlobalToast } from '@/utils/globalToast'
@@ -395,12 +395,12 @@ function setDisplayDensityWithFlip(mode) {
 /* 滚动记忆 + 滚动来源标记：虚拟化窗口和共享元素回退动画都靠它读当前滚动位置
    （收藏馆不在 keepAlive 列表里，从详情返回是重新挂载） */
 const {
-  getScrollEl,
-  markScrollSource,
   readScrollTop,
   saveScrollPosition,
-  restorePendingScrollPosition
-} = createPageScrollRestore('profile')(pageBodyRef)
+  restore: restoreScrollState,
+} = usePageScroll('profile', pageBodyRef, {
+  onScroll: handlePageScroll,
+})
 
 const INITIAL_RENDER_ROWS = 6
 const GOODS_GRID_ROW_GAP = 12
@@ -505,20 +505,12 @@ const visibleGoodsTailSpacerHeight = computed(() => {
   return gridMetrics.tailSpacerHeight(Math.ceil(remainingItems / cols))
 })
 
-let pageScrollRaf = 0
-
-function handlePageScroll() {
+function handlePageScroll(top) {
+  // 回退动画期间换渲染窗口会把正在飞的卡片从 DOM 里摘掉
   if (isGoodsHeroAnimating()) return
-  if (pageScrollRaf) return
-  pageScrollRaf = window.requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    // 回退动画期间换渲染窗口会把正在飞的卡片从 DOM 里摘掉
-    if (isGoodsHeroAnimating()) return
-    syncVirtualGoodsViewport(readScrollTop())
-  })
+  syncVirtualGoodsViewport(top)
 }
 
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
 
 watch(
   [() => sortedItems.value.length, displayDensity, sortDirection, sortMode, windowWidth],
@@ -764,7 +756,6 @@ useDialogBackButton(() => { showSortSheet.value = false }, () => showSortSheet.v
 onMounted(async () => {
   window.addEventListener('resize', onResize)
   document.addEventListener('visibilitychange', onVisibilityChange)
-  bindPageScroll()
   try {
     amountHidden.value = localStorage.getItem(AMOUNT_HIDDEN_KEY) === '1'
   } catch {}
@@ -774,7 +765,9 @@ onMounted(async () => {
   await nextTick()
   // 从详情返回：先把渲染窗口滚到目标行（否则卡片不在 DOM 里），
   // 再归位滚动，最后播共享元素回退动画
-  await restorePendingScrollPosition(syncVirtualGoodsViewport, () => {})
+  await restoreScrollState({ ifPending: true, phase: 'mounted' }, {
+    syncViewport: (top) => syncVirtualGoodsViewport(top),
+  })
   await nextTick()
   if (!tryPlayNativeGoodsBackHero() && hasPendingGoodsHeroBack(route.fullPath)) {
     scheduleGoodsBackHeroRetry()
@@ -784,11 +777,6 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
   document.removeEventListener('visibilitychange', onVisibilityChange)
-  unbindPageScroll()
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
   gridMetrics.cancelMeasure()
   cancelGoodsBackHeroRetry()
   clearDeferredRestoreTimer()

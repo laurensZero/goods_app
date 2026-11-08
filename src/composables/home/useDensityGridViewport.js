@@ -1,6 +1,6 @@
 export function useDensityGridViewport({
   getScrollEl,
-  getActiveScrollSource
+  getScrollSource
 }) {
   // Cache the computed style check to avoid forcing style recalculation on every call
   let _cachedEl = null
@@ -19,9 +19,11 @@ export function useDensityGridViewport({
   }
 
   function getDensityScrollSource() {
-    const activeSource = getActiveScrollSource?.()
-    if (activeSource === 'window') return 'window'
-    if (activeSource === 'element' && canUseElementViewport()) return 'element'
+    // 滚动源已是派生值（元素可滚 → element，否则 window）；再校验一次元素确实可滚，
+    // 与缓存样式判断交叉确认，避免拿到底部尚未撑开的容器时误判
+    const source = getScrollSource?.()
+    if (source === 'window') return 'window'
+    if (source === 'element' && canUseElementViewport()) return 'element'
     return canUseElementViewport() ? 'element' : 'window'
   }
 

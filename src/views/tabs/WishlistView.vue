@@ -246,7 +246,7 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
@@ -254,7 +254,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsSortable, GOODS_SORTABLE_CSS } from '@/composables/goods/useGoodsSortable'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 import { useDensityGridViewport } from '@/composables/home/useDensityGridViewport'
 import { useGoodsGridDensityFlip } from '@/composables/home/useGoodsGridDensityFlip'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -288,7 +288,7 @@ import { getActiveMihoyoCookie, reportMihoyoCookieFailure } from '@/utils/mihoyo
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { useToast } from '@/composables/useToast'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
-import { prepareGoodsHeroForward, isGoodsHeroAnimating } from '@/utils/platform/nativeGoodsHeroTransition'
+import { prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { useGoodsSearch } from '@/composables/goods/useGoodsSearch'
@@ -371,9 +371,7 @@ const selectionHeaderStyle = computed(() => ({
   '--selection-header-top': `${selectionHeaderTop.value}px`
 }))
 let removeAndroidBackListener = null
-let pageScrollRaf = 0
 let topJumpMaskTimer = 0
-let isRouteLeaving = false
 
 const {
   densityModes,
@@ -449,23 +447,19 @@ const groupDisplayOptions = computed(() => [
 
 const {
   getScrollEl,
-  getActiveScrollSource,
-  markScrollSource,
+  getScrollSource,
   readScrollTop,
-  getStoredScrollState,
-  hasPendingRestore,
+  getScrollState: getStoredScrollState,
   saveScrollPosition,
   applyScrollPosition,
-  restorePendingScrollPosition,
-  restoreActivatedScrollPosition,
+  restore: restoreScrollState,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
   clearStoredScrollState,
-  resetStoredScrollOnReload,
-  cancelPendingRestore
-} = createPageScrollRestore('wishlist')(pageBodyRef)
-
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+  resetStoredScrollOnReload
+} = usePageScroll('wishlist', pageBodyRef, {
+  onScroll: handlePageScroll,
+})
 
 const {
   tryPlayNativeGoodsBackHero,
@@ -678,7 +672,7 @@ const {
   getContainerScrollOffset
 } = useDensityGridViewport({
   getScrollEl,
-  getActiveScrollSource
+  getScrollSource
 })
 const densityFlip = useGoodsGridDensityFlip({
   getContainer: () => getGoodsListEl(),
@@ -1033,21 +1027,11 @@ function updateImagePreloadThrottle(scrollTop = 0) {
   }, isFlinging ? 160 : 96)
 }
 
-function handlePageScroll() {
-  if (isRouteLeaving) return
-  if (isGoodsHeroAnimating()) return
-  if (pageScrollRaf) return
-  pageScrollRaf = window.requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    if (isRouteLeaving) return
-    if (isGoodsHeroAnimating()) return
-    const scrollTop = readScrollTop()
-    updateImagePreloadThrottle(scrollTop)
-    rememberCurrentScrollPosition()
-    syncVisibleGoodsCount(scrollTop)
-    if (selectionMode.value) updateSelectionHeaderPosition()
-    updateScrollTopButtonVisibility()
-  })
+function handlePageScroll(top) {
+  updateImagePreloadThrottle(top)
+  syncVisibleGoodsCount(top)
+  if (selectionMode.value) updateSelectionHeaderPosition()
+  updateScrollTopButtonVisibility()
 }
 
 function scrollToTop() {
@@ -1055,7 +1039,7 @@ function scrollToTop() {
   scrollToTopAnimated(getScrollEl, 260, () => {
     updateScrollTopButtonVisibility()
     rememberCurrentScrollPosition()
-  }, getActiveScrollSource())
+  }, getScrollSource())
 }
 
 function triggerTopJumpMask() {
@@ -1469,7 +1453,6 @@ async function batchAddToCart() {
 }
 
 onMounted(async () => {
-  isRouteLeaving = false
   persistCollectionTab('wishlist')
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
@@ -1480,8 +1463,12 @@ onMounted(async () => {
   window.addEventListener('resize', handleResize, { passive: true })
   await nextTick()
   syncVisibleGoodsCount()
-  bindPageScroll()
-  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restoreScrollState({ ifPending: true, phase: 'mounted' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCount(top)
+      syncVisibleTimelineMonthCount(top)
+    },
+  })
   await nextTick()
   wishlistDisplayReady.value = true
   window.requestAnimationFrame(() => {
@@ -1493,7 +1480,6 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  isRouteLeaving = false
   persistCollectionTab('wishlist')
   isWishlistActive.value = true
   cancelGoodsBackHeroRetry()
@@ -1512,7 +1498,6 @@ onActivated(async () => {
     clearDisplayedScrollPosition()
     clearStoredScrollState()
     wishlistDisplayReady.value = true
-    bindPageScroll()
     updateScrollTopButtonVisibility()
     bindAndroidBackButton()
     return
@@ -1520,7 +1505,12 @@ onActivated(async () => {
   if (shouldMaskWishlistDisplay()) {
     wishlistDisplayReady.value = false
   }
-  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restoreScrollState({ phase: 'activated' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCount(top)
+      syncVisibleTimelineMonthCount(top)
+    },
+  })
   await nextTick()
   wishlistDisplayReady.value = true
   if (!isGroupRestore) {
@@ -1528,7 +1518,6 @@ onActivated(async () => {
     // GroupFolderSheet handles it via onSheetOpened
     scheduleGoodsBackHeroRetry()
   }
-  bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
 })
@@ -1537,12 +1526,7 @@ onDeactivated(() => {
   isWishlistActive.value = false
   cancelGoodsBackHeroRetry()
   clearWishlistBackHeroDeferredRestoreTimer()
-  cancelPendingRestore()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
   exitSelectionModeQuiet()
-  unbindPageScroll()
   unbindAndroidBackButton()
 })
 
@@ -1554,30 +1538,12 @@ onBeforeUnmount(() => {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
   }
-  cancelPendingRestore()
   window.removeEventListener('resize', handleResize)
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
   exitSelectionModeQuiet()
 })
 
-onBeforeRouteLeave(() => {
-  isRouteLeaving = true
-  saveScrollPosition(false, 'wishlist:onBeforeRouteLeave')
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
-})
 </script>
 
 <style scoped>

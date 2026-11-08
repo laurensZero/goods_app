@@ -52,12 +52,12 @@
 </template>
 
 <script setup>
-import { nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref } from 'vue'
+import { nextTick, onActivated, onDeactivated, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import RechargeContent from '@/components/recharge/RechargeContent.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
 
@@ -75,29 +75,23 @@ const rechargeSelectionMode = ref(false)
 const showScrollTopButton = ref(false)
 const isRechargeActive = ref(true)
 
-let pageScrollRaf = 0
-let isRouteLeaving = false
 let mountBootstrapSession = 0
 
 const router = useRouter()
 
 const {
   getScrollEl,
-  getActiveScrollSource,
-  markScrollSource,
+  getScrollSource,
   readScrollTop,
-  getStoredScrollState,
-  hasPendingRestore,
   saveScrollPosition,
-  restorePendingScrollPosition,
-  restoreActivatedScrollPosition,
+  restore: restoreScrollState,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
-  resetStoredScrollOnReload,
-  cancelPendingRestore
-} = createPageScrollRestore('recharge', '.recharge-view-page .page-body')(pageBodyRef)
-
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+  resetStoredScrollOnReload
+} = usePageScroll('recharge', pageBodyRef, {
+  selector: '.recharge-view-page .page-body',
+  onScroll: handlePageScroll,
+})
 
 function persistHomeMode(mode) {
   const normalizedMode = mode === 'recharge' ? 'recharge' : 'goods'
@@ -135,25 +129,17 @@ function updateScrollTopButtonVisibility() {
 }
 
 function handlePageScroll() {
-  if (isRouteLeaving) return
-  if (pageScrollRaf) return
-  pageScrollRaf = window.requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    if (isRouteLeaving) return
-    rememberCurrentScrollPosition()
-    updateScrollTopButtonVisibility()
-  })
+  updateScrollTopButtonVisibility()
 }
 
 function scrollToTop() {
   scrollToTopAnimated(getScrollEl, 260, () => {
     updateScrollTopButtonVisibility()
     rememberCurrentScrollPosition()
-  }, getActiveScrollSource())
+  }, getScrollSource())
 }
 
 onMounted(async () => {
-  isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
   persistHomeMode('recharge')
 
@@ -166,61 +152,33 @@ onMounted(async () => {
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
 
-  bindPageScroll()
-  const pendingState = getStoredScrollState()
-  if (pendingState?.source) {
-    markScrollSource(pendingState.source)
-  }
-  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restoreScrollState({ ifPending: true, phase: 'mounted' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCount(top)
+      syncVisibleTimelineMonthCount(top)
+    },
+  })
   if (sessionId !== mountBootstrapSession) return
   updateScrollTopButtonVisibility()
 })
 
 onActivated(async () => {
-  isRouteLeaving = false
   isRechargeActive.value = true
   persistHomeMode('recharge')
 
-  const storedState = getStoredScrollState()
-  if (storedState?.source) {
-    markScrollSource(storedState.source)
-  }
-  await restoreActivatedScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount)
+  await restoreScrollState({ phase: 'activated' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCount(top)
+      syncVisibleTimelineMonthCount(top)
+    },
+  })
   await nextTick()
-  bindPageScroll()
   updateScrollTopButtonVisibility()
 })
 
 onDeactivated(() => {
   isRechargeActive.value = false
   mountBootstrapSession += 1
-  cancelPendingRestore()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
-  unbindPageScroll()
-})
-
-onBeforeUnmount(() => {
-  cancelPendingRestore()
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
-})
-
-onBeforeRouteLeave(() => {
-  isRouteLeaving = true
-  saveScrollPosition(false, 'recharge:onBeforeRouteLeave')
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
 })
 </script>
 

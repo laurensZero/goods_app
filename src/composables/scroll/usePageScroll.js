@@ -139,6 +139,11 @@ export function usePageScroll(pageName, pageBodyRef, options = {}) {
     return sessionStorage.getItem(pendingKey) === '1'
   }
 
+  /** 清掉 pending 标记（不终止恢复会话）：ManageView 按 history.state 决定是否恢复后用 */
+  function clearPendingRestoreFlag() {
+    sessionStorage.removeItem(pendingKey)
+  }
+
   // ── 锚点（opt-in）：只有需要按条目定位恢复的视图扫描，避免每次保存全量扫 DOM ──
   function readScrollAnchor(top) {
     const anchors = Array.from(getScrollEl()?.querySelectorAll?.('[data-scroll-anchor][data-goods-id]') || [])
@@ -458,6 +463,7 @@ export function usePageScroll(pageName, pageBodyRef, options = {}) {
     readScrollTop,
     getScrollState,
     hasPendingRestore,
+    clearPendingRestoreFlag,
     saveScrollPosition,
     rememberCurrentScrollPosition,
     applyScrollPosition,

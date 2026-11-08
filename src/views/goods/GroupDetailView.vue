@@ -108,7 +108,7 @@ import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsSortable, ensureGoodsSortableCss } from '@/composables/goods/useGoodsSortable'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
-import { createPageScrollRestore } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { applyHiddenCollectStatuses, readHiddenCollectStatuses } from '@/utils/goods/hiddenStatus'
 import { setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
@@ -143,12 +143,12 @@ const showDeleteConfirm = ref(false)
 const displayDensity = ref('comfortable')
 const displayReady = ref(true)
 
-// Scroll management
+// Scroll management（不绑滚动监听：只在打开详情时显式保存，返回时恢复）
 const {
   getScrollEl,
   saveScrollPosition,
-  restoreActivatedScrollPosition
-} = createPageScrollRestore('group-detail')(pageBodyRef)
+  restore: restoreScrollState,
+} = usePageScroll('group-detail', pageBodyRef, { listenScroll: false })
 
 // Group data
 const groupData = computed(() => goodsGroupStore.getGroupById(groupId.value))
@@ -343,7 +343,7 @@ onActivated(async () => {
 
   const revealMask = () => { displayReady.value = true }
 
-  await restoreActivatedScrollPosition(() => {}, () => {})
+  await restoreScrollState({ phase: 'activated' })
   await nextTick()
 
   const played = tryPlayNativeGoodsBackHero(revealMask)

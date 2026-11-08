@@ -323,7 +323,7 @@
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
@@ -333,8 +333,7 @@ import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
-import { createPageScrollRestore } from '@/composables/scroll'
-import { usePageScrollBinder } from '@/composables/scroll/usePageScrollBinder'
+import { usePageScroll } from '@/composables/scroll'
 import { useEventsStore } from '@/stores/events'
 import { formatMonthLabel, formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
@@ -376,11 +375,9 @@ const topJumpMasking = ref(false)
 const sortDirection = ref(localStorage.getItem(EVENT_SORT_STORAGE_KEY) === 'asc' ? 'asc' : 'desc')
 const viewMode = ref(normalizeViewMode(localStorage.getItem(EVENT_VIEW_STORAGE_KEY)))
 const selectionHeaderTop = ref(0)
-let pageScrollRaf = 0
 let topJumpMaskTimer = 0
 let eventBackHeroRetryRaf = 0
 let eventBackHeroDeferredRestoreTimer = 0
-let isRouteLeaving = false
 let removeAndroidBackListener = null
 let lastDetailNavigationTime = 0
 
@@ -470,20 +467,17 @@ const EVENT_TYPE_LABELS = computed(() => ({
 
 const {
   getScrollEl,
-  getActiveScrollSource,
-  markScrollSource,
+  getScrollSource,
   readScrollTop,
   hasPendingRestore,
   saveScrollPosition,
-  restorePendingScrollPosition,
-  restoreActivatedScrollPosition,
+  restore: restoreScrollState,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
-  resetStoredScrollOnReload,
-  cancelPendingRestore
-} = createPageScrollRestore('events')(pageBodyRef)
-
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+  resetStoredScrollOnReload
+} = usePageScroll('events', pageBodyRef, {
+  onScroll: handlePageScroll,
+})
 
 const filteredEvents = computed(() => {
   const keyword = searchKeyword.value.trim().toLowerCase()
@@ -856,18 +850,11 @@ function updateSelectionHeaderPosition() {
 }
 
 function handlePageScroll() {
-  if (isRouteLeaving) return
-  if (pageScrollRaf) return
-  pageScrollRaf = window.requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    if (isRouteLeaving) return
-    rememberCurrentScrollPosition()
-    if (selectionMode.value) updateSelectionHeaderPosition()
-    if (viewMode.value === 'timeline') {
-      eventsTimelineScrubberRef.value?.notifyScroll?.()
-    }
-    updateScrollTopButtonVisibility()
-  })
+  if (selectionMode.value) updateSelectionHeaderPosition()
+  if (viewMode.value === 'timeline') {
+    eventsTimelineScrubberRef.value?.notifyScroll?.()
+  }
+  updateScrollTopButtonVisibility()
 }
 
 function updateScrollTopButtonVisibility() {
@@ -879,7 +866,7 @@ function scrollToTop() {
   scrollToTopAnimated(getScrollEl, 260, () => {
     updateScrollTopButtonVisibility()
     rememberCurrentScrollPosition()
-  }, getActiveScrollSource())
+  }, getScrollSource())
 }
 
 function triggerTopJumpMask() {
@@ -908,7 +895,6 @@ watch(selectionMode, async (active) => {
 })
 
 onMounted(async () => {
-  isRouteLeaving = false
   const didResetOnReload = resetStoredScrollOnReload()
   if (didResetOnReload) {
     clearDisplayedScrollPosition()
@@ -925,8 +911,12 @@ onMounted(async () => {
   eventsDisplayReady.value = false
   await refresh()
   await nextTick()
-  bindPageScroll()
-  await restorePendingScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
+  await restoreScrollState({ ifPending: true, phase: 'mounted' }, {
+    syncViewport: (top) => {
+      syncVisibleEventsCount(top)
+      syncVisibleTimelineCount(top)
+    },
+  })
   await nextTick()
   eventsDisplayReady.value = true
   updateScrollTopButtonVisibility()
@@ -935,7 +925,6 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  isRouteLeaving = false
   isEventsActive.value = true
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
@@ -952,7 +941,12 @@ onActivated(async () => {
   if (hasPendingEventHeroBack(route.fullPath)) {
     eventsDisplayReady.value = false
   }
-  await restoreActivatedScrollPosition(syncVisibleEventsCount, syncVisibleTimelineCount)
+  await restoreScrollState({ phase: 'activated' }, {
+    syncViewport: (top) => {
+      syncVisibleEventsCount(top)
+      syncVisibleTimelineCount(top)
+    },
+  })
   await nextTick()
   const played = tryPlayEventBackHero()
   if (played) {
@@ -965,7 +959,6 @@ onActivated(async () => {
   } else {
     eventsDisplayReady.value = true
   }
-  bindPageScroll()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
 })
@@ -975,12 +968,7 @@ onDeactivated(() => {
   isEventsActive.value = false
   cancelEventBackHeroRetry()
   clearEventBackHeroDeferredRestoreTimer()
-  cancelPendingRestore()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
   exitSelectionModeQuiet()
-  unbindPageScroll()
 })
 
 onBeforeUnmount(() => {
@@ -992,28 +980,8 @@ onBeforeUnmount(() => {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
   }
-  cancelPendingRestore()
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
   exitSelectionModeQuiet()
-})
-
-onBeforeRouteLeave(() => {
-  isRouteLeaving = true
-  cancelEventBackHeroRetry()
-  saveScrollPosition(false, 'events:onBeforeRouteLeave')
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
 })
 </script>
 

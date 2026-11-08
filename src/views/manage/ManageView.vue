@@ -116,9 +116,9 @@
 <script setup>
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 
 const { t } = useI18n()
 import { useManageExport } from '@/composables/manage/useManageExport'
@@ -318,29 +318,12 @@ const pageBodyRef = ref(null)
 const scrollRestoreRef = computed(() =>
   isDesktopSettingsViewport.value ? settingsDetailRef.value : pageBodyRef.value
 )
-let pageScrollRaf = 0
-let isRouteLeaving = false
 const {
-  getScrollEl,
-  markScrollSource,
-  rememberCurrentScrollPosition,
-  saveScrollPosition,
-  restorePendingScrollPosition,
-  cancelPendingRestore
-} = createPageScrollRestore('manage')(scrollRestoreRef)
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({
-  getScrollEl,
-  markScrollSource,
-  handlePageScroll
-})
-
-function handlePageScroll() {
-  if (isRouteLeaving || pageScrollRaf) return
-  pageScrollRaf = requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    if (!isRouteLeaving) rememberCurrentScrollPosition()
-  })
-}
+  bindPageScroll,
+  unbindPageScroll,
+  restore: restoreScrollState,
+  clearPendingRestoreFlag
+} = usePageScroll('manage', scrollRestoreRef, { saveOnLeave: (to) => isManageChildPath(to.path) })
 
 function isManageChildPath(path) {
   const value = String(path || '')
@@ -354,13 +337,11 @@ onMounted(() => {
 })
 
 onMounted(() => {
-  isRouteLeaving = false
-  bindPageScroll()
   const isReturningFromChild = Boolean(window.history.state?.forward)
   if (isReturningFromChild) {
-    void nextTick(() => restorePendingScrollPosition(() => {}, () => {}))
+    void nextTick(() => restoreScrollState({ ifPending: true, phase: 'mounted' }))
   } else {
-    sessionStorage.removeItem('manage-scroll-restore-pending')
+    clearPendingRestoreFlag()
   }
   void cleanupUnreferencedLocalImages().then(({ removed, bytes }) => {
     if (removed > 0) showToast(t('toast.cleanedLocalImages', { count: removed, size: formatCompactSize(bytes) }), 3800)
@@ -368,19 +349,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  cancelPendingRestore()
-  if (pageScrollRaf) cancelAnimationFrame(pageScrollRaf)
-  unbindPageScroll()
   window.removeEventListener('resize', handleResize)
-  cleanupExportTimers()
-})
-
-onBeforeRouteLeave((to) => {
-  isRouteLeaving = true
-  const isSettingsChild = isManageChildPath(to.path)
-  saveScrollPosition(isSettingsChild, 'manage:onBeforeRouteLeave')
-  if (pageScrollRaf) cancelAnimationFrame(pageScrollRaf)
-  unbindPageScroll()
   cleanupExportTimers()
 })
 </script>

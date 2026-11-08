@@ -332,7 +332,7 @@
 </template>
 <script setup>
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
@@ -340,7 +340,7 @@ import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsSortable, GOODS_SORTABLE_CSS } from '@/composables/goods/useGoodsSortable'
 import { useHomePreferences } from '@/composables/home/useHomePreferences'
-import { createPageScrollRestore, usePageScrollBinder } from '@/composables/scroll'
+import { usePageScroll } from '@/composables/scroll'
 import { useHomeTimeline } from '@/composables/home/useHomeTimeline'
 import { useHomeCalendar } from '@/composables/home/useHomeCalendar'
 import { useHomeGoodsList } from '@/composables/home/useHomeGoodsList'
@@ -357,7 +357,7 @@ import { buildReverseGoodsSortIds } from '@/stores/goods/goodsOrder'
 import { useVirtualGridMetrics } from '@/composables/goods/useVirtualGridMetrics'
 import { useTimelineMetrics } from '@/composables/home/useTimelineMetrics'
 import { clearRouteTransitionFallback, runWithRouteTransition, setPendingDetailReturnPath, clearPendingDetailTransitionKind } from '@/utils/routeTransition'
-import { hasPendingGoodsHeroBack, isGoodsHeroAnimating, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
+import { hasPendingGoodsHeroBack, prepareGoodsHeroForward } from '@/utils/platform/nativeGoodsHeroTransition'
 import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
@@ -490,9 +490,7 @@ const ROW_HEIGHT_MAP = {
   compact: 236
 }
 let removeAndroidBackListener = null
-let pageScrollRaf = 0
 let mountBootstrapSession = 0
-let isRouteLeaving = false
 let _lastSyncStartRow = -1
 let _lastSyncRenderRows = -1
 let _lastSyncDensity = ''
@@ -654,23 +652,21 @@ const groupDisplayOptions = computed(() => [
 
 const {
   getScrollEl,
-  getActiveScrollSource,
-  markScrollSource,
   readScrollTop,
-  getStoredScrollState,
+  getScrollState: getStoredScrollState,
   hasPendingRestore,
   saveScrollPosition,
   applyScrollPosition,
-  restorePendingScrollPosition,
-  restoreActivatedScrollPosition,
+  restore: restoreScrollState,
   rememberCurrentScrollPosition,
   clearDisplayedScrollPosition,
   clearStoredScrollState,
   resetStoredScrollOnReload,
-  cancelPendingRestore
-} = createPageScrollRestore('home')(pageBodyRef)
-
-const { bindPageScroll, unbindPageScroll } = usePageScrollBinder({ getScrollEl, markScrollSource, handlePageScroll })
+  getScrollSource
+} = usePageScroll('home', pageBodyRef, {
+  withAnchor: true,
+  onScroll: handlePageScroll,
+})
 
 const {
   tryPlayNativeGoodsBackHero,
@@ -1242,25 +1238,15 @@ function prepareRestoreState(state) {
   syncVisibleGoodsCount(restoreTop, { useFlipViewport: true })
 }
 
-function handlePageScroll() {
-  if (isRouteLeaving) return
-  if (isGoodsHeroAnimating()) return
-  if (pageScrollRaf) return
-  pageScrollRaf = window.requestAnimationFrame(() => {
-    pageScrollRaf = 0
-    if (isRouteLeaving) return
-    if (isGoodsHeroAnimating()) return
-    const scrollTop = readScrollTop()
-    updateImagePreloadThrottle(scrollTop)
-    rememberCurrentScrollPosition()
-    if (selectionMode.value) updateSelectionHeaderPosition()
-    maybeLoadMoreGoods()
-    if (displayDensity.value === 'timeline') {
-      syncVisibleTimelineMonthCount(scrollTop)
-      timelineScrubberRef.value?.notifyScroll?.()
-    }
-    updateScrollTopButtonVisibility()
-  })
+function handlePageScroll(top) {
+  updateImagePreloadThrottle(top)
+  if (selectionMode.value) updateSelectionHeaderPosition()
+  maybeLoadMoreGoods()
+  if (displayDensity.value === 'timeline') {
+    syncVisibleTimelineMonthCount(top)
+    timelineScrubberRef.value?.notifyScroll?.()
+  }
+  updateScrollTopButtonVisibility()
 }
 
 function updateScrollTopButtonVisibility() {
@@ -1377,7 +1363,6 @@ function unbindAndroidBackButton() {
 }
 
 onMounted(async () => {
-  isRouteLeaving = false
   const sessionId = ++mountBootstrapSession
   const didResetOnReload = resetStoredScrollOnReload()
   if (sessionId !== mountBootstrapSession) return
@@ -1398,13 +1383,14 @@ onMounted(async () => {
   syncVisibleTimelineMonthCount()
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
-  bindPageScroll()
   updateSelectionHeaderPosition()
-  const pendingState = getStoredScrollState()
-  if (pendingState?.source) {
-    markScrollSource(pendingState.source)
-  }
-  await restorePendingScrollPosition(syncVisibleGoodsCount, syncVisibleTimelineMonthCount, prepareRestoreState)
+  await restoreScrollState({ ifPending: true, phase: 'mounted' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCount(top)
+      syncVisibleTimelineMonthCount(top)
+    },
+    prepareRestore: prepareRestoreState,
+  })
   if (sessionId !== mountBootstrapSession) return
   await nextTick()
   if (sessionId !== mountBootstrapSession) return
@@ -1419,7 +1405,6 @@ onMounted(async () => {
 })
 
 onActivated(async () => {
-  isRouteLeaving = false
   isHomeActive.value = true
 
   // Check for NFC storage filter
@@ -1451,7 +1436,6 @@ onActivated(async () => {
     if (el) el.scrollTop = 0
     else window.scrollTo(0, 0)
     homeDisplayReady.value = true
-    bindPageScroll()
     updateSelectionHeaderPosition()
     updateScrollTopButtonVisibility()
     bindAndroidBackButton()
@@ -1463,15 +1447,13 @@ onActivated(async () => {
   if (hasPendingGoodsHeroBack(route.fullPath)) {
     homeDisplayReady.value = false
   }
-  const storedState = getStoredScrollState()
-  if (storedState?.source) {
-    markScrollSource(storedState.source)
-  }
-  await restoreActivatedScrollPosition(
-    syncVisibleGoodsCountForActivatedRestore,
-    syncVisibleTimelineMonthCountForActivatedRestore,
-    prepareRestoreState
-  )
+  await restoreScrollState({ phase: 'activated' }, {
+    syncViewport: (top) => {
+      syncVisibleGoodsCountForActivatedRestore(top)
+      syncVisibleTimelineMonthCountForActivatedRestore(top)
+    },
+    prepareRestore: prepareRestoreState,
+  })
   await nextTick()
   syncAddMotionContext()
 
@@ -1492,7 +1474,6 @@ onActivated(async () => {
       homeDisplayReady.value = true
     }
   }
-  bindPageScroll()
   updateSelectionHeaderPosition()
   updateScrollTopButtonVisibility()
   bindAndroidBackButton()
@@ -1506,12 +1487,7 @@ onDeactivated(() => {
   clearHomeBackHeroDeferredRestoreTimer()
   clearImagePreloadThrottleTimer()
   setImagePreloadPaused(false)
-  cancelPendingRestore()
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
   exitSelectionModeQuiet()
-  unbindPageScroll()
   unbindAndroidBackButton()
 })
 
@@ -1532,29 +1508,10 @@ onBeforeUnmount(() => {
     window.clearTimeout(topJumpMaskTimer)
     topJumpMaskTimer = 0
   }
-  cancelPendingRestore()
   window.removeEventListener('resize', _onResize)
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
   window.removeEventListener('popstate', handleSelectionPopState)
   unbindAndroidBackButton()
   document.body.classList.remove('selection-active')
-  if (!hasPendingRestore() && !isRouteLeaving) {
-    rememberCurrentScrollPosition()
-  }
-})
-
-onBeforeRouteLeave(() => {
-  isRouteLeaving = true
-  saveScrollPosition(false, 'home:onBeforeRouteLeave')
-  if (pageScrollRaf) {
-    window.cancelAnimationFrame(pageScrollRaf)
-    pageScrollRaf = 0
-  }
-  unbindPageScroll()
 })
 
 // 汇总折算上下文：角色筛选优先；关键词与列表同步（防抖后），精确等于角色名时按份折算
@@ -1703,7 +1660,7 @@ const {
   getContainerScrollOffset
 } = useDensityGridViewport({
   getScrollEl,
-  getActiveScrollSource
+  getScrollSource
 })
 const densityFlip = useGoodsGridDensityFlip({
   getContainer: () => getGoodsListEl(),
@@ -1883,7 +1840,7 @@ function scrollToTop() {
   scrollToTopAnimated(getScrollEl, 260, () => {
     updateScrollTopButtonVisibility()
     rememberCurrentScrollPosition()
-  }, getActiveScrollSource())
+  }, getScrollSource())
 }
 
 function triggerTopJumpMask() {
