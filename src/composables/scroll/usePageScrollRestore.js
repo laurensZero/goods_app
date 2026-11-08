@@ -162,8 +162,10 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function readStoredScrollState() {
-    if (savedScrollState) return savedScrollState
-
+    // sessionStorage 是唯一可信源：resetPageScrollToTop 这类外部重置只写 storage，
+    // 不经过 writeScrollState。若优先信任内存缓存（上次 saveScrollPosition 的旧
+    // 位置），外部写入的归零状态会被顶掉——表现为导入保存后目标页仍停在
+    // 离开时的旧滚动距离、回不到顶部。
     const raw = sessionStorage.getItem(storageKey)
     if (!raw) return null
 

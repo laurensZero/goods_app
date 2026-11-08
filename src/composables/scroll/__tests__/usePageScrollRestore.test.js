@@ -73,4 +73,18 @@ describe('usePageScrollRestore 文档级滚动布局（元素不可滚）', () =
     expect(window.scrollY).toBe(0)
     expect(sessionStorage.getItem('t-scroll-restore-pending')).toBe(null)
   })
+
+  it('外部重置后内存缓存的旧位置不再生效（导入保存后仍停在旧距离的回归）', async () => {
+    setWindowTop(300)
+    // 先正常保存一次：内存缓存与 sessionStorage 都记下 300
+    restore.saveScrollPosition(false, 'test')
+
+    // 完成型导航外部归零：只写 sessionStorage，不经过实例的 writeScrollState
+    resetPageScrollToTop('t')
+
+    await restore.restoreActivatedScrollPosition(() => {}, () => {})
+
+    // 内存缓存里的 300 不能盖过外部写入的归零状态
+    expect(window.scrollY).toBe(0)
+  })
 })
