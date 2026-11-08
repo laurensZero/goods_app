@@ -19,10 +19,12 @@ export function createPageScrollRestore(pageName, selector) {
  * 按既定恢复流程落到顶部，而不是恢复离开时的旧位置。
  * 写入 top=0 + pending 而不是直接删 key：复用视图自身的恢复流程，
  * 连同虚拟列表可视区同步（syncVisibleGoodsCount 等）一起走，避免列表渲染错位。
+ * source 记 'window'：默认布局下 .page-body 不是真实滚动容器，文档级滚动
+ * 只发生在 window 上（见 usePageScrollRestore 内 isElementScrollContainer 注释）。
  */
 export function resetPageScrollToTop(pageName) {
   try {
-    sessionStorage.setItem(`${pageName}-scroll`, JSON.stringify({ top: 0, source: 'element' }))
+    sessionStorage.setItem(`${pageName}-scroll`, JSON.stringify({ top: 0, source: 'window' }))
     sessionStorage.setItem(`${pageName}-scroll-restore-pending`, '1')
   } catch {}
 }
@@ -50,8 +52,24 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   // Home/Wishlist do not have a stable single scroll container across all flows.
   // We must remember which source actually emitted scroll events and restore to that same source.
   // Do not simplify this to "always window" or "always element" unless the page structure is changed first.
+  //
+  // 关键事实（2026-11 实测复现）：.page 只有 min-height:100dvh、会随内容长高，
+  // 默认布局下 .page-body 不是真实滚动容器（scrollHeight === clientHeight，
+  // scrollTop 恒为 0），实际滚动发生在文档（window）上。因此按元素当前是否
+  // 真的可滚来归类：不可滚时位置必须记在 window 名下、也恢复到 window——
+  // 否则保存/恢复把位置写进一个滚不动的元素就提前返回，窗口仍停在上一个
+  // 页面滚到的位置，表现为路由返回/保存后页面跟着位移、回不到顶部。
+  function isElementScrollContainer() {
+    const el = getScrollEl()
+    return !!el && el.scrollHeight > el.clientHeight + 1
+  }
+
   function getPreferredScrollSnapshot() {
     const snapshot = getDomScrollSnapshot()
+
+    if (!isElementScrollContainer()) {
+      return { top: snapshot.windowTop, source: 'window', snapshot }
+    }
 
     if (activeScrollSource === 'element') {
       return { top: snapshot.elementTop, source: 'element', snapshot }
@@ -70,6 +88,10 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
 
   function getScrollSnapshotForPersistence() {
     const snapshot = getDomScrollSnapshot()
+
+    if (!isElementScrollContainer()) {
+      return { top: snapshot.windowTop, source: 'window', snapshot }
+    }
 
     if (activeScrollSource === 'window') {
       return { top: snapshot.windowTop, source: 'window', snapshot }
@@ -121,8 +143,8 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
   }
 
   function detectScrollSource() {
-    const el = getScrollEl()
-    return el ? 'element' : 'window'
+    // 元素不是真实滚动容器时（文档级滚动布局），window 才是承载滚动的一方
+    return isElementScrollContainer() ? 'element' : 'window'
   }
 
   function getActiveScrollSource() {
@@ -267,6 +289,12 @@ export function usePageScrollRestore(pageBodyRef, options = {}) {
     if (source === 'element') {
       if (!el) return false
       el.scrollTop = normalizedTop
+      // 元素不是真实滚动容器时（文档级滚动布局），写它吸附不了位置，
+      // 窗口才是真正承载滚动的一方：一并同步，避免恢复/清零后窗口
+      // 仍停在上一个页面滚到的位置（表现为返回后页面位移、不在顶部）
+      if (el.scrollHeight <= el.clientHeight + 1) {
+        setWindowScrollTop(normalizedTop)
+      }
       return true
     }
 
