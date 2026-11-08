@@ -214,23 +214,21 @@ onBeforeRouteLeave((to) => {
   void flushBatchDraft()
 })
 
-async function editItem(id) {
+function editItem(id) {
   if (openingEdit) return
   openingEdit = true
-  try {
-    // 先把当前内存队列落库，再检查云端，避免云端旧草稿覆盖本地刚编辑的内容。
-    await flushBatchDraft()
-    if (syncStore.isSupabaseMode()) {
-      await syncStore.sync({ source: 'batch-edit' })
-    }
-  } catch (e) {
-    // 云端检查失败不阻塞本地编辑；后续自动同步仍会重试。
-    console.warn('[BatchAddQueueView] cloud check before edit failed', e)
-  } finally {
+  // 先把当前内存队列落库，编辑页才能读到最新草稿；本地落库很快，不阻塞进编辑页。
+  void flushBatchDraft().finally(() => {
     openingEdit = false
+  })
+  // 云端检查移到后台：orchestrator 内部已保证 drafts 脏时先 push 再 pull，
+  // 不会让云端旧草稿覆盖本地编辑；此前整段 await 会连带图片上传一起阻塞导航，
+  // 弱网下表现为队列条目点不进编辑页。失败不阻塞本地编辑，后续自动同步重试。
+  if (syncStore.isSupabaseMode()) {
+    syncStore.sync({ source: 'batch-edit' }).catch((e) => {
+      console.warn('[BatchAddQueueView] cloud check before edit failed', e)
+    })
   }
-  // 同步可能刚刚拉取了远端删除，因此以最新内存队列重新确认条目仍存在。
-  if (!queue.value.some((item) => item.id === id)) return
   runWithRouteTransition(
     () => router.push({ name: 'batch-edit', params: { id } }),
     { direction: 'forward' }
