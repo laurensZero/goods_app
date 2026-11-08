@@ -144,11 +144,24 @@ const displayDensity = ref('comfortable')
 const displayReady = ref(true)
 
 // Scroll management（不绑滚动监听：只在打开详情时显式保存，返回时恢复）
+// /group/:id 所有分组共享同一个 KeepAlive 实例（key 用路由名），
+// 滚动状态也是同一个 key：切换分组时必须清掉，否则上个分组的位置会被
+// 恢复到当前分组上（跨组污染）。恢复仅在 pending（本组打开过详情/离开保存）时执行。
 const {
   getScrollEl,
   saveScrollPosition,
   restore: restoreScrollState,
+  clearStoredScrollState,
 } = usePageScroll('group-detail', pageBodyRef, { listenScroll: false })
+
+// 滚动状态归属校验：共享实例 + 共享存储 key，切分组时清掉，防止上个分组
+// 的位置被恢复到当前分组。激活时再校验一次，避免 watch 与激活时序差漏网。
+let scrollStateGroupId = props.id
+
+watch(() => props.id, (id) => {
+  clearStoredScrollState()
+  scrollStateGroupId = id
+})
 
 // Group data
 const groupData = computed(() => goodsGroupStore.getGroupById(groupId.value))
@@ -343,7 +356,11 @@ onActivated(async () => {
 
   const revealMask = () => { displayReady.value = true }
 
-  await restoreScrollState({ phase: 'activated' })
+  if (scrollStateGroupId !== props.id) {
+    clearStoredScrollState()
+    scrollStateGroupId = props.id
+  }
+  await restoreScrollState({ phase: 'activated', ifPending: true })
   await nextTick()
 
   const played = tryPlayNativeGoodsBackHero(revealMask)

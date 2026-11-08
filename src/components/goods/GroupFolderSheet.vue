@@ -220,10 +220,37 @@ watch(reorderEnabled, async (enabled) => {
   syncGroupSortable(true)
 })
 
+// ── 弹窗内列表滚动位置记忆 ──
+// AppSheet 关闭时内容卸载，重开是全新的 .app-sheet__scroll（scrollTop 归零）。
+// 从详情返回时重开弹窗会丢位置：关闭前按分组记录，打开后恢复。
+const sheetScrollTops = {}
+
+function getSheetScrollEl() {
+  return document.querySelector('.group-folder-popup .app-sheet__scroll')
+}
+
+function saveSheetScroll() {
+  const el = getSheetScrollEl()
+  if (el && props.groupId) {
+    sheetScrollTops[props.groupId] = el.scrollTop
+  }
+}
+
+async function restoreSheetScroll() {
+  await nextTick()
+  await new Promise((resolve) => requestAnimationFrame(resolve))
+  const el = getSheetScrollEl()
+  if (!el || !props.groupId) return
+  el.scrollTop = sheetScrollTops[props.groupId] || 0
+}
+
 watch(showProxy, (open) => {
   if (!open) {
+    saveSheetScroll()
     exitSelectionModeQuiet()
     destroyGroupSortable()
+  } else {
+    void restoreSheetScroll()
   }
 })
 
