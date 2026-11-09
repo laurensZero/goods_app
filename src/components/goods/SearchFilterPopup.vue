@@ -1463,11 +1463,6 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   color: #fff;
 }
 
-html.theme-dark .chip--active {
-  background: #f5f5f7;
-  color: #141416;
-}
-
 /* ── Location tree ── */
 .location-tree {
   display: flex;
@@ -1479,11 +1474,6 @@ html.theme-dark .chip--active {
 /* ── Dark mode overrides ── */
 html.theme-dark .filter-popup__header .icon-btn {
     background: rgba(255, 255, 255, 0.08);
-  }
-
-html.theme-dark .chip--active {
-    background: #f5f5f7;
-    color: #141416;
   }
 
 html.theme-dark .primary-btn {
@@ -1532,6 +1522,12 @@ html.theme-dark .surface-card {
 html.theme-dark .chip {
     background: rgba(255, 255, 255, 0.08);
     color: #f5f5f7;
+  }
+
+/* 选中态需高于上面的未选中覆盖，否则深色模式下选中与未选中无法区分 */
+html.theme-dark .chip.chip--active {
+    background: #f5f5f7;
+    color: #141416;
   }
 
 html.theme-dark .advanced-toggle {
