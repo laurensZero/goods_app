@@ -163,12 +163,44 @@ function attachShippingToEntries(goodsEntries, item) {
 }
 
 /**
+ * 有效的逐份入手日期列表。
+ *
+ * 逐份日期只在「各份日期不同」时才有意义；整份列表都填了、而且日期全部相同，
+ * 说明它只是商品级 acquiredAt 的冗余副本（编辑器/时间线卡片的展示口径也是这样：
+ * 去重后只剩一个日期时不展示逐份列表，直接显示 acquiredAt）。此时若两份数据不一致
+ * （典型场景：批量修改只写了 acquiredAt，旧的逐份日期没跟着改），以 acquiredAt 为准，
+ * 返回空列表让调用方回退到商品级日期——否则日历/统计仍会把谷子算在旧日期上。
+ *
+ * 逐份日期有分叉、或只填了一部分（少于份数）时按原样返回，那是真实的逐份历史。
+ * @param {object} item
+ * @returns {unknown[]}
+ */
+export function getEffectiveUnitAcquiredAtList(item) {
+  const raw = Array.isArray(item?.unitAcquiredAtList) ? item.unitAcquiredAtList : []
+  if (raw.length === 0) return raw
+
+  const qty = Math.max(1, Number(item?.quantityNumber || item?.quantity) || 1)
+  if (qty < 2) return raw
+  const filled = raw
+    .map((value) => String(value || '').trim())
+    .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value))
+  if (filled.length < qty) return raw
+
+  const unique = new Set(filled)
+  if (unique.size !== 1) return raw
+
+  const acquiredAt = String(item?.acquiredAt || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(acquiredAt)) return raw
+  return acquiredAt === [...unique][0] ? raw : []
+}
+
+/**
  * @param {object} item
  * @param {Set<number>|null} [excludedIndexes] 需要剔除的份下标（已出/已赠出/丢失的份）
  */
 function getItemDatesAndPrices(item, excludedIndexes = null) {
   const qty = Math.max(1, Number(item.quantityNumber || item.quantity) || 1)
-  const unitDates = Array.isArray(item.unitAcquiredAtList) ? item.unitAcquiredAtList : []
+  const unitDates = getEffectiveUnitAcquiredAtList(item)
   // 优先视图层折算后的逐件 CNY 价,回退原始逐件价(与聚合字段口径一致)
   const unitPrices = Array.isArray(item.unitActualPriceCNYList)
     ? item.unitActualPriceCNYList

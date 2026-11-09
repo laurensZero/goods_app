@@ -20,6 +20,7 @@ import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { prepareGoodsHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 import { alignSaleTimelineDates, computeEditedTimeline, buildAcquisitionTimelineEntries, foldOrphanUnitTimelineEntries } from '@/utils/goods/statusTimeline'
 import { nextGoodsId } from '@/utils/goods/id'
+import { getEffectiveUnitAcquiredAtList } from '@/utils/goods/statistics'
 import {
   SALE_REMINDER_DEFAULT_OFFSETS,
   allowsCollectSaleReminder,
@@ -538,6 +539,12 @@ export function useGoodsEditorForm(options = {}) {
         form.note = item.note ?? ''
         form.quantity = Number(item.quantity) || 1
         form.unitAcquiredAtList = Array.isArray(item.unitAcquiredAtList) ? [...item.unitAcquiredAtList] : []
+        // 与日历/统计同口径：整份相同（没有分叉）的逐份日期只是 acquiredAt 的冗余副本。
+        // 历史数据里两者不一致（批量改日期只写了 acquiredAt）时以 acquiredAt 为准，
+        // 避免编辑页还展示旧日期、再次保存又把旧值写回去。
+        if (getEffectiveUnitAcquiredAtList(item).length === 0) {
+          form.unitAcquiredAtList = []
+        }
         form.unitActualPriceList = Array.isArray(item.unitActualPriceList) ? [...item.unitActualPriceList] : []
         form.unitCharacterList = Array.isArray(item.unitCharacterList) ? [...item.unitCharacterList] : []
         form.unitCollectStatusList = Array.isArray(item.unitCollectStatusList) ? [...item.unitCollectStatusList] : []
@@ -1265,6 +1272,18 @@ export function useGoodsEditorForm(options = {}) {
     form.unitAcquiredAtList[index] = `${year}-${month}-${day}`
     unitDatePickerValue.value = [year, month, day]
     showUnitDatePicker.value = false
+    syncPrimaryDateFromUniformUnitDates()
+  }
+
+  // 逐份日期全部相同 = 没有分叉，等价于整件的入手日。
+  // 主日期在逐份面板打开时是禁用的，用户改完逐份日期后如果不回写，
+  // 会出现「面板里是 10-20、卡片/日历却按 acquiredAt 的旧日期算」的割裂。
+  function syncPrimaryDateFromUniformUnitDates() {
+    if (form.isWishlist || quantityNumber.value < 2) return
+    const dates = Array.from({ length: quantityNumber.value }, (_, i) => normalizeUnitDateValue(form.unitAcquiredAtList[i]))
+    if (dates.some((date) => !date)) return
+    if (dates.some((date) => date !== dates[0])) return
+    form.acquiredAt = dates[0]
   }
 
   function toDatePickerValue(dateString) {

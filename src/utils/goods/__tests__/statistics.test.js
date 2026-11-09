@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   getItemSpendEntries,
+  getEffectiveUnitAcquiredAtList,
   calcPeriodSpend,
   parseShippingEvents,
   getTotalShippingFee
@@ -24,6 +25,42 @@ function makeItem(overrides = {}) {
     ...overrides
   }
 }
+
+describe('getEffectiveUnitAcquiredAtList', () => {
+  it('ignores a fully-populated uniform list that disagrees with acquiredAt', () => {
+    const item = makeItem({
+      quantity: 2,
+      acquiredAt: '2026-10-20',
+      unitAcquiredAtList: ['2026-11-08', '2026-11-08']
+    })
+    expect(getEffectiveUnitAcquiredAtList(item)).toEqual([])
+  })
+
+  it('keeps a uniform list that matches acquiredAt', () => {
+    const item = makeItem({
+      quantity: 2,
+      acquiredAt: '2026-10-20',
+      unitAcquiredAtList: ['2026-10-20', '2026-10-20']
+    })
+    expect(getEffectiveUnitAcquiredAtList(item)).toEqual(['2026-10-20', '2026-10-20'])
+  })
+
+  it('keeps divergent and partially-filled lists (real per-copy history)', () => {
+    const divergent = makeItem({
+      quantity: 2,
+      acquiredAt: '2026-08-10',
+      unitAcquiredAtList: ['2026-08-10', '2026-11-01']
+    })
+    expect(getEffectiveUnitAcquiredAtList(divergent)).toEqual(['2026-08-10', '2026-11-01'])
+
+    const partial = makeItem({
+      quantity: 2,
+      acquiredAt: '2026-10-20',
+      unitAcquiredAtList: ['2026-11-08']
+    })
+    expect(getEffectiveUnitAcquiredAtList(partial)).toEqual(['2026-11-08'])
+  })
+})
 
 describe('getItemSpendEntries', () => {
   it('returns empty for wishlist items', () => {
@@ -120,6 +157,21 @@ describe('getItemSpendEntries', () => {
     expect(entries).toHaveLength(3)
     expect(entries.filter((e) => e.date.getMonth() === 7)).toHaveLength(2)
     expect(entries.filter((e) => e.date.getMonth() === 8)).toHaveLength(1)
+  })
+
+  it('books a stale uniform unit-date list on the item acquiredAt', () => {
+    // 批量改入手日期只写了 acquiredAt，逐份列表还是旧日期：
+    // 全部相同的逐份列表没有拆分意义，按商品级日期记账
+    const entries = getItemSpendEntries(makeItem({
+      quantity: 2,
+      actualPrice: '8',
+      acquiredAt: '2026-10-20',
+      unitAcquiredAtList: ['2026-11-08', '2026-11-08'],
+      unitActualPriceList: []
+    }))
+    expect(entries).toHaveLength(1)
+    expect(entries[0].date.getMonth()).toBe(9)
+    expect(entries[0].price).toBe(8)
   })
 
   it('treats empty unit prices as per-unit share instead of free', () => {

@@ -91,6 +91,45 @@ describe('buildCalendarDayData', () => {
     expect(dayData.get('2026-11-01').total).toBe(40)
   })
 
+  it('moves a stale uniform unit-date list to the item acquiredAt', () => {
+    // 批量改日期后逐份列表残留旧值：日历要跟着 acquiredAt 走，
+    // 不能再把谷子和金额挂在旧的 11-08
+    const goodsList = [
+      {
+        id: 'a',
+        quantity: 2,
+        acquiredAt: '2026-10-20',
+        unitAcquiredAtList: ['2026-11-08', '2026-11-08'],
+        actualPrice: '8',
+        collectStatus: '已拥有'
+      }
+    ]
+
+    const dayData = buildCalendarDayData(goodsList)
+
+    expect(dayData.has('2026-11-08')).toBe(false)
+    expect(dayData.get('2026-10-20').total).toBe(8)
+    expect(dayData.get('2026-10-20').items[0].qty).toBe(2)
+  })
+
+  it('keeps genuinely divergent per-copy dates on their own days', () => {
+    const goodsList = [
+      {
+        id: 'a',
+        quantity: 2,
+        acquiredAt: '2026-08-10',
+        unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+        actualPrice: '100',
+        collectStatus: '已拥有'
+      }
+    ]
+
+    const dayData = buildCalendarDayData(goodsList)
+
+    expect(dayData.get('2026-08-10').items[0].qty).toBe(1)
+    expect(dayData.get('2026-11-01').items[0].qty).toBe(1)
+  })
+
   it('skips wishlist items and items without any acquired date', () => {
     const goodsList = [
       { id: 'wish', isWishlist: true, quantity: 1, acquiredAt: '2026-10-01', actualPrice: '10' },

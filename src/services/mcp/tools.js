@@ -10,7 +10,7 @@
 import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, getToolDefinitions } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
 import { buildSaleLedger, extractSaleEntries, SOLD_STATUS } from '../../utils/goods/saleStats'
-import { getItemSpendEntries } from '../../utils/goods/statistics'
+import { getItemSpendEntries, getEffectiveUnitAcquiredAtList } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
 import { normalizeCustomFieldDefs, isCustomFieldInScope } from '../../utils/goods/customFields'
@@ -206,9 +206,9 @@ const DATE_LIKE_PATTERN = /^\d{4}-\d{2}(-\d{2})?$/
 function getUnitAcquiredDates(item) {
   const quantity = Math.max(1, Number(item?.quantity) || 1)
   const acquiredAt = asText(item?.acquiredAt).trim()
-  const explicit = Array.isArray(item?.unitAcquiredAtList)
-    ? item.unitAcquiredAtList.map((value) => asText(value).trim()).filter(Boolean)
-    : []
+  const explicit = getEffectiveUnitAcquiredAtList(item)
+    .map((value) => asText(value).trim())
+    .filter(Boolean)
   if (explicit.length === 0) return acquiredAt ? [acquiredAt] : []
   const fallback = acquiredAt || explicit[0]
   return Array.from({ length: quantity }, (_, index) => explicit[index] || fallback)

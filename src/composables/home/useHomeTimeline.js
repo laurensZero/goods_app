@@ -1,5 +1,5 @@
 import { computed } from 'vue'
-import { getItemSpendByYearMonth } from '@/utils/goods/statistics'
+import { getItemSpendByYearMonth, getEffectiveUnitAcquiredAtList } from '@/utils/goods/statistics'
 
 function normalizeTimelineDate(value) {
   const normalized = String(value || '').trim()
@@ -21,9 +21,9 @@ function getLatestTimelineDateTimestamp(list) {
 export function getTimelineSourceDates(item) {
   const quantityNumber = Math.max(1, Number(item?.quantity) || 1)
   const acquiredAt = normalizeTimelineDate(item?.acquiredAt)
-  const explicitDates = Array.isArray(item?.unitAcquiredAtList)
-    ? item.unitAcquiredAtList.map((value) => normalizeTimelineDate(value)).filter(Boolean)
-    : []
+  const explicitDates = getEffectiveUnitAcquiredAtList(item)
+    .map((value) => normalizeTimelineDate(value))
+    .filter(Boolean)
 
   if (explicitDates.length === 0) {
     if (!acquiredAt) return []

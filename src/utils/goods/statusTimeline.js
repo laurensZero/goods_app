@@ -973,6 +973,28 @@ function normalizeUnitStatusValue(value) {
 }
 
 /**
+ * acquiredAt 变更时，把逐份入手日期一起对齐到新日期。
+ * 批量编辑只提供了一个日期输入框，用户的预期就是「这几件都改成这个日期」；
+ * 只改 acquiredAt 会让逐份日期（优先级更高）继续把谷子挂在旧日期上，
+ * 日历/统计/时间线都不会动。调用方显式传了 unitAcquiredAtList 时不在这里覆盖。
+ * @param {object} previous
+ * @param {string|undefined} nextAcquiredAt
+ * @param {number} quantity
+ * @returns {string[]|null} null 表示无需迁移
+ */
+function alignUnitDatesToAcquiredAt(previous, nextAcquiredAt, quantity) {
+  if (nextAcquiredAt === undefined) return null
+  const prevDates = Array.isArray(previous?.unitAcquiredAtList) ? previous.unitAcquiredAtList : []
+  if (prevDates.length === 0) return null
+
+  const nextPrimary = normalizeTimelineDate(nextAcquiredAt)
+  const prevPrimary = normalizeTimelineDate(previous?.acquiredAt)
+  if (!nextPrimary || prevPrimary === nextPrimary) return null
+
+  return Array.from({ length: Math.max(1, Number(quantity) || 1) }, () => nextPrimary)
+}
+
+/**
  * store.updateGoods 的时间线自动维护——编辑器已显式传入 statusTimeline 时跳过;
  * MCP/AI/其它只改字段的调用方由这里补齐(改状态、改逐份状态/日期、出谷、购入日期)。
  * @param {object} previous - 更新前的商品
@@ -1008,6 +1030,11 @@ export function maintainTimelineOnGoodsUpdate(previous, data) {
   const oldStatusFallback = normalizeUnitStatusValue(previous.collectStatus) || '已拥有'
   const newStatusFallback = newStatus
 
+  // 逐份日期：显式传入优先；否则 acquiredAt 改动时把逐份日期一起对齐到新日期
+  const declaredUnitDates = Array.isArray(data.unitAcquiredAtList) ? data.unitAcquiredAtList : null
+  const migratedUnitDates = declaredUnitDates ? null : alignUnitDatesToAcquiredAt(previous, data.acquiredAt, qty)
+  const nextUnitDates = declaredUnitDates || migratedUnitDates || previous.unitAcquiredAtList
+
   let timeline = computeEditedTimeline({
     formTimeline: previous.statusTimeline || [],
     originalTimeline: previous.statusTimeline || [],
@@ -1017,7 +1044,7 @@ export function maintainTimelineOnGoodsUpdate(previous, data) {
     oldAcquiredAt,
     newAcquiredAt,
     oldUnitDates: qty >= 2 ? padDates(previous.unitAcquiredAtList, previous.acquiredAt) : [],
-    newUnitDates: qty >= 2 ? padDates(data.unitAcquiredAtList ?? previous.unitAcquiredAtList, newAcquiredAt) : [],
+    newUnitDates: qty >= 2 ? padDates(nextUnitDates, newAcquiredAt) : [],
     oldUnitStatuses: qty >= 2 ? padStatuses(previous.unitCollectStatusList, oldStatusFallback) : [],
     newUnitStatuses: qty >= 2 ? padStatuses(data.unitCollectStatusList ?? previous.unitCollectStatusList, newStatusFallback) : [],
     isWishlistToCollection: previous.isWishlist === true && data.isWishlist === false
@@ -1036,5 +1063,9 @@ export function maintainTimelineOnGoodsUpdate(previous, data) {
     timeline = foldOrphanUnitTimelineEntries(timeline, qty)
   }
 
-  return { ...data, statusTimeline: timeline }
+  return {
+    ...data,
+    ...(migratedUnitDates ? { unitAcquiredAtList: migratedUnitDates } : {}),
+    statusTimeline: timeline
+  }
 }

@@ -124,6 +124,72 @@ describe('updateMultipleGoods 批量改收藏状态', () => {
     expect(item.statusTimeline).toContainEqual({ status: '已拥有', at: '2026-03-01' })
   })
 
+  it('只改购入日期：继承旧日期的逐份入手日一起迁移（多件）', async () => {
+    const list = shallowRef([
+      {
+        ...makeItem('multi-date'),
+        isWishlist: false,
+        collectStatus: '已拥有',
+        acquiredAt: '2026-11-08',
+        quantity: 2,
+        unitAcquiredAtList: ['2026-11-08', '2026-11-08'],
+        statusTimeline: [{ status: '已拥有', at: '2026-11-08' }]
+      }
+    ])
+
+    await updateMultipleGoods(new Set(['multi-date']), { acquiredAt: '2026-10-20' }, list)
+
+    const item = list.value[0]
+    expect(item.acquiredAt).toBe('2026-10-20')
+    expect(item.unitAcquiredAtList).toEqual(['2026-10-20', '2026-10-20'])
+    expect(item.statusTimeline.map((entry) => entry.at)).toEqual(['2026-10-20'])
+  })
+
+  it('只改购入日期：跨月补货的逐份日期也按批量编辑意图一起对齐', async () => {
+    const list = shallowRef([
+      {
+        ...makeItem('split-date'),
+        isWishlist: false,
+        collectStatus: '已拥有',
+        acquiredAt: '2026-08-10',
+        quantity: 2,
+        unitAcquiredAtList: ['2026-08-10', '2026-11-01'],
+        statusTimeline: [
+          { status: '已拥有', at: '2026-08-10' },
+          { status: '已拥有', at: '2026-11-01' }
+        ]
+      }
+    ])
+
+    await updateMultipleGoods(new Set(['split-date']), { acquiredAt: '2026-10-20' }, list)
+
+    const item = list.value[0]
+    expect(item.acquiredAt).toBe('2026-10-20')
+    expect(item.unitAcquiredAtList).toEqual(['2026-10-20', '2026-10-20'])
+  })
+
+  it('显式传入逐份日期时批量编辑不覆盖（编辑器/逐份面板口径）', async () => {
+    const list = shallowRef([
+      {
+        ...makeItem('explicit-units'),
+        isWishlist: false,
+        collectStatus: '已拥有',
+        acquiredAt: '2026-11-08',
+        quantity: 2,
+        unitAcquiredAtList: ['2026-11-08', '2026-11-08'],
+        statusTimeline: [{ status: '已拥有', at: '2026-11-08' }]
+      }
+    ])
+
+    await updateMultipleGoods(
+      new Set(['explicit-units']),
+      { acquiredAt: '2026-10-20', unitAcquiredAtList: ['2026-10-01', '2026-10-05'] },
+      list
+    )
+
+    expect(list.value[0].unitAcquiredAtList).toEqual(['2026-10-01', '2026-10-05'])
+  })
+
   it('批量改数量：减少数量时按新数量裁剪逐件数据', async () => {
     const list = shallowRef([
       {
