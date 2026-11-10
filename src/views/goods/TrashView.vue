@@ -10,15 +10,9 @@
           <p class="hero-desc">{{ t('trash.heroDesc') }}</p>
         </div>
 
-        <div class="summary-grid">
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('trash.trashItems') }}</span>
-            <strong class="summary-value">{{ store.trashList.length }}</strong>
-          </article>
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('trash.totalQuantity') }}</span>
-            <strong class="summary-value">{{ totalQuantity }}</strong>
-          </article>
+        <div class="stat-grid">
+          <StatCard :label="t('trash.trashItems')" :value="store.trashList.length" />
+          <StatCard :label="t('trash.totalQuantity', { count: totalQuantity })" :value="totalQuantity" />
         </div>
       </section>
 
@@ -95,6 +89,7 @@ import { useI18n } from 'vue-i18n'
 import { formatPrice } from '@/utils/format'
 import { useGoodsStore } from '@/stores/goods'
 import NavBar from '@/components/common/NavBar.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
@@ -214,35 +209,16 @@ async function confirmEmptyAll() {
   line-height: 1.6;
 }
 
-.summary-grid {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
 
-.summary-card,
 .trash-card {
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
-}
-
-.summary-card {
-  padding: 18px;
-  border-radius: var(--radius-card);
-}
-
-.summary-kicker {
-  color: var(--app-text-tertiary);
-  font-size: var(--font-small);
-}
-
-.summary-value {
-  display: block;
-  margin-top: 10px;
-  color: var(--app-text);
-  font-size: 28px;
-  font-weight: 700;
 }
 
 .action-section {

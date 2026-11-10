@@ -216,6 +216,15 @@
   pointer-events: none;
 }
 
+/* ── Summary Section（统计框位置归一）── */
+
+/* 深色 hero 统计框（SummaryCard）的统一落位：横向对齐 --page-padding，
+   与上一块之间保持 --section-gap。各视图不再各自定义 .summary-section */
+.summary-section {
+  padding: 0 var(--page-padding);
+  margin-top: var(--section-gap);
+}
+
 /* ── Page Entry Animation ── */
 
 /* 设置页统一进入动画（与 MCP / AI 页一致）：内容块淡入上移并按块错峰。

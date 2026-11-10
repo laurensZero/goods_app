@@ -16,18 +16,10 @@
       </section>
 
       <section v-if="hasMonthCardRecords" class="summary-section">
-        <article class="summary-card">
-          <div class="summary-card__stats">
-            <div class="summary-stat">
-              <span class="summary-stat__value">{{ longestCoverageDays }}</span>
-              <span class="summary-stat__label">{{ t('recharge.monthCard.maxConsecutiveDays') }}</span>
-            </div>
-            <div class="summary-stat">
-              <span class="summary-stat__value">{{ latestExpiryText }}</span>
-              <span class="summary-stat__label">{{ t('recharge.monthCard.latestExpiry') }}</span>
-            </div>
-          </div>
-        </article>
+        <div class="stat-grid">
+          <StatCard :label="t('recharge.monthCard.maxConsecutiveDays')" :value="longestCoverageDays" />
+          <StatCard :label="t('recharge.monthCard.latestExpiry')" :value="latestExpiryText" />
+        </div>
       </section>
 
       <section v-if="hasMonthCardRecords" class="calendar-section">
@@ -166,9 +158,11 @@ import { computed, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'v
 import { useI18n } from 'vue-i18n'
 import NavBar from '@/components/common/NavBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useRechargeStore } from '@/stores/recharge'
+import { useRechargeCatalogStore } from '@/stores/rechargeCatalog'
 import { formatDate } from '@/utils/format'
 import { collectRechargeImageUrls } from '@/utils/recharge/rechargeImages'
 import { preloadImages } from '@/utils/image/cache'
@@ -176,6 +170,7 @@ import { preloadImages } from '@/utils/image/cache'
 defineOptions({ name: 'MonthCardCalendarView' })
 
 const { t } = useI18n()
+const rechargeCatalogStore = useRechargeCatalogStore()
 
 const MONTH_CARD_NAMES = new Set(['空月祝福', '列车补给凭证', '绳网会员'])
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日']
@@ -342,7 +337,7 @@ const currentMonthRecordList = computed(() => {
 const monthCardImageUrls = computed(() => {
   const urls = [
     ...Object.values(MONTH_CARD_IMAGE_MAP),
-    ...collectRechargeImageUrls(scopedRecords.value)
+    ...collectRechargeImageUrls(scopedRecords.value, rechargeCatalogStore.presetImageMap)
   ]
   return Array.from(new Set(urls.filter(Boolean)))
 })
@@ -832,7 +827,6 @@ function compareGameOrder(left, right) {
 
 .hero-section,
 .filter-section,
-.summary-section,
 .calendar-section,
 .records-section,
 .empty-wrap {
@@ -867,7 +861,6 @@ function compareGameOrder(left, right) {
   line-height: 1.6;
 }
 
-.summary-card,
 .calendar-card,
 .record-item,
 .empty-mini {
@@ -876,37 +869,14 @@ function compareGameOrder(left, right) {
   box-shadow: var(--app-shadow);
 }
 
-.summary-card,
 .calendar-card {
   padding: 16px;
 }
 
-.summary-card__stats {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.summary-stat {
-  padding: 14px;
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--app-surface-soft) 60%, var(--app-surface));
-  box-shadow: inset 0 0 0 1px var(--app-border);
-}
-
-.summary-stat__value {
-  display: block;
-  color: var(--app-text);
-  font-size: var(--font-title-lg);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-
-.summary-stat__label {
-  display: block;
-  margin-top: 6px;
-  color: var(--app-text-secondary);
-  font-size: var(--font-small);
+  gap: 12px;
 }
 
 .calendar-section {
@@ -1261,7 +1231,6 @@ html.theme-dark .record-item__status--upcoming {
 }
 
 @media (max-width: 560px) {
-  .summary-card,
   .calendar-card {
     padding: 14px;
   }

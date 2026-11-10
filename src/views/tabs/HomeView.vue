@@ -2193,14 +2193,12 @@ async function applyCouponAllocation({ allocations }) {
 }
 
 .hero-section,
-.summary-section,
 .goods-header-section,
 .goods-section,
 .empty-wrap {
   padding: 0 var(--page-padding);
 }
 
-.summary-section,
 .goods-header-section,
 .goods-section,
 .empty-wrap {

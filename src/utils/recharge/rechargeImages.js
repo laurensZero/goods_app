@@ -1,5 +1,3 @@
-import rechargeDistribution from '@/constants/recharge-options-distribution.json'
-
 const GAME_LABEL_MAP = {
   hk4e_cn: '原神',
   hkrpg_cn: '星穹铁道',
@@ -21,13 +19,14 @@ export function buildRechargeImageLookupKey(game, name, amount) {
   return `${String(game || '').trim()}::${normalizeRechargeItemName(name)}::${Number(amount || 0).toFixed(2)}`
 }
 
-export function buildRechargePresetImageMap(source = rechargeDistribution) {
+export function buildRechargePresetImageMap(source = {}) {
   const map = new Map()
   const nameMap = new Map()
 
   for (const value of Object.values(source || {})) {
     const gameBiz = String(value?.gameBiz || '').trim()
-    const gameLabel = GAME_LABEL_MAP[gameBiz] || gameBiz
+    // 与添加对话框保持一致：云端 label 优先，未知游戏不再依赖发版内置映射
+    const gameLabel = String(value?.label || '').trim() || GAME_LABEL_MAP[gameBiz] || gameBiz
     const options = Array.isArray(value?.options) ? value.options : []
 
     for (const option of options) {
@@ -51,9 +50,10 @@ export function buildRechargePresetImageMap(source = rechargeDistribution) {
   return { map, nameMap }
 }
 
-const DEFAULT_PRESET_IMAGE_MAP = buildRechargePresetImageMap()
+// 无目录时返回空映射；调用方应传 store 的 presetImageMap
+const EMPTY_PRESET_IMAGE_MAP = buildRechargePresetImageMap({})
 
-export function resolveRechargePresetImage(record, presetImageMap = DEFAULT_PRESET_IMAGE_MAP) {
+export function resolveRechargePresetImage(record, presetImageMap = EMPTY_PRESET_IMAGE_MAP) {
   const game = String(record?.game || '').trim()
   const nameRaw = String(record?.itemName || '').trim()
   const name = normalizeRechargeItemName(nameRaw)
@@ -91,7 +91,7 @@ function isLikelyImageUrl(url) {
   return typeof url === 'string' && /^(https?:)?\/\//i.test(url)
 }
 
-export function collectRechargeImageUrls(records = [], presetImageMap = DEFAULT_PRESET_IMAGE_MAP) {
+export function collectRechargeImageUrls(records = [], presetImageMap = EMPTY_PRESET_IMAGE_MAP) {
   const urls = []
   const seen = new Set()
 

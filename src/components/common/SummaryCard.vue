@@ -29,6 +29,7 @@
             </div>
           </div>
           <button
+            v-if="showVisibility"
             type="button"
             class="summary-visibility-btn"
             :aria-label="isHidden ? t('home.summary.showAmount') : t('home.summary.hideAmount')"
@@ -48,10 +49,12 @@
         </div>
 
         <p class="summary-value">
-          <template v-if="isHidden">-</template>
-          <template v-else>
-            <span class="summary-currency">{{ currency }}</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
-          </template>
+          <slot name="value">
+            <template v-if="isHidden">-</template>
+            <template v-else>
+              <span class="summary-currency">{{ currency }}</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
+            </template>
+          </slot>
         </p>
 
         <button
@@ -68,7 +71,7 @@
         </button>
       </div>
 
-      <div v-if="hasTrendData" class="summary-trend summary-trend--desktop">
+      <div v-if="hasTrendData" class="summary-side summary-side--desktop">
         <div class="summary-sparkline" aria-hidden="true">
           <svg viewBox="0 0 100 32" preserveAspectRatio="none">
             <path v-if="trendAreaPath" :d="trendAreaPath" class="summary-sparkline__area" />
@@ -77,23 +80,29 @@
         </div>
 
         <div class="summary-metrics">
-          <article class="summary-metric">
-            <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
-            <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
-          </article>
+          <slot name="metrics">
+            <article class="summary-metric">
+              <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
+              <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
+              <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
+            </article>
 
-          <article class="summary-metric">
-            <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
-            <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
-          </article>
+            <article class="summary-metric">
+              <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
+              <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
+              <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
+            </article>
+          </slot>
         </div>
+      </div>
+
+      <div v-else-if="$slots.metrics" class="summary-side summary-side--desktop">
+        <div class="summary-metrics"><slot name="metrics" /></div>
       </div>
     </div>
 
     <transition name="summary-trend-expand">
-      <div v-if="hasTrendData && showTrendDetails" class="summary-trend summary-trend--mobile">
+      <div v-if="hasTrendData && showTrendDetails" class="summary-side summary-side--mobile">
         <div class="summary-sparkline" aria-hidden="true">
           <svg viewBox="0 0 100 32" preserveAspectRatio="none">
             <path v-if="trendAreaPath" :d="trendAreaPath" class="summary-sparkline__area" />
@@ -102,20 +111,26 @@
         </div>
 
         <div class="summary-metrics">
-          <article class="summary-metric">
-            <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
-            <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
-          </article>
+          <slot name="metrics">
+            <article class="summary-metric">
+              <p class="summary-metric__label">{{ t('home.summary.recent30Days') }}</p>
+              <p class="summary-metric__value">¥{{ formatTrendAmount(recentChangeAmount) }}</p>
+              <p class="summary-metric__meta">{{ recentChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
+            </article>
 
-          <article class="summary-metric">
-            <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
-            <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
-            <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
-          </article>
+            <article class="summary-metric">
+              <p class="summary-metric__label">{{ t('home.summary.thisMonth') }}</p>
+              <p class="summary-metric__value">¥{{ formatTrendAmount(monthChangeAmount) }}</p>
+              <p class="summary-metric__meta">{{ monthChangeCount }} {{ t('home.summary.itemsUnit') }}</p>
+            </article>
+          </slot>
         </div>
       </div>
     </transition>
+
+    <div v-if="!hasTrendData && $slots.metrics" class="summary-side summary-side--mobile">
+      <div class="summary-metrics"><slot name="metrics" /></div>
+    </div>
   </section>
 
   <Teleport v-if="showTips" to="body">
@@ -154,6 +169,7 @@ const props = defineProps({
   storageKey: { type: String, default: 'goods-app:home-total-value-hidden' },
   currency: { type: String, default: '¥' },
   showTips: { type: Boolean, default: true },
+  showVisibility: { type: Boolean, default: true },
   tipsTitle: { type: String, default: '' },
   spendMode: { type: Boolean, default: false },
   tipsItems: {
@@ -711,15 +727,15 @@ watch(isHidden, (value) => {
   transform: rotate(180deg);
 }
 
-.summary-trend {
+.summary-side {
   min-width: 0;
 }
 
-.summary-trend--desktop {
+.summary-side--desktop {
   display: none;
 }
 
-.summary-trend--mobile {
+.summary-side--mobile {
   margin-top: 18px;
 }
 
@@ -822,12 +838,12 @@ watch(isHidden, (value) => {
     gap: 22px;
   }
 
-  .summary-trend--desktop {
+  .summary-side--desktop {
     display: grid;
     gap: 14px;
   }
 
-  .summary-trend--mobile,
+  .summary-side--mobile,
   .summary-trend-toggle {
     display: none;
   }

@@ -9,61 +9,103 @@
 
     <div class="dialog-fields">
       <template v-if="mode === 'preset'">
-        <div class="preset-section">
-          <div class="preset-section__head">
-            <label class="field-label">{{ t('recharge.dialog.dataSource') }}</label>
-            <p class="field-tip">{{ t('recharge.dialog.dataSourceTip') }}</p>
-          </div>
-
-          <div class="preset-grid preset-grid--source">
-            <button
-              v-for="entry in presetGameCards"
-              :key="entry.key"
-              type="button"
-              :class="['preset-card', 'preset-card--source', { 'preset-card--active': form.presetGameKey === entry.key }]"
-              @click="form.presetGameKey = entry.key"
-            >
-              <div class="preset-card__body">
-                <p class="preset-card__title">{{ entry.displayName }}</p>
-                <p class="preset-card__meta">{{ entry.regionLabel }} · {{ t('recharge.dialog.tiers', { count: entry.optionCount }) }}</p>
-              </div>
-            </button>
-          </div>
+        <div v-if="catalogLoading" class="preset-state" role="status" aria-live="polite">
+          <span class="preset-state__spinner" aria-hidden="true" />
+          <p class="preset-state__text">{{ t('recharge.dialog.catalogLoading') }}</p>
         </div>
 
-        <div class="preset-section">
-          <div class="preset-section__head">
-            <label class="field-label">{{ t('recharge.dialog.dataTier') }}</label>
-            <p class="field-tip">{{ selectedPresetGame ? t('recharge.dialog.tierTip') : t('recharge.dialog.selectGameFirst') }}</p>
-          </div>
-
-          <div v-if="presetOptionCards.length > 0" class="preset-grid preset-grid--option">
-            <button
-              v-for="option in presetOptionCards"
-              :key="option.value"
-              type="button"
-              :class="['preset-card', 'preset-card--option', { 'preset-card--active': form.presetOptionKey === option.value }]"
-              @click="form.presetOptionKey = option.value"
-            >
-              <div class="preset-card__media preset-card__media--option">
-                <LazyCachedImage
-                  v-if="option.image"
-                  :src="option.image"
-                  :alt="option.name"
-                  class="preset-card__image"
-                  loading="lazy"
-                />
-                <div v-else class="preset-card__fallback">{{ option.name.slice(0, 1) || '?' }}</div>
-              </div>
-              <div class="preset-card__body">
-                <p class="preset-card__title">{{ option.name }}</p>
-                <p class="preset-card__meta">¥{{ option.amountText }}</p>
-              </div>
-            </button>
-          </div>
-
-          <div v-else class="preset-empty">{{ t('recharge.dialog.tierPlaceholder') }}</div>
+        <div v-else-if="presetGameCards.length === 0" class="preset-state">
+          <p class="preset-state__text">
+            {{ catalogError ? t('recharge.dialog.catalogError') : t('recharge.dialog.catalogEmpty') }}
+          </p>
+          <button v-if="catalogError" type="button" class="preset-state__retry" @click="retryCatalog">
+            {{ t('recharge.dialog.catalogRetry') }}
+          </button>
         </div>
+
+        <template v-else>
+          <div class="preset-section">
+            <div class="preset-section__head">
+              <div class="preset-section__title">
+                <label class="field-label">{{ t('recharge.dialog.dataSource') }}</label>
+                <button
+                  type="button"
+                  class="preset-refresh"
+                  :disabled="catalogRefreshing"
+                  :aria-label="t('recharge.dialog.catalogRefresh')"
+                  :title="t('recharge.dialog.catalogRefresh')"
+                  @click="manualRefreshCatalog"
+                >
+                  <svg
+                    :class="['preset-refresh__icon', { 'preset-refresh__icon--spin': catalogRefreshing }]"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <path d="M21 3v6h-6" />
+                  </svg>
+                </button>
+              </div>
+              <p class="field-tip">{{ t('recharge.dialog.dataSourceTip') }}</p>
+            </div>
+
+            <div class="preset-grid preset-grid--source">
+              <button
+                v-for="entry in presetGameCards"
+                :key="entry.key"
+                type="button"
+                :class="['preset-card', 'preset-card--source', { 'preset-card--active': form.presetGameKey === entry.key }]"
+                @click="form.presetGameKey = entry.key"
+              >
+                <div class="preset-card__body">
+                  <p class="preset-card__title">{{ entry.displayName }}</p>
+                  <p class="preset-card__meta">{{ entry.regionLabel }} · {{ t('recharge.dialog.tiers', { count: entry.optionCount }) }}</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <div class="preset-section">
+            <div class="preset-section__head">
+              <label class="field-label">{{ t('recharge.dialog.dataTier') }}</label>
+              <p class="field-tip">{{ selectedPresetGame ? t('recharge.dialog.tierTip') : t('recharge.dialog.selectGameFirst') }}</p>
+            </div>
+
+            <div v-if="presetOptionCards.length > 0" class="preset-grid preset-grid--option">
+              <button
+                v-for="option in presetOptionCards"
+                :key="option.value"
+                type="button"
+                :class="['preset-card', 'preset-card--option', { 'preset-card--active': form.presetOptionKey === option.value }]"
+                @click="form.presetOptionKey = option.value"
+              >
+                <div class="preset-card__media preset-card__media--option">
+                  <LazyCachedImage
+                    v-if="option.image"
+                    :src="option.image"
+                    :alt="option.name"
+                    class="preset-card__image"
+                    loading="lazy"
+                  />
+                  <div v-else class="preset-card__fallback">{{ option.name.slice(0, 1) || '?' }}</div>
+                </div>
+                <div class="preset-card__body">
+                  <p class="preset-card__title">{{ option.name }}</p>
+                  <p class="preset-card__meta">¥{{ option.amountText }}</p>
+                </div>
+              </button>
+            </div>
+
+            <div v-else class="preset-empty">{{ t('recharge.dialog.tierPlaceholder') }}</div>
+          </div>
+        </template>
       </template>
 
       <template v-if="mode !== 'preset'">
@@ -145,6 +187,8 @@
     :max-date="maxDate"
     @confirm="onDateConfirm"
   />
+
+  <AppToast :message="toastMsg" />
 </template>
 
 <script setup>
@@ -155,9 +199,11 @@ import AppSelect from '@/components/common/AppSelect.vue'
 const { t } = useI18n()
 import AppSheet from '@/components/common/AppSheet.vue'
 import AppDatePicker from '@/components/common/AppDatePicker.vue'
+import AppToast from '@/components/common/AppToast.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
-import rechargeDistribution from '@/constants/recharge-options-distribution.json'
+import { useToast } from '@/composables/useToast'
+import { useRechargeCatalogStore } from '@/stores/rechargeCatalog'
 import { formatDate } from '@/utils/format'
 import { pickLinkedLocalImage, isLocalImageUri } from '@/utils/image/localImage'
 import { validatePrice } from '@/utils/validate'
@@ -209,13 +255,19 @@ const showDatePicker = ref(false)
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 const isEditMode = computed(() => Boolean(props.record?.id))
 const { isTabletViewport, updateViewport } = useTabletViewport()
+const rechargeCatalogStore = useRechargeCatalogStore()
+const { toastMsg, showToast } = useToast()
+const catalogLoading = computed(() => rechargeCatalogStore.loading)
+const catalogError = computed(() => rechargeCatalogStore.loadError)
+const catalogRefreshing = computed(() => rechargeCatalogStore.refreshing)
 const presetGameEntries = computed(() => {
-  const source = rechargeDistribution || {}
+  const source = rechargeCatalogStore.distribution || {}
   return Object.entries(source)
     .map(([key, value]) => {
       const gameBiz = String(value?.gameBiz || '').trim()
       const region = String(value?.region || '').trim()
-      const displayName = GAME_LABEL_MAP[gameBiz] || gameBiz || key
+      // 云端 label 优先：新增游戏无需发版；老数据/未填 label 时退回内置映射
+      const displayName = String(value?.label || '').trim() || GAME_LABEL_MAP[gameBiz] || gameBiz || key
       const options = Array.isArray(value?.options) ? value.options : []
       return {
         key,
@@ -303,6 +355,16 @@ function resetForm() {
   datePickerValue.value = toDatePickerValue(form.chargedAt)
   showDatePicker.value = false
   errorText.value = ''
+}
+
+function retryCatalog() {
+  rechargeCatalogStore.retry()
+}
+
+async function manualRefreshCatalog() {
+  if (catalogRefreshing.value) return
+  const ok = await rechargeCatalogStore.refresh({ force: true })
+  showToast(ok ? t('recharge.dialog.catalogRefreshed') : t('recharge.dialog.catalogRefreshFailed'))
 }
 
 function getPresetOptionValue(option, index) {
@@ -451,6 +513,13 @@ watch(() => form.presetOptionKey, () => {
   applyPresetOption()
 })
 
+// 首次加载完成时目录可能比 resetForm 晚到：自动补选第一个数据源
+watch(() => presetGameEntries.value.length, (length) => {
+  if (props.mode !== 'preset' || !props.show || length === 0) return
+  if (presetGameEntries.value.some((entry) => entry.key === form.presetGameKey)) return
+  form.presetGameKey = presetGameEntries.value[0].key
+})
+
 function toDatePickerValue(dateString) {
   const [year, month, day] = normalizeDateParts(dateString)
   return [year, month, day]
@@ -512,6 +581,44 @@ onMounted(() => {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+}
+
+.preset-section__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.preset-refresh {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--app-surface-soft);
+  color: var(--app-text-tertiary);
+  transition: transform var(--motion-fast) var(--motion-emphasis), color var(--motion-fast) var(--motion-emphasis);
+}
+
+.preset-refresh:active {
+  transform: scale(var(--press-scale-button));
+}
+
+.preset-refresh:disabled {
+  opacity: 0.55;
+}
+
+.preset-refresh__icon--spin {
+  animation: preset-refresh-spin 0.9s linear infinite;
+}
+
+@keyframes preset-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .field-label {
@@ -627,6 +734,53 @@ onMounted(() => {
   background: var(--app-surface-soft);
   color: var(--app-text-tertiary);
   font-size: var(--font-body);
+}
+
+.preset-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 16px;
+  border-radius: var(--radius-medium);
+  background: var(--app-surface-soft);
+  text-align: center;
+}
+
+.preset-state__spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid color-mix(in srgb, var(--app-text) 14%, transparent);
+  border-top-color: var(--app-text-secondary);
+  border-radius: 50%;
+  animation: preset-spin 0.8s linear infinite;
+}
+
+.preset-state__text {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-body);
+}
+
+.preset-state__retry {
+  min-height: 34px;
+  padding: 0 18px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-small);
+  background: var(--app-surface);
+  color: var(--app-text-secondary);
+  font-size: var(--font-body);
+  font-weight: 600;
+  transition: transform var(--motion-fast) var(--motion-emphasis);
+}
+
+.preset-state__retry:active {
+  transform: scale(var(--press-scale-button));
+}
+
+@keyframes preset-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .field-input,

@@ -10,23 +10,15 @@
           <p class="hero-desc">{{ t('sale.ledgerHeroDesc') }}</p>
         </div>
 
-        <div class="summary-grid">
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('sale.recovered') }}</span>
-            <strong class="summary-value">¥{{ formatAmount(summary.recoveredTotal) }}</strong>
-          </article>
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('sale.listing') }}</span>
-            <strong class="summary-value">¥{{ formatAmount(summary.listingTotal) }}</strong>
-          </article>
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('sale.totalProfit') }}</span>
-            <strong :class="['summary-value', profitClass(summary.profitTotal)]">{{ formatProfit(summary.profitTotal) }}</strong>
-          </article>
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('sale.soldCount') }}</span>
-            <strong class="summary-value">{{ summary.soldCount }}</strong>
-          </article>
+        <div class="stat-grid">
+          <StatCard :label="t('sale.recovered')" :value="`¥${formatAmount(summary.recoveredTotal)}`" />
+          <StatCard :label="t('sale.listing')" :value="`¥${formatAmount(summary.listingTotal)}`" />
+          <StatCard
+            :label="t('sale.totalProfit')"
+            :value="formatProfit(summary.profitTotal)"
+            :value-class="profitClass(summary.profitTotal)"
+          />
+          <StatCard :label="t('sale.soldCount')" :value="summary.soldCount" />
         </div>
       </section>
 
@@ -120,6 +112,7 @@ import { buildSaleLedger, buildSaleSummary } from '@/utils/goods/saleStats'
 import { getPrimaryGoodsImageUrl } from '@/utils/goods/images'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import NavBar from '@/components/common/NavBar.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 
@@ -190,15 +183,11 @@ function openDetail(id) {
   color: var(--app-text);
 }
 
-.page-body {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  padding: 16px 16px max(24px, env(safe-area-inset-bottom));
-  max-width: 720px;
-  margin: 0 auto;
-  width: 100%;
-  box-sizing: border-box;
+.hero-section,
+.tab-section,
+.list-section {
+  padding: 0 var(--page-padding);
+  margin-top: var(--section-gap);
 }
 
 .hero-section {
@@ -219,24 +208,11 @@ function openDetail(id) {
 .hero-title { font-size: 24px; font-weight: 700; margin: 0; }
 .hero-desc { font-size: 13px; color: var(--app-text-secondary); margin: 0; }
 
-.summary-grid {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
+  gap: 12px;
 }
-
-.summary-card {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 16px;
-  border-radius: var(--radius-card);
-  background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
-  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
-}
-
-.summary-kicker { font-size: 12px; color: var(--app-text-tertiary); }
-.summary-value { font-size: 20px; font-weight: 700; color: var(--app-text); }
 
 .tab-bar {
   display: flex;
@@ -344,8 +320,10 @@ function openDetail(id) {
 
 .ledger-no-price { font-size: 13px; color: var(--app-text-tertiary); }
 
-.profit--gain { color: var(--app-danger, #dc2626) !important; }
-.profit--loss { color: var(--app-success, #16a34a) !important; }
+.profit--gain,
+:deep(.profit--gain) { color: var(--app-danger, #dc2626) !important; }
+.profit--loss,
+:deep(.profit--loss) { color: var(--app-success, #16a34a) !important; }
 
 /* 已出/在售内容切换过渡(方向随 tab 顺序) */
 .ledger-swap-enter-active,
@@ -359,21 +337,11 @@ function openDetail(id) {
 
 /* 平板适配(与全站 900px 断点一致) */
 @media (min-width: 900px) {
-  .page-body {
-    max-width: 1040px;
-    padding: 24px 32px max(32px, env(safe-area-inset-bottom));
-    gap: 24px;
-  }
-
   .hero-title { font-size: 28px; }
 
-  .summary-grid {
+  .stat-grid {
     grid-template-columns: repeat(4, 1fr);
-    gap: 12px;
   }
-
-  .summary-card { padding: 18px 20px; }
-  .summary-value { font-size: 24px; }
 
   .tab-bar { max-width: 420px; margin: 0 auto; }
 

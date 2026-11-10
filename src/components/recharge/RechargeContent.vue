@@ -64,19 +64,11 @@
   <Transition name="search-drop" mode="out-in">
     <div v-if="hasVisibleRecords" :key="activeView" class="recharge-view">
       <section v-if="activeView === 'leaderboard'" class="stats-section">
-        <article class="stat-card">
-          <p class="stat-card__label">{{ t('recharge.thisMonth') }}</p>
-          <p class="stat-card__value">¥{{ formatAmount(currentMonthTotal) }}</p>
-        </article>
-        <article class="stat-card">
-          <p class="stat-card__label">{{ t('recharge.avgPer') }}</p>
-          <p class="stat-card__value">¥{{ formatAmount(averageAmount) }}</p>
-        </article>
-        <article class="stat-card">
-          <p class="stat-card__label">{{ t('recharge.topGame') }}</p>
-          <p class="stat-card__value stat-card__value--text">{{ topGameName }}</p>
-          <p class="stat-card__meta">¥{{ formatAmount(topGameAmount) }}</p>
-        </article>
+        <StatCard :label="t('recharge.thisMonth')" :value="`¥${formatAmount(currentMonthTotal)}`" />
+        <StatCard :label="t('recharge.avgPer')" :value="`¥${formatAmount(averageAmount)}`" />
+        <StatCard :label="t('recharge.topGame')" :value="topGameName" value-class="stat-card__value--text">
+          ¥{{ formatAmount(topGameAmount) }}
+        </StatCard>
       </section>
 
       <section class="content-section">
@@ -205,6 +197,7 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import RechargeAddMethodSheet from '@/components/recharge/RechargeAddMethodSheet.vue'
@@ -214,6 +207,7 @@ import AddRecordDialog from '@/components/recharge/AddRecordDialog.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useRechargeStore } from '@/stores/recharge'
 import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
+import { useRechargeCatalogStore } from '@/stores/rechargeCatalog'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { collectRechargeImageUrls } from '@/utils/recharge/rechargeImages'
 import { formatMonthLabel } from '@/utils/format'
@@ -232,6 +226,7 @@ defineProps({
 const { t } = useI18n()
 const rechargeStore = useRechargeStore()
 const mihoyoFeaturesStore = useMihoyoFeaturesStore()
+const rechargeCatalogStore = useRechargeCatalogStore()
 const log = createLogger('recharge-ui')
 const SCROLL_TOP_BUTTON_THRESHOLD = 900
 const activeView = ref('records')
@@ -449,7 +444,7 @@ const viewSwitchStyle = computed(() => ({
   '--view-switch-index': String(Math.max(viewOptions.value.findIndex((item) => item.value === activeView.value), 0))
 }))
 
-const rechargeImageUrls = computed(() => collectRechargeImageUrls(activeRecords.value))
+const rechargeImageUrls = computed(() => collectRechargeImageUrls(activeRecords.value, rechargeCatalogStore.presetImageMap))
 const isAddOverlayOpen = computed(() => showAddDialog.value || showAddMethodSheet.value)
 const deleteConfirmTitle = computed(() => t('recharge.confirmDelete'))
 const deleteConfirmActionText = computed(() => t('common.delete'))
@@ -504,6 +499,8 @@ function toggleSearch() {
 
 function openAddMethodSheet() {
   editingRecord.value = null
+  // 后台刷新云端档位目录（缓存优先、TTL 防抖），不阻塞面板弹出
+  rechargeCatalogStore.refresh()
   // 米游铺功能关闭时跳过选择面板，直接进手动录入
   if (!mihoyoFeaturesStore.enabled) {
     openCreateManual()
@@ -541,6 +538,7 @@ function handleViewOptionClick(value) {
 
 function openCreateManual() {
   editingRecord.value = null
+  rechargeCatalogStore.refresh()
   addMode.value = 'manual'
   showAddDialog.value = true
   log.debug('dialog:create', { mode: addMode.value })
@@ -548,6 +546,7 @@ function openCreateManual() {
 
 function openCreatePreset() {
   editingRecord.value = null
+  rechargeCatalogStore.refresh()
   addMode.value = 'preset'
   showAddDialog.value = true
   log.debug('dialog:create', { mode: addMode.value })
@@ -747,6 +746,8 @@ function unbindAndroidBackButton() {
 
 onMounted(async () => {
   await rechargeStore.init()
+  // 目录也用于记录卡片的档位图片兜底：进页面就后台拉一次（TTL 兜住重复请求）
+  rechargeCatalogStore.refresh()
   log.debug('mounted:init-done', { records: activeRecords.value.length })
   rechargeStore.clearInvalidRecords().catch((error) => {
     log.error('mounted:cleanup-invalid:failed', error)
@@ -800,7 +801,6 @@ defineExpose({
 </script>
 
 <style scoped>
-.summary-section,
 .toolbar-section,
 .stats-section,
 .content-section {
@@ -840,8 +840,7 @@ defineExpose({
   gap: 12px;
 }
 
-.section-label,
-.stat-card__label {
+.section-label {
   color: var(--app-text-tertiary);
   font-size: var(--font-body);
 }
@@ -956,30 +955,16 @@ defineExpose({
   gap: 10px;
 }
 
-.stat-card,
 .leaderboard-item {
   background: var(--app-surface);
   border-radius: var(--radius-card);
   box-shadow: var(--app-shadow);
 }
 
-.stat-card {
-  padding: 14px 16px;
-}
-
-.stat-card__value {
-  margin-top: 8px;
-  color: var(--app-text);
-  font-size: var(--font-title-xl);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-}
-
-.stat-card__value--text {
+.stats-section :deep(.stat-card__value--text) {
   font-size: var(--font-title-lg);
 }
 
-.stat-card__meta,
 .group-card__meta,
 .leaderboard-item__meta {
   margin-top: 6px;

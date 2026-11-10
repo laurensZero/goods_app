@@ -10,15 +10,9 @@
           <p class="hero-desc">{{ t('manage.storage.heroDesc') }}</p>
         </div>
 
-        <div class="summary-grid">
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('manage.storage.locationNodes') }}</span>
-            <strong class="summary-value">{{ presets.storageLocations.length }}</strong>
-          </article>
-          <article class="summary-card">
-            <span class="summary-kicker">{{ t('manage.storage.unassigned') }}</span>
-            <strong class="summary-value">{{ unassignedCount }}</strong>
-          </article>
+        <div class="stat-grid">
+          <StatCard :label="t('manage.storage.locationNodes')" :value="presets.storageLocations.length" />
+          <StatCard :label="t('manage.storage.unassigned')" :value="unassignedCount" />
         </div>
       </section>
 
@@ -113,6 +107,7 @@ import { useGoodsStore } from '@/stores/goods'
 import { usePresetsStore } from '@/stores/presets'
 import { isStorageLocationUnderPrefix } from '@/utils/storage/storageLocations'
 import NavBar from '@/components/common/NavBar.vue'
+import StatCard from '@/components/common/StatCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import QuickPresetCreator from '@/components/preset/QuickPresetCreator.vue'
 import PresetDeleteConfirm from '@/components/preset/PresetDeleteConfirm.vue'
@@ -448,33 +443,18 @@ function cancelDeleteNode() {
   line-height: 1.6;
 }
 
-.summary-grid {
+.stat-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
 }
 
-.summary-card,
 .editor-card {
   padding: 18px;
   border-radius: var(--radius-card);
   background: var(--app-surface);
   box-shadow: var(--app-shadow);
-}
-
-.summary-kicker {
-  color: var(--app-text-tertiary);
-  font-size: var(--font-small);
-}
-
-.summary-value {
-  display: block;
-  margin-top: 10px;
-  color: var(--app-text);
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.04em;
 }
 
 .section-head {

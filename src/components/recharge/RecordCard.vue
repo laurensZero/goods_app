@@ -52,6 +52,7 @@ import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { vibrate, HAPTIC_MEDIUM } from '@/utils/platform/haptics'
 import { resolveRechargePresetImage } from '@/utils/recharge/rechargeImages'
+import { useRechargeCatalogStore } from '@/stores/rechargeCatalog'
 
 const props = defineProps({
   record: {
@@ -70,6 +71,7 @@ const props = defineProps({
 
 const emit = defineEmits(['hold', 'click'])
 const { t } = useI18n()
+const rechargeCatalogStore = useRechargeCatalogStore()
 
 const LONG_PRESS_MS = 420
 const TOUCH_MOVE_THRESHOLD = 12
@@ -79,7 +81,7 @@ const amountText = computed(() => Number(props.record.amount || 0).toFixed(2))
 const resolvedImage = computed(() => {
   const direct = String(props.record.image || '').trim()
   if (direct) return direct
-  return resolveRechargePresetImage(props.record)
+  return resolveRechargePresetImage(props.record, rechargeCatalogStore.presetImageMap)
 })
 const recordInitial = computed(() => {
   const source = String(props.record.itemName || props.record.game || '?').trim()

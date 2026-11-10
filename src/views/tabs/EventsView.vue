@@ -48,38 +48,27 @@
       />
 
       <section class="summary-section">
-        <article class="summary-card">
-          <div class="summary-orb summary-orb--left" />
-          <div class="summary-orb summary-orb--right" />
+        <SummaryCard label="EVENT OVERVIEW" :show-visibility="false" :show-tips="false">
+          <template #value>
+            <span class="summary-count">{{ filteredEvents.length }}</span>
+            <span class="summary-unit">{{ t('events.eventsUnit') }}</span>
+          </template>
 
-          <div class="summary-layout">
-            <div class="summary-main">
-              <div class="summary-head">
-                <p class="summary-label">EVENT OVERVIEW</p>
-              </div>
-
-              <p class="summary-value">
-                <span class="summary-count">{{ filteredEvents.length }}</span>
-                <span class="summary-unit">{{ t('events.eventsUnit') }}</span>
-              </p>
+          <template #metrics>
+            <div class="metric-chip">
+              <span class="metric-chip__label">{{ t('events.ticketTotal') }}</span>
+              <strong>{{ formatPrice(filteredTicketTotal) }}</strong>
             </div>
-
-            <div class="summary-metrics">
-              <div class="metric-chip">
-                <span class="metric-chip__label">{{ t('events.ticketTotal') }}</span>
-                <strong>{{ formatPrice(filteredTicketTotal) }}</strong>
-              </div>
-              <div class="metric-chip">
-                <span class="metric-chip__label">{{ t('events.linkedGoodsCount') }}</span>
-                <strong>{{ totalLinkedGoods }}</strong>
-              </div>
-              <div class="metric-chip">
-                <span class="metric-chip__label">{{ t('events.eventPhotos') }}</span>
-                <strong>{{ totalPhotos }}</strong>
-              </div>
+            <div class="metric-chip">
+              <span class="metric-chip__label">{{ t('events.linkedGoodsCount') }}</span>
+              <strong>{{ totalLinkedGoods }}</strong>
             </div>
-          </div>
-        </article>
+            <div class="metric-chip">
+              <span class="metric-chip__label">{{ t('events.eventPhotos') }}</span>
+              <strong>{{ totalPhotos }}</strong>
+            </div>
+          </template>
+        </SummaryCard>
       </section>
 
       <section v-if="eventsStore.activeList.length > 0" class="toolbar-section">
@@ -325,6 +314,7 @@ import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMoun
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
+import SummaryCard from '@/components/common/SummaryCard.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
@@ -1012,17 +1002,15 @@ onBeforeUnmount(() => {
 }
 
 .page-body {
-  width: min(100%, 2048px);
-  margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 20px) var(--page-padding) 120px;
+  padding-top: calc(env(safe-area-inset-top) + 20px);
 }
 
 .hero-section,
-.summary-section,
 .toolbar-section,
 .search-section,
 .list-shell,
 .empty-wrap {
+  padding: 0 var(--page-padding);
   margin-top: var(--section-gap);
 }
 
@@ -1106,84 +1094,11 @@ onBeforeUnmount(() => {
   stroke-linejoin: round;
 }
 
-.summary-card {
-  position: relative;
-  overflow: hidden;
-  padding: 24px;
-  border-radius: var(--radius-large);
-  color: var(--summary-card-text);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%),
-    var(--summary-card-gradient);
-  box-shadow: var(--app-shadow);
-}
-
-.summary-orb {
-  position: absolute;
-  border-radius: 50%;
-  background: var(--summary-card-orb);
-  pointer-events: none;
-  filter: blur(2px);
-}
-
-.summary-orb--left {
-  top: -44px;
-  left: -36px;
-  width: 160px;
-  height: 160px;
-}
-
-.summary-orb--right {
-  right: -18px;
-  bottom: -32px;
-  width: 120px;
-  height: 120px;
-}
-
-.summary-head,
-.summary-value,
-.summary-metrics {
-  position: relative;
-  z-index: 1;
-}
-
-.summary-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 32px;
-}
-
-.summary-label {
-  color: var(--summary-card-label);
-  font-size: var(--font-small);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.summary-value {
-  margin: 22px 0 0;
-  font-size: 0;
-}
-
-.summary-count {
-  font-size: 56px;
-  font-weight: 700;
-  letter-spacing: -0.06em;
-}
-
 .summary-unit {
   margin-left: 8px;
   font-size: var(--font-title-lg);
   font-weight: 600;
   color: color-mix(in srgb, var(--summary-card-text) 76%, transparent);
-}
-
-.summary-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 0;
 }
 
 .metric-chip {
@@ -1207,28 +1122,6 @@ onBeforeUnmount(() => {
   color: var(--summary-card-text);
   font-size: var(--font-title-lg);
   font-weight: 700;
-}
-
-.summary-layout {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-}
-
-.summary-main {
-  min-width: 0;
-}
-
-.summary-card ::selection {
-  color: var(--summary-card-text);
-  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
-}
-
-.summary-card ::-moz-selection {
-  color: var(--summary-card-text);
-  background: color-mix(in srgb, var(--summary-card-text) 24%, transparent);
 }
 
 .toolbar-section {
@@ -1638,11 +1531,6 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 899px) {
-  .summary-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-  }
-
   .event-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
@@ -1655,18 +1543,6 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 900px) {
-  .summary-layout {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr);
-    align-items: center;
-    gap: 22px;
-  }
-
-  .summary-metrics {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin-top: 0;
-  }
-
   .metric-chip {
     padding: 12px 14px;
   }
@@ -1712,15 +1588,6 @@ onBeforeUnmount(() => {
 
   .toolbar-title span {
     font-size: var(--font-title);
-  }
-
-  .summary-card {
-    min-height: 0;
-    padding: 20px 18px;
-  }
-
-  .summary-count {
-    font-size: 46px;
   }
 
   .summary-unit {
