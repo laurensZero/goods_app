@@ -49,3 +49,4 @@ design/
 guide-shots/
 scripts/guide-capture.mjs
 scripts/recharge_options_seed.sql
+supabase/recharge_options_seed.sql
