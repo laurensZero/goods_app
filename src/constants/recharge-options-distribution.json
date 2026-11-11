@@ -187,12 +187,6 @@
       }
     ]
   },
-  "bh3_cn::android01": {
-    "gameBiz": "bh3_cn",
-    "region": "android01",
-    "updatedAt": "2026-03-30T09:17:58.426576+00:00",
-    "options": []
-  },
   "nap_cn::prod_gf_cn": {
     "gameBiz": "nap_cn",
     "region": "prod_gf_cn",
@@ -268,6 +262,91 @@
         "id": "napchntopup6480rmb64800",
         "name": "菲林底片",
         "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2024/06/07/a3a730047f8930a6c3f0fc8e8c256c01_1627528688901719855.png",
+        "amount": 648.0
+      }
+    ]
+  },
+  "bh3_cn::pc01": {
+    "gameBiz": "bh3_cn",
+    "region": "pc01",
+    "updatedAt": "2026-11-10T16:03:14+00:00",
+    "options": [
+      {
+        "id": "Bh3FirstHardCoinTier1",
+        "name": "水晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/7d025aa5c4b7b0d86fa0b74dd913e6b7_6021943933989860065.png",
+        "amount": 6.0
+      },
+      {
+        "id": "Bh3MCoinTier1",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/834e652330e761efed8e016f4a678399_578637485401534910.png",
+        "amount": 6.0
+      },
+      {
+        "id": "Bh3GiftHardCoinTier5",
+        "name": "30天水晶大礼包",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/9651527c211677ba890230c31ace6dcd_1768863941579678803.png",
+        "amount": 30.0
+      },
+      {
+        "id": "Bh3FirstHardCoinTier5",
+        "name": "水晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/785d948f392ecbd9d6072cb6fa3e2f43_4688513624862082752.png",
+        "amount": 30.0
+      },
+      {
+        "id": "Bh3MCoinTier5",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/651d6f6baf99b6c422502bb34e4074c8_2572664748981022625.png",
+        "amount": 30.0
+      },
+      {
+        "id": "Bh3MCoinTier15",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/b49fc60f30de3e81ca02a87edc47de2a_8470196453769943020.png",
+        "amount": 98.0
+      },
+      {
+        "id": "Bh3FirstHardCoinTier20",
+        "name": "水晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/b26a1a58c6881784d7b6f49083b92b1c_7997878784053062744.png",
+        "amount": 128.0
+      },
+      {
+        "id": "Bh3MCoinTier20",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/01b2e7d67e969ee7ac0c6d454c4214a2_9156905297691534714.png",
+        "amount": 128.0
+      },
+      {
+        "id": "Bh3MCoinTier30",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/6655c4b9e4d1e076807dcb2e9db7dff8_7873035826957202445.png",
+        "amount": 198.0
+      },
+      {
+        "id": "Bh3FirstHardCoinTier50",
+        "name": "水晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/70bb797d88dd34d52ca2462faf52d460_515611409538868994.png",
+        "amount": 328.0
+      },
+      {
+        "id": "Bh3MCoinTier50",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/10cd01b19e4adf494b51d768147c3596_8096640455935225072.png",
+        "amount": 328.0
+      },
+      {
+        "id": "Bh3FirstHardCoinTier60",
+        "name": "水晶",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/f1ab0bd4838cf317ae5a87b32bfd3d17_3397804082844632870.png",
+        "amount": 648.0
+      },
+      {
+        "id": "Bh3MCoinTier60",
+        "name": "礼包币",
+        "image": "https://sdk-webstatic.mihoyo.com/sdk-payment-upload/2023/06/12/5b5a3034228200f3d72259624e998cf0_90006679580480403.png",
         "amount": 648.0
       }
     ]
