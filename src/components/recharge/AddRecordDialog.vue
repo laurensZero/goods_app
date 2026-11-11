@@ -111,6 +111,13 @@
       <template v-if="mode !== 'preset'">
         <label class="field-label">{{ t('recharge.dialog.game') }}</label>
         <AppSelect v-model="form.game" :options="gameSelectOptions" :placeholder="t('recharge.dialog.gamePlaceholder')" />
+        <input
+          v-if="isCustomGame"
+          v-model.trim="customGameName"
+          class="field-input game-custom-input"
+          type="text"
+          :placeholder="t('recharge.dialog.customGamePlaceholder')"
+        />
 
         <label class="field-label">{{ t('recharge.dialog.itemName') }}</label>
         <input v-model.trim="form.itemName" class="field-input" type="text" :placeholder="t('recharge.dialog.itemNamePlaceholder')" />
@@ -252,6 +259,10 @@ const form = reactive({
 
 const errorText = ref('')
 const showDatePicker = ref(false)
+// 自定义游戏：下拉选中哨兵项后展示输入框，提交时用 customGameName
+const CUSTOM_GAME_VALUE = '__custom__'
+const isCustomGame = ref(false)
+const customGameName = ref('')
 const datePickerValue = ref(toDatePickerValue(formatDate(new Date(), 'YYYY-MM-DD')))
 const isEditMode = computed(() => Boolean(props.record?.id))
 const { isTabletViewport, updateViewport } = useTabletViewport()
@@ -334,7 +345,8 @@ const gameSelectOptions = computed(() => {
     }
   }
 
-  return Array.from(map.values())
+  // 手动添加支持自定义游戏：保存后随记录进入 gameOptions，下次直接可选
+  return [...Array.from(map.values()), { label: t('recharge.dialog.customGame'), value: CUSTOM_GAME_VALUE }]
 })
 
 function resetForm() {
@@ -346,6 +358,8 @@ function resetForm() {
 
   form.presetGameKey = defaultPresetGameKey
   form.presetOptionKey = ''
+  isCustomGame.value = false
+  customGameName.value = ''
   form.game = String(target.game || defaultPresetGame?.displayName || props.gameOptions[0] || '').trim()
   form.itemName = String(target.itemName || '').trim()
   form.amount = target.amount == null ? '' : String(target.amount)
@@ -464,8 +478,12 @@ function submit() {
     return
   }
 
-  if (!form.game) {
-    errorText.value = t('recharge.dialog.errorGame')
+  const gameName = isCustomGame.value
+    ? customGameName.value.trim()
+    : String(form.game || '').trim()
+
+  if (!gameName) {
+    errorText.value = t(isCustomGame.value ? 'recharge.dialog.errorGameCustom' : 'recharge.dialog.errorGame')
     return
   }
 
@@ -480,7 +498,7 @@ function submit() {
   }
 
   emit('save', {
-    game: form.game,
+    game: gameName,
     itemName: form.itemName,
     amount: amountNumber,
     chargedAt: form.chargedAt,
@@ -495,6 +513,17 @@ watch(() => props.show, (value) => {
 
 watch(() => props.record, () => {
   if (props.show) resetForm()
+})
+
+// 自定义游戏哨兵：选中后置空下拉、展开输入框；改选真实选项时收起
+watch(() => form.game, (val) => {
+  if (val === CUSTOM_GAME_VALUE) {
+    isCustomGame.value = true
+    customGameName.value = ''
+    form.game = ''
+  } else if (val && isCustomGame.value) {
+    isCustomGame.value = false
+  }
 })
 
 watch(() => form.presetGameKey, (next) => {
@@ -797,6 +826,10 @@ onMounted(() => {
 .field-input {
   height: var(--input-height);
   padding: 0 12px;
+}
+
+.game-custom-input {
+  margin-top: 8px;
 }
 
 .image-input-row {
