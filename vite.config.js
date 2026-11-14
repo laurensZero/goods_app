@@ -225,14 +225,6 @@ export default defineConfig({
           })
         }
       },
-      // 设备指纹签发（getFp）：官方 CORS 仅放行米哈游自家 origin，
-      // web 端借道转发；原生端不走此代理，直连 public-data-api
-      '/mihoyo-device-fp': {
-        target: 'https://public-data-api.mihoyo.com',
-        changeOrigin: true,
-        agent: proxyAgent,
-        rewrite: (path) => path.replace(/^\/mihoyo-device-fp/, ''),
-      },
       // 米游铺通行证扫码登录：官方 CORS 仅放行 user.mihoyogift.com。
       // Confirmed 时会话在 Set-Cookie（HttpOnly）；代理改为写入 JSON body，
       // 因为 fetch 的 Headers 不能可靠暴露自定义响应头。
