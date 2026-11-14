@@ -329,6 +329,7 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
       ['category', syncData.presets?.categories],
       ['ip', syncData.presets?.ips],
       ['character', syncData.presets?.characters],
+      ['character_binding', syncData.presets?.characterBindings],
       ['storage_location', syncData.presets?.storageLocations],
       ['event_type', syncData.presets?.eventTypes],
       ['custom_field', syncData.presets?.customFieldDefs]

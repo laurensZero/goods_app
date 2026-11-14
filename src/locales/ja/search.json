@@ -50,6 +50,8 @@
   "search.noCharacter": "キャラクター未設定",
   "search.collapseCharacters": "キャラクターを折りたたむ",
   "search.expandCharacters": "キャラクターを展開",
+  "search.characterCascade": "紐付けた別名も含める",
+  "search.characterCascadeHint": "紐付け先の名前も一致させる",
   "search.storageLocation": "収納場所",
   "search.noLocation": "場所未設定",
   "search.searchResults": "検索結果",

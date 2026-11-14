@@ -105,6 +105,28 @@ describe('row-level preset/profile push diff', () => {
     expect(Date.parse(tombstone.updated_at)).toBeGreaterThan(remoteUpdatedAt)
   })
 
+  it('character_binding 绑定组作为独立 domain 行推送', async () => {
+    const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
+    const backend = {
+      pushAll,
+      pullPresetRows: vi.fn(async () => ({ active: [], trash: [] })),
+      pullCollectionProfiles: vi.fn(async () => ({ active: [], trash: [] }))
+    }
+    const args = baseArgs()
+    args.syncData.presets.characterBindings = [{ id: 'cb_1', names: ['初音未来', '初音ミク'] }]
+
+    await writeRemoteData(backend, args)
+
+    const pushed = pushAll.mock.calls[0][0]
+    // 远端为空时全量行都会推，这里只断言新 domain 的行
+    const bindingRow = pushed.presetRows.find((row) => row.domain === 'character_binding')
+    expect(bindingRow).toEqual(expect.objectContaining({
+      id: 'cb_1',
+      payload: { id: 'cb_1', names: ['初音未来', '初音ミク'] },
+      deleted: 0
+    }))
+  })
+
   it('非预设脏域不会顺带推送预设和背景行', async () => {
     const pushAll = vi.fn(async () => ({ syncedAt: '2026-10-17T00:00:00.000Z' }))
     const backend = { pushAll }

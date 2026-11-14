@@ -12,6 +12,8 @@
   "leaderboard.fullRanking": "完整排行",
   "leaderboard.items": "{count} 件",
   "leaderboard.dimension.character": "角色",
+  "leaderboard.characterCascade": "合并绑定变体",
+  "leaderboard.characterCascadeHint": "变体名合并计入同一人物",
   "leaderboard.dimension.ip": "IP",
   "leaderboard.dimension.category": "分类",
   "leaderboard.dimension.storageLocation": "存放位置",

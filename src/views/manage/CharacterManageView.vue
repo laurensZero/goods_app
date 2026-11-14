@@ -165,7 +165,20 @@
               </button>
 
               <button class="row-main" type="button" @click="openEdit(item)">
-                <span class="row-label">{{ item.name }}</span>
+                <span class="row-label">
+                  {{ item.name }}
+                  <svg
+                    v-if="boundNameSet.has(item.name)"
+                    class="row-bind-badge"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 15l6-6" />
+                    <path d="M10.5 6.5l2-2a4 4 0 015.66 5.66l-2 2" />
+                    <path d="M13.5 17.5l-2 2a4 4 0 01-5.66-5.66l2-2" />
+                  </svg>
+                </span>
                 <div class="row-meta-line">
                   <span class="row-ip-badge" :class="{ 'row-ip-badge--empty': !item.ip }">
                     {{ item.ip || t('manage.character.ipNotSet') }}
@@ -246,6 +259,64 @@
           </div>
         </div>
 
+        <div class="edit-group">
+          <span class="edit-label">{{ t('manage.character.bindTitle') }}</span>
+          <div v-if="bindMembers.length" class="bind-chips">
+            <span v-for="name in bindMembers" :key="name" class="bind-chip">
+              {{ name }}
+              <button
+                type="button"
+                class="bind-chip__remove"
+                :aria-label="t('manage.character.bindRemove')"
+                @click="toggleBindMember(name)"
+              >
+                ×
+              </button>
+            </span>
+          </div>
+          <p v-else class="bind-empty">{{ t('manage.character.bindEmpty') }}</p>
+
+          <button
+            v-if="!bindPicking"
+            type="button"
+            class="bind-add-btn"
+            @click="openBindPicking"
+          >
+            {{ t('manage.character.bindAdd') }}
+          </button>
+
+          <template v-else>
+            <div class="bind-search-bar">
+              <input
+                v-model="bindSearch"
+                class="bind-search-input"
+                type="text"
+                maxlength="30"
+                :placeholder="t('manage.character.bindSearchPlaceholder')"
+              />
+              <button type="button" class="bind-cancel" @click="closeBindPicking">
+                {{ t('common.cancel') }}
+              </button>
+            </div>
+            <div v-if="bindCandidates.length" class="bind-candidates">
+              <button
+                v-for="candidate in bindCandidates"
+                :key="candidate.name"
+                type="button"
+                :class="['bind-candidate', { 'bind-candidate--recommended': candidate.recommended }]"
+                @click="toggleBindMember(candidate.name)"
+              >
+                {{ candidate.name }}
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 5V19" />
+                  <path d="M5 12H19" />
+                </svg>
+              </button>
+            </div>
+            <p v-else class="bind-empty">{{ t('manage.character.bindNoCandidate') }}</p>
+          </template>
+        </div>
+
         <p v-if="editError" class="edit-error">{{ editError }}</p>
 
         <button class="save-btn" type="button" @click="saveEdit">{{ t('manage.character.saveEdit') }}</button>
@@ -270,6 +341,7 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { usePresetsStore } from '@/stores/presets'
 import { normalizeCharacterName, buildCharacterRowId, parseCharacterRowId } from '@/utils/presets/characterId'
+import { rankCharacterBindCandidates } from '@/utils/presets/characterBindings'
 import { useGoodsStore } from '@/stores/goods'
 import { commitActiveInput, flushActiveInput } from '@/utils/commitActiveInput'
 import { useEditSheet } from '@/composables/manage/useEditSheet'
@@ -332,6 +404,108 @@ const editName = ref('')
 const editIp = ref('')
 const editError = ref('')
 const editInputRef = ref(null)
+
+// --- 角色绑定（变体级联）：按名字粒度，编辑 sheet 内即时生效 ---
+const bindPicking = ref(false)
+const bindSearch = ref('')
+// 当前编辑角色所在组的其它成员名字
+const bindMembers = ref([])
+// 绑定组的名字全集（行上小链子图标用）
+const boundNameSet = computed(() => (
+  new Set(presets.characterBindings.flatMap((group) => group.names))
+))
+
+const editingGroup = computed(() => (
+  presets.characterBindings.find((group) => group.names.includes(editingCharacterName.value)) || null
+))
+
+// 当前编辑角色的商品里出现过的其它角色名 → 同现次数（推荐信号）
+const bindCoOccurCounts = computed(() => {
+  const current = normalizeCharacterName(editingCharacterName.value)
+  if (!current) return new Map()
+
+  const counts = new Map()
+  for (const item of store.list) {
+    const names = [...new Set(
+      (Array.isArray(item.characters) ? item.characters : [])
+        .map((name) => normalizeCharacterName(name))
+        .filter(Boolean)
+    )]
+    if (!names.includes(current)) continue
+    for (const name of names) {
+      if (name === current) continue
+      counts.set(name, (counts.get(name) || 0) + 1)
+    }
+  }
+  return counts
+})
+
+// 名字 → 预设里的 IP（重名时取第一个），推荐排序的同 IP 信号用
+const characterIpByName = computed(() => {
+  const map = new Map()
+  for (const character of presets.characters) {
+    const name = normalizeCharacterName(character.name)
+    if (name && !map.has(name)) map.set(name, String(character.ip || '').trim())
+  }
+  return map
+})
+
+const bindCandidates = computed(() => {
+  const keyword = bindSearch.value.trim().toLowerCase()
+  const seen = new Set([normalizeCharacterName(editingCharacterName.value)])
+  // 已绑定的成员在上方 chips 区展示，候选里不再重复出现
+  for (const name of bindMembers.value) seen.add(normalizeCharacterName(name))
+
+  const pool = []
+  for (const character of presets.characters) {
+    const name = normalizeCharacterName(character.name)
+    if (!name || seen.has(name)) continue
+    seen.add(name)
+    if (keyword && !pinyinIncludes(name, keyword)) continue
+    pool.push(name)
+  }
+  // 推荐的（近名/商品同现/同 IP）排在前面
+  return rankCharacterBindCandidates(editingCharacterName.value, pool, {
+    coOccurCounts: bindCoOccurCounts.value,
+    ipByName: characterIpByName.value
+  })
+})
+
+function syncBindMembers() {
+  const group = editingGroup.value
+  const current = editingCharacterName.value
+  bindMembers.value = group ? group.names.filter((name) => name !== current) : []
+}
+
+function openBindPicking() {
+  bindSearch.value = ''
+  bindPicking.value = true
+}
+
+function closeBindPicking() {
+  bindPicking.value = false
+  bindSearch.value = ''
+}
+
+async function toggleBindMember(name) {
+  const current = editingCharacterName.value
+  const group = editingGroup.value
+  if (!current || name === current) return
+
+  if (group?.names.includes(name)) {
+    // 解绑：剩余成员够 2 个就保留组，否则整组解散
+    const rest = group.names.filter((item) => item !== name && item !== current)
+    if (rest.length >= 1) {
+      await presets.setCharacterBinding([current, ...rest], group.id)
+    } else {
+      await presets.removeCharacterBinding(group.id)
+    }
+  } else {
+    await presets.setCharacterBinding(group ? [...group.names, name] : [current, name], group?.id || '')
+  }
+
+  syncBindMembers()
+}
 
 const { editSheetStyle, editSheetVisible, handleEditInputFocus } = useEditSheet({
   editingKey: editingCharacter,
@@ -478,6 +652,7 @@ function openEdit(character) {
   editName.value = character.name
   editIp.value = character.ip || ''
   editError.value = ''
+  syncBindMembers()
   nextTick(() => {
     editInputRef.value?.focus()
     editInputRef.value?.select()
@@ -489,6 +664,8 @@ function closeEdit() {
   editName.value = ''
   editIp.value = ''
   editError.value = ''
+  closeBindPicking()
+  bindMembers.value = []
 }
 
 async function saveEdit() {
@@ -925,6 +1102,138 @@ async function saveEdit() {
 
 .edit-label {
   margin-bottom: 2px;
+}
+
+/* 绑定变体组 */
+.bind-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bind-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px 4px 12px;
+  border-radius: var(--radius-large);
+  background: rgba(90, 120, 250, 0.1);
+  color: #5a78fa;
+  font-size: var(--font-body);
+  font-weight: 500;
+}
+
+.bind-chip__remove {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(90, 120, 250, 0.16);
+  color: inherit;
+  font-size: var(--font-body);
+  line-height: 1;
+  padding: 0;
+}
+
+.bind-empty {
+  margin: 6px 0 0;
+  font-size: var(--font-small);
+  color: var(--app-text-tertiary);
+}
+
+.bind-add-btn {
+  margin-top: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1.5px dashed rgba(142, 142, 147, 0.4);
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: var(--app-text-tertiary);
+  font-size: var(--font-body);
+  align-self: flex-start;
+}
+
+.bind-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.bind-search-input {
+  flex: 1;
+  height: 34px;
+  padding: 0 10px;
+  border: 1.5px solid rgba(142, 142, 147, 0.2);
+  border-radius: var(--radius-small);
+  background: var(--app-bg);
+  font-size: var(--font-body);
+  color: var(--app-text);
+  outline: none;
+  min-width: 0;
+}
+
+.bind-cancel {
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-small);
+  background: rgba(142, 142, 147, 0.12);
+  color: var(--app-text-tertiary);
+  font-size: var(--font-body);
+}
+
+.bind-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.bind-candidate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1.5px solid rgba(142, 142, 147, 0.25);
+  border-radius: var(--radius-large);
+  background: transparent;
+  color: var(--app-text);
+  font-size: var(--font-body);
+}
+
+.bind-candidate svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* 推荐候选（近名 / 商品同现 / 同 IP）：排在前面并用蓝色填充提示 */
+.bind-candidate--recommended {
+  border-color: rgba(90, 120, 250, 0.55);
+  background: rgba(90, 120, 250, 0.1);
+  color: #5a78fa;
+}
+
+.row-bind-badge {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-left: 4px;
+  vertical-align: -1.5px;
+  stroke: #5a78fa;
+  stroke-width: 2;
+  stroke-linecap: round;
+  fill: none;
 }
 
 .edit-group .ip-select-chips {

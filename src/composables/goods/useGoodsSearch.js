@@ -12,10 +12,14 @@ import {
 } from '@/utils/goods/filters'
 import { normalizeStorageLocationValue, splitStorageLocationPath, buildStorageLocationPath } from '@/utils/storage/storageLocations'
 import { isCustomFieldInScope } from '@/utils/goods/customFields'
-import { writePersisted } from '@/utils/platform/storage'
+import { expandCharacterNames } from '@/utils/presets/characterBindings'
+import { normalizeCharacterName } from '@/utils/presets/characterId'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 
 // 关键词匹配偏好（拼音/大小写/备注）跨会话记住上次选择
 const MATCH_PREFS_KEY = 'goods_search_match_prefs'
+// 角色筛选是否级联命中绑定变体名（绑定关系在角色管理页设置）
+const CHARACTER_CASCADE_KEY = 'goods_search_character_cascade'
 
 function buildOptionList(values, specialOption = null) {
   const base = [...new Set(values.map((item) => String(item || '').trim()).filter(Boolean))]
@@ -133,13 +137,68 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     clearTimeout(keywordDebounceTimer)
   })
 
+  // --- 角色绑定级联 ---
+  // 绑定的变体名视为同一人物：默认展开命中，可在筛选弹窗里关掉。
+  // 预设条件里存的仍是原始选中名，应用时重新展开。
+  const includeBoundVariants = ref(true)
+  readPersisted(CHARACTER_CASCADE_KEY).then((raw) => {
+    if (raw === 'false') includeBoundVariants.value = false
+  })
+  watch(includeBoundVariants, (value) => {
+    void writePersisted(CHARACTER_CASCADE_KEY, String(Boolean(value)))
+  })
+
+  const hasCharacterBindings = computed(() => (
+    Array.isArray(presets.characterBindings) && presets.characterBindings.length > 0
+  ))
+
+  // 级联命中但不是直接选中的角色名：筛选弹窗里把这些 chip 显示成选中态
+  const cascadeHitCharacterNames = computed(() => {
+    if (!includeBoundVariants.value || filters.characters.length === 0) return []
+    const hits = new Set()
+    for (const selected of filters.characters) {
+      const members = presets.characterCascadeMap.get(selected)
+      if (!members) continue
+      for (const member of members) {
+        if (!filters.characters.includes(member)) hits.add(member)
+      }
+    }
+    return [...hits]
+  })
+
+  // 关键词精确等于某个绑定组成员名时，把整组名字交给关键词谓词做补充命中：
+  // 搜「虚照」也能出标着「星神★阿哈」的商品（开级联时双向都成立）。
+  // 只做精确名匹配，子串（如只打「虚」）不触发，避免误伤面过大。
+  const keywordCharacterVariants = computed(() => {
+    if (!includeBoundVariants.value) return []
+    const keyword = normalizeCharacterName(debouncedKeyword.value.trim())
+    if (!keyword) return []
+
+    const cascadeMap = presets.characterCascadeMap
+    let members = cascadeMap.get(keyword)
+    if (!members) {
+      const lower = keyword.toLowerCase()
+      for (const [name, group] of cascadeMap) {
+        if (name.toLowerCase() === lower) {
+          members = group
+          break
+        }
+      }
+    }
+    return members ? [...members] : []
+  })
+
   // --- Normalized filters (merges live filters + debounced keyword) ---
-  const normalizedFilters = computed(() =>
-    normalizeGoodsFilterConditions({
+  const normalizedFilters = computed(() => {
+    const normalized = normalizeGoodsFilterConditions({
       ...filters,
       keyword: debouncedKeyword.value
     })
-  )
+    if (includeBoundVariants.value && normalized.characters.length) {
+      normalized.characters = expandCharacterNames(normalized.characters, presets.characterBindings)
+    }
+    return normalized
+  })
 
   // --- Filtered list: zero overhead when no filters active ---
   const activeFilterCount = computed(() => countActiveGoodsFilters(filters))
@@ -147,7 +206,9 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
 
   const filteredItems = computed(() =>
     isFiltering.value
-      ? filterGoodsList(sourceList.value, normalizedFilters.value)
+      ? filterGoodsList(sourceList.value, normalizedFilters.value, {
+        keywordVariants: keywordCharacterVariants.value
+      })
       : sourceList.value
   )
 
@@ -490,6 +551,9 @@ export function useGoodsSearch(sourceList, { scope = 'collection' } = {}) {
     debouncedKeyword,
     activePresetId,
     activePresetName,
+    includeBoundVariants,
+    hasCharacterBindings,
+    cascadeHitCharacterNames,
 
     // Derived
     normalizedFilters,

@@ -214,6 +214,9 @@
       :category-options="searchCategoryOptions"
       :ip-options="searchIpOptions"
       :character-options="searchCharacterOptions"
+      :has-character-bindings="searchHasCharacterBindings"
+      :include-bound-variants="searchIncludeBoundVariants"
+      :cascade-hit-characters="searchCascadeHitCharacters"
       :visible-character-options="searchVisibleCharacterOptions"
       :has-collapsed-character-options="searchHasCollapsedCharacterOptions"
       :show-all-character-options="searchShowAllCharacterOptions"
@@ -232,6 +235,7 @@
       @toggle-filter="handleSearchToggleFilter"
       @toggle-custom-field="handleSearchToggleCustomFieldFilter"
       @toggle-character-expand="handleSearchToggleCharacterExpand"
+      @toggle-character-cascade="searchIncludeBoundVariants = !searchIncludeBoundVariants"
       @reset="searchResetFilters"
       @select-preset="searchApplyPreset"
       @save-preset="searchSaveNewPreset"
@@ -408,6 +412,9 @@ const {
   categoryOptions: searchCategoryOptions,
   ipOptions: searchIpOptions,
   characterOptions: searchCharacterOptions,
+  hasCharacterBindings: searchHasCharacterBindings,
+  includeBoundVariants: searchIncludeBoundVariants,
+  cascadeHitCharacterNames: searchCascadeHitCharacters,
   visibleCharacterOptions: searchVisibleCharacterOptions,
   hasCollapsedCharacterOptions: searchHasCollapsedCharacterOptions,
   showAllCharacterOptions: searchShowAllCharacterOptions,

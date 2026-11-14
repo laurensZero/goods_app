@@ -19,12 +19,20 @@ import {
   buildCharacterRowId,
   parseCharacterRowId
 } from '@/utils/presets/characterId'
+import {
+  buildCharacterCascadeMap,
+  normalizeCharacterBindings,
+  removeCharacterBindingName,
+  remapCharacterBindingName,
+  upsertCharacterBinding
+} from '@/utils/presets/characterBindings'
 
 export { normalizeCharacterName, buildCharacterRowId, parseCharacterRowId }
 
 const STORAGE_KEY_CAT = 'goods_presets_categories'
 const STORAGE_KEY_IP = 'goods_presets_ips'
 const STORAGE_KEY_CHR = 'goods_presets_characters'
+const STORAGE_KEY_BIND = 'goods_presets_character_bindings'
 const STORAGE_KEY_LOC = 'goods_presets_storage_locations'
 const STORAGE_KEY_SYNC_DIGEST = 'goods_presets_sync_digest'
 const STORAGE_KEY_EVENT_TYPES = 'goods_presets_event_types'
@@ -253,6 +261,8 @@ export const usePresetsStore = defineStore('presets', () => {
   const categoryItems = ref(normalizeCategoryItems(DEFAULT_CATEGORIES))
   const ipItems = ref(normalizeIpItems(DEFAULT_IPS))
   const characterItems = ref(normalizeCharacters(DEFAULT_CHARACTERS))
+  // 角色名绑定组（同一人物的变体名）：[{ id, names }]，按名字粒度，与 characterItems 平行
+  const characterBindings = ref(normalizeCharacterBindings([]))
   const storageLocations = ref(cloneList(DEFAULT_STORAGE_LOCATIONS))
   const eventTypes = ref(cloneList(DEFAULT_EVENT_TYPES))
   const customFieldDefs = ref(cloneList(DEFAULT_CUSTOM_FIELD_DEFS))
@@ -273,6 +283,18 @@ export const usePresetsStore = defineStore('presets', () => {
   const favoriteCategorySet = computed(() => new Set(favoriteCategories.value))
   const favoriteIpSet = computed(() => new Set(favoriteIps.value))
   const favoriteCharacterSet = computed(() => new Set(favoriteCharacters.value))
+
+  // name → 组内全体名字（含自身）；筛选/统计级联共用
+  const characterCascadeMap = computed(() => buildCharacterCascadeMap(characterBindings.value))
+
+  async function persistCharacterBindings(previous) {
+    await writePersistedList(STORAGE_KEY_BIND, characterBindings.value)
+    // 联动维护中被丢弃的组（改名合并/删角色后只剩 1 个名字等）推墓碑，避免云端残留
+    const keptIds = new Set(characterBindings.value.map((group) => group.id))
+    for (const group of Array.isArray(previous) ? previous : []) {
+      if (!keptIds.has(group.id)) await markRowTombstone('character_binding', group.id)
+    }
+  }
 
   async function markRowTombstone(domain, id) {
     const key = `${domain}:${String(id || '').trim()}`
@@ -341,10 +363,11 @@ export const usePresetsStore = defineStore('presets', () => {
   const autoPushPresets = createAutoPush('presets')
 
   async function init() {
-    const [cat, ip, chr, loc, evtTypes, fieldDefs, tombstones] = await Promise.all([
+    const [cat, ip, chr, bind, loc, evtTypes, fieldDefs, tombstones] = await Promise.all([
       readPersistedList(STORAGE_KEY_CAT, DEFAULT_CATEGORIES),
       readPersistedList(STORAGE_KEY_IP, DEFAULT_IPS),
       readPersistedList(STORAGE_KEY_CHR, DEFAULT_CHARACTERS),
+      readPersistedList(STORAGE_KEY_BIND, []),
       readPersistedList(STORAGE_KEY_LOC, DEFAULT_STORAGE_LOCATIONS),
       readPersistedList(STORAGE_KEY_EVENT_TYPES, DEFAULT_EVENT_TYPES),
       readPersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, DEFAULT_CUSTOM_FIELD_DEFS),
@@ -353,6 +376,7 @@ export const usePresetsStore = defineStore('presets', () => {
     categoryItems.value = normalizeCategoryItems(cat)
     ipItems.value = normalizeIpItems(ip)
     characterItems.value = normalizeCharacters(chr)
+    characterBindings.value = normalizeCharacterBindings(bind)
     storageLocations.value = loc
     eventTypes.value = normalizeEventTypesList(evtTypes)
     customFieldDefs.value = normalizeCustomFieldDefs(fieldDefs)
@@ -365,6 +389,7 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_CAT, categoryItems.value),
       writePersistedList(STORAGE_KEY_IP, ipItems.value),
       writePersistedList(STORAGE_KEY_CHR, characterItems.value),
+      writePersistedList(STORAGE_KEY_BIND, characterBindings.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
       writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value)
@@ -872,6 +897,15 @@ export const usePresetsStore = defineStore('presets', () => {
     characterItems.value = characterItems.value.filter((character) => !(character.name === target.name && character.ip === target.ip))
     await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', rowId)
+
+    // 绑定组联动：把名字从所有组剔除（组可能因此消散 → persistCharacterBindings 推墓碑）
+    const previousBindings = characterBindings.value
+    const nextBindings = removeCharacterBindingName(previousBindings, target.name)
+    if (nextBindings) {
+      characterBindings.value = nextBindings
+      await persistCharacterBindings(previousBindings)
+    }
+
     autoPushPresets()
   }
 
@@ -889,6 +923,14 @@ export const usePresetsStore = defineStore('presets', () => {
     const index = updated.findIndex((character) => character.name === target.name && character.ip === target.ip)
     updated.splice(index, 1, { ...updated[index], name: next })
     characterItems.value = updated
+
+    // 绑定组联动：组内名字同步改名（改名可能合并组 → 消散的组推墓碑）
+    const previousBindings = characterBindings.value
+    const nextBindings = remapCharacterBindingName(previousBindings, target.name, next)
+    if (nextBindings) {
+      characterBindings.value = nextBindings
+      await persistCharacterBindings(previousBindings)
+    }
 
     await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', oldId)
@@ -922,6 +964,35 @@ export const usePresetsStore = defineStore('presets', () => {
 
     await writePersistedList(STORAGE_KEY_CHR, characterItems.value)
     await markRowTombstone('character', oldId)
+    autoPushPresets()
+  }
+
+  /**
+   * 设置绑定组：names 就是该组的全部成员（set 语义）；成员在其它组里会被改投本组，
+   * 消散的旧组推墓碑。少于 2 个名字不构成绑定，返回 false。
+   * @param {string[]} names
+   * @param {string} [existingGroupId] 编辑已有组时传入，保持组 id 稳定
+   */
+  async function setCharacterBinding(names, existingGroupId = '') {
+    const previousBindings = characterBindings.value
+    const nextBindings = upsertCharacterBinding(previousBindings, names, existingGroupId)
+    if (!nextBindings) return false
+
+    characterBindings.value = nextBindings
+    await persistCharacterBindings(previousBindings)
+    autoPushPresets()
+    return true
+  }
+
+  async function removeCharacterBinding(id) {
+    const groupId = String(id || '').trim()
+    if (!groupId) return
+    const previousBindings = characterBindings.value
+    if (!previousBindings.some((group) => group.id === groupId)) return
+
+    characterBindings.value = previousBindings.filter((group) => group.id !== groupId)
+    // persistCharacterBindings 会对被移除的组推墓碑
+    await persistCharacterBindings(previousBindings)
     autoPushPresets()
   }
 
@@ -1056,6 +1127,8 @@ export const usePresetsStore = defineStore('presets', () => {
     categoryItems.value = normalizeCategoryItems(unpackItems(snapshot.categoryItems ?? snapshot.categories))
     ipItems.value = normalizeIpItems(unpackItems(snapshot.ipItems ?? snapshot.ips))
     characterItems.value = normalizeCharacters(unpackItems(snapshot.characterItems ?? snapshot.characters))
+    // 绑定组：pull 侧始终携带该键（新 domain 行），直接覆盖；旧云端无行时为空数组
+    characterBindings.value = normalizeCharacterBindings(snapshot.characterBindings)
 
     storageLocations.value = normalizeStorageLocationSnapshot(snapshot.storageLocations)
 
@@ -1075,6 +1148,7 @@ export const usePresetsStore = defineStore('presets', () => {
       writePersistedList(STORAGE_KEY_CAT, categoryItems.value),
       writePersistedList(STORAGE_KEY_IP, ipItems.value),
       writePersistedList(STORAGE_KEY_CHR, characterItems.value),
+      writePersistedList(STORAGE_KEY_BIND, characterBindings.value),
       writePersistedList(STORAGE_KEY_LOC, storageLocations.value),
       writePersistedList(STORAGE_KEY_EVENT_TYPES, eventTypes.value),
       writePersistedList(STORAGE_KEY_CUSTOM_FIELD_DEFS, customFieldDefs.value),
@@ -1148,6 +1222,10 @@ export const usePresetsStore = defineStore('presets', () => {
     ipItems,
     characters,
     characterItems,
+    characterBindings,
+    characterCascadeMap,
+    setCharacterBinding,
+    removeCharacterBinding,
     rowTombstones,
     clearRowTombstones,
     storageLocations,

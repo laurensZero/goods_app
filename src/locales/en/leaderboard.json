@@ -12,6 +12,8 @@
   "leaderboard.fullRanking": "Full Ranking",
   "leaderboard.items": "{count} items",
   "leaderboard.dimension.character": "Character",
+  "leaderboard.characterCascade": "Merge bound variants",
+  "leaderboard.characterCascadeHint": "Variant names count toward one character",
   "leaderboard.dimension.ip": "IP",
   "leaderboard.dimension.category": "Category",
   "leaderboard.dimension.storageLocation": "Storage Location",

@@ -247,3 +247,59 @@ describe('buildLeaderboardEntries 角色按 (ip, name) 拆行', () => {
     expect(result.entries[0].meta).toBe('')
   })
 })
+
+describe('buildLeaderboardEntries 角色绑定级联', () => {
+  const BINDINGS = [{ id: 'g1', names: ['小樱', 'サクラ'] }]
+
+  it('开级联：变体名合并计入 primary 名字的一行', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ ip: 'IP-A', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100 }),
+      makeItem({ ip: 'IP-A', characters: ['サクラ'], quantityNumber: 1, quantity: 1, totalValueNumber: 50 })
+    ], 'character', new Map(), null, { characterBindings: BINDINGS, includeVariants: true })
+
+    // 同一 IP 下的两个变体名合并到 primary「小樱」一条
+    expect(result.entries).toHaveLength(1)
+    expect(result.entries[0].label).toBe('小樱')
+    expect(result.entries[0].totalValue).toBeCloseTo(150)
+    // meta 取商品的 ip
+    expect(result.entries[0].meta).toBe('IP-A')
+  })
+
+  it('关级联：变体名仍各自成行', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ ip: 'IP-A', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100 }),
+      makeItem({ ip: 'IP-A', characters: ['サクラ'], quantityNumber: 1, quantity: 1, totalValueNumber: 50 })
+    ], 'character', new Map(), null, { characterBindings: BINDINGS, includeVariants: false })
+
+    const labels = result.entries.map((entry) => entry.label).sort()
+    expect(labels).toEqual(['サクラ', '小樱'].sort())
+  })
+
+  it('逐份角色标签同样 remap 到 primary', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({
+        ip: 'IP-A',
+        characters: ['小樱'],
+        quantityNumber: 2,
+        quantity: 2,
+        totalValueNumber: 120,
+        unitCharacterList: ['小樱', 'サクラ']
+      })
+    ], 'character', new Map(), null, { characterBindings: BINDINGS, includeVariants: true })
+
+    expect(result.entries).toHaveLength(1)
+    const entry = result.entries[0]
+    expect(entry.label).toBe('小樱')
+    expect(entry.quantity).toBeCloseTo(2)
+    expect(entry.totalValue).toBeCloseTo(120)
+  })
+
+  it('缺省 options（旧调用方）不级联', () => {
+    const result = buildLeaderboardEntries([
+      makeItem({ ip: 'IP-A', characters: ['小樱'], quantityNumber: 1, quantity: 1, totalValueNumber: 100 }),
+      makeItem({ ip: 'IP-A', characters: ['サクラ'], quantityNumber: 1, quantity: 1, totalValueNumber: 50 })
+    ], 'character')
+
+    expect(result.entries).toHaveLength(2)
+  })
+})

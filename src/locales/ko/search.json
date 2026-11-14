@@ -50,6 +50,8 @@
   "search.noCharacter": "캐릭터 미설정",
   "search.collapseCharacters": "캐릭터 접기",
   "search.expandCharacters": "캐릭터 펼치기",
+  "search.characterCascade": "연결된 변형 이름 포함",
+  "search.characterCascadeHint": "연결된 이름도 함께 일치",
   "search.storageLocation": "보관 위치",
   "search.noLocation": "위치 미설정",
   "search.searchResults": "검색 결과",

@@ -12,6 +12,7 @@ vi.mock('@/composables/viewport/useTabletViewport', () => ({
 }))
 
 vi.mock('@/utils/platform/storage', () => ({
+  readPersisted: async () => null,
   writePersisted: () => {}
 }))
 

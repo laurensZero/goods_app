@@ -409,8 +409,11 @@ export function countActiveGoodsFilters(input, options = {}) {
  * 归一化后的筛选条件 → 单条商品谓词。applyGoodsFilters / filterGoodsList 共用，
  * 避免双份过滤体在加字段时漏改其一（自定义字段筛选曾被迫在两处各插一行）。
  * @param {ReturnType<typeof normalizeGoodsFilterConditions>} filters
+ * @param {string[]} [keywordVariants] 角色绑定级联：关键词精确命中某个绑定名时，
+ *   传入该绑定组的全体成员名——商品角色标了任一成员即算关键词命中
+ *   （搜「虚照」能出标着「星神★阿哈」的商品，反向同理）。
  */
-function buildGoodsPredicate(filters) {
+function buildGoodsPredicate(filters, keywordVariants = []) {
   const keyword = filters.matchCase ? filters.keyword : filters.keyword.toLowerCase()
   const priceMin = parseNumberLike(filters.priceMin)
   const priceMax = parseNumberLike(filters.priceMax)
@@ -421,7 +424,11 @@ function buildGoodsPredicate(filters) {
     : 0
 
   return (item) => {
-    const matchesKeyword = !keyword || matchKeyword(item, keyword, filters)
+    const matchesKeyword = !keyword
+      || matchKeyword(item, keyword, filters)
+      || (keywordVariants.length > 0
+        && Array.isArray(item.characters)
+        && item.characters.some((name) => keywordVariants.includes(name)))
     if (!matchesKeyword) return false
 
     if (!matchesSingleValue(filters.categories, item.category, GOODS_FILTER_SPECIAL_VALUES.uncategorized)) return false
@@ -465,7 +472,7 @@ export function applyGoodsFilters(list, input) {
   return sortGoodsList(list.filter(buildGoodsPredicate(filters)), filters.sortBy)
 }
 
-export function filterGoodsList(list, input) {
+export function filterGoodsList(list, input, { keywordVariants = [] } = {}) {
   const filters = normalizeGoodsFilterConditions(input)
-  return list.filter(buildGoodsPredicate(filters))
+  return list.filter(buildGoodsPredicate(filters, keywordVariants))
 }

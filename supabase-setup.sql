@@ -123,7 +123,7 @@ CREATE TABLE IF NOT EXISTS sync_manifest (
 -- 行级预设 / 收藏馆背景同步表；旧 sync_presets 保留作为过渡兼容源。
 CREATE TABLE IF NOT EXISTS sync_preset_rows (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  domain TEXT NOT NULL CHECK (domain IN ('category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field')),
+  domain TEXT NOT NULL CHECK (domain IN ('category', 'ip', 'character', 'character_binding', 'storage_location', 'event_type', 'custom_field')),
   id TEXT NOT NULL,
   payload JSONB NOT NULL DEFAULT '{}',
   sort_order INTEGER NOT NULL DEFAULT 0,

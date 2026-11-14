@@ -12,6 +12,8 @@
   "leaderboard.fullRanking": "전체 랭킹",
   "leaderboard.items": "{count}개",
   "leaderboard.dimension.character": "캐릭터",
+  "leaderboard.characterCascade": "연결된 변형 이름 병합",
+  "leaderboard.characterCascadeHint": "변형 이름을 같은 캐릭터로 집계",
   "leaderboard.dimension.ip": "IP",
   "leaderboard.dimension.category": "카테고리",
   "leaderboard.dimension.storageLocation": "보관 위치",

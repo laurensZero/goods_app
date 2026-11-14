@@ -12,6 +12,8 @@
   "leaderboard.fullRanking": "全ランキング",
   "leaderboard.items": "{count}件",
   "leaderboard.dimension.character": "キャラクター",
+  "leaderboard.characterCascade": "紐付けた別名を統合",
+  "leaderboard.characterCascadeHint": "別名を同一人物として集計",
   "leaderboard.dimension.ip": "IP",
   "leaderboard.dimension.category": "カテゴリ",
   "leaderboard.dimension.storageLocation": "収納場所",

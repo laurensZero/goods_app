@@ -186,7 +186,7 @@ export function createSyncOrchestrator({
   function isPresetsSnapshotEmpty(presetsStore) {
     if (!presetsStore) return false
     const read = (value) => value?.value ?? value
-    const fields = ['categories', 'ips', 'characters', 'storageLocations', 'eventTypes', 'customFieldDefs']
+    const fields = ['categories', 'ips', 'characters', 'characterBindings', 'storageLocations', 'eventTypes', 'customFieldDefs']
     const present = fields.filter((field) => presetsStore[field] !== undefined)
     if (present.length === 0) return false
     return present.every((field) => {

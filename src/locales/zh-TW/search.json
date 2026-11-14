@@ -50,6 +50,8 @@
   "search.noCharacter": "未設定角色",
   "search.collapseCharacters": "收起角色",
   "search.expandCharacters": "展開角色",
+  "search.characterCascade": "含綁定變體",
+  "search.characterCascadeHint": "命中綁定的其它名字",
   "search.storageLocation": "存放位置",
   "search.noLocation": "未設定位置",
   "search.searchResults": "搜尋結果",

@@ -583,5 +583,11 @@
   "manage.importUnsupportedFile": "Unrecognized file. Use a JSON backup, standard CSV/ZIP, or a fine-export CSV/Excel file.",
   "manage.fineExportFieldRecordType": "Record type",
   "manage.fineExportFieldImages": "Image URLs",
-  "manage.fineExportFieldId": "Record ID"
+  "manage.fineExportFieldId": "Record ID",
+  "manage.character.bindTitle": "Bind variants (same character)",
+  "manage.character.bindEmpty": "No other names bound yet. Bound names cascade in filters and stats.",
+  "manage.character.bindAdd": "Add binding",
+  "manage.character.bindRemove": "Unbind",
+  "manage.character.bindSearchPlaceholder": "Search names to bind",
+  "manage.character.bindNoCandidate": "No other characters to bind"
 }

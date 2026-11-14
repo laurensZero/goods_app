@@ -13,6 +13,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
 })
 
 vi.mock('@/utils/platform/storage', () => ({
+  readPersisted: async () => null,
   writePersisted: () => {}
 }))
 

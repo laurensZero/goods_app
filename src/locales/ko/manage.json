@@ -583,5 +583,11 @@
   "manage.importUnsupportedFile": "파일을 인식할 수 없습니다. JSON 백업, 표준 CSV/ZIP 또는 정밀 내보내기 CSV/Excel 파일을 사용하세요.",
   "manage.fineExportFieldRecordType": "기록 유형",
   "manage.fineExportFieldImages": "이미지 링크",
-  "manage.fineExportFieldId": "레코드 ID"
+  "manage.fineExportFieldId": "레코드 ID",
+  "manage.character.bindTitle": "변형 이름 연결 (같은 캐릭터)",
+  "manage.character.bindEmpty": "아직 연결된 이름이 없습니다. 연결하면 필터와 통계가 자동으로 연동됩니다",
+  "manage.character.bindAdd": "연결 추가",
+  "manage.character.bindRemove": "연결 해제",
+  "manage.character.bindSearchPlaceholder": "연결할 캐릭터 이름 검색",
+  "manage.character.bindNoCandidate": "연결할 다른 캐릭터가 없습니다"
 }

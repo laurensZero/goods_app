@@ -583,5 +583,11 @@
   "manage.importUnsupportedFile": "ファイルを認識できません。JSONバックアップ、標準CSV/ZIP、または詳細エクスポートのCSV/Excelファイルを使用してください",
   "manage.fineExportFieldRecordType": "記録タイプ",
   "manage.fineExportFieldImages": "画像リンク",
-  "manage.fineExportFieldId": "レコードID"
+  "manage.fineExportFieldId": "レコードID",
+  "manage.character.bindTitle": "バリエーション名を紐付け（同一人物）",
+  "manage.character.bindEmpty": "まだ紐付けがありません。紐付けると絞り込みと統計が自動で連動します",
+  "manage.character.bindAdd": "紐付けを追加",
+  "manage.character.bindRemove": "紐付けを解除",
+  "manage.character.bindSearchPlaceholder": "紐付けるキャラ名を検索",
+  "manage.character.bindNoCandidate": "紐付けできる他のキャラがありません"
 }

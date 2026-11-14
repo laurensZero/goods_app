@@ -50,6 +50,8 @@
   "search.noCharacter": "No character set",
   "search.collapseCharacters": "Collapse Characters",
   "search.expandCharacters": "Expand Characters",
+  "search.characterCascade": "Include bound variants",
+  "search.characterCascadeHint": "Also match bound names",
   "search.storageLocation": "Storage Location",
   "search.noLocation": "No location set",
   "search.searchResults": "Search Results",

@@ -104,6 +104,19 @@
                 {{ dimension.label }}
               </button>
             </div>
+            <button
+              v-if="selectedDimension === 'character' && hasCharacterBindings"
+              type="button"
+              class="cascade-toggle"
+              :aria-pressed="includeBoundVariants"
+              @click="includeBoundVariants = !includeBoundVariants"
+            >
+              <span class="cascade-toggle__label">{{ t('leaderboard.characterCascade') }}</span>
+              <span class="cascade-toggle__hint">{{ t('leaderboard.characterCascadeHint') }}</span>
+              <span class="cascade-toggle__switch" :class="{ 'cascade-toggle__switch--on': includeBoundVariants }">
+                <span class="cascade-toggle__slider" />
+              </span>
+            </button>
           </div>
           <div class="control-group">
             <p class="control-label">{{ t('leaderboard.sortMetric') }}</p>
@@ -179,9 +192,10 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onActivated, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useGoodsStore } from '@/stores/goods'
 import { buildSaleSummary } from '@/utils/goods/saleStats'
 import { usePresetsStore } from '@/stores/presets'
@@ -259,8 +273,24 @@ const characterPresetIpMap = computed(() =>
 
 const list = computed(() => store.collectionViewList)
 
+// 角色绑定级联：变体名合并到 primary 名字参与排名；开关本地记忆，默认开
+const STATS_CASCADE_KEY = 'goods_stats_character_cascade'
+const includeBoundVariants = ref(true)
+readPersisted(STATS_CASCADE_KEY).then((raw) => {
+  if (raw === 'false') includeBoundVariants.value = false
+})
+watch(includeBoundVariants, (value) => {
+  void writePersisted(STATS_CASCADE_KEY, String(Boolean(value)))
+})
+const hasCharacterBindings = computed(() => (
+  Array.isArray(presets.characterBindings) && presets.characterBindings.length > 0
+))
+
 const leaderboardState = computed(() =>
-  buildLeaderboardEntries(list.value, selectedDimension.value, characterPresetIpMap.value, t)
+  buildLeaderboardEntries(list.value, selectedDimension.value, characterPresetIpMap.value, t, {
+    characterBindings: presets.characterBindings,
+    includeVariants: includeBoundVariants.value
+  })
 )
 const entries = computed(() => leaderboardState.value.entries)
 const emptyGroupCount = computed(() => leaderboardState.value.emptyCount)
@@ -503,6 +533,62 @@ onBeforeUnmount(() => {
   margin-top: 16px;
 }
 .control-group { display: grid; gap: 8px; }
+
+/* 角色绑定级联开关 */
+.cascade-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  appearance: none;
+}
+
+.cascade-toggle__label {
+  font-size: var(--font-small);
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.cascade-toggle__hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-caption);
+  color: var(--app-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cascade-toggle__switch {
+  flex-shrink: 0;
+  width: 40px;
+  height: 24px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-text) 14%, transparent);
+  transition: background 0.18s ease;
+}
+
+.cascade-toggle__switch--on {
+  background: var(--app-text);
+}
+
+.cascade-toggle__slider {
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.18s ease;
+}
+
+.cascade-toggle__switch--on .cascade-toggle__slider {
+  transform: translateX(16px);
+}
+
 .chip-row {
   display: flex;
   gap: 8px;

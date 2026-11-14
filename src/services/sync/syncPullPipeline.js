@@ -381,6 +381,7 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
     // 兼容旧格式：分类/ip 可能还是字符串，角色可能没有 fav 字段。
     const fields = {
       category: 'categoryItems', ip: 'ipItems', character: 'characterItems',
+      character_binding: 'characterBindings',
       storage_location: 'storageLocations', event_type: 'eventTypes', custom_field: 'customFieldDefs'
     }
     const itemKey = (domain, item) => {

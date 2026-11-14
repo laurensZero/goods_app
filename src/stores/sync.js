@@ -7,6 +7,7 @@ import { useGoodsStore } from './goods'
 import { useEventsStore } from './events'
 import { usePresetsStore } from './presets'
 import { normalizeCharacterName, buildCharacterRowId } from '@/utils/presets/characterId'
+import { normalizeCharacterBindings } from '@/utils/presets/characterBindings'
 import { useRechargeStore } from '@/stores/recharge'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useCollectionProfileStore } from '@/stores/collectionProfile'
@@ -414,7 +415,9 @@ export const useSyncStore = defineStore('sync', () => {
       // 键的位置必须与行级预设 payload 保持一致，且两侧共用 normalizeCustomFieldDefs：
       // syncOrchestrator 用 JSON.stringify(local) !== JSON.stringify(remote) 判预设差异，
       // 键序/默认值只要有一点不对称就会「永远有差异」→ 每次同步都推送。
-      customFieldDefs: normalizeCustomFieldDefs(presets.customFieldDefs)
+      customFieldDefs: normalizeCustomFieldDefs(presets.customFieldDefs),
+      // 角色名绑定组：行 id 是组 id（cb_xxx），payload = { id, names }
+      characterBindings: normalizeCharacterBindings(presets.characterBindings)
     }
     data.presetRowTombstones = Array.isArray(presets.rowTombstones)
       ? presets.rowTombstones

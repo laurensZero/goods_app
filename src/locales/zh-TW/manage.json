@@ -583,5 +583,11 @@
   "manage.importUnsupportedFile": "無法識別該檔案，請使用 JSON 備份、標準 CSV/ZIP 或精細匯出的 CSV/Excel 檔案",
   "manage.fineExportFieldRecordType": "記錄類型",
   "manage.fineExportFieldImages": "圖片連結",
-  "manage.fineExportFieldId": "記錄 ID"
+  "manage.fineExportFieldId": "記錄 ID",
+  "manage.character.bindTitle": "綁定變體（同一人物）",
+  "manage.character.bindEmpty": "尚未綁定其它名字，綁定後篩選和統計會自動級聯",
+  "manage.character.bindAdd": "新增綁定",
+  "manage.character.bindRemove": "解除綁定",
+  "manage.character.bindSearchPlaceholder": "搜尋要綁定的角色名",
+  "manage.character.bindNoCandidate": "沒有可綁定的其它角色"
 }

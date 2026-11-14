@@ -1,5 +1,6 @@
 import { getItemSpendEntries } from './statistics'
 import { resolveUnitValuesCNY } from './characterShare'
+import { buildCharacterCascadeMap } from '@/utils/presets/characterBindings'
 
 export const LEADERBOARD_DIMENSION_OPTIONS = [
   { label: '角色', value: 'character' },
@@ -89,12 +90,24 @@ export function getLeaderboardDimensionMeta(dimension, t) {
 
 const EXCLUDED_VALUE_STATUSES = new Set(['已赠出', '已出', '丢失'])
 
-export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = new Map(), t) {
+export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = new Map(), t, options = {}) {
+  const { characterBindings = [], includeVariants = true } = options || {}
   const config = getDimensionConfig(dimension)
   const emptyLabel = t ? t(`leaderboard.empty.${dimension}`) : ''
   const map = new Map()
   let emptyCount = 0
   const isCharacter = dimension === 'character'
+
+  // 绑定级联：变体名视为同一人物，取值阶段统一 remap 到组内第一个名字（primary）。
+  // 关级联时 cascadeMap 为 null，remapLabel 恒等。
+  const cascadeMap = isCharacter && includeVariants
+    ? buildCharacterCascadeMap(characterBindings)
+    : null
+  const remapLabel = (label) => {
+    const text = String(label || '').trim()
+    const members = cascadeMap?.get(text)
+    return members ? members.values().next().value : text
+  }
 
   // 角色身份是 (ip, name)：同名角色在不同 IP 下必须是两条独立的榜，
   // 否则会被合并成一条、meta 里只剩其中一个 IP（重名就分不清了）。
@@ -107,9 +120,12 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     if (item?.isWishlist) continue
     if (EXCLUDED_VALUE_STATUSES.has(String(item?.collectStatus || '').trim())) continue
     const rawValues = config.getValues(item) || []
-    const values = rawValues
-      .map((value) => String(value || '').trim())
-      .filter(Boolean)
+    // 级联 remap 可能把同一条商品的多个变体名合并到同一个 primary → 去重
+    const values = [...new Set(
+      rawValues
+        .map((value) => remapLabel(value))
+        .filter(Boolean)
+    )]
     const quantityNumber = Number(item.quantityNumber || 0)
     const totalValueNumber = Number(item.totalValueNumber || 0)
     // 入手价总价与预算/时间线同口径
@@ -119,7 +135,7 @@ export function buildLeaderboardEntries(list, dimension, presetCharacterIpMap = 
     const unitCharacters = Array.isArray(item.unitCharacterList)
       ? item.unitCharacterList
           .slice(0, quantityNumber)
-          .map((value) => String(value || '').trim())
+          .map((value) => remapLabel(value))
       : []
     const allowedCharacterSet = values.length > 0 ? new Set(values) : null
     const hasUnitCharacters = dimension === 'character'

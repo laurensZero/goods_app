@@ -378,12 +378,25 @@
                       v-for="option in visibleCharacterOptions"
                       :key="option.value"
                       type="button"
-                      :class="['chip', { 'chip--active': filters.characters.includes(option.value) }]"
+                      :class="['chip', { 'chip--active': isCharacterOptionActive(option.value) }]"
                       @click="$emit('toggle-filter', { key: 'characters', value: option.value })"
                     >
                       {{ option.label }}
                     </button>
                   </div>
+                  <button
+                    v-if="hasCharacterBindings"
+                    type="button"
+                    class="cascade-toggle"
+                    :aria-pressed="includeBoundVariants"
+                    @click="$emit('toggle-character-cascade')"
+                  >
+                    <span class="cascade-toggle__label">{{ t('search.characterCascade') }}</span>
+                    <span class="cascade-toggle__hint">{{ t('search.characterCascadeHint') }}</span>
+                    <span class="match-tile__switch" :class="{ 'match-tile__switch--on': includeBoundVariants }">
+                      <span class="match-tile__slider" />
+                    </span>
+                  </button>
                   <div v-if="selectedCharacterProfileTargets.length" class="profile-entry-row">
                     <button
                       v-for="target in selectedCharacterProfileTargets"
@@ -509,6 +522,7 @@ const emit = defineEmits([
   'update-preset',
   'remove-preset',
   'toggle-character-expand',
+  'toggle-character-cascade',
   'toggle-custom-field',
   'open-profile'
 ])
@@ -525,6 +539,12 @@ const props = defineProps({
    * 不传时退回 characterOptions（仅名字）。
    */
   characterProfileTargets: { type: Array, default: () => [] },
+  /** 是否存在角色绑定组（决定级联开关是否显示） */
+  hasCharacterBindings: { type: Boolean, default: false },
+  /** 角色筛选是否级联命中绑定变体名 */
+  includeBoundVariants: { type: Boolean, default: true },
+  /** 级联命中但非直接选中的角色名：这些 chip 也显示为选中态 */
+  cascadeHitCharacters: { type: Array, default: () => [] },
   visibleCharacterOptions: { type: Array, default: () => [] },
   hasCollapsedCharacterOptions: { type: Boolean, default: false },
   showAllCharacterOptions: { type: Boolean, default: false },
@@ -567,6 +587,11 @@ const presetDraftName = ref('')
 const advancedExpanded = ref(false)
 
 const isFiltering = computed(() => props.activeFilterCount > 0 || (props.filters.keyword && props.filters.keyword.trim()))
+
+/** 角色 chip 选中态：直接选中的 + 级联命中的绑定变体名 */
+function isCharacterOptionActive(value) {
+  return props.filters.characters.includes(value) || props.cascadeHitCharacters.includes(value)
+}
 
 /* ── 关键词命中 IP / 角色（含拼音）→ 直达收藏馆 ── */
 
@@ -1306,6 +1331,36 @@ html.theme-dark .match-tile__switch--on .match-tile__slider {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* 角色绑定级联开关（复用 match-tile 的开关滑块样式） */
+.cascade-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  appearance: none;
+}
+
+.cascade-toggle__label {
+  font-size: var(--font-small);
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.cascade-toggle__hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-caption);
+  color: var(--app-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-entry {

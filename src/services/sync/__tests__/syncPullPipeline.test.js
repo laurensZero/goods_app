@@ -326,6 +326,34 @@ describe('mergeToLocal row-level presets', () => {
     )
   })
 
+  it('character_binding 行合并进快照的 characterBindings 字段', async () => {
+    const stores = makeStores()
+    stores.presetsStore.characterBindings = [{ id: 'local_g', names: ['本地', '组'] }]
+    const remote = {
+      goods: [],
+      trash: [],
+      presetRows: [
+        { domain: 'character_binding', id: 'cb_1', payload: { id: 'cb_1', names: ['初音未来', '初音ミク'] }, sortOrder: 0, deleted: 0 }
+      ],
+      presetRowsTrash: [],
+      collectionProfileRows: [],
+      collectionProfileRowsTrash: []
+    }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(stores.presetsStore.replacePresetsSnapshot).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // 增量合并：远端行叠加在本地现状之后
+        characterBindings: [
+          { id: 'local_g', names: ['本地', '组'] },
+          { id: 'cb_1', names: ['初音未来', '初音ミク'] }
+        ]
+      }),
+      { updatedAt: expect.any(Number) }
+    )
+  })
+
   it('reconcileMissing 但行表只拉到增量（rowDomainsComplete=false）时，叠加合并、不得清空本地预设', async () => {
     // 回归：拉取远端（since=0 数据全量）曾用「远端全量」语义重建预设快照，但行表只按
     // 行水位增量拉；未变更的分类/自定义字段/活动类型被当成远端已删而清空。
