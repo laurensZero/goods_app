@@ -1636,7 +1636,7 @@ BEGIN
     domain TEXT, id TEXT, payload JSONB, sort_order INTEGER,
     deleted INTEGER, synced_by TEXT, updated_at TIMESTAMPTZ
   )
-  WHERE r.domain IN ('category', 'ip', 'character', 'storage_location', 'event_type', 'custom_field')
+  WHERE r.domain IN ('category', 'ip', 'character', 'character_binding', 'storage_location', 'event_type', 'custom_field')
     AND NULLIF(r.id, '') IS NOT NULL
   ON CONFLICT (user_id, domain, id) DO UPDATE SET
     payload = EXCLUDED.payload,
