@@ -52,7 +52,11 @@ export const MANIFEST_VERSION = 1
 //      上线前先执行 supabase/supabase-migration-character-ip-identity.sql，把云端残留的
 //      「纯名字」行改成 `ip::名字`（该名字已有新行则删旧行，旧墓碑行直接删）。
 //      有本地预设备份时，用 supabase/data-fix-character-rows-*.sql 按备份重建更准确。
-export const SYNC_SCHEMA_VERSION = 19
+// v20: 新增预设行 domain character_binding（角色名绑定组，payload {id, names}）。
+//      绑定行推送晚于其它设备的预设水位时，增量拉取永远够不到这些行，
+//      必须 bump 触发全量重拉预设行。配套云端迁移：
+//      supabase/supabase-migration-character-binding-domain.sql（CHECK 约束放开，未执行则推送被拒）。
+export const SYNC_SCHEMA_VERSION = 20
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'
