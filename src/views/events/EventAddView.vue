@@ -128,6 +128,24 @@
                             </div>
                           </button>
                         </div>
+
+                        <div class="field field--full">
+                          <span class="field-label">{{ t('events.addEdit.coverImportLabel') }}</span>
+                          <div class="cover-import">
+                            <input
+                              v-model="coverShareInput"
+                              type="text"
+                              class="cover-import__input"
+                              :placeholder="t('events.addEdit.coverImportPlaceholder')"
+                              @keydown.enter.prevent="parseShareCover"
+                            />
+                            <button type="button" class="cover-import__btn" :disabled="coverImporting" @click="parseShareCover">
+                              <span v-if="coverImporting" class="field-city-tag__spinner" aria-hidden="true" />
+                              {{ coverImporting ? t('events.addEdit.coverImportParsing') : t('events.addEdit.coverImportAction') }}
+                            </button>
+                          </div>
+                          <span class="field-hint">{{ t('events.addEdit.coverImportHint') }}</span>
+                        </div>
                       </div>
                     </div>
                   </section>
@@ -490,6 +508,8 @@ import { getDayDate, normalizeDayTicketPrice, parseDayCount } from '@/utils/even
 import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
+import { parseEventCoverFromShareText } from '@/utils/events/eventCoverImport'
+import { showGlobalToast } from '@/utils/globalToast'
 import NavBar from '@/components/common/NavBar.vue'
 import EventDateSheet from '@/components/events/EventDateSheet.vue'
 import AppSelect from '@/components/common/AppSelect.vue'
@@ -955,6 +975,34 @@ function applyPickerSelectionResult() {
   return false
 }
 
+// 从链接导入页（/events/import）跳转过来的预填：name / location / cover
+// 只在新增模式生效，且不覆盖已填字段；需在基线捕获前调用，避免立刻退出被当未保存修改
+function applyImportPrefill() {
+  if (isEdit.value) return false
+  const readQuery = (key) => {
+    const value = route.query[key]
+    return typeof value === 'string' ? value.trim() : ''
+  }
+  const name = readQuery('importName')
+  const location = readQuery('importLocation')
+  const cover = readQuery('importCover')
+  if (!name && !location && !cover) return false
+
+  if (name && !String(form.name || '').trim()) {
+    form.name = name
+    syncField('name', { target: { value: name } })
+  }
+  if (location && !String(form.location || '').trim()) {
+    form.location = location
+    syncField('location', { target: { value: location } })
+    void detectCityFromLocation()
+  }
+  if (cover && !String(form.coverImage || '').trim()) {
+    form.coverImage = cover
+  }
+  return true
+}
+
 watch(
   () => form.name,
   (value) => {
@@ -1137,6 +1185,51 @@ const showCoverEditor = ref(false)
 const coverEditorSource = ref(null)
 const pendingCoverTempUri = ref('')
 
+const coverShareInput = ref('')
+const coverImporting = ref(false)
+
+const COVER_IMPORT_ERROR_KEYS = {
+  noUrl: 'events.addEdit.coverImportFailNoUrl',
+  unsupported: 'events.addEdit.coverImportFailUnsupported',
+  noCover: 'events.addEdit.coverImportFailNoCover',
+  network: 'events.addEdit.coverImportFailNetwork'
+}
+
+// 分享链接 → 自动抓取封面：与谷子导入同策略，直接存平台图床 CDN 链接，
+// 不走本地落盘；活动名为空时顺手回填解析出的标题
+async function parseShareCover() {
+  if (coverImporting.value) return
+  const text = String(coverShareInput.value || '').trim()
+  if (!text) {
+    showGlobalToast(t('events.addEdit.coverImportFailNoUrl'))
+    return
+  }
+  coverImporting.value = true
+  try {
+    const parsed = await parseEventCoverFromShareText(text)
+    if (!parsed.ok) {
+      showGlobalToast(t(COVER_IMPORT_ERROR_KEYS[parsed.reason] || 'events.addEdit.coverImportFailNetwork'))
+      return
+    }
+    if (!String(form.name || '').trim() && parsed.title) {
+      form.name = parsed.title
+      syncField('name', { target: { value: parsed.title } })
+    }
+    if (!String(form.location || '').trim() && parsed.location) {
+      form.location = parsed.location
+      syncField('location', { target: { value: parsed.location } })
+      void detectCityFromLocation()
+    }
+    form.coverImage = parsed.coverUrl
+    coverShareInput.value = ''
+    showGlobalToast(t('events.addEdit.coverImportSuccess'))
+  } catch {
+    showGlobalToast(t('events.addEdit.coverImportFailNetwork'))
+  } finally {
+    coverImporting.value = false
+  }
+}
+
 async function pickCoverImage() {
   try {
     const picked = await pickLinkedLocalImages(1)
@@ -1307,6 +1400,7 @@ onMounted(() => {
     }
 
     // 基线必须在草稿恢复之前：从选谷子页带回的输入仍视为未保存修改
+    applyImportPrefill()
     captureEventFormBaseline()
     restoreDraftFromPicker()
     applyPickerSelectionResult()
@@ -1781,6 +1875,54 @@ onBeforeUnmount(() => {
 
 .required {
   color: #d15353;
+}
+
+.cover-import {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cover-import__input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--input-height);
+  padding: 0 16px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--app-surface);
+  color: var(--app-text);
+  font-size: var(--font-subtitle);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.cover-import__input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--app-text) 18%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--app-text) 8%, transparent);
+}
+
+.cover-import__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: var(--input-height);
+  padding: 0 18px;
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--app-border) 90%, transparent);
+  border-radius: var(--radius-card);
+  background: var(--app-surface-soft);
+  color: var(--app-text);
+  font-size: var(--font-body-lg);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.16s ease, background 0.16s ease;
+}
+
+.cover-import__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .field input,

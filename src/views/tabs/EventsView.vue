@@ -270,7 +270,7 @@
         class="fab"
         type="button"
         :aria-label="t('events.addActivity')"
-        @click="goToAdd"
+        @click="showAddMethodSheet = true"
       >
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M12 5V19" />
@@ -285,6 +285,12 @@
       :description="t('common.moveToTrashDesc')"
       :confirm-text="t('goods.delete.moveToTrash')"
       @confirm="confirmDelete"
+    />
+
+    <EventAddMethodSheet
+      v-model="showAddMethodSheet"
+      @manual="goToAdd"
+      @import-link="handleImportLink"
     />
 
     <Teleport to="body">
@@ -320,6 +326,7 @@ import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
 import EventCountdownCard from '@/components/events/EventCountdownCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
+import EventAddMethodSheet from '@/components/events/EventAddMethodSheet.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
@@ -795,6 +802,28 @@ function goToAdd() {
       query: {
         returnTo: route.fullPath
       }
+    }).catch(() => {
+      eventsDisplayReady.value = true
+    }),
+    { direction: 'forward' }
+  )
+}
+
+// ── 添加方式选择（手动 / 从链接导入） ─────────────────────────────────────
+
+const showAddMethodSheet = ref(false)
+
+// 从链接导入弹层解析成功：直接进活动新增页预填名称 / 地点 / 封面
+function handleImportLink(payload) {
+  saveScrollPosition(true, 'events:goToImport', { includeAnchor: false })
+  const query = { returnTo: route.fullPath }
+  if (payload?.title) query.importName = payload.title
+  if (payload?.location) query.importLocation = payload.location
+  if (payload?.coverUrl) query.importCover = payload.coverUrl
+  runWithRouteTransition(
+    () => router.push({
+      path: '/events/add',
+      query
     }).catch(() => {
       eventsDisplayReady.value = true
     }),

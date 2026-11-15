@@ -335,9 +335,9 @@ function onTaobaoImport() {
 
 /* 标题 */
 .sheet-title {
-  font-size: var(--font-body);
-  font-weight: 500;
-  color: var(--app-text-tertiary, #8e8e93);
+  font-size: var(--font-title);
+  font-weight: 700;
+  color: var(--app-text, #141416);
   text-align: center;
   margin: 0 0 14px;
 }
