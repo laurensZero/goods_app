@@ -32,6 +32,7 @@ import {
   hasRecentlyDecodedImage,
   invalidateCachedImage,
   peekCachedImage,
+  revalidateAliasedCloudImage,
   setNativeCacheLimitMb,
   DEFAULT_NATIVE_CACHE_LIMIT_MB,
   IMAGE_CACHE_LIMIT_OPTIONS_MB,
@@ -107,9 +108,46 @@ describe('utils/image/cache aliasCachedImage', () => {
     expect(hasRecentlyDecodedImage(cloudUrl)).toBe(true)
   })
 
-  it('源 URL 没有内存位图时不产生别名', () => {
-    const cloudUrl = 'https://example.com/never-loaded.jpg'
-    aliasCachedImage('http://localhost/_capacitor_file_/user-images/missing.jpg', cloudUrl)
+  it('file-backed 源没有位图可过户时，把内存条目指向本地文件 URI', () => {
+    const localUrl = 'http://localhost/_capacitor_file_/user-images/1_a.jpg'
+    const cloudUrl = 'https://example.supabase.co/storage/v1/object/public/goods-images/goods-image__1000__x.jpg'
+    aliasCachedImage(localUrl, cloudUrl)
+
+    // 新 URL 同步命中内存层，拿到的是同一个本地文件地址（重渲染零重载）
+    expect(peekCachedImage(cloudUrl)).toBe(localUrl)
+    expect(hasRecentlyDecodedImage(cloudUrl)).toBe(true)
+    // hero 侧窥视同样命中，本地文件未删除前显示不受影响
+    expect(peekCachedImage(cloudUrl)).toBe(localUrl)
+  })
+
+  it('revalidateAliasedCloudImage 成功时用云端缓存条目覆盖文件别名', async () => {
+    const localUrl = 'http://localhost/_capacitor_file_/user-images/1_a.jpg'
+    const cloudUrl = 'https://example.supabase.co/storage/v1/object/public/goods-images/goods-image__1000__x.jpg'
+    aliasCachedImage(localUrl, cloudUrl)
+    expect(peekCachedImage(cloudUrl)).toBe(localUrl)
+
+    await expect(revalidateAliasedCloudImage(cloudUrl)).resolves.toBe(true)
+    // 升级后内存条目不再是本地文件 URI（网络下载走 mock fetch → blob）
+    const after = peekCachedImage(cloudUrl)
+    expect(after).toBeTruthy()
+    expect(after).not.toBe(localUrl)
+  })
+
+  it('revalidateAliasedCloudImage 失败时恢复别名并返回 false（调用方保留本地文件）', async () => {
+    const { fetchWithPlatformBridge } = await import('@/utils/platform/http')
+    const localUrl = 'http://localhost/_capacitor_file_/user-images/1_a.jpg'
+    const cloudUrl = 'https://example.supabase.co/storage/v1/object/public/goods-images/goods-image__1000__y.jpg'
+    aliasCachedImage(localUrl, cloudUrl)
+
+    fetchWithPlatformBridge.mockRejectedValueOnce(new Error('network down'))
+    await expect(revalidateAliasedCloudImage(cloudUrl)).resolves.toBe(false)
+    // 别名条目被恢复，本地文件仍在磁盘上，显示不受影响
+    expect(peekCachedImage(cloudUrl)).toBe(localUrl)
+  })
+
+  it('revalidateAliasedCloudImage 对非别名条目是快速放行', async () => {
+    const cloudUrl = 'https://example.com/never-aliased.jpg'
+    await expect(revalidateAliasedCloudImage(cloudUrl)).resolves.toBe(true)
     expect(peekCachedImage(cloudUrl)).toBe('')
   })
 

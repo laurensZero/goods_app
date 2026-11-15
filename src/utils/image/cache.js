@@ -986,10 +986,78 @@ export function aliasCachedImage(fromUrl, toUrl) {
     markImageDecoded(toUrl)
     return
   }
-  // 文件型 URI 改为直读文件后不再进内存缓存，本地图→云图改写时没有位图可过户。
-  // 退化为立即预热云端图：卡片换图与 hero 首飞的位图空窗从"重渲染后才发起下载"
-  // 提前到"改写瞬间"，其余语义不变。
+  // 文件型 URI 改为直读文件后不再进内存缓存，没有位图可过户——但文件 URI 本身就是
+  // 合法的 <img> src：把新云端 URL 的内存条目直接指向本地文件（零拷贝），卡片重渲染
+  // 时 peek 同步命中，src 实际未变，旧像素无缝续显，不再出现"黑一下"的骨架屏空窗。
+  // 该别名条目指向的本地文件被删除前（cleanupBase64Images / markMediaAsRemote），
+  // 调用方必须先用 revalidateAliasedCloudImage 把它升级为真实云端缓存条目。
+  if (isFileBackedUri(fromUrl)) {
+    for (const key of getCacheKeyCandidates(toUrl)) {
+      setMemoryCache(key, fromUrl)
+    }
+    markImageDecoded(toUrl)
+    return
+  }
+  // 其余无位图场景（如 data: 从未上屏）退化为预热云端图，语义不变。
   preloadImages([toUrl])
+}
+
+function withTimeout(promise, timeoutMs) {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) return promise
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('image revalidate timeout')), timeoutMs)
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error) => { clearTimeout(timer); reject(error) }
+    )
+  })
+}
+
+const aliasRevalidateInFlight = new Map()
+
+/**
+ * 把「指向托管本地文件的内存别名条目」升级为真实云端缓存条目。
+ *
+ * aliasCachedImage 对 file-backed 源的过户是 memory[cloudUrl] = 本地文件 URI：
+ * 本地文件还在时显示零开销，但文件一旦被清理（cleanupBase64Images / markMediaAsRemote
+ * 删除本地副本），条目就变成死引用，卡片重渲染即裂图。调用方在删除本地文件前必须
+ * await 本函数：它先驱逐别名条目再经完整缓存管线拉取云端图（内存 blob + img-cache
+ * 持久缓存），成功后删除文件才是安全的。
+ *
+ * @param {string} url 云端公开 URL（别名条目的 key）
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<boolean>} true = 内存条目已不指向待删本地文件（可以删文件）；
+ *   false = 升级失败（离线/超时），调用方应保留本地文件，下次同步重试
+ */
+export async function revalidateAliasedCloudImage(url, { timeoutMs = 20000 } = {}) {
+  const key = normalizeCacheUrl(url) || String(url || '').trim()
+  if (!key) return true
+  if (aliasRevalidateInFlight.has(key)) return aliasRevalidateInFlight.get(key)
+
+  const promise = (async () => {
+    const aliased = peekCachedImage(key)
+    // 没有别名条目，或条目已被真实缓存覆盖（不再是本地文件 URI）→ 无需升级
+    if (!aliased || !isFileBackedUri(aliased)) return true
+
+    let fresh = ''
+    try {
+      fresh = await withTimeout(refreshCachedImage(key), timeoutMs)
+    } catch {
+      fresh = ''
+    }
+    const after = peekCachedImage(key)
+    if (after && after !== aliased) return true
+
+    // 升级失败：恢复别名条目——本地文件此刻仍在磁盘上，显示不受影响；
+    // 超时后仍在途的下载若最终完成，会用真实缓存条目覆盖恢复的别名，属预期结果。
+    if (!after) {
+      for (const k of getCacheKeyCandidates(key)) setMemoryCache(k, aliased)
+    }
+    return false
+  })()
+
+  aliasRevalidateInFlight.set(key, promise)
+  return promise.finally(() => aliasRevalidateInFlight.delete(key))
 }
 
 function scheduleImageLoadDrain() {

@@ -19,12 +19,14 @@ vi.mock('@/utils/goods/saleReminder', () => ({
   cancelSaleReminderNotifications: vi.fn(async () => {})
 }))
 vi.mock('@/utils/image/cache', () => ({
-  aliasCachedImage: vi.fn()
+  aliasCachedImage: vi.fn(),
+  revalidateAliasedCloudImage: vi.fn(async () => true)
 }))
 
 import { cleanupBase64Images } from '../goodsSync'
 import { saveItems } from '@/utils/db/index'
 import { deleteManagedLocalImages } from '@/utils/image/localImage'
+import { revalidateAliasedCloudImage } from '@/utils/image/cache'
 
 function makeImage(overrides = {}) {
   return {
@@ -59,6 +61,8 @@ describe('cleanupBase64Images 云端确认后清理本地副本', () => {
     saveItems.mockResolvedValue(undefined)
     deleteManagedLocalImages.mockReset()
     deleteManagedLocalImages.mockResolvedValue(0)
+    revalidateAliasedCloudImage.mockReset()
+    revalidateAliasedCloudImage.mockResolvedValue(true)
   })
 
   it('base64 在云端确认后替换为公网 URL，且不 bump updatedAt', async () => {
@@ -188,6 +192,53 @@ describe('cleanupBase64Images 云端确认后清理本地副本', () => {
     expect(img.localPath).toBe('')
     expect(img.storageMode).toBe('remote')
     expect(deleteManagedLocalImages).toHaveBeenCalledWith(new Set(['user-images/1_t.jpg']))
+  })
+
+  it('删除本地文件前先升级内存别名条目（revalidate 云端 URL）', async () => {
+    revalidateAliasedCloudImage.mockClear()
+    const list = shallowRef([makeItem('a', [
+      makeImage({
+        uri: 'https://cdn.example.com/goods-image__a.png',
+        cloudFileName: 'goods-image__a.png',
+        storageMode: 'cloud-local',
+        localPath: 'user-images/1_a.jpg'
+      })
+    ])])
+    const trashList = shallowRef([])
+
+    await cleanupBase64Images(list, trashList, makeBackend({
+      files: { 'goods-image__a.png': { name: 'goods-image__a.png' } }
+    }))
+
+    expect(revalidateAliasedCloudImage).toHaveBeenCalledWith('https://cdn.example.com/goods-image__a.png')
+    const img = list.value[0].images[0]
+    expect(img.localPath).toBe('')
+    expect(img.uri).toBe('https://cdn.example.com/goods-image__a.png')
+  })
+
+  it('别名升级失败（离线）时保留本地引用，不删文件也不改写 URI', async () => {
+    revalidateAliasedCloudImage.mockResolvedValueOnce(false)
+    const list = shallowRef([makeItem('a', [
+      makeImage({
+        uri: 'https://cdn.example.com/goods-image__a.png',
+        cloudFileName: 'goods-image__a.png',
+        storageMode: 'cloud-local',
+        localPath: 'user-images/1_a.jpg'
+      })
+    ])])
+    const trashList = shallowRef([])
+    const updatedAt = list.value[0].updatedAt
+
+    await cleanupBase64Images(list, trashList, makeBackend({
+      files: { 'goods-image__a.png': { name: 'goods-image__a.png' } }
+    }))
+
+    const img = list.value[0].images[0]
+    expect(img.localPath).toBe('user-images/1_a.jpg')
+    expect(img.uri).toBe('https://cdn.example.com/goods-image__a.png')
+    expect(deleteManagedLocalImages).not.toHaveBeenCalled()
+    expect(saveItems).not.toHaveBeenCalled()
+    expect(list.value[0].updatedAt).toBe(updatedAt)
   })
 
   it('无 getExistingImageCloud 时只处理 base64，不删本地文件', async () => {

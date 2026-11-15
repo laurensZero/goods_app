@@ -5,7 +5,7 @@ import { addEvent, deleteEvents, getEvents, saveEvents } from '@/utils/db/index'
 import { normalizeTracks } from '@/utils/music/tracks'
 import { buildCloudImageUri, normalizeEventCoverFields, normalizeEventPhotoList, parseCloudImageUri } from '@/utils/goods/images'
 import { collectManagedLocalImagePathsFromEvent, deleteManagedLocalImages, extractManagedLocalImagePath } from '@/utils/image/localImage'
-import { aliasCachedImage } from '@/utils/image/cache'
+import { aliasCachedImage, revalidateAliasedCloudImage } from '@/utils/image/cache'
 import { parseNumericPrice } from '@/stores/goods/goodsHelpers'
 import { createStoreCore, createAutoPush } from '@/stores/storeCore'
 import { replaceEventBase64WithPublicUrls } from '@/stores/goods/goodsMigrations'
@@ -510,7 +510,9 @@ export const useEventsStore = defineStore('events', () => {
     if (!(preparedMediaByEventId instanceof Map) || preparedMediaByEventId.size === 0) return
 
     const updatedRecords = []
-    const localPathsToDelete = new Set()
+    // path -> 已确认的云端 URL：删除本地副本前先把内存别名条目升级为真实云端缓存
+    //（aliasCachedImage 对 file-backed 源的过户指向本地文件 URI，直接删文件会留死引用）
+    const localPathsToDelete = new Map()
 
     const collectCoverLocalPath = (data) => {
       const path = extractManagedLocalImagePath(data?.localPath) || extractManagedLocalImagePath(data?.uri)
@@ -550,7 +552,7 @@ export const useEventsStore = defineStore('events', () => {
           // 该照片已换成云端 URI → 旧本地副本可删
           if (prev && /^https?:\/\//.test(nextUri)) {
             const path = extractManagedLocalImagePath(prev.localPath) || extractManagedLocalImagePath(prev.uri)
-            if (path) localPathsToDelete.add(path)
+            if (path) localPathsToDelete.set(path, nextUri)
           }
           return photo
         })
@@ -561,7 +563,7 @@ export const useEventsStore = defineStore('events', () => {
       const nextCoverIsRemote = /^https?:\/\//.test(String(nextCoverImage || ''))
       if (nextCoverIsRemote) {
         const path = collectCoverLocalPath(current.coverImageData)
-        if (path) localPathsToDelete.add(path)
+        if (path) localPathsToDelete.set(path, nextCoverImage)
       }
 
       const next = {
@@ -575,12 +577,28 @@ export const useEventsStore = defineStore('events', () => {
       updatedRecords.push(next)
     }
 
+    // 删除本地副本前先升级内存别名条目（必须在 triggerRef 换图之前完成，换图瞬间
+    // 才有真实缓存可同步命中）；升级失败的路径保留本地文件，下次同步重试
+    if (localPathsToDelete.size > 0) {
+      const results = await Promise.all(
+        [...new Set(localPathsToDelete.values())].map(
+          async (url) => [url, await revalidateAliasedCloudImage(url)]
+        )
+      )
+      const failedUrls = new Set(results.filter(([, ok]) => !ok).map(([url]) => url))
+      if (failedUrls.size > 0) {
+        for (const [path, url] of localPathsToDelete) {
+          if (failedUrls.has(url)) localPathsToDelete.delete(path)
+        }
+      }
+    }
+
     if (updatedRecords.length > 0) {
       await saveEvents(updatedRecords)
       triggerRef(list)
     }
     if (localPathsToDelete.size > 0) {
-      await deleteManagedLocalImages(localPathsToDelete)
+      await deleteManagedLocalImages([...localPathsToDelete.keys()])
     }
   }
 

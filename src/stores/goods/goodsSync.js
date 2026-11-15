@@ -15,7 +15,7 @@ import {
 import { ensureInitialTimeline } from '@/utils/goods/statusTimeline'
 import { normalizeGoodsImageList, parseCloudImageUri } from '@/utils/goods/images'
 import { isLocalImageUri } from '@/utils/image/localImage'
-import { aliasCachedImage } from '@/utils/image/cache'
+import { aliasCachedImage, revalidateAliasedCloudImage } from '@/utils/image/cache'
 import { nextGoodsId } from '@/utils/goods/id'
 
 async function addMultipleGoods(items, list, onMutate) {
@@ -406,6 +406,37 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
   const updatedItems = []
   const localPathsToDelete = new Set()
 
+  // 本地图 → 云图改写会让内存别名条目（aliasCachedImage 对 file-backed 源的过户）
+  // 指向即将删除的本地文件。删文件前先把这些云端 URL 升级为真实缓存条目（内存 blob
+  // / img-cache 持久缓存）；升级失败（离线/超时）的保留本地引用，下次同步再清理——
+  // 否则会留下指向已删文件的死引用，卡片重渲染即裂图。
+  const revalidationFailedUrls = new Set()
+  {
+    const revalidateTargets = new Set()
+    for (const listRef of allLists) {
+      for (const item of listRef.value) {
+        for (const img of normalizeGoodsImageList(item.images)) {
+          const uri = String(img?.uri || '').trim()
+          if (uri.startsWith('data:image/')) continue // data: 走 blob 过户，无本地文件
+          if (!extractManagedLocalImagePath(uri) && !extractManagedLocalImagePath(img?.localPath)) continue
+          const cloudFileName = String(img?.cloudFileName || parseCloudImageUri(uri) || '').trim()
+          if (!cloudFileName) continue
+          if (skipFiles && skipFiles.has(cloudFileName)) continue
+          if (cloudFiles && !cloudFiles[cloudFileName]) continue
+          revalidateTargets.add(backend.getImagePublicUrl(cloudFileName))
+        }
+      }
+    }
+    if (revalidateTargets.size > 0) {
+      const results = await Promise.all(
+        [...revalidateTargets].map(async (url) => [url, await revalidateAliasedCloudImage(url)])
+      )
+      for (const [url, ok] of results) {
+        if (!ok) revalidationFailedUrls.add(url)
+      }
+    }
+  }
+
   for (const listRef of allLists) {
     for (let i = 0; i < listRef.value.length; i++) {
       const item = listRef.value[i]
@@ -434,19 +465,22 @@ async function cleanupBase64Images(list, trashList, backend, { skipFiles = null 
         // 删文件前先把仍指向本地的 uri 改写到云端 URL，避免离线打开时引用已删文件
         const managedPath = extractManagedLocalImagePath(next.localPath) || extractManagedLocalImagePath(next.uri)
         if (cloudFiles && managedPath) {
-          localPathsToDelete.add(managedPath)
           const isRemoteUri = /^https?:\/\//.test(String(next.uri || ''))
-          if (!isRemoteUri) {
-            publicUrl = publicUrl || backend.getImagePublicUrl(cloudFileName)
-            aliasCachedImage(next.uri, publicUrl)
+          publicUrl = publicUrl || backend.getImagePublicUrl(cloudFileName)
+          if (!revalidationFailedUrls.has(publicUrl)) {
+            localPathsToDelete.add(managedPath)
+            if (!isRemoteUri) {
+              aliasCachedImage(next.uri, publicUrl)
+            }
+            next = {
+              ...next,
+              localPath: '',
+              uri: isRemoteUri ? next.uri : publicUrl,
+              storageMode: 'remote'
+            }
+            changed = true
           }
-          next = {
-            ...next,
-            localPath: '',
-            uri: isRemoteUri ? next.uri : publicUrl,
-            storageMode: 'remote'
-          }
-          changed = true
+          // 升级失败：保留本地引用（含 data: 改写结果），下次同步重试
         }
 
         return next

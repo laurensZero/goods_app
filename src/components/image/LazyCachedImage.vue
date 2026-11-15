@@ -113,9 +113,12 @@ const resolvedSrc = ref('')
 const hasEnteredViewport = ref(false)
 const hasLoadError = ref(false)
 const isImageLoading = ref(false)
+// src 改写（上传后本地图→云图等）时的"保旧像素"状态：旧 <img> 不卸载、骨架屏不出，
+// 等新 src 解码成功后再切换，避免换图瞬间的无位图空窗（深色主题下表现为"黑一下"）
+const isSwappingSrc = ref(false)
 const isSkeletonReady = ref(Number(props.skeletonDelayMs || 0) <= 0)
 const showSkeleton = computed(() => {
-  return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && isImageLoading.value && isSkeletonReady.value
+  return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && isImageLoading.value && isSkeletonReady.value && !isSwappingSrc.value
 })
 const showFallback = computed(() => !!props.src && hasLoadError.value)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
@@ -230,6 +233,7 @@ async function runLoad() {
   const url = props.src
   const isVisible = hasEnteredViewport.value
   if (!url) {
+    isSwappingSrc.value = false
     resolvedSrc.value = ''
     hasLoadError.value = false
     isImageLoading.value = false
@@ -237,6 +241,7 @@ async function runLoad() {
     return
   }
   if (!isVisible) {
+    isSwappingSrc.value = false
     resolvedSrc.value = ''
     hasLoadError.value = false
     isImageLoading.value = false
@@ -247,6 +252,7 @@ async function runLoad() {
   isImageLoading.value = true
   const cached = peekDisplaySrc(url)
   if (cached) {
+    isSwappingSrc.value = false
     resolvedSrc.value = cached
     resetSkeletonVisibility()
     if (forceDecodeValidationOnCacheHit && props.resumeDecodeValidation) {
@@ -256,7 +262,10 @@ async function runLoad() {
     }
     return
   }
-  resolvedSrc.value = ''
+  // 换图进行中且还有旧像素：保住它们，等新 src 下载解码完再切换（见 watcher）
+  if (!isSwappingSrc.value) {
+    resolvedSrc.value = ''
+  }
   isImageLoading.value = true
   resetSkeletonVisibility()
   const nextSrc = props.useCache
@@ -266,6 +275,7 @@ async function runLoad() {
   resolvedSrc.value = nextSrc
   const ok = await waitForImgDecode(nextSrc)
   if (requestId !== loadRequestId) return
+  isSwappingSrc.value = false
   isImageLoading.value = !ok
   if (ok) markImageDecoded(nextSrc)
 }
@@ -278,7 +288,13 @@ watch(
     // 刚写入的 src 会被清空，<img> 被卸载后再无触发点，画面永远停在骨架屏。
     hasLoadError.value = false
     retryKey.value = 0
-    resolvedSrc.value = ''
+    if (resolvedSrc.value) {
+      // src 改写（如上传后本地图→云图 URL）：保住当前像素，等 runLoad 拿到新 src
+      // 并解码成功后再切换；期间骨架屏由 isSwappingSrc 压住不出
+      isSwappingSrc.value = true
+    } else {
+      resolvedSrc.value = ''
+    }
     isImageLoading.value = true
     void runLoad()
   },
@@ -293,6 +309,8 @@ function onImageLoad() {
 }
 
 function onImageError() {
+  // 出错即回到常规加载语义：骨架屏可见、runLoad 不再保旧像素
+  isSwappingSrc.value = false
   if (retryKey.value < MAX_AUTO_RETRY) {
     retryKey.value += 1
     isImageLoading.value = true
@@ -343,6 +361,7 @@ onMounted(() => {
       forceDecodeValidationOnCacheHit = false
       hasLoadError.value = false
       retryKey.value = 0
+      isSwappingSrc.value = false
       resolvedSrc.value = ''
       isImageLoading.value = !!props.src
       resetSkeletonVisibility()
@@ -359,6 +378,7 @@ onMounted(() => {
       hasLoadError.value = false
       retryKey.value = 0
       forceDecodeValidationOnCacheHit = false
+      isSwappingSrc.value = false
       resolvedSrc.value = ''
       isImageLoading.value = !!props.src
       resetSkeletonVisibility()
@@ -371,6 +391,9 @@ onMounted(() => {
     }
 
     const requestId = ++loadRequestId
+    // 缓存刷新接管了像素管理：待决换图在途时可能残留 isSwappingSrc，先复位，
+    // 否则骨架屏会被永久压住
+    isSwappingSrc.value = false
     if (!props.src || !hasEnteredViewport.value) {
       resolvedSrc.value = ''
       hasLoadError.value = false
