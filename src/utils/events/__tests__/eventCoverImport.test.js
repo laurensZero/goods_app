@@ -163,3 +163,47 @@ describe('parseEventCoverFromShareText（node 环境非原生 → 走代理）',
     expect(result).toEqual({ ok: false, reason: 'noCover' })
   })
 })
+
+describe('normalizeSessions', () => {
+  it('会员购 screen_list：日期升序、价格分转元并格式化', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      platform: 'bilibili',
+      id: '1006859',
+      title: '杭州·绝区零 2026FES 布梦嘉年华',
+      location: '杭州大会展中心',
+      coverUrl: 'https://i0.hdslb.com/cover.jpg',
+      sessions: [
+        { date: '2026-11-29', name: '第三天', tickets: [{ name: '普通入场券', price: 198 }] },
+        { date: '2026-11-27', name: '第一天', tickets: [{ name: '普通入场券', price: 198 }, { name: '快速入场券', price: 298 }] }
+      ]
+    }), { status: 200 })))
+
+    const result = await parseEventCoverFromShareText('https://b23.tv/cfL2CqB')
+    expect(result.ok).toBe(true)
+    expect(result.sessions.map((s) => s.date)).toEqual(['2026-11-27', '2026-11-29'])
+    expect(result.sessions[0].tickets).toEqual([
+      { name: '普通入场券', price: '198.00' },
+      { name: '快速入场券', price: '298.00' }
+    ])
+  })
+
+  it('同日期多场次合并、无效日期丢弃、零价票种过滤', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      platform: 'bilibili',
+      id: '1',
+      title: 'x',
+      location: '',
+      coverUrl: 'https://i0.hdslb.com/c.jpg',
+      sessions: [
+        { date: '2026-11-27', name: '下午场', tickets: [{ name: 'A', price: 100 }] },
+        { date: '2026-11-27', name: '晚场', tickets: [{ name: 'B', price: 0 }, { name: 'C', price: 150 }] },
+        { date: 'not-a-date', name: '坏数据', tickets: [] }
+      ]
+    }), { status: 200 })))
+
+    const result = await parseEventCoverFromShareText('https://show.bilibili.com/platform/detail.html?id=1')
+    expect(result.sessions).toHaveLength(1)
+    expect(result.sessions[0].name).toBe('下午场')
+    expect(result.sessions[0].tickets).toEqual([{ name: 'A', price: '100.00' }, { name: 'C', price: '150.00' }])
+  })
+})

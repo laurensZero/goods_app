@@ -317,5 +317,9 @@
   "events.addMethod.manualAdd": "Add manually",
   "events.addMethod.manualAddDesc": "Fill in the event details yourself",
   "events.addMethod.importFromLink": "Import from link",
-  "events.addMethod.importFromLinkDesc": "Paste a Bilibili / Damai / Maoyan share link to auto-fill name, venue and cover"
+  "events.addMethod.importFromLinkDesc": "Paste a Bilibili / Damai / Maoyan share link to auto-fill name, venue and cover",
+  "events.import.sessionTitle": "Pick sessions & tickets",
+  "events.import.sessionHint": "Picking a ticket type imports that date (one per date); sessions without tickets fill the date only",
+  "events.import.sessionDateOnly": "Date only",
+  "events.import.fillForm": "Fill in form"
 }

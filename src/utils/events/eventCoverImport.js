@@ -90,6 +90,78 @@ function cleanTitle(raw) {
     .trim()
 }
 
+// ── 场次/票档（sessions，仅会员购） ───────────────────────────────────────
+
+// 统一模型：{ date: 'YYYY-MM-DD', name, tickets: [{ name, price }] }
+// price 为元数字（平台提取时换算）；客户端在此统一做归一化（去重/排序/封顶/价格格式化），
+// 服务端 Function 与 dev 中间件只做各平台字段映射，逻辑与它们保持同构。
+
+export const EVENT_SESSIONS_MAX = 31
+
+function normalizeSessionDate(raw) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  const match = text.match(/(\d{4})[.\-\/年](\d{1,2})[.\-\/月](\d{1,2})/)
+  if (match) {
+    return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}-${String(Number(match[3])).padStart(2, '0')}`
+  }
+  const num = Number(text)
+  if (Number.isFinite(num) && num > 0) {
+    const ms = num > 1e12 ? num : num * 1000
+    return new Date(ms + 8 * 3600 * 1000).toISOString().slice(0, 10)
+  }
+  return ''
+}
+
+/** 会员购 screen_list → 统一场次模型（原生直连与 Function/中间件同构） */
+function extractBilibiliSessions(data) {
+  const screens = Array.isArray(data?.screen_list) ? data.screen_list : []
+  const sessions = []
+  for (const screen of screens) {
+    const date = normalizeSessionDate(String(screen?.start_time_str || '')) || normalizeSessionDate(screen?.start_time)
+    if (!date) continue
+    const tickets = (Array.isArray(screen?.ticket_list) ? screen.ticket_list : [])
+      .map((ticket) => ({
+        name: String(ticket?.desc || '').trim(),
+        price: Number(ticket?.price) > 0 ? Number(ticket.price) / 100 : 0,
+      }))
+      .filter((ticket) => ticket.price > 0)
+    sessions.push({ date, name: String(screen?.name || '').trim(), tickets })
+  }
+  return sessions
+}
+
+/**
+ * 场次归一化：无效日期丢弃、同日合并（票种并列）、按日期升序、封顶 31、
+ * 价格格式化为两位小数字符串。
+ * @param {Array} sessions
+ * @returns {Array<{date: string, name: string, tickets: Array<{name: string, price: string}>}>}
+ */
+export function normalizeSessions(sessions) {
+  const byDate = new Map()
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    const date = normalizeSessionDate(session?.date)
+    if (!date) continue
+    const tickets = (Array.isArray(session?.tickets) ? session.tickets : [])
+      .map((ticket) => ({
+        name: String(ticket?.name || '').trim(),
+        price: Number(ticket?.price) > 0 ? Number(ticket.price) : 0
+      }))
+      .filter((ticket) => ticket.price > 0)
+      .map((ticket) => ({ name: ticket.name, price: ticket.price.toFixed(2) }))
+    const merged = byDate.get(date)
+    if (merged) {
+      if (!merged.name && session?.name) merged.name = String(session.name).trim()
+      merged.tickets.push(...tickets)
+    } else {
+      byDate.set(date, { date, name: String(session?.name || '').trim(), tickets })
+    }
+  }
+  return Array.from(byDate.values())
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, EVENT_SESSIONS_MAX)
+}
+
 /**
  * 平台识别。覆盖已确认的真实分享格式：
  *   - 会员购：show.bilibili.com/platform/detail.html?id= / mall.bilibili.com/neul-next/...detail.html?id=
@@ -207,7 +279,8 @@ async function parseBilibiliDirect(id) {
   return {
     title: String(data.name || '').trim(),
     location: venueName,
-    coverUrl: cover ? (cover.startsWith('//') ? `https:${cover}` : cover) : ''
+    coverUrl: cover ? (cover.startsWith('//') ? `https:${cover}` : cover) : '',
+    sessions: extractBilibiliSessions(data)
   }
 }
 
@@ -433,7 +506,11 @@ export async function parseEventCoverFromShareText(text) {
   if (!isSupportedShareHost(url)) return { ok: false, reason: 'unsupported' }
 
   // 标题清洗统一在客户端出口做（原生直连 / 代理两条路径共用一套）
-  const normalize = (result) => ({ ...result, title: cleanTitle(result.title) })
+  const normalize = (result) => ({
+    ...result,
+    title: cleanTitle(result.title),
+    sessions: normalizeSessions(result.sessions)
+  })
 
   if (isNative()) {
     try {
@@ -453,7 +530,8 @@ export async function parseEventCoverFromShareText(text) {
       platform: String(payload.platform || ''),
       title: String(payload.title || '').trim(),
       location: String(payload.location || '').trim(),
-      coverUrl: String(payload.coverUrl || '')
+      coverUrl: String(payload.coverUrl || ''),
+      sessions: Array.isArray(payload.sessions) ? payload.sessions : []
     })
   } catch (e) {
     const message = e instanceof Error ? e.message : ''
@@ -487,6 +565,7 @@ async function parseViaNative(url) {
     platform: detected.platform,
     title: parsed.title,
     location: parsed.location,
-    coverUrl: parsed.coverUrl
+    coverUrl: parsed.coverUrl,
+    sessions: Array.isArray(parsed.sessions) ? parsed.sessions : []
   }
 }

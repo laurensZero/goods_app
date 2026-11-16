@@ -340,6 +340,7 @@ import { buildCountdownList } from '@/utils/events/countdown'
 import { getFirstEventDate, resolveEventDates } from '@/utils/events/eventDates'
 import { HOME_MOTION_CSS_VARS } from '@/constants/homeMotion'
 import { clearRouteTransitionFallback, playRouteSceneSlide, runWithRouteTransition, setPendingDetailReturnPath } from '@/utils/routeTransition'
+import { saveImportPrefill } from '@/utils/events/eventImportPrefill'
 import { cleanupAllHeroes, hasPendingEventHeroBack, prepareEventHeroForward, playEventHeroBack } from '@/utils/platform/nativeGoodsHeroTransition'
 
 defineOptions({ name: 'EventsView' })
@@ -813,17 +814,16 @@ function goToAdd() {
 
 const showAddMethodSheet = ref(false)
 
-// 从链接导入弹层解析成功：直接进活动新增页预填名称 / 地点 / 封面
+// 从链接导入弹层确认：预填数据走 sessionStorage（场次/票种选择结果），query 只留 returnTo
 function handleImportLink(payload) {
   saveScrollPosition(true, 'events:goToImport', { includeAnchor: false })
-  const query = { returnTo: route.fullPath }
-  if (payload?.title) query.importName = payload.title
-  if (payload?.location) query.importLocation = payload.location
-  if (payload?.coverUrl) query.importCover = payload.coverUrl
+  saveImportPrefill(payload || {})
   runWithRouteTransition(
     () => router.push({
       path: '/events/add',
-      query
+      query: {
+        returnTo: route.fullPath
+      }
     }).catch(() => {
       eventsDisplayReady.value = true
     }),

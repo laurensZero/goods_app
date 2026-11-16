@@ -317,5 +317,9 @@
   "events.addMethod.manualAdd": "手動で追加",
   "events.addMethod.manualAddDesc": "イベント情報を自分で入力",
   "events.addMethod.importFromLink": "リンクから取得",
-  "events.addMethod.importFromLinkDesc": "會員購・大麦・猫眼のシェアリンクで名前・会場・カバーを自動入力"
+  "events.addMethod.importFromLinkDesc": "會員購・大麦・猫眼のシェアリンクで名前・会場・カバーを自動入力",
+  "events.import.sessionTitle": "公演とチケットを選択",
+  "events.import.sessionHint": "チケットを選ぶとその日付が入力されます（1日1つ）。チケットのない公演は日付のみ",
+  "events.import.sessionDateOnly": "日付のみ",
+  "events.import.fillForm": "フォームに入力"
 }

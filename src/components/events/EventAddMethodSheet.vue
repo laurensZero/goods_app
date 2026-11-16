@@ -2,8 +2,8 @@
   EventAddMethodSheet.vue
   底部弹出的「添加活动」方式选择面板（样式对齐谷子 AddMethodSheet）
   用法：<EventAddMethodSheet v-model="showSheet" @manual="..." @import-link="..." />
-  解析成功后 emit('import-link', { title, location, coverUrl })，由调用方跳转
-  /events/add 预填。
+  解析成功后 emit('import-link', { title, location, coverUrl, dates, dayTickets })，
+  由调用方写入 sessionStorage 并跳转 /events/add 预填。
 -->
 <template>
   <AppSheet
@@ -87,6 +87,46 @@
           {{ parsing ? t('events.import.parsing') : t('events.import.parse') }}
         </button>
       </div>
+
+      <!-- 场次/票种选择（仅会员购等返回场次时展示）：选中票档即代表导入该日期 -->
+      <template v-if="sessionRows.length > 0">
+        <p class="session-title">{{ t('events.import.sessionTitle') }}</p>
+        <div class="session-list">
+          <div v-for="row in sessionRows" :key="row.date" class="session-row" :class="{ 'session-row--checked': isRowSelected(row) }">
+            <span class="session-row__main">
+              <span class="session-row__date">{{ row.date }}</span>
+              <span v-if="row.name" class="session-row__name">{{ row.name }}</span>
+            </span>
+            <span class="session-row__tickets">
+              <template v-if="row.tickets.length > 0">
+                <button
+                  v-for="(ticket, ticketIndex) in row.tickets"
+                  :key="ticketIndex"
+                  type="button"
+                  class="ticket-chip"
+                  :class="{ 'ticket-chip--active': row.ticketIndex === ticketIndex }"
+                  @click="toggleTicket(row, ticketIndex)"
+                >
+                  <span v-if="ticket.name" class="ticket-chip__name">{{ ticket.name }}</span>
+                  <span class="ticket-chip__price">¥{{ ticket.price }}</span>
+                </button>
+              </template>
+              <span v-else class="ticket-chip ticket-chip--static">{{ t('events.import.sessionDateOnly') }}</span>
+            </span>
+          </div>
+        </div>
+        <p class="session-hint">{{ t('events.import.sessionHint') }}</p>
+      </template>
+
+      <button
+        v-if="parsed"
+        class="link-parse-btn link-fill-btn"
+        type="button"
+        :disabled="filling"
+        @click="handleFillForm"
+      >
+        {{ filling ? t('events.import.parsing') : t('events.import.fillForm') }}
+      </button>
     </template>
   </AppSheet>
 </template>
@@ -97,6 +137,7 @@ import { useI18n } from 'vue-i18n'
 import AppSheet from '@/components/common/AppSheet.vue'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
 import { parseEventCoverFromShareText } from '@/utils/events/eventCoverImport'
+import { collectSessionSelection } from '@/utils/events/eventImportPrefill'
 import { showGlobalToast } from '@/utils/globalToast'
 
 const { t } = useI18n()
@@ -110,6 +151,10 @@ const emit = defineEmits(['update:modelValue', 'manual', 'import-link'])
 const view = ref('options')
 const linkInput = ref('')
 const parsing = ref(false)
+const filling = ref(false)
+/** @type {import('vue').Ref<Array<{ date: string, name: string, tickets: Array<{name: string, price: string}>, ticketIndex: number }>>} */
+const sessionRows = ref([])
+const parsed = ref(null)
 
 const ERROR_KEYS = {
   noUrl: 'events.addEdit.coverImportFailNoUrl',
@@ -128,6 +173,9 @@ watch(view, (next) => {
   if (next === 'link-import') {
     linkInput.value = ''
     parsing.value = false
+    filling.value = false
+    parsed.value = null
+    sessionRows.value = []
   }
 })
 
@@ -136,22 +184,63 @@ function onManual() {
   emit('manual')
 }
 
+function toggleTicket(row, ticketIndex) {
+  row.ticketIndex = row.ticketIndex === ticketIndex ? -1 : ticketIndex
+}
+
+/** 该日期是否会导入：选了票档，或该场次本身没有票档数据（只填日期） */
+function isRowSelected(row) {
+  return row.tickets.length === 0 || row.ticketIndex >= 0
+}
+
 async function handleParse() {
   if (parsing.value) return
   parsing.value = true
+  parsed.value = null
+  sessionRows.value = []
   try {
     const result = await parseEventCoverFromShareText(linkInput.value)
     if (!result.ok) {
       showGlobalToast(t(ERROR_KEYS[result.reason] || 'events.addEdit.coverImportFailNetwork'))
       return
     }
-    // 解析成功：收起弹层，交给调用方直接进活动新增页预填
-    close()
-    emit('import-link', { title: result.title, location: result.location, coverUrl: result.coverUrl })
+    const sessions = Array.isArray(result.sessions) ? result.sessions : []
+    if (sessions.length === 0) {
+      // 无场次数据（大麦/猫眼等）：维持原行为，解析完直接进新增页
+      close()
+      emit('import-link', { title: result.title, location: result.location, coverUrl: result.coverUrl })
+      return
+    }
+    parsed.value = result
+    sessionRows.value = sessions.map((session) => ({
+      date: session.date,
+      name: session.name,
+      tickets: session.tickets,
+      ticketIndex: -1
+    }))
   } catch {
     showGlobalToast(t('events.addEdit.coverImportFailNetwork'))
   } finally {
     parsing.value = false
+  }
+}
+
+// 确认填入：选中的票档所在日期 → 交调用方进新增页预填
+function handleFillForm() {
+  if (filling.value || !parsed.value) return
+  filling.value = true
+  try {
+    const { dates, dayTickets } = collectSessionSelection(sessionRows.value)
+    close()
+    emit('import-link', {
+      title: parsed.value.title,
+      location: parsed.value.location,
+      coverUrl: parsed.value.coverUrl,
+      dates,
+      dayTickets
+    })
+  } finally {
+    filling.value = false
   }
 }
 </script>
@@ -378,6 +467,150 @@ async function handleParse() {
 .link-parse-btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+
+.link-fill-btn {
+  margin-top: 12px;
+}
+
+/* ---- 场次/票种选择 ---- */
+.session-title {
+  margin: 16px 0 10px;
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: var(--app-text, #141416);
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--app-glass) 76%, var(--app-surface));
+  border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* 细滚动条，覆盖 Windows 原生滚动条（带上下箭头按钮，很突兀） */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--app-text) 18%, transparent) transparent;
+}
+
+.session-list::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-list::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--app-text) 18%, transparent);
+  background-clip: padding-box;
+}
+
+.session-list::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--app-text) 28%, transparent);
+  background-clip: padding-box;
+}
+
+.session-list::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.session-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  transition: background 0.14s ease;
+}
+
+.session-row + .session-row {
+  border-top: 1px solid rgba(142, 142, 147, 0.15);
+}
+
+.session-row--checked {
+  background: color-mix(in srgb, var(--app-primary) 4%, transparent);
+}
+
+.session-row__main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.session-row__date {
+  flex-shrink: 0;
+  font-size: var(--font-body);
+  font-weight: 600;
+  color: var(--app-text, #141416);
+}
+
+.session-row__name {
+  min-width: 0;
+  font-size: var(--font-small);
+  color: var(--app-text-tertiary, #8e8e93);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.session-row__tickets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ticket-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid color-mix(in srgb, var(--app-border) 88%, transparent);
+  border-radius: var(--radius-pill);
+  background: var(--app-surface);
+  font-size: var(--font-small);
+  color: var(--app-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, color 0.14s ease;
+}
+
+.ticket-chip--active {
+  border-color: var(--app-primary);
+  background: var(--app-primary);
+  color: var(--app-surface);
+}
+
+/* 无票档数据的场次：固定只填日期，不可点选 */
+.ticket-chip--static {
+  border-style: dashed;
+  color: var(--app-text-tertiary, #8e8e93);
+  cursor: default;
+}
+
+.ticket-chip__name {
+  max-width: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ticket-chip__price {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.session-hint {
+  margin: 8px 0 0;
+  font-size: var(--font-small);
+  color: var(--app-text-tertiary, #8e8e93);
 }
 
 .link-spinner {

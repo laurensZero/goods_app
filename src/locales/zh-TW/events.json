@@ -317,5 +317,9 @@
   "events.addMethod.manualAdd": "手動新增",
   "events.addMethod.manualAddDesc": "自己填寫活動資訊",
   "events.addMethod.importFromLink": "從連結匯入",
-  "events.addMethod.importFromLinkDesc": "貼上會員購 / 大麥 / 貓眼分享連結，自動填名稱、地點和封面"
+  "events.addMethod.importFromLinkDesc": "貼上會員購 / 大麥 / 貓眼分享連結，自動填名稱、地點和封面",
+  "events.import.sessionTitle": "選擇場次與票種",
+  "events.import.sessionHint": "選擇票種即匯入該日期，每個日期可選一個票種；無票種的場次只填日期",
+  "events.import.sessionDateOnly": "僅填日期",
+  "events.import.fillForm": "填入表單"
 }

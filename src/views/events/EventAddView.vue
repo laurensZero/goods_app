@@ -509,6 +509,7 @@ import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventD
 import { useTabletViewport } from '@/composables/viewport/useTabletViewport'
 import { geocodeAddressToCity, combineCityDistrict } from '@/utils/events/geocodeCity'
 import { parseEventCoverFromShareText } from '@/utils/events/eventCoverImport'
+import { consumeImportPrefill, buildImportFormPatch } from '@/utils/events/eventImportPrefill'
 import { showGlobalToast } from '@/utils/globalToast'
 import NavBar from '@/components/common/NavBar.vue'
 import EventDateSheet from '@/components/events/EventDateSheet.vue'
@@ -975,30 +976,37 @@ function applyPickerSelectionResult() {
   return false
 }
 
-// 从链接导入页（/events/import）跳转过来的预填：name / location / cover
-// 只在新增模式生效，且不覆盖已填字段；需在基线捕获前调用，避免立刻退出被当未保存修改
+// 从链接导入（活动列表 FAB → 弹层解析+场次选择）跳转过来的预填：
+// 预填数据经 sessionStorage（eventImportPrefill），读后即删；只在新增模式生效，
+// 且不覆盖已填字段；需在基线捕获前调用，避免立刻退出被当未保存修改
 function applyImportPrefill() {
   if (isEdit.value) return false
-  const readQuery = (key) => {
-    const value = route.query[key]
-    return typeof value === 'string' ? value.trim() : ''
-  }
-  const name = readQuery('importName')
-  const location = readQuery('importLocation')
-  const cover = readQuery('importCover')
-  if (!name && !location && !cover) return false
+  const payload = consumeImportPrefill()
+  const patch = buildImportFormPatch(payload)
+  if (!patch) return false
 
-  if (name && !String(form.name || '').trim()) {
-    form.name = name
-    syncField('name', { target: { value: name } })
+  if (patch.name && !String(form.name || '').trim()) {
+    syncField('name', { target: { value: patch.name } })
   }
-  if (location && !String(form.location || '').trim()) {
-    form.location = location
-    syncField('location', { target: { value: location } })
+  if (patch.location && !String(form.location || '').trim()) {
+    syncField('location', { target: { value: patch.location } })
+  }
+  if (patch.coverImage && !String(form.coverImage || '').trim()) {
+    form.coverImage = patch.coverImage
+  }
+  if (Array.isArray(patch.dates) && patch.dates.length > 0) {
+    form.dates = [...patch.dates]
+    if (Array.isArray(patch.dayTicketList) && patch.dayTicketList.length > 0) {
+      // dates 赋值会触发 syncDayTicketListLength watch 生成空行；直接给完整行
+      //（长度一致时已有值保留）
+      form.dayTicketList = patch.dayTicketList.map((row) => ({ price: row.price, ticketType: row.ticketType }))
+    } else if (patch.ticketPrice) {
+      form.ticketPrice = patch.ticketPrice
+    }
+    if (patch.ticketType) form.ticketType = patch.ticketType
+  }
+  if (form.location) {
     void detectCityFromLocation()
-  }
-  if (cover && !String(form.coverImage || '').trim()) {
-    form.coverImage = cover
   }
   return true
 }

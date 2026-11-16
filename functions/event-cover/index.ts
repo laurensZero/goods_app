@@ -165,6 +165,47 @@ async function resolveShareUrl(rawUrl) {
   return { url, platformResult, body }
 }
 
+// ── 场次/票档提取（sessions，仅会员购）────────────────────────────────────
+
+// 统一模型：{ date: 'YYYY-MM-DD', name, tickets: [{ name, price(元数字) }] }
+// 去重/排序/价格格式化在客户端（src/utils/events/eventCoverImport.js）统一做，
+// 这里只做会员购 screen_list 到统一模型的映射。大麦（场次接口被 RGV587 风控）
+// 与猫眼（场次结构待在售演出验证）暂不提取，sessions 为空，客户端按无场次降级。
+
+function normalizeSessionDate(raw) {
+  const text = String(raw || '').trim()
+  if (!text) return ''
+  // 'YYYY-MM-DD' / 'YYYY.MM.DD' / 'YYYY年MM月DD日'
+  const match = text.match(/(\d{4})[.\-\/年](\d{1,2})[.\-\/月](\d{1,2})/)
+  if (match) {
+    return `${match[1]}-${String(Number(match[2])).padStart(2, '0')}-${String(Number(match[3])).padStart(2, '0')}`
+  }
+  // unix 时间戳（秒或毫秒，北京时区 +8）
+  const num = Number(text)
+  if (Number.isFinite(num) && num > 0) {
+    const ms = num > 1e12 ? num : num * 1000
+    return new Date(ms + 8 * 3600 * 1000).toISOString().slice(0, 10)
+  }
+  return ''
+}
+
+function extractBilibiliSessions(data) {
+  const screens = Array.isArray(data?.screen_list) ? data.screen_list : []
+  const sessions = []
+  for (const screen of screens) {
+    const date = normalizeSessionDate(String(screen?.start_time_str || '')) || normalizeSessionDate(screen?.start_time)
+    if (!date) continue
+    const tickets = (Array.isArray(screen?.ticket_list) ? screen.ticket_list : [])
+      .map((ticket) => ({
+        name: String(ticket?.desc || '').trim(),
+        price: Number(ticket?.price) > 0 ? Number(ticket.price) / 100 : 0,
+      }))
+      .filter((ticket) => ticket.price > 0)
+    sessions.push({ date, name: String(screen?.name || '').trim(), tickets })
+  }
+  return sessions
+}
+
 // ── 会员购 ────────────────────────────────────────────────────────────────
 
 export async function parseBilibili(id) {
@@ -185,7 +226,8 @@ export async function parseBilibili(id) {
   return {
     title: String(data.name || '').trim(),
     location: String(data.venue_info?.name || '').trim(),
-    coverUrl: cover ? (cover.startsWith('//') ? `https:${cover}` : cover) : ''
+    coverUrl: cover ? (cover.startsWith('//') ? `https:${cover}` : cover) : '',
+    sessions: extractBilibiliSessions(data)
   }
 }
 
@@ -515,6 +557,7 @@ export async function onRequest(context) {
       title: parsed.title || '',
       location: parsed.location || '',
       coverUrl: absoluteCover(parsed.coverUrl, platform),
+      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
       finalUrl: finalUrl.toString(),
     })
   } catch (error) {
