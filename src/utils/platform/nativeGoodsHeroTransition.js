@@ -9,6 +9,10 @@ const HERO_FORWARD_EASING_NEAR = 'cubic-bezier(0.2, 0.85, 0.25, 1)'
 const HERO_FORWARD_EASING_FAR = 'cubic-bezier(0.15, 0.9, 0.2, 1)'
 const HERO_BACK_EASING_NEAR = 'cubic-bezier(0.25, 0.85, 0.3, 1)'
 const HERO_BACK_EASING_FAR = 'cubic-bezier(0.2, 0.9, 0.25, 1)'
+// 交叉淡出窗口：返回方向飞行最后 N ms 内先恢复真实卡片、覆盖层同步淡出，
+// 避免"缩放位图覆盖层 → 1:1 真实光栅"的同帧硬切。滚动锁释放与预加载恢复
+// 也沿用该窗口，把重绘/解码竞争挪出落地帧。
+const HERO_BACK_REVEAL_FADE_MS = 80
 const HERO_FORWARD_OVERLAY_Z_INDEX = 48
 const HERO_BACK_OVERLAY_Z_INDEX = 58
 
@@ -41,7 +45,6 @@ export function setHeroAnimMode(mode) {
   } catch {}
 }
 let heroRuntimeGeneration = 0
-let goodsCardRepaintBlockUntil = 0
 
 const activeHeroNodes = new Set()
 const activeHeroAnimations = new Set()
@@ -96,7 +99,6 @@ function resetHeroRuntimeState() {
   pendingForwardEventHero = null
   pendingBackEventHero = null
   heroAnimationLockCount = 0
-  goodsCardRepaintBlockUntil = 0
   setImagePreloadPaused(false)
 }
 
@@ -152,10 +154,6 @@ export function getHeroBackDurationMs() {
 
 export function isGoodsHeroAnimating() {
   return heroAnimationLockCount > 0
-}
-
-export function shouldBlockGoodsCardRepaint() {
-  return isGoodsHeroAnimating() || Date.now() < goodsCardRepaintBlockUntil
 }
 
 function isPendingBackHeroValid(pendingHero, currentPath = '') {
@@ -675,6 +673,7 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   let finalized = false
   let animation = null
   let timeoutId = null
+  let revealTimerId = null
   let sourceImageReady = true
   const extraAnimations = []
 
@@ -719,6 +718,10 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       clearTimeout(timeoutId)
       timeoutId = null
     }
+    if (revealTimerId != null) {
+      clearTimeout(revealTimerId)
+      revealTimerId = null
+    }
 
     if (animation && activeHeroAnimations.has(animation)) {
       activeHeroAnimations.delete(animation)
@@ -732,8 +735,9 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       activeHeroNodes.delete(node)
     }
 
-    // Restore target before removing overlay — synchronous like v1.8.1
-    // so both happen in the same browser frame with no gap.
+    // 返回方向的真实目标已在飞行末段（duration - FADE）的预揭示里恢复，覆盖层
+    // 以 opacity 溶解收尾，这里只剩删除节点这一件事。restoreElement 幂等，保留
+    // 作为提前取消（cleanupAllHeroes / 动画被打断）时的兜底。
     try {
       restoreElement(targetEl)
     } catch (e) {}
@@ -744,7 +748,14 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
     if (animationGeneration === heroRuntimeGeneration) {
       heroAnimationLockCount = Math.max(0, heroAnimationLockCount - 1)
       if (heroAnimationLockCount === 0) {
-        setImagePreloadPaused(false)
+        // 延一个 settle 窗口再唤醒预加载管线：落地帧卡片自身需要光栅化，
+        // 此刻唤醒其它图的下载/解码会抢 CPU 和解码缓存。
+        setTimeout(() => {
+          // settle 窗口内可能又起了新的 hero（它已重新暂停预加载），不要越权恢复
+          if (animationGeneration === heroRuntimeGeneration && heroAnimationLockCount === 0) {
+            setImagePreloadPaused(false)
+          }
+        }, HERO_BACK_REVEAL_FADE_MS)
       }
     }
   }
@@ -832,26 +843,57 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
         { duration, easing, fill: 'both' }
       )
 
-      // Animate clip + shadow borderRadius to compensate scaling. The shadow
+      // Animate clip + shadow corner shapes to compensate scaling. The shadow
       // layer scales with the node too, so it needs the same compensation to
       // keep its corners aligned with the clipped content.
       const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
       const compensatedFrom = `${radiusFrom}px`
-      const radiusLayers = [
-        node.querySelector('[data-hero-clip]'),
-        node.querySelector('[data-hero-shadow]')
-      ].filter(Boolean)
-      radiusLayers.forEach((layer) => {
+
+      // 裁剪层用 clip-path 而不是 border-radius 做圆角补间：inset(round) 可以上
+      // 合成器、与 node 的 transform 同一次 commit 提交；border-radius 动画在主
+      // 线程逐帧重光栅，容易出现"transform 已到、圆角还是上一帧光栅"的呈现帧，
+      // 表现就是落地时的圆角闪跳。静态 border-radius 必须清零，否则两个裁剪
+      // 形状相交，末帧圆角仍按 radiusFrom 收口。
+      const clipLayer = node.querySelector('[data-hero-clip]')
+      if (clipLayer) {
+        const fromClip = `inset(0 round ${compensatedFrom})`
+        const toClip = `inset(0 round ${compensatedTo})`
         try {
-          layer.style.borderRadius = compensatedFrom
-          const radiusAnim = layer.animate(
+          clipLayer.style.borderRadius = '0px'
+          clipLayer.style.clipPath = fromClip
+          const clipAnim = clipLayer.animate(
+            [ { clipPath: fromClip }, { clipPath: toClip } ],
+            { duration, easing, fill: 'both' }
+          )
+          activeHeroAnimations.add(clipAnim)
+          extraAnimations.push(clipAnim)
+        } catch (e) {
+          // clip-path WAAPI 不可用时回退到旧行为，至少保证圆角随飞行变化
+          try {
+            clipLayer.style.clipPath = ''
+            clipLayer.style.borderRadius = compensatedFrom
+            const fallbackAnim = clipLayer.animate(
+              [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
+              { duration, easing, fill: 'both' }
+            )
+            activeHeroAnimations.add(fallbackAnim)
+            extraAnimations.push(fallbackAnim)
+          } catch (e2) {}
+        }
+      }
+
+      const shadowLayer = node.querySelector('[data-hero-shadow]')
+      if (shadowLayer) {
+        try {
+          shadowLayer.style.borderRadius = compensatedFrom
+          const shadowAnim = shadowLayer.animate(
             [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
             { duration, easing, fill: 'both' }
           )
-          activeHeroAnimations.add(radiusAnim)
-          extraAnimations.push(radiusAnim)
+          activeHeroAnimations.add(shadowAnim)
+          extraAnimations.push(shadowAnim)
         } catch (e) {}
-      })
+      }
     } else {
       const keyframes = [
         {
@@ -947,6 +989,29 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
   }
 
   activeHeroAnimations.add(animation)
+
+  // 返回方向不做末帧硬切换：落地前最后一个窗口里先恢复真实卡片（此时覆盖层
+  // 仍几乎不透明地盖在目标矩形上，真实内容可以安静地重光栅化），覆盖层在同样
+  // 长的窗口内做合成器友好的 opacity 溶解。合成器(transform)模式下覆盖层末帧
+  // 是"整体缩放后的位图"，与真实卡片 1:1 光栅同帧硬切会产生可感知的重采样
+  // 突变——溶解把突变变成一次渐变。
+  if (direction === 'back') {
+    const fadeDelay = Math.max(0, duration - HERO_BACK_REVEAL_FADE_MS)
+    try {
+      const fadeAnim = node.animate(
+        [ { opacity: '1' }, { opacity: '0' } ],
+        { duration: HERO_BACK_REVEAL_FADE_MS, delay: fadeDelay, fill: 'both', easing: 'linear' }
+      )
+      activeHeroAnimations.add(fadeAnim)
+      extraAnimations.push(fadeAnim)
+    } catch (e) {}
+    revealTimerId = setTimeout(() => {
+      revealTimerId = null
+      try {
+        restoreElement(targetEl)
+      } catch (e) {}
+    }, fadeDelay)
+  }
 
   if (typeof animation.addEventListener === 'function') {
     animation.addEventListener('finish', finalize, { once: true })
@@ -1113,10 +1178,8 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }
 
   const releaseScrollLock = lockBackScroll(
     targetEl,
-    Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
+    Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + HERO_BACK_REVEAL_FADE_MS + 40)
   )
-
-  goodsCardRepaintBlockUntil = Date.now() + BACK_DURATION_MS + 160
 
   void animateHero(
     pendingBackHero,
@@ -1129,7 +1192,9 @@ export function playGoodsHeroBack({ currentPath = '', resolveTargetEl, onReady }
       onReady
     }
   ).finally(() => {
-    releaseScrollLock()
+    // 滚动锁延一个 settle 窗口再释放：overflow 恢复会让整个滚动容器重算样式/
+    // 重绘，不要叠在落地帧上。提前取消场景由锁自身的兜底 timer 收尾。
+    setTimeout(releaseScrollLock, HERO_BACK_REVEAL_FADE_MS)
   })
 
   pendingBackHero = null
@@ -1281,7 +1346,7 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl, onReady }
 
   const releaseScrollLock = lockBackScroll(
     targetEl,
-    Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + 40)
+    Math.max(BACK_SCROLL_LOCK_MS, BACK_DURATION_MS + HERO_BACK_REVEAL_FADE_MS + 40)
   )
 
   void animateHero(
@@ -1295,7 +1360,8 @@ export function playEventHeroBack({ currentPath = '', resolveTargetEl, onReady }
       onReady
     }
   ).finally(() => {
-    releaseScrollLock()
+    // 与 playGoodsHeroBack 相同：overflow 恢复挪出落地帧
+    setTimeout(releaseScrollLock, HERO_BACK_REVEAL_FADE_MS)
   })
 
   pendingBackEventHero = null
