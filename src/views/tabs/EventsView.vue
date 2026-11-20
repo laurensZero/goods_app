@@ -1019,7 +1019,7 @@ onBeforeUnmount(() => {
    section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
 .summary-section {
   position: relative;
-  --mhy-bubble-right: var(--page-padding);
+  --mhy-bubble-right: var(--page-padding); /* 本页概览卡无头部按钮，贴原始右上角 */; /* 右移躲开小眼睛（40px 按钮 + 间隙），否则贴角重叠 */
 }
 
 .events-page--restoring {

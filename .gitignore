@@ -60,3 +60,6 @@ supabase/recharge_options_seed.sql
 
 miyoushe_assets/
 hoyolab_assets/
+
+# supabase CLI 本地状态（link/pooler 缓存）
+supabase/.temp/

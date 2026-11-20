@@ -103,7 +103,8 @@ async function fetchMiyoushe() {
   const list = json?.data?.list || []
   log(`[miyoushe] 拉到 ${list.length} 条`)
 
-  return list.map((it) => {
+  // sort = 官方目录返回顺序（0 = 最新）；官方 sort 字段全是 0 没有信息，接口顺序才有意义
+  return list.map((it, idx) => {
     const game = guessMiyousheGame(it)
     return {
       id: `ms:${it.id}`,
@@ -114,7 +115,7 @@ async function fetchMiyoushe() {
       description: String(it.description || '').trim(),
       url: stripProcess(it.url),
       animated: false,
-      sort: Number(it.sort) || 0
+      sort: idx
     }
   }).filter((it) => it.url && it.name)
 }
@@ -165,6 +166,8 @@ async function fetchHoyolab() {
       })
     }
   }
+  // hy 条目 sort 从 100000 起：客户端 game,sort 排序下同 IP 组内米游社条目（0..N）排前面
+  out.forEach((it, idx) => { it.sort = 100000 + idx })
   log(`[hoyolab] 拉到 ${out.length} 条（${groups.length} 个系列）`)
   return out
 }
@@ -185,7 +188,7 @@ function fetchMiyousheLocal() {
   const data = readLocalJson('miyoushe_assets/manifest.json')
   if (!Array.isArray(data)) return []
   log(`[local] 米游社 ${data.length} 条`)
-  return data.map((it) => ({
+  return data.map((it, idx) => ({
     id: `ms:${it.id}`,
     source: 'miyoushe',
     // 快照里的「其他」用最新关键词规则重猜一次（规则后来加过词，旧快照没享受到）
@@ -194,7 +197,7 @@ function fetchMiyousheLocal() {
     description: String(it.description || '').trim(),
     url: stripProcess(it.url),
     animated: false,
-    sort: Number(it.sort) || 0
+    sort: idx
   })).filter((it) => it.url && it.name)
 }
 
@@ -202,7 +205,7 @@ function fetchHoyolabLocal() {
   const data = readLocalJson('hoyolab_assets/manifest.json')
   if (!Array.isArray(data)) return []
   log(`[local] HoYoLAB ${data.length} 条`)
-  return data.map((it) => ({
+  const hyRows = data.map((it) => ({
     id: `hy:${it.id}`,
     source: 'hoyolab',
     rawGame: String(it.game || '').trim(),
@@ -211,8 +214,10 @@ function fetchHoyolabLocal() {
     description: '',
     url: stripProcess(it.url),
     animated: it.live === true,
-    sort: Number(it.sort) || 0
+    sort: 0
   })).filter((it) => it.url && it.name)
+  hyRows.forEach((it, idx) => { it.sort = 100000 + idx })
+  return hyRows
 }
 
 // ---------------- 输出 ----------------

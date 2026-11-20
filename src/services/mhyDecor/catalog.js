@@ -131,7 +131,7 @@ async function fetchFromSupabase() {
     .from('mhy_decor_pendants')
     .select(SELECT_COLUMNS)
     .eq('enabled', true)
-    .order('source', { ascending: true })
+    // sort 已编码米游社在前（ms 0..N / hy 100000..N），source 不再参与排序
     .order('game', { ascending: true })
     .order('sort', { ascending: true })
 

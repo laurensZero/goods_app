@@ -118,7 +118,7 @@ async function resolveSourceAuth(
 
 // ---------------- 米游社 ----------------
 
-function mapMiyoushe(it: any): PendantRow | null {
+function mapMiyoushe(it: any, idx: number): PendantRow | null {
   const url = stripProcess(it?.url);
   const name = String(it?.name || "").trim();
   if (!url || !name) return null;
@@ -131,7 +131,8 @@ function mapMiyoushe(it: any): PendantRow | null {
     description: String(it?.description || "").trim(),
     url,
     animated: false,
-    sort: Number(it?.sort) || 0,
+    // sort = 官方目录返回顺序（0 = 最新）；官方 sort 字段全 0 没信息
+    sort: idx,
   };
 }
 
@@ -144,12 +145,12 @@ async function fetchMiyoushe(cookie: string): Promise<PendantRow[]> {
     throw new Error(`miyoushe retcode=${body?.retcode} ${body?.message || ""}`);
   }
   const list = body?.data?.list || [];
-  return list.map(mapMiyoushe).filter(Boolean) as PendantRow[];
+  return list.map((it, idx) => mapMiyoushe(it, idx)).filter(Boolean) as PendantRow[];
 }
 
 // ---------------- HoYoLAB ----------------
 
-function mapHoyolab(it: any): PendantRow | null {
+function mapHoyolab(it: any, idx: number): PendantRow | null {
   const url = stripProcess(it?.url || it?.dark_url);
   const name = String(it?.title || "").trim();
   if (!url || !name) return null;
@@ -165,7 +166,8 @@ function mapHoyolab(it: any): PendantRow | null {
     description: "",
     url,
     animated: it?.live === true,
-    sort: Number(it?.sort) || 0,
+    // hy 条目 sort 从 100000 起：同 IP 组内米游社条目（0..N）排前面
+    sort: 100000 + idx,
   };
 }
 
@@ -193,7 +195,7 @@ async function fetchHoyolab(cookie: string): Promise<PendantRow[]> {  const url 
     for (const it of group?.list || []) {
       if (seen.has(String(it?.id))) continue;
       seen.add(String(it?.id));
-      const row = mapHoyolab(it);
+      const row = mapHoyolab(it, out.length);
       if (row) out.push(row);
     }
   }
@@ -258,7 +260,8 @@ async function fetchMiyousheBubbles(cookie: string): Promise<BubbleRow[]> {
       gif_url: gif,
       pag_url: pag,
       animated: Boolean(gif || pag),
-      sort: Number(it?.sort_order) || 0,
+      // 气泡 sort 同样用背包接口返回顺序（0 = 最新）
+      sort: out.length,
     });
   }
   return out;
@@ -423,6 +426,13 @@ serve(async () => {
   const merged = [...msRows, ...hyRows];
   const items = dedupeDecorItems(merged);
   summary.content_deduped = merged.length - items.length;
+  // 被内容去重丢掉的条目要把云端旧行删掉，否则旧行永远冻在旧 sort/旧内容上
+  const kept = new Set(items);
+  const droppedIds = merged.filter((row) => !kept.has(row)).map((row) => row.id);
+  if (droppedIds.length) {
+    const { error } = await admin.from(TABLE).delete().in("id", droppedIds);
+    if (error) errors.push(`内容去重删除失败: ${error.message}`);
+  }
   for (let i = 0; i < items.length; i += UPSERT_CHUNK) {
     const chunk = items.slice(i, i + UPSERT_CHUNK).map((row) => ({
       ...row,

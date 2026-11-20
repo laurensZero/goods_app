@@ -8,10 +8,10 @@
     开关门控由宿主在调用点处理（v-if 包住本组件即可）。
   -->
   <span class="mhy-bubble-deco">
-    <!-- 气泡贴角画：透明底 PNG（动图播 gif），pointer-events 穿透不挡面板交互 -->
+    <!-- 气泡贴角画：透明底 PNG（动图播 gif）。画布 4:1 左侧大量留白，可点区用
+         专用热区条收敛在右侧美术区域（见 .mhy-bubble-deco__tap），避免透明部分
+         吃掉头部标题/按钮的点击 -->
     <span v-if="bubbleSrc" class="mhy-bubble-deco__bubble" aria-hidden="true">
-      <!-- 与头像框同一条图片缓存链路：换图时保留旧像素，新图解码完再替换；
-           失败不显示内置占位（透明贴角上会露出灰底），由下面的降级链处理 -->
       <LazyCachedImage
         :src="bubbleSrc"
         alt=""
@@ -20,10 +20,16 @@
         class="mhy-bubble-deco__bubble-img"
         @error="onBubbleImgError"
       />
+      <button
+        type="button"
+        class="mhy-bubble-deco__tap"
+        :aria-label="t('my.bubble.editEntry')"
+        @click.stop="openPicker"
+      />
     </span>
 
-    <!-- 编辑入口：低调小铅笔。桌面 hover 才显现，触屏常态低透明度；
-         气泡本体 pointer-events:none，按钮单独恢复可点 -->
+    <!-- 编辑入口：低调小铅笔。所有端默认隐形（触屏无 hover，常驻会被用户要求隐藏），
+         热区保留：桌面 hover 浮现，触屏直接点贴角盲区/点气泡本体打开选择器 -->
     <button
       type="button"
       class="mhy-bubble-deco__edit"
@@ -162,6 +168,21 @@ function onSelect(item) {
   width: var(--mhy-bubble-size, 176px);
 }
 
+/* 可点热区：只盖右侧美术区域（约前 62% 是透明留白），点气泡=开选择器；
+   触屏端编辑钮隐形后的主要入口 */
+.mhy-bubble-deco__tap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 38%;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
 /* LazyCachedImage 根节点默认 height:100%，父级没有显式高度会塌成 0；
    素材固定 4:1，这里用 aspect-ratio 撑出高度 */
 .mhy-bubble-deco__bubble-img {
@@ -196,8 +217,8 @@ function onSelect(item) {
   z-index: 2;
   pointer-events: auto;
   cursor: pointer;
-  /* 触屏常态低透明度 */
-  opacity: 0.42;
+  /* 全端默认隐形（触屏用户要求隐藏按钮），24px 热区保留可盲点 */
+  opacity: 0;
   transition: opacity 0.16s ease;
 }
 
@@ -206,12 +227,8 @@ function onSelect(item) {
   height: 14px;
 }
 
-/* 桌面 hover 显现：贴角 24px 热区常驻（opacity 不影响命中），移入即浮现 */
+/* 桌面 hover 显现；触屏端无 hover，入口交给气泡本体点击 + 热区盲点 */
 @media (hover: hover) and (pointer: fine) {
-  .mhy-bubble-deco__edit {
-    opacity: 0;
-  }
-
   .mhy-bubble-deco__edit:hover,
   .mhy-bubble-deco__edit:focus-visible {
     opacity: 0.85;

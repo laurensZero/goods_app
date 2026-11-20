@@ -808,7 +808,7 @@ defineExpose({
    section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
 .summary-section {
   position: relative;
-  --mhy-bubble-right: var(--page-padding);
+  --mhy-bubble-right: calc(var(--page-padding) + 60px); /* 右移躲开小眼睛（40px + 卡片内边距 24） */; /* 右移躲开小眼睛（40px 按钮 + 间隙），否则贴角重叠 */
 }
 
 .toolbar-section,
