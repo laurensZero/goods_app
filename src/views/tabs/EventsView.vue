@@ -69,6 +69,8 @@
             </div>
           </template>
         </SummaryCard>
+        <!-- 评论装扮气泡（米游社）：贴概览卡右上角的纯装饰；米游铺开关关闭时不渲染（展示层闸门，数据照常保留） -->
+        <MhyBubbleDeco v-if="mihoyoFeaturesStore.enabled" page-key="events" />
       </section>
 
       <section v-if="eventsStore.activeList.length > 0" class="toolbar-section">
@@ -321,6 +323,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import MhyBubbleDeco from '@/components/common/MhyBubbleDeco.vue'
 import SearchBar from '@/components/common/SearchBar.vue'
 import ScrollTopButton from '@/components/common/ScrollTopButton.vue'
 import EventCard from '@/components/events/EventCard.vue'
@@ -332,6 +335,7 @@ import TimelineMonthScrubber from '@/components/home/TimelineMonthScrubber.vue'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { usePageScroll } from '@/composables/scroll'
 import { useEventsStore } from '@/stores/events'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { formatMonthLabel, formatPrice } from '@/utils/format'
 import { addAndroidBackButtonListener } from '@/utils/platform/androidBackButton'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -356,6 +360,7 @@ const EVENT_BACK_HERO_RETRY_MAX_FRAMES = 40
 const router = useRouter()
 const route = useRoute()
 const eventsStore = useEventsStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const pageBodyRef = ref(null)
 const isEventsActive = ref(true)
 const eventsTimelineListRef = ref(null)
@@ -1008,6 +1013,13 @@ onBeforeUnmount(() => {
 .events-page {
   position: relative;
   background: var(--app-bg-gradient);
+}
+
+/* 评论装扮气泡锚点：概览卡（SummaryCard）右上角内侧。
+   section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
+.summary-section {
+  position: relative;
+  --mhy-bubble-right: var(--page-padding);
 }
 
 .events-page--restoring {

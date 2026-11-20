@@ -106,3 +106,12 @@ verify_jwt = true
 # 部署前需设置 Secret：supabase secrets set MOCK_NOTIFY_SECRET=<随机长字符串>
 [functions.pay-notify]
 verify_jwt = false
+
+# 头像挂件清单定时同步：米游社/HoYoLAB 新挂件自动入库+镜像（无凭证时自动跳过）
+# 需配置 Secret（推荐 stoken，运行时自动换新鲜 Cookie，免过期维护）：
+#   MIYOUSHE_STOKEN / HOYOLAB_STOKEN   stoken_v2=<v>; mid=<m>; aid=<uid>
+#   （米游社的可直接贴 scripts/mihoyo-get-stoken.mjs 产出的 stoken.txt 内容）
+#   或 MIYOUSHE_COOKIE / HOYOLAB_COOKIE（短期，过期需人工换）
+[functions.sync-mhy-decor]
+verify_jwt = false
+schedule = "30 1 * * *"

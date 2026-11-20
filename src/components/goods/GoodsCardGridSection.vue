@@ -266,6 +266,14 @@ function resolveMotionDuration() {
   return 320
 }
 
+// 大屏渲染窗大（≥900px 平板 5~8 列、56~80 张常驻卡），参与动效的卡片数从 40
+// 收紧到 24（≈3 行），避免 40 个 will-change 层 + 40 条并行 transition 同帧竞争；
+// 窄视口实际参与数远低于上限，行为不变。Android 低性能路径在此之前已分流。
+function resolveMotionBudget() {
+  const width = Math.max(0, Number(props.windowWidth) || 0)
+  return width >= 900 ? 24 : 40
+}
+
 function resolveMotionEasing() {
   return HOME_MOTION.easeEmphasis
 }
@@ -304,7 +312,7 @@ async function playAddMotion(payload) {
   const originRect = getOriginRect(payload)
   const motionDuration = resolveMotionDuration()
   const nextStyles = []
-  const visibleItems = props.items.slice(0, Math.min(props.items.length, 40))
+  const visibleItems = props.items.slice(0, Math.min(props.items.length, resolveMotionBudget()))
 
   for (const item of visibleItems) {
     const id = String(item.id || '')

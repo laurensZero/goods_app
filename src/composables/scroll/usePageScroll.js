@@ -180,10 +180,10 @@ export function usePageScroll(pageName, pageBodyRef, options = {}) {
     }
   }
 
-  function rememberCurrentScrollPosition(reason = 'remember') {
+  function rememberCurrentScrollPosition(reason = 'remember', snapshot = null) {
     if (isGoodsHeroAnimating()) return
     // 高频滚动路径：跳过锚点扫描（锚点由路由离开时的 saveScrollPosition 落盘）
-    const { top, source } = getScrollSnapshot()
+    const { top, source } = snapshot || getScrollSnapshot()
     writeScrollState({ top, source, anchorId: '', anchorIndex: -1 })
     debugLog('rememberCurrentScrollPosition', { reason, top, source })
   }
@@ -377,9 +377,11 @@ export function usePageScroll(pageName, pageBodyRef, options = {}) {
     scrollRaf = window.requestAnimationFrame(() => {
       scrollRaf = 0
       if (isRouteLeaving || isGoodsHeroAnimating()) return
-      const top = readScrollTop()
-      rememberCurrentScrollPosition('scroll')
-      onScroll?.(top)
+      // 同帧只读一次滚动快照：top 同时喂给落盘与宿主回调，
+      // 避免同一帧内多次 scrollHeight/clientHeight 读在布局脏帧反复 flush
+      const snapshot = getScrollSnapshot()
+      rememberCurrentScrollPosition('scroll', snapshot)
+      onScroll?.(snapshot.top)
     })
   }
 

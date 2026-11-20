@@ -62,6 +62,8 @@
           :tips-title="t('home.wishlist.budgetTipsTitle')"
           :tips-items="wishlistTipsItems"
         />
+        <!-- 评论装扮气泡（米游社）：贴概览卡右上角的纯装饰；米游铺开关关闭时不渲染（展示层闸门，数据照常保留） -->
+        <MhyBubbleDeco v-if="mihoyoFeaturesStore.enabled" page-key="wishlist" />
       </section>
 
       <HomeGoodsToolbar
@@ -267,6 +269,7 @@ import GoodsListSkeleton from '@/components/common/GoodsListSkeleton.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import MhyBubbleDeco from '@/components/common/MhyBubbleDeco.vue'
 import AddMethodSheet from '@/components/goods/AddMethodSheet.vue'
 import BatchDraftResumeSheet from '@/components/goods/BatchDraftResumeSheet.vue'
 import { pickLinkedLocalImages } from '@/utils/image/localImage'
@@ -1556,6 +1559,13 @@ onBeforeUnmount(() => {
 <style scoped>
 .wishlist-page {
   position: relative;
+}
+
+/* 评论装扮气泡锚点：概览卡（SummaryCard）右上角内侧。
+   section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
+.summary-section {
+  position: relative;
+  --mhy-bubble-right: var(--page-padding);
 }
 
 .wishlist-page--top-jump .page-body {

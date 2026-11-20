@@ -407,6 +407,8 @@
   "manage.mihoyoFeaturesScopeNotifyDesc": "上新推送、监听店铺、发货提醒等",
   "manage.mihoyoFeaturesScopeRecharge": "充值 · 从数据源选择",
   "manage.mihoyoFeaturesScopeRechargeDesc": "关闭后添加充值记录直接进入手动录入",
+  "manage.mihoyoFeaturesScopePendant": "头像挂件",
+  "manage.mihoyoFeaturesScopePendantDesc": "我的页头像框选择与展示（米游社 / HoYoLAB 装扮）",
   "manage.mihoyoFeaturesStatusOn": "米游铺功能已启用",
   "manage.mihoyoFeaturesStatusOnDesc": "相关入口在应用内正常显示",
   "manage.mihoyoFeaturesStatusOff": "米游铺功能已关闭",

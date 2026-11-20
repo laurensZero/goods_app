@@ -56,16 +56,26 @@
         <div class="account-hero__backdrop" aria-hidden="true" />
 
         <article class="account-panel">
+          <!-- 评论装扮气泡（米游社）：贴账号面板右上角的纯装饰；米游铺开关关闭时不渲染（展示层闸门，数据照常保留） -->
+          <MhyBubbleDeco v-if="mihoyoFeaturesStore.enabled" page-key="my" />
           <div class="account-panel__main">
             <div class="account-avatar-wrap">
-              <LazyCachedImage
+              <!-- 头像 + 米游社/HoYoLAB 挂件外圈（挂件存 catalog 紧凑项，取图走 resolvePendantSrc；
+                   米游铺开关关闭时传空 frame 退化为纯头像，闸在调用点，组件保持中性可复用） -->
+              <MhyAvatarFrame
                 v-if="displayAvatarSrc"
-                class="account-avatar"
-                :src="displayAvatarSrc"
+                class="account-avatar-frame"
+                :avatar="displayAvatarSrc"
+                :frame="displayPendant?.u || ''"
+                :frame-mirror="displayPendant?.m || ''"
+                :frame-thumb="displayPendant?.t || ''"
+                :animated="!!displayPendant?.a"
+                :play-animation="true"
+                :scale="1.4"
+                :size="MHY_PENDANT_AVATAR_SIZE"
                 :alt="t('my.avatar')"
                 :lazy="false"
                 :skeleton-enabled="false"
-                image-attrs="{ class: 'account-avatar' }"
               />
               <span v-else class="account-avatar account-avatar--placeholder">{{ avatarInitial }}</span>
               <input ref="avatarInputRef" type="file" accept="image/*" class="avatar-file-input" @change="onAvatarFileChange" />
@@ -452,6 +462,11 @@
         <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="editExistingAvatar">
           {{ t('my.editCurrentAvatar') }}
         </button>
+        <!-- 挂件入口：先关本弹层再开选择器，两个 AppSheet 叠层容易出遮罩/返回键问题；
+             米游铺开关关闭时整个入口不渲染（展示层闸门，数据照常保留） -->
+        <button v-if="mihoyoFeaturesStore.enabled" type="button" class="login-sheet__button login-sheet__button--secondary" @click="openPendantPickerFromProfileEdit">
+          {{ t('my.pendant.editEntry') }}
+        </button>
         <button v-if="displayAvatarSrc" type="button" class="login-sheet__button login-sheet__button--secondary" @click="confirmResetAvatar">
           {{ t('my.resetAvatar') }}
         </button>
@@ -467,6 +482,13 @@
       :source-file="avatarEditorFile"
       simple-mode
       @save="onAvatarEditorSave"
+    />
+
+    <!-- 头像挂件选择器：点 tile 即时生效，宿主负责落库 -->
+    <MhyDecorPickerSheet
+      v-model="showPendantPicker"
+      :pendant="mhyPendant"
+      @select="applyMhyPendant"
     />
 
     <!-- Change Password Dialog -->
@@ -855,7 +877,8 @@ import SupabaseLoginDialog from '@/components/common/SupabaseLoginDialog.vue'
 import QrScannerOverlay from '@/components/my/QrScannerOverlay.vue'
 import AppToast from '@/components/common/AppToast.vue'
 import QuickImageEditorDialog from '@/components/image/QuickImageEditorDialog.vue'
-import { getCachedImage, peekCachedImage } from '@/utils/image/cache'
+import { getCachedImage, peekCachedImage, preloadImages } from '@/utils/image/cache'
+import { resolveAvatarPendantSrc } from '@/utils/mhyDecor/cdn'
 import { useToast } from '@/composables/useToast'
 import { formatDate, formatPrice } from '@/utils/format'
 import { useSyncStore } from '@/stores/sync'
@@ -864,6 +887,7 @@ import { useExchangeRateStore } from '@/stores/exchangeRate'
 import { useCharacterBirthdayStore } from '@/stores/characterBirthday'
 import { useAnnouncementStore } from '@/stores/announcement'
 import { useQQBindingStore } from '@/stores/qqBinding'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { detectMarkdownContent, renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { runWithRouteTransition } from '@/utils/routeTransition'
 import { scrollToTopAnimated } from '@/utils/scrollToTopAnimated'
@@ -872,7 +896,9 @@ import { useI18n } from 'vue-i18n'
 import { useQrScanner } from '@/composables/my/useQrScanner'
 import QQBindingSheet from '@/components/my/QQBindingSheet.vue'
 import AppSheet from '@/components/common/AppSheet.vue'
-import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
+import MhyAvatarFrame from '@/components/common/MhyAvatarFrame.vue'
+import MhyDecorPickerSheet from '@/components/my/MhyDecorPickerSheet.vue'
+import MhyBubbleDeco from '@/components/common/MhyBubbleDeco.vue'
 import { useBudgetCalculation } from '@/composables/my/useBudgetCalculation'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { useDialogBackButton } from '@/composables/useDialogBackButton'
@@ -891,6 +917,7 @@ const exchangeRateStore = useExchangeRateStore()
 const birthdayStore = useCharacterBirthdayStore()
 const announcementStore = useAnnouncementStore()
 const qqStore = useQQBindingStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const pageBodyRef = ref(null)
 
 // ── 页面滚动位置记录 ──
@@ -966,6 +993,124 @@ const avatarEditorFile = ref(null)
 const displayAvatarSrc = computed(() => {
   return customAvatarUrl.value || authStore.userAvatarUrl || cachedAvatarSrc.value || ''
 })
+
+// —— 头像挂件（米游社/HoYoLAB 装扮）——
+// 本地即写即生效；登录用户再同步到 user_metadata.mhy_pendant 做多端同步。
+// 存 catalog 紧凑项 {i,u,t,m,a,n}，字段含义见 services/mhyDecor/catalog.js。
+const MHY_PENDANT_KEY = 'goods_mhy_pendant'
+/** 个人主页头像直径：挂件预热与 <MhyAvatarFrame> 必须用同一个值，否则预热的是另一个 URL */
+const MHY_PENDANT_AVATAR_SIZE = 84
+const mhyPendant = ref(null)
+const showPendantPicker = ref(false)
+
+// 米游铺总开关只闸展示层：关时头像上不渲染挂件（等价于没选），选择数据与本地缓存
+// 都不动，重新打开开关即恢复；数据层照常同步，别把用户的选择丢了
+const displayPendant = computed(() => (mihoyoFeaturesStore.enabled ? mhyPendant.value : null))
+
+/** 解析本地/云端存的挂件 JSON，坏数据一律当无挂件 */
+function parseMhyPendant(raw) {
+  if (!raw || typeof raw !== 'string') return null
+  try {
+    const p = JSON.parse(raw)
+    if (!p || typeof p !== 'object' || !p.i || !p.u) return null
+    return {
+      i: String(p.i),
+      u: String(p.u),
+      t: String(p.t || ''),
+      m: String(p.m || ''),
+      a: p.a === true,
+      n: String(p.n || '')
+    }
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 读取优先级：user_metadata.mhy_pendant > 本地缓存（登录用户多端同步优先）。
+ * 云端没设过（undefined）才退本地；显式 null 说明在别的端清空过，本地镜像跟着清。
+ */
+async function restoreMhyPendant() {
+  const cloudRaw = authStore.user?.user_metadata?.mhy_pendant
+  if (cloudRaw !== undefined) {
+    const pendant = parseMhyPendant(cloudRaw)
+    mhyPendant.value = pendant
+    // 本地镜像跟上云端，登出/离线启动时也有得用
+    try {
+      await writePersisted(MHY_PENDANT_KEY, pendant ? JSON.stringify(pendant) : '')
+    } catch { /* 镜像写失败不影响本次展示 */ }
+    return
+  }
+  const localRaw = await readPersisted(MHY_PENDANT_KEY, '')
+  mhyPendant.value = parseMhyPendant(localRaw)
+}
+
+// 登录态/元数据变化时重新收敛挂件来源；immediate 覆盖未登录时的本地读取
+watch(
+  () => authStore.user?.user_metadata?.mhy_pendant,
+  () => { void restoreMhyPendant() },
+  { immediate: true }
+)
+
+// —— 挂件跨端同步拉取 ——
+// supabase-js 不推送 user_metadata 变更：进页面 + 登录态变化时各拉一次最新 user，
+// 让其他端改的 mhy_pendant 尽快落到本机；页面停留期间不轮询。
+const PENDANT_USER_SYNC_MIN_INTERVAL_MS = 10_000
+let lastPendantUserSyncAt = 0
+
+function syncCloudPendantUser() {
+  if (!authStore.isLoggedIn) return
+  const now = Date.now()
+  // 限频：挂载与登录态 watch 常在同一次 init 里先后触发，10s 窗口内只打一次请求
+  if (now - lastPendantUserSyncAt < PENDANT_USER_SYNC_MIN_INTERVAL_MS) return
+  lastPendantUserSyncAt = now
+  void authStore.refreshUser()
+}
+
+// watch user.id 而非 user 引用：refreshUser 每次都换新 user 对象，watch user 会自己触发自己
+// 造成死循环；id 变化只发生在登录/换号，语义正好是「登录态变化时拉一次」
+watch(
+  () => authStore.user?.id || null,
+  (id) => {
+    if (id) syncCloudPendantUser()
+  }
+)
+
+/** 选择器点 tile 的即时回调：更新选中态 + 本地落库 + 云端同步 */
+function applyMhyPendant(pendant) {
+  mhyPendant.value = pendant
+  writePersisted(MHY_PENDANT_KEY, pendant ? JSON.stringify(pendant) : '').catch(() => {})
+  // 列表里看到的只是 128px 静态缩略图，头像要的是另一档地址（动图甚至 1MB 级）；
+  // 面板还开着时先把头像尺寸的图下好，切完关面板就能直接出图，不用再等一次网络往返
+  if (pendant?.u) {
+    const src = resolveAvatarPendantSrc(pendant, { size: MHY_PENDANT_AVATAR_SIZE, playAnimation: true })
+    if (src) void preloadImages([src])
+  }
+  if (authStore.isLoggedIn) {
+    // 清空传 null（区别于「没设过」的 undefined，其他端能识别出「已清空」）
+    authStore.updateProfile({ mhy_pendant: pendant ? JSON.stringify(pendant) : null }).catch((e) => {
+      console.warn('[MyView] mhy_pendant sync failed', e)
+      showToastMsg(t('my.pendant.saveFailed'))
+    })
+  }
+}
+
+function openPendantPicker() {
+  showPendantPicker.value = true
+}
+
+/**
+ * 弹层入口：先关 profile edit sheet 再开挂件选择器。
+ * 两个 AppSheet 叠层容易出遮罩/返回键问题，先关再开最稳。
+ */
+function openPendantPickerFromProfileEdit() {
+  closeProfileEditSheet()
+  openPendantPicker()
+}
+
+function closePendantPicker() {
+  showPendantPicker.value = false
+}
 
 
 // 缓存头像
@@ -1481,6 +1626,7 @@ async function confirmDeleteAccount() {
 useDialogBackButton(closeBudgetDialog, showBudgetDialog)
 useDialogBackButton(closeLogoutDialog, showLogoutDialog)
 useDialogBackButton(closeProfileEditSheet, showProfileEditSheet)
+useDialogBackButton(closePendantPicker, showPendantPicker)
 useDialogBackButton(closeChangePasswordSheet, showChangePasswordSheet)
 useDialogBackButton(closeAccountManageSheet, showAccountManageSheet)
 useDialogBackButton(closeDeleteAccountSheet, showDeleteAccountSheet)
@@ -1495,6 +1641,8 @@ onMounted(async () => {
   const saved = await readPersisted(CUSTOM_AVATAR_KEY, '')
   if (saved) customAvatarUrl.value = saved
   await Promise.all([syncStore.init(), authStore.init(), loadBudgetSettings()])
+  // init 只在冷启动拉过一次 user，这里再补一次：其他端改过的挂件尽快反映到本机（内部限频）
+  syncCloudPendantUser()
 })
 
 onActivated(async () => {
@@ -2226,6 +2374,16 @@ onActivated(async () => {
 .account-avatar-wrap {
   position: relative;
   cursor: pointer;
+}
+
+/* 挂件画布（MhyAvatarFrame）接管头像容器：圆形 + 外圈挂件，阴影挂在内层头像上保持原观感 */
+.account-avatar-frame :deep(.mhy-avatar-frame__avatar) {
+  box-shadow: 0 16px 40px rgba(31, 41, 55, 0.16);
+}
+
+/* 有头像时走圆形画布，无头像占位符也保持同形，两种状态切换不跳形状 */
+.account-avatar--placeholder {
+  border-radius: 50%;
 }
 
 .avatar-file-input {

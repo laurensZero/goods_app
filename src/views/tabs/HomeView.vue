@@ -58,6 +58,8 @@
 
       <section class="summary-section">
         <SummaryCard :total-value="totalValue" :total-count="goodsList.length" :trend-items="store.collectionViewList" trend-date-field="acquiredAt" spend-mode />
+        <!-- 评论装扮气泡（米游社）：贴概览卡右上角的纯装饰；米游铺开关关闭时不渲染（展示层闸门，数据照常保留） -->
+        <MhyBubbleDeco v-if="mihoyoFeaturesStore.enabled" page-key="home" />
       </section>
 
       <HomeGoodsToolbar
@@ -340,6 +342,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useGoodsStore } from '@/stores/goods'
 import { useGoodsGroupStore } from '@/stores/goods/goodsGroup'
 import { useExchangeRateStore } from '@/stores/exchangeRate'
+import { useMihoyoFeaturesStore } from '@/stores/mihoyoFeatures'
 import { preloadImages, setImagePreloadPaused } from '@/utils/image/cache'
 import { useGoodsSelection } from '@/composables/goods/useGoodsSelection'
 import { useGoodsSortable, GOODS_SORTABLE_CSS } from '@/composables/goods/useGoodsSortable'
@@ -366,6 +369,7 @@ import { useGoodsBackHero } from '@/composables/goods/useGoodsBackHero'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
 import HomeGoodsToolbar from '@/components/home/HomeGoodsToolbar.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import MhyBubbleDeco from '@/components/common/MhyBubbleDeco.vue'
 import DailyRecommendation from '@/components/home/DailyRecommendation.vue'
 import TimelineItemPopup from '@/components/home/TimelineItemPopup.vue'
 import GoodsCardGridSection from '@/components/goods/GoodsCardGridSection.vue'
@@ -400,6 +404,7 @@ const { t } = useI18n()
 const store = useGoodsStore()
 const goodsGroupStore = useGoodsGroupStore()
 const exchangeRate = useExchangeRateStore()
+const mihoyoFeaturesStore = useMihoyoFeaturesStore()
 const pageBodyRef = ref(null)
 const goodsGridSectionRef = ref(null)
 const timelineSectionRef = ref(null)
@@ -887,7 +892,7 @@ function createAddMotionOverlay(payload) {
 
 function captureAddMotionSnapshot() {
   if (isLowPerfDevice) return
-  const cards = goodsGridSectionRef.value?.captureVisibleItemRects?.(40) || []
+  const cards = goodsGridSectionRef.value?.captureVisibleItemRects?.(resolveAddMotionBudget()) || []
   if (!cards.length) return
 
   writeSessionJson(ADD_MOTION_SNAPSHOT_KEY, {
@@ -1050,8 +1055,6 @@ function getTimelineSectionEl() {
 
 function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
   if (displayDensity.value === 'timeline') {
-    currentGoodsScrollTop.value = Math.max(0, Number(scrollTop) || 0)
-    currentGoodsViewportHeight.value = resolveGoodsViewportHeight(options)
     visibleGoodsStartIndex.value = 0
     visibleGoodsRenderCount.value = displayList.value.length
     return
@@ -1082,10 +1085,6 @@ function syncVirtualGoodsViewport(scrollTop = 0, options = {}) {
     _lastSyncStartRow = -1
     _lastSyncRenderRows = -1
   }
-
-  // Always update cheap refs used by other consumers
-  currentGoodsScrollTop.value = normalizedTop
-  currentGoodsViewportHeight.value = viewportHeight
 
   // Only update expensive list refs when the viewport actually crossed a row boundary
   if (startRow !== _lastSyncStartRow || renderRows !== _lastSyncRenderRows) {
@@ -1141,9 +1140,10 @@ function syncVisibleGoodsCountForActivatedRestore(scrollTop = 0) {
   }
 }
 
-function maybeLoadMoreGoods() {
+function maybeLoadMoreGoods(top = null) {
   if (displayDensity.value === 'timeline') return
-  syncVisibleGoodsCount(readScrollTop())
+  // 滚动帧由 handlePageScroll 传入同帧快照，避免重复读布局
+  syncVisibleGoodsCount(Number.isFinite(top) ? top : readScrollTop())
 }
 
 function getInitialVisibleTimelineMonths() {
@@ -1248,16 +1248,17 @@ function prepareRestoreState(state) {
 function handlePageScroll(top) {
   updateImagePreloadThrottle(top)
   if (selectionMode.value) updateSelectionHeaderPosition()
-  maybeLoadMoreGoods()
+  maybeLoadMoreGoods(top)
   if (displayDensity.value === 'timeline') {
     syncVisibleTimelineMonthCount(top)
     timelineScrubberRef.value?.notifyScroll?.()
   }
-  updateScrollTopButtonVisibility()
+  updateScrollTopButtonVisibility(top)
 }
 
-function updateScrollTopButtonVisibility() {
-  showScrollTopButton.value = readScrollTop() >= SCROLL_TOP_BUTTON_THRESHOLD
+function updateScrollTopButtonVisibility(top = null) {
+  const currentTop = Number.isFinite(top) ? top : readScrollTop()
+  showScrollTopButton.value = currentTop >= SCROLL_TOP_BUTTON_THRESHOLD
 }
 
 function clearImagePreloadThrottleTimer() {
@@ -1660,6 +1661,11 @@ const isAndroid = /Android/i.test(navigator.userAgent || '')
 const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4
 const lowMem = navigator.deviceMemory && navigator.deviceMemory <= 4
 const isLowPerfDevice = isAndroid || lowCores || lowMem
+// 大屏（≥900px，5~8 列、56~80 张常驻卡）把添加动效参与卡数从 40 收紧到 24，
+// 减少 will-change 层和并行 transition 的规模；窄视口保持 40 不变
+function resolveAddMotionBudget() {
+  return windowWidth.value >= TABLET_BREAKPOINT ? 24 : 40
+}
 const {
   getDensityScrollTop,
   getFlipViewportHeight,
@@ -1682,8 +1688,6 @@ const densityFlip = useGoodsGridDensityFlip({
   getItemCount: () => displayList.value.length
 })
 
-const currentGoodsScrollTop = ref(0)
-const currentGoodsViewportHeight = ref(0)
 const visibleGoodsStartIndex = ref(0)
 const visibleGoodsRenderCount = ref(getInitialVisibleCount())
 const visibleTimelineMonthStart = ref(0)
@@ -2173,6 +2177,13 @@ async function applyCouponAllocation({ allocations }) {
 .home-page {
   position: relative;
   background: var(--app-bg-gradient);
+}
+
+/* 评论装扮气泡锚点：概览卡（SummaryCard）右上角内侧。
+   section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
+.summary-section {
+  position: relative;
+  --mhy-bubble-right: var(--page-padding);
 }
 
 .home-page--top-jump .page-body {

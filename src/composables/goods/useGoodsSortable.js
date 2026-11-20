@@ -106,6 +106,14 @@ export function useGoodsSortable(options) {
   /** @type {(() => void) | null} */
   let dragScrollHandler = null
   let dragScrollRaf = 0
+  // 组限制模式置灰：分帧置类（~16 卡/帧）把 grayscale 重光栅摊开，避免拖动
+  // 起点大屏几十张卡同帧重光栅顿挫；拖拽边界滚动的补扫按时间降频。
+  const DRAG_MARK_CHUNK = 16
+  const DRAG_MARK_RESCAN_INTERVAL_MS = 150
+  /** @type {{ nodes: HTMLElement[], draggedId: string, index: number } | null} */
+  let dragMarkQueue = null
+  let dragMarkRaf = 0
+  let lastDropTargetScanAt = 0
 
   function detachDragScrollWatch() {
     if (dragScrollRaf) {
@@ -122,6 +130,12 @@ export function useGoodsSortable(options) {
   function ensureDropTargetsMarked(draggedId) {
     const id = String(draggedId || currentDragId || '')
     if (!id || !getDayKey?.()) return
+    // 置灰分帧扫描进行中：本轮结束后自然覆盖新卡，不要重启队列
+    if (dragMarkQueue) return
+    const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
+    // 拖拽边界自动滚动时本函数每滚动帧被调一次；O(n) 全表扫描降频到 ~6.7 次/秒
+    if (now - lastDropTargetScanAt < DRAG_MARK_RESCAN_INTERVAL_MS) return
+    lastDropTargetScanAt = now
     const gridEl = getGridEl()
     if (!gridEl) return
     const nodes = gridEl.querySelectorAll('.goods-card[data-goods-id]')
@@ -163,6 +177,7 @@ export function useGoodsSortable(options) {
     currentDragId = ''
     sortableDragging.value = false
     detachDragScrollWatch()
+    cancelDragMarkSweep()
     try { document.body.classList.remove('goods-reorder-dragging') } catch {}
     clearDropTargets()
   }
@@ -198,6 +213,44 @@ export function useGoodsSortable(options) {
     return mergeVisibleReorderIntoFullOrder(getItems(), domGoodsIds)
   }
 
+  function cancelDragMarkSweep() {
+    if (dragMarkRaf) {
+      window.cancelAnimationFrame(dragMarkRaf)
+      dragMarkRaf = 0
+    }
+    dragMarkQueue = null
+  }
+
+  function runDragMarkSweepTick() {
+    dragMarkRaf = 0
+    const queue = dragMarkQueue
+    if (!queue) return
+    const groupKeyFn = getDayKey?.()
+    if (!groupKeyFn) {
+      dragMarkQueue = null
+      return
+    }
+    const draggedId = queue.draggedId
+    const key = groupKeyFn(draggedId)
+    const end = Math.min(queue.nodes.length, queue.index + DRAG_MARK_CHUNK)
+    for (let i = queue.index; i < end; i += 1) {
+      const n = queue.nodes[i]
+      const id = String(n.getAttribute('data-goods-id') || '')
+      const isSelf = id === draggedId
+      const ok = !isSelf && key != null && groupKeyFn(id) === key
+      // 置灰视觉由 GOODS_SORTABLE_CSS 的 .goods-sortable-drop-no/-ok 类规则承载，
+      // 不再写行内 filter/opacity（样式值相同，纯冗余）
+      n.classList.toggle('goods-sortable-drop-ok', ok)
+      n.classList.toggle('goods-sortable-drop-no', !ok && !isSelf)
+    }
+    queue.index = end
+    if (queue.index < queue.nodes.length) {
+      dragMarkRaf = window.requestAnimationFrame(runDragMarkSweepTick)
+    } else {
+      dragMarkQueue = null
+    }
+  }
+
   function markDropTargets(draggedId) {
     const groupKeyFn = getDayKey?.()
     const gridEl = getGridEl()
@@ -212,30 +265,17 @@ export function useGoodsSortable(options) {
       return
     }
 
+    lastDropTargetScanAt = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()
     markedGroupId = true
     document.body.classList.add('goods-reorder-has-group')
-    const key = groupKeyFn(String(draggedId))
-    const nodes = gridEl.querySelectorAll('.goods-card[data-goods-id]')
-
-    nodes.forEach((n) => {
-      const id = String(n.getAttribute('data-goods-id') || '')
-      const isSelf = id === String(draggedId)
-      const ok = !isSelf && key != null && groupKeyFn(id) === key
-      n.classList.toggle('goods-sortable-drop-ok', ok)
-      n.classList.toggle('goods-sortable-drop-no', !ok && !isSelf)
-      if (isSelf) {
-        n.style.filter = ''
-        n.style.opacity = ''
-        return
-      }
-      if (ok) {
-        n.style.filter = ''
-        n.style.opacity = ''
-      } else {
-        n.style.filter = 'grayscale(1)'
-        n.style.opacity = '0.28'
-      }
-    })
+    cancelDragMarkSweep()
+    // 分帧置类：节点列表一次收集，置类按 DRAG_MARK_CHUNK 分摊到 rAF
+    dragMarkQueue = {
+      nodes: Array.from(gridEl.querySelectorAll('.goods-card[data-goods-id]')),
+      draggedId: String(draggedId || ''),
+      index: 0
+    }
+    runDragMarkSweepTick()
   }
 
   function clearDropTargets() {

@@ -1,5 +1,10 @@
 import { nextTick } from 'vue'
 import router from '@/router'
+import {
+  hasPendingEventHeroBack,
+  hasPendingGoodsHeroBack,
+  isGoodsHeroAnimating
+} from '@/utils/platform/nativeGoodsHeroTransition'
 
 let pendingDetailReturnPath = ''
 let pendingDetailTransitionKind = ''
@@ -40,14 +45,25 @@ function animateScene(scene, direction) {
   })
 }
 
+// hero 覆盖层正在飞行或即将起飞（返回方向已备好快照）时不叠加整页滑动：
+// 大屏上两个大层同帧动画会放大合成压力，滑动也会让 hero 目标矩形相对
+// 覆盖层漂移。纯护栏——常规 hero 导航本来就不走 runWithRouteTransition。
+function hasActiveOrPendingHero() {
+  if (isGoodsHeroAnimating()) return true
+  const currentPath = router.currentRoute.value?.fullPath || ''
+  return hasPendingGoodsHeroBack(currentPath) || hasPendingEventHeroBack(currentPath)
+}
+
 function scheduleAnimation(direction) {
   requestAnimationFrame(() => {
+    if (hasActiveOrPendingHero()) return
     const scene = getRouteScene()
     if (scene) {
       animateScene(scene, direction)
     } else {
       // Lazy route — component not yet in DOM, retry next frame.
       requestAnimationFrame(() => {
+        if (hasActiveOrPendingHero()) return
         const scene = getRouteScene()
         if (scene) animateScene(scene, direction)
       })

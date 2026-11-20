@@ -400,6 +400,8 @@
   "manage.mihoyoFeaturesScopeNotifyDesc": "New-arrival push, shop watch, shipping reminders",
   "manage.mihoyoFeaturesScopeRecharge": "Recharge · pick from data source",
   "manage.mihoyoFeaturesScopeRechargeDesc": "When off, adding a recharge record opens manual entry directly",
+  "manage.mihoyoFeaturesScopePendant": "Avatar frame",
+  "manage.mihoyoFeaturesScopePendantDesc": "Avatar frame picker and display on the My tab (miHoYo / HoYoLAB decorations)",
   "manage.mihoyoFeaturesStatusOn": "Mihoyo Shop features enabled",
   "manage.mihoyoFeaturesStatusOnDesc": "Related entries are visible in the app",
   "manage.mihoyoFeaturesStatusOff": "Mihoyo Shop features disabled",

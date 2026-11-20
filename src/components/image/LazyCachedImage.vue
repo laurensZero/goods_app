@@ -47,6 +47,10 @@ defineOptions({ inheritAttrs: false })
 
 const { t } = useI18n()
 
+// error：重试耗尽后仍然失败（调用方据此做降级/隐藏）。注意它不影响内置占位，
+// 占位由 fallbackEnabled 控制。
+const emit = defineEmits(['error'])
+
 const props = defineProps({
   src: { type: String, default: '' },
   alt: { type: String, default: '' },
@@ -59,6 +63,12 @@ const props = defineProps({
   resumeDecodeValidation: { type: Boolean, default: false },
   skeletonEnabled: { type: Boolean, default: true },
   skeletonDelayMs: { type: Number, default: 0 },
+  /**
+   * 加载失败时是否渲染内置的「加载失败」占位。
+   * 装饰类图片（透明贴角画等）传 false：失败时整块不渲染，由调用方自己降级，
+   * 避免在透明背景上冒出一个灰底破图框。
+   */
+  fallbackEnabled: { type: Boolean, default: true },
   // >0 时启用本地缩略图：只加载客户端降采样的小图（见 utils/image/thumb），
   // 生成失败时 thumb 层会回退原图 URL，组件内其余逻辑（骨架屏/重试/刷新）不变
   thumbMaxSize: { type: Number, default: 0 },
@@ -120,7 +130,7 @@ const isSkeletonReady = ref(Number(props.skeletonDelayMs || 0) <= 0)
 const showSkeleton = computed(() => {
   return !!props.src && props.skeletonEnabled && hasEnteredViewport.value && !showFallback.value && isImageLoading.value && isSkeletonReady.value && !isSwappingSrc.value
 })
-const showFallback = computed(() => !!props.src && hasLoadError.value)
+const showFallback = computed(() => !!props.src && hasLoadError.value && props.fallbackEnabled)
 const isImageReady = computed(() => !!resolvedSrc.value && !showFallback.value && !isImageLoading.value)
 
 let visibilityObserver = null
@@ -349,6 +359,7 @@ function onImageError() {
   hasLoadError.value = true
   isImageLoading.value = false
   resolvedSrc.value = ''
+  emit('error')
 }
 
 onMounted(() => {

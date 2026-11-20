@@ -50,3 +50,13 @@ guide-shots/
 scripts/guide-capture.mjs
 scripts/recharge_options_seed.sql
 supabase/recharge_options_seed.sql
+
+# 挂件镜像本地缓存（scripts/mirror-mhy-decor.py）
+.decor-cache/
+
+# 临时探针目录（含登录 Cookie 等敏感缓存，绝不入库）
+.tmp-probe/
+.decor-cache/
+
+miyoushe_assets/
+hoyolab_assets/

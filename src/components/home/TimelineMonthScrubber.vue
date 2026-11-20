@@ -97,6 +97,7 @@ let activePointerId = -1
 let scrollPrevented = false
 let rafJump = 0
 let hideTimer = 0
+let hideDeadline = 0
 let scrollRaf = 0
 let hasScrubMoved = false
 let boundScrollEls = []
@@ -258,6 +259,42 @@ function findMonthEl(yearMonth) {
   return null
 }
 
+// ── 月份元素缓存 ──
+// 滚动帧内逐月 querySelector + rect 是时间线模式最大的每帧开销：querySelector
+// 按月全子树遍历，与 rect 读交错会反复打断布局缓存。这里把月份元素一次性
+// 收集进缓存（单次 querySelectorAll + attr 映射），滚动帧只做纯 rect 读；
+// 月份列表或 section 变化时经 key/isConnected 校验自动失效重建。
+let monthElCache = { sectionEl: null, monthsKey: '', els: [] }
+
+function resolveMonthEls(sectionEl) {
+  const monthsKey = props.months.map((m) => m.yearMonth).join('|')
+  const cache = monthElCache
+  // 空槽（null）视为有效：section 未就绪时缓存保持"全空"状态，避免每帧重建
+  const cacheValid = cache.sectionEl === sectionEl
+    && cache.monthsKey === monthsKey
+    && cache.els.length === props.months.length
+    && cache.els.every((el) => !el || el.isConnected)
+  if (cacheValid) return cache.els
+
+  const els = new Array(props.months.length).fill(null)
+  const scope = isConnected(sectionEl)
+    ? sectionEl
+    : (props.rootSelector ? document.querySelector(props.rootSelector) : null)
+  const nodes = scope?.querySelectorAll?.('[data-tl-month]')
+  if (nodes && nodes.length) {
+    const byKey = new Map()
+    nodes.forEach((node) => {
+      const attrKey = node.getAttribute('data-tl-month')
+      if (attrKey != null && !byKey.has(attrKey)) byKey.set(attrKey, node)
+    })
+    for (let i = 0; i < props.months.length; i += 1) {
+      els[i] = byKey.get(props.months[i].yearMonth) || null
+    }
+  }
+  monthElCache = { sectionEl: isConnected(sectionEl) ? sectionEl : null, monthsKey, els }
+  return els
+}
+
 /* ---- 平滑滚动：缓动插值，避免跳月生硬 ---- */
 let scrollAnimState = null
 let indicatorLerpRaf = 0
@@ -385,15 +422,30 @@ function showIndicator() {
     return
   }
   indicatorVisible.value = true
-  if (hideTimer) {
-    window.clearTimeout(hideTimer)
+  if (scrubbing.value) {
+    if (hideTimer) {
+      window.clearTimeout(hideTimer)
+      hideTimer = 0
+    }
+    return
+  }
+  // 滚动帧只更新截止时刻；到点未到就续期，语义不变但省掉每帧
+  // clearTimeout/setTimeout 抖动
+  hideDeadline = performance.now() + INDICATOR_HIDE_MS
+  if (!hideTimer) armHideTimer(INDICATOR_HIDE_MS)
+}
+
+function armHideTimer(delay) {
+  hideTimer = window.setTimeout(() => {
     hideTimer = 0
-  }
-  if (!scrubbing.value) {
-    hideTimer = window.setTimeout(() => {
-      if (!scrubbing.value) indicatorVisible.value = false
-    }, INDICATOR_HIDE_MS)
-  }
+    if (scrubbing.value) return
+    const remain = hideDeadline - performance.now()
+    if (remain > 4) {
+      armHideTimer(remain)
+      return
+    }
+    indicatorVisible.value = false
+  }, Math.max(16, Math.round(delay)))
 }
 
 function getScrollSourceFromEvent(event) {
@@ -729,11 +781,25 @@ function pickActiveScroller() {
 function findCurrentMonthIndexFromDOM(sectionEl) {
   if (!isConnected(sectionEl) || props.months.length === 0) return -1
   const marker = 140
+  const els = resolveMonthEls(sectionEl)
+  // 月份在文档流中有序堆叠（top 单调递增）：二分找最后一个 top<=marker 的月，
+  // O(log n) 次纯 rect 读；元素缺失（缓存全空）时放弃，交给 rail 比例兜底。
+  let lo = 0
+  let hi = els.length - 1
   let best = -1
-  for (let i = 0; i < props.months.length; i++) {
-    const el = sectionEl.querySelector(`[data-tl-month="${quoteAttr(props.months[i].yearMonth)}"]`)
-    if (!el) continue
-    if (el.getBoundingClientRect().top <= marker) best = i
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    const el = els[mid]
+    if (!el) {
+      best = -1
+      break
+    }
+    if (el.getBoundingClientRect().top <= marker) {
+      best = mid
+      lo = mid + 1
+    } else {
+      hi = mid - 1
+    }
   }
   return best
 }
@@ -778,8 +844,15 @@ function syncFromScroll(scrollSource = null) {
 function notifyScroll() {
   if (!props.enabled || props.months.length === 0) return
   if (scrubbing.value) return
-  syncFromScroll()
-  showIndicator()
+  // 与 onScroll 共用同一个 rAF token：宿主页滚动 handler 和本组件的
+  // document-capture 监听会对同一次滚动各触发一次，合并后每帧只算一遍。
+  if (scrollRaf) return
+  scrollRaf = window.requestAnimationFrame(() => {
+    scrollRaf = 0
+    if (!props.enabled || scrubbing.value) return
+    syncFromScroll(activeScrollEl)
+    showIndicator()
+  })
 }
 
 defineExpose({ consumeBack, close, syncFromScroll, notifyScroll })
@@ -812,6 +885,8 @@ onBeforeUnmount(() => {
   if (rafJump) window.cancelAnimationFrame(rafJump)
   if (indicatorLerpRaf) window.cancelAnimationFrame(indicatorLerpRaf)
   hideTimer = 0
+  hideDeadline = 0
+  monthElCache = { sectionEl: null, monthsKey: '', els: [] }
   scrollRaf = 0
   rafJump = 0
   indicatorLerpRaf = 0

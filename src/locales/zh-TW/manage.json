@@ -400,6 +400,8 @@
   "manage.mihoyoFeaturesScopeNotifyDesc": "上新推送、監聽店鋪、發貨提醒等",
   "manage.mihoyoFeaturesScopeRecharge": "儲值 · 從資料來源選擇",
   "manage.mihoyoFeaturesScopeRechargeDesc": "關閉後新增儲值紀錄會直接進入手動輸入",
+  "manage.mihoyoFeaturesScopePendant": "頭像掛件",
+  "manage.mihoyoFeaturesScopePendantDesc": "我的頁頭像框選擇與顯示（米遊社 / HoYoLAB 裝扮）",
   "manage.mihoyoFeaturesStatusOn": "米遊鋪功能已啟用",
   "manage.mihoyoFeaturesStatusOnDesc": "相關入口在應用內正常顯示",
   "manage.mihoyoFeaturesStatusOff": "米遊鋪功能已關閉",

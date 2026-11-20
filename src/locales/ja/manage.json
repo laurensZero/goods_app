@@ -400,6 +400,8 @@
   "manage.mihoyoFeaturesScopeNotifyDesc": "新着プッシュ、店舗監視、発送リマインダーなど",
   "manage.mihoyoFeaturesScopeRecharge": "チャージ · データソースから選択",
   "manage.mihoyoFeaturesScopeRechargeDesc": "オフにすると、チャージ追加は手動入力画面が直接開きます",
+  "manage.mihoyoFeaturesScopePendant": "アバターフレーム",
+  "manage.mihoyoFeaturesScopePendantDesc": "マイページのアバターフレームの選択と表示（米遊社 / HoYoLAB の装飾）",
   "manage.mihoyoFeaturesStatusOn": "米遊舗機能は有効です",
   "manage.mihoyoFeaturesStatusOnDesc": "関連の入口はアプリ内に表示されます",
   "manage.mihoyoFeaturesStatusOff": "米遊舗機能は無効です",

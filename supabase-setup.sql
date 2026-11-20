@@ -209,6 +209,23 @@ CREATE TABLE IF NOT EXISTS announcements (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 米游社 / HoYoLAB 头像挂件清单（公开只读，图片走米哈游 CDN 热链）
+-- 新增挂件只需往表里插行，App 不用发版；种子见 supabase/mhy_decor_pendants_seed.sql
+CREATE TABLE IF NOT EXISTS mhy_decor_pendants (
+  id          TEXT PRIMARY KEY,
+  source      TEXT NOT NULL DEFAULT 'miyoushe',
+  game        TEXT NOT NULL DEFAULT '',
+  name        TEXT NOT NULL DEFAULT '',
+  description TEXT NOT NULL DEFAULT '',
+  url         TEXT NOT NULL,
+  animated    BOOLEAN NOT NULL DEFAULT false,
+  sort        INTEGER NOT NULL DEFAULT 0,
+  enabled     BOOLEAN NOT NULL DEFAULT true,
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_mhy_decor_pendants_group
+  ON mhy_decor_pendants (source, game, sort);
+
 -- ============================================================
 -- 2. 存量列补充（向前兼容）
 -- ============================================================
@@ -509,6 +526,7 @@ ALTER TABLE goods_groups ENABLE ROW LEVEL SECURITY;
 ALTER TABLE goods_group_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE batch_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mhy_decor_pendants ENABLE ROW LEVEL SECURITY;
 
 -- 删除旧的宽松 policy（如果存在）
 DROP POLICY IF EXISTS "auth_only_select" ON goods;
@@ -604,6 +622,13 @@ CREATE POLICY "announcements_select" ON announcements FOR SELECT
     )
   );
 CREATE POLICY "announcements_service_all" ON announcements FOR ALL
+  USING (auth.role() = 'service_role')
+  WITH CHECK (auth.role() = 'service_role');
+
+-- 头像挂件清单：公开只读，service_role 写入
+CREATE POLICY "mhy_decor_pendants_select" ON mhy_decor_pendants FOR SELECT
+  USING (enabled = true);
+CREATE POLICY "mhy_decor_pendants_service_all" ON mhy_decor_pendants FOR ALL
   USING (auth.role() = 'service_role')
   WITH CHECK (auth.role() = 'service_role');
 

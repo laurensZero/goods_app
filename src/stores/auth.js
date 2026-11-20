@@ -307,6 +307,36 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  // —— 多端 metadata 同步 ——
+  // supabase-js 不会主动推送 user_metadata 变更：本机登录态里缓存的是登录时的旧 user，
+  // 其他端改的挂件（mhy_pendant）等字段要主动 getUser 才能拿到，否则要等下次 token 刷新。
+  let refreshUserInFlight = null
+
+  /**
+   * 拉取最新 user 写回 store（只动 user，不碰 session）。
+   * 静默策略：离线/弱网失败时保留本地缓存登录态，不置空不抛错，
+   * 免得地铁/电梯里一次刷新把登录态和挂件展示一起打坏。
+   */
+  async function refreshUser() {
+    if (!isSupabaseConfigured() || !user.value) return null
+    // 并发去重：挂载 + 登录态 watch 同时触发时只打一次网络请求
+    if (refreshUserInFlight) return refreshUserInFlight
+    refreshUserInFlight = (async () => {
+      try {
+        const currentUser = await getUser()
+        // 请求期间被登出（user 已置 null）就不写回，避免把已清空的登录态复活
+        if (currentUser && user.value) setUser(currentUser)
+        return currentUser
+      } catch (e) {
+        log.warn('refreshUser:failed', { message: e?.message })
+        return null
+      } finally {
+        refreshUserInFlight = null
+      }
+    })()
+    return refreshUserInFlight
+  }
+
   async function changePassword(newPassword) {
     isLoading.value = true
     error.value = ''
@@ -389,7 +419,7 @@ export const useAuthStore = defineStore('auth', () => {
     linkedProviders,
     init, loginWithEmail, registerWithEmail, loginWithMagicLink,
     loginWithOAuth, logout, sendResetPassword, resetPasswordWithOtp,
-    updateProfile, changePassword, fetchLinkedProviders, linkProvider,
+    updateProfile, refreshUser, changePassword, fetchLinkedProviders, linkProvider,
     unlinkProvider, deleteAccount: deleteAccountAction,
     clearError, dispose
   }

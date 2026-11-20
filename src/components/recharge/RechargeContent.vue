@@ -17,6 +17,8 @@
       :trend-items="filteredRecords"
       trend-date-field="chargedAt"
     />
+    <!-- 评论装扮气泡（米游社）：贴概览卡右上角的纯装饰；米游铺开关关闭时不渲染（展示层闸门，数据照常保留） -->
+    <MhyBubbleDeco v-if="mihoyoFeaturesStore.enabled" page-key="recharge" />
   </section>
 
   <section class="toolbar-section">
@@ -197,6 +199,7 @@ import SearchBar from '@/components/common/SearchBar.vue'
 import CategoryChips from '@/components/common/CategoryChips.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import SummaryCard from '@/components/common/SummaryCard.vue'
+import MhyBubbleDeco from '@/components/common/MhyBubbleDeco.vue'
 import StatCard from '@/components/common/StatCard.vue'
 import DangerConfirmDialog from '@/components/common/DangerConfirmDialog.vue'
 import HomeSelectionHeader from '@/components/home/HomeSelectionHeader.vue'
@@ -801,6 +804,13 @@ defineExpose({
 </script>
 
 <style scoped>
+/* 评论装扮气泡锚点：概览卡（SummaryCard）右上角内侧。
+   section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
+.summary-section {
+  position: relative;
+  --mhy-bubble-right: var(--page-padding);
+}
+
 .toolbar-section,
 .stats-section,
 .content-section {
