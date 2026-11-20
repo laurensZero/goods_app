@@ -167,12 +167,12 @@ describe('loadBubbleCatalog', () => {
     expect(saved.items[0].i).toBe('msb:9')
   })
 
-  it('只拉 enabled=true 的行，排序 source → game → sort', async () => {
+  it('只拉 enabled=true 的行，排序 game → sort（气泡全部来自米游社，source 无排序意义）', async () => {
     store.set('mhy_bubble_catalog_v1', JSON.stringify({ fetchedAt: 1, items: [] }))
     const { loadBubbleCatalog } = await load()
     await loadBubbleCatalog()
     expect(eqCalls).toEqual([['enabled', true]])
-    expect(orderCalls).toEqual(['source', 'game', 'sort'])
+    expect(orderCalls).toEqual(['game', 'sort'])
   })
 
   it('云端失败时退回过期缓存', async () => {

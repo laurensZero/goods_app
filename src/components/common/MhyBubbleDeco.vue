@@ -25,6 +25,8 @@
         class="mhy-bubble-deco__tap"
         :aria-label="t('my.bubble.editEntry')"
         @click.stop="openPicker"
+        @mouseenter="editHot = true"
+        @mouseleave="editHot = false"
       />
     </span>
 
@@ -33,6 +35,7 @@
     <button
       type="button"
       class="mhy-bubble-deco__edit"
+      :class="{ 'mhy-bubble-deco__edit--show': editHot, 'mhy-bubble-deco__edit--empty': !bubbleSrc }"
       :aria-label="t('my.bubble.editEntry')"
       :title="t('my.bubble.editEntry')"
       @click.stop="openPicker"
@@ -77,6 +80,8 @@ const bubblesStore = useMhyBubblesStore()
 const { toastMsg, showToast } = useToast()
 
 const showPicker = ref(false)
+// 悬停气泡美术区时显现铅笔钮（触屏无 hover，走点气泡本体入口）
+const editHot = ref(false)
 
 /** 当前页配置的气泡（目录紧凑项，null = 无气泡） */
 const currentBubble = computed(() => bubblesStore.byPage[props.pageKey] || null)
@@ -227,11 +232,19 @@ function onSelect(item) {
   height: 14px;
 }
 
-/* 桌面 hover 显现；触屏端无 hover，入口交给气泡本体点击 + 热区盲点 */
+/* 桌面 hover 显现；触屏端无 hover：没选装扮时露出低透明度铅笔钮做入口
+   （否则无处进入编辑），选了之后气泡本体即入口，钮保持隐形 */
 @media (hover: hover) and (pointer: fine) {
   .mhy-bubble-deco__edit:hover,
-  .mhy-bubble-deco__edit:focus-visible {
+  .mhy-bubble-deco__edit:focus-visible,
+  .mhy-bubble-deco__edit--show {
     opacity: 0.85;
+  }
+}
+
+@media (hover: none) {
+  .mhy-bubble-deco__edit--empty {
+    opacity: 0.42;
   }
 }
 
