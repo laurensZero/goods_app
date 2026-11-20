@@ -1341,7 +1341,7 @@ function getImageKindLabel(kind) {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: var(--radius-large);
+  border-radius: var(--radius-card);
   overflow: hidden;
   box-shadow: var(--app-shadow);
   background: linear-gradient(180deg, var(--app-surface-soft), var(--app-surface-muted));

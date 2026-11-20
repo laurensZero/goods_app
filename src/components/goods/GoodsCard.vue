@@ -713,7 +713,7 @@ const priceCNYHint = computed(() => {
   justify-content: center;
   overflow: hidden;
   padding: 10px;
-  border-radius: var(--radius-small);
+  border-radius: var(--radius-card);
   border: 1px solid color-mix(in srgb, var(--app-glass-border, rgba(0,0,0,0.06)) 78%, rgba(0,0,0,0.04));
   background: color-mix(in srgb, var(--app-surface-soft, #eeeff2) 92%, var(--app-surface, #ffffff));
   background-size: cover;
