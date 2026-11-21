@@ -846,54 +846,30 @@ async function animateHero(snapshot, targetRect, targetRadius, options = {}) {
       // Animate clip + shadow corner shapes to compensate scaling. The shadow
       // layer scales with the node too, so it needs the same compensation to
       // keep its corners aligned with the clipped content.
+      //
+      // 圆角裁剪用 border-radius(+overflow hidden) 而不是 clip-path：部分 Android
+      // WebView 上合成器化的 clip-path 动画蒙版不跟随图层 transform 缩放，图片四周
+      // 露出未裁剪的底/边缘、圆角与内容错位（PC Chromium 正常）。border-radius 的
+      // 圆角在合成器里属于图层 quad 本身、几何上始终一致；主线程逐帧重光栅的代价
+      // 由返回末段交叉淡出和两端统一半径兜住。
       const compensatedTo = resolveCompensatedRadius(radiusTo, scaleX, scaleY)
       const compensatedFrom = `${radiusFrom}px`
-
-      // 裁剪层用 clip-path 而不是 border-radius 做圆角补间：inset(round) 可以上
-      // 合成器、与 node 的 transform 同一次 commit 提交；border-radius 动画在主
-      // 线程逐帧重光栅，容易出现"transform 已到、圆角还是上一帧光栅"的呈现帧，
-      // 表现就是落地时的圆角闪跳。静态 border-radius 必须清零，否则两个裁剪
-      // 形状相交，末帧圆角仍按 radiusFrom 收口。
-      const clipLayer = node.querySelector('[data-hero-clip]')
-      if (clipLayer) {
-        const fromClip = `inset(0 round ${compensatedFrom})`
-        const toClip = `inset(0 round ${compensatedTo})`
+      const radiusLayers = [
+        node.querySelector('[data-hero-clip]'),
+        node.querySelector('[data-hero-shadow]')
+      ].filter(Boolean)
+      radiusLayers.forEach((layer) => {
         try {
-          clipLayer.style.borderRadius = '0px'
-          clipLayer.style.clipPath = fromClip
-          const clipAnim = clipLayer.animate(
-            [ { clipPath: fromClip }, { clipPath: toClip } ],
-            { duration, easing, fill: 'both' }
-          )
-          activeHeroAnimations.add(clipAnim)
-          extraAnimations.push(clipAnim)
-        } catch (e) {
-          // clip-path WAAPI 不可用时回退到旧行为，至少保证圆角随飞行变化
-          try {
-            clipLayer.style.clipPath = ''
-            clipLayer.style.borderRadius = compensatedFrom
-            const fallbackAnim = clipLayer.animate(
-              [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
-              { duration, easing, fill: 'both' }
-            )
-            activeHeroAnimations.add(fallbackAnim)
-            extraAnimations.push(fallbackAnim)
-          } catch (e2) {}
-        }
-      }
-
-      const shadowLayer = node.querySelector('[data-hero-shadow]')
-      if (shadowLayer) {
-        try {
-          shadowLayer.style.borderRadius = compensatedFrom
-          const shadowAnim = shadowLayer.animate(
+          layer.style.borderRadius = compensatedFrom
+          layer.style.clipPath = ''
+          const radiusAnim = layer.animate(
             [ { borderRadius: compensatedFrom }, { borderRadius: compensatedTo } ],
             { duration, easing, fill: 'both' }
           )
-          activeHeroAnimations.add(shadowAnim)
-          extraAnimations.push(shadowAnim)
+          activeHeroAnimations.add(radiusAnim)
+          extraAnimations.push(radiusAnim)
         } catch (e) {}
-      }
+      })
     } else {
       const keyframes = [
         {
