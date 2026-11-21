@@ -810,6 +810,7 @@ export async function getEvents() {
         photos: normalizeEventPhotoList(parseJsonArray(r.photos)),
         dates: parseJsonArray(r.dates),
         dayTicketList: parseJsonArray(r.dayTicketList),
+        dayLocations: parseJsonArray(r.dayLocations),
         otherExpenses: parseJsonArray(r.otherExpenses),
         tracks: parseJsonArray(r.tracks),
         linkedGoodsIds: parseJsonArray(r.linkedGoodsIds),
