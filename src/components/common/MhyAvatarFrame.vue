@@ -19,21 +19,23 @@
       <!-- 装饰层禁用骨架/降级占位：挂件没加载出来时不能有灰块挡住底下头像，
            加载失败就当没挂件（降级链在 resolveAvatarPendantSrc 里已收敛） -->
       <LazyCachedImage
+        :key="frameSrc"
         :src="frameSrc"
         alt=""
         :root-margin="rootMargin"
         :skeleton-enabled="false"
         :fallback-enabled="false"
         class="mhy-avatar-frame__pendant-img"
+        @error="onPendantImgError"
       />
     </span>
   </span>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
-import { resolveAvatarPendantSrc } from '@/utils/mhyDecor/cdn'
+import { resolveAvatarPendantSrcCandidates } from '@/utils/mhyDecor/cdn'
 
 const props = defineProps({
   /** 头像地址 */
@@ -82,13 +84,22 @@ const rootStyle = computed(() => ({
  * 最后 OSS 缩放；播动画时必须显式传 animate，否则会命中静态缩略图（t 是首帧）。
  * 与切换时的预热共用同一个函数，避免两处算法漂移导致「预热了但还是重新拉」。
  */
-const frameSrc = computed(() => {
-  if (!props.frame) return ''
-  return resolveAvatarPendantSrc(
+/** 取图候选链：hoyolab 原图（预览带缩放）→ CF 反代镜像 → 去参原图；@error 逐个降级 */
+const candidates = computed(() =>
+  resolveAvatarPendantSrcCandidates(
     { u: props.frame, m: props.frameMirror, t: props.frameThumb, a: props.animated },
     { preview: props.preview }
   )
+)
+const failedCount = ref(0)
+const frameSrc = computed(() => candidates.value[failedCount.value] || '')
+watch(candidates, () => {
+  failedCount.value = 0
 })
+function onPendantImgError() {
+  // 当前候选失败（官方删文件 / hoyolab 不通 / 反代抖动）→ 切下一个候选
+  if (failedCount.value < candidates.value.length - 1) failedCount.value += 1
+}
 </script>
 
 <style scoped>

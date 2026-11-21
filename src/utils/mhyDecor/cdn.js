@@ -8,14 +8,13 @@ import { getPublicBaseUrl, rebasePublicImageUrl } from '@/utils/sync/supabaseCli
  * 端点改写（rebasePublicImageUrl + getPublicBaseUrl），云同步选了哪条线，
  * 装扮图就走哪条线。
  *
- * 取图策略（2026-11-21 定稿）：
- * - **预览**（选择器网格、列表）：优先云端预压缩的 128px 静态缩略图 `t`
- *   （动图自带首帧压平，体积最小），其次镜像，最后去参原图；
- * - **上屏**（头像外圈挂件、页面贴角装饰）：一律原图级——镜像 `m`（Storage
- *   整图副本，国内直连快）优先，没有镜像就去参原图 `u`。不再使用 OSS
- *   `x-oss-process` 实时缩放：webp 质量不可控，高 DPR 屏上放大发糊；
- * - 动图：原图本身就是动图（webp 动图 / gif），上屏时直接播，无需任何处理。
- *   官方 CDN 会删旧文件（hy:293 实测 404），所以镜像存在时永远优先镜像。
+ * 取图策略（2026-11-21 定稿，hoyolab 优先 + CF 反代兜底）：
+ * - **预览**（选择器网格、列表）：hoyolab/米游社原图 CDN 现场缩 w_128
+ *   （x-oss-process，实测 upload-os-bbs 也支持；0.26s / 8KB），动图压平首帧；
+ * - **上屏**（头像外圈挂件、页面贴角装饰）：hoyolab 去参原图直出（动图直接播
+ *   动图原图）；静态小文件在原图 CDN 上 0.26s，远快于走反代的 4.15s；
+ * - **兜底**：原图加载失败（官方删文件 / hoyolab 不通）自动切 Storage 镜像
+ *   （CF 反代），再失败回退去参原图——两跳都试过才算真失败。
  */
 
 /**
@@ -66,17 +65,61 @@ function toActiveBase(url) {
   return rebasePublicImageUrl(url, getPublicBaseUrl())
 }
 
+/** 已知的米哈游图片域名（挂件/装扮原图都挂在这几家 CDN 上） */
+const DECOR_HOST_RE = /(^|\.)(miyoushe\.com|mihoyo\.com|mihoyogift\.com|hoyoverse\.com|hoyolab\.com)$/i
+
+function isMhyDecorUrl(url) {
+  try {
+    return DECOR_HOST_RE.test(new URL(String(url)).hostname)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 原图 CDN 现场缩放（x-oss-process）：mihoyo 家 CDN 都是 OSS 系，支持现场
+ * 缩放/转格式；w_128 + 首帧 png 的预览图只有几 KB。非米哈游域名原样返回。
+ */
+function buildDecorUrl(url, { width = 0, flatten = false } = {}) {
+  const base = stripDecorParams(url)
+  if (!base) return ''
+  if (!width || !isMhyDecorUrl(base)) return base
+  const format = flatten ? 'png' : 'webp'
+  return `${base}?x-oss-process=image/resize,w_${width}/format,${format}`
+}
+
 export function resolvePendantSrc(item, options = {}) {
-  if (!item || typeof item !== 'object') return ''
-  const thumb = String(item.t || '').trim()
+  return resolvePendantSrcCandidates(item, options)[0] || ''
+}
+
+/**
+ * 挂件取图候选链（按尝试顺序，img @error 时逐个降级）。
+ *
+ * - 预览：原图 CDN 现场缩 w_128（动图压平首帧）→ 镜像 → 去参原图；
+ * - 上屏：去参原图（动图直接播）→ 镜像 →（去参原图去重后省略）。
+ * 候选统一过 toActiveBase：Storage 公链跟随同步层测速选中的端点，
+ * 米哈游 CDN 原图原样返回。
+ *
+ * @param {{ u?: string, m?: string, t?: string }} item
+ * @param {object} [options]
+ * @param {boolean} [options.preview] true = 预览场景（w_128 现场缩放）
+ * @returns {string[]}
+ */
+export function resolvePendantSrcCandidates(item, options = {}) {
+  if (!item || typeof item !== 'object') return []
   const mirror = String(item.m || '').trim()
   const original = stripDecorParams(item.u || '')
+  const preview = options.preview === true
 
-  // 预览：128px 缩略图（动图自带首帧压平）→ 镜像 → 去参原图
-  if (options.preview === true && thumb) return toActiveBase(thumb)
-  // 上屏：镜像优先（国内直连快 + 免疫官方删文件），没有镜像退去参原图
-  if (mirror) return toActiveBase(mirror)
-  return toActiveBase(original)
+  const candidates = []
+  if (preview && original && isMhyDecorUrl(original)) {
+    // 动图压平成首帧 png（w_128 只有几 KB）；静态保持 webp
+    candidates.push(toActiveBase(buildDecorUrl(original, { width: 128, flatten: item.a === true })))
+  }
+  if (original) candidates.push(toActiveBase(original))
+  if (mirror) candidates.push(toActiveBase(mirror))
+  // 去重（同 URL 只留一个），保持顺序
+  return [...new Set(candidates)]
 }
 
 /**
@@ -91,7 +134,16 @@ export function resolvePendantSrc(item, options = {}) {
  */
 export function resolveAvatarPendantSrc(item, options = {}) {
   if (!item) return ''
-  return resolvePendantSrc({ u: item.u, m: item.m, t: item.t }, { preview: options.preview === true })
+  return resolveAvatarPendantSrcCandidates(item, options)[0] || ''
+}
+
+/** 头像外圈挂件的候选链（预览缩放 / 上屏原图 / 镜像兜底） */
+export function resolveAvatarPendantSrcCandidates(item, options = {}) {
+  if (!item) return []
+  return resolvePendantSrcCandidates(
+    { u: item.u, m: item.m, t: item.t, a: item.a === true },
+    { preview: options.preview === true }
+  )
 }
 
 /**
@@ -109,12 +161,24 @@ export function resolveAvatarPendantSrc(item, options = {}) {
  * @returns {string}
  */
 export function resolveBubbleSrc(bubble, options = {}) {
-  if (!bubble || typeof bubble !== 'object') return ''
+  return resolveBubbleSrcCandidates(bubble, options)[0] || ''
+}
+
+/**
+ * 评论气泡取图候选链：gif（动图，CF 存储，大文件走反代反而快）→
+ * 预览原图缩放 / 上屏去参原图 → 镜像兜底。
+ */
+export function resolveBubbleSrcCandidates(bubble, options = {}) {
+  if (!bubble || typeof bubble !== 'object') return []
   // 兼容紧凑项（gif）与原始行（gif_url）两种入参
   const gif = String(bubble.gif ?? bubble.gif_url ?? '').trim()
-  if (options.playAnimation && gif) return gif
-  return resolvePendantSrc(
-    { u: bubble.u ?? '', m: bubble.m ?? '', t: bubble.t ?? '' },
-    { preview: options.preview === true }
+  const candidates = []
+  if (options.playAnimation && gif) candidates.push(gif)
+  candidates.push(
+    ...resolvePendantSrcCandidates(
+      { u: bubble.u ?? '', m: bubble.m ?? '', t: bubble.t ?? '' },
+      { preview: options.preview === true }
+    )
   )
+  return [...new Set(candidates)]
 }

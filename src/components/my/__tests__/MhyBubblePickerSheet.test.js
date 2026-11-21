@@ -109,11 +109,11 @@ describe('MhyBubblePickerSheet', () => {
     const badges = wrapper.findAll('.bubble-tile__badge').map((b) => b.text())
     expect(badges).toEqual(['动'])
 
-    // 预览与主页一致：有 gif 就直出 gif，静态项才走 96px 静态链
+    // 预览与主页一致：动图直出 gif，静态项走原图 CDN 现场缩 w_128
     const previews = wrapper.findAll('.stub-lazy').map((n) => n.attributes('data-src'))
-    expect(previews[0]).toBe(ITEMS[0].t)
+    expect(previews[0]).toBe(`${ITEMS[0].u}?x-oss-process=image/resize,w_128/format,webp`)
     expect(previews[1]).toBe(ITEMS[1].gif)
-    expect(previews[2]).toBe(resolveBubbleSrc(ITEMS[2], { width: 96 }))
+    expect(previews[2]).toBe(resolveBubbleSrc(ITEMS[2], { preview: true }))
   })
 
   it('搜索实时过滤（按名称原文包含）', async () => {

@@ -4,6 +4,7 @@ import {
   resolveAvatarPendantSrc,
   resolveBubbleSrc,
   resolvePendantSrc,
+  resolvePendantSrcCandidates,
   stripDecorParams
 } from '../cdn'
 
@@ -32,26 +33,20 @@ describe('pendantContentKey', () => {
   })
 })
 
-describe('resolvePendantSrc（上屏 vs 预览）', () => {
-  it('上屏：镜像优先（原图级，无任何缩放参数）', () => {
-    expect(resolvePendantSrc({ u: HY_URL, m: MIRROR, t: THUMB })).toBe(MIRROR)
-  })
-
-  it('上屏：没有镜像退去参原图（不再拼 x-oss-process）', () => {
-    expect(resolvePendantSrc({ u: `${HY_URL}?x-oss-process=image/resize,w_96` })).toBe(HY_URL)
+describe('resolvePendantSrc（上屏 vs 预览，首候选）', () => {
+  it('上屏：去参原图直出（hoyolab CDN 小文件最快，不再拼缩放参数）', () => {
+    expect(resolvePendantSrc({ u: `${HY_URL}?x-oss-process=image/resize,w_96`, m: MIRROR, t: THUMB })).toBe(HY_URL)
     expect(resolvePendantSrc({ u: MS_URL })).toBe(MS_URL)
   })
 
-  it('预览：128px 缩略图优先（动图自带首帧压平）', () => {
-    expect(resolvePendantSrc({ u: HY_URL, m: MIRROR, t: THUMB }, { preview: true })).toBe(THUMB)
+  it('预览：原图 CDN 现场缩 w_128 webp（不再走反代缩略图）', () => {
+    expect(resolvePendantSrc({ u: HY_URL, m: MIRROR, t: THUMB }, { preview: true }))
+      .toBe(`${HY_URL}?x-oss-process=image/resize,w_128/format,webp`)
   })
 
-  it('预览：没有缩略图退镜像', () => {
-    expect(resolvePendantSrc({ u: HY_URL, m: MIRROR }, { preview: true })).toBe(MIRROR)
-  })
-
-  it('预览：都没有退去参原图', () => {
-    expect(resolvePendantSrc({ u: `${MS_URL}?x-oss-process=image/resize,w_96` }, { preview: true })).toBe(MS_URL)
+  it('预览：米游社源同样现场缩放', () => {
+    expect(resolvePendantSrc({ u: MS_URL }, { preview: true }))
+      .toBe(`${MS_URL}?x-oss-process=image/resize,w_128/format,webp`)
   })
 
   it('空入参返回空串', () => {
@@ -60,41 +55,74 @@ describe('resolvePendantSrc（上屏 vs 预览）', () => {
   })
 })
 
-describe('resolveAvatarPendantSrc', () => {
-  it('头像上屏（默认）：镜像优先，原图级清晰度', () => {
-    expect(resolveAvatarPendantSrc({ u: HY_URL, m: MIRROR, t: THUMB, a: true }, { playAnimation: true }))
-      .toBe(MIRROR)
+describe('resolvePendantSrcCandidates（完整降级链）', () => {
+  it('上屏候选：原图 → 镜像（官方删文件时兜底）', () => {
+    expect(resolvePendantSrcCandidates({ u: HY_URL, m: MIRROR, t: THUMB }))
+      .toEqual([HY_URL, MIRROR])
   })
 
-  it('头像上屏：动图原图直接播（去参，无缩放）', () => {
-    expect(resolveAvatarPendantSrc({ u: HY_URL, a: true }, { playAnimation: true })).toBe(HY_URL)
+  it('上屏候选：u 自带历史参数时先去参再入链', () => {
+    expect(resolvePendantSrcCandidates({ u: `${HY_URL}?x-oss-process=image/resize,w_96`, m: MIRROR }))
+      .toEqual([HY_URL, MIRROR])
   })
 
-  it('预览：动图也走静态首帧缩略图', () => {
-    expect(resolveAvatarPendantSrc({ u: HY_URL, m: MIRROR, t: THUMB, a: true }, { preview: true }))
-      .toBe(THUMB)
+  it('预览候选：w_128 缩放图 → 原图 → 镜像', () => {
+    expect(resolvePendantSrcCandidates({ u: HY_URL, m: MIRROR, t: THUMB }, { preview: true }))
+      .toEqual([`${HY_URL}?x-oss-process=image/resize,w_128/format,webp`, HY_URL, MIRROR])
   })
 
-  it('静态条目预览：缩略图优先', () => {
-    expect(resolveAvatarPendantSrc({ u: MS_URL, m: MIRROR, t: THUMB }, { preview: true })).toBe(THUMB)
+  it('候选经过 rebase：内置 Supabase 公链 host 跟随同步层端点', () => {
+    const cands = resolvePendantSrcCandidates(
+      { u: HY_URL, m: 'https://api.goodsapp.de5.net/storage/v1/object/public/x.png' }
+    )
+    // 首候选 = hoyolab 原图（rebase 不动米哈游公链）；次候选 = 镜像
+    //（Storage 公链 host 改写到同步层当前端点，这里缺省主站）
+    expect(cands[0]).toBe(HY_URL)
+    expect(cands[1]).toBe('https://zvqzicimowfqshgjsrri.supabase.co/storage/v1/object/public/x.png')
+  })
+
+  it('没有 mirror 时候选只有原图', () => {
+    expect(resolvePendantSrcCandidates({ u: MS_URL })).toEqual([MS_URL])
   })
 })
 
-describe('resolveBubbleSrc', () => {
+describe('resolveAvatarPendantSrc（上屏 vs 预览，首候选）', () => {
+  it('头像上屏（默认）：hoyolab 原图直出（动图原图直接播）', () => {
+    expect(resolveAvatarPendantSrc({ u: HY_URL, m: MIRROR, t: THUMB, a: true }, { playAnimation: true }))
+      .toBe(HY_URL)
+  })
+
+  it('头像上屏：静态条目同样原图直出', () => {
+    expect(resolveAvatarPendantSrc({ u: MS_URL, m: MIRROR, t: THUMB })).toBe(MS_URL)
+  })
+
+  it('预览：动图压平首帧 png（w_128）', () => {
+    expect(resolveAvatarPendantSrc({ u: HY_URL, m: MIRROR, t: THUMB, a: true }, { preview: true }))
+      .toBe(`${HY_URL}?x-oss-process=image/resize,w_128/format,png`)
+  })
+
+  it('预览：静态条目 w_128 webp', () => {
+    expect(resolveAvatarPendantSrc({ u: MS_URL, m: MIRROR, t: THUMB }, { preview: true }))
+      .toBe(`${MS_URL}?x-oss-process=image/resize,w_128/format,webp`)
+  })
+})
+
+describe('resolveBubbleSrc（上屏 vs 预览，首候选）', () => {
   it('playAnimation 且有 gif → 直接 gif 原地址', () => {
     expect(resolveBubbleSrc({ u: MS_URL, gif: THUMB, m: MIRROR, t: THUMB }, { playAnimation: true }))
       .toBe(THUMB)
   })
 
-  it('上屏（贴角）：镜像优先', () => {
-    expect(resolveBubbleSrc({ u: MS_URL, gif: THUMB, m: MIRROR, t: THUMB })).toBe(MIRROR)
-  })
-
-  it('预览：缩略图优先', () => {
-    expect(resolveBubbleSrc({ u: MS_URL, m: MIRROR, t: THUMB }, { preview: true })).toBe(THUMB)
-  })
-
   it('gif 字段兼容原始行的 gif_url', () => {
     expect(resolveBubbleSrc({ u: MS_URL, gif_url: MIRROR }, { playAnimation: true })).toBe(MIRROR)
+  })
+
+  it('上屏（贴角）：去参原图直出', () => {
+    expect(resolveBubbleSrc({ u: MS_URL, gif: THUMB, m: MIRROR, t: THUMB })).toBe(MS_URL)
+  })
+
+  it('预览：w_128 现场缩放', () => {
+    expect(resolveBubbleSrc({ u: MS_URL, m: MIRROR, t: THUMB }, { preview: true }))
+      .toBe(`${MS_URL}?x-oss-process=image/resize,w_128/format,webp`)
   })
 })

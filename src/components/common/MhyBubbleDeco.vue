@@ -65,7 +65,7 @@ import AppToast from '@/components/common/AppToast.vue'
 import MhyBubblePickerSheet from '@/components/my/MhyBubblePickerSheet.vue'
 import { useMhyBubblesStore } from '@/stores/mhyBubbles'
 import { useToast } from '@/composables/useToast'
-import { resolveBubbleSrc } from '@/utils/mhyDecor/cdn'
+import { resolveBubbleSrcCandidates } from '@/utils/mhyDecor/cdn'
 
 const { t } = useI18n()
 
@@ -93,14 +93,13 @@ onMounted(() => {
 
 const canPlayGif = computed(() => !!(currentBubble.value?.a && currentBubble.value?.gif))
 
-// gif 加载失败退静态底图；静态也失败就整体隐藏贴图（装饰元素，不留破图占位）
-const gifFailed = ref(false)
-const staticFailed = ref(false)
+// 候选链降级计数：阶段 0 = 播 gif；阶段 ≥1 = 静态候选逐个降级（原图 → 镜像）；
+// 候选全部失败 → 整体隐藏贴图（装饰元素，不留破图占位）
+const failedCount = ref(0)
 watch(
   () => currentBubble.value?.i || '',
   () => {
-    gifFailed.value = false
-    staticFailed.value = false
+    failedCount.value = 0
   }
 )
 
@@ -113,21 +112,18 @@ watch(
  */
 const bubbleSrc = computed(() => {
   const item = currentBubble.value
-  if (!item || staticFailed.value) return ''
-  if (canPlayGif.value && !gifFailed.value) {
-    return resolveBubbleSrc(item, { playAnimation: true })
+  if (!item) return ''
+  if (canPlayGif.value && failedCount.value === 0) {
+    return resolveBubbleSrcCandidates(item, { playAnimation: true })[0] || ''
   }
-  // 上屏（页面贴角）永远是原图级：mirror → 去参原图，不做任何缩放
-  return resolveBubbleSrc(item)
+  // 上屏（页面贴角）永远是原图级：静态候选逐个降级（去参原图 → 镜像）
+  const staticCandidates = resolveBubbleSrcCandidates(item, { preview: false })
+  const index = failedCount.value - (canPlayGif.value ? 1 : 0)
+  return staticCandidates[index] || ''
 })
 
 function onBubbleImgError() {
-  // 当前在播 gif：退静态再试一次；静态也挂了就放弃展示
-  if (canPlayGif.value && !gifFailed.value) {
-    gifFailed.value = true
-    return
-  }
-  staticFailed.value = true
+  failedCount.value += 1
 }
 
 function openPicker() {
