@@ -14,13 +14,13 @@ export const DECOR_KINDS = {
     table: 'mhy_decor_pendants',
     label: '头像框',
     idPrefix: 'ms: / hy:',
-    select: 'id,name,game,source,description,url,mirror_url,thumb_url,animated,sort,enabled,updated_at'
+    select: 'id,name,game,source,description,url,mirror_url,thumb_url,animated,sort,enabled,updated_at,content_key,pixel_hash'
   },
   bubble: {
     table: 'mhy_reply_bubbles',
     label: '评论装扮',
     idPrefix: 'msb:',
-    select: 'id,name,game,source,description,url,bg_color,gif_url,pag_url,mirror_url,thumb_url,animated,sort,enabled,updated_at'
+    select: 'id,name,game,source,description,url,bg_color,gif_url,pag_url,mirror_url,thumb_url,animated,sort,enabled,updated_at,content_key,pixel_hash'
   }
 }
 

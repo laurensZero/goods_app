@@ -446,6 +446,7 @@ serve(async () => {
   for (let i = 0; i < newItems.length; i += UPSERT_CHUNK) {
     const chunk = newItems.slice(i, i + UPSERT_CHUNK).map((row) => ({
       ...row,
+      content_key: decorContentKey(row.url),
       updated_at: new Date().toISOString(),
     }));
     const { error } = await admin.from(TABLE).upsert(chunk, { onConflict: "id" });
@@ -479,6 +480,7 @@ serve(async () => {
   for (let i = 0; i < newBubbles.length; i += UPSERT_CHUNK) {
     const chunk = newBubbles.slice(i, i + UPSERT_CHUNK).map((row) => ({
       ...row,
+      content_key: decorContentKey(row.url),
       updated_at: new Date().toISOString(),
     }));
     const { error } = await admin.from(BUBBLE_TABLE).upsert(chunk, { onConflict: "id" });

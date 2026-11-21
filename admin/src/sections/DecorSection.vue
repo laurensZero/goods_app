@@ -2,7 +2,6 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import {
   DECOR_GAMES,
-  DECOR_KINDS,
   DECOR_SOURCES,
   decorPreviewLevels,
   decorPreviewSrc,
@@ -11,7 +10,6 @@ import {
   createDecorRow
 } from '../services/decorAdmin'
 import { logAudit } from '../services/audit'
-import { useAdminList } from '../composables/useAdminList'
 import { formatTime } from '../utils/format'
 import PanelDrawer from '../components/ui/PanelDrawer.vue'
 import StatusPill from '../components/ui/StatusPill.vue'
@@ -66,6 +64,7 @@ const filtered = computed(() => {
     if (filters.source && row.source !== filters.source) return false
     if (filters.state === 'on' && !row.enabled) return false
     if (filters.state === 'tombstone' && row.enabled) return false
+    if (filters.state === 'similar' && !similarMap.value.has(row.id)) return false
     if (q) {
       const hay = `${row.name || ''}\n${row.id}`.toLowerCase()
       if (!hay.includes(q)) return false
@@ -79,6 +78,54 @@ const counts = computed(() => {
   const on = allRows.value.filter((r) => r.enabled).length
   return { total, on, tombstone: total - on }
 })
+
+// ── 同图组标注：pixel_hash（感知哈希）或 content_key（URL 内容键）相同的行互为相似 ──
+const similarMap = computed(() => {
+  const parent = new Map()
+  function find(key) {
+    if (!parent.has(key)) parent.set(key, key)
+    const rootKey = key
+    if (parent.get(key) !== key) return find(parent.get(key))
+    return rootKey
+  }
+  function union(a, b) {
+    const ra = find(a)
+    const rb = find(b)
+    if (ra !== rb) parent.set(rb, ra)
+  }
+  const byPixel = new Map()
+  const byKey = new Map()
+  allRows.value.forEach((row, index) => {
+    if (row.pixel_hash) {
+      const k = 'px:' + row.pixel_hash
+      if (byPixel.has(k)) union(byPixel.get(k), String(index))
+      else byPixel.set(k, String(index))
+    }
+    if (row.content_key) {
+      const k = 'ck:' + row.content_key
+      if (byKey.has(k)) union(byKey.get(k), String(index))
+      else byKey.set(k, String(index))
+    }
+  })
+  const groups = new Map()
+  allRows.value.forEach((row, index) => {
+    if (!row.pixel_hash && !row.content_key) return
+    const root = find(String(index))
+    if (!groups.has(root)) groups.set(root, [])
+    groups.get(root).push(row)
+  })
+  const map = new Map()
+  for (const members of groups.values()) {
+    if (members.length < 2) continue
+    // 组内已禁用的行不算「重复展示」，但如果全组都被禁了仍要标（方便恢复排查）
+    for (const row of members) map.set(row.id, members)
+  }
+  return map
+})
+
+function similarSiblings(row) {
+  return (similarMap.value.get(row.id) || []).filter((x) => x.id !== row.id)
+}
 
 // ── 预览图降级链（thumb → mirror → origin），失败层级按行记忆 ──
 const previewLevels = reactive({})
@@ -171,6 +218,7 @@ onMounted(load)</script>
       <option value="all">全部状态</option>
       <option value="on">启用中</option>
       <option value="tombstone">墓碑（下架）</option>
+      <option value="similar">只看同图组</option>
     </select>
     <span class="decor-counts">
       显示 {{ filtered.length }} / {{ counts.total }} · 启用 {{ counts.on }} · 墓碑 {{ counts.tombstone }}
@@ -204,6 +252,13 @@ onMounted(load)</script>
         </span>
       </div>
       <div class="decor-item__actions">
+        <span
+          v-if="similarMap.has(item.id)"
+          class="decor-item__similar"
+          :title="'同图组：' + similarSiblings(item).map((x) => x.id).join(', ')"
+        >
+          同图×{{ similarMap.get(item.id).length }}
+        </span>
         <StatusPill :status="item.enabled ? 'ok' : 'warn'" :label="item.enabled ? '启用' : '墓碑'" />
         <button class="btn btn--sm" type="button" @click="openEdit(item)">编辑</button>
         <button class="btn btn--sm btn--soft" type="button" @click="toggleItem(item)">
@@ -220,6 +275,24 @@ onMounted(load)</script>
     @close="closeDrawer"
   >
     <DecorForm :kind="kind" :editing="editingItem" @submit="onSubmit" @close="closeDrawer" />
+
+    <div v-if="editingItem && similarMap.has(editingItem.id)" class="decor-siblings">
+      <p class="decor-siblings__title">同图组（{{ similarMap.get(editingItem.id).length }} 条，含本条）</p>
+      <div v-for="sib in similarMap.get(editingItem.id)" :key="sib.id" class="decor-siblings__row">
+        <img v-if="previewSrc(sib)" :src="previewSrc(sib)" alt="" class="decor-siblings__thumb" @error="onPreviewError(sib)" />
+        <span class="decor-siblings__name">{{ sib.name || sib.id }}</span>
+        <span class="decor-siblings__id">{{ sib.id }}</span>
+        <StatusPill :status="sib.enabled ? 'ok' : 'warn'" :label="sib.enabled ? '启用' : '墓碑'" />
+        <button
+          v-if="sib.enabled && sib.id !== editingItem.id"
+          class="btn btn--sm btn--soft"
+          type="button"
+          @click="toggleItem(sib)"
+        >
+          禁用
+        </button>
+      </div>
+    </div>
   </PanelDrawer>
 </template>
 
@@ -333,5 +406,58 @@ onMounted(load)</script>
   gap: 6px;
   align-items: center;
   flex: 0 0 auto;
+}
+
+.decor-item__similar {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(230, 162, 60, 0.18);
+  color: #e6a23c;
+  font-size: 11px;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.decor-siblings {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--admin-border, rgba(127, 127, 127, 0.3));
+  display: grid;
+  gap: 6px;
+}
+
+.decor-siblings__title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.decor-siblings__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.decor-siblings__thumb {
+  width: 56px;
+  height: 20px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: var(--admin-surface-soft, rgba(127, 127, 127, 0.12));
+}
+
+.decor-siblings__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.decor-siblings__id {
+  opacity: 0.6;
+  font-family: monospace;
 }
 </style>
