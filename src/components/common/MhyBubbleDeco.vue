@@ -171,6 +171,10 @@ function onSelect(item) {
   /* 素材自带 4:1 的画布（384×96），按 88px 宽贴角时实际画只有二十来像素高，
      所以默认给到 176px（≈44px 高）；各页可用 --mhy-bubble-size 单独调 */
   width: var(--mhy-bubble-size, 176px);
+  /* 部分装扮底图是不透明整幅画（自带 bg_color 背景），贴在概览卡右上角时
+     会把卡片的圆角盖成直角——容器裁一个与卡片一致的右上圆角 */
+  overflow: hidden;
+  border-top-right-radius: var(--radius-large, 16px);
 }
 
 /* 可点热区：只盖右侧美术区域（约前 62% 是透明留白），点气泡=开选择器；
