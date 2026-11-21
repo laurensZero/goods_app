@@ -204,6 +204,56 @@
                             </template>
                           </span>
                         </label>
+
+                        <div v-if="dayCount >= 2" class="field field--full day-ticket-block">
+                          <button class="day-ticket-toggle" type="button" @click="toggleDayLocationPanel">
+                            <span class="day-ticket-toggle__copy">
+                              <span class="day-ticket-toggle__title">{{ dayLocationToggleTitle }}</span>
+                              <span class="day-ticket-toggle__desc">{{ dayLocationToggleDesc }}</span>
+                            </span>
+                            <svg class="day-ticket-toggle__arrow" :class="{ 'day-ticket-toggle__arrow--open': showDayLocationInput }" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M7 10L12 15L17 10" />
+                            </svg>
+                          </button>
+
+                          <div v-if="showDayLocationInput" class="day-ticket-panel">
+                            <div class="day-ticket-inline-actions">
+                              <span class="day-ticket-inline-actions__label">{{ t('events.addEdit.dayLocationDetail') }}</span>
+                              <button class="day-ticket-clear-btn" type="button" @click="clearDayLocationList">{{ t('common.clear') }}</button>
+                            </div>
+                            <article v-for="(date, index) in form.dates" :key="`day-location-${date}`" class="day-ticket-row">
+                              <span class="day-ticket-row__date">{{ t('events.addEdit.dayTicketDate', { index: index + 1, date }) }}</span>
+                              <div class="day-location-row__grid">
+                                <label class="field">
+                                  <span class="field-label">{{ t('events.addEdit.dayLocationIndex', { index: index + 1 }) }}</span>
+                                  <input
+                                    v-model="form.dayLocations[index].location"
+                                    type="text"
+                                    :placeholder="t('events.addEdit.dayLocationPlaceholder')"
+                                    @blur="onDayLocationBlur(index)"
+                                  />
+                                  <span v-if="dayLocationCityAt(index)" class="field-city-tag">
+                                    <span v-if="dayLocationDetecting[index]" class="field-city-tag__spinner" aria-hidden="true" />
+                                    <template v-if="!dayLocationDetecting[index]">
+                                      {{ t('events.addEdit.cityDetected', { city: dayLocationCityAt(index) }) }}
+                                      <button
+                                        type="button"
+                                        class="field-city-tag__clear"
+                                        :aria-label="t('events.addEdit.clearCity')"
+                                        @click="clearDayLocationCity(index)"
+                                      >
+                                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                          <path d="M6 6L18 18" />
+                                          <path d="M18 6L6 18" />
+                                        </svg>
+                                      </button>
+                                    </template>
+                                  </span>
+                                </label>
+                              </div>
+                            </article>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </section>
@@ -597,6 +647,7 @@ const form = reactive({
   ticketType: '',
   seatInfo: '',
   dayTicketList: [],
+  dayLocations: [],
   otherExpenses: [],
   linkedGoodsIds: [],
   tags: []
@@ -622,6 +673,7 @@ function serializeEventFormSnapshot() {
     ticketType: form.ticketType,
     seatInfo: form.seatInfo,
     dayTicketList: form.dayTicketList,
+    dayLocations: form.dayLocations,
     otherExpenses: form.otherExpenses,
     linkedGoodsIds: form.linkedGoodsIds,
     tags: form.tags
@@ -841,10 +893,26 @@ function syncDayTicketListLength() {
   })
 }
 
+// 逐天地点行数与天数对齐；单天/无日期直接清空（store 归一化同样不保留单天逐天地点）
+function syncDayLocationListLength() {
+  const targetLength = dayCount.value
+  if (targetLength < 2) {
+    if (form.dayLocations.length) form.dayLocations = []
+    return
+  }
+  const current = Array.isArray(form.dayLocations) ? form.dayLocations : []
+  form.dayLocations = Array.from({ length: targetLength }, (_, index) => (
+    current[index] && typeof current[index] === 'object'
+      ? normalizeDayLocationRow(current[index])
+      : buildEmptyDayLocationRow()
+  ))
+}
+
 watch(
   () => form.dates,
   () => {
     syncDayTicketListLength()
+    syncDayLocationListLength()
   }
 )
 
@@ -874,6 +942,90 @@ function toggleDayTicketPanel() {
 function clearDayTicketList() {
   form.dayTicketList = []
   showDayTicketInput.value = false
+}
+
+// ── 逐天地点（多天活动各天场馆不同；与逐天票务同下标对齐）──
+
+const showDayLocationInput = ref(false)
+const dayLocationDetecting = reactive({})
+
+function buildEmptyDayLocationRow() {
+  return { location: '', city: '', latitude: '', longitude: '' }
+}
+
+function normalizeDayLocationRow(item = {}) {
+  return {
+    location: String(item.location ?? ''),
+    city: String(item.city ?? ''),
+    latitude: String(item.latitude ?? ''),
+    longitude: String(item.longitude ?? '')
+  }
+}
+
+const hasDayLocationValue = computed(() => (
+  form.dayLocations.some((item) => (
+    item && (String(item.location ?? '').trim() || String(item.city ?? '').trim())
+  ))
+))
+
+const dayLocationToggleTitle = computed(() => {
+  if (showDayLocationInput.value) return t('events.addEdit.dayLocationToggleOpen')
+  return hasDayLocationValue.value ? t('events.addEdit.dayLocationToggleEdit') : t('events.addEdit.dayLocationToggleSet')
+})
+
+const dayLocationToggleDesc = computed(() => {
+  if (showDayLocationInput.value) return t('events.addEdit.dayLocationDescOpen')
+  return hasDayLocationValue.value ? t('events.addEdit.dayLocationDescEdit') : t('events.addEdit.dayLocationDescSet')
+})
+
+// 展开面板：尚无逐天地点时以活动级地点为每天初始值（含已识别的城市/坐标，免重复定位）
+function toggleDayLocationPanel() {
+  showDayLocationInput.value = !showDayLocationInput.value
+  if (showDayLocationInput.value && dayCount.value >= 2 && !hasDayLocationValue.value) {
+    const base = normalizeDayLocationRow(form)
+    if (String(base.location).trim() || String(base.city).trim()) {
+      form.dayLocations = form.dayLocations.map(() => ({ ...base }))
+    }
+  }
+}
+
+function clearDayLocationList() {
+  form.dayLocations = form.dayLocations.map(() => buildEmptyDayLocationRow())
+  showDayLocationInput.value = false
+}
+
+function dayLocationCityAt(index) {
+  return String(form.dayLocations[index]?.city || '').trim()
+}
+
+function clearDayLocationCity(index) {
+  const row = form.dayLocations[index]
+  if (!row) return
+  form.dayLocations[index] = { ...row, city: '', latitude: '', longitude: '' }
+}
+
+async function onDayLocationBlur(index) {
+  const row = form.dayLocations[index]
+  const address = String(row?.location || '').trim()
+  if (!address) {
+    // 清空地点文本时同步清掉识别结果，避免留下「地点空、城市旧」的脏行
+    if (row && (row.city || row.latitude || row.longitude)) {
+      clearDayLocationCity(index)
+    }
+    return
+  }
+  if (dayLocationDetecting[index]) return
+
+  dayLocationDetecting[index] = true
+  const result = await geocodeAddressToCity(address)
+  dayLocationDetecting[index] = false
+
+  // 等待期间行可能被日期改动重建、或文本又被改掉：结果与当前文本不一致就丢弃
+  const current = form.dayLocations[index]
+  if (!result || !current || String(current.location || '').trim() !== address) return
+
+  const combined = combineCityDistrict(result.city, result.district)
+  form.dayLocations[index] = { ...current, city: combined, latitude: result.latitude || '', longitude: result.longitude || '' }
 }
 
 function setActiveTab(tabKey, options = {}) {
@@ -907,6 +1059,7 @@ function buildDraftPayload() {
       ticketType: String(form.ticketType || ''),
       seatInfo: String(form.seatInfo || ''),
       dayTicketList: Array.isArray(form.dayTicketList) ? form.dayTicketList.map((item) => ({ ...item })) : [],
+      dayLocations: Array.isArray(form.dayLocations) ? form.dayLocations.map((item) => ({ ...item })) : [],
       otherExpenses: Array.isArray(form.otherExpenses) ? form.otherExpenses.map((item) => ({ ...item })) : [],
       linkedGoodsIds: Array.isArray(form.linkedGoodsIds) ? [...form.linkedGoodsIds] : [],
       tags: Array.isArray(form.tags) ? [...form.tags] : []
@@ -935,8 +1088,13 @@ function applyFormSnapshot(snapshot) {
   form.dayTicketList = Array.isArray(snapshot.dayTicketList)
     ? snapshot.dayTicketList.map((item) => ({ price: String(item?.price ?? ''), ticketType: String(item?.ticketType ?? '') }))
     : []
+  form.dayLocations = Array.isArray(snapshot.dayLocations)
+    ? snapshot.dayLocations.map((item) => normalizeDayLocationRow(item))
+    : []
   syncDayTicketListLength()
+  syncDayLocationListLength()
   showDayTicketInput.value = hasDayTicketValue.value
+  showDayLocationInput.value = hasDayLocationValue.value
   form.otherExpenses = Array.isArray(snapshot.otherExpenses) ? snapshot.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = Array.isArray(snapshot.linkedGoodsIds) ? [...snapshot.linkedGoodsIds] : []
   form.tags = Array.isArray(snapshot.tags) ? [...snapshot.tags] : []
@@ -1074,8 +1232,13 @@ async function loadEditData() {
   form.dayTicketList = Array.isArray(existing.dayTicketList)
     ? existing.dayTicketList.map((item) => ({ price: String(item?.price ?? ''), ticketType: String(item?.ticketType ?? '') }))
     : []
+  form.dayLocations = Array.isArray(existing.dayLocations)
+    ? existing.dayLocations.map((item) => normalizeDayLocationRow(item))
+    : []
   syncDayTicketListLength()
+  syncDayLocationListLength()
   showDayTicketInput.value = hasDayTicketValue.value
+  showDayLocationInput.value = hasDayLocationValue.value
   form.otherExpenses = Array.isArray(existing.otherExpenses) ? existing.otherExpenses.map((item) => normalizeOtherExpenseRow(item)) : []
   form.linkedGoodsIds = existing.linkedGoodsIds ? [...existing.linkedGoodsIds] : []
   form.tags = existing.tags ? [...existing.tags] : []
@@ -2081,6 +2244,12 @@ onBeforeUnmount(() => {
   .day-ticket-row__grid {
     grid-template-columns: 1fr;
   }
+}
+
+.day-location-row__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
 }
 
 .date-field {

@@ -20,7 +20,7 @@
     <div ref="mapElRef" class="event-map" :class="{ 'event-map--dark': isDarkMap }" />
 
     <div v-if="hasLocated && !geocoding" class="map-legend">
-      <span>{{ t('events.map.eventCount', { count: totalLocatedEvents }) }}</span>
+      <span>{{ t('events.map.eventCount', { count: totalLocatedEntries }) }}</span>
       <span class="map-legend__dot" />
       <span>{{ t('events.map.placeCount', { count: mapPins.pins.length }) }}</span>
     </div>
@@ -41,14 +41,14 @@
         </div>
         <div class="map-sheet__list">
           <button
-            v-for="evt in selectedPin.events"
-            :key="evt.id"
+            v-for="entry in selectedPin.entries"
+            :key="`${String(entry.evt?.id || '')}|${entry.date || ''}`"
             class="map-sheet__item"
             type="button"
-            @click="openEvent(evt)"
+            @click="openEvent(entry)"
           >
-            <span class="map-sheet__item-name">{{ evt.name || t('events.card.unnamed') }}</span>
-            <span class="map-sheet__item-meta">{{ eventMeta(evt) }}</span>
+            <span class="map-sheet__item-name">{{ entry.evt?.name || t('events.card.unnamed') }}</span>
+            <span class="map-sheet__item-meta">{{ eventMeta(entry) }}</span>
           </button>
         </div>
       </div>
@@ -60,7 +60,7 @@
         <div class="map-sheet__head">
           <div class="map-sheet__head-copy">
             <p class="map-sheet__label">{{ t('events.map.unlocated') }}</p>
-            <h3 class="map-sheet__title">{{ t('events.map.unlocatedCount', { count: unlocatedEvents.length }) }}</h3>
+            <h3 class="map-sheet__title">{{ t('events.map.unlocatedCount', { count: unlocatedEntries.length }) }}</h3>
           </div>
           <button class="map-sheet__close" type="button" :aria-label="t('common.close')" @click="showUnlocated = false">
             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -82,14 +82,14 @@
         </button>
         <div class="map-sheet__list">
           <button
-            v-for="evt in unlocatedEvents"
-            :key="evt.id"
+            v-for="entry in unlocatedEntries"
+            :key="`${String(entry.evt?.id || '')}|${entry.date || ''}`"
             class="map-sheet__item"
             type="button"
-            @click="openEvent(evt)"
+            @click="openEvent(entry)"
           >
-            <span class="map-sheet__item-name">{{ evt.name || t('events.card.unnamed') }}</span>
-            <span class="map-sheet__item-meta">{{ eventMeta(evt) }}</span>
+            <span class="map-sheet__item-name">{{ entry.evt?.name || t('events.card.unnamed') }}</span>
+            <span class="map-sheet__item-meta">{{ eventMeta(entry) }}</span>
           </button>
         </div>
       </div>
@@ -97,7 +97,7 @@
 
     <Transition name="map-fab">
       <button
-        v-if="unlocatedEvents.length > 0 && !selectedPin && !showUnlocated"
+        v-if="unlocatedEntries.length > 0 && !selectedPin && !showUnlocated"
         class="map-unlocated-fab"
         type="button"
         :aria-label="t('events.map.unlocated')"
@@ -108,7 +108,7 @@
           <path d="M12 11v5" />
           <circle cx="12" cy="7.5" r="0.5" fill="currentColor" />
         </svg>
-        {{ unlocatedEvents.length }}
+        {{ unlocatedEntries.length }}
       </button>
     </Transition>
 
@@ -123,7 +123,8 @@
 </template>
 
 <script setup>
-import { getFirstEventDate, resolveEventDates } from '@/utils/events/eventDates'
+import { resolveEventDates } from '@/utils/events/eventDates'
+import { getDayLocationList, hasDayLocationOverride } from '@/utils/events/dayLocations'
 import { computed, nextTick, onActivated, onBeforeUnmount, onDeactivated, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
@@ -187,21 +188,21 @@ function unbindAndroidBackButton() {
   removeAndroidBackListener = null
 }
 
-function hasStoredCoords(evt) {
-  const lat = String(evt?.latitude || '').trim()
-  const lng = String(evt?.longitude || '').trim()
+function hasStoredCoords(entry) {
+  const lat = String(entry?.latitude || '').trim()
+  const lng = String(entry?.longitude || '').trim()
   if (!lat || !lng) return false
   const nLat = Number(lat)
   const nLng = Number(lng)
   return Number.isFinite(nLat) && Number.isFinite(nLng) && Math.abs(nLat) <= 90 && Math.abs(nLng) <= 180
 }
 
-function resolveEventCoords(evt) {
-  if (hasStoredCoords(evt)) {
-    return { lat: Number(evt.latitude), lng: Number(evt.longitude), fallback: false }
+function resolveEntryCoords(entry) {
+  if (hasStoredCoords(entry)) {
+    return { lat: Number(entry.latitude), lng: Number(entry.longitude), fallback: false }
   }
-  if (evt?.city) {
-    const cityCoords = resolveCityCoords(evt.city)
+  if (entry?.city) {
+    const cityCoords = resolveCityCoords(entry.city)
     if (cityCoords) {
       return { lat: Number(cityCoords.latitude), lng: Number(cityCoords.longitude), fallback: true }
     }
@@ -209,70 +210,140 @@ function resolveEventCoords(evt) {
   return null
 }
 
+// 活动的定位条目（一场活动某一天的地点）：
+// - 无逐天覆盖 → 整场一条，meta 显示全部日期；
+// - 有逐天覆盖（dayLocations 与 dates 下标对齐，dayTicketList 同约定）→ 每天一条，
+//   各天用各自条目的地点/坐标，未覆盖的天回落活动级字段，地图分开展示。
+function collectEventEntries(evt) {
+  const dates = resolveEventDates(evt)
+  const location = String(evt?.location || '').trim()
+  const city = String(evt?.city || '').trim()
+  const dayList = getDayLocationList(evt)
+  const hasOverrides = dates.length >= 2 && dayList.some(hasDayLocationOverride)
+  if (!hasOverrides) {
+    return [{
+      evt,
+      date: '',
+      location,
+      city,
+      latitude: String(evt?.latitude || '').trim(),
+      longitude: String(evt?.longitude || '').trim(),
+      allDates: dates
+    }]
+  }
+  return dates.map((date, index) => {
+    const day = dayList[index]
+    const override = hasDayLocationOverride(day)
+    return {
+      evt,
+      date,
+      location: String((override ? day.location : evt?.location) || '').trim(),
+      city: String((override ? day.city : evt?.city) || '').trim(),
+      latitude: String((override ? day.latitude : evt?.latitude) || '').trim(),
+      longitude: String((override ? day.longitude : evt?.longitude) || '').trim(),
+      allDates: [date]
+    }
+  })
+}
+
 const mapPins = computed(() => {
   const pinsMap = new Map()
   const unlocated = []
   for (const evt of eventsStore.activeList) {
-    const coords = resolveEventCoords(evt)
-    if (!coords) {
-      unlocated.push(evt)
-      continue
+    for (const entry of collectEventEntries(evt)) {
+      const coords = resolveEntryCoords(entry)
+      if (!coords) {
+        unlocated.push(entry)
+        continue
+      }
+      const key = `${coords.lat.toFixed(5)},${coords.lng.toFixed(5)}`
+      let pin = pinsMap.get(key)
+      if (!pin) {
+        pin = { key, lat: coords.lat, lng: coords.lng, fallback: coords.fallback, entries: [] }
+        pinsMap.set(key, pin)
+      }
+      pin.entries.push(entry)
     }
-    const key = `${coords.lat.toFixed(5)},${coords.lng.toFixed(5)}`
-    let pin = pinsMap.get(key)
-    if (!pin) {
-      pin = { key, lat: coords.lat, lng: coords.lng, fallback: coords.fallback, events: [] }
-      pinsMap.set(key, pin)
-    }
-    pin.events.push(evt)
   }
   return {
     pins: [...pinsMap.values()].map((pin) => ({
       ...pin,
-      events: [...pin.events].sort((a, b) => String(getFirstEventDate(b) || '').localeCompare(String(getFirstEventDate(a) || '')))
+      // 同一地点多天多场时按日期倒序，与原活动排序口径一致
+      entries: [...pin.entries].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
     })),
     unlocated
   }
 })
 
-const totalLocatedEvents = computed(() =>
-  mapPins.value.pins.reduce((sum, pin) => sum + pin.events.length, 0)
+const totalLocatedEntries = computed(() =>
+  mapPins.value.pins.reduce((sum, pin) => sum + pin.entries.length, 0)
 )
 const hasLocated = computed(() => mapPins.value.pins.length > 0)
-const unlocatedEvents = computed(() => mapPins.value.unlocated)
-const reGeocodableEvents = computed(() =>
-  eventsStore.activeList.filter((evt) => {
-    if (!String(evt?.location || '').trim()) return false
-    return !hasStoredCoords(evt)
-  })
-)
-const reGeocodableCount = computed(() => reGeocodableEvents.value.length)
+const unlocatedEntries = computed(() => mapPins.value.unlocated)
+
+// 需要补定位的目标（逐条目去地址重复合并）：
+// - 无逐天覆盖的活动：有地点文本但无坐标 → 补活动级 city/lat/lng（原行为）；
+// - 有逐天覆盖：回落主地点的天共用活动级定位（主地点缺坐标时补一次）；
+//   带自定义地点的天各自补坐标，同一活动同地址只请求一次，成功后写回所有匹配的天。
+const reGeocodableTargets = computed(() => {
+  const targets = []
+  const seenDayAddress = new Set()
+  for (const evt of eventsStore.activeList) {
+    const dates = resolveEventDates(evt)
+    const dayList = getDayLocationList(evt)
+    const hasOverrides = dates.length >= 2 && dayList.some(hasDayLocationOverride)
+    const eventLocation = String(evt?.location || '').trim()
+    if (!hasOverrides) {
+      if (eventLocation && !hasStoredCoords(evt)) {
+        targets.push({ evt, date: '', location: eventLocation })
+      }
+      continue
+    }
+    const usesEventLevel = dates.some((_, index) => !hasDayLocationOverride(dayList[index]))
+    if (usesEventLevel && eventLocation && !hasStoredCoords(evt)) {
+      targets.push({ evt, date: '', location: eventLocation })
+    }
+    for (let index = 0; index < dates.length; index += 1) {
+      const day = dayList[index]
+      const dayLocation = String(day?.location || '').trim()
+      if (!hasDayLocationOverride(day) || !dayLocation) continue
+      if (String(day?.latitude || '').trim() && String(day?.longitude || '').trim()) continue
+      const dedupeKey = `${evt.id}|${dayLocation}`
+      if (seenDayAddress.has(dedupeKey)) continue
+      seenDayAddress.add(dedupeKey)
+      targets.push({ evt, date: dates[index], location: dayLocation })
+    }
+  }
+  return targets
+})
+const reGeocodableCount = computed(() => reGeocodableTargets.value.length)
 
 const selectedPinTitle = computed(() => {
   const pin = selectedPin.value
   if (!pin) return ''
-  const first = pin.events[0]
-  // 城市兜底针：没有精确坐标，标题应显示城市名而不是第一个活动的地址
+  const first = pin.entries[0]
+  // 城市兜底针：没有精确坐标，标题应显示城市名而不是第一个条目的地址
   if (pin.fallback) {
-    const cityEvent = pin.events.find((e) => String(e?.city || '').trim()) || first
-    const city = String(cityEvent?.city || '').trim()
+    const cityEntry = pin.entries.find((item) => String(item?.city || '').trim()) || first
+    const city = String(cityEntry?.city || '').trim()
     if (city) return normalizeCityName(city)
-    const loc = String(cityEvent?.location || '').trim()
+    const loc = String(first?.location || '').trim()
     if (loc) return loc
   }
   const loc = String(first?.location || '').trim()
   if (loc) return loc
   const city = String(first?.city || '').trim()
   if (city) return city
-  return pin.events.length > 1
-    ? `${pin.events.length}`
-    : (String(first?.name || '').trim() || t('events.card.unnamed'))
+  return pin.entries.length > 1
+    ? `${pin.entries.length}`
+    : (String(first?.evt?.name || '').trim() || t('events.card.unnamed'))
 })
 
 const isDarkMap = computed(() => themeStore.appliedAppearance === 'dark')
 
-function eventMeta(evt) {
-  const parts = [...resolveEventDates(evt), String(evt?.location || '').trim(), String(evt?.city || '').trim()].filter(Boolean)
+function eventMeta(entry) {
+  const dateParts = entry?.date ? [entry.date] : (entry?.allDates || [])
+  const parts = [...dateParts, String(entry?.location || '').trim(), String(entry?.city || '').trim()].filter(Boolean)
   return parts.join(' · ')
 }
 
@@ -324,8 +395,8 @@ function restoreMapView() {
   fitBoundsDone = true
 }
 
-function openEvent(evt) {
-  const eventId = String(evt?.id || '')
+function openEvent(entry) {
+  const eventId = String(entry?.evt?.id || '')
   if (!eventId) return
   saveMapViewState()
   expectingDetailReturn = true
@@ -421,15 +492,15 @@ function destroyClusterer() {
   }
 }
 
-// 单个（未聚合）活动点渲染：保留原有 pin 样式与点击弹层行为
+// 单个（未聚合）条目点渲染：保留原有 pin 样式与点击弹层行为
 function renderMarker(context) {
   const pos = context.marker.getPosition()
   const pin = pinLookup.get(`${pos.getLat().toFixed(5)},${pos.getLng().toFixed(5)}`)
   context.marker.setContent(
-    `<div class="map-pin ${pin?.fallback ? 'map-pin--fallback' : ''}">${pin ? pin.events.length : '1'}</div>`
+    `<div class="map-pin ${pin?.fallback ? 'map-pin--fallback' : ''}">${pin ? pin.entries.length : '1'}</div>`
   )
   context.marker.setOffset(new amap.Pixel(-17, -17))
-  context.marker.setTitle(pin?.fallback ? '' : (pin?.events[0]?.name || ''))
+  context.marker.setTitle(pin?.fallback ? '' : (pin?.entries[0]?.evt?.name || ''))
   if (!context.marker._clusterPinBound) {
     context.marker._clusterPinBound = true
     context.marker.on('click', (e) => {
@@ -463,11 +534,12 @@ function zoomInOnCluster(center) {
   clusterZoomRestoreTimer = setTimeout(restoreAnimateStatus, CLUSTER_ZOOM_DURATION_MS + 400)
 }
 
-// 聚合点渲染：显示聚合点内的活动总数（各点 events 之和），与单点 pin 上显示活动数保持一致；
-// 注意 context.count 是聚合点内"地点"数量，若直接用它，8 个活动的点 + 1 个活动的点会显示 2 而非 9。
+// 聚合点渲染：显示聚合点内的条目总数（各点 entries 之和，多天活动按天拆条目），
+// 与单点 pin 上显示的条目数保持一致；
+// 注意 context.count 是聚合点内"地点"数量，若直接用它，8 个条目的点 + 1 个条目的点会显示 2 而非 9。
 // context.clusterData 官方未在文档中保证完整性：权重聚合下可能只保留最高权重代表点，大聚合下会被截断，
-// 直接求和会明显小于真实活动总数。每个成员内部挂载的 _amapMarker.originData 保留了该成员的原始点数据
-// （官方工单给出的取法，见 react-amap#340），优先展开它再求和，以还原完整活动数。
+// 直接求和会明显小于真实条目总数。每个成员内部挂载的 _amapMarker.originData 保留了该成员的原始点数据
+// （官方工单给出的取法，见 react-amap#340），优先展开它再求和，以还原完整条目数。
 // 2.0 移除了内置的点击散开，这里手动点击平滑放大一级
 function collectClusterPoints(clusterData) {
   const points = []
@@ -496,7 +568,7 @@ function collectClusterPoints(clusterData) {
 
 function renderClusterMarker(context) {
   const points = collectClusterPoints(context.clusterData)
-  const total = points.reduce((sum, pt) => sum + (Number(pt.events) || Number(pt.weight) || 1), 0)
+  const total = points.reduce((sum, pt) => sum + (Number(pt.entries) || Number(pt.weight) || 1), 0)
   context.marker.setContent(`<div class="map-cluster">${total}</div>`)
   context.marker.setOffset(new amap.Pixel(-22, -22))
   if (!context.marker._clusterClickBound) {
@@ -529,12 +601,12 @@ function rebuildMarkers() {
 
   let clustered = false
   if (clustererReady) {
-    // 点数据含经纬度字段 lnglat；weight 让聚合中心偏向活动更多的地点，
-    // events 与 weight 相同值，供 renderClusterMarker 汇总显示活动总数
+    // 点数据含经纬度字段 lnglat；weight 让聚合中心偏向条目更多的地点，
+    // entries 与 weight 相同值，供 renderClusterMarker 汇总显示条目总数
     const points = pins.map((pin) => ({
       lnglat: [pin.lng, pin.lat],
-      weight: pin.events.length,
-      events: pin.events.length
+      weight: pin.entries.length,
+      entries: pin.entries.length
     }))
     try {
       clusterer = new amap.MarkerCluster(map, points, {
@@ -560,8 +632,8 @@ function rebuildMarkers() {
       const marker = new amap.Marker({
         position: [pin.lng, pin.lat],
         anchor: 'center',
-        content: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.events.length}</div>`,
-        title: pin.fallback ? '' : (pin.events[0]?.name || '')
+        content: `<div class="map-pin ${pin.fallback ? 'map-pin--fallback' : ''}">${pin.entries.length}</div>`,
+        title: pin.fallback ? '' : (pin.entries[0]?.evt?.name || '')
       })
       marker.on('click', (e) => {
         // 阻止 DOM 事件冒泡到地图容器，否则地图级 click（关闭弹层）会立刻把刚选中的点关掉
@@ -641,27 +713,61 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// 逐天覆盖条目定位成功：把坐标写回该活动所有「地点文本相同且缺坐标」的覆盖天
+async function applyDayGeocode(evt, target, result, city) {
+  if (!evt) return false
+  const dates = resolveEventDates(evt)
+  const dayList = getDayLocationList(evt).slice()
+  let changed = false
+  for (let index = 0; index < dates.length; index += 1) {
+    const day = dayList[index]
+    if (!hasDayLocationOverride(day)) continue
+    if (String(day.location || '').trim() !== target.location) continue
+    if (String(day.latitude || '').trim() && String(day.longitude || '').trim()) continue
+    dayList[index] = { ...day, city, latitude: result.latitude || '', longitude: result.longitude || '' }
+    changed = true
+  }
+  if (!changed) return false
+  await eventsStore.updateEventRecord(evt.id, {
+    // updateEventRecord 会对 tracks/otherExpenses 重做归一化，部分更新时必须
+    // 显式回传，否则会被 normalizeTracks(undefined) 归一成空数组导致数据丢失
+    tracks: Array.isArray(evt.tracks) ? evt.tracks : [],
+    otherExpenses: Array.isArray(evt.otherExpenses) ? evt.otherExpenses : [],
+    dayLocations: dayList
+  })
+  return true
+}
+
 async function reGeocodeMissing() {
   if (geocoding.value) return
-  const targets = reGeocodableEvents.value
+  const targets = reGeocodableTargets.value
   if (targets.length === 0) return
   geocoding.value = true
   geocodeProgress.value = { current: 0, total: targets.length }
   let succeeded = 0
-  for (const evt of targets) {
+  for (const target of targets) {
+    // 目标可能在前一次写入后已更新（同一活动多个目标），每轮从 store 取最新值
+    const evt = eventsStore.getById(target.evt?.id)
     try {
-      const result = await geocodeAddressToCity(evt.location)
+      const result = await geocodeAddressToCity(target.location)
       if (result) {
-        await eventsStore.updateEventRecord(evt.id, {
-          // updateEventRecord 会对 tracks/otherExpenses 重做归一化，部分更新时必须
-          // 显式回传，否则会被 normalizeTracks(undefined) 归一成空数组导致数据丢失
-          tracks: Array.isArray(evt.tracks) ? evt.tracks : [],
-          otherExpenses: Array.isArray(evt.otherExpenses) ? evt.otherExpenses : [],
-          city: combineCityDistrict(result.city, result.district),
-          latitude: result.latitude || '',
-          longitude: result.longitude || ''
-        })
-        succeeded += 1
+        const city = combineCityDistrict(result.city, result.district)
+        if (target.date) {
+          if (await applyDayGeocode(evt, target, result, city)) {
+            succeeded += 1
+          }
+        } else if (evt) {
+          await eventsStore.updateEventRecord(evt.id, {
+            // updateEventRecord 会对 tracks/otherExpenses 重做归一化，部分更新时必须
+            // 显式回传，否则会被 normalizeTracks(undefined) 归一成空数组导致数据丢失
+            tracks: Array.isArray(evt.tracks) ? evt.tracks : [],
+            otherExpenses: Array.isArray(evt.otherExpenses) ? evt.otherExpenses : [],
+            city,
+            latitude: result.latitude || '',
+            longitude: result.longitude || ''
+          })
+          succeeded += 1
+        }
       }
     } catch {
       // 单项失败继续下一场，不阻断批量定位

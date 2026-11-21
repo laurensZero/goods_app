@@ -10,7 +10,7 @@ import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate'
 
 /** 单元格内嵌 JSON 的列（数组/对象） */
 const JSON_COLUMNS = new Set([
-  'characters', 'tags', 'tracks', 'photos', 'dayTicketList', 'otherExpenses',
+  'characters', 'tags', 'tracks', 'photos', 'dayTicketList', 'dayLocations', 'otherExpenses',
   'linkedGoodsIds', 'unitActualPriceList', 'unitCharacterList', 'unitCollectStatusList',
   'unitAcquiredAtList', 'unitSaleInfoList', 'statusTimeline', 'saleReminderOffsets',
   'images', 'customFields', 'dates'
@@ -60,7 +60,7 @@ export const CSV_SCHEMAS = {
     'id', 'name', 'type', 'dates', 'location', 'city',
     'latitude', 'longitude', 'description', 'coverImage',
     'ticketPrice', 'ticketType', 'seatInfo',
-    'dayTicketList', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags',
+    'dayTicketList', 'dayLocations', 'otherExpenses', 'tracks', 'linkedGoodsIds', 'tags',
     'deleted', 'createdAt', 'updatedAt'
   ],
   event_tracks: [

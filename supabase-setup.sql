@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS events (
   ticket_type TEXT DEFAULT '',
   seat_info TEXT DEFAULT '',
   day_ticket_list JSONB DEFAULT '[]',
+  day_locations JSONB DEFAULT '[]',
   other_expenses JSONB DEFAULT '[]',
   tracks JSONB DEFAULT '[]',
   linked_goods_ids JSONB DEFAULT '[]',
@@ -254,6 +255,7 @@ ALTER TABLE events ADD COLUMN IF NOT EXISTS other_expenses JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS latitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS longitude TEXT DEFAULT '';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS day_ticket_list JSONB DEFAULT '[]';
+ALTER TABLE events ADD COLUMN IF NOT EXISTS day_locations JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS dates JSONB DEFAULT '[]';
 ALTER TABLE events ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';
 

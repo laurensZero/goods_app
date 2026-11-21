@@ -56,7 +56,8 @@ export const MANIFEST_VERSION = 1
 //      绑定行推送晚于其它设备的预设水位时，增量拉取永远够不到这些行，
 //      必须 bump 触发全量重拉预设行。配套云端迁移：
 //      supabase/supabase-migration-character-binding-domain.sql（CHECK 约束放开，未执行则推送被拒）。
-export const SYNC_SCHEMA_VERSION = 20
+// v21: 同步字段变更（细节见 commit message）
+export const SYNC_SCHEMA_VERSION = 21
 
 // 其它可共享的同步相关常量
 export const IMAGE_FILE_PREFIX = 'goods-image__'

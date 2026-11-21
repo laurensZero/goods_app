@@ -90,6 +90,20 @@
             </div>
           </section>
 
+          <section v-if="dayLocationRows.length > 0" class="info-section">
+            <div class="section-head">
+              <p class="section-label">{{ t('events.detail.dayLocationCards') }}</p>
+              <h2 class="section-title">{{ t('events.detail.dayLocations') }}</h2>
+            </div>
+
+            <div class="info-card">
+              <article v-for="row in dayLocationRows" :key="row.date" class="info-tile">
+                <span class="info-label">{{ row.date }}</span>
+                <strong class="info-value">{{ row.value }}</strong>
+              </article>
+            </div>
+          </section>
+
           <section v-if="event.description" class="note-section">
             <div class="section-head">
               <p class="section-label">{{ t('events.detail.additionalInfo') }}</p>
@@ -245,6 +259,7 @@ import { PHOTO_THUMB_MAX_SIZE } from '@/components/events/EventPhotoGrid.vue'
 import { renderMarkdown, mountBiliEmbedEnhancers } from '@/utils/markdown'
 import { getEventTypeChipClass, resolveEventTypeLabel, typeShowsTracks } from '@/constants/eventTypes'
 import { formatEventDateDisplay, resolveEventDates } from '@/utils/events/eventDates'
+import { getDayLocationList, hasDayLocationOverride } from '@/utils/events/dayLocations'
 import { getCoverTone } from '@/utils/goods/coverTone'
 import { usePresetsStore } from '@/stores/presets'
 
@@ -567,6 +582,24 @@ const infoItems = computed(() => {
     items.push({ label: t('events.detail.tags'), value: tagsDisplay.value })
   }
   return items
+})
+
+// 逐天地点（各天场馆不同时逐日展示；未覆盖的天回落活动级地点，不重复列出）
+const dayLocationRows = computed(() => {
+  const current = event.value
+  if (!current) return []
+  const dates = resolveEventDates(current)
+  if (dates.length < 2) return []
+  const dayList = getDayLocationList(current)
+  if (!dayList.some(hasDayLocationOverride)) return []
+  return dates
+    .map((date, index) => {
+      const day = dayList[index]
+      if (!hasDayLocationOverride(day)) return null
+      const value = [String(day.location || '').trim(), String(day.city || '').trim()].filter(Boolean).join(' · ')
+      return value ? { date, value } : null
+    })
+    .filter(Boolean)
 })
 
 async function refresh() {

@@ -121,6 +121,7 @@ const CREATE_EVENTS_TABLE_SQL = `
     ticketType TEXT DEFAULT '',
     seatInfo   TEXT DEFAULT '',
     dayTicketList TEXT DEFAULT '[]',
+    dayLocations TEXT DEFAULT '[]',
     otherExpenses TEXT DEFAULT '[]',
     tracks     TEXT DEFAULT '[]',
     linkedGoodsIds TEXT DEFAULT '[]',
@@ -280,6 +281,7 @@ const EVENTS_REQUIRED_COLUMNS = [
   ['ticketType', "TEXT DEFAULT ''"],
   ['seatInfo', "TEXT DEFAULT ''"],
   ['dayTicketList', "TEXT DEFAULT '[]'"],
+  ['dayLocations', "TEXT DEFAULT '[]'"],
   ['otherExpenses', "TEXT DEFAULT '[]'"],
   ['tracks', "TEXT DEFAULT '[]'"],
   ['linkedGoodsIds', "TEXT DEFAULT '[]'"],
@@ -454,7 +456,7 @@ function goodsRecordToValues(record) {
   return [record.id, record.name, record.category, record.ip, record.goodsId, record.isWishlist, record.charsStr, record.tagsStr, record.storageLocation, record.variant, record.size, record.price, record.actualPrice, record.acquiredAt, record.saleAt, record.saleReminderEnabled, record.saleReminderOffsetsStr, record.currency, record.actualPriceCurrency, record.unitDatesStr, record.unitPricesStr, record.unitCharactersStr, record.unitCollectStatusStr, record.imagesStr, record.tracksStr, record.note, record.qty, record.pts, record.ts, record.collectStatus, record.shippingFee, record.shippingEventsStr, record.sellPrice, record.sellPlatform, record.sellFee, record.sellDate, record.unitSaleInfoStr, record.statusTimelineStr, record.manualOrdersStr, record.customFieldsStr, record.starred, record.trashed, record.deletedAt]
 }
 
-const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,dates,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,dayTicketList,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+const EVENTS_INSERT_SQL = 'INSERT OR REPLACE INTO events (id,name,type,dates,location,city,latitude,longitude,description,coverImage,coverImageData,photos,ticketPrice,ticketType,seatInfo,dayTicketList,dayLocations,otherExpenses,tracks,linkedGoodsIds,tags,deleted,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
 
 const RECHARGE_INSERT_SQL = 'INSERT OR REPLACE INTO recharge_records (id,game,itemName,amount,chargedAt,note,image,deleted,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)'
 
@@ -477,7 +479,7 @@ function prepareEventValues(event) {
     id, name = '', type = '', dates = [],
     location = '', city = '', latitude = '', longitude = '', description = '', coverImage = '',
     coverImageData = {},
-    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', dayTicketList = [], otherExpenses = [], tracks = [], linkedGoodsIds = [], tags = [],
+    photos = [], ticketPrice = '', ticketType = '', seatInfo = '', dayTicketList = [], dayLocations = [], otherExpenses = [], tracks = [], linkedGoodsIds = [], tags = [],
     deleted = false,
     createdAt, updatedAt
   } = event
@@ -485,13 +487,14 @@ function prepareEventValues(event) {
   const photosStr = JSON.stringify(Array.isArray(photos) ? photos : [])
   const datesStr = JSON.stringify(Array.isArray(dates) ? dates : [])
   const dayTicketListStr = JSON.stringify(Array.isArray(dayTicketList) ? dayTicketList : [])
+  const dayLocationsStr = JSON.stringify(Array.isArray(dayLocations) ? dayLocations : [])
   const otherExpensesStr = JSON.stringify(Array.isArray(otherExpenses) ? otherExpenses : [])
   const tracksStr = JSON.stringify(Array.isArray(tracks) ? tracks : [])
   const linkedGoodsStr = JSON.stringify(Array.isArray(linkedGoodsIds) ? linkedGoodsIds : [])
   const tagsStr = JSON.stringify(Array.isArray(tags) ? tags : [])
   const ts = updatedAt || Date.now()
   const created = createdAt || ts
-  return [id, name, type, datesStr, location, city, latitude, longitude, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, dayTicketListStr, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, deleted ? 1 : 0, created, ts]
+  return [id, name, type, datesStr, location, city, latitude, longitude, description, coverImage, coverImageDataStr, photosStr, ticketPrice, ticketType, seatInfo, dayTicketListStr, dayLocationsStr, otherExpensesStr, tracksStr, linkedGoodsStr, tagsStr, deleted ? 1 : 0, created, ts]
 }
 
 async function _getSchemaVersion() {

@@ -13,6 +13,7 @@ import {
   normalizeDayTicketList,
   resolveCompleteDayTicketTotal
 } from '@/utils/events/dayTickets'
+import { normalizeDayLocationList } from '@/utils/events/dayLocations'
 import { resolveEventDates, normalizeEventDates, getFirstEventDate } from '@/utils/events/eventDates'
 
 function normalizeOtherExpenses(expenses) {
@@ -78,6 +79,8 @@ export function normalizeEvent(data) {
     ticketType: String(data.ticketType || '').trim(),
     seatInfo: String(data.seatInfo || '').trim(),
     dayTicketList,
+    // 逐天地点与 dates 下标对齐（dayTicketList 同约定）；单天回落主字段，不保留逐天数据
+    dayLocations: normalizeDayLocationList(data.dayLocations, dates),
     otherExpenses: normalizeOtherExpenses(data.otherExpenses),
     tracks: normalizeTracks(data.tracks),
     linkedGoodsIds: Array.isArray(data.linkedGoodsIds) ? data.linkedGoodsIds : [],
@@ -236,6 +239,12 @@ export const useEventsStore = defineStore('events', () => {
       )
       const dayTicketTotal = resolveCompleteDayTicketTotal(normalizedData.dayTicketList, normalizedData.dates)
       if (dayTicketTotal) normalizedData.ticketPrice = dayTicketTotal
+    }
+    if (hasOwn('dayLocations') || hasOwn('dates') || hasOwn('startDate') || hasOwn('selectedDates')) {
+      normalizedData.dayLocations = normalizeDayLocationList(
+        hasOwn('dayLocations') ? data?.dayLocations : previous.dayLocations,
+        normalizedData.dates
+      )
     }
 
     // The cloud filename belongs to the specific cover image.  The event
@@ -457,6 +466,7 @@ export const useEventsStore = defineStore('events', () => {
         }
         next.dates = resolveEventDates(next)
         next.dayTicketList = normalizeDayTicketList(next.dayTicketList, next.dates)
+        next.dayLocations = normalizeDayLocationList(next.dayLocations, next.dates)
         next.tracks = normalizeTracks(next.tracks)
         recordsToSave.push(next)
         for (const path of diffRemovedManagedImagePaths(existing, next)) {
