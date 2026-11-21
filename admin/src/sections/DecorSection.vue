@@ -114,11 +114,11 @@ const similarMap = computed(() => {
     if (!groups.has(root)) groups.set(root, [])
     groups.get(root).push(row)
   })
-  // 只标「还可操作的」组：≥2 行仍启用（其余是历史墓碑的组不再刷屏）
+  // 全部 ≥2 成员的组都标：可操作的（≥2 行启用）橙色徽标，已处理的（只剩 1 行启用）
+  // 灰色徽标——查阅历史时能一眼分辨
   const map = new Map()
   for (const members of groups.values()) {
-    const enabledRows = members.filter((row) => row.enabled)
-    if (enabledRows.length < 2) continue
+    if (members.length < 2) continue
     for (const row of members) map.set(row.id, members)
   }
   return map
@@ -126,6 +126,12 @@ const similarMap = computed(() => {
 
 function similarSiblings(row) {
   return (similarMap.value.get(row.id) || []).filter((x) => x.id !== row.id)
+}
+
+/** 同组里除本行外还有别的启用行 = 还有重复展示待处理 */
+function similarPending(row) {
+  const members = similarMap.value.get(row.id) || []
+  return members.filter((x) => x.enabled && x.id !== row.id).length > 0
 }
 
 // ── 预览图降级链（thumb → mirror → origin），失败层级按行记忆 ──
@@ -232,6 +238,12 @@ onMounted(load)</script>
 
   <div class="decor-list">
     <Skeleton v-if="loading" variant="list" count="6" />
+    <p
+      v-else-if="filters.state === 'similar' && !filtered.length"
+      class="status-text"
+    >
+      当前没有待处理的同图组（历史重复已清理为墓碑，切到「全部状态」可查）。
+    </p>
     <EmptyState v-else-if="!filtered.length" title="没有匹配的条目" description="调整筛选条件或新增一条" />
     <article v-for="item in filtered" :key="item.id" class="decor-item">
       <div class="decor-item__preview">
@@ -256,9 +268,10 @@ onMounted(load)</script>
         <span
           v-if="similarMap.has(item.id)"
           class="decor-item__similar"
-          :title="'同图组：' + similarSiblings(item).map((x) => x.id).join(', ')"
+          :class="{ 'decor-item__similar--pending': similarPending(item) }"
+          :title="'同图组：' + similarSiblings(item).map((x) => (x.id + (x.enabled ? '' : '(墓碑)'))).join(', ')"
         >
-          同图×{{ similarMap.get(item.id).length }}
+          {{ similarPending(item) ? '同图×' + similarMap.get(item.id).length : '同图已清×' + similarMap.get(item.id).length }}
         </span>
         <StatusPill :status="item.enabled ? 'ok' : 'warn'" :label="item.enabled ? '启用' : '墓碑'" />
         <button class="btn btn--sm" type="button" @click="openEdit(item)">编辑</button>
@@ -412,11 +425,16 @@ onMounted(load)</script>
 .decor-item__similar {
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(230, 162, 60, 0.18);
-  color: #e6a23c;
+  background: rgba(127, 127, 127, 0.16);
+  color: var(--admin-text-secondary, rgba(127, 127, 127, 0.9));
   font-size: 11px;
   white-space: nowrap;
   cursor: help;
+}
+
+.decor-item__similar--pending {
+  background: rgba(230, 162, 60, 0.18);
+  color: #e6a23c;
 }
 
 .decor-siblings {
