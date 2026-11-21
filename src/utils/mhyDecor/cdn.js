@@ -1,6 +1,12 @@
 // @ts-check
+import { getPublicBaseUrl, rebasePublicImageUrl } from '@/utils/sync/supabaseClient'
+
 /**
  * 米哈游装扮图片地址工具（头像框 / 评论装扮）。
+ *
+ * 镜像/缩略图这类 Storage 公链的 host 不写死：统一按同步层测速选中的数据面
+ * 端点改写（rebasePublicImageUrl + getPublicBaseUrl），云同步选了哪条线，
+ * 装扮图就走哪条线。
  *
  * 取图策略（2026-11-21 定稿）：
  * - **预览**（选择器网格、列表）：优先云端预压缩的 128px 静态缩略图 `t`
@@ -52,6 +58,14 @@ export function pendantContentKey(url) {
  *                                    false/缺省 = 上屏场景，必须原图级（m → 去参 u）
  * @returns {string}
  */
+/**
+ * 把 Storage 公链的 host 改写成同步层当前选中的数据面端点。
+ * 非内置 Supabase 公链（米哈游 CDN 原图等）原样返回。
+ */
+function toActiveBase(url) {
+  return rebasePublicImageUrl(url, getPublicBaseUrl())
+}
+
 export function resolvePendantSrc(item, options = {}) {
   if (!item || typeof item !== 'object') return ''
   const thumb = String(item.t || '').trim()
@@ -59,10 +73,10 @@ export function resolvePendantSrc(item, options = {}) {
   const original = stripDecorParams(item.u || '')
 
   // 预览：128px 缩略图（动图自带首帧压平）→ 镜像 → 去参原图
-  if (options.preview === true && thumb) return thumb
+  if (options.preview === true && thumb) return toActiveBase(thumb)
   // 上屏：镜像优先（国内直连快 + 免疫官方删文件），没有镜像退去参原图
-  if (mirror) return mirror
-  return original
+  if (mirror) return toActiveBase(mirror)
+  return toActiveBase(original)
 }
 
 /**
