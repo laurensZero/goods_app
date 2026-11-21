@@ -1565,7 +1565,7 @@ onBeforeUnmount(() => {
    section 自身带横向页边距，气泡 right 加 --page-padding 才能贴到卡片边缘 */
 .summary-section {
   position: relative;
-  --mhy-bubble-right: calc(var(--page-padding) + 100px); /* 右移躲开头部按钮（tips + 眼睛） */; /* 右移躲开小眼睛（40px 按钮 + 间隙），否则贴角重叠 */
+  --mhy-bubble-right: var(--page-padding);
 }
 
 .wishlist-page--top-jump .page-body {
