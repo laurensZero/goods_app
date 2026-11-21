@@ -134,6 +134,52 @@ function similarPending(row) {
   return members.filter((x) => x.enabled && x.id !== row.id).length > 0
 }
 
+const naturalKey = (row) => `${row.source}|${row.game}|${row.sort ?? 0}|${row.id}`
+
+/**
+ * 列表渲染序：同图组的成员排在一起成一个「块」，不同块之间由模板插入组头隔开；
+ * 非同图的行按自然序排在组块之后。
+ */
+const displayRows = computed(() => {
+  const rows = filtered.value
+  const idToRow = new Map(rows.map((row) => [row.id, row]))
+  const blockIdOf = new Map()
+  const blocks = new Map()
+  for (const row of rows) {
+    const members = similarMap.value.get(row.id)
+    let blockId
+    if (members && members.length > 1) {
+      const present = members.filter((m) => idToRow.has(m.id)).map((m) => m.id)
+      blockId = 'g:' + (present.length ? present.slice().sort()[0] : row.id)
+    } else {
+      blockId = 's:' + row.id
+    }
+    blockIdOf.set(row.id, blockId)
+    if (!blocks.has(blockId)) blocks.set(blockId, [])
+    blocks.get(blockId).push(row)
+  }
+  const blockList = [...blocks.values()]
+  // 组块按组内最小自然键排；行块按自身自然键排——整体保持接近自然序
+  blockList.sort((a, b) => naturalKey(a[0]).localeCompare(naturalKey(b[0]), 'zh'))
+  const out = []
+  for (const block of blockList) {
+    const isGroup = block.length > 1
+    block.sort((a, b) => {
+      const ea = a.enabled ? 0 : 1
+      const eb = b.enabled ? 0 : 1
+      return ea - eb || naturalKey(a).localeCompare(naturalKey(b))
+    })
+    block.forEach((row, index) => {
+      out.push({
+        row,
+        inGroup: isGroup,
+        groupHead: isGroup && index === 0 ? `同图组 · ${block.length} 条` : '',
+      })
+    })
+  }
+  return out
+})
+
 // ── 预览图降级链（thumb → mirror → origin），失败层级按行记忆 ──
 const previewLevels = reactive({})
 function previewSrc(row) {
@@ -245,41 +291,46 @@ onMounted(load)</script>
       当前没有待处理的同图组（历史重复已清理为墓碑，切到「全部状态」可查）。
     </p>
     <EmptyState v-else-if="!filtered.length" title="没有匹配的条目" description="调整筛选条件或新增一条" />
-    <article v-for="item in filtered" :key="item.id" class="decor-item">
-      <div class="decor-item__preview">
-        <img
-          v-if="previewSrc(item)"
-          :src="previewSrc(item)"
-          alt=""
-          loading="lazy"
-          @error="onPreviewError(item)"
-        />
-        <span v-else class="decor-item__preview-empty">无图</span>
-      </div>
-      <div class="decor-item__main">
-        <span class="decor-item__title">{{ item.name || item.id }}</span>
-        <span class="decor-item__meta">
-          ID: {{ item.id }} · {{ item.source }} · {{ item.game }} · 排序 {{ item.sort ?? 0 }}
-          <template v-if="item.animated"> · 动图</template>
-          · {{ formatTime(item.updated_at) }}
-        </span>
-      </div>
-      <div class="decor-item__actions">
-        <span
-          v-if="similarMap.has(item.id)"
-          class="decor-item__similar"
-          :class="{ 'decor-item__similar--pending': similarPending(item) }"
-          :title="'同图组：' + similarSiblings(item).map((x) => (x.id + (x.enabled ? '' : '(墓碑)'))).join(', ')"
-        >
-          {{ similarPending(item) ? '同图×' + similarMap.get(item.id).length : '同图已清×' + similarMap.get(item.id).length }}
-        </span>
-        <StatusPill :status="item.enabled ? 'ok' : 'warn'" :label="item.enabled ? '启用' : '墓碑'" />
-        <button class="btn btn--sm" type="button" @click="openEdit(item)">编辑</button>
-        <button class="btn btn--sm btn--soft" type="button" @click="toggleItem(item)">
-          {{ item.enabled ? '下架' : '恢复' }}
-        </button>
-      </div>
-    </article>
+    <template v-for="entry in displayRows" :key="entry.row.id">
+      <div v-if="entry.groupHead" class="decor-group-head">{{ entry.groupHead }}</div>
+      <article
+        :class="['decor-item', { 'decor-item--grouped': entry.inGroup }]"
+      >
+        <div class="decor-item__preview">
+          <img
+            v-if="previewSrc(entry.row)"
+            :src="previewSrc(entry.row)"
+            alt=""
+            loading="lazy"
+            @error="onPreviewError(entry.row)"
+          />
+          <span v-else class="decor-item__preview-empty">无图</span>
+        </div>
+        <div class="decor-item__main">
+          <span class="decor-item__title">{{ entry.row.name || entry.row.id }}</span>
+          <span class="decor-item__meta">
+            ID: {{ entry.row.id }} · {{ entry.row.source }} · {{ entry.row.game }} · 排序 {{ entry.row.sort ?? 0 }}
+            <template v-if="entry.row.animated"> · 动图</template>
+            · {{ formatTime(entry.row.updated_at) }}
+          </span>
+        </div>
+        <div class="decor-item__actions">
+          <span
+            v-if="similarMap.has(entry.row.id)"
+            class="decor-item__similar"
+            :class="{ 'decor-item__similar--pending': similarPending(entry.row) }"
+            :title="'同图组：' + similarSiblings(entry.row).map((x) => (x.id + (x.enabled ? '' : '(墓碑)'))).join(', ')"
+          >
+            {{ similarPending(entry.row) ? '同图×' + similarMap.get(entry.row.id).length : '同图已清×' + similarMap.get(entry.row.id).length }}
+          </span>
+          <StatusPill :status="entry.row.enabled ? 'ok' : 'warn'" :label="entry.row.enabled ? '启用' : '墓碑'" />
+          <button class="btn btn--sm" type="button" @click="openEdit(entry.row)">编辑</button>
+          <button class="btn btn--sm btn--soft" type="button" @click="toggleItem(entry.row)">
+            {{ entry.row.enabled ? '下架' : '恢复' }}
+          </button>
+        </div>
+      </article>
+    </template>
   </div>
 
   <PanelDrawer
@@ -361,6 +412,20 @@ onMounted(load)</script>
 .decor-list {
   display: grid;
   gap: 8px;
+}
+
+/* 同图组：组头 + 组内行的浅色底，组与组之间用组头的外边距拉开 */
+.decor-group-head {
+  margin-top: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.6;
+  letter-spacing: 0.04em;
+}
+
+.decor-item--grouped {
+  background: var(--admin-surface-soft, rgba(127, 127, 127, 0.08));
+  margin-top: -4px;
 }
 
 .decor-item {
