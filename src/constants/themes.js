@@ -129,7 +129,8 @@ export const THEME_DEFINITIONS = {
         '--app-shadow': '0 8px 24px rgba(0, 0, 0, 0.06)',
         // 浅色封面卡：参考吧唧工艺的银卡底材；工艺质感（拉丝/镭射/葱粉/猫眼）由用户在设置里自由叠加
         '--summary-card-gradient': 'linear-gradient(145deg, #eff0f4 0%, #e2e5eb 52%, #cfd4de 100%)',
-        '--summary-card-orb': 'rgba(255, 255, 255, 0.9)',
+        // 浅色卡的装饰圆斑只做微光：0.9 级白斑只有 2px 模糊，会硬边糊住指标块与文案
+        '--summary-card-orb': 'rgba(255, 255, 255, 0.22)',
         '--summary-card-text': '#141416',
         '--summary-card-label': 'rgba(20, 20, 22, 0.56)',
         '--summary-card-button-bg': 'rgba(20, 20, 22, 0.06)',
@@ -138,7 +139,8 @@ export const THEME_DEFINITIONS = {
         // 烫银边：深色发丝描边 + 白色金属内缘
         '--summary-card-shadow': '0 14px 36px rgba(17, 20, 22, 0.12), inset 0 0 0 1px rgba(17, 20, 22, 0.10), inset 0 0 0 2.5px rgba(255, 255, 255, 0.55)',
         // 卡内子面板走白板+深色发丝线，避免深灰面板在浅卡上发闷
-        '--summary-chip-bg': 'rgba(255, 255, 255, 0.8)',
+        // 卡内子面板近乎不透明：指标块半透明会让装饰光斑从底下透出来，看起来像盖住了文字
+        '--summary-chip-bg': 'rgba(255, 255, 255, 0.95)',
         '--summary-chip-border': 'rgba(20, 20, 22, 0.08)',
         '--summary-sparkline-line': 'rgba(20, 20, 22, 0.45)',
         '--summary-sparkline-area': 'rgba(20, 20, 22, 0.08)',
