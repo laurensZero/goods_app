@@ -244,7 +244,7 @@ function matchByQuery(list, query, normQuery) {
 
 /** tile 预览：有 gif 就直出 gif（列表里也动起来），静态才按 96px 走静态链 */
 function previewSrc(item) {
-  return resolveBubbleSrc(item, item.a && item.gif ? { playAnimation: true } : { width: 96 })
+  return resolveBubbleSrc(item, item.a && item.gif ? { playAnimation: true } : { preview: true })
 }
 
 function close() {

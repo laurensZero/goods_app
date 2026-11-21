@@ -64,6 +64,11 @@ const props = defineProps({
   lazy: { type: Boolean, default: true },
   /** 头像是否显示骨架屏（首屏常驻头像传 false） */
   skeletonEnabled: { type: Boolean, default: true },
+  /**
+   * 预览场景（选择器网格等小尺寸展示）：允许 128px 缩略图。
+   * 上屏场景（头像外圈佩戴）保持 false，永远走原图级（镜像/去参原图）。
+   */
+  preview: { type: Boolean, default: false },
   rootMargin: { type: String, default: '320px 0px' }
 })
 
@@ -81,7 +86,7 @@ const frameSrc = computed(() => {
   if (!props.frame) return ''
   return resolveAvatarPendantSrc(
     { u: props.frame, m: props.frameMirror, t: props.frameThumb, a: props.animated },
-    { size: props.size, playAnimation: props.playAnimation }
+    { preview: props.preview }
   )
 })
 </script>

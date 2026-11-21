@@ -1083,7 +1083,7 @@ function applyMhyPendant(pendant) {
   // 列表里看到的只是 128px 静态缩略图，头像要的是另一档地址（动图甚至 1MB 级）；
   // 面板还开着时先把头像尺寸的图下好，切完关面板就能直接出图，不用再等一次网络往返
   if (pendant?.u) {
-    const src = resolveAvatarPendantSrc(pendant, { size: MHY_PENDANT_AVATAR_SIZE, playAnimation: true })
+    const src = resolveAvatarPendantSrc(pendant)
     if (src) void preloadImages([src])
   }
   if (authStore.isLoggedIn) {

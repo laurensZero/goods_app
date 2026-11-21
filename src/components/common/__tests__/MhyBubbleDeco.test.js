@@ -94,7 +94,8 @@ describe('MhyBubbleDeco', () => {
     bubblesStore.byPage = { home: PLAIN }
     const wrapper = await mountDeco()
     expect(wrapper.find('.mhy-bubble-deco__bubble img').attributes('src'))
-      .toBe(`${STATIC_U}?x-oss-process=image/resize,w_400/format,webp`)
+      // 上屏永远是原图级：去参原图，不再拼 OSS 缩放参数
+      .toBe(STATIC_U)
   })
 
   it('动图气泡默认播 gif；gif 加载失败退静态，静态也失败整体隐藏', async () => {
@@ -107,7 +108,8 @@ describe('MhyBubbleDeco', () => {
     await img.trigger('error')
     await flushPromises()
     expect(wrapper.find('.mhy-bubble-deco__bubble img').attributes('src'))
-      .toBe(`${STATIC_U}?x-oss-process=image/resize,w_400/format,webp`)
+      // 上屏永远是原图级：去参原图，不再拼 OSS 缩放参数
+      .toBe(STATIC_U)
 
     // 静态也挂了 → 装饰元素整体隐藏，不留破图占位
     await wrapper.find('.mhy-bubble-deco__bubble img').trigger('error')

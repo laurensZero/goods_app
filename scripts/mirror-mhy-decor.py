@@ -8,9 +8,9 @@ mirror_url 为空的行：下载原图到本地缓存 .decor-cache/ → 生成 1
 缩略图（动图取首帧，保留 alpha）→ 上传 Supabase Storage（桶 mhy-decor，
 子路径 pendants/ 与 bubbles/）→ 回填 mirror_url / thumb_url。
 
-背景：HoYoLAB 挂件图在海外 CDN（fastcdn.hoyoverse.com 等），国内加载慢；
-米游社条目走阿里 OSS（bbs-static.miyoushe.com）+ x-oss-process 实时缩放，
-理论上不镜像也快，但统一切镜像源可以把「OSS 偶发限速」也兜掉。
+背景：HoYoLAB 挂件图在海外 CDN（fastcdn.hoyoverse.com 等），国内加载慢，
+所以要镜像；米游社条目走阿里 OSS（bbs-static.miyoushe.com），国内直连快且是
+全分辨率原图，客户端直接取去参原图，不需要镜像。
 评论气泡（mhy_reply_bubbles）只来自米游社，动图另有 gif_url 需要单独镜像
 （客户端 animated 时直接用 gif 镜像地址）。
 
@@ -298,9 +298,10 @@ def main():
 
     plans = []
     if args.kind in ("pendant", "all"):
+        # 只镜像 hoyolab：米游社 OSS（bbs-static）国内本来就快且是全分辨率原图，
+        # 客户端对米游社条目直接取去参原图即可，无需镜像。
         plans.append((TABLE_PENDANT, "id,url,mirror_url,thumb_url",
-                      {"source": "eq.hoyolab"},  # 米游社走 OSS 实时缩放即可，无需镜像
-                      process_pendant, "pendant"))
+                      {"source": "eq.hoyolab"}, process_pendant, "pendant"))
     if args.kind in ("bubble", "all"):
         # 气泡全部来自米游社背包接口，统一镜像（含动图）
         plans.append((TABLE_BUBBLE, "id,url,gif_url,mirror_url,thumb_url", None, process_bubble, "bubble"))

@@ -91,8 +91,6 @@ onMounted(() => {
   void bubblesStore.ensureLoaded(props.pageKey)
 })
 
-/** 展示宽取 2 倍图（retina），动图是否可播看 a && gif（用户已拍板支持动图） */
-const displayWidth = computed(() => Math.max(16, Number(props.width) || 176) * 2)
 const canPlayGif = computed(() => !!(currentBubble.value?.a && currentBubble.value?.gif))
 
 // gif 加载失败退静态底图；静态也失败就整体隐藏贴图（装饰元素，不留破图占位）
@@ -119,7 +117,8 @@ const bubbleSrc = computed(() => {
   if (canPlayGif.value && !gifFailed.value) {
     return resolveBubbleSrc(item, { playAnimation: true })
   }
-  return resolveBubbleSrc(item, { width: displayWidth.value })
+  // 上屏（页面贴角）永远是原图级：mirror → 去参原图，不做任何缩放
+  return resolveBubbleSrc(item)
 })
 
 function onBubbleImgError() {
