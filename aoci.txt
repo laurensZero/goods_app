@@ -1,0 +1,7 @@
+#AOCI-ROOT-MANIFEST: 1
+#Format-Version: cognition-volumes/v1
+#Locale: zh-CN
+#Project: goods_app：谷子（动漫/游戏周边）收藏管理 App。Capacitor + Vue3 跨端（Android APK/Web），本地 SQLite 为主数据源、Supabase 可选云同步；覆盖收藏/心愿/活动/充值记录、米游铺与淘宝批量导入、AI 助手与 MCP 服务、图片编辑与分享。
+#Global-Invariants: 同步字段增删必须配套：SYNC_SCHEMA_VERSION bump + 云端迁移 + SQLite 迁移 + adapters 字段登记（syncColumnConsistency 测试兑底）；本地 SQLite 为权威、远端为副本，合并是幂等 LWW，金额唯一来源官方花费明细；图片引用三态 ref（cloud/remote/local）、local 永不进同步载荷，孤儿回收有三护栏；安全：客户端不传价格、凭证走 secret 通道、日志脱敏、RLS 默认全拒；平台双路径原生直连 / Web 走代理，Edge 打包器只收 supabase 目录内文件
+#Volume: id=meta kind=meta path=aoci.meta.txt format=meta-v1 depends=- state=enabled
+#Volume: id=code kind=code path=aoci.code.txt format=object-fras-v2 depends=meta state=enabled
