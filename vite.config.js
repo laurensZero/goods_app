@@ -328,11 +328,18 @@ export default defineConfig({
               proxyReq.removeHeader('x-cookie-forward')
             }
             proxyReq.removeHeader('origin')
+            // UA 按路径补齐（浏览器禁止设置）：exchange 是 passport SDK（okhttp），
+            // 旧 GET 换票是米游社 BBS 包——与生产 Pages Function 的行为保持一致
+            const isExchange = (req.url || '').includes('/account/ma-cn-session/app/exchange')
             proxyReq.setHeader(
               'user-agent',
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2',
+              isExchange
+                ? 'okhttp/4.9.3'
+                : 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2',
             )
-            proxyReq.setHeader('referer', 'https://webstatic.mihoyo.com')
+            if (!isExchange) {
+              proxyReq.setHeader('referer', 'https://webstatic.mihoyo.com')
+            }
           })
         }
       },

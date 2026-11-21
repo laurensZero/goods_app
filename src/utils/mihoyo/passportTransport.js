@@ -60,6 +60,8 @@ export async function passportRequest({
   detectHtmlPayload = false,
 }) {
   const suffix = query ? `?${query}` : ''
+  // data 为字符串时原样发送（exchange 的 DS 按精确 body 串签名，不能二次序列化）
+  const isStringBody = typeof data === 'string'
 
   if (Capacitor.isNativePlatform()) {
     const res = await CapacitorHttp.request({
@@ -100,7 +102,9 @@ export async function passportRequest({
   const res = await fetchWithPlatformBridge(`${proxy}${path}${suffix}`, {
     method: data != null ? 'POST' : 'GET',
     headers: webHeaders,
-    ...(data != null ? { body: JSON.stringify(data) } : {}),
+    ...(data != null
+      ? { body: isStringBody ? data : JSON.stringify(data) }
+      : {}),
     timeoutMs,
   })
   if (!res.ok) {

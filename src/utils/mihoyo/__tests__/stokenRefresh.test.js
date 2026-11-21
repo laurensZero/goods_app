@@ -28,9 +28,11 @@ vi.mock('@capacitor/core', () => ({
 }))
 
 import {
+  buildExchangeRequestBody,
   buildRefreshedMihoyoCookie,
   exchangeStokenForTokens,
   getMihoyoDeviceProfile,
+  makeMihoyoDsProd,
   makeMihoyoDsX4,
   parseStokenInput,
   refreshMihoyoCookieWithStoken,
@@ -68,6 +70,24 @@ describe('makeMihoyoDsX4', () => {
       .toBe('1700000000,123456,e04267a3f6dd002d456bca00657ce838')
     expect(makeMihoyoDsX4({ query: 'stoken=v2_test' }, { t: '1700000000', r: '123456' }))
       .toBe('1700000000,123456,76f946c4ab732c09a54d3278347ade1f')
+  })
+})
+
+describe('makeMihoyoDsProd / buildExchangeRequestBody', () => {
+  it('SALT_PROD 带 body 无 query 的测试向量', () => {
+    const body = buildExchangeRequestBody({ stoken: 'v2_abc', mid: 'mid', dstTokenType: 2 })
+    expect(body).toBe('{"mid":"mid","dst_token_type":2,"src_token":{"token_type":1,"token":"v2_abc"}}')
+    const [t, r, hash] = makeMihoyoDsProd(body, { t: '1700000000', r: '123456' }).split(',')
+    expect(t).toBe('1700000000')
+    expect(r).toBe('123456')
+    expect(hash).toBe('b25e06b2dea7ade80d2651314981736e')
+  })
+
+  it('body 字段顺序为 Gson 哈希序：mid → dst_token_type → src_token', () => {
+    const body = buildExchangeRequestBody({ stoken: 'v2_x', mid: 'm', dstTokenType: 4 })
+    expect(body.indexOf('"mid"')).toBeLessThan(body.indexOf('"dst_token_type"'))
+    expect(body.indexOf('"dst_token_type"')).toBeLessThan(body.indexOf('"src_token"'))
+    expect(body.indexOf('"token_type"')).toBeLessThan(body.indexOf('"token"'))
   })
 })
 
@@ -138,7 +158,7 @@ describe('parseStokenInput', () => {
 })
 
 describe('buildRefreshedMihoyoCookie', () => {
-  it('组装米游铺可用的 v1 Cookie', () => {
+  it('组装米游铺可用的 Cookie（v1/v2 字段都带，兼容 11-20 改版后的 v2 身份）', () => {
     expect(buildRefreshedMihoyoCookie({
       stuid: '301532617',
       mid: '0ppobignrz_mhy',
@@ -146,8 +166,8 @@ describe('buildRefreshedMihoyoCookie', () => {
       cookieToken: 'ct',
     })).toBe(
       'account_id=301532617; account_id_v2=301532617; account_mid_v2=0ppobignrz_mhy; '
-      + 'cookie_token=ct; ltmid_v2=0ppobignrz_mhy; ltoken=lt; '
-      + 'ltuid=301532617; ltuid_v2=301532617; login_uid=301532617',
+      + 'cookie_token=ct; cookie_token_v2=ct; ltoken=lt; ltoken_v2=lt; '
+      + 'ltmid_v2=0ppobignrz_mhy; ltuid=301532617; ltuid_v2=301532617; login_uid=301532617',
     )
   })
 
@@ -167,10 +187,13 @@ describe('getMihoyoDeviceProfile', () => {
 })
 
 describe('exchangeStokenForTokens', () => {
-  it('依次换取 cookie_token / ltoken', async () => {
+  it('exchange 主通道：先 cookie_token(v2) 再 ltoken(v2)', async () => {
     state.http
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { uid: '301', cookie_token: 'ct' } }))
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { ltoken: 'lt' } }))
+      .mockResolvedValueOnce(okJson({
+        retcode: 0,
+        data: { token: { token: 'v2_ct' }, user_info: { uid: '301' } },
+      }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { token: { token: 'v2_lt' } } }))
 
     const result = await exchangeStokenForTokens({
       stoken: 'v2_abc=',
@@ -179,16 +202,40 @@ describe('exchangeStokenForTokens', () => {
       deviceFp: 'device-fp',
     })
 
-    expect(result).toEqual({ ok: true, ltoken: 'lt', cookieToken: 'ct', uid: '301' })
+    expect(result).toEqual({ ok: true, ltoken: 'v2_lt', cookieToken: 'v2_ct', uid: '301' })
     expect(state.http).toHaveBeenCalledTimes(2)
     const [url, init] = state.http.mock.calls[0]
-    expect(url).toContain('/mihoyo-account-passport/account/auth/api/getCookieAccountInfoBySToken')
-    expect(url).toContain('stoken=v2_abc%3D')
+    expect(url).toContain('/mihoyo-account-passport/account/ma-cn-session/app/exchange')
+    expect(init.method).toBe('POST')
+    // body 必须是 Gson 哈希序的精确串（DS 按原文签名）
+    expect(init.body).toBe('{"mid":"mid","dst_token_type":4,"src_token":{"token_type":1,"token":"v2_abc="}}')
     expect(init.headers.DS).toMatch(/^\d+,\d+,[0-9a-f]{32}$/)
-    expect(init.headers['x-cookie-forward']).toBe(encodeURIComponent('mid=mid;stoken=v2_abc='))
+    expect(init.headers['x-rpc-app_id']).toBe('bll8iq97cem8')
+    expect(init.headers['x-rpc-sdk_version']).toBe('2.44.0')
+    // stoken 在 body 里，不随 Cookie 转发
+    expect(init.headers['x-cookie-forward']).toBeUndefined()
   })
 
-  it('stoken 失效返回 auth', async () => {
+  it('exchange 失败（-464 等临时错误）回退 passport GET 老通道', async () => {
+    state.http
+      .mockResolvedValueOnce(okJson({ retcode: -464, message: '请使用最新版本产品' }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { uid: '301', cookie_token: 'ct' } }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { ltoken: 'lt' } }))
+
+    const result = await exchangeStokenForTokens({
+      stoken: 'v2_abc',
+      mid: 'mid',
+      deviceId: 'device-id',
+      deviceFp: 'device-fp',
+    })
+
+    expect(result).toEqual({ ok: true, ltoken: 'lt', cookieToken: 'ct', uid: '301' })
+    expect(state.http).toHaveBeenCalledTimes(3)
+    expect(state.http.mock.calls[1][0]).toContain('/account/auth/api/getCookieAccountInfoBySToken')
+    expect(state.http.mock.calls[2][0]).toContain('/account/auth/api/getLTokenBySToken')
+  })
+
+  it('stoken 失效返回 auth，不再走老通道', async () => {
     state.http.mockResolvedValueOnce(okJson({ retcode: -100, message: '登录失效' }))
 
     const result = await exchangeStokenForTokens({
@@ -199,6 +246,7 @@ describe('exchangeStokenForTokens', () => {
     })
 
     expect(result).toMatchObject({ ok: false, kind: 'auth', retcode: -100 })
+    expect(state.http).toHaveBeenCalledTimes(1)
   })
 
   it('代理缺失（HTML 回退）返回 proxy', async () => {
@@ -215,8 +263,8 @@ describe('exchangeStokenForTokens', () => {
     expect(result.message).toContain('代理')
   })
 
-  it('网络异常返回 transient', async () => {
-    state.http.mockRejectedValueOnce(new Error('network down'))
+  it('网络异常（exchange + 老通道都挂）返回 transient', async () => {
+    state.http.mockRejectedValue(new Error('network down'))
 
     const result = await exchangeStokenForTokens({
       stoken: 'v2_abc',
@@ -232,8 +280,11 @@ describe('exchangeStokenForTokens', () => {
 describe('refreshMihoyoCookieWithStoken', () => {
   it('换票 + user/info 校验成功后返回新 Cookie', async () => {
     state.http
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { uid: '301', cookie_token: 'ct' } }))
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { ltoken: 'lt' } }))
+      .mockResolvedValueOnce(okJson({
+        retcode: 0,
+        data: { token: { token: 'v2_ct' }, user_info: { uid: '301' } },
+      }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { token: { token: 'v2_lt' } } }))
     state.probe.mockResolvedValueOnce({
       ok: true,
       kind: 'ok',
@@ -249,15 +300,20 @@ describe('refreshMihoyoCookieWithStoken', () => {
     })
 
     expect(result.ok).toBe(true)
-    expect(result.cookie).toContain('cookie_token=ct')
-    expect(result.cookie).toContain('ltoken=lt')
+    expect(result.cookie).toContain('cookie_token=v2_ct')
+    expect(result.cookie).toContain('cookie_token_v2=v2_ct')
+    expect(result.cookie).toContain('ltoken=v2_lt')
+    expect(result.cookie).toContain('ltoken_v2=v2_lt')
     expect(result.profile.nickname).toBe('laurensZero')
   })
 
   it('user/info UID 不一致返回 mismatch', async () => {
     state.http
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { uid: '301', cookie_token: 'ct' } }))
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { ltoken: 'lt' } }))
+      .mockResolvedValueOnce(okJson({
+        retcode: 0,
+        data: { token: { token: 'v2_ct' }, user_info: { uid: '301' } },
+      }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { token: { token: 'v2_lt' } } }))
     state.probe.mockResolvedValueOnce({
       ok: true,
       kind: 'ok',
@@ -277,8 +333,11 @@ describe('refreshMihoyoCookieWithStoken', () => {
 
   it('user/info 鉴权失败返回 auth，不返回 Cookie', async () => {
     state.http
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { uid: '301', cookie_token: 'ct' } }))
-      .mockResolvedValueOnce(okJson({ retcode: 0, data: { ltoken: 'lt' } }))
+      .mockResolvedValueOnce(okJson({
+        retcode: 0,
+        data: { token: { token: 'v2_ct' }, user_info: { uid: '301' } },
+      }))
+      .mockResolvedValueOnce(okJson({ retcode: 0, data: { token: { token: 'v2_lt' } } }))
     state.probe.mockResolvedValueOnce({
       ok: false,
       kind: 'auth',
