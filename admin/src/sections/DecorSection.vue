@@ -114,10 +114,11 @@ const similarMap = computed(() => {
     if (!groups.has(root)) groups.set(root, [])
     groups.get(root).push(row)
   })
+  // 只标「还可操作的」组：≥2 行仍启用（其余是历史墓碑的组不再刷屏）
   const map = new Map()
   for (const members of groups.values()) {
-    if (members.length < 2) continue
-    // 组内已禁用的行不算「重复展示」，但如果全组都被禁了仍要标（方便恢复排查）
+    const enabledRows = members.filter((row) => row.enabled)
+    if (enabledRows.length < 2) continue
     for (const row of members) map.set(row.id, members)
   }
   return map
