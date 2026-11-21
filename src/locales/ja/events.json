@@ -151,8 +151,6 @@
   "events.detail.backToList": "イベント一覧に戻る",
   "events.detail.collapse": "折りたたむ",
   "events.detail.concertSetlist": "コンサートセットリスト",
-  "events.detail.dayLocationCards": "日別会場",
-  "events.detail.dayLocations": "各日の会場",
   "events.detail.deleteDialog.cancel": "キャンセル",
   "events.detail.deleteDialog.confirm": "削除",
   "events.detail.deleteDialog.message": "「{name}」を削除しますか？この操作は元に戻せません。",

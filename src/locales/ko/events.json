@@ -151,8 +151,6 @@
   "events.detail.backToList": "이벤트 목록으로 돌아가기",
   "events.detail.collapse": "접기",
   "events.detail.concertSetlist": "콘서트 셋리스트",
-  "events.detail.dayLocationCards": "일자별 장소",
-  "events.detail.dayLocations": "일별 장소",
   "events.detail.deleteDialog.cancel": "취소",
   "events.detail.deleteDialog.confirm": "삭제",
   "events.detail.deleteDialog.message": "\"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",

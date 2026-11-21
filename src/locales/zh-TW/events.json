@@ -151,8 +151,6 @@
   "events.detail.backToList": "返回活動列表",
   "events.detail.collapse": "收起",
   "events.detail.concertSetlist": "演唱會曲目",
-  "events.detail.dayLocationCards": "分日場館",
-  "events.detail.dayLocations": "各天地點",
   "events.detail.deleteDialog.cancel": "取消",
   "events.detail.deleteDialog.confirm": "刪除",
   "events.detail.deleteDialog.message": "確認刪除\"{name}\"吗？刪除后将無法恢復。",

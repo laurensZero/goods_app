@@ -90,20 +90,6 @@
             </div>
           </section>
 
-          <section v-if="dayLocationRows.length > 0" class="info-section">
-            <div class="section-head">
-              <p class="section-label">{{ t('events.detail.dayLocationCards') }}</p>
-              <h2 class="section-title">{{ t('events.detail.dayLocations') }}</h2>
-            </div>
-
-            <div class="info-card">
-              <article v-for="row in dayLocationRows" :key="row.date" class="info-tile">
-                <span class="info-label">{{ row.date }}</span>
-                <strong class="info-value">{{ row.value }}</strong>
-              </article>
-            </div>
-          </section>
-
           <section v-if="event.description" class="note-section">
             <div class="section-head">
               <p class="section-label">{{ t('events.detail.additionalInfo') }}</p>
@@ -554,8 +540,8 @@ const infoItems = computed(() => {
       value: eventDates.join('、')
     })
   }
-  if (event.value.location) {
-    items.push({ label: t('events.detail.eventLocation'), value: event.value.location })
+  if (event.value.location || dayLocationText.value) {
+    items.push({ label: t('events.detail.eventLocation'), value: dayLocationText.value || event.value.location })
   }
   if (hasTicketPrice.value) {
     items.push({ label: t('events.detail.ticketPrice'), value: dayTicketPriceText.value || `¥${ticketPriceAmount.value}` })
@@ -584,22 +570,25 @@ const infoItems = computed(() => {
   return items
 })
 
-// 逐天地点（各天场馆不同时逐日展示；未覆盖的天回落活动级地点，不重复列出）
-const dayLocationRows = computed(() => {
+// 逐天地点并入「活动地点」展示：有逐天覆盖时按天取有效地点（未覆盖的天回落活动级
+// 地点），用「 / 」分隔；无覆盖保持原活动地点文案不变
+const dayLocationText = computed(() => {
   const current = event.value
-  if (!current) return []
+  if (!current) return ''
   const dates = resolveEventDates(current)
-  if (dates.length < 2) return []
+  if (dates.length < 2) return ''
   const dayList = getDayLocationList(current)
-  if (!dayList.some(hasDayLocationOverride)) return []
-  return dates
-    .map((date, index) => {
+  if (!dayList.some(hasDayLocationOverride)) return ''
+  const parts = dates
+    .map((_, index) => {
       const day = dayList[index]
-      if (!hasDayLocationOverride(day)) return null
-      const value = [String(day.location || '').trim(), String(day.city || '').trim()].filter(Boolean).join(' · ')
-      return value ? { date, value } : null
+      if (hasDayLocationOverride(day)) {
+        return String(day.location || '').trim() || String(day.city || '').trim()
+      }
+      return String(current.location || '').trim()
     })
     .filter(Boolean)
+  return [...new Set(parts)].join(' / ')
 })
 
 async function refresh() {

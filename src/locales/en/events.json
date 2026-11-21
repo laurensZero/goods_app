@@ -151,8 +151,6 @@
   "events.detail.backToList": "Back to Event List",
   "events.detail.collapse": "Collapse",
   "events.detail.concertSetlist": "Concert Setlist",
-  "events.detail.dayLocationCards": "Day venues",
-  "events.detail.dayLocations": "Venues by day",
   "events.detail.deleteDialog.cancel": "Cancel",
   "events.detail.deleteDialog.confirm": "Delete",
   "events.detail.deleteDialog.message": "Confirm delete \"{name}\"? This action cannot be undone.",
