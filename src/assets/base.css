@@ -18,6 +18,11 @@
   --summary-card-button-bg: rgba(255, 255, 255, 0.08);
   --summary-card-button-border: rgba(255, 255, 255, 0.12);
   --summary-card-button-text: rgba(255, 255, 255, 0.82);
+  /* 卡内子面板（指标块/趋势线）基色：深色封面卡上用白色微透，浅色封面卡由主题翻成白板+深色发丝线 */
+  --summary-chip-bg: rgba(255, 255, 255, 0.07);
+  --summary-chip-border: rgba(255, 255, 255, 0.06);
+  --summary-sparkline-line: rgba(255, 255, 255, 0.85);
+  --summary-sparkline-area: rgba(255, 255, 255, 0.16);
   --app-glass: rgba(255, 255, 255, 0.86);
   --app-glass-strong: rgba(255, 255, 255, 0.72);
   --app-glass-border: rgba(255, 255, 255, 0.52);

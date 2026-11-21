@@ -256,6 +256,50 @@
       <section class="content-section">
         <div class="section-head">
           <div>
+            <p class="section-label">Badge Finish</p>
+            <h2 class="section-title">{{ t('theme.cardFinish') }}</h2>
+            <p class="section-desc">{{ t('theme.cardFinishDesc') }}</p>
+          </div>
+        </div>
+
+        <div class="finish-preview-row" :class="{ 'finish-preview-row--single': craftPreviews.length === 1 }">
+          <figure
+            v-for="preview in craftPreviews"
+            :key="preview.key"
+            class="finish-preview"
+            :style="getFinishPreviewStyle(preview)"
+          >
+            <figcaption class="finish-preview__tag">{{ t(preview.labelKey) }}</figcaption>
+            <p class="finish-preview__label">Collection Value</p>
+            <p class="finish-preview__value">¥18,452<span>.25</span></p>
+          </figure>
+        </div>
+
+        <div class="mode-list">
+          <article
+            v-for="craft in SUMMARY_CRAFTS"
+            :key="craft.id"
+            class="mode-card effect-card"
+          >
+            <div class="mode-copy">
+              <p class="mode-name">{{ t(craft.labelKey) }}</p>
+              <p class="mode-desc">{{ t(craft.descKey) }}</p>
+            </div>
+            <label class="toggle-switch" :aria-label="t(craft.labelKey)">
+              <input
+                type="checkbox"
+                :checked="themeStore.summaryCrafts.includes(craft.id)"
+                @change="themeStore.toggleSummaryCraft(craft.id)"
+              />
+              <span class="toggle-slider" />
+            </label>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-section">
+        <div class="section-head">
+          <div>
             <p class="section-label">Animation</p>
             <h2 class="section-title">{{ t('theme.heroAnimMode') }}</h2>
             <p class="section-desc">{{ t('theme.heroAnimDesc') }}</p>
@@ -326,7 +370,7 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
-import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, THEME_OPTIONS } from '@/constants/themes'
+import { APPEARANCE_OPTIONS, APPEARANCE_PREFERENCES, buildSummaryFinishLayers, SUMMARY_CRAFTS, THEME_OPTIONS } from '@/constants/themes'
 import NavBar from '@/components/common/NavBar.vue'
 import HslColorPicker from '@/components/common/HslColorPicker.vue'
 import { buildCustomThemeTokens, useThemeStore } from '@/stores/theme'
@@ -364,6 +408,32 @@ const CUSTOM_THEME_FIELDS = [
 
 const themeStore = useThemeStore()
 const pageBodyRef = ref(null)
+
+// ---- 概览卡工艺预览 ----
+// 跟随系统或主题本身支持双外观时出两套预览；固定外观时只出当前那套。
+const craftPreviews = computed(() => {
+  let appearances = getThemePreviewAppearances(themeStore.themeDefinition).map((item) => ({
+    ...item,
+    labelKey: item.key === 'dark' ? 'theme.darkAppearance' : 'theme.lightAppearance'
+  }))
+  if (appearances.length > 1 && themeStore.appearancePreference !== APPEARANCE_PREFERENCES.system) {
+    appearances = appearances.filter((item) => item.key === themeStore.appliedAppearance)
+  }
+  return appearances
+})
+
+function getFinishPreviewStyle(preview) {
+  const tokens = preview.tokens
+  return {
+    background: [
+      'radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%)',
+      buildSummaryFinishLayers(themeStore.summaryCrafts) || 'none',
+      tokens['--summary-card-gradient']
+    ].join(', '),
+    color: tokens['--summary-card-text'],
+    boxShadow: tokens['--summary-card-shadow'] || 'var(--app-shadow)'
+  }
+}
 const colorPicker = reactive({
   show: false,
   mode: 'light',

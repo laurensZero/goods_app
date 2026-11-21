@@ -127,13 +127,21 @@ export const THEME_DEFINITIONS = {
         '--app-placeholder': '#a1a1a6',
         '--app-border': 'rgba(17, 20, 22, 0.06)',
         '--app-shadow': '0 8px 24px rgba(0, 0, 0, 0.06)',
-        '--summary-card-gradient': 'linear-gradient(145deg, #17181c 0%, #24262d 52%, #33363e 100%)',
-        '--summary-card-orb': 'rgba(255, 255, 255, 0.08)',
-        '--summary-card-text': '#ffffff',
-        '--summary-card-label': 'rgba(255, 255, 255, 0.56)',
-        '--summary-card-button-bg': 'rgba(255, 255, 255, 0.08)',
-        '--summary-card-button-border': 'rgba(255, 255, 255, 0.12)',
-        '--summary-card-button-text': 'rgba(255, 255, 255, 0.82)',
+        // 浅色封面卡：参考吧唧工艺的银卡底材；工艺质感（拉丝/镭射/葱粉/猫眼）由用户在设置里自由叠加
+        '--summary-card-gradient': 'linear-gradient(145deg, #eff0f4 0%, #e2e5eb 52%, #cfd4de 100%)',
+        '--summary-card-orb': 'rgba(255, 255, 255, 0.9)',
+        '--summary-card-text': '#141416',
+        '--summary-card-label': 'rgba(20, 20, 22, 0.56)',
+        '--summary-card-button-bg': 'rgba(20, 20, 22, 0.06)',
+        '--summary-card-button-border': 'rgba(20, 20, 22, 0.10)',
+        '--summary-card-button-text': 'rgba(20, 20, 22, 0.82)',
+        // 烫银边：深色发丝描边 + 白色金属内缘
+        '--summary-card-shadow': '0 14px 36px rgba(17, 20, 22, 0.12), inset 0 0 0 1px rgba(17, 20, 22, 0.10), inset 0 0 0 2.5px rgba(255, 255, 255, 0.55)',
+        // 卡内子面板走白板+深色发丝线，避免深灰面板在浅卡上发闷
+        '--summary-chip-bg': 'rgba(255, 255, 255, 0.8)',
+        '--summary-chip-border': 'rgba(20, 20, 22, 0.08)',
+        '--summary-sparkline-line': 'rgba(20, 20, 22, 0.45)',
+        '--summary-sparkline-area': 'rgba(20, 20, 22, 0.08)',
         '--app-glass': 'rgba(255, 255, 255, 0.86)',
         '--app-glass-strong': 'rgba(255, 255, 255, 0.72)',
         '--app-glass-border': 'rgba(255, 255, 255, 0.52)',
@@ -634,6 +642,57 @@ export const THEME_DEFINITIONS = {
       }
     }
   }
+}
+
+// 概览卡工艺质感层（参考吧唧覆膜工艺）：用户在设置里自由开关，
+// 由 theme store 把启用项拼接成 --summary-card-finish 注入根节点。
+// 数组顺序即绘制顺序（靠前的层叠在上面）。
+export const SUMMARY_CRAFTS = [
+  {
+    id: 'catseye',
+    labelKey: 'theme.craftCatseye',
+    descKey: 'theme.craftCatseyeDesc',
+    layers: [
+      'linear-gradient(112deg, transparent 36%, rgba(255,255,255,0.32) 47%, rgba(255,255,255,0.10) 53%, transparent 64%)'
+    ]
+  },
+  {
+    id: 'glitter',
+    labelKey: 'theme.craftGlitter',
+    descKey: 'theme.craftGlitterDesc',
+    layers: [
+      'radial-gradient(circle, rgba(255,255,255,0.7) 1px, transparent 1.7px) 3px 6px / 29px 23px repeat',
+      'radial-gradient(circle, rgba(255,255,255,0.45) 1px, transparent 1.5px) 14px 2px / 21px 17px repeat',
+      'radial-gradient(circle, rgba(255,255,255,0.30) 1px, transparent 1.4px) 7px 15px / 33px 37px repeat'
+    ]
+  },
+  {
+    id: 'holo',
+    labelKey: 'theme.craftHolo',
+    descKey: 'theme.craftHoloDesc',
+    layers: [
+      'linear-gradient(112deg, transparent 6%, rgba(255,158,196,0.13) 16%, transparent 27%, rgba(138,222,255,0.13) 38%, transparent 48%, rgba(196,168,255,0.12) 62%, transparent 73%, rgba(255,214,157,0.11) 84%, transparent 94%)',
+      'linear-gradient(65deg, transparent 12%, rgba(173,255,228,0.09) 26%, transparent 42%, rgba(255,196,240,0.09) 58%, transparent 76%)'
+    ]
+  },
+  {
+    id: 'brush',
+    labelKey: 'theme.craftBrush',
+    descKey: 'theme.craftBrushDesc',
+    layers: [
+      'repeating-linear-gradient(112deg, rgba(255,255,255,0.06) 0px, rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px, rgba(17,20,22,0.03) 3px, rgba(17,20,22,0.03) 4px, transparent 4px, transparent 6px)'
+    ]
+  }
+]
+
+export function buildSummaryFinishLayers(activeIds) {
+  const wanted = new Set(Array.isArray(activeIds) ? activeIds : [])
+  const layers = []
+  for (const craft of SUMMARY_CRAFTS) {
+    if (!wanted.has(craft.id)) continue
+    layers.push(...craft.layers)
+  }
+  return layers.join(', ')
 }
 
 export const THEME_OPTIONS = [

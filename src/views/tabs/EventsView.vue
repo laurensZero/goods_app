@@ -1146,8 +1146,8 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 12px 14px;
   border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: var(--summary-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--summary-chip-border);
 }
 
 .metric-chip__label {

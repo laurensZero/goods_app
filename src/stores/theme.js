@@ -4,8 +4,10 @@ import { Capacitor, registerPlugin } from '@capacitor/core'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import {
   APPEARANCE_PREFERENCES,
+  buildSummaryFinishLayers,
   getThemeAppearance,
   getThemeDefinition,
+  SUMMARY_CRAFTS,
   THEME_IDS,
   themeSupportsAppearanceControl
 } from '@/constants/themes'
@@ -15,6 +17,7 @@ const STORAGE_KEY_APPEARANCE = 'goods_theme_appearance'
 const STORAGE_KEY_CUSTOM_COLORS = 'goods_custom_theme_colors'
 const STORAGE_KEY_CUSTOM_EFFECTS = 'goods_custom_theme_effects'
 const STORAGE_KEY_PROGRESSIVE_BLUR = 'goods_progressive_blur_enabled'
+const STORAGE_KEY_SUMMARY_CRAFTS = 'goods_summary_card_crafts'
 const SYSTEM_DARK_QUERY = '(prefers-color-scheme: dark)'
 const CUSTOM_THEME_MODES = ['light', 'dark']
 const CUSTOM_THEME_KEYS = ['bg', 'surface', 'text', 'primary']
@@ -276,6 +279,14 @@ export const useThemeStore = defineStore('theme', () => {
   const customEffects = ref(cloneDefaultCustomEffects())
   // 滚动边缘渐进模糊：关闭后顶缘/底缘组件彻底不渲染，省掉多步 backdrop-filter 合成开销
   const progressiveBlurEnabled = ref(true)
+  // 概览卡工艺质感（吧唧覆膜风）：素面为默认，启用项拼接成 --summary-card-finish 叠加在卡面
+  const summaryCrafts = ref([])
+
+  function normalizeSummaryCrafts(value) {
+    if (!Array.isArray(value)) return []
+    const validIds = new Set(SUMMARY_CRAFTS.map((craft) => craft.id))
+    return value.filter((id) => validIds.has(id))
+  }
 
   let mediaQueryList = null
   let removeSystemListener = null
@@ -322,6 +333,14 @@ export const useThemeStore = defineStore('theme', () => {
 
     for (const [token, value] of Object.entries(tokens)) {
       root.style.setProperty(token, value)
+    }
+
+    // 概览卡工艺质感层：素面时移除变量，卡片回落到纯渐变
+    const finishLayers = buildSummaryFinishLayers(summaryCrafts.value)
+    if (finishLayers) {
+      root.style.setProperty('--summary-card-finish', finishLayers)
+    } else {
+      root.style.removeProperty('--summary-card-finish')
     }
 
     // Force Android WebView to repaint the root layers with the current theme
@@ -458,15 +477,24 @@ export const useThemeStore = defineStore('theme', () => {
 
     bindSystemListener()
 
-    const [storedThemeId, storedAppearance, storedCustomColors, storedCustomEffects, storedProgressiveBlur] = await Promise.all([
+    const [storedThemeId, storedAppearance, storedCustomColors, storedCustomEffects, storedProgressiveBlur, storedSummaryCrafts] = await Promise.all([
       readPersisted(STORAGE_KEY_THEME_ID, THEME_IDS.mist),
       readPersisted(STORAGE_KEY_APPEARANCE, APPEARANCE_PREFERENCES.system),
       readPersisted(STORAGE_KEY_CUSTOM_COLORS, null),
       readPersisted(STORAGE_KEY_CUSTOM_EFFECTS, null),
-      readPersisted(STORAGE_KEY_PROGRESSIVE_BLUR, null)
+      readPersisted(STORAGE_KEY_PROGRESSIVE_BLUR, null),
+      readPersisted(STORAGE_KEY_SUMMARY_CRAFTS, null)
     ])
 
     progressiveBlurEnabled.value = storedProgressiveBlur !== 'false'
+
+    if (storedSummaryCrafts) {
+      try {
+        summaryCrafts.value = normalizeSummaryCrafts(JSON.parse(storedSummaryCrafts))
+      } catch {
+        summaryCrafts.value = []
+      }
+    }
 
     if (storedCustomColors) {
       try {
@@ -513,6 +541,15 @@ export const useThemeStore = defineStore('theme', () => {
   async function setProgressiveBlurEnabled(enabled) {
     progressiveBlurEnabled.value = Boolean(enabled)
     await writePersisted(STORAGE_KEY_PROGRESSIVE_BLUR, progressiveBlurEnabled.value ? 'true' : 'false')
+  }
+
+  async function toggleSummaryCraft(craftId) {
+    const next = summaryCrafts.value.includes(craftId)
+      ? summaryCrafts.value.filter((id) => id !== craftId)
+      : [...summaryCrafts.value, craftId]
+    summaryCrafts.value = next
+    applyTheme()
+    await writePersisted(STORAGE_KEY_SUMMARY_CRAFTS, JSON.stringify(next))
   }
 
   async function updateCustomColors(mode, colors) {
@@ -599,6 +636,7 @@ export const useThemeStore = defineStore('theme', () => {
     customColors,
     customEffects,
     progressiveBlurEnabled,
+    summaryCrafts,
     updateCustomColors,
     updateCustomEffects,
     resetCustomColors,
@@ -609,6 +647,7 @@ export const useThemeStore = defineStore('theme', () => {
     setTheme,
     setAppearancePreference,
     setProgressiveBlurEnabled,
+    toggleSummaryCraft,
     teardown
   }
 })

@@ -497,8 +497,10 @@ watch(isHidden, (value) => {
   color: var(--summary-card-text);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%),
+    var(--summary-card-finish, none),
     var(--summary-card-gradient);
-  box-shadow: var(--app-shadow);
+  /* 浅色封面卡（银雾 light）通过 --summary-card-shadow 附带发丝描边与更重的投影；其余主题回落到通用阴影 */
+  box-shadow: var(--summary-card-shadow, var(--app-shadow));
 }
 
 .summary-card::after {
@@ -602,12 +604,12 @@ watch(isHidden, (value) => {
   height: 24px;
   border: none;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.2);
-  color: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--summary-card-text) 18%, transparent);
+  color: color-mix(in srgb, var(--summary-card-text) 92%, transparent);
   font-size: var(--font-body);
   font-weight: 700;
   line-height: 1;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--summary-card-text) 18%, transparent);
   transition: transform 0.16s ease, background 0.16s ease;
 }
 
@@ -616,7 +618,7 @@ watch(isHidden, (value) => {
 }
 
 .summary-value-tips--open .summary-tip-btn {
-  background: rgba(255, 255, 255, 0.3);
+  background: color-mix(in srgb, var(--summary-card-text) 28%, transparent);
 }
 
 .summary-tip-popover {
@@ -670,10 +672,10 @@ watch(isHidden, (value) => {
   height: 40px;
   border: none;
   border-radius: var(--radius-medium);
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--summary-card-text) 8%, transparent);
   color: var(--summary-card-button-text);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px color-mix(in srgb, var(--summary-card-text) 8%, transparent),
     0 8px 20px rgba(0, 0, 0, 0.16);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
 }
@@ -693,7 +695,7 @@ watch(isHidden, (value) => {
 
 .summary-visibility-btn:active {
   transform: scale(0.94);
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--summary-card-text) 12%, transparent);
 }
 
 .summary-visibility-btn svg {
@@ -766,14 +768,14 @@ watch(isHidden, (value) => {
 
 .summary-sparkline__line {
   fill: none;
-  stroke: rgba(255, 255, 255, 0.85);
+  stroke: var(--summary-sparkline-line);
   stroke-width: 1.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .summary-sparkline__area {
-  fill: rgba(255, 255, 255, 0.16);
+  fill: var(--summary-sparkline-area);
 }
 
 .summary-metrics {
@@ -786,8 +788,8 @@ watch(isHidden, (value) => {
   min-width: 0;
   padding: 12px 14px;
   border-radius: var(--radius-card);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  background: var(--summary-chip-bg);
+  box-shadow: inset 0 0 0 1px var(--summary-chip-border);
 }
 
 .summary-metric__label {
@@ -805,7 +807,7 @@ watch(isHidden, (value) => {
 
 .summary-metric__meta {
   margin-top: 4px;
-  color: rgba(255, 255, 255, 0.7);
+  color: color-mix(in srgb, var(--summary-card-text) 70%, transparent);
   font-size: var(--font-caption);
 }
 

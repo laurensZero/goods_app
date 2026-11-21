@@ -454,8 +454,9 @@ defineExpose({
   color: var(--summary-card-text);
   background:
     radial-gradient(circle at top left, rgba(255, 255, 255, 0.16), transparent 34%),
+    var(--summary-card-finish, none),
     var(--summary-card-gradient);
-  box-shadow: var(--app-shadow);
+  box-shadow: var(--summary-card-shadow, var(--app-shadow));
 }
 
 .account-hero::after {
@@ -491,7 +492,7 @@ defineExpose({
   height: 48px;
   border-radius: 50%;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.16);
+  background: color-mix(in srgb, var(--summary-card-text) 16%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -506,7 +507,7 @@ defineExpose({
 .account-hero__avatar-fallback {
   font-size: var(--font-title-lg);
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.95);
+  color: color-mix(in srgb, var(--summary-card-text) 95%, transparent);
   text-transform: uppercase;
 }
 
@@ -538,8 +539,8 @@ defineExpose({
   flex-shrink: 0;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.14);
-  color: rgba(255, 255, 255, 0.9);
+  background: color-mix(in srgb, var(--summary-card-text) 14%, transparent);
+  color: color-mix(in srgb, var(--summary-card-text) 90%, transparent);
   font-size: var(--font-micro);
   font-weight: 500;
   letter-spacing: 0;
@@ -562,7 +563,7 @@ defineExpose({
   border: none;
   border-radius: 50%;
   background: transparent;
-  color: rgba(255, 255, 255, 0.55);
+  color: color-mix(in srgb, var(--summary-card-text) 55%, transparent);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: background-color var(--motion-fast) ease;
@@ -578,7 +579,7 @@ defineExpose({
 }
 
 .account-hero__logout:active {
-  background: rgba(255, 255, 255, 0.1);
+  background: color-mix(in srgb, var(--summary-card-text) 10%, transparent);
 }
 
 .account-hero__status {
@@ -660,11 +661,11 @@ defineExpose({
   top: 10px;
   bottom: 10px;
   width: 1px;
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--summary-card-text) 12%, transparent);
 }
 
 .account-hero__action:active {
-  background: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--summary-card-text) 8%, transparent);
 }
 
 .account-hero__action:disabled {
@@ -694,11 +695,11 @@ defineExpose({
 
 @media (hover: hover) {
   .account-hero__action:hover {
-    background: rgba(255, 255, 255, 0.07);
+    background: color-mix(in srgb, var(--summary-card-text) 7%, transparent);
   }
 
   .account-hero__logout:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--summary-card-text) 8%, transparent);
   }
 }
 
