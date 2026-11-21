@@ -28,10 +28,20 @@
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- 金额显隐钮挪到金额右侧：概览卡右上角让位给装扮气泡贴角（放头部行会撞车） -->
+        <p class="summary-value">
+          <slot name="value">
+            <template v-if="isHidden">-</template>
+            <template v-else>
+              <span class="summary-currency">{{ currency }}</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
+            </template>
+          </slot>
           <button
             v-if="showVisibility"
             type="button"
-            class="summary-visibility-btn"
+            class="summary-visibility-btn summary-visibility-btn--inline"
             :aria-label="isHidden ? t('home.summary.showAmount') : t('home.summary.hideAmount')"
             @click="toggleHidden"
           >
@@ -46,15 +56,6 @@
               <path d="M10.59 10.59A2.05 2.05 0 0 0 10 12c0 1.1.9 2 2 2 .52 0 1-.2 1.36-.53" />
             </svg>
           </button>
-        </div>
-
-        <p class="summary-value">
-          <slot name="value">
-            <template v-if="isHidden">-</template>
-            <template v-else>
-              <span class="summary-currency">{{ currency }}</span>{{ intPart }}<span class="summary-decimal">.{{ decPart }}</span>
-            </template>
-          </slot>
         </p>
 
         <button
@@ -675,6 +676,19 @@ watch(isHidden, (value) => {
     inset 0 0 0 1px rgba(255, 255, 255, 0.08),
     0 8px 20px rgba(0, 0, 0, 0.16);
   transition: transform 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+/* 金额行内变体：从概览卡头部行挪到金额右侧（头部右上角让位给装扮气泡贴角） */
+.summary-visibility-btn--inline {
+  width: 30px;
+  height: 30px;
+  margin-left: 10px;
+  vertical-align: -6px;
+}
+
+.summary-visibility-btn--inline svg {
+  width: 15px;
+  height: 15px;
 }
 
 .summary-visibility-btn:active {
