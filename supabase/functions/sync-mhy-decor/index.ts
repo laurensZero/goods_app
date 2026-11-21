@@ -34,6 +34,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   HOYOLAB_GAME_NAMES,
   KNOWN_GAMES,
+  decorContentKey,
   dedupeDecorItems,
   guessMiyousheGame,
   normDecorName,
@@ -139,6 +140,7 @@ function mapMiyoushe(it: any, idx: number): PendantRow | null {
 async function fetchMiyoushe(cookie: string): Promise<PendantRow[]> {
   const res = await fetch(MIYOUSHE_API, {
     headers: { "User-Agent": UA, Referer: "https://www.miyoushe.com/", Cookie: cookie },
+    signal: AbortSignal.timeout(20000),
   });
   const body = await res.json();
   if (body?.retcode !== 0) {
@@ -174,6 +176,7 @@ function mapHoyolab(it: any, idx: number): PendantRow | null {
 async function fetchHoyolab(cookie: string): Promise<PendantRow[]> {  const url = new URL(HOYOLAB_API);
   url.searchParams.set("type", "1");
   const res = await fetch(url, {
+    signal: AbortSignal.timeout(20000),
     headers: {
       "User-Agent": UA,
       Referer: "https://www.hoyolab.com/",
@@ -227,6 +230,7 @@ type BubbleRow = {
  */
 async function fetchMiyousheBubbles(cookie: string): Promise<BubbleRow[]> {
   const res = await fetch(`${MIYOUSHE_BACKPACK_API}?assets_type=4`, {
+    signal: AbortSignal.timeout(20000),
     headers: {
       "User-Agent": UA,
       Referer: "https://www.miyoushe.com/",
@@ -302,6 +306,7 @@ async function mirrorPending(admin: ReturnType<typeof createClient>, bucketUrl: 
     try {
       const res = await fetch(stripProcess(row.url), {
         headers: { "User-Agent": UA, Referer: "https://www.hoyolab.com/" },
+        signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const bytes = new Uint8Array(await res.arrayBuffer());
@@ -421,20 +426,25 @@ serve(async () => {
     summary.deduped = before - hyRows.length;
   }
 
-  // 4) upsert（不含 enabled / mirror_url / thumb_url，见文件头说明）
-  //    先按图片内容键再压一遍：官方目录会重复收录同一张图（不同 id / 不同名字）
+  // 4) 增量入库：只 upsert 云端没有的 id，已有行一个字段都不碰——
+  //    归属（game）等人工校准值永远不会被线上拉回来的弱数据覆盖；
+  //    incoming 集合仍先做内容键去重（官方目录会重复收录同一张图）
   const merged = [...msRows, ...hyRows];
   const items = dedupeDecorItems(merged);
   summary.content_deduped = merged.length - items.length;
-  // 被内容去重丢掉的条目要把云端旧行删掉，否则旧行永远冻在旧 sort/旧内容上
-  const kept = new Set(items);
-  const droppedIds = merged.filter((row) => !kept.has(row)).map((row) => row.id);
-  if (droppedIds.length) {
-    const { error } = await admin.from(TABLE).delete().in("id", droppedIds);
-    if (error) errors.push(`内容去重删除失败: ${error.message}`);
-  }
-  for (let i = 0; i < items.length; i += UPSERT_CHUNK) {
-    const chunk = items.slice(i, i + UPSERT_CHUNK).map((row) => ({
+
+  const { data: existingPendantRows } = await admin.from(TABLE).select("id, url").limit(5000);
+  const knownPendant = new Set((existingPendantRows || []).map((r) => r.id as string));
+  // 内容键也挡重：内容去重删过的旧行（同图不同 id）不因增量回流
+  const knownPendantKeys = new Set(
+    (existingPendantRows || []).map((r) => decorContentKey(r.url as string)).filter(Boolean),
+  );
+  const newItems = items.filter(
+    (row) => !knownPendant.has(row.id) && !knownPendantKeys.has(decorContentKey(row.url)),
+  );
+  summary.new_pendants = newItems.length;
+  for (let i = 0; i < newItems.length; i += UPSERT_CHUNK) {
+    const chunk = newItems.slice(i, i + UPSERT_CHUNK).map((row) => ({
       ...row,
       updated_at: new Date().toISOString(),
     }));
@@ -457,8 +467,17 @@ serve(async () => {
       errors.push(`bubbles: ${e?.message || e}`);
     }
   }
-  for (let i = 0; i < bubbleRows.length; i += UPSERT_CHUNK) {
-    const chunk = bubbleRows.slice(i, i + UPSERT_CHUNK).map((row) => ({
+  const { data: existingBubbleRows } = await admin.from(BUBBLE_TABLE).select("id, url").limit(5000);
+  const knownBubble = new Set((existingBubbleRows || []).map((r) => r.id as string));
+  const knownBubbleKeys = new Set(
+    (existingBubbleRows || []).map((r) => decorContentKey(r.url as string)).filter(Boolean),
+  );
+  const newBubbles = bubbleRows.filter(
+    (row) => !knownBubble.has(row.id) && !knownBubbleKeys.has(decorContentKey(row.url)),
+  );
+  summary.new_bubbles = newBubbles.length;
+  for (let i = 0; i < newBubbles.length; i += UPSERT_CHUNK) {
+    const chunk = newBubbles.slice(i, i + UPSERT_CHUNK).map((row) => ({
       ...row,
       updated_at: new Date().toISOString(),
     }));

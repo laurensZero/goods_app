@@ -16,7 +16,10 @@
  */
 
 export const DS_SALT_APP_LOGIN = "IZPgfb0dRPtBeLuFkdDznSZ6f4wWt6y2"
+/** 国服 passport v2 接口盐（与 scripts/mihoyo-get-stoken.mjs 的 DS_SALT_X4 一致） */
+export const DS_SALT_X4 = "xV8v4Qu54lUKrEYFZkJhB8cuOh9Asafs"
 const MIYOUSHE_REFRESH_URL = "https://passport-api.mihoyo.com/account/auth/api/getCookieAccountInfoBySToken"
+const MIYOUSHE_LTOKEN_URL = "https://passport-api.mihoyo.com/account/auth/api/getLTokenBySToken"
 const HOYOLAB_REFRESH_URL = "https://sg-public-api.hoyoverse.com/account/ma-passport/token/getBySToken"
 
 // ---------------- MD5（纯 JS，Deno/Node 通用；WebCrypto 不提供 md5） ----------------
@@ -107,20 +110,101 @@ export function parseStokenSecret(raw) {
  * @param {{ stoken: string, mid: string }} auth
  * @returns {Promise<{ uid: string, cookieToken: string }>}
  */
+/** 随机设备指纹（对齐 scripts/mihoyo-get-stoken.mjs）：passport 对无设备头请求会风控 */
+function makeDevice() {
+  const uuid = typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID().toUpperCase()
+    : `${Date.now().toString(16).toUpperCase()}-RAND`.replace(/RAND/g, () =>
+      Math.floor(Math.random() * 0xffff).toString(16).toUpperCase().padStart(4, "0"))
+  const fp = Array.from({ length: 13 }, () => Math.floor(Math.random() * 16).toString(16)).join("")
+  return { deviceId: uuid, deviceFp: fp }
+}
+
 export async function refreshMiyousheToken(auth) {
-  const cookie = `mid=${auth.mid};stoken=${auth.stoken}`
-  const res = await fetch(MIYOUSHE_REFRESH_URL, {
+  // 变体回退链：mihoyo 风控对不同请求形态/出口 IP 的容忍度会变（2026-11-20 起数据面
+  // 出口开始回 -464），轮着试，哪个过用哪个。形态对齐 scripts/mihoyo-get-stoken.mjs。
+  const attempts = [
+    (device) => miyousheRefreshAttempt(auth, device, { salt: DS_SALT_X4, signQuery: true, clientType: "2" }),
+    (device) => miyousheRefreshAttempt(auth, device, { salt: DS_SALT_APP_LOGIN, signQuery: false, clientType: "2" }),
+    (device) => miyousheRefreshAttempt(auth, device, { salt: DS_SALT_X4, signQuery: true, clientType: "5" }),
+  ]
+  const errors = []
+  for (const attempt of attempts) {
+    let refreshed
+    try {
+      refreshed = await attempt(makeDevice())
+    } catch (e) {
+      errors.push(e?.message || String(e))
+      continue
+    }
+    // wapi（getUserPendantList 等）认 ltoken；cookie_token 只够 passport/app 级接口。
+    // ltoken 拉取失败不阻塞——cookie 里没有它时 wapi 会报未登录，由调用方兜底
+    const ltoken = await miyousheFetchLtoken(auth, refreshed.cookieToken).catch(() => "")
+    return { uid: refreshed.uid, cookieToken: refreshed.cookieToken, ltoken }
+  }
+  throw new Error(`miyoushe stoken 续期失败（3 种形态全试过）：${errors.join(" | ")}`)
+}
+
+/** stoken_v2 → ltoken（getLTokenBySToken，client_type=5；best-effort） */
+async function miyousheFetchLtoken(auth, cookieToken) {
+  const { deviceId, deviceFp } = makeDevice()
+  const query = `stoken=${auth.stoken}`
+  const ts = String(Math.floor(Date.now() / 1000))
+  const rand = String(Math.floor(Math.random() * 100000) + 100000)
+  const sign = md5hex(`salt=${DS_SALT_X4}&t=${ts}&r=${rand}&b=&q=${query}`)
+  const url = `${MIYOUSHE_LTOKEN_URL}?${new URLSearchParams({ stoken: auth.stoken }).toString()}`
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2",
+      Accept: "application/json",
       "x-rpc-app_id": "bll8iq97cem8",
-      "x-rpc-client_type": "2",
-      ds: makeDsAppLogin({}),
-      cookie,
+      "x-rpc-app_version": "2.106.2",
+      "x-rpc-client_type": "5",
+      "x-rpc-device_id": deviceId,
+      "x-rpc-device_fp": deviceFp,
+      "x-requested-with": "com.mihoyo.hyperion",
+      referer: "https://webstatic.mihoyo.com",
+      ds: `${ts},${rand},${sign}`,
+      cookie: `mid=${auth.mid};stoken=${auth.stoken}`,
+    },
+  })
+  const body = await res.json()
+  if (body?.retcode !== 0 || !body.data?.ltoken) {
+    throw new Error(`ltoken 拉取失败 retcode=${body?.retcode}`)
+  }
+  return String(body.data.ltoken)
+}
+
+/** 单次续期尝试；shape 控制 DS 盐 / 是否把 stoken 放 query 签名 */
+async function miyousheRefreshAttempt(auth, device, { salt, signQuery, clientType }) {
+  const query = `stoken=${auth.stoken}`
+  const ts = String(Math.floor(Date.now() / 1000))
+  const rand = String(Math.floor(Math.random() * 100000) + 100000)
+  const sign = md5hex(`salt=${salt}&t=${ts}&r=${rand}&b=&q=${signQuery ? query : ""}`)
+  const url = signQuery
+    ? `${MIYOUSHE_REFRESH_URL}?${new URLSearchParams({ stoken: auth.stoken }).toString()}`
+    : MIYOUSHE_REFRESH_URL
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15000),
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2",
+      Accept: "application/json",
+      "x-rpc-app_id": "bll8iq97cem8",
+      "x-rpc-app_version": "2.106.2",
+      "x-rpc-client_type": clientType,
+      "x-rpc-device_id": device.deviceId,
+      "x-rpc-device_fp": device.deviceFp,
+      "x-rpc-aigis": "",
+      "x-requested-with": "com.mihoyo.hyperion",
+      referer: "https://webstatic.mihoyo.com",
+      ds: `${ts},${rand},${sign}`,
+      cookie: `mid=${auth.mid};stoken=${auth.stoken}`,
     },
   })
   const body = await res.json()
   if (body?.retcode !== 0) {
-    throw new Error(`miyoushe stoken 续期失败 retcode=${body?.retcode} ${body?.message || ""}`)
+    throw new Error(`retcode=${body?.retcode} ${body?.message || ""}`)
   }
   return { uid: String(body.data?.uid || ""), cookieToken: String(body.data?.cookie_token || "") }
 }
@@ -141,6 +225,9 @@ export function buildMiyousheCookie(auth, refreshed) {
     `stoken=${auth.stoken}`,
     `stoken_v2=${auth.stoken}`,
   ]
+  if (refreshed.ltoken) {
+    parts.push(`ltoken=${refreshed.ltoken}`, `ltoken_v2=${refreshed.ltoken}`)
+  }
   return parts.join("; ")
 }
 
@@ -155,6 +242,7 @@ export async function refreshHoyolabToken(auth) {
   const body = JSON.stringify({ dst_token_types: [2, 4] })
   const res = await fetch(HOYOLAB_REFRESH_URL, {
     method: "POST",
+    signal: AbortSignal.timeout(15000),
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) miHoYoBBS/2.106.2",
       "x-rpc-app_id": "c9oqaq3s3gu8",

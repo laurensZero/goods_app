@@ -28,7 +28,7 @@
     </div>
 
     <!-- IP 筛选 chips：一行横滚，顺序按 constants/mhyDecor.js 的 canonical 清单 -->
-    <div v-if="games.length" class="bubble-sheet__chips" role="tablist">
+    <div v-if="games.length" class="bubble-sheet__chips" role="tablist" @wheel="onChipsWheel">
       <button
         v-for="game in ['__all__', ...games]"
         :key="game"
@@ -195,6 +195,16 @@ async function refreshCatalog() {
   } finally {
     refreshing.value = false
   }
+}
+
+/**
+ * PC 端滚轮转横向滚动：触屏天然可滑，桌面鼠标没有横滑手势
+ */
+function onChipsWheel(event) {
+  const el = event.currentTarget
+  if (!el || el.scrollWidth <= el.clientWidth) return
+  event.preventDefault()
+  el.scrollLeft += event.deltaY
 }
 
 /** 目录里实际出现的 IP，按 canonical 顺序排；清单外漏网的兜底追加在尾部 */
@@ -483,9 +493,13 @@ function choose(item) {
   color: var(--app-text);
   font-size: var(--font-caption);
   line-height: 1.3;
+  /* 长名两行完整展示，超出两行才截断（用户要求动态展示全名） */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
 }
 
 .bubble-tile__badge {
