@@ -16,10 +16,14 @@
     <!-- 挂件画在头像外圈：默认 128.5% 与米游社网页端 .mhy-avatar__pendant 一致，
          大尺寸头像可用 scale 放宽，让挂件更有存在感 -->
     <span v-if="frameSrc" class="mhy-avatar-frame__pendant" aria-hidden="true">
+      <!-- 装饰层禁用骨架/降级占位：挂件没加载出来时不能有灰块挡住底下头像，
+           加载失败就当没挂件（降级链在 resolveAvatarPendantSrc 里已收敛） -->
       <LazyCachedImage
         :src="frameSrc"
         alt=""
         :root-margin="rootMargin"
+        :skeleton-enabled="false"
+        :fallback-enabled="false"
         class="mhy-avatar-frame__pendant-img"
       />
     </span>
