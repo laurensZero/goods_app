@@ -1153,6 +1153,9 @@ DECLARE
                          'goods_group_items','goods_group_items_trash',
                          'recharge_records','recharge_records_trash',
                          'events','events_trash','batch_drafts','batch_drafts_trash'];
+  -- 客户端合法写 NULL 的列：显式 NULL = 用户「清除」语义，不参与键缺失保护
+  -- （目前只有 goods.points；以后新增有 NULL 语义的列必须在此登记）
+  v_explicit_null_cols text[] := ARRAY['points'];
 BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Authentication required';
@@ -1201,7 +1204,19 @@ BEGIN
   LOOP
     CONTINUE WHEN v_arr IS NULL OR jsonb_typeof(v_arr) IS DISTINCT FROM 'array' OR jsonb_array_length(v_arr) = 0;
 
-    SELECT string_agg(format('%I = EXCLUDED.%I', c.column_name, c.column_name), ', ')
+    -- 键缺失保护：jsonb_populate_recordset 对行里缺失的键填 NULL。旧版本客户端的
+    -- normalize* 白名单不认识新加的列（如 events.day_locations），拉取→剥字段→
+    -- 内容指纹变化→diff 推送会把缺键的行盖回来，动态生成的 SET 若直接
+    -- `col = EXCLUDED.col` 就会用 NULL 清掉云端新字段。改为 coalesce：缺键（NULL）
+    -- 保留云端现值，客户端显式传的值照常覆盖（新客户端所有列都带键）。
+    -- 例外的显式 NULL 语义列见 v_explicit_null_cols。
+    SELECT string_agg(
+             CASE
+               WHEN c.column_name = ANY (v_explicit_null_cols)
+                 THEN format('%I = EXCLUDED.%I', c.column_name, c.column_name)
+               ELSE format('%I = coalesce(EXCLUDED.%I, %I.%I)', c.column_name, c.column_name, v_table, c.column_name)
+             END,
+             ', ')
       INTO v_set
       FROM information_schema.columns c
      WHERE c.table_schema = 'public' AND c.table_name = v_table AND c.column_name <> 'id';
