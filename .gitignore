@@ -63,3 +63,9 @@ hoyolab_assets/
 
 # supabase CLI 本地状态（link/pooler 缓存）
 supabase/.temp/
+
+# AOCI 本地认知索引（仅本机模型资产，不入库）
+aoci.txt
+aoci.meta.txt
+aoci.code.txt
+.aoci/
