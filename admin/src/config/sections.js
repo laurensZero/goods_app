@@ -100,6 +100,15 @@ export const SECTIONS = [
     description: '库存有货监控总览（mihoyo_monitor_goods）',
     component: defineAsyncComponent(() => import('../sections/MihoyoMonitorSection.vue'))
   },
+  {
+    id: 'decor',
+    group: 'data',
+    label: '装扮管理',
+    short: '装扮',
+    icon: 'image',
+    description: '米游社 / HoYoLAB 头像框与评论装扮目录直查直改（mhy_decor_pendants / mhy_reply_bubbles）',
+    component: defineAsyncComponent(() => import('../sections/DecorSection.vue'))
+  },
 
   // ── 运营内容 ──
   {
