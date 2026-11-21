@@ -33,6 +33,7 @@
   "events.addEdit.dayLocationToggleEdit": "일별 장소 편집",
   "events.addEdit.dayLocationToggleOpen": "일별 장소 접기",
   "events.addEdit.dayLocationToggleSet": "일별 장소 설정",
+  "events.addEdit.dayLocationAutoMain": "아래 일별 장소로 기록됨",
   "events.addEdit.dayTicketAutoTotal": "일일 금액 자동 합계",
   "events.addEdit.dayTicketDate": "{index}일차 · {date}",
   "events.addEdit.dayTicketDetail": "일별 상세",

@@ -33,6 +33,7 @@
   "events.addEdit.dayLocationToggleEdit": "日ごとの会場を編集",
   "events.addEdit.dayLocationToggleOpen": "日ごとの会場を閉じる",
   "events.addEdit.dayLocationToggleSet": "日ごとの会場を設定",
+  "events.addEdit.dayLocationAutoMain": "下の日ごとの会場で記録済み",
   "events.addEdit.dayTicketAutoTotal": "各日の料金から自動合計",
   "events.addEdit.dayTicketDate": "{index} 日目 · {date}",
   "events.addEdit.dayTicketDetail": "各日の詳細",

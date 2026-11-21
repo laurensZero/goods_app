@@ -33,6 +33,7 @@
   "events.addEdit.dayLocationToggleEdit": "编辑逐天地点",
   "events.addEdit.dayLocationToggleOpen": "收起逐天地点",
   "events.addEdit.dayLocationToggleSet": "设置逐天地点",
+  "events.addEdit.dayLocationAutoMain": "已按逐天地点分别记录",
   "events.addEdit.dayTicketAutoTotal": "已按逐天票价自动汇总",
   "events.addEdit.dayTicketDate": "第 {index} 天 · {date}",
   "events.addEdit.dayTicketDetail": "逐天明细",

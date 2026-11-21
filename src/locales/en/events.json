@@ -33,6 +33,7 @@
   "events.addEdit.dayLocationToggleEdit": "Edit per-day venues",
   "events.addEdit.dayLocationToggleOpen": "Hide per-day venues",
   "events.addEdit.dayLocationToggleSet": "Set per-day venues",
+  "events.addEdit.dayLocationAutoMain": "Recorded per day below",
   "events.addEdit.dayTicketAutoTotal": "Auto-totalled from per-day prices",
   "events.addEdit.dayTicketDate": "Day {index} · {date}",
   "events.addEdit.dayTicketDetail": "Per-day details",

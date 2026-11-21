@@ -180,13 +180,16 @@
                             v-model="form.location"
                             type="text"
                             :placeholder="t('events.addEdit.locationPlaceholder')"
+                            :disabled="disableLocationInput"
+                            :class="{ 'day-ticket-input--auto': disableLocationInput }"
                             @input="syncField('location', $event)"
                             @blur="onLocationBlur"
                             @change="syncField('location', $event)"
                             @compositionend="syncField('location', $event)"
                             @paste="syncFieldLater('location', $event)"
                           />
-                          <span v-if="cityDetected" class="field-city-tag">
+                          <span v-if="disableLocationInput" class="field-hint">{{ t('events.addEdit.dayLocationAutoMain') }}</span>
+                          <span v-if="cityDetected && !disableLocationInput" class="field-city-tag">
                             <span v-if="cityDetecting" class="field-city-tag__spinner" aria-hidden="true" />
                             <template v-if="!cityDetecting">
                               {{ t('events.addEdit.cityDetected', { city: cityDetected }) }}
@@ -850,6 +853,9 @@ const dayTicketToggleDesc = computed(() => {
 
 // 主票价输入在逐天面板展开时禁用（镜像谷子逐份入手价），由逐天合计接管
 const disableTicketPriceInput = computed(() => dayCount.value >= 2 && showDayTicketInput.value)
+
+// 逐天地点展开时同样接管总地点输入：面板收起或单天活动则恢复可编辑（口径与逐天票价一致）
+const disableLocationInput = computed(() => dayCount.value >= 2 && showDayLocationInput.value)
 
 // 已填价格合计：全部填满即总价；部分填写时同步为 ticketPrice 基线，避免列表页统计残留旧汇总
 const filledDayTicketTotal = computed(() => {
