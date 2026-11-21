@@ -281,6 +281,9 @@ export const useThemeStore = defineStore('theme', () => {
   const progressiveBlurEnabled = ref(true)
   // 概览卡工艺质感（吧唧覆膜风）：素面为默认，启用项拼接成 --summary-card-finish 叠加在卡面
   const summaryCrafts = ref([])
+  // 上一轮 applyTheme 写入根节点的 token 键集合：切外观时清除新集合没有的键，
+  // 否则 light 独有变量（如 --summary-card-shadow / --summary-chip-bg）会泄漏进 dark
+  let appliedTokenKeys = []
 
   function normalizeSummaryCrafts(value) {
     if (!Array.isArray(value)) return []
@@ -331,9 +334,16 @@ export const useThemeStore = defineStore('theme', () => {
     root.dataset.themeAppearance = appearance
     root.style.colorScheme = appearance
 
+    for (const key of appliedTokenKeys) {
+      if (!(key in tokens)) {
+        root.style.removeProperty(key)
+      }
+    }
+
     for (const [token, value] of Object.entries(tokens)) {
       root.style.setProperty(token, value)
     }
+    appliedTokenKeys = Object.keys(tokens)
 
     // 概览卡工艺质感层：素面时移除变量，卡片回落到纯渐变
     const finishLayers = buildSummaryFinishLayers(summaryCrafts.value)
