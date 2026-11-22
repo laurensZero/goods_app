@@ -49,7 +49,9 @@ const { t } = useI18n()
 
 // error：重试耗尽后仍然失败（调用方据此做降级/隐藏）。注意它不影响内置占位，
 // 占位由 fallbackEnabled 控制。
-const emit = defineEmits(['error'])
+// load：图片成功展示（缓存命中或网络加载完成）——装饰候选链的看门狗据此
+// 确认「当前候选成功」，不再等超时。
+const emit = defineEmits(['error', 'load'])
 
 const props = defineProps({
   src: { type: String, default: '' },
@@ -212,6 +214,7 @@ async function ensureCachedImageReady(src, requestId, timeoutMs = 220) {
   isImageLoading.value = !ok
   if (ok) {
     markImageDecoded(src)
+    emit('load')
     forceDecodeValidationOnCacheHit = false
   }
   return ok
@@ -287,7 +290,10 @@ async function runLoad() {
   if (requestId !== loadRequestId) return
   isSwappingSrc.value = false
   isImageLoading.value = !ok
-  if (ok) markImageDecoded(nextSrc)
+  if (ok) {
+    markImageDecoded(nextSrc)
+    emit('load')
+  }
 }
 
 watch(
@@ -315,7 +321,10 @@ function onImageLoad() {
   hasLoadError.value = false
   isImageLoading.value = false
   retryKey.value = 0
-  if (resolvedSrc.value) markImageDecoded(resolvedSrc.value)
+  if (resolvedSrc.value) {
+    markImageDecoded(resolvedSrc.value)
+    emit('load')
+  }
 }
 
 function onImageError() {
@@ -506,7 +515,10 @@ onMounted(() => {
           const ok = await waitForImgDecode(nextSrc)
           if (requestId !== loadRequestId) return
           isImageLoading.value = !ok
-          if (ok) markImageDecoded(nextSrc)
+          if (ok) {
+    markImageDecoded(nextSrc)
+    emit('load')
+  }
         })()
       }).catch(() => {
         if (requestId !== loadRequestId) return

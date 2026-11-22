@@ -18,6 +18,7 @@
         :skeleton-enabled="false"
         :fallback-enabled="false"
         class="mhy-bubble-deco__bubble-img"
+        @load="onBubbleImgLoad"
         @error="onBubbleImgError"
       />
       <button
@@ -58,7 +59,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import AppToast from '@/components/common/AppToast.vue'
@@ -122,9 +123,44 @@ const bubbleSrc = computed(() => {
   return staticCandidates[index] || ''
 })
 
-function onBubbleImgError() {
-  failedCount.value += 1
+// ── 看门狗：候选挂起（弱网黑洞）到点没展示成功就降级，不拖累其他图。
+//    gif 走反代（大文件）给 20s；静态原图 CDN 快给 12s。
+const loaded = ref(false)
+let watchdog = 0
+
+function clearWatchdog() {
+  if (watchdog) {
+    clearTimeout(watchdog)
+    watchdog = 0
+  }
 }
+
+function armBubbleWatchdog() {
+  clearWatchdog()
+  loaded.value = false
+  if (!bubbleSrc.value) return
+  const isGifStage = canPlayGif.value && failedCount.value === 0
+  watchdog = setTimeout(() => {
+    if (!loaded.value) onBubbleImgError()
+  }, isGifStage ? 20000 : 12000)
+}
+
+function onBubbleImgLoad() {
+  loaded.value = true
+  clearWatchdog()
+}
+
+function onBubbleImgError() {
+  clearWatchdog()
+  failedCount.value += 1
+  armBubbleWatchdog()
+}
+
+watch(bubbleSrc, () => {
+  armBubbleWatchdog()
+})
+
+onBeforeUnmount(clearWatchdog)
 
 function openPicker() {
   showPicker.value = true

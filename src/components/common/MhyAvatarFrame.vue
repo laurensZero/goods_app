@@ -26,6 +26,7 @@
         :skeleton-enabled="false"
         :fallback-enabled="false"
         class="mhy-avatar-frame__pendant-img"
+        @load="onPendantImgLoad"
         @error="onPendantImgError"
       />
     </span>
@@ -33,7 +34,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import LazyCachedImage from '@/components/image/LazyCachedImage.vue'
 import { resolveAvatarPendantSrcCandidates } from '@/utils/mhyDecor/cdn'
 
@@ -84,7 +85,7 @@ const rootStyle = computed(() => ({
  * 最后 OSS 缩放；播动画时必须显式传 animate，否则会命中静态缩略图（t 是首帧）。
  * 与切换时的预热共用同一个函数，避免两处算法漂移导致「预热了但还是重新拉」。
  */
-/** 取图候选链：hoyolab 原图（预览带缩放）→ CF 反代镜像 → 去参原图；@error 逐个降级 */
+/** 取图候选链：hoyolab 原图（预览带缩放）→ CF 反代镜像 → 去参原图；失败/挂起逐个降级 */
 const candidates = computed(() =>
   resolveAvatarPendantSrcCandidates(
     { u: props.frame, m: props.frameMirror, t: props.frameThumb, a: props.animated },
@@ -93,13 +94,49 @@ const candidates = computed(() =>
 )
 const failedCount = ref(0)
 const frameSrc = computed(() => candidates.value[failedCount.value] || '')
+
+// ── 看门狗：弱网下 img 请求可能长时间挂起（不发 error），到点没展示成功
+//    就切下一个候选，不让一个黑洞请求拖住整条降级链。
+//    预览图小（8KB）给 10s；上屏动图原图可能 4.7MB @ 0.24MB/s ≈ 20s，给 30s。
+const loaded = ref(false)
+let watchdog = 0
+
+function clearWatchdog() {
+  if (watchdog) {
+    clearTimeout(watchdog)
+    watchdog = 0
+  }
+}
+
+function armWatchdog() {
+  clearWatchdog()
+  loaded.value = false
+  if (!frameSrc.value) return
+  watchdog = setTimeout(() => {
+    if (!loaded.value) onPendantImgError()
+  }, props.preview ? 10000 : 30000)
+}
+
 watch(candidates, () => {
   failedCount.value = 0
+  armWatchdog()
 })
-function onPendantImgError() {
-  // 当前候选失败（官方删文件 / hoyolab 不通 / 反代抖动）→ 切下一个候选
-  if (failedCount.value < candidates.value.length - 1) failedCount.value += 1
+
+function onPendantImgLoad() {
+  loaded.value = true
+  clearWatchdog()
 }
+
+function onPendantImgError() {
+  // 当前候选失败（官方删文件 / hoyolab 不通 / 反代抖动 / 看门狗超时）→ 切下一个
+  clearWatchdog()
+  if (failedCount.value < candidates.value.length - 1) {
+    failedCount.value += 1
+    armWatchdog()
+  }
+}
+
+onBeforeUnmount(clearWatchdog)
 </script>
 
 <style scoped>
