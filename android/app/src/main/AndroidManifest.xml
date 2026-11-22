@@ -78,6 +78,18 @@
                     android:scheme="https"
                     android:host="laurenszero.github.io"
                     android:path="/goods_app/share.html" />
+                <data
+                    android:scheme="https"
+                    android:host="goodsapp.de5.net"
+                    android:path="/share.html" />
+                <data
+                    android:scheme="https"
+                    android:host="goodsapp.de5.net"
+                    android:path="/share" />
+                <data
+                    android:scheme="https"
+                    android:host="goodsapp.de5.net"
+                    android:pathPrefix="/share/" />
             </intent-filter>
 
         </activity>
