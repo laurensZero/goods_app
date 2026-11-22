@@ -153,7 +153,22 @@ export function extractIdsFromInput(input) {
   const linkMatch = text.match(/goodsapp:\/\/share\/([a-zA-Z0-9]{6})/)
   if (linkMatch) return { shareId: linkMatch[1] }
 
-  // 2. Landing page URL: share.html?s=<shareId>
+  // 2. Production landing page: goodsapp.de5.net/share.html?s= /share?s= /share/<shareId>
+  //    （/share.html 会被 Cloudflare pretty-URL 308 到 /share，query 原样保留）
+  try {
+    const prodMatch = text.match(/https?:\/\/[^\s]*goodsapp\.de5\.net\/share[^\s]*/i)
+    const prodUrl = prodMatch ? new URL(prodMatch[0]) : null
+    if (prodUrl && /^\/share(\.html)?(\/|$)/i.test(prodUrl.pathname)) {
+      const fromQuery = prodUrl.searchParams.get('s') || ''
+      if (/^[a-zA-Z0-9]{6}$/.test(fromQuery)) return { shareId: fromQuery }
+      const fromPath = prodUrl.pathname.replace(/^\/share(?:\.html)?\//i, '').replace(/\/+$/, '')
+      if (/^[a-zA-Z0-9]{6}$/.test(fromPath)) return { shareId: fromPath }
+    }
+  } catch {
+    // fall through
+  }
+
+  // 3. Landing page URL: share.html?s=<shareId>
   try {
     const urlMatch = text.match(/https?:\/\/[^\s]+share\.html[^\s]*/)
     const landingUrl = urlMatch ? new URL(urlMatch[0]) : null
@@ -168,7 +183,7 @@ export function extractIdsFromInput(input) {
   const landingMatch = text.match(/share\.html\?s=([a-zA-Z0-9]{6})/)
   if (landingMatch) return { shareId: landingMatch[1] }
 
-  // 3. Plain 6-char share code
+  // 4. Plain 6-char share code
   if (/^[a-zA-Z0-9]{6}$/.test(text)) return { shareId: text }
 
   return { shareId: '' }

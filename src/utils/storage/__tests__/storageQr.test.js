@@ -24,12 +24,12 @@ describe('storageQr', () => {
   it('builds and parses external-scanner friendly storage QR URLs', () => {
     const url = buildStorageQrUrl('柜子 A / 抽屉 1')
 
-    expect(url).toBe('https://laurenszero.github.io/goods_app/share.html?storage=goodsapp%3A%2F%2Fstorage%2F%25E6%259F%259C%25E5%25AD%2590%2520A%2520%252F%2520%25E6%258A%25BD%25E5%25B1%2589%25201')
+    expect(url).toBe('https://goodsapp.de5.net/share.html?storage=goodsapp%3A%2F%2Fstorage%2F%25E6%259F%259C%25E5%25AD%2590%2520A%2520%252F%2520%25E6%258A%25BD%25E5%25B1%2589%25201')
     expect(parseStorageQrUrl(url)).toBe('柜子 A / 抽屉 1')
   })
 
   it('parses storagePath fallback landing URLs', () => {
-    expect(parseStorageQrUrl('https://laurenszero.github.io/goods_app/share.html?storagePath=%E6%9F%9C%E5%AD%90%20A')).toBe('柜子 A')
+    expect(parseStorageQrUrl('https://goodsapp.de5.net/share.html?storagePath=%E6%9F%9C%E5%AD%90%20A')).toBe('柜子 A')
   })
 
   it('returns empty for empty storage paths', () => {

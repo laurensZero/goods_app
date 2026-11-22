@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.goodsapp.collector",
+      "sha256_cert_fingerprints": [
+        "0D:03:80:3D:D4:D7:0A:FF:CD:12:49:4E:1A:DE:B7:3A:28:08:20:2C:7A:0D:7D:88:8A:2B:EE:2A:E8:5A:9A:CD",
+        "D1:EB:0F:CC:91:28:A9:1E:2D:74:E5:39:4D:04:77:87:FD:54:F8:FA:ED:2B:DA:02:AE:70:56:99:1B:BC:F3:B7"
+      ]
+    }
+  }
+]

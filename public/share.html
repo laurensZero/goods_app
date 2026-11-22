@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <!-- 分享落地页（随 Web 构建发布到 goodsapp.de5.net/share.html）。
+       docs/ 下留有同一份拷贝供 gh-pages 服务旧链接；改动时两处同步。 -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+  <!-- Open Graph for WeChat/QQ preview cards -->
+  <meta property="og:title" content="打开 Goods App" />
+  <meta property="og:description" content="打开分享或收纳位置" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Goods App" />
+
+  <title>打开 Goods App</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system, sans-serif;
+      background: #f5f5f7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100dvh;
+      padding: 24px;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 360px;
+      background: #ffffff;
+      border-radius: 24px;
+      box-shadow:
+        0 4px 24px rgba(0,0,0,0.06),
+        0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+      text-align: center;
+      padding: 40px 28px 32px;
+    }
+
+    /* QQ/WeChat in-app browser warning banner */
+    .browser-warn {
+      display: none;
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 14px;
+      padding: 14px 16px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .browser-warn__title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #856404;
+      margin-bottom: 4px;
+    }
+
+    .browser-warn__desc {
+      font-size: 12px;
+      color: #92600a;
+      line-height: 1.5;
+    }
+
+    body.is-qq .browser-warn,
+    body.is-wechat .browser-warn {
+      display: block;
+    }
+
+    .icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, #5a78fa, #7c5cfa);
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 24px rgba(90,120,250,0.24);
+    }
+
+    .icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: #fff;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #141416;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #8e8e93;
+      margin-bottom: 28px;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 52px;
+      border: none;
+      border-radius: 16px;
+      background: #141416;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      cursor: pointer;
+      transition: opacity 0.14s, transform 0.14s;
+      text-decoration: none;
+      margin-bottom: 16px;
+    }
+
+    .btn:active {
+      opacity: 0.86;
+      transform: scale(0.985);
+    }
+
+    .btn-secondary {
+      background: rgba(142,142,147,0.1);
+      color: #141416;
+      font-size: 14px;
+      height: 42px;
+    }
+
+    .status {
+      font-size: 13px;
+      color: #8e8e93;
+      margin-top: 4px;
+    }
+
+    .status.success {
+      color: #28c880;
+    }
+
+    .status.error {
+      color: #e53e3e;
+    }
+
+    .footer-text {
+      margin-top: 16px;
+      font-size: 12px;
+      color: #aeaeb2;
+    }
+
+    .footer-text code {
+      font-family: 'SF Mono', 'Cascadia Code', monospace;
+      font-size: 13px;
+      color: #636366;
+      background: rgba(142,142,147,0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      user-select: all;
+    }
+
+    /* Download section */
+    .download-section {
+      margin-bottom: 16px;
+    }
+
+    .download-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0 14px;
+    }
+
+    .download-divider::before,
+    .download-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: rgba(142,142,147,0.24);
+    }
+
+    .download-divider span {
+      font-size: 12px;
+      color: #8e8e93;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .btn-download {
+      background: linear-gradient(135deg, #3F86F7, #5BA0FF) !important;
+      color: #fff !important;
+      box-shadow: 0 4px 16px rgba(63,134,247,0.32);
+    }
+
+    .download-hint {
+      font-size: 12px;
+      color: #8e8e93;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #141416; }
+      .card { background: #1c1c1e; box-shadow: 0 4px 24px rgba(0,0,0,0.4); }
+      h1, .btn-secondary { color: #f5f5f7; }
+      .btn { background: #f5f5f7; color: #141416; }
+      .subtitle, .status { color: #8e8e93; }
+      .footer-text { color: #636366; }
+      .footer-text code { background: rgba(255,255,255,0.08); color: #aeaeb2; }
+      .browser-warn { background: rgba(255,193,7,0.12); border-color: rgba(255,193,7,0.3); }
+      .browser-warn__title { color: #ffc107; }
+      .browser-warn__desc { color: #e0a800; }
+      .download-divider::before,
+      .download-divider::after { background: rgba(255,255,255,0.12); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <!-- QQ/WeChat in-app browser warning -->
+    <div class="browser-warn">
+      <p class="browser-warn__title">无法直接打开 App</p>
+      <p class="browser-warn__desc">请点击右上角 ··· 选择「在浏览器中打开」，即可自动跳转到 Goods App。</p>
+    </div>
+
+    <div class="icon">
+      <svg viewBox="0 0 24 24">
+        <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+        <polyline points="16 6 12 2 8 6" />
+        <line x1="12" y1="2" x2="12" y2="15" />
+      </svg>
+    </div>
+    <h1 id="status-title">正在打开 Goods App...</h1>
+    <p class="subtitle" id="status-desc">如未自动跳转，请点击下方按钮</p>
+    <a id="open-btn" class="btn" href="#">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+        <polyline points="15 3 21 3 21 9" />
+        <line x1="10" y1="14" x2="21" y2="3" />
+      </svg>
+      打开 Goods App
+    </a>
+    <p class="status" id="msg"></p>
+    <div class="download-section" id="download-section" style="display:none">
+      <div class="download-divider"><span>未安装 App？</span></div>
+      <a id="download-btn" class="btn btn-download" href="#" target="_blank" rel="noopener">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        下载 Goods App
+      </a>
+      <p class="download-hint" id="download-hint"></p>
+    </div>
+    <p class="footer-text" id="fallback-text">
+      如果无法打开，请复制分享码手动导入：<br />
+      <code id="fallback-code"></code>
+    </p>
+  </div>
+
+  <script>
+    (function () {
+      // Detect QQ / WeChat in-app browser
+      var ua = navigator.userAgent || ''
+      if (/QQ\//i.test(ua) && !/MicroMessenger/i.test(ua)) {
+        document.body.className = 'is-qq'
+      } else if (/MicroMessenger/i.test(ua)) {
+        document.body.className = 'is-wechat'
+      }
+    })()
+  </script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search)
+      const shareId = (params.get('s') || '').trim()
+      const storageParam = (params.get('storage') || '').trim()
+      const storagePathParam = (params.get('storagePath') || '').trim()
+      const fallbackTextEl = document.getElementById('fallback-text')
+      const fallbackCodeEl = document.getElementById('fallback-code')
+
+      function parseStorageDeepLink(value) {
+        var text = String(value || '').trim()
+        var prefix = 'goodsapp://storage/'
+        if (!text || text.indexOf(prefix) !== 0) return ''
+        try {
+          return decodeURIComponent(text.slice(prefix.length)).replace(/\/$/, '').trim()
+        } catch (e) {
+          return ''
+        }
+      }
+
+      var deepLink = ''
+      var fallbackCode = ''
+      var isStorageLink = false
+
+      if (storageParam) {
+        var storagePath = parseStorageDeepLink(storageParam)
+        if (!storagePath) {
+          document.getElementById('status-title').textContent = '链接无效'
+          document.getElementById('status-desc').textContent = '缺少有效的收纳位置参数'
+          document.getElementById('open-btn').style.display = 'none'
+          fallbackTextEl.style.display = 'none'
+          return
+        }
+
+        deepLink = 'goodsapp://storage/' + encodeURIComponent(storagePath)
+        fallbackCode = storagePath
+        isStorageLink = true
+      } else if (storagePathParam) {
+        var fallbackStoragePath = storagePathParam.replace(/\/$/, '').trim()
+        if (!fallbackStoragePath) {
+          document.getElementById('status-title').textContent = '链接无效'
+          document.getElementById('status-desc').textContent = '缺少有效的收纳位置参数'
+          document.getElementById('open-btn').style.display = 'none'
+          fallbackTextEl.style.display = 'none'
+          return
+        }
+
+        deepLink = 'goodsapp://storage/' + encodeURIComponent(fallbackStoragePath)
+        fallbackCode = fallbackStoragePath
+        isStorageLink = true
+      }
+
+      if (!isStorageLink && !shareId) {
+        document.getElementById('status-title').textContent = '链接无效'
+        document.getElementById('status-desc').textContent = '缺少必需的分享参数'
+        document.getElementById('open-btn').style.display = 'none'
+        fallbackTextEl.style.display = 'none'
+        return
+      }
+
+      if (!isStorageLink) {
+        deepLink = 'goodsapp://share/' + encodeURIComponent(shareId)
+        fallbackCode = shareId
+      }
+
+      if (isStorageLink) {
+        document.getElementById('status-title').textContent = '正在打开收纳位置...'
+        document.getElementById('status-desc').textContent = '如未自动跳转，请点击下方按钮'
+        fallbackTextEl.firstChild.nodeValue = '如果无法打开，请复制收纳位置后在 App 内筛选：'
+      }
+
+      fallbackCodeEl.textContent = fallbackCode
+      document.getElementById('open-btn').href = deepLink
+
+      var msgEl = document.getElementById('msg')
+      var downloadSection = document.getElementById('download-section')
+      var downloadBtn = document.getElementById('download-btn')
+      var downloadHint = document.getElementById('download-hint')
+
+      // Platform detection
+      var ua = (navigator.userAgent || '').toLowerCase()
+      var isAndroid = /android/i.test(ua)
+      var isIOS = /iphone|ipad|ipod/i.test(ua)
+
+      // Download URL — Android APK from GitHub Releases
+      var DOWNLOAD_URL = 'https://github.com/laurenszero/goods_app/releases/latest'
+      if (isAndroid) {
+        downloadHint.textContent = '支持 Android 8.0 及以上系统'
+      } else if (isIOS) {
+        downloadHint.textContent = 'iOS 版本即将推出，敬请期待'
+        downloadBtn.textContent = 'iOS 版本开发中'
+        downloadBtn.style.opacity = '0.6'
+        downloadBtn.style.pointerEvents = 'none'
+      } else {
+        downloadHint.textContent = '请在手机端打开并下载安装'
+      }
+
+      downloadBtn.href = DOWNLOAD_URL
+
+      // Track if the page was hidden (app successfully opened and took focus)
+      var pageWasHidden = false
+      document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { pageWasHidden = true }
+      })
+      window.addEventListener('pagehide', function () {
+        pageWasHidden = true
+      })
+      window.addEventListener('blur', function () {
+        // Blur alone isn't definitive, but helps on some platforms
+      })
+
+      function showDownload() {
+        msgEl.textContent = '未检测到 App，请下载安装后重新扫码'
+        msgEl.className = 'status error'
+        downloadSection.style.display = 'block'
+      }
+
+      // Try opening the app
+      function tryOpen() {
+        // Method 1: location redirect
+        try {
+          window.location.href = deepLink
+        } catch(e) { /* ignore */ }
+
+        // Method 2: iframe fallback
+        var iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        iframe.src = deepLink
+        document.body.appendChild(iframe)
+
+        // After a delay, check if app opened
+        setTimeout(function () {
+          document.body.removeChild(iframe)
+          if (pageWasHidden) {
+            msgEl.textContent = '已跳转到 App'
+            msgEl.className = 'status success'
+          } else {
+            showDownload()
+          }
+        }, 2500)
+      }
+
+      // Auto-trigger on load
+      setTimeout(tryOpen, 300)
+
+      // Also trigger on button click (user gesture helps with popup blockers)
+      document.getElementById('open-btn').addEventListener('click', function (e) {
+        e.preventDefault()
+        tryOpen()
+      })
+    })()
+  </script>
+</body>
+</html>
