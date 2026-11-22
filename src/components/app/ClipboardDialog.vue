@@ -150,12 +150,14 @@ function handleImport() {
   doImport()
 }
 
+// immediate：冷启动深链可能在 shellReady（本组件挂载）之前就把 showPrompt 置 true，
+// 常规 watch 会错过这次跳变导致弹窗有壳无数据；挂载时若已为 true 则补拉一次
 watch(showPrompt, (newVal) => {
   if (newVal) {
     resetState()
     doFetch(incomingShareId.value)
   }
-})
+}, { immediate: true })
 </script>
 
 <style scoped>
