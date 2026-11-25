@@ -87,7 +87,8 @@ const GAME_LABELS = {
   hk4e_cn: '原神',
   hkrpg_cn: '崩坏：星穹铁道',
   bh3_cn: '崩坏3',
-  nap_cn: '绝区零'
+  nap_cn: '绝区零',
+  abc_cn: '崩坏：因缘精灵'
 }
 
 let count = 0

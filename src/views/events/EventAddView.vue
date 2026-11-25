@@ -628,6 +628,7 @@ async function submitQuickType() {
 
 const EVENT_ADD_SCROLL_LOCK_CLASS = 'event-add-scroll-lock'
 const EVENT_ADD_DRAFT_KEY = 'goods-app:event-add-draft'
+const EVENT_ADD_RETURN_TAB_KEY = 'goods-app:event-add-return-tab'
 
 function syncEventAddScrollLock(active) {
   document.documentElement.classList.toggle(EVENT_ADD_SCROLL_LOCK_CLASS, active)
@@ -1487,6 +1488,7 @@ function removeLinkedGoods(id) {
 
 async function openGoodsPicker() {
   saveDraftForPicker()
+  sessionStorage.setItem(EVENT_ADD_RETURN_TAB_KEY, 'ticket')
   isNavigatingToPicker.value = true
   markLeaveAllowed()
   await nextTick()
@@ -1551,9 +1553,9 @@ function clearCity() {
 onBeforeMount(() => {
   scrollToTopAnimated(() => null, 0)
   try {
-    // Always default to 'basic' when entering event add/edit so the
-    // user starts at 基础信息 instead of restoring a previously selected tab.
-    activeTab.value = 'basic'
+    const returnTab = sessionStorage.getItem(EVENT_ADD_RETURN_TAB_KEY)
+    sessionStorage.removeItem(EVENT_ADD_RETURN_TAB_KEY)
+    activeTab.value = returnTab === 'ticket' ? 'ticket' : 'basic'
   } catch {
     // ignore
   }
