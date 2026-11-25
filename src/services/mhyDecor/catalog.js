@@ -166,13 +166,13 @@ async function refreshPendantCatalog(cachedItems, { force = false } = {}) {
       return memo
     }
     memo = cachedItems || []
-    if (force) throw new Error('????????')
+    if (force) throw new Error('云端挂件目录为空')
     return memo
   })().finally(() => { inflight = null })
   return inflight
 }
 
-/** ????????????????????force ?????????? */
+/** 有缓存时先显示；过期缓存由后台静默刷新。force 仍用于用户主动刷新。 */
 export async function loadPendantCatalog(options = {}) {
   if (options.force) {
     const cachedItems = memo || (await readCache())?.items || []
@@ -184,7 +184,7 @@ export async function loadPendantCatalog(options = {}) {
   if (cached) {
     memo = cached.items
     if (Date.now() - cached.fetchedAt >= CACHE_TTL_MS) {
-      // ?????????????????? memo ??????
+      // 先返回已有数据，网络更新完成后再替换 memo 和持久缓存。
       void refreshPendantCatalog(memo).catch(() => {})
     }
     return memo
