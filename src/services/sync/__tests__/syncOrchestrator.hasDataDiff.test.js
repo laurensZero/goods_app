@@ -34,6 +34,8 @@ vi.mock('../syncPushPipeline', () => ({
 import { createSyncOrchestrator } from '../syncOrchestrator'
 import { readRemoteData, diffLocalRemote, hydrateRemoteImages, mergeToLocal } from '../syncPullPipeline'
 import { buildPayloadAndUploadImages, buildManifest, writeRemoteData, updateLocalRefs } from '../syncPushPipeline'
+import { readPersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 const LOCAL_SYNC_TIME = '2026-07-01T00:00:00.000Z'
 const REMOTE_SYNC_TIME = '2026-07-15T00:00:00.000Z'
@@ -482,5 +484,112 @@ describe('fullSync hasDataDiff 水位线兜底', () => {
       expect.anything(),
       expect.objectContaining({ shouldWritePresets: true })
     )
+  })
+})
+
+describe('预算同步 LWW', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    stubPushPipeline()
+    diffLocalRemote.mockReturnValue({ hasChanges: false, changedGoodsIds: new Set(), changedTrashIds: new Set() })
+    readPersisted.mockResolvedValue('')
+  })
+
+  it('只改藏品时，清单沿用云端已有预算，不把本机旧预算写回去', async () => {
+    stubRemote({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 })
+    // 模拟 buildManifest 读到本机尚未拉取的旧预算 100/1000
+    buildManifest.mockReturnValue({ lastSyncAt: '2026-07-20T12:00:00.000Z', deviceId: 'dev-a', budgetMonthly: 100, budgetYearly: 1000 })
+    readPersisted.mockImplementation(async (key) => (
+      key === MONTHLY_BUDGET_STORAGE_KEY ? '100' : key === YEARLY_BUDGET_STORAGE_KEY ? '1000' : ''
+    ))
+    const stores = makeStores()
+    const conflict = makeConflict({ updatedGoods: 1, hasChanges: true })
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: REMOTE_SYNC_TIME })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ lastServerSyncedAt: REMOTE_SYNC_TIME })
+
+    // 预算域没有脏标记：本机读到的 100/1000 只是尚未拉取的旧值
+    await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(['goods']),
+      dirtyGoodsIds: null,
+      source: 'manual'
+    })
+
+    expect(buildManifest).toHaveBeenCalled()
+    expect(buildManifest.mock.results[0].value).toMatchObject({ budgetMonthly: 500, budgetYearly: 6000 })
+  })
+
+  it('预算域标脏且与云端不同时，推送本地预算', async () => {
+    stubRemote({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 })
+    // buildManifest 按本地预算生成清单；hasBudgetDiff=true 时不得被远端值覆盖
+    buildManifest.mockReturnValue({ lastSyncAt: '2026-07-20T12:00:00.000Z', deviceId: 'dev-a', budgetMonthly: 800, budgetYearly: 9000 })
+    readPersisted.mockImplementation(async (key) => (
+      key === MONTHLY_BUDGET_STORAGE_KEY ? '800' : key === YEARLY_BUDGET_STORAGE_KEY ? '9000' : ''
+    ))
+    const stores = makeStores()
+    stores.goodsStore.list = []
+    const conflict = makeConflict({})
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: REMOTE_SYNC_TIME, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: REMOTE_SYNC_TIME })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ lastServerSyncedAt: REMOTE_SYNC_TIME })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(['budget']),
+      dirtyGoodsIds: null,
+      source: 'manual'
+    })
+
+    expect(result.action).toBe('pushed')
+    expect(result.pushedBudget).toBe(true)
+    expect(buildManifest.mock.results[0].value).toMatchObject({ budgetMonthly: 800, budgetYearly: 9000 })
+  })
+
+  it('云端领先且本地预算有未推送改动时，先拉取保护本地预算再补推', async () => {
+    const newerRemote = '2026-07-25T00:00:00.000Z'
+    stubRemote({ lastSyncAt: newerRemote, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 })
+    readPersisted.mockImplementation(async (key) => (
+      key === MONTHLY_BUDGET_STORAGE_KEY ? '800' : key === YEARLY_BUDGET_STORAGE_KEY ? '9000' : ''
+    ))
+    const stores = makeStores()
+    stores.goodsStore.list = []
+    const conflict = makeConflict({})
+    const orchestrator = makeOrchestrator(
+      {
+        readManifest: async () => ({ lastSyncAt: newerRemote, deviceId: 'dev-b', budgetMonthly: 500, budgetYearly: 6000 }),
+        getExistingImageCloud: async () => ({ id: 'cloud', files: {} }),
+        pushAll: async () => ({ syncedAt: newerRemote })
+      },
+      stores,
+      conflict
+    )
+    const ctx = makeCtx({ lastServerSyncedAt: REMOTE_SYNC_TIME })
+    mergeToLocal.mockResolvedValue({ counts: {} })
+
+    const result = await orchestrator.sync(ctx, {
+      dirtyDomains: new Set(['budget']),
+      dirtyGoodsIds: null,
+      source: 'manual'
+    })
+
+    expect(mergeToLocal).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ budgetDirty: true })
+    )
+    expect(result).toMatchObject({ action: 'pushed', pulledFirst: true, pushedBudget: true })
   })
 })

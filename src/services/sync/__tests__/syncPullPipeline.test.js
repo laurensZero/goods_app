@@ -7,6 +7,8 @@ vi.mock('@/utils/platform/storage', () => ({ writePersisted: vi.fn() }))
 vi.mock('@/utils/logger', () => ({ createLogger: () => ({ info: vi.fn(), debug: vi.fn(), warn: vi.fn() }) }))
 
 import { mergeToLocal } from '../syncPullPipeline'
+import { writePersisted } from '@/utils/platform/storage'
+import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 
 function makeItem(id, updatedAt) {
   return { id, name: `item-${id}`, updatedAt, quantity: 1 }
@@ -636,5 +638,26 @@ describe('mergeToLocal 角色星标（fav 存在角色条目上）', () => {
       }),
       { updatedAt: expect.any(Number) }
     )
+  })
+})
+
+describe('mergeToLocal 预算合并', () => {
+  it('本地预算未推送（budgetDirty）时，拉取不得用远端旧值覆盖本地', async () => {
+    const stores = makeStores()
+    const remote = { goods: [], trash: [], manifest: { budgetMonthly: 500, budgetYearly: 6000 } }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false, budgetDirty: true })
+
+    expect(writePersisted).not.toHaveBeenCalled()
+  })
+
+  it('本地预算无脏标记时，远端预算照常落地', async () => {
+    const stores = makeStores()
+    const remote = { goods: [], trash: [], manifest: { budgetMonthly: 500, budgetYearly: 6000 } }
+
+    await mergeToLocal(stores, remote, { reconcileMissing: false })
+
+    expect(writePersisted).toHaveBeenCalledWith(MONTHLY_BUDGET_STORAGE_KEY, '500')
+    expect(writePersisted).toHaveBeenCalledWith(YEARLY_BUDGET_STORAGE_KEY, '6000')
   })
 })

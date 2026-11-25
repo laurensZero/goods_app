@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
 import { calcPeriodSpend } from '@/utils/goods/statistics'
@@ -57,6 +57,10 @@ export function useBudgetCalculation() {
 
   const monthlyBudgetInput = ref('')
   const yearlyBudgetInput = ref('')
+  // 回填本地存储时抑制 watcher：读取不是用户编辑，不该标脏/触发推送。
+  // 否则每次冷启动/切回「我的」页都会把本机（可能尚未拉到的）旧预算标成待推送，
+  // 随后同步会把它当成本地新改动，反过来覆盖其他设备刚设置的预算。
+  let hydrating = false
 
   const currentPeriodLabel = computed(() => {
     const now = new Date()
@@ -89,11 +93,19 @@ export function useBudgetCalculation() {
       readPersisted(YEARLY_BUDGET_STORAGE_KEY, '')
     ])
 
-    monthlyBudgetInput.value = normalizeBudgetInput(savedMonthly)
-    yearlyBudgetInput.value = normalizeBudgetInput(savedYearly)
+    hydrating = true
+    try {
+      monthlyBudgetInput.value = normalizeBudgetInput(savedMonthly)
+      yearlyBudgetInput.value = normalizeBudgetInput(savedYearly)
+      // watcher 默认 pre-flush：等它跑完再解除抑制，避免同一次赋值触发推送
+      await nextTick()
+    } finally {
+      hydrating = false
+    }
   }
 
   watch(monthlyBudgetInput, (value) => {
+    if (hydrating) return
     const normalized = normalizeBudgetInput(value)
     if (normalized !== value) {
       monthlyBudgetInput.value = normalized
@@ -104,6 +116,7 @@ export function useBudgetCalculation() {
   })
 
   watch(yearlyBudgetInput, (value) => {
+    if (hydrating) return
     const normalized = normalizeBudgetInput(value)
     if (normalized !== value) {
       yearlyBudgetInput.value = normalized

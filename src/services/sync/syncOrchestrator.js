@@ -15,6 +15,13 @@ import { PULL_CLOCK_OVERLAP_MS } from '@/constants/syncConstants'
 function sinceWithOverlap(sinceMs) {
   return sinceMs > 0 ? Math.max(1, sinceMs - PULL_CLOCK_OVERLAP_MS) : 0
 }
+
+// 预算是否仍有本地未推送改动：优先看同步入口的快照，同时读实时脏标记。
+// 拉取在途期间用户新改的预算不在快照里，但合并时刻必须保护它（见 mergeToLocal budgetDirty）。
+function hasDirtyBudget(ctx, dirtyDomains) {
+  if (dirtyDomains && dirtyDomains.has('budget')) return true
+  return typeof ctx?.isDomainDirty === 'function' && ctx.isDomainDirty('budget')
+}
 import { createLogger } from '@/utils/logger'
 import i18n from '@/locales'
 
@@ -244,7 +251,7 @@ export function createSyncOrchestrator({
         await trackSyncStep(
           i18n.global.t('sync.phase.pull'),
           async () => {
-            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null, presetsDirty: !!(opts.dirtyDomains && (opts.dirtyDomains.has('presets') || opts.dirtyDomains.has('profiles'))) })
+            const merged = await mergeToLocal(storesWithDrafts, remoteData, { reconcileMissing: false, pullStartMs, resolveRechargeImage: be?.getImagePublicUrl || null, resolveProfileImage: be?.getImagePublicUrl || null, presetsDirty: !!(opts.dirtyDomains && (opts.dirtyDomains.has('presets') || opts.dirtyDomains.has('profiles'))), budgetDirty: hasDirtyBudget(ctx, opts.dirtyDomains) })
             pullCounts = merged.counts
             remoteWatermark = merged.remoteWatermark
             await advanceRowWatermarks(ctx, remoteData)
@@ -335,6 +342,7 @@ export function createSyncOrchestrator({
             forceAlign,
             localSyncTime,
             presetsDirty: !!(opts.dirtyDomains && (opts.dirtyDomains.has('presets') || opts.dirtyDomains.has('profiles'))),
+            budgetDirty: hasDirtyBudget(ctx, opts.dirtyDomains),
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             resolveRechargeImage: be?.getImagePublicUrl || null,
             resolveProfileImage: be?.getImagePublicUrl || null
@@ -534,7 +542,9 @@ export function createSyncOrchestrator({
     const isGoodsDirty = !dirty || dirty.has('goods') || dirty.has('presets') || dirty.has('profiles') || dirty.has('group')
     // 行级表只在真正有本地未推送改动时才算 dirty；不再用 !!dirty 兜底，否则每次同步都会进入同步流程
     const isPresetsDirty = !!dirty && (dirty.has('presets') || dirty.has('profiles'))
-    const isBudgetDirty = !dirty || dirty.has('budget')
+    // 预算同样只在显式标脏时才算「有本地改动」：无脏标记的普通同步/手动同步
+    // 不能把本机可能滞后的预算当成新值推送（会覆盖其他设备刚设置的预算）
+    const isBudgetDirty = !!dirty && dirty.has('budget')
     const isBatchDraftDirty = !dirty || dirty.has('batchDrafts')
     const hasDirtyGoodsIds = dirtyGoodsIds && dirtyGoodsIds.size > 0
 
@@ -702,6 +712,9 @@ export function createSyncOrchestrator({
           hasRechargeDataDiff: false,
           hasEventDataDiff: false,
           hasBatchDraftDataDiff: true,
+          // doSync 会在 pushed 后清空本轮全部脏域：预算同样有本地未推送改动时必须一起推，
+          // 否则预算脏标记被清掉、改动永远上不了云
+          hasBudgetDiff: Boolean(hasBudgetDiff),
           hasPresetsDiff: false,
           remoteData,
           localBatchDrafts
@@ -735,6 +748,7 @@ export function createSyncOrchestrator({
             shouldApplyRemoteItem: ctx.shouldApplyRemoteItem,
             localSyncTime,
             presetsDirty: isPresetsDirty,
+            budgetDirty: isBudgetDirty,
             dirtyGoodsIds: ctx.getDirtyGoodsIds,
             // 本地 presets 有未推送改动（刚新建/删除自定义字段、改分类…）时不被远端快照覆盖
             resolveRechargeImage: be?.getImagePublicUrl || null,
@@ -758,12 +772,14 @@ export function createSyncOrchestrator({
       await saveServerWatermark(ctx, remoteManifest?.lastSyncAt)
       // 拉取后本地仍有脏域：立刻再推一次，避免 doSync 的 clearDirtyDomains 吞掉这些改动。
       // 行级预设/背景在 pull 中先按行合并；本地脏域随后补推，避免脏标记被清掉。
-      if (draftsDomainDirty || hasBatchDraftDataDiff || isPresetsDirty) {
+      // 预算同理：拉取阶段已跳过本地脏预算的覆盖，这里必须把它补推上去。
+      if (draftsDomainDirty || hasBatchDraftDataDiff || isPresetsDirty || hasBudgetDiff) {
         const pushAfterPull = await doPush(ctx, stores, be, {
           hasDataDiff: false,
           hasRechargeDataDiff: false,
           hasEventDataDiff: false,
           hasBatchDraftDataDiff: Boolean(draftsDomainDirty || hasBatchDraftDataDiff),
+          hasBudgetDiff: Boolean(hasBudgetDiff),
           hasPresetsDiff: Boolean(isPresetsDirty),
           remoteData,
           localBatchDrafts,
@@ -798,7 +814,7 @@ export function createSyncOrchestrator({
   async function doPush(ctx, stores, be, opts = {}) {
     const {
       hasDataDiff, hasRechargeDataDiff, hasEventDataDiff, hasBatchDraftDataDiff,
-      hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData,
+      hasBudgetDiff, hasPresetsDiff, hasDirtyGoodsIds, dirtyGoodsIds, remoteData,
       localBatchDrafts = null,
       source = ''
     } = opts
@@ -849,6 +865,14 @@ export function createSyncOrchestrator({
       hasDirtyGoodsIds, shouldWriteRecharge: hasRechargeDataDiff, shouldWriteEvent: hasEventDataDiff,
       backend: be
     })
+
+    // 预算域没有本地未推送改动时，清单必须沿用云端已有预算：
+    // 否则「只改了一件藏品/活动」的推送也会把本机可能尚未拉到的旧预算（甚至 0）写回去，
+    // 把其他设备刚设置的预算覆盖成旧值。
+    if (manifest && !hasBudgetDiff && remoteData?.manifest) {
+      manifest.budgetMonthly = normalizeBudgetValue(remoteData.manifest.budgetMonthly)
+      manifest.budgetYearly = normalizeBudgetValue(remoteData.manifest.budgetYearly)
+    }
 
     // crash-safe：先持久化 pending-push 标记（含本次推送时间戳），再写远端；
     // 若进程在远端写入成功后、本地水位线保存前被杀，下次同步由 reconcilePendingPush 快进水位线。
@@ -1024,6 +1048,8 @@ export function createSyncOrchestrator({
       failedImages: failedImageFiles.size,
       failedImageItemIds,
       failedProfileImages,
+      // 供 pulledFirst 分支判断「预算已随补推上传」，可以安全清掉 budget 脏标记
+      pushedBudget: Boolean(hasBudgetDiff),
       ...imageStats,
       totalGoods: (syncData.goods || []).length,
       totalTrash: (syncData.trash || []).length,

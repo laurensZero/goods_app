@@ -230,10 +230,11 @@ export async function hydrateRemoteImages(imageService, be, remoteData, diff) {
  * @param {Function} opts.shouldApplyRemoteItem - conflict resolver
  * @param {Set<string>|Function|null} opts.dirtyGoodsIds - 本地未推送改动的商品 id（或返回该集合的 getter），reconcile 删除时排除
  * @param {number} opts.pullStartMs - 拉取开始时刻（本机毫秒）；不早于它的行时间视为 NULL updated_at 的 Date.now() 回退值，不参与水位线统计
+ * @param {boolean} opts.budgetDirty - 本地预算有未推送改动时，不用远端清单覆盖本地预算
  */
 export async function mergeToLocal(stores, remoteData, opts = {}) {
   const { goodsStore, rechargeStore, eventsStore, goodsGroupStore, presetsStore } = stores
-  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false, presetsDirty = false } = opts
+  const { reconcileMissing = true, localSyncTime = 0, dirtyGoodsIds = null, pullStartMs = 0, resolveRechargeImage = null, resolveProfileImage = null, forceReapply = false, forceAlign = false, presetsDirty = false, budgetDirty = false } = opts
 
   const effectiveRemoteData = {
     ...remoteData,
@@ -494,7 +495,10 @@ export async function mergeToLocal(stores, remoteData, opts = {}) {
   }
 
   // ── Budget settings ──
-  if (remoteData.manifest) {
+  // 本地预算有未推送改动（刚改完，自动推送还在防抖/在途）时绝不回写远端旧值：
+  // 否则任意一次并发拉取（启动/实时/切前台）都会把用户刚设的预算改回旧值，
+  // 随后比对 local==remote 判定无差异，改动彻底丢失。脏预算由后续补推上传。
+  if (remoteData.manifest && !budgetDirty) {
     const monthly = normalizeBudgetValue(remoteData.manifest.budgetMonthly)
     const yearly = normalizeBudgetValue(remoteData.manifest.budgetYearly)
     if (monthly > 0 || yearly > 0) {

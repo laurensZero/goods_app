@@ -492,6 +492,9 @@ export const useSyncStore = defineStore('sync', () => {
       // reconcile 删除保护：脏标记中的条目是未推送的本地改动，拉取合并时不得物理删除；
       // 传 getter 让 reconcile 执行时刻读到实时集合（拉取在途期间新增的商品同样受保护）
       getDirtyGoodsIds: () => dirtyGoodsIds,
+      // 预算同理：拉取在途期间用户又改了预算时，合并时刻必须能读到最新脏标记，
+      // 否则会按同步开始时的旧快照回写远端预算，把刚改的值覆盖掉。
+      isDomainDirty: (domain) => dirtyDomains.has(domain),
       saveLastSyncedAt: guarded(saveLastSyncedAt), saveEventLastSyncedAt: guarded(saveEventLastSyncedAt),
       saveLastServerSyncedAt: guarded(saveLastServerSyncedAt),
       saveRowSyncedAt: guarded(saveRowSyncedAt),
@@ -972,8 +975,13 @@ export const useSyncStore = defineStore('sync', () => {
       if (didPush) {
         clearDirtyDomains(domains)
         clearDirtyGoodsIds(goodsIds)
-      } else if (result?.pulledFirst && domains?.has('batchDrafts')) {
-        clearDirtyDomains(new Set(['batchDrafts']))
+      } else if (result?.pulledFirst) {
+        // 拉取后补推只消费了本轮实际推上去的域：其他脏域（如 goods）必须保留到下一次推送，
+        // 否则会被「拉过就先推了草稿/预算」误清，改动永远上不了云。
+        const consumed = new Set()
+        if (domains?.has('batchDrafts')) consumed.add('batchDrafts')
+        if (result?.pushedBudget && domains?.has('budget')) consumed.add('budget')
+        if (consumed.size > 0) clearDirtyDomains(consumed)
       }
       // presets 专项清理：「已推送」或「比对确认与云端逐字节一致」都必须落标记。
       // 滞留的 presets 脏标记是双向毒药：每次 pull 都 preserveLocalPresets → 本机永远
@@ -987,6 +995,12 @@ export const useSyncStore = defineStore('sync', () => {
       // 有背景图上传失败时立刻回填脏标记，下次同步重试（否则图永远缺席）
       if (domains?.has('profiles') && (result?.action === 'pushed' || result?.action === 'no_changes')) {
         clearDirtyDomains(new Set(['profiles']))
+      }
+      // 预算专项清理：与云端清单一致（no_changes / pulled）或已推送成功都要落标记。
+      // 滞留的 budget 脏标记会让 mergeToLocal 永远跳过远端预算覆盖（本机再也收不到别机更新），
+      // 还会让每次同步都被当成有本地改动。
+      if (domains?.has('budget') && ['pushed', 'no_changes', 'pulled'].includes(result?.action)) {
+        clearDirtyDomains(new Set(['budget']))
       }
       if (Number(result?.failedProfileImages) > 0) {
         markDomainDirty('presets')
