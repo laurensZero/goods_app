@@ -1580,7 +1580,9 @@ onMounted(() => {
     applyImportPrefill()
     captureEventFormBaseline()
     restoreDraftFromPicker()
-    applyPickerSelectionResult()
+    if (applyPickerSelectionResult()) {
+      setActiveTab('ticket', { scroll: false })
+    }
     isNavigatingToPicker.value = false
   })()
 })
