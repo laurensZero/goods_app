@@ -400,7 +400,7 @@ export function createSyncOrchestrator({
       // Quick push path: single goods edit, no remote read needed
       if (canQuickPush(be, dirtyGoodsIds, dirtyDomains)) {
         try {
-          const result = await quickPush(ctx, dirtyGoodsIds, source)
+          const result = await quickPush(ctx, dirtyGoodsIds, source, dirtyDomains)
           log.info('sync:quick-push:done', { pushedItems: result.pushedItems, pushedTrash: result.pushedTrash })
           return result
         } catch (e) {
@@ -419,12 +419,14 @@ export function createSyncOrchestrator({
   function canQuickPush(be, dirtyGoodsIds, dirtyDomains) {
     return be.pushAll
       && dirtyGoodsIds && dirtyGoodsIds.size > 0
-      && dirtyDomains && dirtyDomains.size <= 1 && dirtyDomains.has('goods')
+      && dirtyDomains
+      && dirtyDomains.has('goods')
+      && [...dirtyDomains].every((domain) => domain === 'goods' || domain === 'budget')
   }
 
   // ── Quick push: direct upsert of specific dirty goods ──
 
-  async function quickPush(ctx, dirtyIds, source = '') {
+  async function quickPush(ctx, dirtyIds, source = '', dirtyDomains = null) {
     const be = ctx.backend || backend
     const goodsStore = useGoodsStore()
 
@@ -510,6 +512,8 @@ export function createSyncOrchestrator({
     // crash-safe：先持久化 pending-push 标记再写远端
     await setPendingPush(ctx, { ts: syncTimestamp, deviceId: currentDeviceId })
 
+    const budgetDirty = !!dirtyDomains?.has('budget')
+    const localBudget = budgetDirty ? await readBudgetSettings() : null
     const pushResult = await be.pushAll({
       goods: itemsToPush,
       goodsTrash: trashToPush,
@@ -518,8 +522,8 @@ export function createSyncOrchestrator({
       imageBucket: existingManifest?.image_bucket ?? 'goods-images',
       rechargeUpdatedAt: existingManifest?.recharge_updated_at ?? null,
       eventUpdatedAt: existingManifest?.event_updated_at ?? null,
-      budgetMonthly: existingManifest?.budget_monthly ?? 0,
-      budgetYearly: existingManifest?.budget_yearly ?? 0,
+      budgetMonthly: budgetDirty ? normalizeBudgetValue(localBudget?.monthly) : (existingManifest?.budget_monthly ?? 0),
+      budgetYearly: budgetDirty ? normalizeBudgetValue(localBudget?.yearly) : (existingManifest?.budget_yearly ?? 0),
       source: source || 'quickPush'
     })
 
