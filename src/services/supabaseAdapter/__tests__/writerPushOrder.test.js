@@ -20,6 +20,32 @@ function makeDb(calls) {
 }
 
 describe('pushAll RPC 顺序', () => {
+  it('预算通过独立写入只更新预算列', async () => {
+    const calls = []
+    const writer = createWriter({
+      getDb: () => ({
+        from: (table) => {
+          calls.push(table)
+          return {
+            upsert: (row) => {
+              expect(row).toMatchObject({ user_id: 'user-1', budget_monthly: 200, budget_yearly: 2400 })
+              return {
+                select: () => ({
+                  single: async () => ({ data: { synced_at: '2026-10-17T14:40:31.000Z' }, error: null })
+                })
+              }
+            }
+          }
+        }
+      }),
+      deviceIdRef: () => 'dev-a',
+      userIdRef: () => 'user-1'
+    })
+
+    await expect(writer.writeBudget({ monthly: 200, yearly: 2400 })).resolves.toEqual({ syncedAt: '2026-10-17T14:40:31.000Z' })
+    expect(calls).toEqual(['sync_manifest'])
+  })
+
   it('先写行级预设/背景，再写数据+manifest：manifest 时间必须晚于行 updated_at', async () => {
     // 回归：sync_push_rows 服务端 updated_at = now()，若在 sync_push（写 manifest）之后执行，
     // 行 updated_at 会晚于 manifest.synced_at；客户端行水位被 manifest 钳住永远追不上，

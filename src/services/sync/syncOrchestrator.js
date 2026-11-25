@@ -522,17 +522,20 @@ export function createSyncOrchestrator({
       imageBucket: existingManifest?.image_bucket ?? 'goods-images',
       rechargeUpdatedAt: existingManifest?.recharge_updated_at ?? null,
       eventUpdatedAt: existingManifest?.event_updated_at ?? null,
-      budgetMonthly: budgetDirty ? normalizeBudgetValue(localBudget?.monthly) : (existingManifest?.budget_monthly ?? 0),
-      budgetYearly: budgetDirty ? normalizeBudgetValue(localBudget?.yearly) : (existingManifest?.budget_yearly ?? 0),
       source: source || 'quickPush'
     })
+    let budgetSyncedAt = null
+    if (budgetDirty && typeof be.writeBudget === 'function') {
+      const budgetResult = await be.writeBudget(localBudget || {})
+      budgetSyncedAt = budgetResult?.syncedAt || null
+    }
 
     // 水位线优先用服务器侧 synced_at（新版 RPC 返回），消除设备时钟偏移
     await ctx.saveLastSyncedAt(pushResult?.syncedAt || syncTimestamp)
     await saveServerWatermark(ctx, pushResult?.syncedAt || syncTimestamp)
     await dropPendingPush(ctx)
 
-    return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length }
+    return { action: 'pushed', pushedItems: itemsToPush.length, pushedTrash: trashToPush.length, serverSyncedAt: budgetSyncedAt || pushResult?.syncedAt || null }
   }
 
   // ── Full sync: read remote → compare → push or pull ──
@@ -909,6 +912,19 @@ export function createSyncOrchestrator({
       )
       serverSyncedAt = writeResult?.serverSyncedAt || null
     } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+
+    // 预算独立于商品清单写入，避免商品同步携带旧预算覆盖本地修改。
+    if (hasBudgetDiff && typeof be.writeBudget === 'function') {
+      try {
+        const budget = await readBudgetSettings()
+        const budgetResult = await trackSyncStep(
+          i18n.global.t('sync.step.pushData'),
+          () => be.writeBudget(budget),
+          { category: 'sync' }
+        )
+        serverSyncedAt = budgetResult?.syncedAt || serverSyncedAt
+      } catch (e) { wrapSyncError(e, PHASE_WRITE_DATA) }
+    }
 
     // 行级预设墓碑已经随 sync_push_rows 落库成功：清掉本地墓碑，避免每次同步重复推送。
     // 写远端失败时保留（catch 不会走到这里），下次同步会重试。

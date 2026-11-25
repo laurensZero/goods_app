@@ -37,6 +37,27 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
   }
 
+  // 预算是独立同步域：只更新两个预算列，不携带商品清单或商品同步里的其他字段。
+  async function writeBudget({ monthly = 0, yearly = 0 } = {}) {
+    const db = getDb()
+    const currentUserId = typeof userIdRef === 'function' ? userIdRef() : (userIdRef?.value || '')
+    const currentDeviceId = typeof deviceIdRef === 'function' ? deviceIdRef() : (deviceIdRef?.value || '')
+    if (!currentUserId) throw new Error('Authentication required')
+    const { data, error } = await withRetry(() => db
+      .from('sync_manifest')
+      .upsert({
+        user_id: currentUserId,
+        device_id: currentDeviceId || '',
+        budget_monthly: Number(monthly) || 0,
+        budget_yearly: Number(yearly) || 0
+      }, { onConflict: 'user_id' })
+      .select('synced_at')
+      .single()
+    )
+    if (error) throw new Error(i18n.global.t('sync.error.supabaseWriteManifestFailed', { error: error.message }))
+    return { syncedAt: data?.synced_at || null }
+  }
+
   // 设备心跳 upsert：每次同步调用一次，记录 platform / apk_version / bundle_version / last_seen_at。
   // 用 onConflict: 'device_id'，不写 force_resync_at（管理员设的强制重同步标记得以保留）。
   // last_seen_at 由服务端触发器恒取 now()，此处不必传。
@@ -211,7 +232,6 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
     deleteRecharge = [], deleteEvents = [], deleteBatchDrafts = [],
     deviceId = '', syncedAt = new Date().toISOString(),
     imageBucket = 'goods-images',
-    budgetMonthly = 0, budgetYearly = 0,
     rechargeUpdatedAt = null, eventUpdatedAt = null,
     source = ''
   } = {}) {
@@ -237,8 +257,7 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
       if (profileRowsError) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: profileRowsError.message }))
     }
 
-    const { data, error } = await withRetry(() => db.rpc('sync_push', {
-      payload: {
+    const payload = {
         goods: toGoodsRows(goods, deviceIdRef, false, currentUserId),
         goods_trash: toGoodsRows(goodsTrash, deviceIdRef, true, currentUserId),
         groups: toGroupRows(groups, deviceIdRef, currentUserId, false),
@@ -260,29 +279,28 @@ export function createWriter({ getDb, deviceIdRef, userIdRef }) {
         device_id: currentDeviceId,
         synced_at: syncedAt,
         image_bucket: imageBucket,
-        budget_monthly: budgetMonthly,
-        budget_yearly: budgetYearly,
         recharge_updated_at: rechargeUpdatedAt || null,
         event_updated_at: eventUpdatedAt || null,
         source: source || ''
-      }
-    }))
+    }
+    const { data, error } = await withRetry(() => db.rpc('sync_push', { payload }))
 
     // pushAll 是整包数据+清单的 RPC，与单独写 manifest 的失败要区分文案，否则数据行失败被误报成清单问题
     if (error) throw new Error(i18n.global.t('sync.error.supabasePushFailed', { error: error.message }))
 
     // 新版 sync_push RPC 返回 { synced_at: <服务器时间> } 作为本地水位线，
     // 消除设备时钟偏移；旧版 RPC 返回 void（data 为 null）→ 调用方回退客户端时间
-    let payload = data
-    if (typeof payload === 'string') {
-      try { payload = JSON.parse(payload) } catch { payload = null }
+    let resultPayload = data
+    if (typeof resultPayload === 'string') {
+      try { resultPayload = JSON.parse(resultPayload) } catch { resultPayload = null }
     }
-    const serverSyncedAt = payload && typeof payload === 'object' ? (payload.synced_at || null) : null
+    const serverSyncedAt = resultPayload && typeof resultPayload === 'object' ? (resultPayload.synced_at || null) : null
     return { syncedAt: serverSyncedAt }
   }
 
   return {
     writeManifest,
+    writeBudget,
     pushDomainRows,
     pushAll,
     writeDeviceHeartbeat,

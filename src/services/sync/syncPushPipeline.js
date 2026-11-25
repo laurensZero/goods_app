@@ -470,8 +470,6 @@ export async function writeRemoteData(be, { syncData, rechargeSyncData, eventSyn
     deviceId: manifest?.deviceId || '',
     syncedAt: manifest?.lastSyncAt || new Date().toISOString(),
     imageBucket: manifest?.imageCloudId || 'goods-images',
-    budgetMonthly: manifest?.budgetMonthly || 0,
-    budgetYearly: manifest?.budgetYearly || 0,
     rechargeUpdatedAt: manifest?.rechargeUpdatedAt || null,
     eventUpdatedAt: manifest?.eventUpdatedAt || null,
     presetRows: [...presetRows, ...presetTombstoneRows],
