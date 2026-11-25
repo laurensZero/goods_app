@@ -132,46 +132,49 @@ async function fetchFromSupabase() {
  *   调用方借此提示「已显示缓存数据」；非 force 保持静默，失败退缓存不抛。
  * @returns {Promise<BubbleItem[]>}
  */
-export async function loadBubbleCatalog(options = {}) {
-  if (memo && !options.force) return memo
+async function refreshBubbleCatalog(cachedItems, { force = false } = {}) {
   if (inflight) return inflight
-
   inflight = (async () => {
-    const cached = await readCache()
-    const fresh = cached && Date.now() - cached.fetchedAt < CACHE_TTL_MS
-    if (fresh && !options.force) {
-      memo = cached.items
-      return memo
-    }
-
     let fetched = null
     try {
       fetched = await fetchFromSupabase()
     } catch (e) {
-      if (options.force) {
-        // 兜底旧缓存后把错误抛出去（调用方提示「已显示缓存数据」）
-        memo = cached ? cached.items : []
+      if (force) {
+        memo = cachedItems || []
         throw e instanceof Error ? e : new Error(String(e))
       }
-      // 云端不可用就走过期缓存；没有缓存就是空目录
+      return cachedItems || []
     }
-
     if (fetched && fetched.length) {
       memo = fetched
       await writeCache(fetched)
       return memo
     }
-
-    // 云端为空：常规加载按兜底语义返回旧缓存；force 视为拉取失败（无法区分
-    // 「云端被清空」与「拉取异常」，统一按失败提示，老数据不动）
-    memo = cached ? cached.items : []
-    if (options.force) throw new Error('云端气泡目录为空')
+    memo = cachedItems || []
+    if (force) throw new Error('????????')
     return memo
-  })().finally(() => {
-    inflight = null
-  })
-
+  })().finally(() => { inflight = null })
   return inflight
+}
+
+/** ????????????????????force ?????????? */
+export async function loadBubbleCatalog(options = {}) {
+  if (options.force) {
+    const cachedItems = memo || (await readCache())?.items || []
+    return refreshBubbleCatalog(cachedItems, { force: true })
+  }
+  if (memo) return memo
+  if (inflight) return inflight
+  const cached = await readCache()
+  if (cached) {
+    memo = cached.items
+    if (Date.now() - cached.fetchedAt >= CACHE_TTL_MS) {
+      // ?????????????????? memo ??????
+      void refreshBubbleCatalog(memo).catch(() => {})
+    }
+    return memo
+  }
+  return refreshBubbleCatalog([])
 }
 
 /** 测试用：清掉内存缓存 */
