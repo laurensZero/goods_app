@@ -172,6 +172,13 @@
                 </div>
                 <div class="budget-compact__foot">{{ formatPrice(yearlyBudgetProgress.spent) }} / {{ yearlyBudgetProgress.hasBudget ? formatPrice(yearlyBudgetProgress.budget) : t('my.notSetFull') }}</div>
               </div>
+
+              <div v-if="hasSpendingHistory" class="budget-compact__average">
+                <span class="budget-compact__average-label">{{ t('my.averageSpendLabel') }}</span>
+                <span>{{ t('my.monthlyAverage') }} {{ formatPrice(monthlyAverageSpend) }}</span>
+                <span class="budget-compact__average-dot" aria-hidden="true">·</span>
+                <span>{{ t('my.yearlyAverage') }} {{ formatPrice(yearlyAverageSpend) }}</span>
+              </div>
             </article>
           </div>
         </article>
@@ -386,6 +393,27 @@
     <AppSheet v-model="showBudgetDialog" size="wide" @update:model-value="(v) => { if (!v) closeBudgetDialog() }">
       <h2 class="login-sheet__title">{{ t('my.setBudget') }}</h2>
       <p class="login-sheet__desc">{{ t('my.budgetDesc') }}</p>
+
+      <div v-if="hasSpendingHistory" class="budget-reference">
+        <div class="budget-reference__head">
+          <span class="budget-reference__label">{{ t('my.spendingReference') }}</span>
+          <button type="button" class="budget-reference__apply" @click="applySuggestedBudget">
+            {{ t('my.useAverageBudget') }}
+          </button>
+        </div>
+        <div class="budget-reference__grid">
+          <div class="budget-reference__item">
+            <span class="budget-reference__kicker">{{ t('my.monthlyAverage') }}</span>
+            <strong class="budget-reference__value">{{ formatPrice(monthlyAverageSpend) }}</strong>
+            <span class="budget-reference__hint">{{ t('my.averageOverMonths', { count: spendRangeMonths }) }}</span>
+          </div>
+          <div class="budget-reference__item">
+            <span class="budget-reference__kicker">{{ t('my.yearlyAverage') }}</span>
+            <strong class="budget-reference__value">{{ formatPrice(yearlyAverageSpend) }}</strong>
+            <span class="budget-reference__hint">{{ t('my.averageAnnualized') }}</span>
+          </div>
+        </div>
+      </div>
 
       <div class="budget-sheet__fields">
         <label class="budget-input-wrap">
@@ -965,6 +993,8 @@ const {
   monthlyBudgetInput, yearlyBudgetInput,
   currentPeriodLabel, currentYearLabel,
   monthlyBudgetProgress, yearlyBudgetProgress,
+  monthlyAverageSpend, yearlyAverageSpend, spendRangeMonths, hasSpendingHistory,
+  applySuggestedBudget,
   loadBudgetSettings
 } = useBudgetCalculation()
 
@@ -2353,6 +2383,28 @@ onActivated(async () => {
   line-height: 1.4;
 }
 
+.budget-compact__average {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed color-mix(in srgb, var(--app-text) 12%, transparent);
+  color: var(--app-text-tertiary);
+  font-size: var(--font-small);
+  line-height: 1.4;
+}
+
+.budget-compact__average-label {
+  color: var(--app-text-secondary);
+  font-weight: 600;
+}
+
+.budget-compact__average-dot {
+  opacity: 0.6;
+}
+
 .account-avatar {
   width: 84px;
   height: 84px;
@@ -3082,6 +3134,74 @@ onActivated(async () => {
   display: grid;
   gap: 12px;
   margin-top: 16px;
+}
+
+.budget-reference {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-large);
+  background: color-mix(in srgb, var(--app-surface-soft) 88%, transparent);
+}
+
+.budget-reference__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.budget-reference__label {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-small);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.budget-reference__apply {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--app-text) 14%, transparent);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--app-text);
+  font-size: var(--font-small);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.budget-reference__apply:active {
+  transform: scale(0.98);
+}
+
+.budget-reference__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.budget-reference__item {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.budget-reference__kicker {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-small);
+}
+
+.budget-reference__value {
+  color: var(--app-text);
+  font-size: var(--font-title-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.budget-reference__hint {
+  color: var(--app-text-tertiary);
+  font-size: var(--font-caption);
 }
 
 @media (max-width: 1023px) {

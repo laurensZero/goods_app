@@ -4,6 +4,7 @@ import { nextTick } from 'vue'
 const readPersisted = vi.fn()
 const writePersisted = vi.fn()
 const autoPushGoods = vi.fn()
+const buildSpendingAverages = vi.fn(() => ({ total: 0, monthCount: 0, monthlyAverage: 0, yearlyAverage: 0 }))
 
 vi.mock('@/utils/platform/storage', () => ({
   readPersisted: (...args) => readPersisted(...args),
@@ -16,7 +17,10 @@ vi.mock('@/stores/goods', () => ({
 vi.mock('@/stores/sync', () => ({
   useSyncStore: () => ({ autoPushGoods })
 }))
-vi.mock('@/utils/goods/statistics', () => ({ calcPeriodSpend: () => 0 }))
+vi.mock('@/utils/goods/statistics', () => ({
+  calcPeriodSpend: () => 0,
+  buildSpendingAverages: (...args) => buildSpendingAverages(...args)
+}))
 
 import { useBudgetCalculation } from '../useBudgetCalculation'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
@@ -50,5 +54,24 @@ describe('useBudgetCalculation 预算回填', () => {
 
     expect(writePersisted).toHaveBeenCalledWith(MONTHLY_BUDGET_STORAGE_KEY, '800')
     expect(autoPushGoods).toHaveBeenCalledWith('budget')
+  })
+
+  it('按月均/年均消费填入建议预算并触发落盘', async () => {
+    buildSpendingAverages.mockReturnValue({
+      total: 1200,
+      monthCount: 4,
+      monthlyAverage: 300,
+      yearlyAverage: 3600
+    })
+    readPersisted.mockResolvedValue('')
+    const { applySuggestedBudget, monthlyBudgetInput, yearlyBudgetInput } = useBudgetCalculation()
+
+    applySuggestedBudget()
+    await nextTick()
+
+    expect(monthlyBudgetInput.value).toBe('300')
+    expect(yearlyBudgetInput.value).toBe('3600')
+    expect(writePersisted).toHaveBeenCalledWith(MONTHLY_BUDGET_STORAGE_KEY, '300')
+    expect(writePersisted).toHaveBeenCalledWith(YEARLY_BUDGET_STORAGE_KEY, '3600')
   })
 })

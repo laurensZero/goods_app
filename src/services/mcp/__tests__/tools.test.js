@@ -424,6 +424,11 @@ describe('mcp tool handlers', () => {
     expect(result.current.year).toMatch(/^\d{4}$/)
     expect(result.current.monthProgress).toMatchObject({ budget: 40, hasBudget: true })
     expect(result.current.yearProgress.hasBudget).toBe(true)
+
+    // 月均/年均消费参考（预算推荐）
+    expect(result.averages.months).toBeGreaterThan(0)
+    expect(result.averages.monthly).toBeGreaterThan(0)
+    expect(result.averages.yearly).toBeCloseTo(result.averages.monthly * 12, 0)
   })
 
   it('budget_overview 未注入预算读取时视为未设置', async () => {

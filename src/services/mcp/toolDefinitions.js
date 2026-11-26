@@ -24,7 +24,7 @@ export const MCP_SERVER_INSTRUCTIONS = [
   '出谷回血与盈亏用 sale_ledger；活动背景用 events_list；活动增删改用 events_add/events_update/events_delete；演唱会/演出曲单用 event_tracks；游戏充值用 recharge_summary（总览）与 recharge_search（按项目/游戏精确统计）；',
   '分组/套组用 groups_list 总览、groups_manage 增删改与成员管理；回收站列表用 trash_list，永久清理用 goods_purge；批量改字段用 goods_update_many；',
   'CD/专辑谷子用 goods_search（hasTracks: true）找条目、goods_detail 看曲目明细；歌词用 music_lyrics；播放歌曲用 music_play。',
-  '吃谷预算用 budget_overview 看超支情况、budget_set 修改；米游铺上新用 mihoyo_new_arrivals（商品/积分/满赠），要加心愿单用 goods_add（isWishlist: true，带 goodsId/price/saleAt/image）；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
+  '吃谷预算用 budget_overview 看超支情况和月均/年均消费（可据此建议预算）、budget_set 修改；米游铺上新用 mihoyo_new_arrivals（商品/积分/满赠），要加心愿单用 goods_add（isWishlist: true，带 goodsId/price/saleAt/image）；同步用 sync_start；分享用 share_create/share_manage；账号用 account_info/account_logout；版本与更新用 app_info；页面跳转用 navigate。',
   '谷子自定义字段：先 custom_fields_list 看用户已有哪些字段（名称/类型/可选值/生效范围），填值用 goods_add/goods_update 的 customFields（键=字段名，只传要改的，未传不动）；用户要新建字段用 presets_manage（entity=custom_field）。',
   '金额字段为用户手填的字符串，可能为空或含非数字字符；花费类数字均为估算值。'
 ].join('\n')
@@ -713,7 +713,7 @@ export const MCP_TOOL_DEFINITIONS = [
   },
   {
     name: 'budget_overview',
-    description: '吃谷预算与超支。问「预算还剩多少」必用。',
+    description: '吃谷预算与超支。问「预算还剩多少」必用；averages 含月均/年均消费，可据此建议预算。',
     inputSchema: { type: 'object', properties: {} }
   },
   {

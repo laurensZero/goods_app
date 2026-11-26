@@ -74,6 +74,11 @@ vi.mock('@/composables/my/useBudgetCalculation', async () => {
       currentYearLabel: ref(''),
       monthlyBudgetProgress: ref(0),
       yearlyBudgetProgress: ref(0),
+      monthlyAverageSpend: ref(0),
+      yearlyAverageSpend: ref(0),
+      spendRangeMonths: ref(0),
+      hasSpendingHistory: ref(false),
+      applySuggestedBudget: vi.fn(),
       loadBudgetSettings: vi.fn(async () => {})
     })
   }

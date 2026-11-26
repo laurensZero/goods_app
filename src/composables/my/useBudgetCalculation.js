@@ -1,7 +1,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { readPersisted, writePersisted } from '@/utils/platform/storage'
 import { MONTHLY_BUDGET_STORAGE_KEY, YEARLY_BUDGET_STORAGE_KEY } from '@/constants/budgetConstants'
-import { calcPeriodSpend } from '@/utils/goods/statistics'
+import { buildSpendingAverages, calcPeriodSpend } from '@/utils/goods/statistics'
 import { BUDGET_LEVEL, getBudgetLevelFromPercent } from '@/utils/goods/budget'
 import { useGoodsStore } from '@/stores/goods'
 import { useSyncStore } from '@/stores/sync'
@@ -87,6 +87,24 @@ export function useBudgetCalculation() {
   const monthlyBudgetProgress = computed(() => buildBudgetProgress(currentMonthSpent.value, monthlyBudget.value))
   const yearlyBudgetProgress = computed(() => buildBudgetProgress(currentYearSpent.value, yearlyBudget.value))
 
+  const spendingAverages = computed(() => buildSpendingAverages(goodsStore.viewList))
+  const monthlyAverageSpend = computed(() => spendingAverages.value.monthlyAverage)
+  const yearlyAverageSpend = computed(() => spendingAverages.value.yearlyAverage)
+  const spendRangeMonths = computed(() => spendingAverages.value.monthCount)
+  const hasSpendingHistory = computed(() => spendingAverages.value.total > 0)
+  const suggestedMonthlyBudget = computed(() => Math.ceil(monthlyAverageSpend.value))
+  const suggestedYearlyBudget = computed(() => Math.ceil(yearlyAverageSpend.value))
+
+  /** 把月均/年均消费填入预算输入框（用户可继续改；留空/0 仍视为未设置）。 */
+  function applySuggestedBudget() {
+    if (suggestedMonthlyBudget.value > 0) {
+      monthlyBudgetInput.value = String(suggestedMonthlyBudget.value)
+    }
+    if (suggestedYearlyBudget.value > 0) {
+      yearlyBudgetInput.value = String(suggestedYearlyBudget.value)
+    }
+  }
+
   async function loadBudgetSettings() {
     const [savedMonthly, savedYearly] = await Promise.all([
       readPersisted(MONTHLY_BUDGET_STORAGE_KEY, ''),
@@ -135,6 +153,13 @@ export function useBudgetCalculation() {
     yearlyBudget,
     monthlyBudgetProgress,
     yearlyBudgetProgress,
+    monthlyAverageSpend,
+    yearlyAverageSpend,
+    spendRangeMonths,
+    hasSpendingHistory,
+    suggestedMonthlyBudget,
+    suggestedYearlyBudget,
+    applySuggestedBudget,
     loadBudgetSettings
   }
 }

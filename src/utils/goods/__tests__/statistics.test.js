@@ -3,6 +3,7 @@ import {
   getItemSpendEntries,
   getEffectiveUnitAcquiredAtList,
   calcPeriodSpend,
+  buildSpendingAverages,
   parseShippingEvents,
   getTotalShippingFee
 } from '../statistics'
@@ -323,5 +324,43 @@ describe('calcPeriodSpend', () => {
     const september = calcPeriodSpend([giftedThenRestocked], (d) => d.getFullYear() === 2026 && d.getMonth() === 8)
     expect(august).toBe(0)
     expect(september).toBeCloseTo(30)
+  })
+})
+
+describe('buildSpendingAverages', () => {
+  it('returns zeros when there is no spend history', () => {
+    expect(buildSpendingAverages([])).toEqual({
+      total: 0,
+      monthCount: 0,
+      monthlyAverage: 0,
+      yearlyAverage: 0
+    })
+    expect(buildSpendingAverages([makeItem({ isWishlist: true })]).monthlyAverage).toBe(0)
+  })
+
+  it('divides total spend by calendar months since the first purchase and annualizes yearly', () => {
+    const list = [
+      makeItem({ id: 'a', actualPrice: '100', acquiredAt: '2026-08-10' }),
+      makeItem({ id: 'b', actualPrice: '200', acquiredAt: '2026-10-02' })
+    ]
+
+    const result = buildSpendingAverages(list, new Date(2026, 10, 26))
+
+    // 2026-08 ~ 2026-11 共 4 个自然月
+    expect(result.total).toBe(300)
+    expect(result.monthCount).toBe(4)
+    expect(result.monthlyAverage).toBe(75)
+    expect(result.yearlyAverage).toBe(900)
+  })
+
+  it('treats the current month as at least one month', () => {
+    const result = buildSpendingAverages(
+      [makeItem({ actualPrice: '500', acquiredAt: '2026-11-20' })],
+      new Date(2026, 10, 26)
+    )
+
+    expect(result.monthCount).toBe(1)
+    expect(result.monthlyAverage).toBe(500)
+    expect(result.yearlyAverage).toBe(6000)
   })
 })

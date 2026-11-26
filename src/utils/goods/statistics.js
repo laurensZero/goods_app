@@ -312,6 +312,37 @@ export function calcPeriodSpend(goodsList, dateMatcher) {
   return total
 }
 
+/**
+ * 每月 / 每年平均消费（预算推荐用）。
+ * 口径与 calcPeriodSpend 一致：逐份、排除愿望单与已出份，运费挂各自月份。
+ * 月均 = 历史总花费 /「首笔消费月份 ~ 当前月份」的自然月数（含首尾，至少 1）。
+ * 年均 = 月均 × 12（不足一年也按年化推算，便于直接设年度预算）。
+ * @param {any[]} goodsList
+ * @param {Date} [now]
+ * @returns {{ total: number, monthCount: number, monthlyAverage: number, yearlyAverage: number }}
+ */
+export function buildSpendingAverages(goodsList, now = new Date()) {
+  const result = { total: 0, monthCount: 0, monthlyAverage: 0, yearlyAverage: 0 }
+  if (!Array.isArray(goodsList)) return result
+
+  let earliest = null
+  for (const item of goodsList) {
+    for (const { date, price } of getItemSpendEntries(item)) {
+      result.total += price
+      if (!earliest || date < earliest) earliest = date
+    }
+  }
+  if (!earliest || result.total <= 0) return result
+
+  const monthSpan = (now.getFullYear() - earliest.getFullYear()) * 12
+    + (now.getMonth() - earliest.getMonth())
+    + 1
+  result.monthCount = Math.max(1, monthSpan)
+  result.monthlyAverage = result.total / result.monthCount
+  result.yearlyAverage = result.monthlyAverage * 12
+  return result
+}
+
 // ─── Heatmap ───
 
 export function buildHeatmapData(list) {

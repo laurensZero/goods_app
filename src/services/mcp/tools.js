@@ -10,7 +10,7 @@
 import { MCP_WRITE_TOOL_DEFINITIONS, MCP_SERVER_INFO, MCP_SERVER_INSTRUCTIONS, getToolDefinitions } from './toolDefinitions'
 import { createMcpRequestHandler, McpUnknownToolError } from './protocol'
 import { buildSaleLedger, extractSaleEntries, SOLD_STATUS } from '../../utils/goods/saleStats'
-import { getItemSpendEntries, getEffectiveUnitAcquiredAtList } from '../../utils/goods/statistics'
+import { getItemSpendEntries, getEffectiveUnitAcquiredAtList, buildSpendingAverages } from '../../utils/goods/statistics'
 import { fetchTrackLyrics } from '../../utils/music/trackLyrics'
 import { normalizeGoodsImageList } from '../../utils/goods/images'
 import { normalizeCustomFieldDefs, isCustomFieldInScope } from '../../utils/goods/customFields'
@@ -1819,6 +1819,7 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
     const now = new Date()
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     const currentYearKey = String(now.getFullYear())
+    const averages = buildSpendingAverages(items, now)
 
     /** @param {number} spent @param {number} budget */
     function progress(spent, budget) {
@@ -1848,7 +1849,13 @@ export function createMcpToolHandlers(dbApi, money = {}, budgetApi = null, image
       byYear: [...yearSpend.entries()]
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([year, spent]) => ({ year, spent: roundMoney(spent), budget: yearlyBudget, overBudget: yearlyBudget > 0 && spent > yearlyBudget })),
-      hint: '看 current 与 overBudget；改预算 budget_set（0=清除）'
+      averages: {
+        monthly: roundMoney(averages.monthlyAverage),
+        yearly: roundMoney(averages.yearlyAverage),
+        months: averages.monthCount,
+        note: '月均按首笔消费至今的自然月数折算，年均 = 月均 × 12；可据此用 budget_set 建议预算'
+      },
+      hint: '看 current 与 overBudget；averages 给月均/年均消费，可据此建议预算；改预算 budget_set（0=清除）'
     }
   }
 
